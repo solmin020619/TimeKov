@@ -22,32 +22,38 @@ public class PlayerTime : MonoBehaviour
         InitTime();
     }
 
+    // Time을 초기화(레이드 시작 시 , 기지 복귀 후)
     public void InitTime()
     {
         maxTime = baseMaxTime;
         currentTime = maxTime;
 
+        // UI에 처음값 알리기
         onTimeChanged?.Invoke(currentTime, maxTime);
     }
 
     private void Update()
     {
+        // 레이드 중일떄만 Time이 초당 감소
         if (!isInRaid) return;
 
         float decay = timeDecay * zoneDecayMultiplier * Time.deltaTime;
         ApplyTimeChange(-decay);
     }
 
+    // 피해를 입을떄 호출
     public void TakeDamage(float amount)
     {
         ApplyTimeChange(-amount);
     }
 
+    // Time 회복
     public void Recover(float amount)
     {
         ApplyTimeChange(amount);
     }
 
+    // Time값을 변경하고 바뀌었으면 이벤트 발생
     private void ApplyTimeChange(float delta)
     {
         float old = currentTime;                                            // 변경하기전 이전 Time값 저장
@@ -64,6 +70,7 @@ public class PlayerTime : MonoBehaviour
         }
     }
 
+    // Time이 0이 되었을떄 호출
     private void HandleTimeDepleted()
     {
         Debug.Log("레이드 실패");

@@ -28,13 +28,6 @@ public class PlayerController : MonoBehaviour
     public int baseDefense;                                 // 기본 방어력
     public int baseAttack;                                  // 기본 공격력
 
-    [Header("Attack")]
-    public float attackCooldown = 0.25f;                    // 공격 쿨타임 (초)
-    public float attackRange = 20f;                         // 사거리
-    public LayerMask attackLayerMask;                       // 맞출 대상 레이어 (Enemy만 포함)
-
-    private float attackTimer = 0f;                         // 쿨타임 타이머
-
     [Header("Look")]
     public LayerMask groundLayerMask;                       // 바닥 레이어 (Ground)
     public float minLookDistance = 0.5f;                    // 너무 가까우면 회전 무시
@@ -62,11 +55,12 @@ public class PlayerController : MonoBehaviour
 
         if (playerTime != null)
         {
+            // PlayerTime 초기 세팅을 PlayerController값에 맞게 넘겨줌
             playerTime.baseMaxTime = baseMaxTime;
             playerTime.timeDecay = timeDecay;
             playerTime.isInRaid = true;                 // 레이드 씬에서는 자동 true
 
-            // 이벤트 이름은 PlayerTime 쪽이랑 맞춰야 함 (예: OnTimeDepleted)
+            // Time이 0이 되었을떄 사망처리 콜백 연결
             playerTime.onTimeDepleted += OnPlayerDeath;
         }
 
@@ -77,17 +71,17 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         HandleInput();      // WASD 입력
-        HandleMovement();   // 이동 벡터 계산
-        HandleStamina();    // 스테미나 회복
+        HandleMovement();   // 이동 방향/속도 계산
+        HandleStamina();    // 스테미나 회복/소모 처리
         HandleDashInput();  // 대시 입력
-        HandleAttack();     // 공격처리
 
         ApplyMovement();    //종 이동 (항상 여기에서만 Move 호출)
     }
 
+    // 카메라가 LateUpdate에서 따라온 후 기준으로 마우스 회전 처리 -> 떨리는 현상 해결
     void LateUpdate()
     {
-        HandleLook();       // 마우스 바라보는 방향으로 회전
+        HandleLook();       // 마우스 위치 기준으로 플레이어 회전
     }
 
     // 입력
@@ -96,9 +90,10 @@ public class PlayerController : MonoBehaviour
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
 
+        // XZ 평면에서의 이동 방향 y는 0
         moveInput = new Vector3(h, 0f, v);
 
-        // 대각선 움직임 속도 일정하게
+        // 대각선 이동시 속도가 빨라지는 현상을 방지하기 위해 정규화
         if (moveInput.sqrMagnitude > 1f)
             moveInput.Normalize();
     }
@@ -123,12 +118,13 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 카메라 기준 방향 가져오기
+        // 카메라 기준으로 방향 계산(쿼터뷰 방식)
         Camera cam = Camera.main;
         Vector3 moveDir;
 
         if (cam != null)
         {
+            // 카메라의 앞/오른쪽 방향에서 Y를 제거해 수평방향으로만 사용
             Vector3 camForward = cam.transform.forward;
             Vector3 camRight = cam.transform.right;
 
@@ -138,22 +134,24 @@ public class PlayerController : MonoBehaviour
             camForward.Normalize();
             camRight.Normalize();
 
-            // 카메라 기준 이동 방향
+            // 입력 백터를 카메라 기준으로 변환
             moveDir = camRight * moveInput.x + camForward * moveInput.z;
         }
         else
         {
-            // 혹시 카메라 못 찾으면 자기 기준으로라도 이동
+            // 카메라가 없다면 플레이어 자신의 축 기준으로 이동
             moveDir = transform.right * moveInput.x + transform.forward * moveInput.z;
         }
 
         // 달리기
         bool runKey = Input.GetKey(KeyCode.LeftShift);
+        // 스테미나가 달리기 코스트 이상일떄만 달리기 가능
         bool canRun = currentStamina >= runSpeedCost;
         bool wantRun = runKey && canRun;
 
         float speed = wantRun ? runSpeed : moveSpeed;
 
+        // 실제로 달릴떄 스테미나 소모
         if (wantRun)
         {
             isRunning = true;
@@ -162,7 +160,7 @@ public class PlayerController : MonoBehaviour
                 currentStamina = 0f;
         }
 
-        // 이번 프레임 이동 속도 (방향 * 속도)
+        // 최종 이동 속도 벡터 (방향 * 속도)
         moveVelocity = moveDir.normalized * speed;
     }
 
@@ -172,11 +170,12 @@ public class PlayerController : MonoBehaviour
         Camera cam = Camera.main;
         if (cam == null) return;
 
+        // 화면상의 마우스 위치에서 월드로 나가는 Ray
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
         Vector3 hitPoint;
         bool hitFound = false;
 
-        // 바닥 레이어 Raycast 먼저 시도
+        // 바닥 레이어에 콜라이더가 있다면 거기 먼저 Raycast
         if(Physics.Raycast(ray,out RaycastHit hit, 1000f, groundLayerMask))
         {
             hitPoint = hit.point;
@@ -184,7 +183,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // 바닥 콜라이더가 없으면 y=0 평면 기준으로라도 계산
+            // 바닥 콜라이더가 없거나 안맞으면 y=0 평면 기준으로라도 계산
             Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
             if(groundPlane.Raycast(ray,out float enter))
             {
@@ -210,6 +209,7 @@ public class PlayerController : MonoBehaviour
         if (lookDir.sqrMagnitude < minLookDistance * minLookDistance)
             return;
 
+        // 해당 방향을 향하도록 회전 -> Slerp로 부드럽게
         Quaternion targetRot = Quaternion.LookRotation(lookDir);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
     
@@ -231,6 +231,7 @@ public class PlayerController : MonoBehaviour
     {
         if (isDashing) return;
 
+        // Space 입력 + 스테미나 충분할떄만 Dash 시작
         if (Input.GetKeyDown(KeyCode.Space) && currentStamina >= dashCost)
         {
             Vector3 dashDir;
@@ -291,45 +292,16 @@ public class PlayerController : MonoBehaviour
     // 최종 이동 적용
     void ApplyMovement()
     {
+        // 걷기/달리기 + 대시 속도를 합친 최종 속도
         Vector3 finalVelocity = moveVelocity + dashVelocity;
 
         // Y축은 따로 안 건드리니, 평평한 맵 기준으로 수평 이동만 함
         controller.Move(finalVelocity * Time.deltaTime);
     }
 
-    // 공격 처리
-    void HandleAttack()
+    void HandleAttackInput()
     {
-        // 쿨타임 감소
-        if (attackTimer > 0f)
-            attackTimer -= Time.deltaTime;
-
-        // 좌클릭 입력 + 쿨타임 체크
-        if (Input.GetMouseButtonDown(0) && attackTimer <= 0f)
-        {
-            attackTimer = attackCooldown;
-
-            // 플레이어 가슴/머리쯤에서 앞으로 Ray 쏘기
-            Vector3 origin = transform.position + Vector3.up * 1.0f;
-            Vector3 dir = transform.forward;
-
-            if (Physics.Raycast(origin, dir, out RaycastHit hit, attackRange, attackLayerMask))
-            {
-                Debug.DrawLine(origin, hit.point, Color.red, 0.2f);
-
-                EnemyHealth enemy = hit.collider.GetComponent<EnemyHealth>();
-
-                if (enemy != null)
-                {
-                    enemy.TakeDamage(baseAttack);       // playerController의 baseAttack 사용
-                }
-            }
-            else
-            {
-                // 디버그 레이 표시
-                Debug.DrawRay(origin, dir * attackRange, Color.yellow, 0.2f);
-            }
-        }
+        // 현재는 PlayerWeaponController에서 처리
     }
 
     // 사망 처리
@@ -343,6 +315,7 @@ public class PlayerController : MonoBehaviour
         // TODO: 애니메이션 Dead, 사망 UI, 베이스 귀환 로직
     }
 
+    // 외부 UI등에서 스테미나 관련 설정용도
     public float GetStamina() => currentStamina;
     public float GetStaminaMax() => staminaMax;
 }
