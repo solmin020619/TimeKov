@@ -37,6 +37,7 @@ public class PlayerController : MonoBehaviour
     public float currentStamina;                            // 현재 스테미나
 
     private CharacterController controller;
+    private Rigidbody rb;
     private bool isRunning;                                 // 달리는지
     private bool isDashing;                                 // 대쉬중인지
 
@@ -49,6 +50,7 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        rb = GetComponent<Rigidbody>();
 
         // Time 시스템 가져오기
         playerTime = GetComponent<PlayerTime>();
@@ -314,6 +316,10 @@ public class PlayerController : MonoBehaviour
 
         // TODO: 애니메이션 Dead, 사망 UI, 베이스 귀환 로직
     }
+
+    public Vector3 MoveInput => moveInput;
+    public bool IsRunning => isRunning;
+    public bool IsDashing => isDashing;
 
     // 외부 UI등에서 스테미나 관련 설정용도
     public float GetStamina() => currentStamina;
