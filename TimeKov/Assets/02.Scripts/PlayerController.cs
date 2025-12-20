@@ -2,288 +2,193 @@ using System.Collections;
 using NUnit.Framework.Interfaces;
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(CapsuleCollider))]
 public class PlayerController : MonoBehaviour
 {
-    public string playerName = "";                          // ÇÃ·¹ÀÌ¾î ÀÌ¸§
+    public string playerName = "";                          // ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ ï¿½Ì¸ï¿½
 
     [Header("Time")]
-    public int baseMaxTime;                                 // ÃÊ±â ÃÖ´ë Å¸ÀÓ = Ã¼·Â
-    public int timeDecay;                                   // Raid¿¡¼­ ÃÊ´ç Å¸ÀÓ = Ã¼·Â °¨¼Ò
+    public int baseMaxTime;                                 // ï¿½Ê±ï¿½ ï¿½Ö´ï¿½ Å¸ï¿½ï¿½ = Ã¼ï¿½ï¿½
+    public int timeDecay;                                   // Raidï¿½ï¿½ï¿½ï¿½ ï¿½Ê´ï¿½ Å¸ï¿½ï¿½ = Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
     [Header("Movement")]
-    public float moveSpeed = 5f;                            // ÀÌµ¿¼Óµµ(°È±â) ½ºÅ×¹Ì³ª »ç¿ëÇÏÁö¾ÊÀ½
-    public float runSpeed = 8f;                             // ÀÌµ¿¼Óµµ(¶Ù±â) ½ºÅ×¹Ì³ª »ç¿ëÇÔ
-    public float rotationSpeed = 10f;                       // È¸Àü ºÎµå·´°Ô
+    public float moveSpeed = 5f;                            // ï¿½Ìµï¿½ï¿½Óµï¿½(ï¿½È±ï¿½) ï¿½ï¿½ï¿½×¹Ì³ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    public float runSpeed = 8f;                             // ï¿½Ìµï¿½ï¿½Óµï¿½(ï¿½Ù±ï¿½) ï¿½ï¿½ï¿½×¹Ì³ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
+    public float rotationSpeed = 10f;                       // È¸ï¿½ï¿½ ï¿½Îµå·´ï¿½ï¿½
 
     [Header("Stamina")]
-    public float staminaMax = 100f;                         // ÃÖ´ë ½ºÅ×¹Ì³ª 100À¸·Î °íÁ¤
-    public float staminaRegen = 5f;                         // ÃÊ´ç ½ºÅ×¹Ì³ª È¸º¹¼Óµµ
-    public float runSpeedCost = 10f;                        // ¶Û‹š »ç¿ëÇÏ´Â ½ºÅ×¹Ì³ª(ÃÊ´ç)
-    public float dashDistance = 3f;                         // ´ë½Ã°Å¸®
-    public float dashDuration = 0.15f;                      // ´ë½¬ ½Ã°£(ÃÊ)
-    public float dashCost = 30f;                            // ´ë½ÃÇÒ‹š »ç¿ëÇÏ´Â ½ºÅ×¹Ì³ª
+    public float staminaMax = 100f;                         // ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½×¹Ì³ï¿½ 100ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    public float staminaRegen = 5f;                         // ï¿½Ê´ï¿½ ï¿½ï¿½ï¿½×¹Ì³ï¿½ È¸ï¿½ï¿½ï¿½Óµï¿½
+    public float runSpeedCost = 10f;                        // ï¿½Û‹ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½×¹Ì³ï¿½(ï¿½Ê´ï¿½)
+    public float dashDistance = 3f;                         // ï¿½ï¿½Ã°Å¸ï¿½
+    public float dashDuration = 0.15f;                      // ï¿½ë½¬ ï¿½Ã°ï¿½(ï¿½ï¿½)
+    public float dashCost = 30f;                            // ï¿½ï¿½ï¿½ï¿½Ò‹ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½×¹Ì³ï¿½
 
     [Header("Combat")]
-    public int baseDefense;                                 // ±âº» ¹æ¾î·Â
-    public int baseAttack;                                  // ±âº» °ø°Ý·Â
+    public int baseDefense;                                 // ï¿½âº» ï¿½ï¿½ï¿½ï¿½
+    public int baseAttack;                                  // ï¿½âº» ï¿½ï¿½ï¿½Ý·ï¿½
 
     [Header("Look")]
-    public LayerMask groundLayerMask;                       // ¹Ù´Ú ·¹ÀÌ¾î (Ground)
-    public float minLookDistance = 0.5f;                    // ³Ê¹« °¡±î¿ì¸é È¸Àü ¹«½Ã
+    public LayerMask groundLayerMask;                       // ï¿½Ù´ï¿½ ï¿½ï¿½ï¿½Ì¾ï¿½ (Ground)
+    public float minLookDistance = 0.5f;                    // ï¿½Ê¹ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    // ³»ºÎ »ç¿ë º¯¼ö
-    private Vector3 moveInput;                              // ÀÔ·Â ¹æÇâ WASD
-    public float currentStamina;                            // ÇöÀç ½ºÅ×¹Ì³ª
+    [Header("GroundCheck")]
+    public float groundCheckDistance = 0.2f;                // Ä¸ï¿½ï¿½ ï¿½Æ·ï¿½ï¿½ï¿½ Ã¼Å©
+    public float groundStickForce = 30f;                    // ï¿½Ù´Ú¿ï¿½ ï¿½ï¿½ï¿½Ì±ï¿½ï¿½(ï¿½ï¿½ç¿¡ï¿½ï¿½ ï¿½ß´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È­)
 
-    private CharacterController controller;
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    private Vector3 moveInput;                              // ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ WASD
+    private Vector3 dashVelocity;                           // ï¿½ë½¬ ï¿½ï¿½ ï¿½Óµï¿½
+    public float currentStamina;                            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½×¹Ì³ï¿½
+    
     private Rigidbody rb;
-    private bool isRunning;                                 // ´Þ¸®´ÂÁö
-    private bool isDashing;                                 // ´ë½¬ÁßÀÎÁö
-
     private PlayerTime playerTime;
 
-    // ÀÌµ¿ º¤ÅÍ
-    private Vector3 moveVelocity = Vector3.zero;            // Æò¼Ò ÀÌµ¿ ¼Óµµ
-    private Vector3 dashVelocity = Vector3.zero;            // ´ë½¬ Ãß°¡ ¼Óµµ
+    private bool isRunning;                                 // ï¿½Þ¸ï¿½ï¿½ï¿½ï¿½ï¿½
+    private bool isDashing;                                 // ï¿½ë½¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    private bool isGrounded;                                // ï¿½Ù´Ú¿ï¿½ ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½ï¿½
+
+    // ï¿½Üºï¿½(ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½)ï¿½ï¿½ï¿½ï¿½ ï¿½Ð±ï¿½
+    public Vector3 MoveInput => moveInput;
+    public bool IsRunning => isRunning;
+    public bool IsDashing => isDashing;
+    public bool IsGrounded => isGrounded;
 
     void Start()
     {
-        controller = GetComponent<CharacterController>();
         rb = GetComponent<Rigidbody>();
 
-        // Time ½Ã½ºÅÛ °¡Á®¿À±â
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ò‹ï¿½ ï¿½ï¿½ï¿½×¹Ì³ï¿½ ï¿½Ö´ï¿½ï¿½ Ã¤ï¿½ï¿½ï¿½
+        currentStamina = staminaMax;
+
+        // Time ï¿½Ã½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         playerTime = GetComponent<PlayerTime>();
 
         if (playerTime != null)
         {
-            // PlayerTime ÃÊ±â ¼¼ÆÃÀ» PlayerController°ª¿¡ ¸Â°Ô ³Ñ°ÜÁÜ
+            // PlayerTime ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ PlayerControllerï¿½ï¿½ï¿½ï¿½ ï¿½Â°ï¿½ ï¿½Ñ°ï¿½ï¿½ï¿½
             playerTime.baseMaxTime = baseMaxTime;
             playerTime.timeDecay = timeDecay;
-            playerTime.isInRaid = true;                 // ·¹ÀÌµå ¾À¿¡¼­´Â ÀÚµ¿ true
+            playerTime.isInRaid = true;                 // ï¿½ï¿½ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ true
 
-            // TimeÀÌ 0ÀÌ µÇ¾úÀ»‹š »ç¸ÁÃ³¸® ÄÝ¹é ¿¬°á
+            // Timeï¿½ï¿½ 0ï¿½ï¿½ ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã³ï¿½ï¿½ ï¿½Ý¹ï¿½ ï¿½ï¿½ï¿½ï¿½
             playerTime.onTimeDepleted += OnPlayerDeath;
         }
-
-        // ½ÃÀÛÇÒ‹š ½ºÅ×¹Ì³ª ÃÖ´ë·Î Ã¤¿ì±â
-        currentStamina = staminaMax;
     }
 
     void Update()
     {
-        HandleInput();      // WASD ÀÔ·Â
-        HandleMovement();   // ÀÌµ¿ ¹æÇâ/¼Óµµ °è»ê
-        HandleStamina();    // ½ºÅ×¹Ì³ª È¸º¹/¼Ò¸ð Ã³¸®
-        HandleDashInput();  // ´ë½Ã ÀÔ·Â
-
-        ApplyMovement();    //Á¾ ÀÌµ¿ (Ç×»ó ¿©±â¿¡¼­¸¸ Move È£Ãâ)
+        HandleInput();      // ï¿½Ô·ï¿½ ï¿½Þ±ï¿½
+        HandleStamina();    // ï¿½ï¿½ï¿½×¹Ì³ï¿½ È¸ï¿½ï¿½/ï¿½Ò¸ï¿½ Ã³ï¿½ï¿½
+        HandleDashInput();  // ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½
     }
 
-    // Ä«¸Þ¶ó°¡ LateUpdate¿¡¼­ µû¶ó¿Â ÈÄ ±âÁØÀ¸·Î ¸¶¿ì½º È¸Àü Ã³¸® -> ¶³¸®´Â Çö»ó ÇØ°á
+    private void FixedUpdate()
+    {
+        GroundCheck();      // ï¿½Ù´ï¿½ Ã¼Å©
+        MoveRigidbody();    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½
+        ApplyGroundStick(); // ï¿½ï¿½ï¿½/ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    }
+
+    // Ä«ï¿½Þ¶ï¿½ LateUpdateï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ì½º È¸ï¿½ï¿½ Ã³ï¿½ï¿½ -> ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ø°ï¿½
     void LateUpdate()
     {
-        HandleLook();       // ¸¶¿ì½º À§Ä¡ ±âÁØÀ¸·Î ÇÃ·¹ÀÌ¾î È¸Àü
+        HandleLook();       // ï¿½ï¿½ï¿½ì½º ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ È¸ï¿½ï¿½
     }
 
-    // ÀÔ·Â
     void HandleInput()
     {
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
 
-        // XZ Æò¸é¿¡¼­ÀÇ ÀÌµ¿ ¹æÇâ y´Â 0
         moveInput = new Vector3(h, 0f, v);
 
-        // ´ë°¢¼± ÀÌµ¿½Ã ¼Óµµ°¡ »¡¶óÁö´Â Çö»óÀ» ¹æÁöÇÏ±â À§ÇØ Á¤±ÔÈ­
-        if (moveInput.sqrMagnitude > 1f)
-            moveInput.Normalize();
+        if (moveInput.sqrMagnitude > 1f) moveInput.Normalize();
     }
-
-    // ÀÌµ¿ ¹éÅÍ¸¸ °è»ê
-    void HandleMovement()
+    void MoveRigidbody()
     {
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (isDashing)
         {
-            // ´ë½¬ Áß¿¡´Â ÀÏ¹Ý ÀÌµ¿ º¤ÅÍ´Â 0À¸·Î (´ë½¬ ¼Óµµ¸¸ Àû¿ë)
-            moveVelocity = Vector3.zero;
+            Vector3 velocity = rb.linearVelocity;
+            velocity.x = dashVelocity.x;
+            velocity.z = dashVelocity.z;
+            rb.linearVelocity = velocity;
+            return;
+        }
+
+        // ï¿½Ù¶óº¸´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½
+        Vector3 moveDir = GetMoveDirectionLocal();
+
+
+        // ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        if (moveDir.sqrMagnitude < 0.001f)
+        {
+            Vector3 velocity2 = rb.linearVelocity;
+            velocity2.x = 0f;
+            velocity2.z = 0f;
+            rb.linearVelocity = velocity2;
             isRunning = false;
             return;
         }
-
-        isRunning = false;
-
-        // ÀÔ·Â ¾øÀ¸¸é ¸ØÃã
-        if (moveInput.sqrMagnitude < 0.001f)
-        {
-            moveVelocity = Vector3.zero;
-            return;
-        }
-
-        // Ä«¸Þ¶ó ±âÁØÀ¸·Î ¹æÇâ °è»ê(ÄõÅÍºä ¹æ½Ä)
-        Camera cam = Camera.main;
-        Vector3 moveDir;
-
-        if (cam != null)
-        {
-            // Ä«¸Þ¶óÀÇ ¾Õ/¿À¸¥ÂÊ ¹æÇâ¿¡¼­ Y¸¦ Á¦°ÅÇØ ¼öÆò¹æÇâÀ¸·Î¸¸ »ç¿ë
-            Vector3 camForward = cam.transform.forward;
-            Vector3 camRight = cam.transform.right;
-
-            // XZ Æò¸é¿¡ Åõ¿µ
-            camForward.y = 0f;
-            camRight.y = 0f;
-            camForward.Normalize();
-            camRight.Normalize();
-
-            // ÀÔ·Â ¹éÅÍ¸¦ Ä«¸Þ¶ó ±âÁØÀ¸·Î º¯È¯
-            moveDir = camRight * moveInput.x + camForward * moveInput.z;
-        }
-        else
-        {
-            // Ä«¸Þ¶ó°¡ ¾ø´Ù¸é ÇÃ·¹ÀÌ¾î ÀÚ½ÅÀÇ Ãà ±âÁØÀ¸·Î ÀÌµ¿
-            moveDir = transform.right * moveInput.x + transform.forward * moveInput.z;
-        }
-
-        // ´Þ¸®±â
+        
+        // ï¿½Þ¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         bool runKey = Input.GetKey(KeyCode.LeftShift);
-        // ½ºÅ×¹Ì³ª°¡ ´Þ¸®±â ÄÚ½ºÆ® ÀÌ»óÀÏ‹š¸¸ ´Þ¸®±â °¡´É
         bool canRun = currentStamina >= runSpeedCost;
         bool wantRun = runKey && canRun;
 
         float speed = wantRun ? runSpeed : moveSpeed;
 
-        // ½ÇÁ¦·Î ´Þ¸±‹š ½ºÅ×¹Ì³ª ¼Ò¸ð
+        // ï¿½Þ¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¹Ì³ï¿½ ï¿½Ò¸ï¿½
+        isRunning = false;
         if (wantRun)
         {
             isRunning = true;
-            currentStamina -= runSpeedCost * Time.deltaTime;
-            if (currentStamina < 0f)
-                currentStamina = 0f;
+            currentStamina -= runSpeedCost * Time.fixedDeltaTime;
+            currentStamina = Mathf.Max(0f, currentStamina);
         }
 
-        // ÃÖÁ¾ ÀÌµ¿ ¼Óµµ º¤ÅÍ (¹æÇâ * ¼Óµµ)
-        moveVelocity = moveDir.normalized * speed;
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½(Yï¿½ï¿½ RigidBody ï¿½ß·ï¿½ ï¿½ï¿½ï¿½ï¿½)
+        Vector3 desired = moveDir.normalized * speed;
+        Vector3 finalVelocity = rb.linearVelocity;
+        finalVelocity.x = desired.x;
+        finalVelocity.z = desired.z;
+        rb.linearVelocity = finalVelocity;
     }
 
-    // ¸¶¿ì½º ¹æÇâ È¸Àü
-    void HandleLook()
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+    Vector3 GetMoveDirectionLocal()
     {
-        Camera cam = Camera.main;
-        if (cam == null) return;
-
-        // È­¸é»óÀÇ ¸¶¿ì½º À§Ä¡¿¡¼­ ¿ùµå·Î ³ª°¡´Â Ray
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        Vector3 hitPoint;
-        bool hitFound = false;
-
-        // ¹Ù´Ú ·¹ÀÌ¾î¿¡ ÄÝ¶óÀÌ´õ°¡ ÀÖ´Ù¸é °Å±â ¸ÕÀú Raycast
-        if(Physics.Raycast(ray,out RaycastHit hit, 1000f, groundLayerMask))
-        {
-            hitPoint = hit.point;
-            hitFound = true;
-        }
-        else
-        {
-            // ¹Ù´Ú ÄÝ¶óÀÌ´õ°¡ ¾ø°Å³ª ¾È¸ÂÀ¸¸é y=0 Æò¸é ±âÁØÀ¸·Î¶óµµ °è»ê
-            Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
-            if(groundPlane.Raycast(ray,out float enter))
-            {
-                hitPoint = ray.GetPoint(enter);
-                hitFound = true;
-            }
-            else
-            {
-                hitFound = false;
-                hitPoint = Vector3.zero;
-            }
-        }
-
-        if (!hitFound) return;
-
-        // ÇÃ·¹ÀÌ¾î ³ôÀÌ¿¡ ¸ÂÃç¼­ ¼öÆò ¹æÇâ¸¸ °è»ê
-        hitPoint.y = transform.position.y;
-
-        Vector3 lookDir = hitPoint - transform.position;
-        lookDir.y = 0f;
-
-        // ³Ê¹« °¡±î¿î °æ¿ì(¹ß¹Ø¿¡ Ä¿¼­ ÀÖÀ» ¶§)´Â È¸ÀüÇÏÁö ¾ÊÀ½ ¡æ ¶³¸² ¹æÁö
-        if (lookDir.sqrMagnitude < minLookDistance * minLookDistance)
-            return;
-
-        // ÇØ´ç ¹æÇâÀ» ÇâÇÏµµ·Ï È¸Àü -> Slerp·Î ºÎµå·´°Ô
-        Quaternion targetRot = Quaternion.LookRotation(lookDir);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
-    
+        Vector3 direction = transform.right * moveInput.x + transform.forward * moveInput.z;
+        direction.y = 0f;
+        return direction;
     }
 
-    // ½ºÅ×¹Ì³ª È¸º¹
-    void HandleStamina()
-    {
-        if (!isRunning && !isDashing)
-        {
-            currentStamina += staminaRegen * Time.deltaTime;
-            if (currentStamina > staminaMax)
-                currentStamina = staminaMax;
-        }
-    }
-
-    // ´ë½Ã ÀÔ·Â Ã³¸®
     void HandleDashInput()
     {
         if (isDashing) return;
 
-        // Space ÀÔ·Â + ½ºÅ×¹Ì³ª ÃæºÐÇÒ‹š¸¸ Dash ½ÃÀÛ
         if (Input.GetKeyDown(KeyCode.Space) && currentStamina >= dashCost)
         {
-            Vector3 dashDir;
-
-            if (moveInput.sqrMagnitude > 0.001f)
-            {
-                // ÀÌµ¿ ÀÔ·ÂÀÌ ÀÖÀ»¶§´Â ±× ¹æÇâÀ¸·Î ´ë½Ã
-                Camera cam = Camera.main;
-
-                if (cam != null)
-                {
-                    Vector3 camForward = cam.transform.forward;
-                    Vector3 camRight = cam.transform.right;
-
-                    camForward.y = 0f;
-                    camRight.y = 0f;
-                    camForward.Normalize();
-                    camRight.Normalize();
-
-                    dashDir = (camRight * moveInput.x + camForward * moveInput.z).normalized;
-                }
-                else
-                {
-                    dashDir = (transform.right * moveInput.x + transform.forward * moveInput.z).normalized;
-                }
-            }
-            else
-            {
-                // ÀÔ·Â ¾øÀ¸¸é ÇöÀç ¹Ù¶óº¸´Â ¹æÇâ ´ë½¬
+            Vector3 dashDir = GetMoveDirectionLocal();
+            if (dashDir.sqrMagnitude < 0.001f)
                 dashDir = transform.forward;
-            }
 
-            StartCoroutine(DashRoutine(dashDir));
+            StartCoroutine(DashRoutine(dashDir.normalized));
         }
     }
 
-    // ´ë½Ã ÄÚ·çÆ¾
-    IEnumerator DashRoutine(Vector3 dashDir)
+    IEnumerator DashRoutine(Vector3 dir)
     {
         isDashing = true;
         isRunning = false;
 
         currentStamina -= dashCost;
-        if (currentStamina < 0f)
-            currentStamina = 0f;
+        currentStamina = Mathf.Max(0f,currentStamina);
 
         float dashSpeed = dashDistance / dashDuration;
-
-        // ´ë½¬ Áß¿¡´Â dashVelocity·Î¸¸ ÀÌµ¿
-        dashVelocity = dashDir * dashSpeed;
+        dashVelocity = dir * dashSpeed;
 
         yield return new WaitForSeconds(dashDuration);
 
@@ -291,37 +196,82 @@ public class PlayerController : MonoBehaviour
         isDashing = false;
     }
 
-    // ÃÖÁ¾ ÀÌµ¿ Àû¿ë
-    void ApplyMovement()
+    void HandleStamina()
     {
-        // °È±â/´Þ¸®±â + ´ë½Ã ¼Óµµ¸¦ ÇÕÄ£ ÃÖÁ¾ ¼Óµµ
-        Vector3 finalVelocity = moveVelocity + dashVelocity;
-
-        // YÃàÀº µû·Î ¾È °Çµå¸®´Ï, ÆòÆòÇÑ ¸Ê ±âÁØÀ¸·Î ¼öÆò ÀÌµ¿¸¸ ÇÔ
-        controller.Move(finalVelocity * Time.deltaTime);
+        if (!isRunning && !isDashing)
+        {
+            currentStamina += staminaRegen * Time.deltaTime;
+            currentStamina = Mathf.Min(staminaMax,currentStamina);
+        }
     }
 
-    void HandleAttackInput()
+    void GroundCheck()
     {
-        // ÇöÀç´Â PlayerWeaponController¿¡¼­ Ã³¸®
+        // Ä¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Raycast
+        Vector3 origin = transform.position + Vector3.up * 0.1f;
+        isGrounded = Physics.Raycast(origin, Vector3.down, groundCheckDistance + 0.1f);
     }
 
-    // »ç¸Á Ã³¸®
+    void ApplyGroundStick()
+    {
+        // ï¿½Ù´Ú¿ï¿½ï¿½ï¿½ ï¿½ï¿½Â¦ ï¿½ï¿½ï¿½ï¿½ "ï¿½ï¿½ï¿½ï¿½" ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È­
+        if (isGrounded && rb.linearVelocity.y <= 0f)
+        {
+            rb.AddForce(Vector3.down * groundStickForce, ForceMode.Acceleration);
+        }
+    }
+
+    void HandleLook()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        Vector3 hitPoint;
+        bool hitFound = false;
+
+        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, groundLayerMask))
+        {
+            hitPoint = hit.point;
+            hitFound = true;
+        }
+        else
+        {
+            Plane plane = new Plane(Vector3.up, Vector3.zero);  
+            if (plane.Raycast(ray, out float enter))
+            {
+                hitPoint = ray.GetPoint(enter);
+                hitFound = true;
+            }
+            else return;
+        }
+
+        hitPoint.y = transform.position.y;
+
+        Vector3 lookDir = hitPoint - transform.position;
+        lookDir.y = 0f;
+
+        if (lookDir.sqrMagnitude < minLookDistance * minLookDistance)
+            return;
+
+        Quaternion targetRot = Quaternion.LookRotation(lookDir);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
+    }
+
+    // ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½
     void OnPlayerDeath()
     {
-        Debug.Log("PlayerController : »ç¸Á Ã³¸® Áß");
+        Debug.Log("PlayerController : ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ ï¿½ï¿½");
 
-        // ¿òÁ÷ÀÓ ¸·±â
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         this.enabled = false;
+        rb.linearVelocity = Vector3.zero;
 
-        // TODO: ¾Ö´Ï¸ÞÀÌ¼Ç Dead, »ç¸Á UI, º£ÀÌ½º ±ÍÈ¯ ·ÎÁ÷
+        // TODO: ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ Dead, ï¿½ï¿½ï¿½ UI, ï¿½ï¿½ï¿½Ì½ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½
     }
 
-    public Vector3 MoveInput => moveInput;
-    public bool IsRunning => isRunning;
-    public bool IsDashing => isDashing;
 
-    // ¿ÜºÎ UIµî¿¡¼­ ½ºÅ×¹Ì³ª °ü·Ã ¼³Á¤¿ëµµ
+    // ï¿½Üºï¿½ UIï¿½î¿¡ï¿½ï¿½ ï¿½ï¿½ï¿½×¹Ì³ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ëµµ
     public float GetStamina() => currentStamina;
     public float GetStaminaMax() => staminaMax;
 }
