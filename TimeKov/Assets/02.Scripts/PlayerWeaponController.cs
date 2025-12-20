@@ -5,7 +5,7 @@ using UnityEngine;
 public class PlayerWeaponController : MonoBehaviour
 {
     [Header("Weapon")]
-    public WeaponData equippedWeapon;    // 현재 들고 있는 무기
+    public WeaponData equippedWeapon;    // 현재 들고 있는 무기 null 이면 맨손
     public Transform muzzle;             // 총구 위치
     public LayerMask hitMask;            // 맞출 대상 (Enemy 레이어)
 
