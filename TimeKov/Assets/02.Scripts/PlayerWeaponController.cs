@@ -34,28 +34,26 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void Update()
     {
-        if (equippedWeapon == null) return;
-
         // 쿨타임 감소
         if (fireCooldown > 0f)
             fireCooldown -= Time.deltaTime;
 
-        // 재장전 중이면 발사 X
+        // 재장전 중이면 발사 입력 무시
         if (isReloading) return;
 
         // 수동 재장전
         if (Input.GetKeyDown(KeyCode.R))
         {
-            if (currentAmmoInMag < equippedWeapon.magazineSize)
+            if (equippedWeapon != null && currentAmmoInMag < equippedWeapon.magazineSize)
                 StartCoroutine(ReloadRoutine());
         }
 
         // 발사 입력
-        bool fireInput = equippedWeapon.isAutomatic
+        bool fireInput = equippedWeapon != null && equippedWeapon.isAutomatic
             ? Input.GetMouseButton(0)      // 자동: 꾹 누르면 계속 발사
             : Input.GetMouseButtonDown(0); // 단발: 클릭마다 한 발
 
-        if (fireInput)
+        if (Input.GetMouseButtonDown(0))
         {
             TryFire();
         }
@@ -63,7 +61,10 @@ public class PlayerWeaponController : MonoBehaviour
 
     void TryFire()
     {
-        // 쿨타임 체크
+        // 무기가 없으면 아무일도 일어나지않음
+        if (equippedWeapon == null) return;
+
+        // 발사 쿨타임 체크
         if (fireCooldown > 0f) return;
 
         // 탄창 비었으면 리턴
@@ -76,9 +77,10 @@ public class PlayerWeaponController : MonoBehaviour
         // 실제 발사
         Fire();
 
-        // fireRate = 초당 발사 수 → 간격 = 1 / fireRate
+        // 발사 간격 설정 fireRate = 초당 발사 수 → 간격 = 1 / fireRate
         fireCooldown = 1f / Mathf.Max(0.01f, equippedWeapon.fireRate);
 
+        // 탄 소모
         currentAmmoInMag--;
     }
 
@@ -228,6 +230,34 @@ public class PlayerWeaponController : MonoBehaviour
         currentAmmoInMag = equippedWeapon.magazineSize;
         isReloading = false;
         Debug.Log("재장전 완료");
+    }
+
+    // 무기 장착
+    public void EquipWeapon(WeaponData newWeapon)
+    {
+        equippedWeapon = newWeapon;
+
+        if(equippedWeapon != null)
+        {
+            currentAmmoInMag = equippedWeapon.magazineSize;
+
+            recoilIndex = 0;
+            fireCooldown = 0;
+
+            Debug.Log($"[Weapon] Equipped: {equippedWeapon.weaponName}");
+        }
+    }
+
+    // 무기 해제
+    public void UnequipWeapon()
+    {
+        equippedWeapon = null;
+        currentAmmoInMag = 0;
+
+        recoilIndex = 0;
+        fireCooldown = 0f;
+
+        Debug.Log("[Weapon] Unequipped");
     }
 
     public int GetCurrentAmmo() => currentAmmoInMag;
