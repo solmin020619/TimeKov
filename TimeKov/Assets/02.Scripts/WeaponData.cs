@@ -14,11 +14,13 @@ public enum WeaponType
 [CreateAssetMenu(menuName ="TimeKov/Weapon Data", fileName = "NewWeaponData")]
 public class WeaponData : ScriptableObject
 {
+    public GameObject equipPrefab;  // 손에 붙일 무기 모델
+
     [Header("Basic Info")]
     public string weaponId;          // "PM", "AK", "MP7"
     public string weaponName;        // 표시용 이름
     public WeaponType weaponType;
-    public float Weight;
+    public float weight;
 
     [Header("Fire Stats")]
     public bool isAutomatic = false; // true면 꾹 눌러서 연사

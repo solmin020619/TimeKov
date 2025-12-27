@@ -14,6 +14,11 @@ public class PlayerWeaponController : MonoBehaviour
     public float bulletSpeed = 40f;     // 탄 이동속도
     public float bulletLifeTime = 2f;   // 탄 사라지는 시간
 
+    [Header("Weapon Equip Visual")]
+    public Transform weaponSocket;      // 오른손 본 or weaponSocket
+    private GameObject equippedWeaponGO;   // 현재 손에 붙은 무기
+
+    private const string MUZZLE_NAME = "Muzzle"; // 장착 프리팹 내부 총구 오브젝트 이름
     private PlayerController playerController;
     private float fireCooldown = 0f;    // 발사 간격을 위한 쿨타임 타이머
     private int currentAmmoInMag;       // 현재 탄창에 남은 탄 수
@@ -25,11 +30,14 @@ public class PlayerWeaponController : MonoBehaviour
     {
         playerController = GetComponent<PlayerController>();
 
+        Debug.Log($"[Start] equippedWeapon = {(equippedWeapon == null ? "NULL" : equippedWeapon.weaponName)}");
+
         if (equippedWeapon != null)
         {
             // 시작할떄 탄창을 꽉 채워줌
             currentAmmoInMag = equippedWeapon.magazineSize;
         }
+
     }
 
     private void Update()
@@ -48,12 +56,17 @@ public class PlayerWeaponController : MonoBehaviour
                 StartCoroutine(ReloadRoutine());
         }
 
-        // 발사 입력
-        bool fireInput = equippedWeapon != null && equippedWeapon.isAutomatic
-            ? Input.GetMouseButton(0)      // 자동: 꾹 누르면 계속 발사
-            : Input.GetMouseButtonDown(0); // 단발: 클릭마다 한 발
+        bool fireInput = false;
 
-        if (Input.GetMouseButtonDown(0))
+        // 무기가 있을 때만 "자동/단발" 규칙 적용
+        if (equippedWeapon != null)
+        {
+            fireInput = equippedWeapon.isAutomatic
+                ? Input.GetMouseButton(0)
+                : Input.GetMouseButtonDown(0);
+        }
+
+        if (fireInput)
         {
             TryFire();
         }
@@ -63,6 +76,12 @@ public class PlayerWeaponController : MonoBehaviour
     {
         // 무기가 없으면 아무일도 일어나지않음
         if (equippedWeapon == null) return;
+
+        if (muzzle == null)
+        {
+            Debug.LogWarning("총구없어서 발사 불가");
+            return;
+        }
 
         // 발사 쿨타임 체크
         if (fireCooldown > 0f) return;
@@ -86,10 +105,8 @@ public class PlayerWeaponController : MonoBehaviour
 
     void Fire()
     {
-        // 총구 위치가 설정되어 있으면 그 위치 아니면 플레이어 머리쯤에서 발사
-        Vector3 origin = muzzle != null
-            ? muzzle.position
-            : (transform.position + Vector3.up * 1.0f);
+        // 총구 위치
+        Vector3 origin = muzzle.position;
 
         // 플레이어가 바라보는 방향
         Vector3 forward = transform.forward;
@@ -237,15 +254,22 @@ public class PlayerWeaponController : MonoBehaviour
     {
         equippedWeapon = newWeapon;
 
+        // 탄창 채우기
         if(equippedWeapon != null)
         {
             currentAmmoInMag = equippedWeapon.magazineSize;
-
-            recoilIndex = 0;
-            fireCooldown = 0;
-
-            Debug.Log($"[Weapon] Equipped: {equippedWeapon.weaponName}");
         }
+        else
+        {
+            currentAmmoInMag = 0;
+        }
+
+        recoilIndex = 0;
+        fireCooldown = 0;
+
+        AttachWeaponVisual();
+
+        Debug.Log($"[Weapon] Equipped: {(equippedWeapon != null ? equippedWeapon.weaponName : "None")}");
     }
 
     // 무기 해제
@@ -257,7 +281,42 @@ public class PlayerWeaponController : MonoBehaviour
         recoilIndex = 0;
         fireCooldown = 0f;
 
+        DetachWeaponVisual();
+
         Debug.Log("[Weapon] Unequipped");
+    }
+
+    void AttachWeaponVisual()
+    {
+        if (weaponSocket == null)
+            return;
+
+        // 기존 무기 제거
+        DetachWeaponVisual();
+
+        if (equippedWeapon == null || equippedWeapon.equipPrefab == null)
+            return;
+
+        equippedWeaponGO = Instantiate(equippedWeapon.equipPrefab, weaponSocket);
+        equippedWeaponGO.transform.localPosition = Vector3.zero;
+        equippedWeaponGO.transform.localRotation = Quaternion.identity;
+        equippedWeaponGO.transform.localScale = Vector3.one;
+
+        muzzle = equippedWeaponGO.transform.Find(MUZZLE_NAME);
+
+        if (muzzle == null)
+        {
+            Debug.LogWarning("총구없음");
+        }
+    }
+
+    void DetachWeaponVisual()
+    {
+        if (equippedWeaponGO != null)
+            Destroy(equippedWeaponGO);
+
+        equippedWeaponGO = null;
+        muzzle = null;
     }
 
     public int GetCurrentAmmo() => currentAmmoInMag;
