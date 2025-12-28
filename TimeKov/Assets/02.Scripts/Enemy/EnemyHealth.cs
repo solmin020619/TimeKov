@@ -1,9 +1,14 @@
 using UnityEngine;
+using System;
 
 public class EnemyHealth : MonoBehaviour
 {
     public float maxHP = 100f;
     public float currentHP;
+
+    // 이벤트 정의
+    public event Action OnDeath;
+    public event Action OnDamage;
 
     private void Awake()
     {
@@ -13,7 +18,9 @@ public class EnemyHealth : MonoBehaviour
     public void TakeDamage(float amount)
     {
         currentHP -= amount;
-        Debug.Log($"{gameObject.name} 피격! 남은 HP: {currentHP}");
+
+        // 데미지 입음 이벤트 호출 -> AI가 듣고 반응함
+        OnDamage?.Invoke();
 
         if (currentHP <= 0f)
         {
@@ -23,6 +30,7 @@ public class EnemyHealth : MonoBehaviour
 
     void Die()
     {
+        OnDeath?.Invoke();
         Debug.Log($"{gameObject.name} 사망");
         Destroy(gameObject);
     }
