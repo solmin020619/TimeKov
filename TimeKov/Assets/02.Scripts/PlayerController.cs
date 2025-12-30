@@ -58,6 +58,8 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.useGravity = false;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;          // 화면 떨림 완화
+        rb.freezeRotation = true;                                       // 물리 충돌로 회전하지않게
 
         // 시작할떄 스테미나 최대로 채우기
         currentStamina = staminaMax;
@@ -92,13 +94,14 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         MoveRigidbody();    // 실제 물리 이동
+        HandleLook();       // 회전 처리
         LockYPosition();    // Y=0 고정
     }
 
     // 카메라가 LateUpdate에서 따라온 후 기준으로 마우스 회전 처리 -> 떨리는 현상 해결
     void LateUpdate()
     {
-        HandleLook();       // 마우스 위치 기준으로 플레이어 회전
+        //HandleLook();       // 마우스 위치 기준으로 플레이어 회전
     }
 
     void HandleInput()
@@ -243,7 +246,10 @@ public class PlayerController : MonoBehaviour
             return;
 
         Quaternion targetRot = Quaternion.LookRotation(lookDir);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
+
+        // 물리회전으로 부드럽게
+        Quaternion newRot = Quaternion.Slerp(rb.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+        rb.MoveRotation(newRot);
     }
 
     // 사망 처리

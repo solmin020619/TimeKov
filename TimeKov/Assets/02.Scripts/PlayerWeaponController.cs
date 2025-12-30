@@ -30,7 +30,7 @@ public class PlayerWeaponController : MonoBehaviour
     {
         playerController = GetComponent<PlayerController>();
 
-        Debug.Log($"[Start] equippedWeapon = {(equippedWeapon == null ? "NULL" : equippedWeapon.weaponName)}");
+        //Debug.Log($"[Start] equippedWeapon = {(equippedWeapon == null ? "NULL" : equippedWeapon.weaponName)}");
 
         if (equippedWeapon != null)
         {
@@ -79,7 +79,7 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (muzzle == null)
         {
-            Debug.LogWarning("총구없어서 발사 불가");
+            //Debug.LogWarning("총구없어서 발사 불가");
             return;
         }
 
@@ -89,7 +89,7 @@ public class PlayerWeaponController : MonoBehaviour
         // 탄창 비었으면 리턴
         if (currentAmmoInMag <= 0)
         {
-            Debug.Log("탄창 비었음 → 재장전 필요");
+            //Debug.Log("탄창 비었음 → 재장전 필요");
             return;
         }
 
@@ -229,7 +229,7 @@ public class PlayerWeaponController : MonoBehaviour
         float finalYaw = baseYaw + patternOffset + randomOffset;
 
         // 반동 확인용 디버그
-        Debug.Log($"[Recoil] idx:{recoilIndex - 1}, pattern:{patternOffset}, random:{randomOffset}, finalYaw:{finalYaw}");
+        //Debug.Log($"[Recoil] idx:{recoilIndex - 1}, pattern:{patternOffset}, random:{randomOffset}, finalYaw:{finalYaw}");
 
         float rad = finalYaw * Mathf.Deg2Rad;
         Vector3 dir = new Vector3(Mathf.Sin(rad), 0f ,Mathf.Cos(rad));
