@@ -1,5 +1,4 @@
 using System.Collections;
-using NUnit.Framework.Interfaces;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -37,36 +36,41 @@ public class PlayerController : MonoBehaviour
     public float fixedY = 0f;                               // 0으로 고정
 
     // 내부 사용 변수
-    private Vector3 moveInput;                              
-    private Vector3 dashVelocity;                           
+    private Vector3 moveInput;                              // wasd 입력값
+    private Vector3 dashVelocity;                           // 대시 속도
     public float currentStamina;                            // 현재 스테미나
-    
-    private Rigidbody rb;
-    private PlayerTime playerTime;
 
     private bool isRunning;                                 // 뛰는지
     private bool isDashing;                                 // 대쉬 중인지
-    private bool isGrounded;                                // 땅에 닿아있는지
+
+    // 회전 캐싱(Update에서 계산 -> FixedUpdate에서 적용)
+    private Quaternion cachedTargetRotation;
+    private bool hasCachedTargetRotation;
+
+    // 컴포넌트 캐싱
+    private Rigidbody rb;
+    private Camera cachedCam;                               
+    private PlayerTime playerTime;
 
     // 애니메이션(외부)에서 읽기
     public Vector3 MoveInput => moveInput;
     public bool IsRunning => isRunning;
     public bool IsDashing => isDashing;
-    public bool IsGrounded => isGrounded;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.useGravity = false;
-        rb.interpolation = RigidbodyInterpolation.Interpolate;          // 화면 떨림 완화
-        rb.freezeRotation = true;                                       // 물리 충돌로 회전하지않게
+        rb.useGravity = false;                                          // 점프 중력 없음
+        rb.interpolation = RigidbodyInterpolation.Interpolate;          // 물리 보간(화면 떨림 완화)
+        rb.freezeRotation = true;                                       // 물리 충돌로 회전하지않게 고정
+
+        cachedCam = Camera.main;                                        // 메인 카메라 캐싱(Camera.Main 반복 호출 방지)
 
         // 시작할떄 스테미나 최대로 채우기
         currentStamina = staminaMax;
 
-        // Time 시스템 불러오기
+        // Time 시스템 연결
         playerTime = GetComponent<PlayerTime>();
-
         if (playerTime != null)
         {
             // PlayerTime 초기 세팅을 PlayerController값에 맞게 넘겨줌
@@ -82,26 +86,26 @@ public class PlayerController : MonoBehaviour
         Vector3 p = rb.position;
         p.y = fixedY;
         rb.position = p;
+
+        // Y 속도 제거
+        Vector3 v = rb.linearVelocity;
+        v.y = 0f;
+        rb.linearVelocity = v;
     }
 
     void Update()
     {
-        HandleInput();      // 입력 받기 
-        HandleStamina();    // 스테미나 회복/소모 처리
-        HandleDashInput();  // 대쉬 입력
+        HandleInput();          // 입력 받기 
+        HandleStamina();        // 스테미나 회복/소모 처리
+        HandleDashInput();      // 대쉬 입력
+        CacheLookRotation();    // 마우스 방향 게산(Raycast는 여기서만) 
     }
 
     private void FixedUpdate()
     {
-        MoveRigidbody();    // 실제 물리 이동
-        HandleLook();       // 회전 처리
-        LockYPosition();    // Y=0 고정
-    }
-
-    // 카메라가 LateUpdate에서 따라온 후 기준으로 마우스 회전 처리 -> 떨리는 현상 해결
-    void LateUpdate()
-    {
-        //HandleLook();       // 마우스 위치 기준으로 플레이어 회전
+        MoveRigidbody();        // 실제 물리 이동
+        ApplyCachedRotation();  // 회전 적용
+        LockYPosition();        // Y=0 고정
     }
 
     void HandleInput()
@@ -111,6 +115,7 @@ public class PlayerController : MonoBehaviour
 
         moveInput = new Vector3(h, 0f, v);
 
+        // 대각선 속도 보정
         if (moveInput.sqrMagnitude > 1f) moveInput.Normalize();
     }
     void MoveRigidbody()
@@ -126,11 +131,11 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 바라보는 방향 기준 이동
+        // 로컬 기준 이동 방향
         Vector3 moveDir = GetMoveDirectionLocal();
 
 
-        // 입력 없으면 수평 유지
+        // 입력 없으면 정지
         if (moveDir.sqrMagnitude < 0.001f)
         {
             Vector3 velocity2 = rb.linearVelocity;
@@ -167,7 +172,7 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = finalVelocity;
     }
 
-    // 로컬 방향 기준 이동 계산
+    // 로컬 방향 기준 이동 계산(플레이어가 바라보는 방향 기준 이동 벡터 계산
     Vector3 GetMoveDirectionLocal()
     {
         Vector3 direction = transform.right * moveInput.x + transform.forward * moveInput.z;
@@ -215,40 +220,55 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void HandleLook()
+    private void CacheLookRotation()
     {
-        Camera cam = Camera.main;
-        if (cam == null) return;
+        if (cachedCam == null) return;
 
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        Ray ray = cachedCam.ScreenPointToRay(Input.mousePosition);
         Vector3 hitPoint;
 
-        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, groundLayerMask))
+        // 바닥 Raycast 우선
+        if(Physics.Raycast(ray,out RaycastHit hit, 1000f, groundLayerMask))
         {
             hitPoint = hit.point;
         }
         else
         {
-            Plane plane = new Plane(Vector3.up, Vector3.zero);  
-            if (plane.Raycast(ray, out float enter))
+            // 바닥이 없으면 평면 기준
+            Plane plane = new Plane(Vector3.up, Vector3.zero);
+            if (!plane.Raycast(ray, out float enter))
             {
-                hitPoint = ray.GetPoint(enter);
+                hasCachedTargetRotation = false;
+                return;
             }
-            else return;
+
+            hitPoint = ray.GetPoint(enter);
         }
 
-        hitPoint.y = transform.position.y;
+        hitPoint.y = fixedY;
 
-        Vector3 lookDir = hitPoint - transform.position;
+        Vector3 from = rb.position;
+        from.y = fixedY;
+
+        Vector3 lookDir = hitPoint - from;
         lookDir.y = 0f;
 
-        if (lookDir.sqrMagnitude < minLookDistance * minLookDistance)
+        // 너무 가까우면 회전 무시(떨림 방지)
+        if(lookDir.sqrMagnitude < minLookDistance * minLookDistance)
+        {
+            hasCachedTargetRotation = false;
             return;
+        }
 
-        Quaternion targetRot = Quaternion.LookRotation(lookDir);
+        cachedTargetRotation = Quaternion.LookRotation(lookDir);
+        hasCachedTargetRotation = true;
+    }
 
-        // 물리회전으로 부드럽게
-        Quaternion newRot = Quaternion.Slerp(rb.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+    private void ApplyCachedRotation()
+    {
+        if(!hasCachedTargetRotation) return;
+
+        Quaternion newRot = Quaternion.Slerp(rb.rotation, cachedTargetRotation, rotationSpeed * Time.fixedDeltaTime);
         rb.MoveRotation(newRot);
     }
 
@@ -269,7 +289,7 @@ public class PlayerController : MonoBehaviour
         // 위치 Y 고정
         Vector3 pos = rb.position;
         pos.y = fixedY;
-        rb.MovePosition(pos);
+        rb.position = pos;
 
         // Y 속도도 제거 (뚝뚝 튐 방지)
         Vector3 v = rb.linearVelocity;
