@@ -1569,7 +1569,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: 8cdf2ce84d82d104aaf3904986007234, type: 3}
       propertyPath: m_Controller
       value: 
-      objectReference: {fileID: 9100000, guid: fd1a85a56dfb7304d86f2c63666ca8df, type: 2}
+      objectReference: {fileID: 9100000, guid: 22b1954c13e48374c95b1bad746a5a38, type: 2}
     - target: {fileID: 5866666021909216657, guid: 8cdf2ce84d82d104aaf3904986007234, type: 3}
       propertyPath: m_WarningMessage
       value: 
@@ -1682,6 +1682,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerController: {fileID: 1149513501}
+  weaponController: {fileID: 1149513505}
+  playerTime: {fileID: 1149513500}
+  basicOverride: {fileID: 22100000, guid: 230f0b13efe377d44adfceb0dcd10441, type: 2}
+  pistolOverride: {fileID: 22100000, guid: 7a23f6a1639343e49928187a6f607a05, type: 2}
+  longGunOverride: {fileID: 22100000, guid: adc583e907c074b4e955156db510a9e9, type: 2}
+  modelRoot: {fileID: 1535904733}
+  logWhenAnimSetChanges: 0
 --- !u!1 &1575655389
 GameObject:
   m_ObjectHideFlags: 0
