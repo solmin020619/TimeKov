@@ -35,6 +35,24 @@ public class MeleeEnemyAI : MonoBehaviour
     public float patrolRadius = 10f;     // 시작 위치 기준 배회 반경
     private Vector3 startPosition;       // 스폰 위치 저장
 
+    [Header("Animation Settings")]
+    [Tooltip("공격 모션 시작 후 실제 타격이 들어가는 시간 (선딜)")]
+    public float attackHitDelay = 0.5f;
+
+    [Tooltip("공격 모션의 전체 길이 (이 시간이 지나야 다음 연타가 나감)")]
+    public float attackAnimLength = 1.5f;
+
+    [Header("Jump Attack Settings")] // 점프 공격 설정
+    public float jumpAttackDamage = 25f;
+    public float jumpAttackRadius = 3.0f; // 일반 공격보다 범위가 넓어야 함 (광역기)
+    [Tooltip("애니메이션 시작 후, 발이 땅에서 떨어지는 시간 (점프 시작)")]
+    public float jumpAttackWindup = 0.5f;
+    [Tooltip("애니메이션 시작 후, 땅을 찍는 시간 (타격)")]
+    public float jumpAttackHitDelay = 0.8f;
+    public float jumpAttackFullTime = 2.0f; // 점프 애니메이션 전체 시간
+    [Range(0f, 1f)] public float jumpChanceOnMiss = 0.7f; // 빗나갔을 때 점프 쓸 확률 (70%)
+    public float jumpLungeSpeed = 10.0f;
+
     // 내부 변수
     private NavMeshAgent agent;
     private Transform playerTransform;   // 플레이어 위치
@@ -44,11 +62,14 @@ public class MeleeEnemyAI : MonoBehaviour
     private float lastAttackTime;
     private float lastProvokedTime = -999f; // 마지막으로 공격당한 시간
     private bool isAttacking = false;
+    private Animator anim;
+    private bool hasPerformedFirstAttack = false;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         myHealth = GetComponent<EnemyHealth>();
+        anim = GetComponentInChildren<Animator>();
 
         if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 2.0f, NavMesh.AllAreas))
         {
@@ -103,6 +124,11 @@ public class MeleeEnemyAI : MonoBehaviour
     {
         if (playerTransform == null) return;
 
+        if (anim != null)
+        {
+            anim.SetFloat("Speed", agent.velocity.magnitude);
+        }
+
         switch (currentState)
         {
             case State.Patrol:
@@ -119,10 +145,27 @@ public class MeleeEnemyAI : MonoBehaviour
 
     void PatrolLogic()
     {
+        if (hasPerformedFirstAttack) hasPerformedFirstAttack = false;
+
         if (!agent.isOnNavMesh) return;
         agent.speed = patrolSpeed;
 
         float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+
+        if (distToPlayer <= proximityRange && HasLineOfSight(distToPlayer))
+        { 
+            currentState = State.Chase; return; 
+        }
+
+        if (CanSeePlayer())
+        { 
+            currentState = State.Chase; return; 
+        }
+
+        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+        {
+            if (!IsInvoking(nameof(SetRandomPatrolDestination))) Invoke(nameof(SetRandomPatrolDestination), patrolWaitTime);
+        }
 
         // 1. 근접 감지 (거리 + 벽 체크)
         if (distToPlayer <= proximityRange)
@@ -181,8 +224,9 @@ public class MeleeEnemyAI : MonoBehaviour
     void ChaseLogic()
     {
         if (!agent.isOnNavMesh) return;
-
         agent.speed = chaseSpeed;
+
+        if (agent.isStopped) agent.isStopped = false;
 
         float dist = Vector3.Distance(transform.position, playerTransform.position);
 
@@ -212,18 +256,29 @@ public class MeleeEnemyAI : MonoBehaviour
 
     void AttackLogic()
     {
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+
         float dist = Vector3.Distance(transform.position, playerTransform.position);
 
-        // 사거리 벗어나면 다시 Chase
         if (dist > attackRange && !isAttacking)
         {
             currentState = State.Chase;
+            agent.isStopped = false;
             return;
         }
 
         if (Time.time >= lastAttackTime + attackCooldown && !isAttacking)
         {
-            StartCoroutine(PerformAttack());
+            if (!hasPerformedFirstAttack)
+            {
+                StartCoroutine(PerformJumpAttack());
+                hasPerformedFirstAttack = true;
+            }
+            else
+            {
+                StartCoroutine(PerformAttack());
+            }
         }
         else if (!isAttacking)
         {
@@ -231,28 +286,143 @@ public class MeleeEnemyAI : MonoBehaviour
         }
     }
 
+    IEnumerator PerformJumpAttack()
+    {
+        isAttacking = true;
+        lastAttackTime = Time.time;
+
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
+
+        Debug.Log("<color=purple>점프 공격(광역) 시전!</color>");
+
+        if (anim != null) anim.SetTrigger("JumpAttack");
+
+        float timer = 0f;
+        while (timer < jumpAttackWindup)
+        {
+            RotateTowards(playerTransform.position, 10f);
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        Vector3 targetPosition = playerTransform.position;
+
+        Debug.DrawLine(transform.position, targetPosition, Color.red, 2.0f);
+
+
+        float airTime = jumpAttackHitDelay - jumpAttackWindup;
+        if (airTime < 0) airTime = 0;
+
+        timer = 0f;
+        while (timer < airTime)
+        {
+            RotateTowards(targetPosition, 10f);
+
+            Vector3 dir = (targetPosition - transform.position).normalized;
+
+            if (Vector3.Distance(transform.position, targetPosition) > 0.2f)
+            {
+                agent.Move(dir * jumpLungeSpeed * Time.deltaTime);
+            }
+
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, jumpAttackRadius, targetMask);
+        bool hitAnyone = false;
+        foreach (var hitCollider in hitColliders)
+        {
+            PlayerTime targetTime = hitCollider.GetComponent<PlayerTime>();
+            if (targetTime != null)
+            {
+                targetTime.TakeDamage(jumpAttackDamage);
+                Debug.Log($"<color=red>점프 찍기 쾅! -{jumpAttackDamage}</color>");
+                hitAnyone = true;
+            }
+        }
+
+        if (!hitAnyone) Debug.Log("<color=blue>점프 공격 빗나감 (회피 성공)</color>");
+
+        float remainingWait = jumpAttackFullTime - jumpAttackHitDelay;
+        if (remainingWait < 0) remainingWait = 0;
+        yield return new WaitForSeconds(remainingWait);
+
+        isAttacking = false;
+        currentState = State.Chase;
+        agent.isStopped = false;
+    }
+
     IEnumerator PerformAttack()
     {
         isAttacking = true;
         lastAttackTime = Time.time;
+        agent.isStopped = true;
+        agent.velocity = Vector3.zero;
 
         int comboCount = Random.Range(1, 3);
 
         for (int i = 0; i < comboCount; i++)
         {
-            yield return new WaitForSeconds(0.3f);
+            if (anim != null) anim.SetTrigger("Attack");
+
+            float timer = 0f;
+            while (timer < attackHitDelay)
+            {
+                RotateTowards(playerTransform.position, 15f);
+                timer += Time.deltaTime;
+                yield return null;
+            }
 
             float d = Vector3.Distance(transform.position, playerTransform.position);
-            if (d <= attackRange + 0.5f)
+            bool isHit = d <= attackRange + 0.8f;
+
+            if (isHit)
             {
-                if (playerTime != null)
+                if (playerTime != null) playerTime.TakeDamage(damageToTime);
+
+                float remainingWait = attackAnimLength - attackHitDelay;
+                if (remainingWait < 0) remainingWait = 0;
+                yield return new WaitForSeconds(remainingWait);
+            }
+            else
+            {
+                Debug.Log("일반 공격 빗나감!");
+
+                if (Random.value < jumpChanceOnMiss)
                 {
-                    playerTime.TakeDamage(damageToTime);
+                    Debug.Log("<color=orange>공격 빗나감 -> 분노의 점프 공격 연계!</color>");
+
+                    StartCoroutine(PerformJumpAttack());
+                    yield break;
+                }
+                else
+                {
+                    Debug.Log("추적으로 복귀");
+                    isAttacking = false;
+                    currentState = State.Chase;
+                    agent.isStopped = false;
+                    yield break;
                 }
             }
-            yield return new WaitForSeconds(0.4f);
         }
+
         isAttacking = false;
+        currentState = State.Chase;
+        agent.isStopped = false;
+    }
+
+    void RotateTowards(Vector3 target, float turnSpeed = 10f)
+    {
+        Vector3 direction = (target - transform.position).normalized;
+        direction.y = 0;
+        if (direction != Vector3.zero)
+        {
+            Quaternion lookRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * turnSpeed);
+        }
     }
 
     void DropLoot() { Debug.Log("아이템 드랍"); }
@@ -308,6 +478,9 @@ public class MeleeEnemyAI : MonoBehaviour
         // 공격 범위 (빨강)
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
+
+        Gizmos.color = new Color(0.5f, 0f, 1f, 0.5f);
+        Gizmos.DrawSphere(transform.position, jumpAttackRadius);
     }
 
     public Vector3 DirFromAngle(float angleInDegrees, bool angleIsGlobal)
