@@ -17,6 +17,10 @@ public class MenuActions : MonoBehaviour
 
     public void OnClickQuit()
     {
-        Application.Quit();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false; // 에디터에서 Play 종료
+#else
+        Application.Quit(); // 빌드에서는 게임 종료
+#endif
     }
 }
