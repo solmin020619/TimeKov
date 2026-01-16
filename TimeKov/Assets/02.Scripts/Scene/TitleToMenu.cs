@@ -8,6 +8,9 @@ public class TitleToMenu : MonoBehaviour
     [Tooltip("타이틀에서 넘어갈 씬 이름")]
     public string nextSceneName = "MainMenu_Scene";
 
+  
+
+
     private void Update()
     {
         //  Title 씬이 아니면 절대 입력 처리하지 않기
@@ -21,7 +24,7 @@ public class TitleToMenu : MonoBehaviour
             enabled = false;
 
             if (SceneLoader.Instance != null)
-                SceneLoader.Instance.LoadTo(nextSceneName);
+                SceneLoader.Instance.LoadDirect(nextSceneName);
         }
     }
 }

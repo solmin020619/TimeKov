@@ -35,8 +35,13 @@ public class SceneLoader : MonoBehaviour
     // 항상 Loading_Scene을 먼저 로드하고, 실제 목표 씬 로드는 LoadingSceneController가 수행한다.
     public void LoadTo(string targetSceneName)
     {
+        
         // 로딩 중이면 추가 요청 무시(중복 클릭 방지)
-        if (isLoading) return;
+        if (isLoading)
+        {
+            
+            return;
+        }
 
         // 씬 이름이 바뀌어있으면 에러
         if (string.IsNullOrEmpty(targetSceneName))
@@ -53,6 +58,18 @@ public class SceneLoader : MonoBehaviour
         // Loading 씬으로 이동
         SceneManager.LoadScene(loadingSceneName);
     }
+
+    public void LoadDirect(string targetSceneName)
+    {
+        if (string.IsNullOrEmpty(targetSceneName))
+            return;
+
+        // 로딩 잠금 해제 (타이틀에서 바로 이동할 때 꼬임 방지)
+        isLoading = false;
+
+        SceneManager.LoadScene(targetSceneName);
+    }
+
 
     // LoadingSceneController가 목표 씬 로드를 완료했을 때 호출.
     // 다음 로드 요청을 받을 수 있도록 잠금 해제.
