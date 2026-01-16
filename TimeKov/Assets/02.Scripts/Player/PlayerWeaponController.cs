@@ -50,6 +50,11 @@ public class PlayerWeaponController : MonoBehaviour
         playerController = GetComponent<PlayerController>();
     }
 
+    private void Start()
+    {
+        //EquipByItemId(1401); // 테스트용
+    }
+
     private void Update()
     {
         // 무기 없으면 아무것도 하지않음

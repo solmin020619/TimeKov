@@ -205,7 +205,9 @@ public class PlayerController : MonoBehaviour
         float dashSpeed = dashDistance / dashDuration;
         dashVelocity = dir * dashSpeed;
 
-        yield return new WaitForSeconds(dashDuration);
+        // dash animation이 안나오는 문제 해결을 위한 0.25초 딜레이 추가
+        float animHold = Mathf.Max(dashDuration, 0.25f);
+        yield return new WaitForSeconds(animHold);
 
         dashVelocity = Vector3.zero;
         isDashing = false;

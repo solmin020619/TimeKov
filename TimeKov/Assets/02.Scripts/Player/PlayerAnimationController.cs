@@ -84,6 +84,9 @@ public class PlayerAnimationController : MonoBehaviour
 
     private void Update()
     {
+        //Debug.Log($"PC IsDashing={playerController.IsDashing}");
+        //Debug.Log($"Anim Has IsDashing? {anim.parameters.Length}");
+
         if (anim == null || playerController == null)
             return;
 
