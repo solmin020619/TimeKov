@@ -24,10 +24,6 @@ public class ItemInfo
     public float RecoilResetTime;
     public int PelletsPerShot;
     public float SpreadAngle;
-
-
-
-
 }
 
 [CreateAssetMenu(fileName = "ItemData", menuName = "Game Data/Item Database")]
@@ -85,9 +81,6 @@ public class ItemDatabase : ScriptableObject
             newItem.RecoilResetTime = float.Parse(data[17]);  // 열여덟번째 칸: 사격 중단 후 반동이 원위치로 돌아오는 시간
             newItem.PelletsPerShot = int.Parse(data[18]);   // 열아홉번째 칸: 한 발 발사 시 생성되는 탄 수
             newItem.SpreadAngle = float.Parse(data[19]);      // 스무번째 칸: 탄 퍼짐 각도
-
-            
-           
 
             // 리스트에 추가
             allItems.Add(newItem);

@@ -7,7 +7,7 @@ public class PlayerAnimationController : MonoBehaviour
     [Tooltip("이동/대쉬/달리기 상태 값을 제공하는 플레이어 컨트롤러")]
     public PlayerController playerController;
 
-    [Tooltip("현재 장착 무기(WeaponData)를 제공하는 무기 컨트롤러")]
+    [Tooltip("현재 장착 무기(itemId)를 제공하는 무기 컨트롤러")]
     public PlayerWeaponController weaponController;
 
     [Tooltip("Time(체력) 소진 시 사망 이벤트를 받기 위한 컴포넌트")]
@@ -33,8 +33,7 @@ public class PlayerAnimationController : MonoBehaviour
 
     private Animator anim;
 
-    // Animator Parameter 해시 (문자열 SetXXX를 매번 호출하는 것보다 안전/빠름)
-    // Animator에 아래 파라미터가 반드시 존재해야 함:
+    // Animator Parameters
     // MoveX(float), MoveY(float), Speed(int), IsDashing(bool), IsDead(bool)
     private static readonly int HashMoveX = Animator.StringToHash("MoveX");
     private static readonly int HashMoveY = Animator.StringToHash("MoveY");
@@ -42,19 +41,12 @@ public class PlayerAnimationController : MonoBehaviour
     private static readonly int HashIsDashing = Animator.StringToHash("IsDashing");
     private static readonly int HashIsDead = Animator.StringToHash("IsDead");
 
-    // 무기/상태에 따른 "애니 세트" 분류 (WeaponType과 다름)
-    // WeaponType: Pistol/Rifle/SMG/Shotgun/Sniper
-    // AnimSet: Basic/Pistol/LongGun (애니 묶음 이름)
     private enum AnimSet { Basic, Pistol, LongGun }
-
-    // 현재 적용 중인 애니 세트 (변경이 있을 때만 runtimeAnimatorController를 교체하기 위한 캐시)
     private AnimSet currentSet = (AnimSet)(-1);
 
-    // Dash 시작 순간의 방향을 저장해두기 위한 값들
-    // Dash 애니가 1개여도 "대쉬 방향이 흔들리지 않게" 처리
+    // Dash 방향 캐시
     private bool wasDashing = false;
-    private Vector2 cachedDashDir = Vector2.up; // 입력이 없을 때 기본값(앞 방향)
-
+    private Vector2 cachedDashDir = Vector2.up;
     private void Awake()
     {
         // Animator 확보
@@ -163,36 +155,32 @@ public class PlayerAnimationController : MonoBehaviour
     // WeaponType -> AnimSet 매핑
     // WeaponData에는 LongGun이라는 타입이 없고,
     // Rifle/SMG/Shotgun/Sniper 같은 여러 타입을 "애니메이션 관점에서" LongGun으로 묶어서 처리한다.
-    private AnimSet GetAnimSetFromWeapon(WeaponData weapon)
+    private AnimSet GetAnimSetFromWeapon(int itemId)
     {
-        // 무기 없으면 맨손(Basic)
-        if (weapon == null)
+        // 0이면 무기 없음
+        if (itemId <= 0)
             return AnimSet.Basic;
 
-        // 권총만 Pistol, 나머지는 전부 LongGun
-        // (WeaponType enum 이름은 WeaponData에 있는 것을 그대로 사용해야 함)
-        switch (weapon.weaponType)
-        {
-            case WeaponType.Pistol:
-                return AnimSet.Pistol;
+        // 권총: 1400~1499
+        if (itemId >= 1400 && itemId < 1500)
+            return AnimSet.Pistol;
 
-            case WeaponType.Rifle:
-            case WeaponType.SMG:
-            case WeaponType.Shotgun:
-            case WeaponType.Sniper:
-                return AnimSet.LongGun;
+        // 장총: 1100~1399 (SR/AR/SMG/SG 포함)
+        if (itemId >= 1100 && itemId < 1400)
+            return AnimSet.LongGun;
 
-            default:
-                // 새로운 타입이 생겨도 일단 장총 취급으로 안전하게 처리
-                return AnimSet.LongGun;
-        }
+        // 무기 범위 밖이면 기본으로
+        return AnimSet.Basic;
     }
 
     // 무기 상태가 바뀌었을 때만 runtimeAnimatorController를 교체(성능/안정성)
     private void UpdateAnimatorOverrideByWeapon()
     {
-        WeaponData w = (weaponController != null) ? weaponController.equippedWeapon : null;
-        AnimSet target = GetAnimSetFromWeapon(w);
+        int equippedId = 0;
+        if (weaponController != null)
+            equippedId = weaponController.GetEquippedItemId();
+
+        AnimSet target = GetAnimSetFromWeapon(equippedId);
 
         if (target == currentSet)
             return;
@@ -200,11 +188,7 @@ public class PlayerAnimationController : MonoBehaviour
         ApplyAnimSet(target);
 
         if (logWhenAnimSetChanges)
-        {
-            string wName = (w != null) ? w.weaponName : "None";
-            string wType = (w != null) ? w.weaponType.ToString() : "None";
-            Debug.Log($"[Anim] Set -> {target} (weapon={wName}, type={wType})");
-        }
+            Debug.Log($"[Anim] Set -> {target} (equippedItemId={equippedId})");
     }
 
     // 실제로 AnimatorOverrideController를 Animator에 적용하는 함수

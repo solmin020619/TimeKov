@@ -4,44 +4,57 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerController))]
 public class PlayerWeaponController : MonoBehaviour
 {
-    [Header("Weapon")]
-    public WeaponData equippedWeapon;    // 현재 들고 있는 무기 null 이면 맨손
-    public Transform muzzle;             // 총구 위치
-    public LayerMask hitMask;            // 맞출 대상 (Enemy 레이어)
-
-    [Header("Bullet visual")]
-    public GameObject bulletPrefab;     // 눈에 보이는 탄 프리팹 
-    public float bulletSpeed = 40f;     // 탄 이동속도
-    public float bulletLifeTime = 2f;   // 탄 사라지는 시간
-
     [Header("Weapon Equip Visual")]
-    public Transform weaponSocket;      // 오른손 본 or weaponSocket
-    private GameObject equippedWeaponGO;   // 현재 손에 붙은 무기
+    [Tooltip("무기 프리팹이 붙을 손/무기 소켓(오른손 본 등)")]
+    public Transform weaponSocket; // 오른손 본/weapon socket
 
-    private const string MUZZLE_NAME = "Muzzle"; // 장착 프리팹 내부 총구 오브젝트 이름
+    [Tooltip("무기 프리팹 5개를 itemId 순서에 맞게 넣지 않아도 됨. 아래 itemId->index 매핑을 따라감.")]
+    public GameObject[] weaponPrefabs;
+    // index 0: 1101 SR
+    // index 1: 1201 AK
+    // index 2: 1202 MP7
+    // index 3: 1301 Shotgun
+    // index 4: 1401 Pistol
+
+    [Header("Fire Point")]
+    [Tooltip("레이캐스트가 맞출 대상 레이어(Enemy 등)")]
+    public LayerMask hitMask;
+
+    // Bullet Visual (눈에 보이는 탄)
+    [Header("Bullet Visual")]
+    [Tooltip("눈에 보이는 탄 프리팹(없으면 생성 안 함)")]
+    public GameObject bulletPrefab;
+    public float bulletSpeed = 40f;
+    public float bulletLifeTime = 2f;
+
+    // 장착된 무기 오브젝트/총구
+    private GameObject equippedWeaponGO; // 현재 손에 붙어있는 무기 오브젝트
+    private Transform muzzle;            // 무기 프리팹 내부의 총구 트랜스폼
+    private const string MUZZLE_NAME = "Muzzle"; // 무기 프리팹 내부 총구 오브젝트 이름(Find 용)
+
+    // 인벤 호환 핵심: 장착 상태는 itemId + ItemInfo 캐시
+    private int equippedItemId = 0;     // 0 = 맨손/미장착
+    private ItemInfo weapon = null;
+
+    // 기존 기능 유지용 런타임 상태 변수들
+    private int currentAmmoInMag = 0;
+    private bool isReloading = false;
+    private float fireCooldown = 0f;
+    private int recoilIndex = 0;
+    private float lastFireTime = -999f;
+
     private PlayerController playerController;
-    private float fireCooldown = 0f;    // 발사 간격을 위한 쿨타임 타이머
-    private int currentAmmoInMag;       // 현재 탄창에 남은 탄 수
-    private bool isReloading = false;   // 재장전 중인지 여부 판단
-    private int recoilIndex = 0;      // 지금 몇 번째 패턴 각도를 쓰는 중인지
-    private float lastFireTime = 0f;  // 마지막 발사 시간 (패턴 리셋용)
 
-    private void Start()
+    private void Awake()
     {
         playerController = GetComponent<PlayerController>();
-
-        //Debug.Log($"[Start] equippedWeapon = {(equippedWeapon == null ? "NULL" : equippedWeapon.weaponName)}");
-
-        if (equippedWeapon != null)
-        {
-            // 시작할떄 탄창을 꽉 채워줌
-            currentAmmoInMag = equippedWeapon.magazineSize;
-        }
-
     }
 
     private void Update()
     {
+        // 무기 없으면 아무것도 하지않음
+        if (weapon == null) return;
+
         // 쿨타임 감소
         if (fireCooldown > 0f)
             fireCooldown -= Time.deltaTime;
@@ -50,46 +63,104 @@ public class PlayerWeaponController : MonoBehaviour
         if (isReloading) return;
 
         // 수동 재장전
-        if (Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.R) && currentAmmoInMag < weapon.magazinesize)
         {
-            if (equippedWeapon != null && currentAmmoInMag < equippedWeapon.magazineSize)
-                StartCoroutine(ReloadRoutine());
+            StartCoroutine(ReloadRoutine());
         }
 
-        bool fireInput = false;
-
-        // 무기가 있을 때만 "자동/단발" 규칙 적용
-        if (equippedWeapon != null)
-        {
-            fireInput = equippedWeapon.isAutomatic
-                ? Input.GetMouseButton(0)
-                : Input.GetMouseButtonDown(0);
-        }
+        // 자동/단발 로직 유지 (WeaponData.isAutomatic → ItemInfo.IsAutomatic)
+        bool fireInput = weapon.IsAutomatic == 1
+            ? Input.GetMouseButton(0)
+            : Input.GetMouseButtonDown(0);
 
         if (fireInput)
-        {
             TryFire();
-        }
     }
 
-    void TryFire()
+    //  인벤/장비 UI에서 itemId만 넘기면 장착되는 함수
+    //  itemDatabase에서 ItemInfo 조회
+    //  내부 weapon 변수에 캐싱
+    //  탄창/리코일/쿨타임 상태 리셋
+    //  무기 프리팹을 손에 붙이고 muzzle 찾기
+    public bool EquipByItemId(int itemId)
     {
-        // 무기가 없으면 아무일도 일어나지않음
-        if (equippedWeapon == null) return;
-
-        if (muzzle == null)
+        if (itemId <= 0)
         {
-            //Debug.LogWarning("총구없어서 발사 불가");
-            return;
+            Unequip();
+            return false;
         }
+
+        // [중요] 아이템 조회는 DataManager 단일 루트
+        if (DataManager.Instance == null)
+        {
+            Debug.LogWarning("[Weapon] DataManager is null (not initialized?)");
+            return false;
+        }
+
+        ItemInfo item = DataManager.Instance.GetItem(itemId);
+        if (item == null)
+        {
+            Debug.LogWarning($"[Weapon] Item not found. itemId={itemId}");
+            Unequip();
+            return false;
+        }
+
+        // 무기 아이템인지 체크 (가능하면 ItemInfo의 itemType 기반으로 바꿔라)
+        if (!IsWeaponItem(item))
+        {
+            Debug.LogWarning($"[Weapon] Item is not weapon. itemId={itemId}, name={item.itemName}");
+            return false;
+        }
+
+        equippedItemId = itemId;
+        weapon = item;
+
+        // 장착 시 상태 리셋 (데모/테스트 기준: 탄창 가득)
+        currentAmmoInMag = Mathf.Max(0, weapon.magazinesize);
+        recoilIndex = 0;
+        fireCooldown = 0f;
+        isReloading = false;
+
+        // 비주얼 장착 + muzzle 찾기
+        AttachWeaponVisual(itemId);
+
+        Debug.Log($"[Weapon] Equipped: {weapon.itemName} (ID:{itemId})");
+        return true;
+    }
+
+    public void Unequip()
+    {
+        equippedItemId = 0;
+        weapon = null;
+
+        currentAmmoInMag = 0;
+        recoilIndex = 0;
+        fireCooldown = 0f;
+        isReloading = false;
+
+        DetachWeaponVisual();
+        Debug.Log("[Weapon] Unequipped");
+    }
+
+    private void TryFire()
+    {
+        // 안전 체크 (외부 호출 대비)
+        if (weapon == null) return;
 
         // 발사 쿨타임 체크
         if (fireCooldown > 0f) return;
 
-        // 탄창 비었으면 리턴
+        // 탄창 체크
         if (currentAmmoInMag <= 0)
         {
-            //Debug.Log("탄창 비었음 → 재장전 필요");
+            Debug.Log("탄창 비었음 → 재장전 필요");
+            return;
+        }
+
+        // 총구 체크
+        if (muzzle == null)
+        {
+            Debug.LogWarning("총구없어서 발사 불가");
             return;
         }
 
@@ -97,7 +168,7 @@ public class PlayerWeaponController : MonoBehaviour
         Fire();
 
         // 발사 간격 설정 fireRate = 초당 발사 수 → 간격 = 1 / fireRate
-        fireCooldown = 1f / Mathf.Max(0.01f, equippedWeapon.fireRate);
+        fireCooldown = 1f / Mathf.Max(0.01f, weapon.FireRate);
 
         // 탄 소모
         currentAmmoInMag--;
@@ -115,14 +186,14 @@ public class PlayerWeaponController : MonoBehaviour
         Vector3 recoiledForward = ApplyRecoil(forward);
 
         // 그 위에 spreadAngle로 탄 퍼짐(샷건/정확도) 추가
-        int pellets = Mathf.Max(1, equippedWeapon.pelletsPerShot);
+        int pellets = Mathf.Max(1, weapon.PelletsPerShot);
 
         for (int i = 0; i < pellets; i++)
         {
             // 퍼짐(Spread)을 적용한 실제 발사 방향 계산
-            Vector3 dir = GetSpreadDirection(recoiledForward, equippedWeapon.spreadAngle);
+            Vector3 dir = GetSpreadDirection(recoiledForward, weapon.SpreadAngle);
 
-            if (Physics.Raycast(origin, dir, out RaycastHit hit, equippedWeapon.range, hitMask))
+            if (Physics.Raycast(origin, dir, out RaycastHit hit, weapon.EffectiveRange, hitMask))
             {
                 // 맞았을떄 디버그 라인
                 Debug.DrawLine(origin, hit.point, Color.red, 0.2f);
@@ -131,15 +202,14 @@ public class PlayerWeaponController : MonoBehaviour
                 EnemyHealth enemy = hit.collider.GetComponent<EnemyHealth>();
                 if (enemy != null)
                 {
-                    float damage = equippedWeapon.baseDamage;
                     // TODO: 여기 나중에 bulletTier, 방어력 등 공식 추가
-                    enemy.TakeDamage(damage);
+                    enemy.TakeDamage(weapon.Damage);
                 }
             }
             else
             {
                 // 아무것도 안맞으면 사거리까지 노란색 디버그 레이
-                Debug.DrawRay(origin, dir * equippedWeapon.range, Color.yellow, 0.2f);
+                Debug.DrawRay(origin, dir * weapon.EffectiveRange, Color.yellow, 0.2f);
             }
 
             // 눈에 보이는 탄 모델은 따로 앞으로 날림
@@ -152,19 +222,56 @@ public class PlayerWeaponController : MonoBehaviour
         // TODO: 여기서 총구 이펙트 / 사운드 / 반동 호출
     }
 
-    void SpawnVisualBullet(Vector3 origin,Vector3 dir)
+    private Vector3 ApplyRecoil(Vector3 forward)
     {
-        if (bulletPrefab == null) return;
+        float baseYaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
 
-        GameObject bullet = Instantiate(bulletPrefab, origin, Quaternion.LookRotation(dir));
+        // 일정 시간 이상 안 쐈으면 패턴 인덱스 리셋
+        if (Time.time - lastFireTime > weapon.RecoilResetTime)
+            recoilIndex = 0;
 
-        // 프리팹에 RigidBody가 있다면 속도 적용
-        Rigidbody rb = bullet.GetComponent<Rigidbody>();
-        if (rb != null)
-            rb.linearVelocity = dir * bulletSpeed;
+        float patternOffset = 0f;
 
-        // 일정시간 뒤 자동 삭제
-        Destroy(bullet,bulletLifeTime);
+        // 반동 패턴 사용 여부는 CSV의 UseRecoilPattern으로 제어
+        if (weapon.UseRecoilPattern == 1)
+        {
+            float[] pattern = GetRecoilPatternByItemId(equippedItemId);
+
+            if (pattern != null && pattern.Length > 0)
+            {
+                int index = Mathf.Clamp(recoilIndex, 0, pattern.Length - 1);
+                patternOffset = pattern[index];
+
+                // 다음 패턴 인덱스 증가 + 마지막 값 유지
+                recoilIndex = Mathf.Min(recoilIndex + 1, pattern.Length - 1);
+            }
+        }
+
+        float randomRange = Mathf.Abs((float)weapon.RandomRecoilAngle);
+        float randomOffset = randomRange > 0f
+            ? Random.Range(-randomRange, randomRange)
+            : 0f;
+
+        float finalYaw = baseYaw + patternOffset + randomOffset;
+        float rad = finalYaw * Mathf.Deg2Rad;
+
+        return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
+    }
+
+    IEnumerator ReloadRoutine()
+    {
+        if (weapon == null) yield break;
+
+        isReloading = true;
+
+        Debug.Log("재장전 시작");
+
+        yield return new WaitForSeconds(weapon.ReloadTime);
+
+        currentAmmoInMag = weapon.magazinesize;
+        isReloading = false;
+
+        Debug.Log("재장전 완료");
     }
 
     // 수평(XZ) 스프레드 (쿼터뷰용)
@@ -181,136 +288,52 @@ public class PlayerWeaponController : MonoBehaviour
         float baseYaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
         float finalYaw = baseYaw + yawOffset;
 
-        Vector3 dir = new Vector3(
-            Mathf.Sin(finalYaw * Mathf.Deg2Rad),
-            0f,
-            Mathf.Cos(finalYaw * Mathf.Deg2Rad)
-        );
-
-        return dir.normalized;
-    }
-
-    Vector3 ApplyRecoil(Vector3 forward)
-    {
-        if(equippedWeapon == null)
-            return forward;
-
-        float baseYaw = Mathf.Atan2(forward.x,forward.z) * Mathf.Rad2Deg;
-
-        float patternOffset = 0f;
-        float randomOffset = 0f;
-
-        // recoilResetTime 이상 안 쐈으면 패턴 인덱스 리셋
-        if(Time.time - lastFireTime > equippedWeapon.recoilResetTime)
-        {
-            recoilIndex = 0;
-        }
-
-        // 반동패턴 발동
-        if(equippedWeapon.useRecoilPattern && 
-            equippedWeapon.recoilPattern != null &&
-            equippedWeapon.recoilPattern.Length > 0)
-        {
-            int index = Mathf.Clamp(recoilIndex, 0, equippedWeapon.recoilPattern.Length - 1);
-            patternOffset = equippedWeapon.recoilPattern[index];
-
-            // 다음 발사에는 다음 패턴 사용 
-            recoilIndex++;
-
-            // 패턴 끝까지 가면 마지막 값 유지(혹은 0으로 돌리고 싶으면 여기서 0으로)
-            if (recoilIndex >= equippedWeapon.recoilPattern.Length)
-                recoilIndex = equippedWeapon.recoilPattern.Length - 1;
-        }
-
-        // 패턴 위에 랜덤 반동 섞기
-        if (equippedWeapon.randomRecoilAngle > 0f)
-            randomOffset = Random.Range(-equippedWeapon.randomRecoilAngle, equippedWeapon.randomRecoilAngle);
-
-        float finalYaw = baseYaw + patternOffset + randomOffset;
-
-        // 반동 확인용 디버그
-        //Debug.Log($"[Recoil] idx:{recoilIndex - 1}, pattern:{patternOffset}, random:{randomOffset}, finalYaw:{finalYaw}");
-
         float rad = finalYaw * Mathf.Deg2Rad;
-        Vector3 dir = new Vector3(Mathf.Sin(rad), 0f ,Mathf.Cos(rad));
-
-        return dir.normalized;
+        return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
     }
 
-    IEnumerator ReloadRoutine()
+    void SpawnVisualBullet(Vector3 origin, Vector3 dir)
     {
-        isReloading = true;
-        Debug.Log("재장전 시작");
+        if (bulletPrefab == null) return;
 
-        yield return new WaitForSeconds(equippedWeapon.reloadTime);
+        GameObject bullet = Instantiate(bulletPrefab, origin, Quaternion.LookRotation(dir));
 
-        currentAmmoInMag = equippedWeapon.magazineSize;
-        isReloading = false;
-        Debug.Log("재장전 완료");
+        // 프리팹에 RigidBody가 있다면 속도 적용
+        Rigidbody rb = bullet.GetComponent<Rigidbody>();
+        if (rb != null)
+            rb.linearVelocity = dir * bulletSpeed;
+
+        // 일정시간 뒤 자동 삭제
+        Destroy(bullet, bulletLifeTime);
     }
 
-    // 무기 장착
-    public void EquipWeapon(WeaponData newWeapon)
+    private void AttachWeaponVisual(int itemId)
     {
-        equippedWeapon = newWeapon;
-
-        // 탄창 채우기
-        if(equippedWeapon != null)
-        {
-            currentAmmoInMag = equippedWeapon.magazineSize;
-        }
-        else
-        {
-            currentAmmoInMag = 0;
-        }
-
-        recoilIndex = 0;
-        fireCooldown = 0;
-
-        AttachWeaponVisual();
-
-        Debug.Log($"[Weapon] Equipped: {(equippedWeapon != null ? equippedWeapon.weaponName : "None")}");
-    }
-
-    // 무기 해제
-    public void UnequipWeapon()
-    {
-        equippedWeapon = null;
-        currentAmmoInMag = 0;
-
-        recoilIndex = 0;
-        fireCooldown = 0f;
+        if (weaponSocket == null) return;
 
         DetachWeaponVisual();
 
-        Debug.Log("[Weapon] Unequipped");
-    }
+        GameObject prefab = GetWeaponPrefab(itemId);
 
-    void AttachWeaponVisual()
-    {
-        if (weaponSocket == null)
+        if (prefab == null)
+        {
+            Debug.LogWarning($"[Weapon] No prefab mapped for itemId={itemId}");
+            muzzle = null;
             return;
+        }
 
-        // 기존 무기 제거
-        DetachWeaponVisual();
-
-        if (equippedWeapon == null || equippedWeapon.equipPrefab == null)
-            return;
-
-        equippedWeaponGO = Instantiate(equippedWeapon.equipPrefab, weaponSocket);
+        equippedWeaponGO = Instantiate(prefab, weaponSocket);
         equippedWeaponGO.transform.localPosition = Vector3.zero;
         equippedWeaponGO.transform.localRotation = Quaternion.identity;
         equippedWeaponGO.transform.localScale = Vector3.one;
 
+        // 무기 프리팹 내부에 "Muzzle" 오브젝트가 있어야함
         muzzle = equippedWeaponGO.transform.Find(MUZZLE_NAME);
-
         if (muzzle == null)
-        {
-            Debug.LogWarning("총구없음");
-        }
+            Debug.LogWarning("[Weapon] Muzzle not found in prefab");
     }
 
-    void DetachWeaponVisual()
+    private void DetachWeaponVisual()
     {
         if (equippedWeaponGO != null)
             Destroy(equippedWeaponGO);
@@ -319,6 +342,51 @@ public class PlayerWeaponController : MonoBehaviour
         muzzle = null;
     }
 
+    // itemId → 무기 프리팹 매핑 (5개)
+    private GameObject GetWeaponPrefab(int itemId)
+    {
+        if (weaponPrefabs == null || weaponPrefabs.Length < 5)
+            return null;
+
+        switch (itemId)
+        {
+            case 1101: return weaponPrefabs[0]; // SR
+            case 1201: return weaponPrefabs[1]; // AK
+            case 1202: return weaponPrefabs[2]; // MP7
+            case 1301: return weaponPrefabs[3]; // Shotgun
+            case 1401: return weaponPrefabs[4]; // Pistol
+            default: return null;
+        }
+    }
+
+    // WeaponData의 recoilPattern[]을 itemId 기반으로 대체.
+    // 총기 추가 없고 5개 고정이므로 하드코딩이 가장 안전
+    // 패턴 모양은 여기서만 관리 (유지보수 포인트 1곳)
+    private float[] GetRecoilPatternByItemId(int itemId)
+    {
+        switch (itemId)
+        {
+            case 1101: return new float[] { 0.15f, 0.2f, 0.25f }; // SR
+            case 1201: return new float[] { 0.2f, 0.4f, 0.6f, 0.8f }; // AK
+            case 1202: return new float[] { 0.1f, 0.2f, 0.3f }; // MP7
+            case 1301: return new float[] { 0.6f }; // Shotgun
+            case 1401: return new float[] { 0.15f, 0.15f }; // Pistol
+            default: return new float[0];
+        }
+    }
+
+    // Weapon 판단 (itemType 무시)
+    private bool IsWeaponItem(ItemInfo item)
+    {
+        if(item == null) return false;
+
+        // 1100~1499 = 무기 (SR/AR/SG/PISTOL)
+        return item.id >= 1100 && item.id < 1500;
+    }
+
+    // UI용 탄창 정보
     public int GetCurrentAmmo() => currentAmmoInMag;
-    public int GetMagazineSize() => equippedWeapon != null ? equippedWeapon.magazineSize : 0;
+    public int GetMagazineSize() => weapon != null ? weapon.magazinesize : 0;
+    public int GetEquippedItemId() => equippedItemId;
+    public bool HasWeaponEquipped() => weapon != null;
 }
