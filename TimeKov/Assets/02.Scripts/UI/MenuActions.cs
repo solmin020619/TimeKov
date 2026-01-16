@@ -15,6 +15,12 @@ public class MenuActions : MonoBehaviour
         SceneLoader.Instance.LoadTo("Base_Scene");
     }
 
+    public void OnClickSettings()
+    {
+        Debug.Log("Settings Clicked (TODO: ¿É¼Ç UI/¾À ¿¬°á)");
+        SceneLoader.Instance.LoadTo("Settings_Scene");
+    }
+
     public void OnClickQuit()
     {
 #if UNITY_EDITOR
