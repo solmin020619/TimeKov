@@ -5,15 +5,24 @@ public class MenuActions : MonoBehaviour
 {
     public void OnClickNewGame()
     {
+        Debug.Log("NewGame Clicked");
         GameFlow.StartNewGame();
         SceneLoader.Instance.LoadTo("Base_Scene");
     }
 
     public void OnClickLoadGame()
     {
+        Debug.Log("LoadGame Clicked");
         GameFlow.StartLoadGame();
         SceneLoader.Instance.LoadTo("Base_Scene");
     }
+
+    public void OnClickSettings()
+    {
+        Debug.Log("Settings Clicked");
+        SceneLoader.Instance.LoadTo("Settings_Scene");
+    }
+
 
     public void OnClickQuit()
     {
