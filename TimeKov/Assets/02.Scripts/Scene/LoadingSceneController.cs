@@ -4,6 +4,8 @@ using System.Collections;
 
 public class LoadingSceneController : MonoBehaviour
 {
+    [SerializeField] private LoadingUIController ui; // 인스펙터 연결
+
     private void Start()
     {
         StartCoroutine(LoadNext());
@@ -25,9 +27,18 @@ public class LoadingSceneController : MonoBehaviour
         while (op.progress < 0.9f)
             yield return null;
 
-        // 여기서 로딩 끝
-        SceneLoader.Instance.NotifyLoadComplete();
+        //  로딩 끝 → 0.5초 딜레이 + 페이드아웃 연출
+        if (ui != null)
+            yield return ui.PlayCompleteAndFadeOut();
+        else
+            yield return new WaitForSeconds(0.5f);
 
+        // 충돌 방지해서 if 문 추가
+        if (SceneLoader.Instance != null)
+            SceneLoader.Instance.NotifyLoadComplete();
+
+
+        //  페이드 끝났으니 씬 전환
         op.allowSceneActivation = true;
     }
 }
