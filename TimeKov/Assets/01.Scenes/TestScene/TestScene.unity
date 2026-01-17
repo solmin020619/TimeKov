@@ -1235,15 +1235,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weaponSocket: {fileID: 1575655390}
   weaponPrefabs:
-  - {fileID: 2591497869759355884, guid: 7ae1e8dd37793c248bd3460187537b2c, type: 3}
-  - {fileID: 7965384400020867523, guid: 61d73a3d829d6ea45a17ac189f6d94ca, type: 3}
+  - {fileID: 0}
+  - {fileID: 8333634102795975139, guid: afc3d47a4baa2114e86f90f71689e997, type: 3}
   - {fileID: 8465331176577389708, guid: 4540f83a96776fc418e6f306108097c3, type: 3}
   - {fileID: 5935929212867585714, guid: d5f5c152ed59ed946882d494557fb1ae, type: 3}
-  - {fileID: 9036270450622126950, guid: 85b11121710b59745ad5ef46402488e1, type: 3}
+  - {fileID: 8701951577818738156, guid: bdc71fe84784acd43b8e3816e10eb765, type: 3}
   hitMask:
     serializedVersion: 2
     m_Bits: 64
-  bulletPrefab: {fileID: 2081975862860089238, guid: 2ebd450eb48d8cb4caaabc5d0d6c6e35, type: 3}
+  bulletPrefab: {fileID: 8428483630703208537, guid: c0d1c79106620cf4e9ddadc6d108caee, type: 3}
   bulletSpeed: 20
   bulletLifeTime: 5
 --- !u!54 &1149513506
@@ -1495,11 +1495,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!4 &1356753584 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -2818178332388169722, guid: 8cdf2ce84d82d104aaf3904986007234, type: 3}
-  m_PrefabInstance: {fileID: 1412595781}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1412595781
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1567,7 +1562,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: -2818178332388169722, guid: 8cdf2ce84d82d104aaf3904986007234, type: 3}
+    - targetCorrespondingSourceObject: {fileID: -2530251679569251172, guid: 8cdf2ce84d82d104aaf3904986007234, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1575655390}
     m_AddedComponents:
@@ -1620,6 +1615,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   itemDB: {fileID: 11400000, guid: c44a939f214fdd64d9c43daa9171f0ac, type: 2}
+--- !u!4 &1467442430 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -2530251679569251172, guid: 8cdf2ce84d82d104aaf3904986007234, type: 3}
+  m_PrefabInstance: {fileID: 1412595781}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1521329623
 GameObject:
   m_ObjectHideFlags: 0
@@ -1749,7 +1749,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1356753584}
+  m_Father: {fileID: 1467442430}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1951310526
 GameObject:

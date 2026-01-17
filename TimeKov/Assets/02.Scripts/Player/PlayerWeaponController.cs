@@ -52,7 +52,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void Start()
     {
-        //EquipByItemId(1401); // 테스트용
+        EquipByItemId(1401); // 테스트용 로그
     }
 
     private void Update()
@@ -89,6 +89,8 @@ public class PlayerWeaponController : MonoBehaviour
     //  무기 프리팹을 손에 붙이고 muzzle 찾기
     public bool EquipByItemId(int itemId)
     {
+        Debug.Log($"[Weapon] EquipByItemId called: {itemId}");  // 테스트 용 로그
+
         if (itemId <= 0)
         {
             Unequip();
@@ -98,7 +100,7 @@ public class PlayerWeaponController : MonoBehaviour
         // [중요] 아이템 조회는 DataManager 단일 루트
         if (DataManager.Instance == null)
         {
-            Debug.LogWarning("[Weapon] DataManager is null (not initialized?)");
+            Debug.LogWarning("[Weapon] DataManager is null (not initialized?)"); 
             return false;
         }
 
@@ -301,6 +303,8 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (bulletPrefab == null) return;
 
+        //Debug.Log($"[Bullet] Spawn at {origin}, dir={dir}, prefab={(bulletPrefab ? bulletPrefab.name : "NULL")}"); 테스트 용 로그
+
         GameObject bullet = Instantiate(bulletPrefab, origin, Quaternion.LookRotation(dir));
 
         // 프리팹에 RigidBody가 있다면 속도 적용
@@ -310,6 +314,22 @@ public class PlayerWeaponController : MonoBehaviour
 
         // 일정시간 뒤 자동 삭제
         Destroy(bullet, bulletLifeTime);
+    }
+
+    private Transform FindChildRecursive(Transform parent,string name)
+    {
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform child = parent.GetChild(i);
+
+            if (child.name == name)
+                return child;
+
+            Transform Found = FindChildRecursive(child, name);
+            if (Found != null)
+                return Found;
+        }
+        return null;
     }
 
     private void AttachWeaponVisual(int itemId)
@@ -327,15 +347,18 @@ public class PlayerWeaponController : MonoBehaviour
             return;
         }
 
+
         equippedWeaponGO = Instantiate(prefab, weaponSocket);
         equippedWeaponGO.transform.localPosition = Vector3.zero;
         equippedWeaponGO.transform.localRotation = Quaternion.identity;
         equippedWeaponGO.transform.localScale = Vector3.one;
 
-        // 무기 프리팹 내부에 "Muzzle" 오브젝트가 있어야함
-        muzzle = equippedWeaponGO.transform.Find(MUZZLE_NAME);
+        muzzle = FindChildRecursive(equippedWeaponGO.transform, MUZZLE_NAME);
+
         if (muzzle == null)
-            Debug.LogWarning("[Weapon] Muzzle not found in prefab");
+        {
+            Debug.LogWarning("[Weapon] Muzzle not found. 프리팹 안에 이름이 정확히 'Muzzle'인 오브젝트가 있어야 함.");
+        }
     }
 
     private void DetachWeaponVisual()
