@@ -1234,15 +1234,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87be2b47bfe0425479384bc3f3fa6572, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  equippedWeapon: {fileID: 0}
-  muzzle: {fileID: 0}
+  weaponSocket: {fileID: 1575655390}
+  weaponPrefabs: []
   hitMask:
     serializedVersion: 2
     m_Bits: 64
   bulletPrefab: {fileID: 2081975862860089238, guid: 2ebd450eb48d8cb4caaabc5d0d6c6e35, type: 3}
   bulletSpeed: 20
   bulletLifeTime: 5
-  weaponSocket: {fileID: 1575655390}
 --- !u!54 &1149513506
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1305,11 +1304,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa646a1780f696947a8a8b2aeb7509f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  interactKey: 102
-  pickupRange: 2
-  pickupLayerMask:
-    serializedVersion: 2
-    m_Bits: 256
 --- !u!1 &1180522244
 GameObject:
   m_ObjectHideFlags: 0
@@ -2373,8 +2367,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1ecb68cd163dc1e4d9d26485d5d16ff2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  weaponData: {fileID: 11400000, guid: f75f3281743d9294c896155a92bda641, type: 2}
-  destroyTarget: {fileID: 5297621958039554623}
 --- !u!4 &1564860333951854441
 Transform:
   m_ObjectHideFlags: 0
@@ -2762,7 +2754,7 @@ GameObject:
   - component: {fileID: 5899422985343850840}
   - component: {fileID: 2542550297589643059}
   - component: {fileID: 6522867687826383654}
-  - component: {fileID: 7996637079186609952}
+  - component: {fileID: 8968445754286122402}
   m_Layer: 6
   m_Name: MeleeBot
   m_TagString: Untagged
@@ -4295,47 +4287,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &7996637079186609952
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2613757766687882780}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6c1b467eb4afadb4caad37bbdda52227, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  currentState: 0
-  enemyName: Melee Bot
-  patrolSpeed: 3.5
-  chaseSpeed: 6
-  patrolWaitTime: 2
-  damageToTime: 20
-  attackRange: 1.5
-  attackCooldown: 2
-  visionRange: 12
-  proximityRange: 4
-  giveUpChaseRange: 20
-  provokedDuration: 10
-  visionAngle: 110
-  targetMask:
-    serializedVersion: 2
-    m_Bits: 512
-  obstacleMask:
-    serializedVersion: 2
-    m_Bits: 0
-  patrolRadius: 15
-  attackHitDelay: 1.5
-  attackAnimLength: 2.667
-  jumpAttackDamage: 25
-  jumpAttackRadius: 5
-  jumpAttackWindup: 0.5
-  jumpAttackHitDelay: 1.7
-  jumpAttackFullTime: 2.867
-  jumpChanceOnMiss: 0.7
-  jumpLungeSpeed: 12
 --- !u!1 &8022515958442824825
 GameObject:
   m_ObjectHideFlags: 0
@@ -4660,6 +4611,26 @@ Transform:
   - {fileID: 543450651739889329}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8968445754286122402
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2613757766687882780}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 314573f0c7f3c6d49b2b72372b17b0a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  data: {fileID: 11400000, guid: ed26e406b8e0bfb4782333cfc568e9e2, type: 2}
+  currentState: 0
+  targetMask:
+    serializedVersion: 2
+    m_Bits: 512
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 1
 --- !u!1 &9019515342617220445
 GameObject:
   m_ObjectHideFlags: 0
