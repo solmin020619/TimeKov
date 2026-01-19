@@ -45,6 +45,10 @@ public class PlayerTime : MonoBehaviour
     public void TakeDamage(float amount)
     {
         ApplyTimeChange(-amount);
+
+        if (FindAnyObjectByType<CrosshairController>() != null)
+            FindAnyObjectByType<CrosshairController>().OnHurt();
+
     }
 
     // Time È¸º¹

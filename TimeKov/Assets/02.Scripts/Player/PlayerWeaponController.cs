@@ -44,7 +44,7 @@ public class PlayerWeaponController : MonoBehaviour
     private float lastFireTime = -999f;
 
     private PlayerController playerController;
-
+    public CrosshairController crosshair;
     private void Awake()
     {
         playerController = GetComponent<PlayerController>();
@@ -57,6 +57,15 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void Update()
     {
+        if(crosshair != null)
+        {
+            crosshair.SetEnabled(weapon != null);
+        }
+
+        if (crosshair != null)
+            crosshair.SetRunning(playerController != null && playerController.IsRunning);
+
+
         // 무기 없으면 아무것도 하지않음
         if (weapon == null) return;
 
@@ -174,6 +183,8 @@ public class PlayerWeaponController : MonoBehaviour
         // 실제 발사
         Fire();
 
+        if(crosshair != null) crosshair.OnFire();
+
         // 발사 간격 설정 fireRate = 초당 발사 수 → 간격 = 1 / fireRate
         fireCooldown = 1f / Mathf.Max(0.01f, weapon.FireRate);
 
@@ -189,6 +200,18 @@ public class PlayerWeaponController : MonoBehaviour
         // 플레이어가 바라보는 방향
         Vector3 forward = transform.forward;
 
+        // 마우스가 바라보는 바닥 지점를 기준으로 발사 방향을 만든다.
+        if(TryGetAimPoint(out Vector3 aimPoint))
+        {
+            forward = aimPoint - origin;
+            forward.y = 0f;
+
+            if(forward.sqrMagnitude < 0.0001f)
+                forward = transform.forward;
+            else
+                forward.Normalize();
+        }
+
         // 무기 데이터 기반으로 각도 패턴 + 랜덤 반동 적용
         Vector3 recoiledForward = ApplyRecoil(forward);
 
@@ -200,10 +223,17 @@ public class PlayerWeaponController : MonoBehaviour
             // 퍼짐(Spread)을 적용한 실제 발사 방향 계산
             Vector3 dir = GetSpreadDirection(recoiledForward, weapon.SpreadAngle);
 
+            Vector3? hitPoint = null;
+
             if (Physics.Raycast(origin, dir, out RaycastHit hit, weapon.EffectiveRange, hitMask))
             {
                 // 맞았을떄 디버그 라인
                 Debug.DrawLine(origin, hit.point, Color.red, 0.2f);
+
+                hitPoint = hit.point;
+
+                if (crosshair != null) crosshair.OnHitConfirm();
+
 
                 // 맞은 대상이 EnemyHealth를 가지고 있으면 데미지 적용
                 EnemyHealth enemy = hit.collider.GetComponent<EnemyHealth>();
@@ -220,7 +250,7 @@ public class PlayerWeaponController : MonoBehaviour
             }
 
             // 눈에 보이는 탄 모델은 따로 앞으로 날림
-            SpawnVisualBullet(origin, dir);
+            SpawnVisualBullet(origin, dir, hitPoint);
         }
 
         // 마지막 발사 시간 기록 -> 다음 발사에서 패턴 리셋 여부 체크에 사용
@@ -299,21 +329,59 @@ public class PlayerWeaponController : MonoBehaviour
         return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
     }
 
-    void SpawnVisualBullet(Vector3 origin, Vector3 dir)
+    bool TryGetAimPoint(out Vector3 aimPoint)
+    {
+        Camera cam = Camera.main;
+
+        if(cam == null)
+        {
+            aimPoint = Vector3.zero;
+            return false;
+        }
+
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+
+        // Y축 고정 플레이이므로 플레이어가 서있는 눈높이를 바닥으로 본다
+        float groundY = transform.position.y;
+        Plane ground = new Plane(Vector3.up,new Vector3(0f, groundY, 0f));
+
+        if(ground.Raycast(ray,out float enter))
+        {
+            aimPoint = ray.GetPoint(enter);
+            return true;
+        }
+
+        aimPoint = Vector3.zero;
+        return false;
+    }
+
+    void SpawnVisualBullet(Vector3 origin, Vector3 dir,Vector3? hitPoint = null)
     {
         if (bulletPrefab == null) return;
 
         //Debug.Log($"[Bullet] Spawn at {origin}, dir={dir}, prefab={(bulletPrefab ? bulletPrefab.name : "NULL")}"); 테스트 용 로그
 
-        GameObject bullet = Instantiate(bulletPrefab, origin, Quaternion.LookRotation(dir));
+        GameObject bullet = Instantiate(bulletPrefab);
+        var vb = bullet.GetComponent<VisualBullet>();
 
-        // 프리팹에 RigidBody가 있다면 속도 적용
-        Rigidbody rb = bullet.GetComponent<Rigidbody>();
-        if (rb != null)
-            rb.linearVelocity = dir * bulletSpeed;
+        if(vb == null)
+        {
+            Debug.LogWarning("[Bullet] VisualBullet component missing on bulletPrefab.");
+            Destroy(bullet);
+            return;
+        }
 
-        // 일정시간 뒤 자동 삭제
-        Destroy(bullet, bulletLifeTime);
+        // 맞았을 때 너무 짧으면 안 보일 수 있으니 최소 lifeTime 보정
+        float lt = bulletLifeTime;
+
+        if (hitPoint.HasValue)
+        {
+            float dist = Vector3.Distance(origin, hitPoint.Value);
+            float t = dist / Mathf.Max(0.01f, bulletSpeed);
+            lt = Mathf.Max(0.02f, t); // 최소 1~2프레임은 보이게
+        }
+
+        vb.Init(origin, dir, bulletSpeed, lt, hitPoint);
     }
 
     private Transform FindChildRecursive(Transform parent,string name)
