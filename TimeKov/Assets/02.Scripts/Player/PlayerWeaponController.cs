@@ -27,6 +27,9 @@ public class PlayerWeaponController : MonoBehaviour
     public float bulletSpeed = 40f;
     public float bulletLifeTime = 2f;
 
+    private float recoilAccumYaw = 0f;      // 누적된 Yaw(좌우) 반동 값
+    public float recoilRecoverSpeed = 0f;   // 0이면 복구없음(리셋만) 10~30이면 서서히 복구
+
     // 장착된 무기 오브젝트/총구
     private GameObject equippedWeaponGO; // 현재 손에 붙어있는 무기 오브젝트
     private Transform muzzle;            // 무기 프리팹 내부의 총구 트랜스폼
@@ -52,7 +55,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void Start()
     {
-        EquipByItemId(1401); // 테스트용 로그
+        EquipByItemId(1201); // 테스트용 로그
     }
 
     private void Update()
@@ -136,6 +139,7 @@ public class PlayerWeaponController : MonoBehaviour
         recoilIndex = 0;
         fireCooldown = 0f;
         isReloading = false;
+        recoilAccumYaw = 0f;
 
         // 비주얼 장착 + muzzle 찾기
         AttachWeaponVisual(itemId);
@@ -153,6 +157,7 @@ public class PlayerWeaponController : MonoBehaviour
         recoilIndex = 0;
         fireCooldown = 0f;
         isReloading = false;
+        recoilAccumYaw = 0f;
 
         DetachWeaponVisual();
         Debug.Log("[Weapon] Unequipped");
@@ -265,9 +270,19 @@ public class PlayerWeaponController : MonoBehaviour
 
         // 일정 시간 이상 안 쐈으면 패턴 인덱스 리셋
         if (Time.time - lastFireTime > weapon.RecoilResetTime)
+        {
             recoilIndex = 0;
-
-        float patternOffset = 0f;
+            recoilAccumYaw = 0f;
+        }
+        else
+        {
+            // 쉬는 동안 서서히 복구 (0이면 안 움직임)
+            if(recoilRecoverSpeed > 0f)
+            {
+                recoilAccumYaw = Mathf.MoveTowards(recoilAccumYaw,0f,recoilRecoverSpeed * Time.deltaTime);
+            }
+        }
+        float deltaYaw = 0f;
 
         // 반동 패턴 사용 여부는 CSV의 UseRecoilPattern으로 제어
         if (weapon.UseRecoilPattern == 1)
@@ -276,20 +291,23 @@ public class PlayerWeaponController : MonoBehaviour
 
             if (pattern != null && pattern.Length > 0)
             {
-                int index = Mathf.Clamp(recoilIndex, 0, pattern.Length - 1);
-                patternOffset = pattern[index];
-
-                // 다음 패턴 인덱스 증가 + 마지막 값 유지
-                recoilIndex = Mathf.Min(recoilIndex + 1, pattern.Length - 1);
+                // 패턴 길이 안에서는 정상 적용
+                deltaYaw += pattern[recoilIndex];
+                recoilIndex++;
             }
         }
 
         float randomRange = Mathf.Abs((float)weapon.RandomRecoilAngle);
-        float randomOffset = randomRange > 0f
-            ? Random.Range(-randomRange, randomRange)
-            : 0f;
 
-        float finalYaw = baseYaw + patternOffset + randomOffset;
+        if(randomRange > 0f)
+        {
+            deltaYaw += Random.Range(-randomRange, randomRange);
+        }
+
+        // 누적
+        recoilAccumYaw += deltaYaw;
+
+        float finalYaw = baseYaw + recoilAccumYaw;
         float rad = finalYaw * Mathf.Deg2Rad;
 
         return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
@@ -301,9 +319,14 @@ public class PlayerWeaponController : MonoBehaviour
 
         isReloading = true;
 
+        // 재장전 시작 시 반동 초기화
+        recoilIndex = 0;
+        recoilAccumYaw = 0f;
+
         Debug.Log("재장전 시작");
 
         yield return new WaitForSeconds(weapon.ReloadTime);
+
 
         currentAmmoInMag = weapon.magazinesize;
         isReloading = false;
@@ -462,11 +485,48 @@ public class PlayerWeaponController : MonoBehaviour
     {
         switch (itemId)
         {
-            case 1101: return new float[] { 0.15f, 0.2f, 0.25f }; // SR
-            case 1201: return new float[] { 0.2f, 0.4f, 0.6f, 0.8f }; // AK
-            case 1202: return new float[] { 0.1f, 0.2f, 0.3f }; // MP7
-            case 1301: return new float[] { 0.6f }; // Shotgun
-            case 1401: return new float[] { 0.15f, 0.15f }; // Pistol
+            // SR
+            case 1101: return new float[] { 0.15f, 0.2f, 0.25f };
+            
+            // AK
+            case 1201: return new float[] { 0.0f,  // 1: 0.0 - 0.0
+                                            0.5f,  // 2: 0.5 - 0.0
+                                            0.5f,  // 3: 1.0 - 0.5
+                                            0.5f,  // 4: 1.5 - 1.0
+                                            0.5f,  // 5: 2.0 - 1.5
+                                            0.5f,  // 6: 2.5 - 2.0
+                                            0.5f,  // 7: 3.0 - 2.5
+                                            0.5f,  // 8: 3.5 - 3.0
+                                            0.5f,  // 9: 4.0 - 3.5
+                                            0.5f,  // 10: 4.5 - 4.0
+                                            0.5f,  // 11: 5.0 - 4.5
+                                            0.5f,  // 12: 5.5 - 5.0
+                                            0.5f,  // 13: 6.0 - 5.5
+                                            0.0f,  // 14: 6.0 - 6.0
+                                           -1.0f,  // 15: 5.0 - 6.0
+                                           -1.0f,  // 16: 4.0 - 5.0
+                                           -1.0f,  // 17: 3.0 - 4.0
+                                           -1.0f,  // 18: 2.0 - 3.0
+                                           -1.0f,  // 19: 1.0 - 2.0
+                                           -1.0f,  // 20: 0.0 - 1.0
+                                           -1.0f,  // 21: -1.0 - 0.0
+                                           -1.0f,  // 22: -2.0 - -1.0
+                                           -1.0f,  // 23: -3.0 - -2.0
+                                           -1.0f,  // 24: -4.0 - -3.0
+                                           -0.5f,  // 25: -4.5 - -4.0
+                                           -0.5f,  // 26: -5.0 - -4.5
+                                            0.0f,  // 27: -5.0 - -5.0
+                                            1.0f,  // 28: -4.0 - -5.0
+                                            2.0f,  // 29: -2.0 - -4.0
+                                            2.0f   // 30: 0.0 -  -2.0
+                                          };
+            // MP7
+            case 1202: return new float[] { 0.1f, 0.2f, 0.3f };
+            // Shotgun
+            case 1301: return new float[] { 0.6f };
+            // Pistol
+            case 1401: return new float[] { 0.15f, 0.15f };
+            
             default: return new float[0];
         }
     }
