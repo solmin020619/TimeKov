@@ -1,23 +1,30 @@
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GetItem : MonoBehaviour
 {
-    public GameObject invenmana;
-    public int insertID;
+    public GameObject invenMana;
+    public TextMeshProUGUI getItemText;
+    public Image ItemIcon;
 
-    public void ItemClick()
-    {
-        invenmana.GetComponent<InventoryManager>().ChangeIndex(insertID);
-    }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    public int insertID;
+    public int insertItemCount;
+
     void Start()
     {
-        
+        getItemText.text = DataManager.Instance.GetItem(insertID).itemName;
+        ItemIcon.sprite = Resources.Load<Sprite>("Icon/" + insertID);
     }
-
-    // Update is called once per frame
-    void Update()
+    public void ItemClick()
     {
-        
+        if (insertID != 0)
+        {
+            invenMana.GetComponent<InventoryManager>().AddItem(insertID, insertItemCount);
+            insertID = 0;
+            getItemText.text = "노 아이템";
+            ItemIcon.sprite = Resources.Load<Sprite>("RPG_inventory_icons/f");
+        }
+
     }
 }

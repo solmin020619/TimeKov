@@ -86,7 +86,7 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         // 자동/단발 로직 유지 (WeaponData.isAutomatic → ItemInfo.IsAutomatic)
-        bool fireInput = weapon.IsAutomatic == 1
+        bool fireInput = weapon.isAutomatic == 1
             ? Input.GetMouseButton(0)
             : Input.GetMouseButtonDown(0);
 
@@ -191,7 +191,7 @@ public class PlayerWeaponController : MonoBehaviour
         if(crosshair != null) crosshair.OnFire();
 
         // 발사 간격 설정 fireRate = 초당 발사 수 → 간격 = 1 / fireRate
-        fireCooldown = 1f / Mathf.Max(0.01f, weapon.FireRate);
+        fireCooldown = 1f / Mathf.Max(0.01f, weapon.fireRate);
 
         // 탄 소모
         currentAmmoInMag--;
@@ -221,16 +221,16 @@ public class PlayerWeaponController : MonoBehaviour
         Vector3 recoiledForward = ApplyRecoil(forward);
 
         // 그 위에 spreadAngle로 탄 퍼짐(샷건/정확도) 추가
-        int pellets = Mathf.Max(1, weapon.PelletsPerShot);
+        int pellets = Mathf.Max(1, weapon.pelletsPerShot);
 
         for (int i = 0; i < pellets; i++)
         {
             // 퍼짐(Spread)을 적용한 실제 발사 방향 계산
-            Vector3 dir = GetSpreadDirection(recoiledForward, weapon.SpreadAngle);
+            Vector3 dir = GetSpreadDirection(recoiledForward, weapon.spreadAngle);
 
             Vector3? hitPoint = null;
 
-            if (Physics.Raycast(origin, dir, out RaycastHit hit, weapon.EffectiveRange, hitMask))
+            if (Physics.Raycast(origin, dir, out RaycastHit hit, weapon.effectiveRange, hitMask))
             {
                 // 맞았을떄 디버그 라인
                 Debug.DrawLine(origin, hit.point, Color.red, 0.2f);
@@ -245,13 +245,13 @@ public class PlayerWeaponController : MonoBehaviour
                 if (enemy != null)
                 {
                     // TODO: 여기 나중에 bulletTier, 방어력 등 공식 추가
-                    enemy.TakeDamage(weapon.Damage);
+                    enemy.TakeDamage(weapon.damage);
                 }
             }
             else
             {
                 // 아무것도 안맞으면 사거리까지 노란색 디버그 레이
-                Debug.DrawRay(origin, dir * weapon.EffectiveRange, Color.yellow, 0.2f);
+                Debug.DrawRay(origin, dir * weapon.effectiveRange, Color.yellow, 0.2f);
             }
 
             // 눈에 보이는 탄 모델은 따로 앞으로 날림
@@ -269,7 +269,7 @@ public class PlayerWeaponController : MonoBehaviour
         float baseYaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
 
         // 일정 시간 이상 안 쐈으면 패턴 인덱스 리셋
-        if (Time.time - lastFireTime > weapon.RecoilResetTime)
+        if (Time.time - lastFireTime > weapon.recoilResetTime)
         {
             recoilIndex = 0;
             recoilAccumYaw = 0f;
@@ -285,7 +285,7 @@ public class PlayerWeaponController : MonoBehaviour
         float deltaYaw = 0f;
 
         // 반동 패턴 사용 여부는 CSV의 UseRecoilPattern으로 제어
-        if (weapon.UseRecoilPattern == 1)
+        if (weapon.useRecoilPattern == 1)
         {
             float[] pattern = GetRecoilPatternByItemId(equippedItemId);
 
@@ -297,7 +297,7 @@ public class PlayerWeaponController : MonoBehaviour
             }
         }
 
-        float randomRange = Mathf.Abs((float)weapon.RandomRecoilAngle);
+        float randomRange = Mathf.Abs((float)weapon.randomRecoilAngle);
 
         if(randomRange > 0f)
         {
@@ -325,7 +325,7 @@ public class PlayerWeaponController : MonoBehaviour
 
         Debug.Log("재장전 시작");
 
-        yield return new WaitForSeconds(weapon.ReloadTime);
+        yield return new WaitForSeconds(weapon.reloadTime);
 
 
         currentAmmoInMag = weapon.magazinesize;
