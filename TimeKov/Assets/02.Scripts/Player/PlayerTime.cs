@@ -30,6 +30,7 @@ public class PlayerTime : MonoBehaviour
 
         // UI에 처음값 알리기
         onTimeChanged?.Invoke(currentTime, maxTime);
+
     }
 
     private void Update()

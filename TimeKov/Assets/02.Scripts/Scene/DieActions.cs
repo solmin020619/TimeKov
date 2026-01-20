@@ -1,10 +1,27 @@
 using UnityEngine;
 
-// Die_Scene에서 복귀 버튼 또는 자동 복귀가 호출할 함수.
 public class DieActions : MonoBehaviour
 {
-    public void BackToBase()
+    [SerializeField] private string baseSceneName = "Base_Scene";
+
+    public void OnClickBackToBase()
     {
-        SceneLoader.Instance.LoadTo("Base_Scene");
+        Time.timeScale = 1f;
+       
+        
+
+        if (SceneLoader.Instance != null)
+            SceneLoader.Instance.LoadTo(baseSceneName);
+    }
+
+    public void OnClickQuit()
+    {
+        Time.timeScale = 1f;
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }
