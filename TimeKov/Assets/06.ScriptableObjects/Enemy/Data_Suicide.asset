@@ -10,31 +10,31 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 69a6f88739c8c994884d2ac5f2c2df84, type: 3}
-  m_Name: Data_MeleeBot
+  m_Name: Data_Suicide
   m_EditorClassIdentifier: 
-  enemyName: 1
-  enemyType: 0
+  enemyName: 2
+  enemyType: 1
   maxHP: 100
   moveSpeed: 3.5
-  chaseSpeed: 7
-  patrolRadius: 15
-  visionRange: 12
-  visionAngle: 110
-  proximityRange: 4
+  chaseSpeed: 6
+  patrolRadius: 10
+  visionRange: 14
+  visionAngle: 160
+  proximityRange: 10
   giveUpChaseRange: 20
   provokedDuration: 10
-  attackDamage: 15
-  attackRange: 2
+  attackDamage: 50
+  attackRange: 6
   attackCooldown: 2
-  attackHitDelay: 1.5
-  attackAnimLength: 2.667
-  explosionRadius: 4
+  attackHitDelay: 0.5
+  attackAnimLength: 1.5
+  explosionRadius: 8
   dieAfterAttack: 1
-  useJumpAttack: 1
+  useJumpAttack: 0
   jumpAttackDamage: 25
-  jumpAttackRadius: 5
-  jumpWindup: 0.5
-  jumpHitDelay: 1.7
+  jumpAttackRadius: 3
+  jumpWindup: 0.35
+  jumpHitDelay: 1.1
   jumpFullTime: 2.867
-  jumpLungeSpeed: 12
+  jumpLungeSpeed: 10
   jumpChanceOnMiss: 0.7
