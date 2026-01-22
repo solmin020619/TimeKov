@@ -71,15 +71,15 @@ public class ItemDatabase : ScriptableObject
             newItem.saleTime = int.Parse(data[7]);
             newItem.iconImange = data[8];
             newItem.weight = float.Parse(data[9]);
-            newItem.isAutomatic = int.Parse(data[9]);
+            newItem.isAutomatic = int.Parse(data[10]);
             newItem.damage = float.Parse(data[11]);
             newItem.fireRate = float.Parse(data[12]);
             newItem.reloadTime = float.Parse(data[13]);
             newItem.effectiveRange = float.Parse(data[14]);
-            newItem.useRecoilPattern = int.Parse(data[10]);
-            newItem.randomRecoilAngle = int.Parse(data[11]);
+            newItem.useRecoilPattern = int.Parse(data[15]);
+            newItem.randomRecoilAngle = int.Parse(data[16]);
             newItem.recoilResetTime = float.Parse(data[17]);
-            newItem.pelletsPerShot = int.Parse(data[12]);
+            newItem.pelletsPerShot = int.Parse(data[18]);
             newItem.spreadAngle = float.Parse(data[19]);
 
             // 리스트에 추가
