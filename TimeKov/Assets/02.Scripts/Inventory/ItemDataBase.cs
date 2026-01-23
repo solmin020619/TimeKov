@@ -86,6 +86,11 @@ public class ItemDatabase : ScriptableObject
             allItems.Add(newItem);
         }
 
+#if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+        UnityEditor.AssetDatabase.SaveAssets();
+#endif
+
         Debug.Log("<color=green>데이터 로드 완료! 아이템 개수: " + allItems.Count + "</color>");
     }
 }
