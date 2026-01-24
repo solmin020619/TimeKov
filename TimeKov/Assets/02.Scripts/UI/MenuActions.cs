@@ -1,35 +1,36 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MenuActions : MonoBehaviour
 {
     public void OnClickNewGame()
     {
-        Debug.Log("NewGame Clicked");
         GameFlow.StartNewGame();
         SceneLoader.Instance.LoadTo("Base_Scene");
     }
 
     public void OnClickLoadGame()
     {
-        Debug.Log("LoadGame Clicked");
         GameFlow.StartLoadGame();
         SceneLoader.Instance.LoadTo("Base_Scene");
     }
 
     public void OnClickSettings()
     {
-        Debug.Log("Settings Clicked");
+        //  ì—¬ê¸°
+        PlayerPrefs.SetString("settings_back_scene",
+            SceneManager.GetActiveScene().name);
+        PlayerPrefs.Save();
+
         SceneLoader.Instance.LoadTo("Settings_Scene");
     }
-
 
     public void OnClickQuit()
     {
 #if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false; // ¿¡µðÅÍ¿¡¼­ Play Á¾·á
+        UnityEditor.EditorApplication.isPlaying = false;
 #else
-        Application.Quit(); // ºôµå¿¡¼­´Â °ÔÀÓ Á¾·á
+        Application.Quit();
 #endif
     }
 }

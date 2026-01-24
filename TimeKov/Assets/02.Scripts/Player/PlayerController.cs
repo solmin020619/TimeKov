@@ -35,6 +35,10 @@ public class PlayerController : MonoBehaviour
     [Header("Y Lock (No Jump)")]
     public float fixedY = 0f;                               // 0으로 고정
 
+    [Header("Mouse Sensitivity")]
+    public float aimScreenSpeed = 15f;                      // 체감 스케일(필요하면 10~25에서 조절)
+    private Vector2 aimScreenPos;                           // 화면상의 가상 조준점
+
     // 내부 사용 변수
     private Vector3 moveInput;                              // wasd 입력값
     private Vector3 dashVelocity;                           // 대시 속도
@@ -49,7 +53,7 @@ public class PlayerController : MonoBehaviour
 
     // 컴포넌트 캐싱
     private Rigidbody rb;
-    private Camera cachedCam;                               
+    private Camera cachedCam;
     private PlayerTime playerTime;
 
     // 애니메이션(외부)에서 읽기
@@ -91,6 +95,9 @@ public class PlayerController : MonoBehaviour
         Vector3 v = rb.linearVelocity;
         v.y = 0f;
         rb.linearVelocity = v;
+
+        // 가상 조준점: 화면 중앙에서 시작
+        aimScreenPos = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
     }
 
     void Update()
@@ -98,7 +105,7 @@ public class PlayerController : MonoBehaviour
         HandleInput();          // 입력 받기 
         HandleStamina();        // 스테미나 회복/소모 처리
         HandleDashInput();      // 대쉬 입력
-        CacheLookRotation();    // 마우스 방향 게산(Raycast는 여기서만) 
+        CacheLookRotation();    // 마우스 방향 계산(Raycast는 여기서만) 
     }
 
     private void FixedUpdate()
@@ -118,6 +125,7 @@ public class PlayerController : MonoBehaviour
         // 대각선 속도 보정
         if (moveInput.sqrMagnitude > 1f) moveInput.Normalize();
     }
+
     void MoveRigidbody()
     {
         // 대쉬 중이면 대쉬 속도만 적용
@@ -134,7 +142,6 @@ public class PlayerController : MonoBehaviour
         // 로컬 기준 이동 방향
         Vector3 moveDir = GetMoveDirectionLocal();
 
-
         // 입력 없으면 정지
         if (moveDir.sqrMagnitude < 0.001f)
         {
@@ -146,7 +153,7 @@ public class PlayerController : MonoBehaviour
             isRunning = false;
             return;
         }
-        
+
         // 달리기 판정
         bool runKey = Input.GetKey(KeyCode.LeftShift);
         bool canRun = currentStamina >= runSpeedCost;
@@ -163,7 +170,7 @@ public class PlayerController : MonoBehaviour
             currentStamina = Mathf.Max(0f, currentStamina);
         }
 
-        // 최종 속도 적용 Y는 Rigidbody 중력 유지
+        // 최종 속도 적용
         Vector3 desired = moveDir.normalized * speed;
         Vector3 finalVelocity = rb.linearVelocity;
         finalVelocity.x = desired.x;
@@ -172,7 +179,7 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = finalVelocity;
     }
 
-    // 로컬 방향 기준 이동 계산(플레이어가 바라보는 방향 기준 이동 벡터 계산
+    // 로컬 방향 기준 이동 계산(플레이어가 바라보는 방향 기준 이동 벡터 계산)
     Vector3 GetMoveDirectionLocal()
     {
         Vector3 direction = transform.right * moveInput.x + transform.forward * moveInput.z;
@@ -200,7 +207,7 @@ public class PlayerController : MonoBehaviour
         isRunning = false;
 
         currentStamina -= dashCost;
-        currentStamina = Mathf.Max(0f,currentStamina);
+        currentStamina = Mathf.Max(0f, currentStamina);
 
         float dashSpeed = dashDistance / dashDuration;
         dashVelocity = dir * dashSpeed;
@@ -218,7 +225,7 @@ public class PlayerController : MonoBehaviour
         if (!isRunning && !isDashing)
         {
             currentStamina += staminaRegen * Time.deltaTime;
-            currentStamina = Mathf.Min(staminaMax,currentStamina);
+            currentStamina = Mathf.Min(staminaMax, currentStamina);
         }
     }
 
@@ -226,11 +233,26 @@ public class PlayerController : MonoBehaviour
     {
         if (cachedCam == null) return;
 
-        Ray ray = cachedCam.ScreenPointToRay(Input.mousePosition);
+        // ✅ Settings 감도값(0.2~3.0)을 읽어서 가상 조준점 이동에 적용
+        float sens = SettingsData.MouseSensitivity;
+
+        // 마우스 이동량 기반 가상 조준점 이동
+        float dx = Input.GetAxis("Mouse X") * sens;
+        float dy = Input.GetAxis("Mouse Y") * sens;
+
+        aimScreenPos += new Vector2(dx, dy) * aimScreenSpeed;
+
+        // 화면 밖으로 나가지 않게 clamp
+        aimScreenPos.x = Mathf.Clamp(aimScreenPos.x, 0f, Screen.width);
+        aimScreenPos.y = Mathf.Clamp(aimScreenPos.y, 0f, Screen.height);
+
+        // 가상 조준점 기준으로 레이 생성
+        Ray ray = cachedCam.ScreenPointToRay(aimScreenPos);
+
         Vector3 hitPoint;
 
         // 바닥 Raycast 우선
-        if(Physics.Raycast(ray,out RaycastHit hit, 1000f, groundLayerMask))
+        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, groundLayerMask))
         {
             hitPoint = hit.point;
         }
@@ -256,7 +278,7 @@ public class PlayerController : MonoBehaviour
         lookDir.y = 0f;
 
         // 너무 가까우면 회전 무시(떨림 방지)
-        if(lookDir.sqrMagnitude < minLookDistance * minLookDistance)
+        if (lookDir.sqrMagnitude < minLookDistance * minLookDistance)
         {
             hasCachedTargetRotation = false;
             return;
@@ -268,7 +290,7 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyCachedRotation()
     {
-        if(!hasCachedTargetRotation) return;
+        if (!hasCachedTargetRotation) return;
 
         Quaternion newRot = Quaternion.Slerp(rb.rotation, cachedTargetRotation, rotationSpeed * Time.fixedDeltaTime);
         rb.MoveRotation(newRot);
@@ -293,12 +315,11 @@ public class PlayerController : MonoBehaviour
         pos.y = fixedY;
         rb.position = pos;
 
-        // Y 속도도 제거 (뚝뚝 튐 방지)
+        // Y 속도도 제거
         Vector3 v = rb.linearVelocity;
         v.y = 0f;
         rb.linearVelocity = v;
     }
-
 
     // 외부 UI 등에서 스테미나 관련 용도
     public float GetStamina() => currentStamina;
