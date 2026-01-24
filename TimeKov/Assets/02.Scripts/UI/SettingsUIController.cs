@@ -66,12 +66,14 @@ public class SettingsUIController : MonoBehaviour
 
     public void OnClickBack()
     {
-        // 저장하고 나가기(선택)
         OnClickApply();
 
-        // 어디서 왔는지 → 그 씬으로
-        string back = PlayerPrefs.GetString(BACK_KEY, fallbackBackScene);
+        string back = GameFlow.ReturnSceneName;
+        if (string.IsNullOrEmpty(back))
+            back = fallbackBackScene;
+
         if (SceneLoader.Instance != null)
             SceneLoader.Instance.LoadTo(back);
     }
+
 }

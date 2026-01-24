@@ -28,6 +28,17 @@ public class GameFlow : MonoBehaviour
         NextSceneName = sceneName;
     }
 
+    // 일시정지 <-> 설정창 씬 왓다갔다 이동가능.
+    public static string ReturnSceneName { get; private set; } = "";
+    public static bool ResumePausedAfterReturn { get; private set; } = false;
+    
+    // 인게임<-> 설정 <-> 일시정지 
+    public static void SetReturnScene(string sceneName, bool resumePaused)
+    {
+        ReturnSceneName = sceneName;
+        ResumePausedAfterReturn = resumePaused;
+    }
+
     // Raid 결과 저장
     public static void SetRaidResult(int raidId, RaidResult result)
     {
