@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be39d4c3fdaddde4dbc184082ee44287, type: 3}
+  m_Name: Data_Hunter
+  m_EditorClassIdentifier: 
+  bossName: 10
+  type: 0
+  maxHP: 500
+  moveSpeed: 3
+  chaseSpeed: 8
+  rotationSpeed: 5
+  damageReduction: 0.7
+  patrolRadius: 15
+  visionRange: 15
+  visionAngle: 120
+  proximityRange: 5
+  giveUpChaseRange: 30
+  provokedDuration: 10
+  basicAttackDamage: 20
+  basicAttackRange: 2
+  basicAttackCooldown: 1.5
+  basicAttackHitDelay: 0.3
+  basicAttackAnimLength: 1
+  rushDamage: 35
+  rushSpeed: 20
+  rushPrepareTime: 2
+  groggyDuration: 5
+  rushCooldown: 8
