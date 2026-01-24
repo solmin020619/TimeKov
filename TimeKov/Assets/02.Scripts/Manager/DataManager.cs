@@ -5,7 +5,7 @@ public class DataManager : MonoBehaviour
     public static DataManager Instance; // 싱글톤
 
     [Header("모든 데이터 파일 연결")]
-    public ItemDatabase itemDB;
+    public ItemDataBase itemDB;
 
     private void Awake()
     {

@@ -27,7 +27,7 @@ public class ItemInfo
 }
 
 [CreateAssetMenu(fileName = "ItemData", menuName = "Game Data/Item Database")]
-public class ItemDatabase : ScriptableObject
+public class ItemDataBase : ScriptableObject
 {
     public List<ItemInfo> allItems = new List<ItemInfo>();
 
