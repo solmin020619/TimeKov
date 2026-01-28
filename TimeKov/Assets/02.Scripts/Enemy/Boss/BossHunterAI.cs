@@ -6,7 +6,8 @@ using UnityEngine.AI;
 [RequireComponent(typeof(EnemyHealth))]
 public class BossHunterAI : MonoBehaviour
 {
-    public BossData data;
+    [Header("Settings")]
+    public BossDataSO data; // 통합된 BossDataSO 사용
 
     public enum State { Patrol, Chase, BasicAttack, PrepareRush, Rush, Groggy, Dead }
     public State currentState;
@@ -20,7 +21,6 @@ public class BossHunterAI : MonoBehaviour
     private float lastBasicAttackTime;
     private float lastRushTime;
     private float lastProvokedTime = -999f;
-
     private bool isActing = false;
     private bool isGroggy = false;
 
@@ -92,6 +92,7 @@ public class BossHunterAI : MonoBehaviour
             return;
         }
 
+        // 헌터의 돌진 패턴
         if (Time.time >= lastRushTime + data.rushCooldown && dist > 4.0f)
         {
             if (HasLineOfSight(dist))
@@ -121,6 +122,7 @@ public class BossHunterAI : MonoBehaviour
         agent.isStopped = true;
         agent.velocity = Vector3.zero;
         if (anim) anim.SetTrigger("Attack");
+
         float timer = 0f;
         while (timer < data.basicAttackHitDelay)
         {
@@ -128,18 +130,21 @@ public class BossHunterAI : MonoBehaviour
             timer += Time.deltaTime;
             yield return null;
         }
+
         float d = Vector3.Distance(transform.position, playerTransform.position);
         if (d <= data.basicAttackRange + 1.0f)
         {
             PlayerTime pt = playerTransform.GetComponent<PlayerTime>();
             if (pt != null) pt.TakeDamage(data.basicAttackDamage);
         }
+
         float remaining = data.basicAttackAnimLength - data.basicAttackHitDelay;
         yield return new WaitForSeconds(remaining);
         isActing = false;
         currentState = State.Chase;
         agent.isStopped = false;
     }
+
     IEnumerator PerformRushSkill()
     {
         isActing = true;

@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea20a0cc6e7c6c14b80f2267dcb62efd, type: 3}
+  m_Name: Bomber
+  m_EditorClassIdentifier: 
+  enemyName: 
+  enemyType: 1
+  maxHP: 100
+  moveSpeed: 3.5
+  chaseSpeed: 6
+  patrolRadius: 10
+  visionRange: 12
+  visionAngle: 110
+  proximityRange: 4
+  giveUpChaseRange: 20
+  provokedDuration: 10
+  attackDamage: 15
+  attackRange: 1.5
+  attackCooldown: 2
+  attackHitDelay: 0.5
+  attackAnimLength: 1.5
+  explosionRadius: 4
+  dieAfterAttack: 1
+  useJumpAttack: 0
+  jumpAttackDamage: 25
+  jumpAttackRadius: 3
+  jumpWindup: 0.35
+  jumpHitDelay: 1.1
+  jumpFullTime: 2.8
+  jumpLungeSpeed: 10
+  jumpChanceOnMiss: 0.7

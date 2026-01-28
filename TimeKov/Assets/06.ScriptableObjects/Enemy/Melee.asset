@@ -9,32 +9,32 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 69a6f88739c8c994884d2ac5f2c2df84, type: 3}
-  m_Name: Data_MeleeBot
+  m_Script: {fileID: 11500000, guid: ea20a0cc6e7c6c14b80f2267dcb62efd, type: 3}
+  m_Name: Melee
   m_EditorClassIdentifier: 
-  enemyName: 1
+  enemyName: 
   enemyType: 0
   maxHP: 100
   moveSpeed: 3.5
-  chaseSpeed: 7
-  patrolRadius: 15
+  chaseSpeed: 6
+  patrolRadius: 10
   visionRange: 12
   visionAngle: 110
   proximityRange: 4
   giveUpChaseRange: 20
   provokedDuration: 10
   attackDamage: 15
-  attackRange: 2
+  attackRange: 1.5
   attackCooldown: 2
-  attackHitDelay: 1.5
-  attackAnimLength: 2.667
+  attackHitDelay: 0.5
+  attackAnimLength: 1.5
   explosionRadius: 4
   dieAfterAttack: 1
   useJumpAttack: 1
   jumpAttackDamage: 25
-  jumpAttackRadius: 5
-  jumpWindup: 0.5
-  jumpHitDelay: 1.7
-  jumpFullTime: 2.867
-  jumpLungeSpeed: 12
+  jumpAttackRadius: 3
+  jumpWindup: 0.35
+  jumpHitDelay: 1.1
+  jumpFullTime: 2.8
+  jumpLungeSpeed: 10
   jumpChanceOnMiss: 0.7

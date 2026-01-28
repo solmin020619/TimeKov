@@ -6,7 +6,8 @@ using UnityEngine.AI;
 [RequireComponent(typeof(EnemyHealth))]
 public class EnemyAI : MonoBehaviour
 {
-    public EnemyData data;
+    [Header("Settings")]
+    public EnemyDataSO data; // 새로운 SO 데이터 연결
 
     public enum State { Patrol, Chase, Attack }
     [Header("Current State")]
@@ -93,7 +94,6 @@ public class EnemyAI : MonoBehaviour
             case State.Attack: AttackLogic(); break;
         }
     }
-
 
     void PatrolLogic()
     {
@@ -354,7 +354,7 @@ public class EnemyAI : MonoBehaviour
             agent.SetDestination(hit.position);
     }
 
-    void DropLoot() { Debug.Log("드랍"); }
+    void DropLoot() { Debug.Log("Loot Dropped"); }
 
     void OnDrawGizmosSelected()
     {
