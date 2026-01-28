@@ -30,6 +30,10 @@ public class PlayerWeaponController : MonoBehaviour
     private float recoilAccumYaw = 0f;      // 누적된 Yaw(좌우) 반동 값
     public float recoilRecoverSpeed = 0f;   // 0이면 복구없음(리셋만) 10~30이면 서서히 복구
 
+    public System.Action<float> onReloadStart;  // duration 전달
+    public System.Action onReloadEnd;
+
+
     // 장착된 무기 오브젝트/총구
     private GameObject equippedWeaponGO; // 현재 손에 붙어있는 무기 오브젝트
     private Transform muzzle;            // 무기 프리팹 내부의 총구 트랜스폼
@@ -319,6 +323,9 @@ public class PlayerWeaponController : MonoBehaviour
 
         isReloading = true;
 
+        // 재장전 시작 이벤트 (duration 넘김)
+        onReloadStart?.Invoke(weapon.reloadTime);
+
         // 재장전 시작 시 반동 초기화
         recoilIndex = 0;
         recoilAccumYaw = 0f;
@@ -332,6 +339,10 @@ public class PlayerWeaponController : MonoBehaviour
         isReloading = false;
 
         Debug.Log("재장전 완료");
+
+        // 재장전 종료 이벤트
+        onReloadEnd?.Invoke();
+
     }
 
     // 수평(XZ) 스프레드 (쿼터뷰용)
