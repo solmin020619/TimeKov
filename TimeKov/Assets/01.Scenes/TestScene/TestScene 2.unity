@@ -1664,6 +1664,37 @@ Transform:
   - {fileID: 1686756877}
   m_Father: {fileID: 1254930040}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &384823124
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 384823125}
+  m_Layer: 0
+  m_Name: Fire Point
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &384823125
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384823124}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.639, z: 0.283}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1725776594}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &391289861
 GameObject:
   m_ObjectHideFlags: 0
@@ -8535,6 +8566,7 @@ Transform:
   - {fileID: 567231902}
   - {fileID: 1519064574}
   - {fileID: 1877364244}
+  - {fileID: 384823125}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1725776595
@@ -8553,7 +8585,6 @@ MonoBehaviour:
   currentHP: 0
   isCoreExposed: 0
   targetPlayer: {fileID: 1149513503}
-  navAgent: {fileID: 1725776589}
   animator: {fileID: 1858286699}
   coreProtectorVisual: {fileID: 0}
   coreScript: {fileID: 1877364240}
@@ -8563,6 +8594,17 @@ MonoBehaviour:
   - {fileID: 1129804133}
   - {fileID: 567231902}
   - {fileID: 1519064574}
+  firePoint: {fileID: 384823125}
+  attackCooldown: 3
+  warningMarkerPrefab: {fileID: 7740643380852355837, guid: e5f97b097c70ac549a47393b263e6f16, type: 3}
+  explosionPrefab: {fileID: 6144719918764027540, guid: b2f9906aa1040ba4587280171dbe613e, type: 3}
+  missilePrefab: {fileID: 6038973596277720230, guid: c319346384eb60d4398a28a98e6b00cd, type: 3}
+  mortarMeshPrefab: {fileID: 6577154540419965256, guid: 3d671ac734501e1458cc71825f48a2d0, type: 3}
+  mortarDelay: 1.5
+  mortarHeight: 20
+  missileSpeed: 15
+  bombCount: 6
+  bombingRadius: 8
 --- !u!1 &1733149867
 GameObject:
   m_ObjectHideFlags: 0
