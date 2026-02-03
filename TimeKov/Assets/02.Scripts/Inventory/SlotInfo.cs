@@ -1,19 +1,27 @@
-using TMPro;
+ï»¿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class SlotInfo : MonoBehaviour
 {
-
-
-    public int slotIndex; // ¾ÆÀÌÅÛ ID
+    public int slotIndex; // ì•„ì´í…œ ID
     public int slotOldIndex;
-    public int itemCount; // [Ãß°¡] ¾ÆÀÌÅÛ °³¼ö
+    public int itemCount; // ì•„ì´í…œ ê°œìˆ˜
 
-
-    public Image iconImage; // ¿¬°áµÈ ¾ÆÀÌÄÜ ÀÌ¹ÌÁö
+    public Image iconImage; // ì•„ì´í…œ ì•„ì´ì½˜ (ìì‹ Icon)
     public TextMeshProUGUI slotText;
-    public TextMeshProUGUI amountText; // [Ãß°¡] °³¼ö Ç¥½Ã ÅØ½ºÆ®
+    public TextMeshProUGUI amountText; // ê°œìˆ˜ í‘œì‹œ í…ìŠ¤íŠ¸
+
+    public enum SlotOwnerType
+    {
+        Inventory,
+        Equip,
+        Warehouse,
+        Loot
+    }
+
+    public SlotOwnerType ownerType;
+
 
 
     public void SetSlot(int id, int count)
@@ -21,10 +29,34 @@ public class SlotInfo : MonoBehaviour
         slotIndex = id;
         itemCount = count;
 
-        if (slotIndex != 0)
+        var img = GetComponent<Image>(); // ìŠ¬ë¡¯ BG (ì´ì œ ê³ ì •)
+
+        if (slotIndex == 0)
         {
-            GetComponent<Image>().sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
-            //Debug.Log("fadfasdfasdfasdf___" + DataManager.Instance.GetItem(slotIndex).iconImange);
+            // âŒ ìŠ¬ë¡¯ BGëŠ” ë” ì´ìƒ ê±´ë“œë¦¬ì§€ ì•ŠìŒ
+            // if (img != null) img.sprite = null;
+
+            if (slotText != null) slotText.text = "";
+            slotOldIndex = 0;
+
+            // âœ… ì•„ì´í…œ ì—†ìœ¼ë©´ ì•„ì´ì½˜ OFF
+            if (iconImage != null)
+            {
+                iconImage.sprite = null;
+                iconImage.gameObject.SetActive(false);
+            }
+        }
+        else
+        {
+            // âŒ ìŠ¬ë¡¯ BGëŠ” ë” ì´ìƒ ì•„ì´í…œìœ¼ë¡œ ë°”ê¾¸ì§€ ì•ŠìŒ
+            // if (img != null) img.sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
+
+            // âœ… ì•„ì´í…œ ìˆìœ¼ë©´ ì•„ì´ì½˜ ON
+            if (iconImage != null)
+            {
+                iconImage.sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
+                iconImage.gameObject.SetActive(true);
+            }
         }
 
         UpdateAmountText();
@@ -34,26 +66,21 @@ public class SlotInfo : MonoBehaviour
     {
         if (amountText != null)
         {
-            // ¾ÆÀÌÅÛÀÌ ¾ø°Å³ª(0), 1°³ÀÏ ¶§´Â ¼ıÀÚ ¼û±è
             if (slotIndex == 0 || itemCount <= 1)
-            {
                 amountText.text = "";
-            }
             else
-            {
-                amountText.text = itemCount.ToString(); // 2°³ ÀÌ»óÀÏ ¶§¸¸ ¼ıÀÚ Ç¥½Ã
-            }
+                amountText.text = itemCount.ToString();
         }
     }
 
     void Update()
     {
-        // ÇöÀç °ªÀÌ °ú°Å °ª°ú ´Ş¶óÁ³´ÂÁö ¸Å ÇÁ·¹ÀÓ Ã¼Å©
+        if (slotIndex == 0) return;
+
         if (slotIndex != slotOldIndex)
         {
-            Debug.Log("slotIndex°¡ º¯°æµÇ¾ú½À´Ï´Ù!");
+            Debug.Log("slotIndexê°€ ë³€ê²½ë˜ì—ˆìŠµë‹ˆë‹¤!");
             slotText.text = DataManager.Instance.GetItem(slotIndex).itemName;
-            // º¯°æµÈ ÈÄ¿¡´Â °ú°Å °ªÀ» ÇöÀç °ªÀ¸·Î ¾÷µ¥ÀÌÆ®
             slotOldIndex = slotIndex;
         }
     }
@@ -62,14 +89,13 @@ public class SlotInfo : MonoBehaviour
     {
         if (slotIndex == 0)
         {
-            Debug.Log("³ë¾ÆÀÌÅÛ");
+            Debug.Log("ë…¸ì•„ì´í…œ");
         }
         else
         {
-            Debug.Log("¾ÆÀÌÅÛ ÀÌ¸§ ÀÌ¸§ :" + DataManager.Instance.GetItem(slotIndex).itemName);
-            Debug.Log("¾ÆÀÌÅÛ ÀÌ¸§ ¼³¸í :" + DataManager.Instance.GetItem(slotIndex).description);
-            Debug.Log("¾ÆÀÌÄÜ ÀÌ¹ÌÁö ÆÄÀÏ ÀÌ¸§ :" + DataManager.Instance.GetItem(slotIndex).iconImange);
+            Debug.Log("ì•„ì´í…œ ì´ë¦„ :" + DataManager.Instance.GetItem(slotIndex).itemName);
+            Debug.Log("ì•„ì´í…œ ì„¤ëª… :" + DataManager.Instance.GetItem(slotIndex).description);
+            Debug.Log("ì•„ì´ì½˜ ì´ë¯¸ì§€ íŒŒì¼ ì´ë¦„ :" + DataManager.Instance.GetItem(slotIndex).iconImange);
         }
-
     }
 }

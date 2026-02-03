@@ -1,18 +1,31 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 public class InventoryManager : MonoBehaviour
 {
-    [Header("UI Á¦¾î")]
-    public GameObject inventoryUI; //ÀÎº¥ È°¼ººñÈ°¼º Å×½ºÆ®¿ë
-    public GameObject DropItemUI; //µå¶ø È°¼º ºñÈ°¼º Å×½ºÆ®¿ë
+    // âœ… ì´ ì¸ë²¤ì´ í”Œë ˆì´ì–´ìš©ì¸ì§€(ê°€ë°© ì˜í–¥ ë°›ëŠ”ì§€) êµ¬ë¶„
+    public enum InventoryOwnerType { Player, Warehouse }
 
-    [Header("¼³Á¤")]
-    public GameObject slotPrefab;       // º¹»çÇÒ ½½·Ô ÇÁ¸®ÆÕ
-    public Transform contentTransform;  // ½½·ÔÀÌ µé¾î°¥ ºÎ¸ğ (Content)
+    [Header("ì¸ë²¤ íƒ€ì…(ê°€ë°© ì˜í–¥ ì—¬ë¶€)")]
+    public InventoryOwnerType ownerType = InventoryOwnerType.Player;
 
-    [Header("ÀÎº¥ ½½·Ô")]
-    public int targetSlotCount = 30;          // »ı¼ºÇÒ ½½·Ô °³¼ö
+    [Header("UI ì œì–´")]
+    public GameObject inventoryUI; // ì¸ë²¤ í™œì„±/ë¹„í™œì„± í…ŒìŠ¤íŠ¸ìš©
+    public GameObject DropItemUI;  // ë“œë í™œì„±/ë¹„í™œì„± í…ŒìŠ¤íŠ¸ìš©
+
+    [Header("ì„¤ì •")]
+    public GameObject slotPrefab;       // ë³µì‚¬í•  ìŠ¬ë¡¯ í”„ë¦¬íŒ¹
+    public Transform contentTransform;  // ìŠ¬ë¡¯ì´ ë“¤ì–´ê°ˆ ë¶€ëª¨ (Content)
+
+    [Header("ì¸ë²¤ ìŠ¬ë¡¯")]
+    public int baseSlotCount = 10;      // ê°€ë°© ì—†ì„ ë•Œ ê¸°ë³¸ ìŠ¬ë¡¯ ìˆ˜
+    public int targetSlotCount = 30;    // ìƒì„±/ìœ ì§€í•  ìŠ¬ë¡¯ ê°œìˆ˜(í˜„ì¬ ìƒíƒœ)
+
+    [Header("ì—°ê²°(í”Œë ˆì´ì–´ ì¸ë²¤ì—ì„œë§Œ ì‚¬ìš©)")]
+    public InventoryManager warehouseInventory; // í”Œë ˆì´ì–´ ì¸ë²¤ -> ì°½ê³  ì´ë™ìš©
+
+    [Header("ì—°ê²°(ì°½ê³  ì¸ë²¤ì—ì„œë§Œ ì‚¬ìš©)")]
+    public InventoryManager playerInventory; // ì°½ê³  ì¸ë²¤ -> í”Œë ˆì´ì–´ ì¸ë²¤ ì´ë™ìš©
 
     private List<SlotInfo> SlotData = new List<SlotInfo>();
 
@@ -21,20 +34,14 @@ public class InventoryManager : MonoBehaviour
     {
         public int id;
         public int count;
-        public ItemData(int _id, int _count) { id = _id; count = _count; } //»ı¼ºÀÚ ÃÊ±âÈ­
+        public ItemData(int _id, int _count) { id = _id; count = _count; }
     }
+
     void Start()
     {
         CreateSlots();
-
-        /*
-        if (inventoryUI != null)
-        {
-            inventoryUI.SetActive(false);
-        }
-        */
-
     }
+
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.I))
@@ -42,70 +49,87 @@ public class InventoryManager : MonoBehaviour
             ToggleInventory();
         }
     }
+
     public void ToggleInventory()
     {
         if (inventoryUI != null)
         {
-            // activeSelf: ÇöÀç È°¼ºÈ­ »óÅÂ (true/false)
-            // !activeSelf: ¹İ´ë °ª (true -> false, false -> true)
             inventoryUI.SetActive(!inventoryUI.activeSelf);
         }
     }
 
-    // ¿ÜºÎ¿¡¼­µµ È£ÃâÇÒ ¼ö ÀÖµµ·Ï publicÀ¸·Î ¸¸µê
+    // ìŠ¬ë¡¯ ìƒì„±
     public void CreateSlots()
     {
+        // ì¤‘ë³µ ìƒì„± ë°©ì§€
+        if (SlotData.Count > 0) return;
+
         for (int i = 0; i < targetSlotCount; i++)
         {
-            // ÇÁ¸®ÆÕ »ı¼º ºÎ¸ğ¸¦ Content
             GameObject newSlot = Instantiate(slotPrefab, contentTransform);
-            // »ı¼ºµÈ ¿ÀºêÁ§Æ®¿¡¼­ Slot ½ºÅ©¸³Æ® °¡Á®¿À±â
             SlotInfo newSlotScript = newSlot.GetComponent<SlotInfo>();
-            // ÀÎµ¦½º ¹øÈ£ ºÎ¿©ÇÏ±â
-            newSlotScript.SetSlot(0, 0);
-            // °ü¸® ¸®½ºÆ®¿¡ Ãß°¡ 
+
+            // âœ… í•µì‹¬: ìŠ¬ë¡¯ì˜ "ì†Œìœ ì íƒ€ì…"ì„ ì¸ë²¤ ì¢…ë¥˜ì— ë§ì¶° ìë™ ì„¸íŒ…
+            if (newSlotScript != null)
+            {
+                newSlotScript.ownerType = (ownerType == InventoryOwnerType.Player)
+                    ? SlotInfo.SlotOwnerType.Inventory
+                    : SlotInfo.SlotOwnerType.Warehouse;
+
+                newSlotScript.SetSlot(0, 0);
+            }
+
+            // âœ… [ì¶”ê°€] ìŠ¬ë¡¯ì˜ DoubleClickEquipì´ InventoryManagerë¥¼ ëª» ì°¾ëŠ” êµ¬ì¡°ë¼ì„œ ì—¬ê¸°ì„œ ì§ì ‘ ì£¼ì…
+            DoubleClickEquip dc = newSlot.GetComponent<DoubleClickEquip>();
+            if (dc != null)
+            {
+                dc.invenManager = this;
+            }
+
+            // âœ… [ì¶”ê°€] ìš°í´ë¦­ ë©”ë‰´ìš© SlotRightClickë„ InventoryManagerë¥¼ ëª» ì°¾ëŠ” êµ¬ì¡°ë¼ì„œ ì—¬ê¸°ì„œ ì§ì ‘ ì£¼ì…
+            SlotRightClick rc = newSlot.GetComponent<SlotRightClick>();
+            if (rc != null)
+            {
+                rc.ownerManager = this;
+            }
+
             SlotData.Add(newSlotScript);
-            // ½½·ÔÀÇ ÀÌ¸§
             newSlot.name = $"Slot_{i}";
         }
+
+
     }
 
     public void AddItem(int insertItemID, int count = 1)
     {
-        // ÀÌ¹Ì °°Àº ¾ÆÀÌÅÛÀÌ ÀÖ´ÂÁö °Ë»ç (Áßº¹ ½×±â)
+        // ì´ë¯¸ ê°™ì€ ì•„ì´í…œì´ ìˆëŠ”ì§€ ê²€ì‚¬ (ì¤‘ë³µ ìŒ“ê¸°)
         for (int i = 0; i < SlotData.Count; i++)
         {
-            // ºó ½½·Ô(0)ÀÌ ¾Æ´Ï°í, ID°¡ °°´Ù¸é
             if (SlotData[i].slotIndex != 0 && SlotData[i].slotIndex == insertItemID)
             {
-                int currentCount = SlotData[i].itemCount; // ±âÁ¸ °³¼ö¿¡ ´õÇÏ±â
+                int currentCount = SlotData[i].itemCount;
                 SlotData[i].SetSlot(insertItemID, currentCount + count);
-
-                Debug.Log($"½½·Ô {i}¹ø: {insertItemID}¹ø ¾ÆÀÌÅÛ °³¼ö Áõ°¡ -> {currentCount + count}°³");
+                Debug.Log($"ìŠ¬ë¡¯ {i}ë²ˆ: {insertItemID}ë²ˆ ì•„ì´í…œ ê°œìˆ˜ ì¦ê°€ -> {currentCount + count}ê°œ");
                 return;
             }
         }
 
-        // Áßº¹ ¾ÆÀÌÅÛÀÌ ¾ø´Ù¸é ºó ½½·Ô(ID°¡ 0ÀÎ °÷) Ã£±â
+        // ë¹ˆ ìŠ¬ë¡¯ ì°¾ê¸°
         for (int i = 0; i < SlotData.Count; i++)
         {
-            if (SlotData[i].slotIndex == 0) // ºó ½½·Ô ¹ß°ß
+            if (SlotData[i].slotIndex == 0)
             {
-                // »õ ¾ÆÀÌÅÛ µî·Ï (ID¿Í °³¼ö ¼³Á¤)
                 SlotData[i].SetSlot(insertItemID, count);
-
-                Debug.Log($"½½·Ô {i}¹ø: ºó Ä­¿¡ {insertItemID}¹ø ¾ÆÀÌÅÛ {count}°³ ½Å±Ô µî·Ï");
+                Debug.Log($"ìŠ¬ë¡¯ {i}ë²ˆ: ë¹ˆ ì¹¸ì— {insertItemID}ë²ˆ ì•„ì´í…œ {count}ê°œ ì‹ ê·œ ë“±ë¡");
                 return;
             }
         }
 
-        Debug.Log("ÀÎº¥Åä¸®°¡ °¡µæ Ã¡½À´Ï´Ù!");
+        Debug.Log("ì¸ë²¤í† ë¦¬ê°€ ê°€ë“ ì°¼ìŠµë‹ˆë‹¤!");
     }
-
 
     public void SortInventory()
     {
-        // µ¥ÀÌÅÍ¸¦ °¡Á®¿Í¼­ ÀÓ½Ã ¸®½ºÆ®¿¡ ´ã±â
         List<ItemData> tempList = new List<ItemData>();
 
         foreach (SlotInfo slot in SlotData)
@@ -113,29 +137,231 @@ public class InventoryManager : MonoBehaviour
             tempList.Add(new ItemData(slot.slotIndex, slot.itemCount));
         }
 
-        // ¸®½ºÆ® Á¤·Ä
         tempList.Sort((a, b) =>
         {
-            // µÑ ´Ù 0(ºóÄ­)ÀÌ¸é ¼ø¼­ ¾È ¹Ù²Ş
             if (a.id == 0 && b.id == 0) return 0;
-
-            // A°¡ 0ÀÌ¸é(ºóÄ­ÀÌ¸é) µÚ·Î º¸³¿
             if (a.id == 0) return 1;
-
-            //  B°¡ 0ÀÌ¸é(ºóÄ­ÀÌ¸é) A¸¦ ¾ÕÀ¸·Î º¸³¿
             if (b.id == 0) return -1;
-
-            // µÑ ´Ù ¾ÆÀÌÅÛÀÌ ÀÖÀ¸¸é ID ±âÁØ ¿À¸§Â÷¼ø
             return a.id.CompareTo(b.id);
         });
 
-        // ½½·ÔÁ¤¸®
         for (int i = 0; i < SlotData.Count; i++)
         {
-            SlotData[i].SetSlot(tempList[i].id, tempList[i].count); // ½½·Ô °»½Å
+            SlotData[i].SetSlot(tempList[i].id, tempList[i].count);
         }
 
-        Debug.Log("ÀÎº¥Åä¸® Á¤·Ä ¿Ï·á!");
+        Debug.Log("ì¸ë²¤í† ë¦¬ ì •ë ¬ ì™„ë£Œ!");
     }
 
+    // =========================
+    // ê°€ë°© ìŠ¬ë¡¯ ê°€ë³€ ë¡œì§
+    // =========================
+
+    int GetBagBonus(int bagId)
+    {
+        switch (bagId)
+        {
+            case 4101: return 32; // Lv.3
+            case 4102: return 24; // Lv.2
+            case 4103: return 16; // Lv.1
+            default: return 0;    // ì—†ìŒ
+        }
+    }
+
+    public void ApplyBagById(int bagId)
+    {
+        // âœ… í•µì‹¬: ì°½ê³ ëŠ” ê°€ë°© ì˜í–¥ ì ˆëŒ€ X
+        if (ownerType != InventoryOwnerType.Player)
+            return;
+
+        int newCount = baseSlotCount + GetBagBonus(bagId);
+        ResizeInventory(newCount);
+    }
+
+    // ìŠ¬ë¡¯ ìˆ˜ ë³€ê²½ (ì¤„ì–´ë“¤ë©´ ë’¤ìª½ ì¹¸ë¶€í„° ì‚­ì œ)
+    public void ResizeInventory(int newSlotCount)
+    {
+        if (newSlotCount < 0) newSlotCount = 0;
+
+        if (SlotData == null || SlotData.Count == 0)
+        {
+            targetSlotCount = newSlotCount;
+            return;
+        }
+
+        SortInventory();
+
+        int currentCount = SlotData.Count;
+
+        if (newSlotCount < currentCount)
+        {
+            // ë’¤ìª½ ì•„ì´í…œ ì‚­ì œ
+            for (int i = newSlotCount; i < currentCount; i++)
+            {
+                if (SlotData[i] != null && SlotData[i].slotIndex != 0)
+                    SlotData[i].SetSlot(0, 0);
+            }
+
+            // ë’¤ìª½ ìŠ¬ë¡¯ ì˜¤ë¸Œì íŠ¸ ì‚­ì œ
+            for (int i = currentCount - 1; i >= newSlotCount; i--)
+            {
+                if (SlotData[i] != null)
+                    Destroy(SlotData[i].gameObject);
+
+                SlotData.RemoveAt(i);
+            }
+        }
+        else if (newSlotCount > currentCount)
+        {
+            for (int i = currentCount; i < newSlotCount; i++)
+            {
+                GameObject newSlot = Instantiate(slotPrefab, contentTransform);
+                SlotInfo newSlotScript = newSlot.GetComponent<SlotInfo>();
+
+                if (newSlotScript != null)
+                {
+                    newSlotScript.ownerType = (ownerType == InventoryOwnerType.Player)
+                        ? SlotInfo.SlotOwnerType.Inventory
+                        : SlotInfo.SlotOwnerType.Warehouse;
+
+                    newSlotScript.SetSlot(0, 0);
+                }
+
+                // âœ… [ì¶”ê°€] ìƒˆë¡œ ëŠ˜ì–´ë‚œ ìŠ¬ë¡¯ì—ë„ manager ì£¼ì…
+                DoubleClickEquip dc = newSlot.GetComponent<DoubleClickEquip>();
+                if (dc != null)
+                {
+                    dc.invenManager = this;
+                }
+
+                // âœ… [ì¶”ê°€] ìƒˆë¡œ ëŠ˜ì–´ë‚œ ìŠ¬ë¡¯ì—ë„ ìš°í´ë¦­ ë©”ë‰´ìš© SlotRightClick manager ì£¼ì…
+                SlotRightClick rc = newSlot.GetComponent<SlotRightClick>();
+                if (rc != null)
+                {
+                    rc.ownerManager = this;
+                }
+
+                SlotData.Add(newSlotScript);
+                newSlot.name = $"Slot_{i}";
+            }
+        }
+
+        targetSlotCount = newSlotCount;
+        Debug.Log($"ì¸ë²¤ ìŠ¬ë¡¯ ìˆ˜ ë³€ê²½ ì™„ë£Œ: {currentCount} -> {newSlotCount}");
+
+
+    }
+
+    // =========================
+    // ì¸ë²¤ -> ì°½ê³  ì „ì²´ ì´ë™
+    // =========================
+
+    public void MoveAllToWarehouseButton()
+    {
+        if (warehouseInventory == null)
+        {
+            Debug.LogWarning("warehouseInventoryê°€ ì—°ê²° ì•ˆë¨!");
+            return;
+        }
+
+        MoveAllItemsTo(warehouseInventory);
+    }
+
+    public void MoveAllItemsTo(InventoryManager target)
+    {
+        if (target == null) return;
+
+        for (int i = 0; i < SlotData.Count; i++)
+        {
+            int id = SlotData[i].slotIndex;
+            int count = SlotData[i].itemCount;
+            if (id == 0) continue;
+
+            target.AddItem(id, count);
+            SlotData[i].SetSlot(0, 0);
+        }
+
+        SortInventory();
+        target.SortInventory();
+
+        Debug.Log("ì¸ë²¤ -> ì°½ê³  ì „ì²´ ì´ë™ ì™„ë£Œ");
+    }
+
+    // =========================
+    // ë”ë¸”í´ë¦­ ì•„ì´í…œ ì´ë™(ìŠ¬ë¡¯ 1ê°œ)
+    // =========================
+
+    public bool MoveItemByDoubleClick(SlotInfo fromSlot)
+    {
+        if (fromSlot == null) return false;
+        if (fromSlot.slotIndex == 0) return false;
+
+        InventoryManager target = null;
+
+        // âœ… í”Œë ˆì´ì–´ ì¸ë²¤ -> ì°½ê³ 
+        if (ownerType == InventoryOwnerType.Player)
+        {
+            target = warehouseInventory;
+        }
+        // âœ… ì°½ê³  -> í”Œë ˆì´ì–´ ì¸ë²¤
+        else if (ownerType == InventoryOwnerType.Warehouse)
+        {
+            target = (playerInventory != null) ? playerInventory : FindPlayerInventoryFallback();
+        }
+
+        if (target == null)
+            return false;
+
+        int id = fromSlot.slotIndex;
+        int count = fromSlot.itemCount;
+
+        bool added = target.TryAddItem(id, count);
+        if (!added)
+            return false;
+
+        fromSlot.SetSlot(0, 0);
+
+
+
+        return true;
+    }
+
+    // AddItem()ê³¼ ë™ì¼í•œ ë™ì‘ì„ í•˜ë˜, ì„±ê³µ/ì‹¤íŒ¨ë¥¼ ë°˜í™˜(ì´ë™ ë¡œì§ìš©)
+    bool TryAddItem(int insertItemID, int count = 1)
+    {
+        for (int i = 0; i < SlotData.Count; i++)
+        {
+            if (SlotData[i].slotIndex != 0 && SlotData[i].slotIndex == insertItemID)
+            {
+                int currentCount = SlotData[i].itemCount;
+                SlotData[i].SetSlot(insertItemID, currentCount + count);
+                Debug.Log($"ìŠ¬ë¡¯ {i}ë²ˆ: {insertItemID}ë²ˆ ì•„ì´í…œ ê°œìˆ˜ ì¦ê°€ -> {currentCount + count}ê°œ");
+                return true;
+            }
+        }
+
+        for (int i = 0; i < SlotData.Count; i++)
+        {
+            if (SlotData[i].slotIndex == 0)
+            {
+                SlotData[i].SetSlot(insertItemID, count);
+                Debug.Log($"ìŠ¬ë¡¯ {i}ë²ˆ: ë¹ˆ ì¹¸ì— {insertItemID}ë²ˆ ì•„ì´í…œ {count}ê°œ ì‹ ê·œ ë“±ë¡");
+                return true;
+            }
+        }
+
+        Debug.Log("ì¸ë²¤í† ë¦¬ê°€ ê°€ë“ ì°¼ìŠµë‹ˆë‹¤!");
+        return false;
+    }
+
+    InventoryManager FindPlayerInventoryFallback()
+    {
+        InventoryManager[] all = FindObjectsByType<InventoryManager>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] != null && all[i].ownerType == InventoryOwnerType.Player)
+                return all[i];
+        }
+        return null;
+    }
 }
