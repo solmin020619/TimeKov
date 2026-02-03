@@ -3220,7 +3220,7 @@ GameObject:
   - component: {fileID: 645910706}
   - component: {fileID: 645910705}
   - component: {fileID: 645910704}
-  - component: {fileID: 645910703}
+  - component: {fileID: 645910710}
   m_Layer: 0
   m_Name: hunter
   m_TagString: Untagged
@@ -3228,26 +3228,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &645910703
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 645910702}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d2b81b418d038f4fad40ab0ec255ee0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  data: {fileID: 11400000, guid: f3276ca4bd567784a8f7e1b76d46e3ef, type: 2}
-  currentState: 0
-  targetMask:
-    serializedVersion: 2
-    m_Bits: 512
-  obstacleMask:
-    serializedVersion: 2
-    m_Bits: 1024
 --- !u!195 &645910704
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -3376,6 +3356,26 @@ Transform:
   - {fileID: 1609085686}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &645910710
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 645910702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d2b81b418d038f4fad40ab0ec255ee0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  data: {fileID: 11400000, guid: f3276ca4bd567784a8f7e1b76d46e3ef, type: 2}
+  currentState: 0
+  targetMask:
+    serializedVersion: 2
+    m_Bits: 512
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 1024
 --- !u!1 &650219069
 GameObject:
   m_ObjectHideFlags: 0
