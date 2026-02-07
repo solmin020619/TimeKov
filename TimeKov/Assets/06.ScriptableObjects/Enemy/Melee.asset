@@ -14,27 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemyName: 
   enemyType: 0
-  maxHP: 100
+  maxHP: 500
   moveSpeed: 3.5
-  chaseSpeed: 6
-  patrolRadius: 10
-  visionRange: 12
-  visionAngle: 110
+  chaseSpeed: 10
+  patrolRadius: 15
+  visionRange: 20
+  visionAngle: 180
   proximityRange: 4
   giveUpChaseRange: 20
   provokedDuration: 10
   attackDamage: 15
-  attackRange: 1.5
+  attackRange: 3
   attackCooldown: 2
-  attackHitDelay: 0.5
-  attackAnimLength: 1.5
+  attackHitDelay: 1.5
+  attackAnimLength: 2.667
   explosionRadius: 4
   dieAfterAttack: 1
   useJumpAttack: 1
   jumpAttackDamage: 25
-  jumpAttackRadius: 3
-  jumpWindup: 0.35
-  jumpHitDelay: 1.1
-  jumpFullTime: 2.8
-  jumpLungeSpeed: 10
+  jumpAttackRadius: 5
+  jumpWindup: 0.5
+  jumpHitDelay: 1.7
+  jumpFullTime: 2.887
+  jumpLungeSpeed: 12
   jumpChanceOnMiss: 0.7

@@ -41,14 +41,18 @@ public class EnemyAI : MonoBehaviour
             agent.speed = data.moveSpeed;
         }
 
-        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 2.0f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 10.0f, NavMesh.AllAreas))
         {
             transform.position = hit.position;
             agent.Warp(hit.position);
             startPosition = hit.position;
         }
+        else
+        {
+            startPosition = transform.position;
+        }
 
-        PlayerController pc = FindAnyObjectByType<PlayerController>();
+            PlayerController pc = FindAnyObjectByType<PlayerController>();
         if (pc != null)
         {
             playerTransform = pc.transform;
