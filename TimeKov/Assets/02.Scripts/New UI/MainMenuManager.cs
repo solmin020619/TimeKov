@@ -17,6 +17,10 @@ public class MainMenuManager : MonoBehaviour
     public TextMeshProUGUI loadingText;            // 로딩 % 텍스트 (예: 99%)
     public string sceneName = "Base_Scene"; // 이동할 씬 이름
 
+    [Header("Sound Settings")]
+    public AudioSource sfxAudioSource;
+    public AudioClip clickSound;
+
     private void Start()
     {
         // 시작할 때 팝업들은 다 꺼두고 메인 버튼만 켜기
@@ -52,6 +56,7 @@ public class MainMenuManager : MonoBehaviour
     // 1. New Game 버튼
     public void OnClickNewGame()
     {
+        PlayClickSound();
         StartCoroutine(LoadSceneProcess());
     }
 
@@ -145,6 +150,14 @@ public class MainMenuManager : MonoBehaviour
             {
                 loadingText.text = ((int)(loadingSlider.value * 100)).ToString() + "%";
             }
+        }
+    }
+
+    public void PlayClickSound()
+    {
+        if (sfxAudioSource != null && clickSound != null)
+        {
+            sfxAudioSource.PlayOneShot(clickSound);
         }
     }
 }
