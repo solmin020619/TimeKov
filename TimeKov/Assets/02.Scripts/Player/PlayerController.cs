@@ -20,46 +20,42 @@ public class PlayerController : MonoBehaviour
     public float staminaMax = 100f;                         // 최대 스테미나
     public float staminaRegen = 5f;                         // 스테미나 회복속도
     public float runSpeedCost = 10f;                        // 뛸떄 소모량
-    public float dashDistance = 3f;                         // 대쉬 거리
-    public float dashDuration = 0.15f;                      // 대쉬 시간
-    public float dashCost = 30f;                            // 대쉬 소모량
 
     [Header("Combat")]
     public int baseDefense;                                 // 기본 방어력
     public int baseAttack;                                  // 기본 공격력
 
-    [Header("Look")]
-    public LayerMask groundLayerMask;                       // 바닥 레이어 (Ground)
-    public float minLookDistance = 0.5f;                    // 바닥 붙이기용 
-
     [Header("Y Lock (No Jump)")]
     public float fixedY = 0f;                               // 0으로 고정
 
-    [Header("Mouse Sensitivity")]
-    public float aimScreenSpeed = 15f;                      // 체감 스케일(필요하면 10~25에서 조절)
-    private Vector2 aimScreenPos;                           // 화면상의 가상 조준점
+    [Header("FPS Look")]
+    public Transform cameraPivot;                           // 상하(Pitch) 회전용 피벗(카메라 부모)
+    public float mouseSensitivity = 2.0f;                   // 기본 감도(프로젝트 체감값)
+    public float pitchMin = -80f;                           // 위로 최대 각도
+    public float pitchMax = 80f;                            // 아래로 최대 각도
+    public bool lockCursor = true;                          // 플레이 시작 시 커서 잠금
 
     // 내부 사용 변수
     private Vector3 moveInput;                              // wasd 입력값
-    private Vector3 dashVelocity;                           // 대시 속도
     public float currentStamina;                            // 현재 스테미나
 
     private bool isRunning;                                 // 뛰는지
-    private bool isDashing;                                 // 대쉬 중인지
+
+    // FPS 회전값(누적)
+    private float yaw;                                      // 좌우
+    private float pitch;                                    // 상하
 
     // 회전 캐싱(Update에서 계산 -> FixedUpdate에서 적용)
-    private Quaternion cachedTargetRotation;
-    private bool hasCachedTargetRotation;
+    private Quaternion cachedYawRotation;
+    private bool hasCachedYawRotation;
 
     // 컴포넌트 캐싱
     private Rigidbody rb;
-    private Camera cachedCam;
     private PlayerTime playerTime;
 
     // 애니메이션(외부)에서 읽기
     public Vector3 MoveInput => moveInput;
     public bool IsRunning => isRunning;
-    public bool IsDashing => isDashing;
 
     void Start()
     {
@@ -67,8 +63,6 @@ public class PlayerController : MonoBehaviour
         rb.useGravity = false;                                          // 점프 중력 없음
         rb.interpolation = RigidbodyInterpolation.Interpolate;          // 물리 보간(화면 떨림 완화)
         rb.freezeRotation = true;                                       // 물리 충돌로 회전하지않게 고정
-
-        cachedCam = Camera.main;                                        // 메인 카메라 캐싱(Camera.Main 반복 호출 방지)
 
         // 시작할떄 스테미나 최대로 채우기
         currentStamina = staminaMax;
@@ -96,22 +90,37 @@ public class PlayerController : MonoBehaviour
         v.y = 0f;
         rb.linearVelocity = v;
 
-        // 가상 조준점: 화면 중앙에서 시작
-        aimScreenPos = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+        // 카메라 피벗 자동 보정(미할당 시 메인카메라 부모/본인으로 최대한 찾기)
+        if (cameraPivot == null && Camera.main != null)
+        {
+            // 카메라가 플레이어 자식이라면 그대로 사용
+            cameraPivot = Camera.main.transform.parent != null ? Camera.main.transform.parent : Camera.main.transform;
+        }
+
+        // 시작 yaw/pitch 초기화
+        yaw = transform.eulerAngles.y;
+        pitch = (cameraPivot != null) ? cameraPivot.localEulerAngles.x : 0f;
+        pitch = NormalizeAngle(pitch);
+
+        // 커서 잠금
+        if (lockCursor)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     void Update()
     {
         HandleInput();          // 입력 받기 
         HandleStamina();        // 스테미나 회복/소모 처리
-        HandleDashInput();      // 대쉬 입력
-        CacheLookRotation();    // 마우스 방향 계산(Raycast는 여기서만) 
+        HandleMouseLook();      // FPS 마우스룩
     }
 
     private void FixedUpdate()
     {
         MoveRigidbody();        // 실제 물리 이동
-        ApplyCachedRotation();  // 회전 적용
+        ApplyCachedYawRotation();// 좌우 회전 적용(Rigidbody)
         LockYPosition();        // Y=0 고정
     }
 
@@ -128,17 +137,6 @@ public class PlayerController : MonoBehaviour
 
     void MoveRigidbody()
     {
-        // 대쉬 중이면 대쉬 속도만 적용
-        if (isDashing)
-        {
-            Vector3 velocity = rb.linearVelocity;
-            velocity.x = dashVelocity.x;
-            velocity.y = 0f;
-            velocity.z = dashVelocity.z;
-            rb.linearVelocity = velocity;
-            return;
-        }
-
         // 로컬 기준 이동 방향
         Vector3 moveDir = GetMoveDirectionLocal();
 
@@ -187,112 +185,47 @@ public class PlayerController : MonoBehaviour
         return direction;
     }
 
-    void HandleDashInput()
-    {
-        if (isDashing) return;
-
-        if (Input.GetKeyDown(KeyCode.Space) && currentStamina >= dashCost)
-        {
-            Vector3 dashDir = GetMoveDirectionLocal();
-            if (dashDir.sqrMagnitude < 0.001f)
-                dashDir = transform.forward;
-
-            StartCoroutine(DashRoutine(dashDir.normalized));
-        }
-    }
-
-    IEnumerator DashRoutine(Vector3 dir)
-    {
-        isDashing = true;
-        isRunning = false;
-
-        currentStamina -= dashCost;
-        currentStamina = Mathf.Max(0f, currentStamina);
-
-        float dashSpeed = dashDistance / dashDuration;
-        dashVelocity = dir * dashSpeed;
-
-        // dash animation이 안나오는 문제 해결을 위한 0.25초 딜레이 추가
-        float animHold = Mathf.Max(dashDuration, 0.25f);
-        yield return new WaitForSeconds(animHold);
-
-        dashVelocity = Vector3.zero;
-        isDashing = false;
-    }
-
     void HandleStamina()
     {
-        if (!isRunning && !isDashing)
+        // 달리기 아닐 때만 회복
+        if (!isRunning)
         {
             currentStamina += staminaRegen * Time.deltaTime;
             currentStamina = Mathf.Min(staminaMax, currentStamina);
         }
     }
 
-    private void CacheLookRotation()
+    void HandleMouseLook()
     {
-        if (cachedCam == null) return;
+        // Settings 감도값(0.2~3.0)을 곱해서 최종 감도 구성
+        float sens = SettingsData.MouseSensitivity * mouseSensitivity;
 
-        // ✅ Settings 감도값(0.2~3.0)을 읽어서 가상 조준점 이동에 적용
-        float sens = SettingsData.MouseSensitivity;
+        float mx = Input.GetAxis("Mouse X") * sens;
+        float my = Input.GetAxis("Mouse Y") * sens;
 
-        // 마우스 이동량 기반 가상 조준점 이동
-        float dx = Input.GetAxis("Mouse X") * sens;
-        float dy = Input.GetAxis("Mouse Y") * sens;
+        // 좌우(Yaw) 누적
+        yaw += mx;
 
-        aimScreenPos += new Vector2(dx, dy) * aimScreenSpeed;
+        // 상하(Pitch) 누적 (FPS는 보통 마우스 위=시선 위라서 -my)
+        pitch -= my;
+        pitch = Mathf.Clamp(pitch, pitchMin, pitchMax);
 
-        // 화면 밖으로 나가지 않게 clamp
-        aimScreenPos.x = Mathf.Clamp(aimScreenPos.x, 0f, Screen.width);
-        aimScreenPos.y = Mathf.Clamp(aimScreenPos.y, 0f, Screen.height);
+        // 좌우 회전은 Rigidbody로 적용하기 위해 캐싱
+        cachedYawRotation = Quaternion.Euler(0f, yaw, 0f);
+        hasCachedYawRotation = true;
 
-        // 가상 조준점 기준으로 레이 생성
-        Ray ray = cachedCam.ScreenPointToRay(aimScreenPos);
-
-        Vector3 hitPoint;
-
-        // 바닥 Raycast 우선
-        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, groundLayerMask))
+        // 상하 회전은 카메라 피벗 로컬 회전
+        if (cameraPivot != null)
         {
-            hitPoint = hit.point;
+            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
-        else
-        {
-            // 바닥이 없으면 평면 기준
-            Plane plane = new Plane(Vector3.up, Vector3.zero);
-            if (!plane.Raycast(ray, out float enter))
-            {
-                hasCachedTargetRotation = false;
-                return;
-            }
-
-            hitPoint = ray.GetPoint(enter);
-        }
-
-        hitPoint.y = fixedY;
-
-        Vector3 from = rb.position;
-        from.y = fixedY;
-
-        Vector3 lookDir = hitPoint - from;
-        lookDir.y = 0f;
-
-        // 너무 가까우면 회전 무시(떨림 방지)
-        if (lookDir.sqrMagnitude < minLookDistance * minLookDistance)
-        {
-            hasCachedTargetRotation = false;
-            return;
-        }
-
-        cachedTargetRotation = Quaternion.LookRotation(lookDir);
-        hasCachedTargetRotation = true;
     }
 
-    private void ApplyCachedRotation()
+    void ApplyCachedYawRotation()
     {
-        if (!hasCachedTargetRotation) return;
+        if (!hasCachedYawRotation) return;
 
-        Quaternion newRot = Quaternion.Slerp(rb.rotation, cachedTargetRotation, rotationSpeed * Time.fixedDeltaTime);
+        Quaternion newRot = Quaternion.Slerp(rb.rotation, cachedYawRotation, rotationSpeed * Time.fixedDeltaTime);
         rb.MoveRotation(newRot);
     }
 
@@ -319,6 +252,13 @@ public class PlayerController : MonoBehaviour
         Vector3 v = rb.linearVelocity;
         v.y = 0f;
         rb.linearVelocity = v;
+    }
+
+    float NormalizeAngle(float angle)
+    {
+        while (angle > 180f) angle -= 360f;
+        while (angle < -180f) angle += 360f;
+        return angle;
     }
 
     // 외부 UI 등에서 스테미나 관련 용도
