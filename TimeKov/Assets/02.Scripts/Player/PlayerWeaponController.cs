@@ -5,44 +5,80 @@ using UnityEngine;
 public class PlayerWeaponController : MonoBehaviour
 {
     [Header("Weapon Equip Visual")]
-    [Tooltip("¹«±â ÇÁ¸®ÆÕÀÌ ºÙÀ» ¼ÒÄÏ(1ÀÎÄª ViewModelÀÌ¸é ik_hand_gun °°Àº °÷)")]
-    public Transform weaponSocket; // ÀÌÁ¦ ViewModelRoot°¡ ¾Æ´Ï¶ó FPSPlayerÀÇ ik_hand_gunÀ» ³Ö´Â´Ù
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(1ï¿½ï¿½Äª ViewModelï¿½Ì¸ï¿½ ik_hand_gun ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)")]
+    public Transform weaponSocket;
 
-    [Tooltip("¹«±â ÇÁ¸®ÆÕ 5°³¸¦ itemId ¼ø¼­¿¡ ¸Â°Ô ³ÖÁö ¾Ê¾Æµµ µÊ. ¾Æ·¡ itemId->index ¸ÅÇÎÀ» µû¶ó°¨.")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 5ï¿½ï¿½ (indexï¿½ï¿½ ï¿½Æ·ï¿½ itemId ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)")]
     public GameObject[] weaponPrefabs;
     // index 0: 1101 SR
     // index 1: 1201 AK
-    // index 2: 1202 MP7
+    // index 2: 1202 SMG(MP7)
     // index 3: 1301 Shotgun
     // index 4: 1401 Pistol
 
+    [System.Serializable]
+    public struct WeaponOffset
+    {
+        public int itemId;
+        public Vector3 localPos;
+        public Vector3 localEuler;
+        public Vector3 localScale;
+    }
+
+    [Header("Weapon Offsets (Per ItemId)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡/È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½. itemIdï¿½ï¿½ï¿½ï¿½ 1ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¾ï¿½Î¸ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.")]
+    public WeaponOffset[] weaponOffsets;
+
+    // ------------------ Animator (KINEMATION ï¿½ï¿½ï¿½ï¿½) ------------------
+    [Header("Arms Animator (optional)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ Å½ï¿½ï¿½. (Gait ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ Animator ï¿½ì¼±)")]
+    public Animator armsAnimator;
+
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½âº» ï¿½ï¿½Æ®ï¿½Ñ·ï¿½. ï¿½ï¿½ï¿½ï¿½ Awakeï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½")]
+    public RuntimeAnimatorController defaultArmsController;
+
+    [System.Serializable]
+    public struct WeaponAnimLink
+    {
+        public int itemId;
+        public WeaponAnimSettings animSettings;
+    }
+
+    [Header("Weapon Anim Settings (itemId -> SO)")]
+    public WeaponAnimLink[] weaponAnimLinks;
+
+    [Header("Layer Fix")]
+    [Tooltip("KINEMATION ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½È±ï¿½ ï¿½ï¿½é¸²ï¿½ï¿½ Additive/RightHand ï¿½ï¿½ï¿½Ì¾î¿¡ ï¿½Ö´ï¿½ ï¿½ï¿½ì°¡ ï¿½ï¿½ï¿½Æ¼ï¿½ weightï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
+    public bool forceLayerWeights = true;
+
+    [Tooltip("FPSPlayerï¿½ï¿½ LateUpdateï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½")]
+    public bool forceLocomotionInLateUpdate = true;
+
+    // ------------------ Fire ------------------
     [Header("Fire Point")]
-    [Tooltip("·¹ÀÌÄ³½ºÆ®°¡ ¸ÂÃâ ´ë»ó ·¹ÀÌ¾î(Enemy µî)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¾ï¿½(Enemy ï¿½ï¿½)")]
     public LayerMask hitMask;
 
-    // Bullet Visual (´«¿¡ º¸ÀÌ´Â Åº)
     [Header("Bullet Visual")]
-    [Tooltip("´«¿¡ º¸ÀÌ´Â Åº ÇÁ¸®ÆÕ(¾øÀ¸¸é »ý¼º ¾È ÇÔ)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ Åº ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½)")]
     public GameObject bulletPrefab;
     public float bulletSpeed = 40f;
     public float bulletLifeTime = 2f;
 
-    private float recoilAccumYaw = 0f;      // ´©ÀûµÈ Yaw(ÁÂ¿ì) ¹Ýµ¿ °ª
-    public float recoilRecoverSpeed = 0f;   // 0ÀÌ¸é º¹±¸¾øÀ½(¸®¼Â¸¸) 10~30ÀÌ¸é ¼­¼­È÷ º¹±¸
+    [Header("Recoil")]
+    private float recoilAccumYaw = 0f;
+    public float recoilRecoverSpeed = 0f;
 
-    public System.Action<float> onReloadStart;  // duration Àü´Þ
+    public System.Action<float> onReloadStart;
     public System.Action onReloadEnd;
 
-    // ÀåÂøµÈ ¹«±â ¿ÀºêÁ§Æ®/ÃÑ±¸
-    private GameObject equippedWeaponGO; // ÇöÀç ¼ÒÄÏ¿¡ ºÙ¾îÀÖ´Â ¹«±â ¿ÀºêÁ§Æ®
-    private Transform muzzle;            // ¹«±â ÇÁ¸®ÆÕ ³»ºÎÀÇ ÃÑ±¸ Æ®·£½ºÆû
-    private const string MUZZLE_NAME = "Muzzle"; // ¹«±â ÇÁ¸®ÆÕ ³»ºÎ ÃÑ±¸ ¿ÀºêÁ§Æ® ÀÌ¸§
+    private GameObject equippedWeaponGO;
+    private Transform muzzle;
+    private const string MUZZLE_NAME = "Muzzle";
 
-    // ÀÎº¥ È£È¯ ÇÙ½É: ÀåÂø »óÅÂ´Â itemId + ItemInfo Ä³½Ã
-    private int equippedItemId = 0;     // 0 = ¸Ç¼Õ/¹ÌÀåÂø
+    private int equippedItemId = 0;
     private ItemInfo weapon = null;
 
-    // ±âÁ¸ ±â´É À¯Áö¿ë ·±Å¸ÀÓ »óÅÂ º¯¼öµé
     private int currentAmmoInMag = 0;
     private bool isReloading = false;
     private float fireCooldown = 0f;
@@ -53,47 +89,81 @@ public class PlayerWeaponController : MonoBehaviour
     public CrosshairController crosshair;
 
     [Header("Debug")]
-    [Tooltip("Å×½ºÆ®¿ë: ½ÃÀÛ ½Ã ÀÚµ¿À¸·Î AK(1201) ÀåÂø")]
     public bool autoEquipOnStart = false;
 
+    [Header("Input Mode")]
+    public bool useExternalFireInput = true;
+
     private Camera cachedCam;
+
+    // ------------------ Animator Hashes (KINEMATION ï¿½Ô¾ï¿½) ------------------
+    private static readonly int H_RELOAD_EMPTY = Animator.StringToHash("Reload_Empty");
+    private static readonly int H_RELOAD_TAC = Animator.StringToHash("Reload_Tac");
+    private static readonly int H_FIRE = Animator.StringToHash("Fire");
+    private static readonly int H_FIREOUT = Animator.StringToHash("FireOut");
+    private static readonly int H_EQUIP = Animator.StringToHash("Equip");
+    private static readonly int H_EQUIP_OVR = Animator.StringToHash("Equip_Override");
+    private static readonly int H_IDLE = Animator.StringToHash("Idle");
+    private static readonly int H_UNEQUIP_TRG = Animator.StringToHash("UnEquip");
+
+    private static readonly int H_GAIT = Animator.StringToHash("Gait");      // float
+    private static readonly int H_TACSPRINT = Animator.StringToHash("TacSprint"); // float 0/1
+    private static readonly int H_ISINAIR = Animator.StringToHash("IsInAir");    // bool
+
+    // cached param existence
+    private bool _hasGait, _hasTacSprint, _hasIsInAir;
+
+    // cached locomotion
+    private float _gait01;
+    private bool _tacSprint;
+    private bool _isInAir;
+
+    // current anim settings
+    private WeaponAnimSettings _currentAnimSettings;
 
     private void Awake()
     {
         playerController = GetComponent<PlayerController>();
         cachedCam = Camera.main;
+
+        EnsureArmsAnimator();
+        if (armsAnimator != null && defaultArmsController == null)
+            defaultArmsController = armsAnimator.runtimeAnimatorController;
     }
 
     private void Start()
     {
-        // ÀÚµ¿ ÀåÂøÀº ÇÊ¿äÇÒ ¶§¸¸ ÄÑ±â(±âº» OFF ±ÇÀå)
         if (autoEquipOnStart)
             EquipByItemId(1201);
     }
 
     private void Update()
     {
+        EnsureArmsAnimator();
+
+        if (forceLayerWeights)
+            ForceKinemationLayerWeights();
+
+        UpdateLocomotionParams();
+
         if (crosshair != null)
         {
             crosshair.SetEnabled(weapon != null);
             crosshair.SetRunning(playerController != null && playerController.IsRunning);
         }
 
-        // ¹«±â ¾øÀ¸¸é ¾Æ¹«°Íµµ ÇÏÁö¾ÊÀ½
         if (weapon == null) return;
 
-        // ÄðÅ¸ÀÓ °¨¼Ò
         if (fireCooldown > 0f)
             fireCooldown -= Time.deltaTime;
 
-        // ÀçÀåÀü ÁßÀÌ¸é ¹ß»ç ÀÔ·Â ¹«½Ã
         if (isReloading) return;
 
-        // ¼öµ¿ ÀçÀåÀü
         if (Input.GetKeyDown(KeyCode.R) && currentAmmoInMag < weapon.magazinesize)
             StartCoroutine(ReloadRoutine());
 
-        // ÀÚµ¿/´Ü¹ß ·ÎÁ÷ À¯Áö (ItemInfo.isAutomatic: 1ÀÌ¸é ÀÚµ¿)
+        if (useExternalFireInput) return;
+
         bool fireInput = weapon.isAutomatic == 1
             ? Input.GetMouseButton(0)
             : Input.GetMouseButtonDown(0);
@@ -102,53 +172,165 @@ public class PlayerWeaponController : MonoBehaviour
             TryFire();
     }
 
-    //  ÀÎº¥/Àåºñ UI¿¡¼­ itemId¸¸ ³Ñ±â¸é ÀåÂøµÇ´Â ÇÔ¼ö
+    private void LateUpdate()
+    {
+        if (!forceLocomotionInLateUpdate) return;
+        ApplyLocomotionNow();
+    }
+
+    // ------------------ Animator: Detect + Cache ------------------
+    private void EnsureArmsAnimator()
+    {
+        if (armsAnimator != null)
+        {
+            CacheParamExistence();
+            return;
+        }
+
+        // ï¿½Ú½ï¿½ ï¿½ï¿½ï¿½ï¿½ Animator ï¿½ï¿½ Gait ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ Animator ï¿½ì¼± Å½ï¿½ï¿½
+        var anims = GetComponentsInChildren<Animator>(true);
+        for (int i = 0; i < anims.Length; i++)
+        {
+            var a = anims[i];
+            if (a == null || a.runtimeAnimatorController == null) continue;
+            if (HasParam(a, "Gait"))
+            {
+                armsAnimator = a;
+                break;
+            }
+        }
+
+        // fallback
+        if (armsAnimator == null && anims.Length > 0)
+            armsAnimator = anims[0];
+
+        CacheParamExistence();
+    }
+
+    private bool HasParam(Animator a, string name)
+    {
+        if (a == null) return false;
+        var ps = a.parameters;
+        for (int i = 0; i < ps.Length; i++)
+            if (ps[i].name == name) return true;
+        return false;
+    }
+
+    private void CacheParamExistence()
+    {
+        if (armsAnimator == null) { _hasGait = _hasTacSprint = _hasIsInAir = false; return; }
+        _hasGait = HasParam(armsAnimator, "Gait");
+        _hasTacSprint = HasParam(armsAnimator, "TacSprint");
+        _hasIsInAir = HasParam(armsAnimator, "IsInAir");
+    }
+
+    // ------------------ Layer Fix (ï¿½È±ï¿½ ï¿½ï¿½é¸²) ------------------
+    private void ForceKinemationLayerWeights()
+    {
+        if (armsAnimator == null) return;
+
+        void Set(string layerName, float w)
+        {
+            int idx = armsAnimator.GetLayerIndex(layerName);
+            if (idx >= 0) armsAnimator.SetLayerWeight(idx, w);
+        }
+
+        Set("Additive", 1f);
+        Set("RightHand", 1f);
+
+        Set("Reload", 1f);
+        Set("Grenade", 1f);
+    }
+
+    // ------------------ Locomotion Params ------------------
+    private void UpdateLocomotionParams()
+    {
+        if (armsAnimator == null) return;
+
+        float gait = 0f;
+
+        // 1) MoveInput ï¿½ì¼±
+        if (playerController != null && playerController.MoveInput.sqrMagnitude > 0.0001f)
+            gait = 1f;
+
+        // 2) MoveInputï¿½ï¿½ 0ï¿½Ì¸ï¿½ Rigidbody ï¿½Óµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        if (gait <= 0.001f)
+        {
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                Vector3 v = rb.linearVelocity; v.y = 0f;
+                if (v.sqrMagnitude > 0.01f) gait = 1f;
+            }
+        }
+
+        bool sprint = (playerController != null && playerController.IsRunning);
+        bool inAir = false;
+
+        _gait01 = gait;
+        _tacSprint = sprint;
+        _isInAir = inAir;
+
+        ApplyLocomotionNow();
+    }
+
+    private void ApplyLocomotionNow()
+    {
+        if (armsAnimator == null) return;
+
+        if (_hasGait) armsAnimator.SetFloat(H_GAIT, _gait01);
+        if (_hasTacSprint) armsAnimator.SetFloat(H_TACSPRINT, _tacSprint ? 1f : 0f);
+        if (_hasIsInAir) armsAnimator.SetBool(H_ISINAIR, _isInAir);
+    }
+
+    // ------------------ External Fire ------------------
+    public void FireFromExternal()
+    {
+        if (weapon == null) return;
+
+        if (fireCooldown > 0f)
+            fireCooldown -= Time.deltaTime;
+
+        if (isReloading) return;
+
+        TryFire();
+    }
+
+    // ------------------ Equip / Unequip ------------------
     public bool EquipByItemId(int itemId)
     {
-        Debug.Log($"[Weapon] EquipByItemId called: {itemId}");
-
         if (itemId <= 0)
         {
             Unequip();
             return false;
         }
 
-        // [Áß¿ä] ¾ÆÀÌÅÛ Á¶È¸´Â DataManager ´ÜÀÏ ·çÆ®
         if (DataManager.Instance == null)
-        {
-            Debug.LogWarning("[Weapon] DataManager is null (not initialized?)");
             return false;
-        }
 
         ItemInfo item = DataManager.Instance.GetItem(itemId);
         if (item == null)
         {
-            Debug.LogWarning($"[Weapon] Item not found. itemId={itemId}");
             Unequip();
             return false;
         }
 
-        // ¹«±â ¾ÆÀÌÅÛÀÎÁö Ã¼Å© (°¡´ÉÇÏ¸é ItemInfoÀÇ itemType ±â¹ÝÀ¸·Î ¹Ù²ã¶ó)
         if (!IsWeaponItem(item))
-        {
-            Debug.LogWarning($"[Weapon] Item is not weapon. itemId={itemId}, name={item.itemName}");
             return false;
-        }
 
         equippedItemId = itemId;
         weapon = item;
 
-        // ÀåÂø ½Ã »óÅÂ ¸®¼Â (µ¥¸ð/Å×½ºÆ® ±âÁØ: ÅºÃ¢ °¡µæ)
         currentAmmoInMag = Mathf.Max(0, weapon.magazinesize);
         recoilIndex = 0;
         fireCooldown = 0f;
         isReloading = false;
         recoilAccumYaw = 0f;
 
-        // ºñÁÖ¾ó ÀåÂø + muzzle Ã£±â
         AttachWeaponVisual(itemId);
 
-        Debug.Log($"[Weapon] Equipped: {weapon.itemName} (ID:{itemId})");
+        ApplyWeaponAnimatorSettings(itemId);
+
         return true;
     }
 
@@ -163,28 +345,61 @@ public class PlayerWeaponController : MonoBehaviour
         isReloading = false;
         recoilAccumYaw = 0f;
 
+        // ï¿½âº» ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ ï¿½ï¿½ï¿½ï¿½
+        if (armsAnimator != null && defaultArmsController != null)
+        {
+            armsAnimator.runtimeAnimatorController = defaultArmsController;
+            CacheParamExistence();
+            armsAnimator.Rebind();
+            armsAnimator.Update(0f);
+            armsAnimator.Play(H_IDLE, -1, 0f);
+
+            // UnEquip Æ®ï¿½ï¿½ï¿½Å°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß»ï¿½(ï¿½ï¿½ï¿½îµµ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+            armsAnimator.ResetTrigger(H_UNEQUIP_TRG);
+            armsAnimator.SetTrigger(H_UNEQUIP_TRG);
+        }
+
         DetachWeaponVisual();
-        Debug.Log("[Weapon] Unequipped");
     }
 
+    private void ApplyWeaponAnimatorSettings(int itemId)
+    {
+        EnsureArmsAnimator();
+        if (armsAnimator == null) return;
+
+        _currentAnimSettings = FindAnimSettings(itemId);
+
+        if (_currentAnimSettings != null && _currentAnimSettings.characterController != null)
+            armsAnimator.runtimeAnimatorController = _currentAnimSettings.characterController;
+
+        CacheParamExistence();
+        armsAnimator.Rebind();
+        armsAnimator.Update(0f);
+
+        // ï¿½ï¿½ï¿½Ì¾ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ ï¿½Ù²ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+        if (forceLayerWeights)
+            ForceKinemationLayerWeights();
+
+        armsAnimator.Play(H_IDLE, -1, 0f);
+
+        if (_currentAnimSettings != null && _currentAnimSettings.hasEquipOverride)
+            armsAnimator.Play(H_EQUIP_OVR, -1, 0f);
+        else
+            armsAnimator.Play(H_EQUIP, -1, 0f);
+    }
+
+    // ------------------ Fire / Reload ------------------
     private void TryFire()
     {
         if (weapon == null) return;
         if (fireCooldown > 0f) return;
-
-        if (currentAmmoInMag <= 0)
-        {
-            Debug.Log("ÅºÃ¢ ºñ¾úÀ½ ¡æ ÀçÀåÀü ÇÊ¿ä");
-            return;
-        }
-
-        if (muzzle == null)
-        {
-            Debug.LogWarning("ÃÑ±¸¾ø¾î¼­ ¹ß»ç ºÒ°¡");
-            return;
-        }
+        if (currentAmmoInMag <= 0) return;
+        if (muzzle == null) return;
 
         Fire();
+
+        // Fire ï¿½Ö´ï¿½
+        PlayFireAnim(ammoAfterConsume: currentAmmoInMag - 1);
 
         if (crosshair != null) crosshair.OnFire();
 
@@ -192,21 +407,51 @@ public class PlayerWeaponController : MonoBehaviour
         currentAmmoInMag--;
     }
 
-    // ÆÇÁ¤(Raycast) = Ä«¸Þ¶ó À§Ä¡ + Ä«¸Þ¶ó forward
-    // ¿¬Ãâ(Visual Bullet) = muzzle¿¡¼­ hit.point ¹æÇâÀ¸·Î
-    void Fire()
+    private void PlayFireAnim(int ammoAfterConsume)
+    {
+        if (armsAnimator == null) return;
+
+        bool useFire = _currentAnimSettings == null || _currentAnimSettings.useFireClip;
+        bool useOut = _currentAnimSettings != null && _currentAnimSettings.hasFireOut;
+
+        if (useFire) armsAnimator.Play(H_FIRE, -1, 0f);
+        if (useOut && ammoAfterConsume <= 0) armsAnimator.Play(H_FIREOUT, -1, 0f);
+    }
+
+    private IEnumerator ReloadRoutine()
+    {
+        if (weapon == null) yield break;
+
+        isReloading = true;
+        onReloadStart?.Invoke(weapon.reloadTime);
+
+        PlayReloadAnim(isEmpty: currentAmmoInMag <= 0);
+
+        recoilIndex = 0;
+        recoilAccumYaw = 0f;
+
+        yield return new WaitForSeconds(weapon.reloadTime);
+
+        currentAmmoInMag = weapon.magazinesize;
+        isReloading = false;
+
+        onReloadEnd?.Invoke();
+    }
+
+    private void PlayReloadAnim(bool isEmpty)
+    {
+        if (armsAnimator == null) return;
+        armsAnimator.Play(isEmpty ? H_RELOAD_EMPTY : H_RELOAD_TAC, -1, 0f);
+    }
+
+    private void Fire()
     {
         if (cachedCam == null) cachedCam = Camera.main;
-        if (cachedCam == null)
-        {
-            Debug.LogWarning("[Weapon] Camera.main not found.");
-            return;
-        }
+        if (cachedCam == null) return;
 
         Vector3 camOrigin = cachedCam.transform.position;
         Vector3 camDir = cachedCam.transform.forward;
 
-        // 1) ¸ÕÀú Ä«¸Þ¶ó ±âÁØÀ¸·Î È÷Æ® ÆÇÁ¤
         Vector3 hitPoint = camOrigin + camDir * weapon.effectiveRange;
         bool hasHitPoint = false;
 
@@ -215,24 +460,16 @@ public class PlayerWeaponController : MonoBehaviour
             hasHitPoint = true;
             hitPoint = hit.point;
 
-            Debug.DrawLine(camOrigin, hit.point, Color.red, 0.2f);
-
             if (crosshair != null) crosshair.OnHitConfirm();
 
             EnemyHealth enemy = hit.collider.GetComponent<EnemyHealth>();
             if (enemy != null)
                 enemy.TakeDamage(weapon.damage);
         }
-        else
-        {
-            Debug.DrawRay(camOrigin, camDir * weapon.effectiveRange, Color.yellow, 0.2f);
-        }
 
-        // 2) muzzle¿¡¼­ hitPoint·Î ¹ß»ç ¹æÇâ »ý¼º (¿©±â¼­ºÎÅÍ ¹Ýµ¿/½ºÇÁ·¹µå Àû¿ë)
         Vector3 origin = muzzle.position;
         Vector3 forward = (hitPoint - origin);
 
-        // ³Ê¹« °¡±î¿ì¸é(Ä«¸Þ¶ó°¡ ÃÑ±¸ µÚ¿¡ ÀÖ°Å³ª) ¾ÈÀü Ã³¸®
         if (forward.sqrMagnitude < 0.0001f)
             forward = cachedCam.transform.forward;
         else
@@ -245,16 +482,14 @@ public class PlayerWeaponController : MonoBehaviour
         for (int i = 0; i < pellets; i++)
         {
             Vector3 dir = GetSpreadDirection(recoiledForward, weapon.spreadAngle);
-
-            // ¿¬Ãâ Åº: ½ÇÁ¦ hitPoint·Î ³¯·Á¾ß ¡°¸ÂÀº ÁöÁ¡¿¡¼­ »ç¶óÁü¡±ÀÌ ¼º¸³
             Vector3? visualHit = hasHitPoint ? hitPoint : (Vector3?)null;
-
             SpawnVisualBullet(origin, dir, visualHit);
         }
 
         lastFireTime = Time.time;
     }
 
+    // ------------------ Recoil / Spread ------------------
     private Vector3 ApplyRecoil(Vector3 forward)
     {
         float baseYaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
@@ -294,28 +529,7 @@ public class PlayerWeaponController : MonoBehaviour
         return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
     }
 
-    IEnumerator ReloadRoutine()
-    {
-        if (weapon == null) yield break;
-
-        isReloading = true;
-        onReloadStart?.Invoke(weapon.reloadTime);
-
-        recoilIndex = 0;
-        recoilAccumYaw = 0f;
-
-        Debug.Log("ÀçÀåÀü ½ÃÀÛ");
-        yield return new WaitForSeconds(weapon.reloadTime);
-
-        currentAmmoInMag = weapon.magazinesize;
-        isReloading = false;
-
-        Debug.Log("ÀçÀåÀü ¿Ï·á");
-        onReloadEnd?.Invoke();
-    }
-
-    // ¼öÆò(XZ) ½ºÇÁ·¹µå (ÇöÀç µ¥¸ð ±âÁØ À¯Áö)
-    Vector3 GetSpreadDirection(Vector3 forward, float spreadAngle)
+    private Vector3 GetSpreadDirection(Vector3 forward, float spreadAngle)
     {
         if (spreadAngle <= 0.01f)
             return forward;
@@ -330,7 +544,8 @@ public class PlayerWeaponController : MonoBehaviour
         return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
     }
 
-    void SpawnVisualBullet(Vector3 origin, Vector3 dir, Vector3? hitPoint = null)
+    // ------------------ Bullet Visual ------------------
+    private void SpawnVisualBullet(Vector3 origin, Vector3 dir, Vector3? hitPoint = null)
     {
         if (bulletPrefab == null) return;
 
@@ -339,7 +554,6 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (vb == null)
         {
-            Debug.LogWarning("[Bullet] VisualBullet component missing on bulletPrefab.");
             Destroy(bullet);
             return;
         }
@@ -356,6 +570,7 @@ public class PlayerWeaponController : MonoBehaviour
         vb.Init(origin, dir, bulletSpeed, lt, hitPoint);
     }
 
+    // ------------------ Weapon Visual ------------------
     private Transform FindChildRecursive(Transform parent, string name)
     {
         for (int i = 0; i < parent.childCount; i++)
@@ -374,11 +589,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void AttachWeaponVisual(int itemId)
     {
-        if (weaponSocket == null)
-        {
-            Debug.LogWarning("[Weapon] weaponSocket is null. (Assign ik_hand_gun)");
-            return;
-        }
+        if (weaponSocket == null) return;
 
         ClearWeaponSocketChildren();
         DetachWeaponVisual();
@@ -386,7 +597,6 @@ public class PlayerWeaponController : MonoBehaviour
         GameObject prefab = GetWeaponPrefab(itemId);
         if (prefab == null)
         {
-            Debug.LogWarning($"[Weapon] No prefab mapped for itemId={itemId}");
             muzzle = null;
             return;
         }
@@ -396,10 +606,26 @@ public class PlayerWeaponController : MonoBehaviour
         equippedWeaponGO.transform.localRotation = Quaternion.identity;
         equippedWeaponGO.transform.localScale = Vector3.one;
 
-        muzzle = FindChildRecursive(equippedWeaponGO.transform, MUZZLE_NAME);
+        ApplyOffset(itemId, equippedWeaponGO.transform);
 
-        if (muzzle == null)
-            Debug.LogWarning("[Weapon] Muzzle not found. ÇÁ¸®ÆÕ ¾È¿¡ ÀÌ¸§ÀÌ Á¤È®È÷ 'Muzzle'ÀÎ ¿ÀºêÁ§Æ®°¡ ÀÖ¾î¾ß ÇÔ.");
+        muzzle = FindChildRecursive(equippedWeaponGO.transform, MUZZLE_NAME);
+    }
+
+    private void ApplyOffset(int itemId, Transform t)
+    {
+        if (weaponOffsets == null) return;
+
+        for (int i = 0; i < weaponOffsets.Length; i++)
+        {
+            if (weaponOffsets[i].itemId != itemId) continue;
+
+            t.localPosition = weaponOffsets[i].localPos;
+            t.localRotation = Quaternion.Euler(weaponOffsets[i].localEuler);
+
+            Vector3 sc = weaponOffsets[i].localScale;
+            t.localScale = (sc == Vector3.zero) ? Vector3.one : sc;
+            return;
+        }
     }
 
     private void DetachWeaponVisual()
@@ -418,35 +644,13 @@ public class PlayerWeaponController : MonoBehaviour
 
         switch (itemId)
         {
-            case 1101: return weaponPrefabs[0]; // SR
-            case 1201: return weaponPrefabs[1]; // AK
-            case 1202: return weaponPrefabs[2]; // MP7
-            case 1301: return weaponPrefabs[3]; // Shotgun
-            case 1401: return weaponPrefabs[4]; // Pistol
+            case 1101: return weaponPrefabs[0];
+            case 1201: return weaponPrefabs[1];
+            case 1202: return weaponPrefabs[2];
+            case 1301: return weaponPrefabs[3];
+            case 1401: return weaponPrefabs[4];
             default: return null;
         }
-    }
-
-    private float[] GetRecoilPatternByItemId(int itemId)
-    {
-        switch (itemId)
-        {
-            case 1101: return new float[] { 0.15f, 0.2f, 0.25f };
-            case 1201:
-                return new float[] { 0.0f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
-                                            0.5f, 0.5f, 0.5f, 0.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
-                                            -1.0f, -1.0f, -1.0f, -1.0f, -0.5f, -0.5f, 0.0f, 1.0f, 2.0f, 2.0f };
-            case 1202: return new float[] { 0.1f, 0.2f, 0.3f };
-            case 1301: return new float[] { 0.6f };
-            case 1401: return new float[] { 0.15f, 0.15f };
-            default: return new float[0];
-        }
-    }
-
-    private bool IsWeaponItem(ItemInfo item)
-    {
-        if (item == null) return false;
-        return item.id >= 1100 && item.id < 1500;
     }
 
     private void ClearWeaponSocketChildren()
@@ -456,7 +660,47 @@ public class PlayerWeaponController : MonoBehaviour
             Destroy(weaponSocket.GetChild(i).gameObject);
     }
 
+    // ------------------ Anim Settings Lookup ------------------
+    private WeaponAnimSettings FindAnimSettings(int itemId)
+    {
+        if (weaponAnimLinks == null) return null;
+        for (int i = 0; i < weaponAnimLinks.Length; i++)
+            if (weaponAnimLinks[i].itemId == itemId) return weaponAnimLinks[i].animSettings;
+        return null;
+    }
 
+    // ------------------ Item Helper ------------------
+    private bool IsWeaponItem(ItemInfo item)
+    {
+        if (item == null) return false;
+        return item.id >= 1100 && item.id < 1500;
+    }
+
+    // ------------------ Recoil Pattern ------------------
+    private float[] GetRecoilPatternByItemId(int itemId)
+    {
+        switch (itemId)
+        {
+            case 1101: return new float[] { 0.15f, 0.2f, 0.25f };
+            case 1201:
+                return new float[] {
+                    0.0f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                    0.5f, 0.5f, 0.5f, 0.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+                    -1.0f, -1.0f, -1.0f, -1.0f, -0.5f, -0.5f, 0.0f, 1.0f, 2.0f, 2.0f
+                };
+            case 1202: return new float[] { 0.1f, 0.2f, 0.3f };
+            case 1301: return new float[] { 0.6f };
+            case 1401: return new float[] { 0.15f, 0.15f };
+            default: return new float[0];
+        }
+    }
+
+    // ------------------ AnimationEvent Receivers (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) ------------------
+    public void PlayEquipSound() { }
+    public void PlayWeaponSound() { }
+    public void PlayReloadSound() { }
+
+    // ------------------ Getters ------------------
     public int GetCurrentAmmo() => currentAmmoInMag;
     public int GetMagazineSize() => weapon != null ? weapon.magazinesize : 0;
     public int GetEquippedItemId() => equippedItemId;
