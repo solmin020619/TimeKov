@@ -1491,7 +1491,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 41634685854a89b478f641e803d55b34, type: 3}
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
@@ -1691,6 +1691,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1141084290}
   - component: {fileID: 1141084289}
+  - component: {fileID: 1141084291}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -1715,10 +1716,10 @@ MonoBehaviour:
   quitConfirmPanel: {fileID: 5862108906238143647}
   loadingPanel: {fileID: 8157285128251591809}
   loadingSlider: {fileID: 2719546132974332053}
-  loadingText: {fileID: 1220899463}
+  loadingText: {fileID: 0}
   sceneName: Base_Scene
-  sfxAudioSource: {fileID: 0}
-  clickSound: {fileID: 0}
+  sfxAudioSource: {fileID: 1141084291}
+  clickSound: {fileID: 8300000, guid: e2d686039f026734ca6a73c53579ee70, type: 3}
 --- !u!4 &1141084290
 Transform:
   m_ObjectHideFlags: 0
@@ -1734,6 +1735,103 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!82 &1141084291
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1141084288}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &1220899460
 GameObject:
   m_ObjectHideFlags: 0
@@ -4376,6 +4474,8 @@ MonoBehaviour:
   fullscreenToggle: {fileID: 1032620476656704600}
   bgmSlider: {fileID: 1032620476568507866}
   sfxSlider: {fileID: 8129398996559431849}
+  bgmSpeaker: {fileID: 1015239017}
+  sfxSpeaker: {fileID: 1141084291}
   sensitivitySlider: {fileID: 946296650}
 --- !u!1 &2347838529607310978
 GameObject:
