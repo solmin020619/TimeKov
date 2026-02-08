@@ -76,14 +76,17 @@ public class SettingManager : MonoBehaviour
         if (bgmSlider != null)
         {
             bgmSlider.onValueChanged.AddListener(SetBGMVolume);
-            // 게임 시작할 때 슬라이더 위치를 실제 스피커 볼륨에 맞춤
-            if (bgmSpeaker != null) bgmSlider.value = bgmSpeaker.volume;
+            float savedBGM = PlayerPrefs.GetFloat("BGMVolume", 1.0f);
+            bgmSlider.value = savedBGM;
+            if (bgmSpeaker != null) bgmSpeaker.volume = savedBGM;
         }
 
         if (sfxSlider != null)
         {
             sfxSlider.onValueChanged.AddListener(SetSFXVolume);
-            if (sfxSpeaker != null) sfxSlider.value = sfxSpeaker.volume;
+            float savedSFX = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+            sfxSlider.value = savedSFX;
+            if (sfxSpeaker != null) sfxSpeaker.volume = savedSFX;
         }
 
         // 마우스 감도 연결 & 저장된 값 불러오기
@@ -114,6 +117,8 @@ public class SettingManager : MonoBehaviour
         {
             bgmSpeaker.volume = volume;
         }
+        PlayerPrefs.SetFloat("BGMVolume", volume);
+        PlayerPrefs.Save();
     }
     public void SetSFXVolume(float volume)
     {
@@ -121,6 +126,8 @@ public class SettingManager : MonoBehaviour
         {
             sfxSpeaker.volume = volume;
         }
+        PlayerPrefs.SetFloat("SFXVolume", volume);
+        PlayerPrefs.Save();
     }
 
     public void SetSensitivity(float sens)

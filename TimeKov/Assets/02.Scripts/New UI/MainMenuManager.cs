@@ -5,16 +5,21 @@ using UnityEngine.UI;
 
 public class MainMenuManager : MonoBehaviour
 {
+    [Header("Scene Settings (씬 이름 설정)")]
+    [Tooltip("로딩 화면으로 쓸 씬의 정확한 이름을 적으세요")]
+    public string loadingSceneName = "LoadingScene";
+
+    [Tooltip("게임 시작(New Game)시 넘어갈 맵의 이름을 적으세요")]
+    public string nextSceneName = "Base_Scene";
+
     [Header("Panel Groups")]
     public GameObject mainButtonGroup;
     public GameObject optionPanel;
     public GameObject quitConfirmPanel;
-    public GameObject loadingPanel;
 
-    [Header("Loading Settings")]
-    public Slider loadingSlider;
-    public Text loadingText;
-    public string sceneName = "Base_Scene";
+    [Header("Fade Effect")]
+    public CanvasGroup fadeCanvasGroup;
+    public float fadeDuration = 1.0f;
 
     [Header("Sound Settings")]
     public AudioSource sfxAudioSource;
@@ -22,7 +27,12 @@ public class MainMenuManager : MonoBehaviour
 
     private void Start()
     {
-        if (loadingPanel != null) loadingPanel.SetActive(false);
+        if (fadeCanvasGroup != null)
+        {
+            fadeCanvasGroup.alpha = 0f;
+            fadeCanvasGroup.blocksRaycasts = false;
+        }
+
         if (optionPanel != null) optionPanel.SetActive(false);
         if (quitConfirmPanel != null) quitConfirmPanel.SetActive(false);
         if (mainButtonGroup != null) mainButtonGroup.SetActive(true);
@@ -30,7 +40,6 @@ public class MainMenuManager : MonoBehaviour
 
     private void Update()
     {
-        // ESC 키 기능
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (quitConfirmPanel.activeSelf) OnClickQuitNo();
@@ -46,12 +55,11 @@ public class MainMenuManager : MonoBehaviour
         }
     }
 
-    // ------------------- 버튼 연결 함수들 -------------------
-
     public void OnClickNewGame()
     {
         PlayClickSound();
-        StartCoroutine(LoadSceneProcess());
+        LoadingData.nextSceneName = nextSceneName;
+        StartCoroutine(FadeOutAndLoad(loadingSceneName));
     }
 
     public void OnClickLoadGame()
@@ -93,40 +101,22 @@ public class MainMenuManager : MonoBehaviour
         PlayClickSound();
         quitConfirmPanel.SetActive(false);
     }
-
-    IEnumerator LoadSceneProcess()
+    IEnumerator FadeOutAndLoad(string targetScene)
     {
-        loadingPanel.SetActive(true);
-        mainButtonGroup.SetActive(false);
-
-        AsyncOperation op = SceneManager.LoadSceneAsync(sceneName);
-        op.allowSceneActivation = false;
-
-        float timer = 0.0f;
-        while (!op.isDone)
+        if (fadeCanvasGroup != null)
         {
-            yield return null;
-            timer += Time.deltaTime;
+            fadeCanvasGroup.blocksRaycasts = true;
 
-            if (op.progress < 0.9f)
+            float timer = 0f;
+            while (timer < fadeDuration)
             {
-                loadingSlider.value = Mathf.Lerp(loadingSlider.value, op.progress, timer);
-                if (op.progress >= loadingSlider.value) timer = 0f;
+                timer += Time.deltaTime;
+                fadeCanvasGroup.alpha = Mathf.Lerp(0f, 1f, timer / fadeDuration);
+                yield return null;
             }
-            else
-            {
-                loadingSlider.value = Mathf.Lerp(loadingSlider.value, 1f, timer);
-                if (loadingSlider.value >= 0.99f)
-                {
-                    op.allowSceneActivation = true;
-                }
-            }
-
-            if (loadingText != null)
-            {
-                // TextMeshPro를 쓴다면 여기를 바꿔야 하지만, 기존 Text라면 그대로 둡니다.
-                loadingText.text = ((int)(loadingSlider.value * 100)).ToString() + "%";
-            }
+            fadeCanvasGroup.alpha = 1f;
         }
+
+        SceneManager.LoadScene(targetScene);
     }
 }
