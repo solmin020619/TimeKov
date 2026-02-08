@@ -26,39 +26,57 @@ public class SettingManager : MonoBehaviour
 
     void Start()
     {
-        // 1. 해상도 & 토글 설정 (기존과 동일)
         Resolution[] allResolutions = Screen.resolutions;
         resolutions.Clear();
         resolutionDropdown.ClearOptions();
 
         List<string> options = new List<string>();
-        HashSet<string> uniqueResolutions = new HashSet<string>();
+        HashSet<string> uniqueResolutions = new HashSet<string>(); // 중복 제거용 (60Hz, 144Hz 등 같은 해상도 묶기)
         int currentResolutionIndex = 0;
 
         for (int i = 0; i < allResolutions.Length; i++)
         {
+            if (allResolutions[i].width < 1280 || allResolutions[i].height < 720) continue;
+
             string option = allResolutions[i].width + " x " + allResolutions[i].height;
+
             if (!uniqueResolutions.Contains(option))
             {
                 uniqueResolutions.Add(option);
                 options.Add(option);
                 resolutions.Add(allResolutions[i]);
-                if (allResolutions[i].width == Screen.width && allResolutions[i].height == Screen.height)
+
+                // 현재 내 모니터 해상도와 같다면 그걸 기본 선택으로 지정
+                if (allResolutions[i].width == Screen.width &&
+                    allResolutions[i].height == Screen.height)
+                {
                     currentResolutionIndex = resolutions.Count - 1;
+                }
             }
         }
+
+        // 혹시라도 필터링 때문에 목록이 텅 비면(노트북 등) 현재 해상도 하나는 강제로 추가
+        if (options.Count == 0)
+        {
+            string currentOption = Screen.width + " x " + Screen.height;
+            options.Add(currentOption);
+            resolutions.Add(Screen.currentResolution);
+            currentResolutionIndex = 0;
+        }
+
         resolutionDropdown.AddOptions(options);
         resolutionDropdown.value = currentResolutionIndex;
         resolutionDropdown.RefreshShownValue();
 
+        // 해상도 & 전체화면 연결
         resolutionDropdown.onValueChanged.AddListener(SetResolution);
         fullscreenToggle.onValueChanged.AddListener(SetFullscreen);
 
-        // 2. 사운드 슬라이더 연결
+        // 사운드 슬라이더 연결 & 현재 볼륨 가져오기
         if (bgmSlider != null)
         {
             bgmSlider.onValueChanged.AddListener(SetBGMVolume);
-            // 시작할 때 슬라이더 위치를 현재 스피커 볼륨에 맞춤
+            // 게임 시작할 때 슬라이더 위치를 실제 스피커 볼륨에 맞춤
             if (bgmSpeaker != null) bgmSlider.value = bgmSpeaker.volume;
         }
 
@@ -68,17 +86,16 @@ public class SettingManager : MonoBehaviour
             if (sfxSpeaker != null) sfxSlider.value = sfxSpeaker.volume;
         }
 
-        // 3. 마우스 감도 연결
+        // 마우스 감도 연결 & 저장된 값 불러오기
         if (sensitivitySlider != null)
         {
             sensitivitySlider.onValueChanged.AddListener(SetSensitivity);
+            // 저장된 감도 불러오기 (없으면 기본값 1.0)
             sensitivitySlider.value = PlayerPrefs.GetFloat("MouseSensitivity", 1.0f);
         }
 
         fullscreenToggle.isOn = Screen.fullScreen;
     }
-
-    // --- 기능 함수들 ---
 
     public void SetResolution(int resolutionIndex)
     {
