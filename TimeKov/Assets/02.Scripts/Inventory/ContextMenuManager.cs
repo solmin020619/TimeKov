@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class ContextMenuManager : MonoBehaviour
 {
@@ -9,11 +10,12 @@ public class ContextMenuManager : MonoBehaviour
     [Header("Buttons")]
     public Button btnEquip;
     public Button btnUnequip;
-    public Button btnSell;
+    public Button btnSell;  // ✅ 이 버튼을 '판매/구매'로 재사용
     public Button btnDrop;
 
     [Header("Refs")]
     public EquipmentManager equipmentManager;
+    public ShopManager shopManager;
 
     private SlotInfo currentSlot;
     private InventoryManager currentOwnerManager;
@@ -25,13 +27,12 @@ public class ContextMenuManager : MonoBehaviour
 
         if (btnEquip != null) btnEquip.onClick.AddListener(OnClickEquip);
         if (btnUnequip != null) btnUnequip.onClick.AddListener(OnClickUnequip);
-        if (btnSell != null) btnSell.onClick.AddListener(OnClickSell);
+        if (btnSell != null) btnSell.onClick.AddListener(OnClickSellOrBuy);
         if (btnDrop != null) btnDrop.onClick.AddListener(OnClickDrop);
     }
 
     void Update()
     {
-        // ✅ 메뉴가 켜져있고, 메뉴 바깥을 클릭하면 닫기
         if (menuRoot != null && menuRoot.activeSelf)
         {
             if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
@@ -45,7 +46,6 @@ public class ContextMenuManager : MonoBehaviour
     bool IsPointerInsideMenu()
     {
         if (menuRoot == null) return false;
-
         RectTransform rt = menuRoot.GetComponent<RectTransform>();
         if (rt == null) return false;
 
@@ -58,21 +58,22 @@ public class ContextMenuManager : MonoBehaviour
         if (ownerManager == null) return;
         if (menuRoot == null) return;
 
-        // ✅ 창고에서도 메뉴는 뜨게 한다 (요구사항)
-        // 아이템 없는 칸이면 메뉴 안 띄움(원하면 띄우게 변경 가능)
         if (slot.slotIndex == 0)
             return;
 
         currentSlot = slot;
         currentOwnerManager = ownerManager;
 
-        // 메뉴 위치 = 마우스 위치
         RectTransform rt = menuRoot.GetComponent<RectTransform>();
         if (rt != null)
             rt.position = screenPos;
 
         RefreshButtons();
+
         menuRoot.SetActive(true);
+
+        // ✅ 항상 맨 앞으로(최상단) 가져오기
+        menuRoot.transform.SetAsLastSibling();
     }
 
     public void Hide()
@@ -88,29 +89,81 @@ public class ContextMenuManager : MonoBehaviour
     {
         if (currentSlot == null || currentOwnerManager == null) return;
 
-        bool isWarehouse = (currentOwnerManager.ownerType == InventoryManager.InventoryOwnerType.Warehouse);
         bool isEquipSlot = (currentSlot.ownerType == SlotInfo.SlotOwnerType.Equip);
+        bool isInventorySlot = (currentSlot.ownerType == SlotInfo.SlotOwnerType.Inventory);
 
-        // 장비템 판별(EquipmentManager 기준)
+        // 상점 슬롯인지 판별(ShopSlotMarker가 붙어있으면 상점 슬롯)
+        ShopSlotMarker shopMarker = currentSlot.GetComponent<ShopSlotMarker>();
+        bool isShopSlot = (shopMarker != null);
+
+        // 상점 열림 여부
+        bool shopOpen = (shopManager != null && shopManager.IsShopOpen());
+
+        // 장비템 판별
         bool isEquippable = false;
         if (equipmentManager != null)
         {
             isEquippable = (equipmentManager.GetTypeById(currentSlot.slotIndex) != null);
         }
 
-        // ✅ 표시 규칙
-        // - 창고에서는 장착/해제 숨김
-        // - 인벤에서 장비템이면 장착 표시
-        // - 장비칸이면 해제 표시
+        // ✅ 장착/해제 기존 규칙 유지
         if (btnEquip != null)
-            btnEquip.gameObject.SetActive(!isWarehouse && !isEquipSlot && currentSlot.ownerType == SlotInfo.SlotOwnerType.Inventory && isEquippable);
+            btnEquip.gameObject.SetActive(!isEquipSlot && isInventorySlot && isEquippable);
 
         if (btnUnequip != null)
-            btnUnequip.gameObject.SetActive(!isWarehouse && isEquipSlot);
+            btnUnequip.gameObject.SetActive(isEquipSlot);
 
-        // 판매/버리기: 일단 둘 다 뜨게(원하면 창고에서는 숨기게 바꿔줄게)
-        if (btnSell != null) btnSell.gameObject.SetActive(true);
-        if (btnDrop != null) btnDrop.gameObject.SetActive(true);
+        // ✅ 판매/구매 버튼(=btnSell)
+        if (btnSell != null)
+        {
+            // 상점이 열려있을 때만 표시
+            if (!shopOpen)
+            {
+                btnSell.gameObject.SetActive(false);
+            }
+            else
+            {
+                // 상점 슬롯이면 "구매", 인벤 슬롯이면 "판매"
+                if (isShopSlot)
+                {
+                    SetButtonText(btnSell, "구매");
+                    btnSell.gameObject.SetActive(true);
+                }
+                else if (isInventorySlot)
+                {
+                    SetButtonText(btnSell, "판매");
+                    btnSell.gameObject.SetActive(true);
+                }
+                else
+                {
+                    // 장비칸/창고 등은 판매/구매 숨김(원하면 바꿔도 됨)
+                    btnSell.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        // 드롭은 일단 인벤에서만 (원하면 shopOpen 여부 상관없이 켜도 됨)
+        if (btnDrop != null)
+            btnDrop.gameObject.SetActive(isInventorySlot);
+    }
+
+    void SetButtonText(Button b, string text)
+    {
+        if (b == null) return;
+
+        TextMeshProUGUI tmp = b.GetComponentInChildren<TextMeshProUGUI>();
+        if (tmp != null)
+        {
+            tmp.text = text;
+            return;
+        }
+
+        Text uText = b.GetComponentInChildren<Text>();
+        if (uText != null)
+        {
+            uText.text = text;
+            return;
+        }
     }
 
     void OnClickEquip()
@@ -131,17 +184,31 @@ public class ContextMenuManager : MonoBehaviour
         Hide();
     }
 
-    void OnClickSell()
+    void OnClickSellOrBuy()
     {
         if (currentSlot == null) return;
-        Debug.Log($"[SELL] id={currentSlot.slotIndex} count={currentSlot.itemCount} owner={currentOwnerManager.ownerType}");
+        if (shopManager == null) return;
+
+        ShopSlotMarker shopMarker = currentSlot.GetComponent<ShopSlotMarker>();
+        bool isShopSlot = (shopMarker != null);
+
+        if (isShopSlot)
+        {
+            shopManager.TryBuyFromContext(shopMarker);
+        }
+        else
+        {
+            shopManager.TrySellFromContext(currentSlot);
+        }
+
         Hide();
     }
 
     void OnClickDrop()
     {
         if (currentSlot == null) return;
-        Debug.Log($"[DROP] id={currentSlot.slotIndex} count={currentSlot.itemCount} owner={currentOwnerManager.ownerType}");
+
+        Debug.Log($"[DROP] id={currentSlot.slotIndex} count={currentSlot.itemCount}");
         Hide();
     }
 }

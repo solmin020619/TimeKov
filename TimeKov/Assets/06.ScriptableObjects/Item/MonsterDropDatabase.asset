@@ -1,0 +1,1301 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89992ffc37786e544bf42b5ce48db4df, type: 3}
+  m_Name: MonsterDropDatabase
+  m_EditorClassIdentifier: 
+  csv: {fileID: 4900000, guid: 1d2e753483be0f74c9f7bab4316d4380, type: 3}
+  rows:
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 0
+    ItemID: 6101
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 0
+    ItemID: 6102
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 0
+    ItemID: 6103
+    Weight: 14
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 0
+    ItemID: 6104
+    Weight: 16
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 0
+    ItemID: 6105
+    Weight: 17
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 0
+    ItemID: 6106
+    Weight: 17
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 1
+    ItemID: 4104
+    Weight: 45
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 1
+    ItemID: 4103
+    Weight: 25
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 1
+    ItemID: 2103
+    Weight: 15
+  - MonsterType: Chaser
+    TableID: C_T1
+    DropType: 1
+    ItemID: 5118
+    Weight: 30
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 0
+    ItemID: 6111
+    Weight: 25
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 0
+    ItemID: 6112
+    Weight: 20
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 0
+    ItemID: 6113
+    Weight: 20
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 0
+    ItemID: 6109
+    Weight: 20
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 0
+    ItemID: 6106
+    Weight: 15
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 1
+    ItemID: 6108
+    Weight: 35
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 1
+    ItemID: 4104
+    Weight: 35
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 1
+    ItemID: 5117
+    Weight: 25
+  - MonsterType: Chaser
+    TableID: C_T2
+    DropType: 1
+    ItemID: 2103
+    Weight: 12
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 0
+    ItemID: 6109
+    Weight: 35
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 0
+    ItemID: 6110
+    Weight: 30
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 0
+    ItemID: 6114
+    Weight: 20
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 0
+    ItemID: 6115
+    Weight: 15
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 1
+    ItemID: 4102
+    Weight: 35
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 1
+    ItemID: 4104
+    Weight: 30
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 1
+    ItemID: 6106
+    Weight: 35
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 1
+    ItemID: 5116
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T3
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 0
+    ItemID: 6122
+    Weight: 30
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 0
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 0
+    ItemID: 6119
+    Weight: 20
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 0
+    ItemID: 6118
+    Weight: 25
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 6123
+    Weight: 35
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 6124
+    Weight: 32
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 4101
+    Weight: 35
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 3103
+    Weight: 22
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 2102
+    Weight: 20
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 3102
+    Weight: 15
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 5114
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T4
+    DropType: 1
+    ItemID: 6125
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 0
+    ItemID: 6116
+    Weight: 22
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 0
+    ItemID: 6117
+    Weight: 22
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 0
+    ItemID: 6125
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 0
+    ItemID: 6118
+    Weight: 20
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 0
+    ItemID: 6124
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 4102
+    Weight: 50
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 4104
+    Weight: 50
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 5114
+    Weight: 18
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 2103
+    Weight: 25
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 2101
+    Weight: 10
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 3101
+    Weight: 8
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 5109
+    Weight: 15
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 6123
+    Weight: 28
+  - MonsterType: Chaser
+    TableID: C_T5
+    DropType: 1
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 2
+    ItemID: 1105
+    Weight: 50
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 0
+    ItemID: 6106
+    Weight: 30
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 0
+    ItemID: 6111
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 0
+    ItemID: 6113
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 0
+    ItemID: 6109
+    Weight: 20
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 1
+    ItemID: 4104
+    Weight: 85
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 1
+    ItemID: 2103
+    Weight: 35
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 1
+    ItemID: 3103
+    Weight: 30
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 1
+    ItemID: 6103
+    Weight: 45
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T1
+    DropType: 1
+    ItemID: 5118
+    Weight: 35
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 2
+    ItemID: 1105
+    Weight: 45
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 0
+    ItemID: 6110
+    Weight: 30
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 0
+    ItemID: 6109
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 0
+    ItemID: 6106
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 0
+    ItemID: 6113
+    Weight: 20
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 1
+    ItemID: 4104
+    Weight: 80
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 1
+    ItemID: 6101
+    Weight: 45
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 1
+    ItemID: 5117
+    Weight: 30
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 1
+    ItemID: 2102
+    Weight: 22
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T2
+    DropType: 1
+    ItemID: 5116
+    Weight: 20
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 2
+    ItemID: 1105
+    Weight: 40
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 0
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 0
+    ItemID: 6110
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 0
+    ItemID: 6109
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 0
+    ItemID: 6106
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 1
+    ItemID: 4104
+    Weight: 75
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 1
+    ItemID: 2103
+    Weight: 45
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 1
+    ItemID: 3103
+    Weight: 40
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 1
+    ItemID: 5116
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T3
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 2
+    ItemID: 1105
+    Weight: 35
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 0
+    ItemID: 6122
+    Weight: 30
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 0
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 0
+    ItemID: 6118
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 0
+    ItemID: 5114
+    Weight: 20
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 1
+    ItemID: 4104
+    Weight: 90
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 1
+    ItemID: 6123
+    Weight: 35
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 1
+    ItemID: 6124
+    Weight: 32
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 1
+    ItemID: 2102
+    Weight: 20
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T4
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 2
+    ItemID: 1105
+    Weight: 30
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 0
+    ItemID: 6102
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 0
+    ItemID: 6104
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 0
+    ItemID: 6124
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 0
+    ItemID: 6123
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 1
+    ItemID: 4104
+    Weight: 92
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 1
+    ItemID: 2101
+    Weight: 8
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 1
+    ItemID: 5114
+    Weight: 18
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 1
+    ItemID: 6118
+    Weight: 30
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 1
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Shooter_Pistol
+    TableID: SP_T5
+    DropType: 1
+    ItemID: 5118
+    Weight: 40
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 2
+    ItemID: 1104
+    Weight: 70
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 0
+    ItemID: 6111
+    Weight: 35
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 0
+    ItemID: 6113
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 0
+    ItemID: 6106
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 0
+    ItemID: 6110
+    Weight: 15
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 1
+    ItemID: 4103
+    Weight: 90
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 1
+    ItemID: 4104
+    Weight: 40
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 1
+    ItemID: 2103
+    Weight: 35
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 1
+    ItemID: 6103
+    Weight: 45
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T1
+    DropType: 1
+    ItemID: 5117
+    Weight: 30
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 2
+    ItemID: 1104
+    Weight: 65
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 0
+    ItemID: 6111
+    Weight: 30
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 0
+    ItemID: 6112
+    Weight: 20
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 0
+    ItemID: 6106
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 0
+    ItemID: 6110
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 1
+    ItemID: 4103
+    Weight: 85
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 1
+    ItemID: 6113
+    Weight: 40
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 1
+    ItemID: 6109
+    Weight: 35
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 1
+    ItemID: 3103
+    Weight: 30
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T2
+    DropType: 1
+    ItemID: 5118
+    Weight: 35
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 2
+    ItemID: 1104
+    Weight: 60
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 0
+    ItemID: 6120
+    Weight: 30
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 0
+    ItemID: 6109
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 0
+    ItemID: 6110
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 0
+    ItemID: 6113
+    Weight: 20
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 1
+    ItemID: 4103
+    Weight: 80
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 1
+    ItemID: 2102
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 1
+    ItemID: 3102
+    Weight: 22
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 1
+    ItemID: 6122
+    Weight: 35
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T3
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 2
+    ItemID: 1104
+    Weight: 55
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 0
+    ItemID: 6101
+    Weight: 30
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 0
+    ItemID: 6106
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 0
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 0
+    ItemID: 6118
+    Weight: 20
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 1
+    ItemID: 4103
+    Weight: 92
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 1
+    ItemID: 2102
+    Weight: 20
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 1
+    ItemID: 5114
+    Weight: 18
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T4
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 2
+    ItemID: 1104
+    Weight: 50
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 0
+    ItemID: 6120
+    Weight: 30
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 0
+    ItemID: 6118
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 0
+    ItemID: 6124
+    Weight: 25
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 0
+    ItemID: 6123
+    Weight: 20
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 1
+    ItemID: 4103
+    Weight: 92
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 1
+    ItemID: 2101
+    Weight: 10
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 1
+    ItemID: 5115
+    Weight: 20
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Shotgun
+    TableID: SS_T5
+    DropType: 1
+    ItemID: 4101
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 2
+    ItemID: 1102
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 2
+    ItemID: 1103
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 0
+    ItemID: 6106
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 0
+    ItemID: 6109
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 0
+    ItemID: 6113
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 0
+    ItemID: 6111
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 1
+    ItemID: 4102
+    Weight: 90
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 1
+    ItemID: 4104
+    Weight: 45
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 1
+    ItemID: 2103
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 1
+    ItemID: 3103
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 1
+    ItemID: 6122
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T1
+    DropType: 1
+    ItemID: 5117
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 2
+    ItemID: 1102
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 2
+    ItemID: 1103
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 0
+    ItemID: 6123
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 0
+    ItemID: 6124
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 0
+    ItemID: 6120
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 0
+    ItemID: 6110
+    Weight: 15
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 1
+    ItemID: 4102
+    Weight: 92
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 1
+    ItemID: 2102
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 1
+    ItemID: 3102
+    Weight: 28
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 1
+    ItemID: 5116
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T2
+    DropType: 1
+    ItemID: 6118
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 2
+    ItemID: 1102
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 2
+    ItemID: 1103
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 0
+    ItemID: 6125
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 0
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 0
+    ItemID: 6123
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 0
+    ItemID: 6124
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 1
+    ItemID: 4102
+    Weight: 88
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 1
+    ItemID: 4101
+    Weight: 60
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 1
+    ItemID: 2101
+    Weight: 12
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 1
+    ItemID: 3101
+    Weight: 10
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 1
+    ItemID: 5109
+    Weight: 18
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T3
+    DropType: 1
+    ItemID: 6102
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 2
+    ItemID: 1102
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 2
+    ItemID: 1103
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 0
+    ItemID: 6122
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 0
+    ItemID: 6120
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 0
+    ItemID: 6118
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 1
+    ItemID: 4102
+    Weight: 95
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 1
+    ItemID: 2102
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 1
+    ItemID: 3102
+    Weight: 18
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 1
+    ItemID: 5114
+    Weight: 18
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 1
+    ItemID: 5109
+    Weight: 12
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T4
+    DropType: 1
+    ItemID: 6124
+    Weight: 25
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 2
+    ItemID: 1102
+    Weight: 35
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 2
+    ItemID: 1103
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 0
+    ItemID: 6123
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 0
+    ItemID: 6124
+    Weight: 30
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 0
+    ItemID: 6125
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 0
+    ItemID: 5115
+    Weight: 20
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 1
+    ItemID: 4102
+    Weight: 92
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 1
+    ItemID: 4101
+    Weight: 45
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 1
+    ItemID: 2101
+    Weight: 10
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 1
+    ItemID: 3101
+    Weight: 8
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 1
+    ItemID: 5109
+    Weight: 15
+  - MonsterType: Shooter_Rifle
+    TableID: SR_T5
+    DropType: 1
+    ItemID: 5114
+    Weight: 18
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 0
+    ItemID: 6109
+    Weight: 40
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 0
+    ItemID: 6110
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 0
+    ItemID: 6107
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 1
+    ItemID: 4104
+    Weight: 65
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 1
+    ItemID: 6103
+    Weight: 45
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 1
+    ItemID: 5118
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 1
+    ItemID: 6102
+    Weight: 30
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 1
+    ItemID: 6111
+    Weight: 30
+  - MonsterType: Exploder
+    TableID: E_T1
+    DropType: 1
+    ItemID: 6106
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 0
+    ItemID: 6114
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 0
+    ItemID: 6115
+    Weight: 30
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 0
+    ItemID: 6113
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 1
+    ItemID: 4103
+    Weight: 55
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 1
+    ItemID: 4102
+    Weight: 45
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 1
+    ItemID: 2103
+    Weight: 22
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 1
+    ItemID: 6106
+    Weight: 30
+  - MonsterType: Exploder
+    TableID: E_T2
+    DropType: 1
+    ItemID: 6109
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 0
+    ItemID: 6116
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 0
+    ItemID: 6117
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 0
+    ItemID: 6118
+    Weight: 30
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 1
+    ItemID: 6124
+    Weight: 40
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 1
+    ItemID: 6123
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 1
+    ItemID: 4102
+    Weight: 50
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 1
+    ItemID: 6120
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T3
+    DropType: 1
+    ItemID: 6109
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 0
+    ItemID: 6122
+    Weight: 30
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 0
+    ItemID: 6120
+    Weight: 30
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 0
+    ItemID: 6119
+    Weight: 40
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 1
+    ItemID: 3103
+    Weight: 10
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 1
+    ItemID: 4101
+    Weight: 20
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 1
+    ItemID: 5109
+    Weight: 8
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 1
+    ItemID: 2102
+    Weight: 20
+  - MonsterType: Exploder
+    TableID: E_T4
+    DropType: 1
+    ItemID: 6124
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 0
+    ItemID: 6125
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 0
+    ItemID: 6102
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 0
+    ItemID: 6101
+    Weight: 40
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 1
+    ItemID: 4104
+    Weight: 40
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 1
+    ItemID: 5117
+    Weight: 10
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 1
+    ItemID: 6106
+    Weight: 25
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 1
+    ItemID: 6104
+    Weight: 35
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 1
+    ItemID: 2101
+    Weight: 10
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 1
+    ItemID: 5109
+    Weight: 15
+  - MonsterType: Exploder
+    TableID: E_T5
+    DropType: 1
+    ItemID: 6123
+    Weight: 25

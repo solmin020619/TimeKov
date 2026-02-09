@@ -80,7 +80,33 @@ public class SlotInfo : MonoBehaviour
         if (slotIndex != slotOldIndex)
         {
             Debug.Log("slotIndex가 변경되었습니다!");
-            slotText.text = DataManager.Instance.GetItem(slotIndex).itemName;
+
+            // ✅ 여기부터 NullReference 방지 (기존 기능은 그대로)
+            if (slotText == null)
+            {
+                Debug.LogWarning($"[SlotInfo] slotText is null on {gameObject.name}");
+                slotOldIndex = slotIndex;
+                return;
+            }
+
+            if (DataManager.Instance == null)
+            {
+                Debug.LogWarning($"[SlotInfo] DataManager.Instance is null (slotIndex={slotIndex})");
+                slotText.text = slotIndex.ToString();
+                slotOldIndex = slotIndex;
+                return;
+            }
+
+            var item = DataManager.Instance.GetItem(slotIndex);
+            if (item == null)
+            {
+                Debug.LogWarning($"[SlotInfo] Item not found (id={slotIndex})");
+                slotText.text = slotIndex.ToString();
+                slotOldIndex = slotIndex;
+                return;
+            }
+
+            slotText.text = item.itemName;
             slotOldIndex = slotIndex;
         }
     }
@@ -93,9 +119,23 @@ public class SlotInfo : MonoBehaviour
         }
         else
         {
-            Debug.Log("아이템 이름 :" + DataManager.Instance.GetItem(slotIndex).itemName);
-            Debug.Log("아이템 설명 :" + DataManager.Instance.GetItem(slotIndex).description);
-            Debug.Log("아이콘 이미지 파일 이름 :" + DataManager.Instance.GetItem(slotIndex).iconImange);
+            // ✅ 여기도 동일하게 가드만 추가 (원래 로그 출력 흐름 유지)
+            if (DataManager.Instance == null)
+            {
+                Debug.LogWarning("[SlotInfo] DataManager.Instance is null");
+                return;
+            }
+
+            var item = DataManager.Instance.GetItem(slotIndex);
+            if (item == null)
+            {
+                Debug.LogWarning($"[SlotInfo] Item not found (id={slotIndex})");
+                return;
+            }
+
+            Debug.Log("아이템 이름 :" + item.itemName);
+            Debug.Log("아이템 설명 :" + item.description);
+            Debug.Log("아이콘 이미지 파일 이름 :" + item.iconImange);
         }
     }
 }
