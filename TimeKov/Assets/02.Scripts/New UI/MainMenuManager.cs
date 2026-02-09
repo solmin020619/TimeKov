@@ -5,23 +5,22 @@ using UnityEngine.UI;
 
 public class MainMenuManager : MonoBehaviour
 {
-    [Header("Scene Settings (씬 이름 설정)")]
-    [Tooltip("로딩 화면으로 쓸 씬의 정확한 이름을 적으세요")]
-    public string loadingSceneName = "LoadingScene";
+    [Header("Scene Settings")]
+    public string loadingSceneName = "Loading"; // 로딩 씬 이름
+    public string firstSceneName = "Base";     // 처음 시작할 씬
 
-    [Tooltip("게임 시작(New Game)시 넘어갈 맵의 이름을 적으세요")]
-    public string nextSceneName = "Base_Scene";
-
-    [Header("Panel Groups")]
+    [Header("UI Groups")]
     public GameObject mainButtonGroup;
-    public GameObject optionPanel;
     public GameObject quitConfirmPanel;
+
+    [Header("Settings Link (중요)")]
+    public GlobalSettingsManager globalSettingsManager;
 
     [Header("Fade Effect")]
     public CanvasGroup fadeCanvasGroup;
     public float fadeDuration = 1.0f;
 
-    [Header("Sound Settings")]
+    [Header("Sound")]
     public AudioSource sfxAudioSource;
     public AudioClip clickSound;
 
@@ -33,7 +32,6 @@ public class MainMenuManager : MonoBehaviour
             fadeCanvasGroup.blocksRaycasts = false;
         }
 
-        if (optionPanel != null) optionPanel.SetActive(false);
         if (quitConfirmPanel != null) quitConfirmPanel.SetActive(false);
         if (mainButtonGroup != null) mainButtonGroup.SetActive(true);
     }
@@ -43,41 +41,38 @@ public class MainMenuManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (quitConfirmPanel.activeSelf) OnClickQuitNo();
-            else if (optionPanel.activeSelf) OnClickCloseOption();
         }
     }
 
     public void PlayClickSound()
     {
         if (sfxAudioSource != null && clickSound != null)
-        {
             sfxAudioSource.PlayOneShot(clickSound);
-        }
     }
 
     public void OnClickNewGame()
     {
         PlayClickSound();
-        LoadingData.nextSceneName = nextSceneName;
+        LoadingData.nextSceneName = firstSceneName;
         StartCoroutine(FadeOutAndLoad(loadingSceneName));
     }
 
     public void OnClickLoadGame()
     {
         PlayClickSound();
-        Debug.Log("로드 기능은 추후 구현 예정입니다.");
+        Debug.Log("로드 게임 기능은 아직 구현되지 않았습니다.");
     }
 
     public void OnClickOption()
     {
-        PlayClickSound();
-        optionPanel.SetActive(true);
-    }
-
-    public void OnClickCloseOption()
-    {
-        PlayClickSound();
-        optionPanel.SetActive(false);
+        if (globalSettingsManager != null)
+        {
+            globalSettingsManager.OpenSettings();
+        }
+        else
+        {
+            Debug.LogError("GlobalSettingsManager 연결 안됨!");
+        }
     }
 
     public void OnClickQuit()
@@ -89,7 +84,6 @@ public class MainMenuManager : MonoBehaviour
     public void OnClickQuitYes()
     {
         PlayClickSound();
-        Debug.Log("게임 종료!");
         Application.Quit();
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
@@ -101,12 +95,12 @@ public class MainMenuManager : MonoBehaviour
         PlayClickSound();
         quitConfirmPanel.SetActive(false);
     }
+
     IEnumerator FadeOutAndLoad(string targetScene)
     {
         if (fadeCanvasGroup != null)
         {
             fadeCanvasGroup.blocksRaycasts = true;
-
             float timer = 0f;
             while (timer < fadeDuration)
             {
@@ -116,7 +110,6 @@ public class MainMenuManager : MonoBehaviour
             }
             fadeCanvasGroup.alpha = 1f;
         }
-
         SceneManager.LoadScene(targetScene);
     }
 }
