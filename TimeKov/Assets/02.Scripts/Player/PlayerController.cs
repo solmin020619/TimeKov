@@ -1,55 +1,55 @@
-using System.Collections;
 using UnityEngine;
+using KINEMATION.FPSAnimationPack.Scripts.Player; // FPSPlayer
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(CapsuleCollider))]
 public class PlayerController : MonoBehaviour
 {
-    public string playerName = "";                          // 플레이어 이름
+    public string playerName = "";
 
     [Header("Time")]
-    public int baseMaxTime;                                 // 초기 체력 타임
-    public int timeDecay;                                   // Raid에서 초당 타임 = 체력 감소
+    public int baseMaxTime;
+    public int timeDecay;
 
     [Header("Movement")]
-    public float moveSpeed = 5f;                            // 이동속도
-    public float runSpeed = 8f;                             // 뛸떄 이동속도
-    public float rotationSpeed = 10f;                       // 회전 부드럽게
+    public float moveSpeed = 5f;
+    public float runSpeed = 8f;
+    public float rotationSpeed = 10f;
 
     [Header("Stamina")]
-    public float staminaMax = 100f;                         // 최대 스테미나
-    public float staminaRegen = 5f;                         // 스테미나 회복속도
-    public float runSpeedCost = 10f;                        // 뛸떄 소모량
+    public float staminaMax = 100f;
+    public float staminaRegen = 5f;
+    public float runSpeedCost = 10f;
 
     [Header("Combat")]
-    public int baseDefense;                                 // 기본 방어력
-    public int baseAttack;                                  // 기본 공격력
+    public int baseDefense;
+    public int baseAttack;
 
     [Header("Y Lock (No Jump)")]
-    public float fixedY = 0f;                               // 0으로 고정
+    public float fixedY = 0f;
 
     [Header("FPS Look")]
-    public Transform cameraPivot;                           // 상하(Pitch) 회전용 피벗(카메라 부모)
-    public float mouseSensitivity = 2.0f;                   // 기본 감도(프로젝트 체감값)
-    public float pitchMin = -80f;                           // 위로 최대 각도
-    public float pitchMax = 80f;                            // 아래로 최대 각도
-    public bool lockCursor = true;                          // 플레이 시작 시 커서 잠금
+    public Transform cameraPivot; // Pitch
+    public float mouseSensitivity = 2.0f;
+    public float pitchMin = -80f;
+    public float pitchMax = 80f;
+    public bool lockCursor = true;
 
-    // 내부 사용 변수
-    private Vector3 moveInput;                              // wasd 입력값
-    public float currentStamina;                            // 현재 스테미나
+    [Header("ViewModel (KINEMATION)")]
+    [Tooltip("SK_Arms_Mono 안에 붙어있는 FPSPlayer 컴포넌트를 드래그해서 넣어")]
+    public FPSPlayer viewModel;
 
-    private bool isRunning;                                 // 뛰는지
+    // 내부
+    private Vector3 moveInput;
+    public float currentStamina;
+    private bool isRunning;
 
-    // FPS 회전값(누적)
-    private float yaw;                                      // 좌우
-    private float pitch;                                    // 상하
+    private float yaw;
+    private float pitch;
 
-    // 회전 캐싱(Update에서 계산 -> FixedUpdate에서 적용)
     private Quaternion cachedYawRotation;
     private bool hasCachedYawRotation;
 
-    // 컴포넌트 캐싱
     private Rigidbody rb;
     private PlayerTime playerTime;
 
@@ -60,49 +60,41 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.useGravity = false;                                          // 점프 중력 없음
-        rb.interpolation = RigidbodyInterpolation.Interpolate;          // 물리 보간(화면 떨림 완화)
-        rb.freezeRotation = true;                                       // 물리 충돌로 회전하지않게 고정
+        rb.useGravity = false;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.freezeRotation = true;
 
-        // 시작할떄 스테미나 최대로 채우기
         currentStamina = staminaMax;
 
         // Time 시스템 연결
         playerTime = GetComponent<PlayerTime>();
         if (playerTime != null)
         {
-            // PlayerTime 초기 세팅을 PlayerController값에 맞게 넘겨줌
             playerTime.baseMaxTime = baseMaxTime;
             playerTime.timeDecay = timeDecay;
-            playerTime.isInRaid = true;                 // 레이드 씬에서는 자동 true
-
-            // Time이 0이 되었을떄 사망처리 콜백 연결
+            playerTime.isInRaid = true;
             playerTime.onTimeDepleted += OnPlayerDeath;
         }
 
-        // 시작 위치의 Y도 고정값으로 맞춰줌(초기 틀어짐 방지)
+        // 시작 위치 Y 고정
         Vector3 p = rb.position;
         p.y = fixedY;
         rb.position = p;
 
-        // Y 속도 제거
         Vector3 v = rb.linearVelocity;
         v.y = 0f;
         rb.linearVelocity = v;
 
-        // 카메라 피벗 자동 보정(미할당 시 메인카메라 부모/본인으로 최대한 찾기)
+        // cameraPivot 자동 탐색
         if (cameraPivot == null && Camera.main != null)
         {
-            // 카메라가 플레이어 자식이라면 그대로 사용
             cameraPivot = Camera.main.transform.parent != null ? Camera.main.transform.parent : Camera.main.transform;
         }
 
-        // 시작 yaw/pitch 초기화
         yaw = transform.eulerAngles.y;
         pitch = (cameraPivot != null) ? cameraPivot.localEulerAngles.x : 0f;
         pitch = NormalizeAngle(pitch);
 
-        // 커서 잠금
         if (lockCursor)
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -112,16 +104,17 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        HandleInput();          // 입력 받기 
-        HandleStamina();        // 스테미나 회복/소모 처리
-        HandleMouseLook();      // FPS 마우스룩
+        HandleInput();
+        HandleStamina();
+        HandleMouseLook();
+        PushToViewModel(); // ⭐ FPSPlayer에 입력 주입
     }
 
     private void FixedUpdate()
     {
-        MoveRigidbody();        // 실제 물리 이동
-        ApplyCachedYawRotation();// 좌우 회전 적용(Rigidbody)
-        LockYPosition();        // Y=0 고정
+        MoveRigidbody();
+        ApplyCachedYawRotation();
+        LockYPosition();
     }
 
     void HandleInput()
@@ -130,17 +123,13 @@ public class PlayerController : MonoBehaviour
         float v = Input.GetAxis("Vertical");
 
         moveInput = new Vector3(h, 0f, v);
-
-        // 대각선 속도 보정
         if (moveInput.sqrMagnitude > 1f) moveInput.Normalize();
     }
 
     void MoveRigidbody()
     {
-        // 로컬 기준 이동 방향
         Vector3 moveDir = GetMoveDirectionLocal();
 
-        // 입력 없으면 정지
         if (moveDir.sqrMagnitude < 0.001f)
         {
             Vector3 velocity2 = rb.linearVelocity;
@@ -152,14 +141,12 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 달리기 판정
         bool runKey = Input.GetKey(KeyCode.LeftShift);
         bool canRun = currentStamina >= runSpeedCost;
         bool wantRun = runKey && canRun;
 
         float speed = wantRun ? runSpeed : moveSpeed;
 
-        // 달리기 스테미나 소모
         isRunning = false;
         if (wantRun)
         {
@@ -168,7 +155,6 @@ public class PlayerController : MonoBehaviour
             currentStamina = Mathf.Max(0f, currentStamina);
         }
 
-        // 최종 속도 적용
         Vector3 desired = moveDir.normalized * speed;
         Vector3 finalVelocity = rb.linearVelocity;
         finalVelocity.x = desired.x;
@@ -177,7 +163,6 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = finalVelocity;
     }
 
-    // 로컬 방향 기준 이동 계산(플레이어가 바라보는 방향 기준 이동 벡터 계산)
     Vector3 GetMoveDirectionLocal()
     {
         Vector3 direction = transform.right * moveInput.x + transform.forward * moveInput.z;
@@ -187,7 +172,6 @@ public class PlayerController : MonoBehaviour
 
     void HandleStamina()
     {
-        // 달리기 아닐 때만 회복
         if (!isRunning)
         {
             currentStamina += staminaRegen * Time.deltaTime;
@@ -197,24 +181,20 @@ public class PlayerController : MonoBehaviour
 
     void HandleMouseLook()
     {
-        // Settings 감도값(0.2~3.0)을 곱해서 최종 감도 구성
+        // 네 기존 감도 로직 유지
         float sens = SettingsData.MouseSensitivity * mouseSensitivity;
 
         float mx = Input.GetAxis("Mouse X") * sens;
         float my = Input.GetAxis("Mouse Y") * sens;
 
-        // 좌우(Yaw) 누적
         yaw += mx;
 
-        // 상하(Pitch) 누적 (FPS는 보통 마우스 위=시선 위라서 -my)
         pitch -= my;
         pitch = Mathf.Clamp(pitch, pitchMin, pitchMax);
 
-        // 좌우 회전은 Rigidbody로 적용하기 위해 캐싱
         cachedYawRotation = Quaternion.Euler(0f, yaw, 0f);
         hasCachedYawRotation = true;
 
-        // 상하 회전은 카메라 피벗 로컬 회전
         if (cameraPivot != null)
         {
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
@@ -229,26 +209,45 @@ public class PlayerController : MonoBehaviour
         rb.MoveRotation(newRot);
     }
 
-    // 사망 처리
+    void PushToViewModel()
+    {
+        if (viewModel == null) return;
+
+        // 1) 이동 입력 -> GAIT
+        // FPSPlayer는 x=strafe, y=forward로 Vector2 받음
+        Vector2 move01 = new Vector2(moveInput.x, moveInput.z);
+        viewModel.SetMoveInput(move01, isRunning, false);
+
+        // 2) 피치 입력 주입 (팔이 위아래 따라가게)
+        // FPSPlayer.AddLookPitchDelta()는 내부에서 playerSettings.sensitivity를 곱함
+        // 우리는 "이미 스케일된 my"를 쓰고 있으니, 감도 중복을 피하려고 나눠서 넣음
+        float sens = SettingsData.MouseSensitivity * mouseSensitivity;
+        float myScaled = Input.GetAxis("Mouse Y") * sens;
+
+        float vmSens = 1f;
+        if (viewModel.playerSettings != null)
+            vmSens = Mathf.Max(0.0001f, viewModel.playerSettings.sensitivity);
+
+        viewModel.AddLookPitchDelta(myScaled / vmSens);
+
+        // 3) ADS(조준) - 우클릭 기준 (원하면 나중에 네 입력 규칙으로 바꾸면 됨)
+        bool aiming = Input.GetMouseButton(1);
+        viewModel.SetAiming(aiming);
+    }
+
     void OnPlayerDeath()
     {
         Debug.Log("사망");
-
-        // 움직임 막기
         this.enabled = false;
         rb.linearVelocity = Vector3.zero;
-
-        // TODO: 애니메이션 Dead 사망 UI 베이스 귀환 로직
     }
 
     void LockYPosition()
     {
-        // 위치 Y 고정
         Vector3 pos = rb.position;
         pos.y = fixedY;
         rb.position = pos;
 
-        // Y 속도도 제거
         Vector3 v = rb.linearVelocity;
         v.y = 0f;
         rb.linearVelocity = v;
@@ -261,7 +260,6 @@ public class PlayerController : MonoBehaviour
         return angle;
     }
 
-    // 외부 UI 등에서 스테미나 관련 용도
     public float GetStamina() => currentStamina;
     public float GetStaminaMax() => staminaMax;
 }

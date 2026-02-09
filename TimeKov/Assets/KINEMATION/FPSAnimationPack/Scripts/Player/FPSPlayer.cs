@@ -1,4 +1,8 @@
-// Designed by KINEMATION, 2025.
+// FPSPlayer.cs (ViewModel-only)
+// - No CharacterController.Move
+// - No player root yaw rotation
+// - No Unity InputSystem callbacks (external controller should inject move/look)
+// - Keeps weapon/IK/recoil/ADS pipeline intact
 
 using KINEMATION.ProceduralRecoilAnimationSystem.Runtime;
 using KINEMATION.FPSAnimationPack.Scripts.Sounds;
@@ -7,15 +11,10 @@ using KINEMATION.KAnimationCore.Runtime.Core;
 
 using System;
 using System.Collections.Generic;
-using KINEMATION.FPSAnimationPack.Scripts.Camera;
 using UnityEngine;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
-
-#if ENABLE_INPUT_SYSTEM
-using UnityEngine.InputSystem;
-#endif
 
 namespace KINEMATION.FPSAnimationPack.Scripts.Player
 {
@@ -26,14 +25,15 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         public Transform mid;
         public Transform root;
     }
-    
+
     [AddComponentMenu("KINEMATION/FPS Animation Pack/Character/FPS Player")]
     public class FPSPlayer : MonoBehaviour
     {
         public float AdsWeight => _adsWeight;
-        
+
+        [Header("Settings")]
         public FPSPlayerSettings playerSettings;
-        
+
         [Header("Skeleton")]
         [SerializeField] private Transform skeletonRoot;
         [SerializeField] private Transform weaponBone;
@@ -41,318 +41,287 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         [SerializeField] private Transform cameraPoint;
         [SerializeField] private IKTransforms rightHand;
         [SerializeField] private IKTransforms leftHand;
-        
+
+        // IK
         private KTwoBoneIkData _rightHandIk;
         private KTwoBoneIkData _leftHandIk;
-        
+
+        // Recoil/ADS
         private RecoilAnimation _recoilAnimation;
         private float _adsWeight;
 
-        private List<FPSWeapon> _weapons = new List<FPSWeapon>();
-        private List<FPSWeapon> _prefabComponents = new List<FPSWeapon>();
-        private int _activeWeaponIndex = 0;
+        // Weapons
+        private readonly List<FPSWeapon> _weapons = new List<FPSWeapon>();
+        private readonly List<FPSWeapon> _prefabComponents = new List<FPSWeapon>();
+        private int _activeWeaponIndex;
 
+        // Animator
         private Animator _animator;
 
-        private static int RIGHT_HAND_WEIGHT = Animator.StringToHash("RightHandWeight");
-        private static int TAC_SPRINT_WEIGHT = Animator.StringToHash("TacSprintWeight");
-        private static int GRENADE_WEIGHT = Animator.StringToHash("GrenadeWeight");
-        private static int THROW_GRENADE = Animator.StringToHash("ThrowGrenade");
-        private static int GAIT = Animator.StringToHash("Gait");
-        private static int IS_IN_AIR = Animator.StringToHash("IsInAir");
-        private static int INSPECT = Animator.StringToHash("Inspect");
-        
+        private static readonly int RIGHT_HAND_WEIGHT = Animator.StringToHash("RightHandWeight");
+        private static readonly int TAC_SPRINT_WEIGHT = Animator.StringToHash("TacSprintWeight");
+        private static readonly int GRENADE_WEIGHT = Animator.StringToHash("GrenadeWeight");
+        private static readonly int THROW_GRENADE = Animator.StringToHash("ThrowGrenade");
+        private static readonly int GAIT = Animator.StringToHash("Gait");
+        private static readonly int IS_IN_AIR = Animator.StringToHash("IsInAir");
+        private static readonly int INSPECT = Animator.StringToHash("Inspect");
+
         private int _tacSprintLayerIndex;
         private int _triggerDisciplineLayerIndex;
         private int _rightHandLayerIndex;
-        
-        private bool _isAiming;
 
-        private Vector2 _moveInput;
+        // Inputs (injected)
+        private bool _isAiming;
+        private Vector2 _moveInput;   // normalized 0..1
         private float _smoothGait;
 
-        private Vector2 _lookInput;
+        // _lookPitch = pitch degrees for viewmodel alignment
+        private float _lookPitch;
 
         private bool _bSprinting;
         private bool _bTacSprinting;
 
         private FPSPlayerSound _playerSound;
 
+        // IK Motion
         private float _ikMotionPlayBack;
         private KTransform _ikMotion = KTransform.Identity;
         private KTransform _cachedIkMotion = KTransform.Identity;
         private IKMotion _activeMotion;
 
+        // Cached camera-point local transform
         private KTransform _localCameraPoint;
-        private CharacterController _controller;
-        
+
+        // -------------------------
+        // Public API (Inject Inputs)
+        // -------------------------
+
+        /// <summary>
+        /// move01: -1..1 (x=strafe, y=forward). Will be clamped to magnitude 1.
+        /// sprint/tacSprint: movement state (drives gait 2/3).
+        /// </summary>
+        public void SetMoveInput(Vector2 move01, bool sprint, bool tacSprint = false)
+        {
+            _moveInput = Vector2.ClampMagnitude(move01, 1f);
+            _bSprinting = sprint;
+            _bTacSprinting = tacSprint && sprint;
+        }
+
+        /// <summary>
+        /// pitchDelta: positive when mouse moves up (typical Input.GetAxis("Mouse Y")).
+        /// This script only uses pitch for viewmodel alignment.
+        /// </summary>
+        public void AddLookPitchDelta(float pitchDelta)
+        {
+            float sens = (playerSettings != null) ? playerSettings.sensitivity : 1f;
+            _lookPitch = Mathf.Clamp(_lookPitch - pitchDelta * sens, -90f, 90f);
+        }
+
+        /// <summary>
+        /// Aiming state (ADS blend).
+        /// </summary>
+        public void SetAiming(bool aiming)
+        {
+            bool wasAiming = _isAiming;
+            _isAiming = aiming;
+
+            if (_recoilAnimation != null) _recoilAnimation.isAiming = _isAiming;
+
+            if (wasAiming != _isAiming && _playerSound != null)
+            {
+                _playerSound.PlayAimSound(_isAiming);
+                if (playerSettings != null) PlayIkMotion(playerSettings.aimingMotion);
+            }
+        }
+
+        // -------------------------
+        // Weapon API (Optional bridge)
+        // -------------------------
+
+        public FPSWeapon GetActiveWeapon()
+        {
+            if (_weapons.Count == 0) return null;
+            _activeWeaponIndex = Mathf.Clamp(_activeWeaponIndex, 0, _weapons.Count - 1);
+            return _weapons[_activeWeaponIndex];
+        }
+
+        public FPSWeapon GetActivePrefab()
+        {
+            if (_prefabComponents.Count == 0) return null;
+            _activeWeaponIndex = Mathf.Clamp(_activeWeaponIndex, 0, _prefabComponents.Count - 1);
+            return _prefabComponents[_activeWeaponIndex];
+        }
+
+        private void SetWeaponVisible()
+        {
+            var w = GetActiveWeapon();
+            if (w != null) w.gameObject.SetActive(true);
+        }
+
         private void EquipWeapon_Incremental()
         {
-            GetActiveWeapon().gameObject.SetActive(false);
+            var w = GetActiveWeapon();
+            if (w == null) return;
+
+            w.gameObject.SetActive(false);
             _activeWeaponIndex = _activeWeaponIndex + 1 > _weapons.Count - 1 ? 0 : _activeWeaponIndex + 1;
+
             GetActiveWeapon().OnEquipped();
             Invoke(nameof(SetWeaponVisible), 0.05f);
         }
 
         private void EquipWeapon()
         {
-            GetActiveWeapon().gameObject.SetActive(false);
-            GetActiveWeapon().OnEquipped(true);
+            var w = GetActiveWeapon();
+            if (w == null) return;
+
+            w.gameObject.SetActive(false);
+            w.OnEquipped(true);
             Invoke(nameof(SetWeaponVisible), 0.05f);
         }
 
         private void ThrowGrenade()
         {
-            GetActiveWeapon().gameObject.SetActive(false);
+            var w = GetActiveWeapon();
+            if (w == null || playerSettings == null) return;
+
+            w.gameObject.SetActive(false);
             Invoke(nameof(EquipWeapon), playerSettings.grenadeDelay);
         }
 
         private void OnLand()
         {
-            _animator.SetBool(IS_IN_AIR, false);
+            if (_animator != null) _animator.SetBool(IS_IN_AIR, false);
         }
 
         public void OnThrowGrenade()
         {
+            var w = GetActiveWeapon();
+            if (_animator == null || w == null) return;
+
             _animator.SetTrigger(THROW_GRENADE);
-            Invoke(nameof(ThrowGrenade), GetActiveWeapon().UnEquipDelay);
+            Invoke(nameof(ThrowGrenade), w.UnEquipDelay);
         }
 
         public void OnChangeWeapon()
         {
             if (_weapons.Count <= 1) return;
+
             float delay = GetActiveWeapon().OnUnEquipped();
             Invoke(nameof(EquipWeapon_Incremental), delay);
         }
 
         public void OnChangeFireMode()
         {
-            var prevFireMode = GetActiveWeapon().ActiveFireMode;
-            GetActiveWeapon().OnFireModeChange();
+            var w = GetActiveWeapon();
+            if (w == null) return;
 
-            if (prevFireMode != GetActiveWeapon().ActiveFireMode)
+            var prevFireMode = w.ActiveFireMode;
+            w.OnFireModeChange();
+
+            if (prevFireMode != w.ActiveFireMode)
             {
-                _playerSound.PlayFireModeSwitchSound();
-                PlayIkMotion(playerSettings.fireModeMotion);
+                _playerSound?.PlayFireModeSwitchSound();
+                if (playerSettings != null) PlayIkMotion(playerSettings.fireModeMotion);
             }
         }
-        
+
         public void OnReload()
         {
-            GetActiveWeapon().OnReload();
+            GetActiveWeapon()?.OnReload();
         }
-        
+
         public void OnJump()
         {
+            if (_animator == null) return;
             _animator.SetBool(IS_IN_AIR, true);
             Invoke(nameof(OnLand), 0.4f);
         }
-        
+
         public void OnInspect()
         {
+            if (_animator == null) return;
             _animator.CrossFade(INSPECT, 0.1f);
         }
-        
-#if ENABLE_INPUT_SYSTEM
-        public void OnMouseWheel(InputValue value)
-        {
-            float mouseWheelValue = value.Get<float>();
-            if (mouseWheelValue == 0f) return;
-            
-            GetActiveWeapon().gameObject.SetActive(false);
-            
-            _activeWeaponIndex += mouseWheelValue > 0f ? 1 : -1;
 
-            if (_activeWeaponIndex < 0) _activeWeaponIndex = _weapons.Count - 1;
-            if(_activeWeaponIndex > _weapons.Count - 1) _activeWeaponIndex = 0;
-            
-            GetActiveWeapon().gameObject.SetActive(true);
-            GetActiveWeapon().OnEquipped_Immediate();
-        }
-        
-        public void OnFire(InputValue value)
-        {
-            if(value.isPressed)
-            {
-                GetActiveWeapon().OnFirePressed();
-                return;
-            }
-            
-            GetActiveWeapon().OnFireReleased();
-        }
+        // Fire forwarding (optional)
+        public void FirePressed() => GetActiveWeapon()?.OnFirePressed();
+        public void FireReleased() => GetActiveWeapon()?.OnFireReleased();
 
-        public void OnAim(InputValue value)
-        {
-            bool wasAiming = _isAiming;
-            _isAiming = value.isPressed;
-            _recoilAnimation.isAiming = _isAiming;
+        // -------------------------
+        // Unity
+        // -------------------------
 
-            if (wasAiming != _isAiming)
-            {
-                _playerSound.PlayAimSound(_isAiming);
-                PlayIkMotion(playerSettings.aimingMotion);
-            }
-        }
-
-        public void OnMove(InputValue value)
+        private void Awake()
         {
-            _moveInput = value.Get<Vector2>();
-        }
-
-        public void OnSprint(InputValue value)
-        {
-            _bSprinting = value.isPressed;
-            if(!_bSprinting) _bTacSprinting = false;
-        }
-        
-        public void OnTacSprint(InputValue value)
-        {
-            if (!_bSprinting) return;
-            _bTacSprinting = value.isPressed;
-        }
-
-        public void OnLook(InputValue value)
-        {
-            Vector2 input = value.Get<Vector2>() * playerSettings.sensitivity;
-            _lookInput.y = Mathf.Clamp(_lookInput.y - input.y, -90f, 90f);
-            _lookInput.x = input.x;
-        }
-#endif
-#if !ENABLE_INPUT_SYSTEM
-        private void OnLookLegacy()
-        {
-            Vector2 input = new Vector2()
-            {
-                x = Input.GetAxis("Horizontal"),
-                y = Input.GetAxis("Vertical")
-            };
-            
-            _lookInput.y = Mathf.Clamp(_lookInput.y + input.y, -90f, 90f);
-            _lookInput.x = input.x;
-        }
-
-        private void OnMouseWheelLegacy()
-        {
-            float mouseWheelValue = Input.GetAxis("Mouse ScrollWheel");
-            if (mouseWheelValue == 0f) return;
-            
-            GetActiveWeapon().gameObject.SetActive(false);
-            _activeWeaponIndex += mouseWheelValue > 0f ? 1 : -1;
-
-            if (_activeWeaponIndex < 0) _activeWeaponIndex = _weapons.Count - 1;
-            if(_activeWeaponIndex > _weapons.Count - 1) _activeWeaponIndex = 0;
-            
-            GetActiveWeapon().gameObject.SetActive(true);
-            GetActiveWeapon().OnEquipped_Immediate();
-        }
-
-        private void OnAimLegacy(bool isPressed)
-        {
-            bool wasAiming = _isAiming;
-            _isAiming = isPressed;
-            _recoilAnimation.isAiming = _isAiming;
-            
-            if(wasAiming != _isAiming) 
-            {
-                _playerSound.PlayAimSound(_isAiming);
-                PlayIkMotion(playerSettings.aimingMotion);
-            }
-        }
-        
-        private void OnMoveLegacy()
-        {
-            _moveInput.x = Input.GetAxis("Horizontal");
-            _moveInput.y = Input.GetAxis("Vertical");
-            _moveInput.Normalize();
-        }
-
-        private void OnSprintLegacy(bool isPressed)
-        {
-            _bSprinting = isPressed;
-            if(!_bSprinting) _bTacSprinting = false;
-        }
-
-        private void OnTacSprintLegacy(bool isPressed)
-        {
-            if (!_bSprinting) return;
-            _bTacSprinting = isPressed;
-        }
-        
-        private void ProcessLegacyInputs()
-        {
-            OnMouseWheelLegacy();
-            if (Input.GetKeyDown(KeyCode.G)) OnThrowGrenade();
-            if (Input.GetKeyDown(KeyCode.F)) OnChangeWeapon();
-            if (Input.GetKeyDown(KeyCode.B)) OnChangeFireMode();
-            if (Input.GetKeyDown(KeyCode.R)) OnReload();
-            if (Input.GetKeyDown(KeyCode.Space)) OnJump();
-            if (Input.GetKeyDown(KeyCode.I)) OnInspect();
-            
-            if (Input.GetKeyDown(KeyCode.Mouse0)) GetActiveWeapon().OnFirePressed();
-            if (Input.GetKeyUp(KeyCode.Mouse0)) GetActiveWeapon().OnFireReleased();
-
-            OnAimLegacy(Input.GetKey(KeyCode.Mouse1));
-            OnMoveLegacy();
-            OnLookLegacy();
-            OnSprintLegacy(Input.GetKey(KeyCode.LeftShift));
-            OnTacSprintLegacy(Input.GetKey(KeyCode.X));
-        }
-#endif
-        private void SetWeaponVisible()
-        {
-            GetActiveWeapon().gameObject.SetActive(true);
-        }
-
-        public FPSWeapon GetActiveWeapon()
-        {
-            return _weapons[_activeWeaponIndex];
-        }
-
-        public FPSWeapon GetActivePrefab()
-        {
-            return _prefabComponents[_activeWeaponIndex];
+            _animator = GetComponent<Animator>();
+            _recoilAnimation = GetComponent<RecoilAnimation>();
+            _playerSound = GetComponent<FPSPlayerSound>();
         }
 
         private void Start()
         {
-            _animator = GetComponent<Animator>();
-            _controller = transform.root.GetComponent<CharacterController>();
-            _recoilAnimation = GetComponent<RecoilAnimation>();
-            _playerSound = GetComponent<FPSPlayerSound>();
-            
+            if (_animator == null)
+            {
+                Debug.LogError("[FPSPlayer] Animator missing on the same GameObject.");
+                enabled = false;
+                return;
+            }
+
             _triggerDisciplineLayerIndex = _animator.GetLayerIndex("TriggerDiscipline");
             _rightHandLayerIndex = _animator.GetLayerIndex("RightHand");
             _tacSprintLayerIndex = _animator.GetLayerIndex("TacSprint");
-            
+
+            if (playerSettings == null)
+            {
+                Debug.LogError("[FPSPlayer] PlayerSettings is not assigned.");
+                enabled = false;
+                return;
+            }
+
             KTransform root = new KTransform(transform);
             _localCameraPoint = root.GetRelativeTransform(new KTransform(cameraPoint), false);
 
+            // Instantiate weapons under weaponBone
+            _weapons.Clear();
+            _prefabComponents.Clear();
+
             foreach (var prefab in playerSettings.weaponPrefabs)
             {
+                if (prefab == null) continue;
+
                 var prefabComponent = prefab.GetComponent<FPSWeapon>();
-                if(prefabComponent == null) continue;
-                
+                if (prefabComponent == null) continue;
+
                 _prefabComponents.Add(prefabComponent);
-                
+
                 var instance = Instantiate(prefab, weaponBone, false);
                 instance.SetActive(false);
-                
+
                 var component = instance.GetComponent<FPSWeapon>();
                 component.Initialize(gameObject);
 
+                // Cache poses
                 KTransform weaponT = new KTransform(weaponBone);
                 component.rightHandPose = new KTransform(rightHand.tip).GetRelativeTransform(weaponT, false);
-                
-                var localWeapon = root.GetRelativeTransform(weaponT, false);
 
+                var localWeapon = root.GetRelativeTransform(weaponT, false);
                 localWeapon.rotation *= prefabComponent.weaponSettings.rotationOffset;
-                
+
                 component.adsPose.position = _localCameraPoint.position - localWeapon.position;
                 component.adsPose.rotation = Quaternion.Inverse(localWeapon.rotation);
 
                 _weapons.Add(component);
             }
-            
+
+            if (_weapons.Count == 0)
+            {
+                Debug.LogError("[FPSPlayer] No weapon prefabs were initialized.");
+                enabled = false;
+                return;
+            }
+
+            _activeWeaponIndex = Mathf.Clamp(_activeWeaponIndex, 0, _weapons.Count - 1);
             GetActiveWeapon().gameObject.SetActive(true);
             GetActiveWeapon().OnEquipped();
         }
@@ -361,49 +330,53 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         {
             if (_bTacSprinting) return 3f;
             if (_bSprinting) return 2f;
-            return _moveInput.magnitude;
+            return _moveInput.magnitude; // 0..1
         }
-        
+
         private void Update()
         {
-#if !ENABLE_INPUT_SYSTEM
-            ProcessLegacyInputs();
-#endif
-            _adsWeight = Mathf.Clamp01(_adsWeight + playerSettings.aimSpeed * Time.deltaTime * (_isAiming ? 1f : -1f));
+            // ADS weight
+            _adsWeight = Mathf.Clamp01(
+                _adsWeight + playerSettings.aimSpeed * Time.deltaTime * (_isAiming ? 1f : -1f)
+            );
 
-            _smoothGait = Mathf.Lerp(_smoothGait, GetDesiredGait(), 
-                KMath.ExpDecayAlpha(playerSettings.gaitSmoothing, Time.deltaTime));
-            
+            // Gait smoothing
+            _smoothGait = Mathf.Lerp(
+                _smoothGait,
+                GetDesiredGait(),
+                KMath.ExpDecayAlpha(playerSettings.gaitSmoothing, Time.deltaTime)
+            );
+
             _animator.SetFloat(GAIT, _smoothGait);
             _animator.SetLayerWeight(_tacSprintLayerIndex, Mathf.Clamp01(_smoothGait - 2f));
 
-            bool triggerAllowed = GetActiveWeapon().weaponSettings.useSprintTriggerDiscipline;
+            var w = GetActiveWeapon();
+            if (w == null) return;
 
-            _animator.SetLayerWeight(_triggerDisciplineLayerIndex,
-                triggerAllowed ? _animator.GetFloat(TAC_SPRINT_WEIGHT) : 0f);
+            bool triggerAllowed = w.weaponSettings.useSprintTriggerDiscipline;
+
+            _animator.SetLayerWeight(
+                _triggerDisciplineLayerIndex,
+                triggerAllowed ? _animator.GetFloat(TAC_SPRINT_WEIGHT) : 0f
+            );
 
             _animator.SetLayerWeight(_rightHandLayerIndex, _animator.GetFloat(RIGHT_HAND_WEIGHT));
-            
-            Vector3 cameraPosition = -_localCameraPoint.position;
-            
-            transform.localRotation = Quaternion.Euler(_lookInput.y, 0f, 0f);
-            transform.localPosition = transform.localRotation * cameraPosition - cameraPosition;
 
-            if (_controller != null)
-            {
-                Transform root = _controller.transform;
-                root.rotation *= Quaternion.Euler(0f, _lookInput.x, 0f);
-                Vector3 movement = root.forward * _moveInput.y + root.right * _moveInput.x;
-                movement *= _smoothGait * 1.5f;
-                _controller.Move(movement * Time.deltaTime);
-            }
+            // ViewModel camera alignment ONLY (no player movement/rotation)
+            Vector3 cameraPosition = -_localCameraPoint.position;
+
+            transform.localRotation = Quaternion.Euler(_lookPitch, 0f, 0f);
+            transform.localPosition = transform.localRotation * cameraPosition - cameraPosition;
         }
 
-        private void SetupIkData(ref KTwoBoneIkData ikData, in KTransform target, in IKTransforms transforms, 
-            float weight = 1f)
+        // -------------------------
+        // IK Pipeline (Original)
+        // -------------------------
+
+        private void SetupIkData(ref KTwoBoneIkData ikData, in KTransform target, in IKTransforms transforms, float weight = 1f)
         {
             ikData.target = target;
-            
+
             ikData.tip = new KTransform(transforms.tip);
             ikData.mid = ikData.hint = new KTransform(transforms.mid);
             ikData.root = new KTransform(transforms.root);
@@ -419,7 +392,7 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
             transforms.mid.rotation = ikData.mid.rotation;
             transforms.tip.rotation = ikData.tip.rotation;
         }
-        
+
         private void ProcessOffsets(ref KTransform weaponT)
         {
             var root = transform;
@@ -428,7 +401,7 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
 
             float mask = 1f - _animator.GetFloat(TAC_SPRINT_WEIGHT);
             weaponT.position = KAnimationMath.MoveInSpace(rootT, weaponT, weaponOffset, mask);
-            
+
             var settings = GetActiveWeapon().weaponSettings;
             KAnimationMath.MoveInSpace(root, rightHand.root, settings.rightClavicleOffset, mask);
             KAnimationMath.MoveInSpace(root, leftHand.root, settings.leftClavicleOffset, mask);
@@ -438,9 +411,9 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         {
             KTransform rootT = new KTransform(skeletonRoot);
             KTransform additive = rootT.GetRelativeTransform(new KTransform(weaponBoneAdditive), false);
-            
+
             float weight = Mathf.Lerp(1f, 0.3f, _adsWeight) * (1f - _animator.GetFloat(GRENADE_WEIGHT));
-            
+
             weaponT.position = KAnimationMath.MoveInSpace(rootT, weaponT, additive.position, weight);
             weaponT.rotation = KAnimationMath.RotateInSpace(rootT, weaponT, additive.rotation, weight);
         }
@@ -462,19 +435,16 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         {
             var weaponOffset = GetActiveWeapon().weaponSettings.ikOffset;
             var adsPose = weaponT;
-            
+
             KTransform aimPoint = KTransform.Identity;
-            
+
             aimPoint.position = -weaponBone.InverseTransformPoint(GetActiveWeapon().aimPoint.position);
             aimPoint.position -= GetActiveWeapon().weaponSettings.aimPointOffset;
             aimPoint.rotation = Quaternion.Inverse(weaponBone.rotation) * GetActiveWeapon().aimPoint.rotation;
-            
+
             KTransform root = new KTransform(transform);
-            adsPose.position = KAnimationMath.MoveInSpace(root, adsPose,
-                GetActiveWeapon().adsPose.position - weaponOffset, 1f);
-            adsPose.rotation =
-                KAnimationMath.RotateInSpace(root, adsPose, 
-                    GetActiveWeapon().adsPose.rotation, 1f);
+            adsPose.position = KAnimationMath.MoveInSpace(root, adsPose, GetActiveWeapon().adsPose.position - weaponOffset, 1f);
+            adsPose.rotation = KAnimationMath.RotateInSpace(root, adsPose, GetActiveWeapon().adsPose.rotation, 1f);
 
             KTransform cameraPose = root.GetWorldTransform(_localCameraPoint, false);
 
@@ -486,7 +456,7 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
             adsPose.rotation = KAnimationMath.RotateInSpace(root, adsPose, aimPoint.rotation, 1f);
 
             float weight = KCurves.EaseSine(0f, 1f, _adsWeight);
-            
+
             weaponT.position = Vector3.Lerp(weaponT.position, adsPose.position, weight);
             weaponT.rotation = Quaternion.Slerp(weaponT.rotation, adsPose.rotation, weight);
         }
@@ -495,11 +465,11 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         {
             KTransform defaultWorldPose =
                 new KTransform(rightHand.tip).GetWorldTransform(GetActiveWeapon().rightHandPose, false);
+
             float weight = _animator.GetFloat(RIGHT_HAND_WEIGHT);
-            
             return KTransform.Lerp(new KTransform(weaponBone), defaultWorldPose, weight);
         }
-        
+
         private void PlayIkMotion(IKMotion newMotion)
         {
             _ikMotionPlayBack = 0f;
@@ -510,9 +480,12 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         private void ProcessIkMotion(ref KTransform weaponT)
         {
             if (_activeMotion == null) return;
-            
-            _ikMotionPlayBack = Mathf.Clamp(_ikMotionPlayBack + _activeMotion.playRate * Time.deltaTime, 0f, 
-                _activeMotion.GetLength());
+
+            _ikMotionPlayBack = Mathf.Clamp(
+                _ikMotionPlayBack + _activeMotion.playRate * Time.deltaTime,
+                0f,
+                _activeMotion.GetLength()
+            );
 
             Vector3 positionTarget = _activeMotion.translationCurves.GetValue(_ikMotionPlayBack);
             positionTarget.x *= _activeMotion.translationScale.x;
@@ -529,8 +502,7 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
 
             if (!Mathf.Approximately(_activeMotion.blendTime, 0f))
             {
-                _ikMotion = KTransform.Lerp(_cachedIkMotion, _ikMotion,
-                    _ikMotionPlayBack / _activeMotion.blendTime);
+                _ikMotion = KTransform.Lerp(_cachedIkMotion, _ikMotion, _ikMotionPlayBack / _activeMotion.blendTime);
             }
 
             var root = new KTransform(transform);
@@ -540,14 +512,25 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
 
         private void LateUpdate()
         {
-            KAnimationMath.RotateInSpace(transform, rightHand.tip,
-                GetActiveWeapon().weaponSettings.rightHandSprintOffset, _animator.GetFloat(TAC_SPRINT_WEIGHT));
-            
+            var w = GetActiveWeapon();
+            if (w == null) return;
+
+            KAnimationMath.RotateInSpace(
+                transform,
+                rightHand.tip,
+                w.weaponSettings.rightHandSprintOffset,
+                _animator.GetFloat(TAC_SPRINT_WEIGHT)
+            );
+
             KTransform weaponTransform = GetWeaponPose();
-            
-            weaponTransform.rotation = KAnimationMath.RotateInSpace(weaponTransform, weaponTransform,
-                GetActiveWeapon().weaponSettings.rotationOffset, 1f);
-            
+
+            weaponTransform.rotation = KAnimationMath.RotateInSpace(
+                weaponTransform,
+                weaponTransform,
+                w.weaponSettings.rotationOffset,
+                1f
+            );
+
             KTransform rightHandTarget = weaponTransform.GetRelativeTransform(new KTransform(rightHand.tip), false);
             KTransform leftHandTarget = weaponTransform.GetRelativeTransform(new KTransform(leftHand.tip), false);
 
@@ -556,16 +539,16 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
             ProcessAdditives(ref weaponTransform);
             ProcessIkMotion(ref weaponTransform);
             ProcessRecoil(ref weaponTransform);
-            
+
             weaponBone.position = weaponTransform.position;
             weaponBone.rotation = weaponTransform.rotation;
-            
+
             rightHandTarget = weaponTransform.GetWorldTransform(rightHandTarget, false);
             leftHandTarget = weaponTransform.GetWorldTransform(leftHandTarget, false);
-            
+
             SetupIkData(ref _rightHandIk, rightHandTarget, rightHand, playerSettings.ikWeight);
             SetupIkData(ref _leftHandIk, leftHandTarget, leftHand, playerSettings.ikWeight);
-            
+
             KTwoBoneIK.Solve(ref _rightHandIk);
             KTwoBoneIK.Solve(ref _leftHandIk);
 
@@ -573,9 +556,34 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
             ApplyIkData(_leftHandIk, leftHand);
         }
 
+        // Called by animation event
         private void OnFire()
         {
-            _recoilAnimation.Play();
+            _recoilAnimation?.Play();
         }
+        public void SetActiveWeaponIndex(int index)
+        {
+            if (_weapons == null || _weapons.Count == 0) return;
+
+            var cur = GetActiveWeapon();
+            if (cur != null) cur.gameObject.SetActive(false);
+
+            _activeWeaponIndex = Mathf.Clamp(index, 0, _weapons.Count - 1);
+
+            var next = GetActiveWeapon();
+            if (next != null)
+            {
+                next.gameObject.SetActive(true);
+                next.OnEquipped(true);
+            }
+        }
+
+        public Transform GetActiveAimPoint()
+        {
+            var w = GetActiveWeapon();
+            if (w == null) return null;
+            return w.aimPoint != null ? w.aimPoint : w.transform;
+        }
+
     }
 }
