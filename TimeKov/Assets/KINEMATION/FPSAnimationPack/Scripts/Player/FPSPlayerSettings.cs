@@ -1,19 +1,26 @@
+// Designed by KINEMATION, 2025.
+
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace KINEMATION.FPSAnimationPack.Scripts.Player
 {
-    [CreateAssetMenu(
-        fileName = "FPSPlayerSettings_TimeKov",
-        menuName = "TimeKov/FPS Player Settings"
-    )]
+    [CreateAssetMenu(fileName = "NewPlayerSettings", menuName = "KINEMATION/FPS Animation Pack/FPS Player Settings")]
     public class FPSPlayerSettings : ScriptableObject
     {
-        [Header("Weapon Visuals")]
+        [Header("Controls")]
+        [Min(0f)] public float sensitivity = 1f;
+        
         public List<GameObject> weaponPrefabs;
-
-        [Header("IK / ADS")]
+        public float grenadeDelay = 0f;
+        public float gaitSmoothing = 0f;
+        
         [Range(0f, 1f)] public float ikWeight = 1f;
-        [Range(0f, 1f)] public float adsBlend = 1f;
+        public float aimSpeed = 0f;
+
+        public IKMotion aimingMotion;
+        public IKMotion fireModeMotion;
+
+        public List<AudioClip> generalSounds;
     }
 }
