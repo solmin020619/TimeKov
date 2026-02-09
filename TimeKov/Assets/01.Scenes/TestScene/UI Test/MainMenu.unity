@@ -1142,10 +1142,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loadingSceneName: Loading
-  firstSceneName: ObstacleTest
+  firstSceneName: RaidSelect
   mainButtonGroup: {fileID: 5642651634373304400}
   quitConfirmPanel: {fileID: 5862108906238143647}
-  globalSettingsManager: {fileID: 0}
+  globalSettingsManager: {fileID: 1707270052}
   fadeCanvasGroup: {fileID: 2099615631}
   fadeDuration: 1
   sfxAudioSource: {fileID: 1141084291}
@@ -1988,6 +1988,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 1003085981403201096, guid: bea8827cfa0391f499f0aaf00de95af6, type: 3}
   m_PrefabInstance: {fileID: 2578249836909779685}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1707270052 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8928084244535535124, guid: bea8827cfa0391f499f0aaf00de95af6, type: 3}
+  m_PrefabInstance: {fileID: 2578249836909779685}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6d748a133ce17b4cb7d95a9d248282a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1909524982
 GameObject:
   m_ObjectHideFlags: 0

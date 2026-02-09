@@ -52,7 +52,7 @@ public class MainMenuManager : MonoBehaviour
 
     public void OnClickNewGame()
     {
-        //PlayClickSound();
+        PlayClickSound();
         LoadingData.nextSceneName = firstSceneName;
         StartCoroutine(FadeOutAndLoad(loadingSceneName));
     }
