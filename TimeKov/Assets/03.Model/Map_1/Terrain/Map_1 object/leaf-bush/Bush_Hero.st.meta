@@ -1,7 +1,17 @@
 fileFormatVersion: 2
 guid: 6cc83feab6ebc944fa7d9631f75f0c2d
 SpeedTreeImporter:
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Bark_2
+    second: {fileID: 2100000, guid: 53c323e9b174fb14db99d8e258f472ee, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Bush_Hero
+    second: {fileID: 2100000, guid: ea801bdb227b2a648a57c55de2ad4dd0, type: 2}
   serializedVersion: 7
   mainColor: {r: 1, g: 1, b: 1, a: 1}
   hueVariation: {r: 1, g: 0.5, b: 0, a: 0.1}
@@ -18,7 +28,7 @@ SpeedTreeImporter:
   hasBillboard: 0
   lODSettings:
   - enableSettingOverride: 0
-    height: 0.5
+    height: 0.999
     castShadows: 1
     receiveShadows: 1
     useLightProbes: 1
@@ -28,7 +38,7 @@ SpeedTreeImporter:
     enableSubsurface: 1
     windQuality: 4
   - enableSettingOverride: 0
-    height: 0.25
+    height: 0.55009556
     castShadows: 1
     receiveShadows: 1
     useLightProbes: 1
@@ -38,7 +48,7 @@ SpeedTreeImporter:
     enableSubsurface: 1
     windQuality: 4
   - enableSettingOverride: 0
-    height: 0.01
+    height: 0.038450185
     castShadows: 1
     receiveShadows: 1
     useLightProbes: 1
