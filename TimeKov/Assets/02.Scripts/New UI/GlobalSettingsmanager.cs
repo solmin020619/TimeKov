@@ -38,20 +38,7 @@ public class GlobalSettingsManager : MonoBehaviour
 
     void Update()
     {
-        // 1. 현재 씬 이름 알아내기
-        string currentScene = SceneManager.GetActiveScene().name;
-
-        // 2. 메인 메뉴("MainScene")거나 맵 선택창("MapSelectScene")이면 ESC 키 무시
-        // (메인 메뉴는 클릭으로 열고, 맵 선택창은 별도 로직이 있으므로)
-        if (currentScene == "MainMenu" || currentScene == "RaidSelect")
-        {
-            return;
-        }
-
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            ToggleSettings();
-        }
+        
     }
 
     public void OpenSettings()
