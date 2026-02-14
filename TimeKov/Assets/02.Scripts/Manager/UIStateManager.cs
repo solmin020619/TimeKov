@@ -28,6 +28,10 @@ public class UIStateManager : MonoBehaviour
     [Header("Managers (optional but recommended)")]
     public ShopManager shopManager;
 
+    // ✅ [추가] DimBlocker(어둡게 + 입력차단) 제어 매니저 (없어도 동작은 함)
+    [Header("Dim Blocker (Optional)")]
+    public DimBlockerManager dimBlockerManager;
+
     private UIState currentState = UIState.None;
 
     // 현재 열려있는 루팅 UI(상자마다 다르면 여기로 주입)
@@ -41,6 +45,10 @@ public class UIStateManager : MonoBehaviour
             return;
         }
         Instance = this;
+
+        // ✅ [추가] 인스펙터에 안 넣어도 자동으로 찾아줌
+        if (dimBlockerManager == null)
+            dimBlockerManager = FindAnyObjectByType<DimBlockerManager>();
     }
 
     public UIState GetCurrentState()
@@ -155,6 +163,13 @@ public class UIStateManager : MonoBehaviour
 
         // 커서 처리
         SetGameplayInputEnabled(currentState == UIState.None);
+
+        // ✅ [추가] UI가 하나라도 켜져있으면 DimBlocker ON (입력 차단/어둡게)
+        if (dimBlockerManager == null)
+            dimBlockerManager = FindAnyObjectByType<DimBlockerManager>();
+
+        if (dimBlockerManager != null)
+            dimBlockerManager.SetDim(currentState != UIState.None);
     }
 
     private void SetGameplayInputEnabled(bool enabled)
