@@ -83,6 +83,9 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
 
         private FPSPlayerSound _playerSound;
 
+        public bool IsInitialized { get; private set; }
+        private int _pendingWeaponIndex = -1;
+
         // IK Motion
         private float _ikMotionPlayBack;
         private KTransform _ikMotion = KTransform.Identity;
@@ -324,6 +327,15 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
             _activeWeaponIndex = Mathf.Clamp(_activeWeaponIndex, 0, _weapons.Count - 1);
             GetActiveWeapon().gameObject.SetActive(true);
             GetActiveWeapon().OnEquipped();
+
+            IsInitialized = true;
+
+            if (_pendingWeaponIndex >= 0)
+            {
+                SetActiveWeaponIndex(_pendingWeaponIndex);
+                _pendingWeaponIndex = -1;
+            }
+
         }
 
         private float GetDesiredGait()
@@ -561,9 +573,34 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         {
             _recoilAnimation?.Play();
         }
+        //public void SetActiveWeaponIndex(int index)
+        //{
+        //    if (_weapons == null || _weapons.Count == 0) return;
+
+        //    var cur = GetActiveWeapon();
+        //    if (cur != null) cur.gameObject.SetActive(false);
+
+        //    _activeWeaponIndex = Mathf.Clamp(index, 0, _weapons.Count - 1);
+
+        //    var next = GetActiveWeapon();
+        //    if (next != null)
+        //    {
+        //        next.gameObject.SetActive(true);
+        //        next.OnEquipped(true);
+        //    }
+
+        //    Debug.Log($"[FPSPlayer] SetActiveWeaponIndex -> {_activeWeaponIndex}, active={GetActiveWeapon().name}");
+        //}
+
         public void SetActiveWeaponIndex(int index)
         {
-            if (_weapons == null || _weapons.Count == 0) return;
+            // 아직 무기 리스트가 준비 안됐으면 "예약"만 해둔다
+            if (_weapons == null || _weapons.Count == 0)
+            {
+                _pendingWeaponIndex = index;
+                Debug.Log($"[FPSPlayer] SetActiveWeaponIndex queued -> {index} (weapons not ready yet)");
+                return;
+            }
 
             var cur = GetActiveWeapon();
             if (cur != null) cur.gameObject.SetActive(false);
@@ -576,7 +613,11 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
                 next.gameObject.SetActive(true);
                 next.OnEquipped(true);
             }
+
+            Debug.Log($"[FPSPlayer] SetActiveWeaponIndex -> {_activeWeaponIndex}, active={GetActiveWeapon().name}");
         }
+
+
 
         public Transform GetActiveAimPoint()
         {
