@@ -13,7 +13,6 @@ public class SlotInfo : MonoBehaviour
     public TextMeshProUGUI slotText;
     public TextMeshProUGUI amountText; // 개수 표시 텍스트
 
-    // ✅ 기존 참조 유지(다른 스크립트에서 ownerType/SlotOwnerType 쓰는 거 터지면 안 됨)
     public enum SlotOwnerType
     {
         Inventory,
@@ -26,18 +25,33 @@ public class SlotInfo : MonoBehaviour
     [Header("Shop Price (Optional)")]
     public TextMeshProUGUI priceText; // 프리팹의 Image 아래 Text(TMP) 연결
 
-    // ✅ 가격 배경/루트(= Image 오브젝트) 캐시용
     private GameObject priceRoot;
     private ShopSlotMarker shopMarker;
 
-    // ✅ “한 번도 갱신 안 된 상태”만 잡기 위한 플래그
     private bool shopPriceInitialized = false;
+
+    // 장비칸 기본 문구(총기칸/방탄모칸 등) 복구용
+    private string defaultSlotText = "";
+
+    // ✅ (추가) 아이템 없을 때 보여줄 "기본 슬롯 배경 아이콘" 스프라이트 캐시
+    private Sprite defaultIconSprite = null;
+    private bool defaultIconSpriteCaptured = false;
 
     private void Awake()
     {
         shopMarker = GetComponent<ShopSlotMarker>();
 
-        // priceText의 부모(Image)를 priceRoot로 잡기
+        // 초기 슬롯 텍스트 저장
+        if (slotText != null)
+            defaultSlotText = slotText.text;
+
+        // ✅ (추가) Icon에 원래 들어있던 기본 스프라이트(= 슬롯 배경) 저장
+        if (iconImage != null)
+        {
+            defaultIconSprite = iconImage.sprite; // 인스펙터에 박혀있는 슬롯 배경 이미지
+            defaultIconSpriteCaptured = true;
+        }
+
         if (priceText != null && priceText.transform.parent != null)
             priceRoot = priceText.transform.parent.gameObject;
 
@@ -48,11 +62,9 @@ public class SlotInfo : MonoBehaviour
 
     private void OnEnable()
     {
-        // SetActive 토글 방식이면 여기서도 갱신
         RefreshShopPriceUI();
     }
 
-    // ✅ CanvasGroup로 숨기거나, 생성/세팅 순서 꼬여서 OnEnable/SetSlot 안 타는 케이스 대비
     private IEnumerator Start()
     {
         yield return null;
@@ -61,27 +73,53 @@ public class SlotInfo : MonoBehaviour
 
     public void SetSlot(int id, int count)
     {
-        slotIndex = id;
+        // 상점 슬롯이면 ShopSlotMarker.itemId가 진짜 아이템 ID
+        if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
+        bool isShopSlot = (shopMarker != null);
+
+        int effectiveId = isShopSlot ? shopMarker.itemId : id;
+
+        slotIndex = effectiveId;
         itemCount = count;
 
+        // ✅ 빈 슬롯 처리
         if (slotIndex == 0)
         {
-            if (slotText != null) slotText.text = "";
+            // 장비칸만 기본 문구 복구, 인벤/창고 등은 비움
+            if (slotText != null)
+            {
+                if (ownerType == SlotOwnerType.Equip) slotText.text = defaultSlotText;
+                else slotText.text = "";
+            }
+
             slotOldIndex = 0;
 
-            if (iconImage != null)
+            // ✅ 핵심 수정:
+            // "아이템 없을 때도 슬롯 배경 아이콘은 보여야 함" → icon을 꺼버리면 안 됨
+            // 대신, 원래 인스펙터에 들어있던 기본(슬롯 배경) 스프라이트로 복구한다.
+            if (!isShopSlot && iconImage != null)
             {
-                iconImage.sprite = null;
-                iconImage.gameObject.SetActive(false);
+                // 혹시 런타임에 iconImage가 바뀌었다면 안전하게 한 번 더 캡쳐
+                if (!defaultIconSpriteCaptured)
+                {
+                    defaultIconSprite = iconImage.sprite;
+                    defaultIconSpriteCaptured = true;
+                }
+
+                iconImage.sprite = defaultIconSprite;     // ✅ 슬롯 배경 복구
+                iconImage.enabled = (defaultIconSprite != null); // ✅ 슬롯 배경이 있으면 보이게
             }
+
+            UpdateAmountText();
+            RefreshShopPriceUI();
+            return;
         }
-        else
+
+        // ✅ 아이템이 있는 슬롯이면 아이콘 표시
+        if (iconImage != null)
         {
-            if (iconImage != null)
-            {
-                iconImage.sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
-                iconImage.gameObject.SetActive(true);
-            }
+            iconImage.sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
+            iconImage.enabled = true;
         }
 
         UpdateAmountText();
@@ -104,7 +142,7 @@ public class SlotInfo : MonoBehaviour
         if (shopMarker == null)
             shopMarker = GetComponent<ShopSlotMarker>();
 
-        // ✅ 상점 슬롯이 아니면 무조건 숨김
+        // 상점 슬롯이 아니면 무조건 숨김
         if (shopMarker == null)
         {
             if (priceRoot != null && priceRoot.activeSelf) priceRoot.SetActive(false);
@@ -117,18 +155,15 @@ public class SlotInfo : MonoBehaviour
         if (priceRoot != null && !priceRoot.activeSelf) priceRoot.SetActive(true);
         if (!priceText.gameObject.activeSelf) priceText.gameObject.SetActive(true);
 
-        // ✅ 상점은 marker.itemId 기준으로 가격 가져오기 (slotIndex 안 믿음)
         int targetId = shopMarker.itemId;
 
         int price = 0;
         var item = DataManager.Instance?.GetItem(targetId);
         if (item != null)
         {
-            // 너 ItemInfo 필드명 맞춰서 (현재 너 코드에 saleTime)
-            price = item.saleTime;
+            price = item.saleTime; // 너 프로젝트 기준
         }
 
-        // 데이터 없으면 마커 가격으로 fallback (여기 걸리면 그래도 무조건 90s라도 떠야 정상)
         if (price <= 0) price = shopMarker.buyPrice;
 
         priceText.text = $"{price}s";
@@ -142,11 +177,9 @@ public class SlotInfo : MonoBehaviour
         {
             if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
 
-            // 상점 슬롯(마커 있음)이고 priceText가 연결되어 있으면, 한번 강제 갱신
             if (shopMarker != null && priceText != null)
             {
                 bool rootOff = (priceRoot != null && !priceRoot.activeSelf);
-                // 네가 수동으로 'd' 넣어둔 상태거나, root가 꺼져있으면 갱신 시도
                 bool looksUninitialized = rootOff || priceText.text == "d" || string.IsNullOrEmpty(priceText.text);
 
                 if (looksUninitialized)

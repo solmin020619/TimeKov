@@ -25,6 +25,11 @@ public class UIStateManager : MonoBehaviour
     [Tooltip("I키 Inventory 상태에서 창고 UI도 같이 켤지(기지=true / 레이드=false)")]
     public bool enableWarehouseInInventory = true;
 
+    // ✅ [추가] "창고 이동" 버튼(기지에서 인벤 열 때만 보이게)
+    // 인벤 UI 내부에 있는 버튼 오브젝트를 여기로 연결해주면 됨.
+    [Header("Inventory Buttons (Optional)")]
+    public GameObject moveToWarehouseButton;
+
     [Header("Managers (optional but recommended)")]
     public ShopManager shopManager;
 
@@ -159,6 +164,14 @@ public class UIStateManager : MonoBehaviour
             case UIState.None:
             default:
                 break;
+        }
+
+        // ✅ [추가] "창고 이동" 버튼은 기지(=enableWarehouseInInventory=true)에서
+        // Inventory 상태일 때만 보이게 (레이드/상점/루팅에서는 숨김)
+        if (moveToWarehouseButton != null)
+        {
+            bool show = (currentState == UIState.Inventory) && enableWarehouseInInventory;
+            moveToWarehouseButton.SetActive(show);
         }
 
         // 커서 처리
