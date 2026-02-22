@@ -182,7 +182,7 @@ public class PlayerController : MonoBehaviour
     void HandleMouseLook()
     {
         // 네 기존 감도 로직 유지
-        float sens = SettingsData.MouseSensitivity * mouseSensitivity;
+        float sens = mouseSensitivity;
 
         float mx = Input.GetAxis("Mouse X") * sens;
         float my = Input.GetAxis("Mouse Y") * sens;
@@ -221,7 +221,7 @@ public class PlayerController : MonoBehaviour
         // 2) 피치 입력 주입 (팔이 위아래 따라가게)
         // FPSPlayer.AddLookPitchDelta()는 내부에서 playerSettings.sensitivity를 곱함
         // 우리는 "이미 스케일된 my"를 쓰고 있으니, 감도 중복을 피하려고 나눠서 넣음
-        float sens = SettingsData.MouseSensitivity * mouseSensitivity;
+        float sens = mouseSensitivity;
         float myScaled = Input.GetAxis("Mouse Y") * sens;
 
         float vmSens = 1f;
