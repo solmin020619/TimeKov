@@ -1,9 +1,13 @@
 // WeaponInputBridge.cs
 using UnityEngine;
 
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
 /// <summary>
-/// Player Input(SendMessage) -> PlayerWeaponController 로 전달
-/// (KINEMATION FPSPlayer는 여기서 건드리지 않는다: 연출은 KinemationWeaponDriver가 처리)
+/// PlayerInput(SendMessage) -> PlayerWeaponController 전달
+/// - 연사(hold) 지원: OnFire(InputValue)로 pressed 상태를 받아서 Fire/FireUp 호출
 /// </summary>
 public class WeaponInputBridge : MonoBehaviour
 {
@@ -15,13 +19,40 @@ public class WeaponInputBridge : MonoBehaviour
         if (weapon == null) weapon = FindFirstObjectByType<PlayerWeaponController>();
     }
 
+    // ---- New Input System (SendMessage) ----
+#if ENABLE_INPUT_SYSTEM
+    public void OnFire(InputValue value)
+    {
+        if (weapon == null) return;
+
+        float v = value.Get<float>();              // 보통 0/1
+        bool pressed = value.isPressed;            // hold 상태
+        if (logCalls) Debug.Log($"[WeaponInputBridge] OnFire(InputValue) v={v} pressed={pressed}");
+
+        if (pressed) weapon.Fire();
+        else weapon.FireUp();
+    }
+
+    public void OnReload(InputValue value)
+    {
+        if (weapon == null) return;
+        if (value.isPressed) weapon.Reload();
+    }
+
+    public void OnAim(InputValue value)
+    {
+        if (weapon == null) return;
+        weapon.SetADS(value.isPressed || value.Get<float>() > 0.5f);
+    }
+#endif
+
+    // ---- Fallback (혹시 SendMessage가 파라미터 없이 호출되는 경우) ----
     public void OnFire()
     {
         if (logCalls) Debug.Log("[WeaponInputBridge] OnFire()");
         if (weapon == null) return;
         weapon.Fire();
     }
-    public void Fire() => OnFire();
 
     public void OnFireUp()
     {
@@ -29,7 +60,6 @@ public class WeaponInputBridge : MonoBehaviour
         if (weapon == null) return;
         weapon.FireUp();
     }
-    public void FireUp() => OnFireUp();
 
     public void OnReload()
     {
@@ -37,10 +67,7 @@ public class WeaponInputBridge : MonoBehaviour
         if (weapon == null) return;
         weapon.Reload();
     }
-    public void Reload() => OnReload();
-    public void OnAim() { if (weapon != null) weapon.SetADS(true); }
+
     public void OnAimDown() { if (weapon != null) weapon.SetADS(true); }
     public void OnAimUp() { if (weapon != null) weapon.SetADS(false); }
-    public void OnAim(bool isAiming) { if (weapon != null) weapon.SetADS(isAiming); }
-    public void OnAim(float value) { if (weapon != null) weapon.SetADS(value > 0.5f); }
 }

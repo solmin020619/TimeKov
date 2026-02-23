@@ -14,7 +14,7 @@ public class PlayerWeaponController : MonoBehaviour
     public struct ItemIdToKinemationIndex
     {
         public int itemId;
-        public int weaponIndex; // FPSPlayerSettings.weaponPrefabs index
+        public int weaponIndex; // FPSPlayerSettings.weaponPrefabs index (0-based)
     }
 
     [Header("ItemId -> Kinemation Weapon Index")]
@@ -37,9 +37,9 @@ public class PlayerWeaponController : MonoBehaviour
     public int autoEquipItemId = 1201;
     public bool debugLogFire = false;
 
-    // ========= NEW: Events (for KinemationWeaponDriver) =========
-    public System.Action Fired;         //  "한 발 성공 발사" 했을 때
-    public System.Action ReloadStarted; //  "리로드 시작" 했을 때
+    // ========= Events (for KinemationWeaponDriver) =========
+    public System.Action Fired;         // "한 발 성공 발사" 했을 때
+    public System.Action ReloadStarted; // "리로드 시작" 했을 때
 
     // runtime
     private ItemInfo weapon;
@@ -47,15 +47,16 @@ public class PlayerWeaponController : MonoBehaviour
 
     private int currentAmmoInMag;
     private bool isReloading;
+
+    // fire
     private float fireCooldown;
+    private bool fireHeld;      // 누르고 있는 상태(연사에 사용)
+    private bool semiConsume;   // 단발: 눌림 1회 소비용
 
     // recoil/spread state
     private float recoilAccumYaw;
     private int recoilIndex;
     private float lastFireTime = -999f;
-
-    // “입력 눌림 → 애니 이벤트 때 발사” 동기화용(현재는 Fire() 즉시발사로 사용 안 해도 됨)
-    private bool fireRequested;
 
     private PlayerController playerController;
     private Camera cachedCam;
@@ -90,11 +91,24 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (weapon == null) return;
 
-        // 임시: R키로 리로드 (브릿지 연결 후에도 유지 가능)
+        // 연사(자동) - 누르고 있는 동안 계속
+        if (!isReloading && fireHeld && IsAutomaticWeapon())
+        {
+            TryFireNow();
+        }
+
+        // 단발 - 눌림 1회만
+        if (!isReloading && semiConsume && !IsAutomaticWeapon())
+        {
+            semiConsume = false;
+            TryFireNow();
+        }
+
+        // 임시: R키로 리로드
         if (!isReloading)
         {
             if (Input.GetKeyDown(KeyCode.R) && currentAmmoInMag < weapon.magazinesize)
-                Reload(); //  public 래퍼 사용
+                Reload();
         }
     }
 
@@ -126,35 +140,27 @@ public class PlayerWeaponController : MonoBehaviour
         equippedItemId = itemId;
         weapon = item;
 
+        Debug.Log($"[DATA] id={weapon.id} name={weapon.itemName} mag={weapon.magazinesize} fireRate={weapon.fireRate} reload={weapon.reloadTime} auto={weapon.isAutomatic}");
+
         // gameplay reset
         currentAmmoInMag = Mathf.Max(0, weapon.magazinesize);
         isReloading = false;
         fireCooldown = 0f;
+
+        fireHeld = false;
+        semiConsume = false;
+
         recoilAccumYaw = 0f;
         recoilIndex = 0;
-        fireRequested = false;
 
-        // A안: 에셋 무기 선택만
+        // Kinemation weapon select
         int targetIndex = GetKinemationIndex(itemId);
         if (fpsPlayer != null && targetIndex >= 0)
             fpsPlayer.SetActiveWeaponIndex(targetIndex);
+        else
+            Debug.LogWarning($"[Equip] skip SetActiveWeaponIndex. fpsPlayer={(fpsPlayer ? "OK" : "NULL")} targetIndex={targetIndex}");
 
         RefreshUI();
-
-        //Debug.Log($"[Equip] itemId={itemId} -> weaponIndex={targetIndex}");
-        //Debug.Log($"[Equip] fpsPlayer={(fpsPlayer ? fpsPlayer.name : "NULL")} instanceId={(fpsPlayer ? fpsPlayer.GetInstanceID() : 0)}");
-
-        if (fpsPlayer != null && targetIndex >= 0)
-        {
-            //Debug.Log("[Equip] calling fpsPlayer.SetActiveWeaponIndex...");
-            fpsPlayer.SetActiveWeaponIndex(targetIndex);
-            //Debug.Log("[Equip] done SetActiveWeaponIndex.");
-        }
-        else
-        {
-            Debug.LogWarning($"[Equip] skip SetActiveWeaponIndex. fpsPlayer={(fpsPlayer ? "OK" : "NULL")} targetIndex={targetIndex}");
-        }
-
         return true;
     }
 
@@ -166,9 +172,12 @@ public class PlayerWeaponController : MonoBehaviour
         currentAmmoInMag = 0;
         isReloading = false;
         fireCooldown = 0f;
+
+        fireHeld = false;
+        semiConsume = false;
+
         recoilAccumYaw = 0f;
         recoilIndex = 0;
-        fireRequested = false;
 
         RefreshUI();
     }
@@ -176,6 +185,12 @@ public class PlayerWeaponController : MonoBehaviour
     private bool IsWeaponItem(ItemInfo item)
     {
         return item != null && item.id >= 1100 && item.id < 1500;
+    }
+
+    private bool IsAutomaticWeapon()
+    {
+        // ItemInfo.isAutomatic: 1이면 자동(연사), 0이면 단발
+        return weapon != null && weapon.isAutomatic == 1;
     }
 
     private int GetKinemationIndex(int itemId)
@@ -194,33 +209,30 @@ public class PlayerWeaponController : MonoBehaviour
     }
 
     // =========================
-    // Public API for Input/Bridge
+    // Input API (Bridge -> Here)
     // =========================
-
-    /// <summary>
-    /// 즉시 발사(권장): 탄/쿨다운/리로드 체크 후 실제 발사
-    /// </summary>
+    // 눌림(press/hold 시작)
     public void Fire()
     {
         if (weapon == null) return;
-        if (isReloading) return;
-        if (fireCooldown > 0f) return;
-        if (currentAmmoInMag <= 0) return;
 
-        TryFireNow(); // 실제 발사 + 탄 감소 + 이벤트
+        if (IsAutomaticWeapon())
+        {
+            fireHeld = true; // Update에서 반복 발사
+        }
+        else
+        {
+            semiConsume = true; // Update에서 1회 발사
+        }
     }
 
-    /// <summary>
-    /// 연사 끊기용 (현재 우리 게임플레이에는 큰 의미 없지만 브릿지 호환)
-    /// </summary>
+    // 뗌(release)
     public void FireUp()
     {
-        fireRequested = false;
+        fireHeld = false;
+        semiConsume = false;
     }
 
-    /// <summary>
-    /// ✅ 리로드 공개 래퍼
-    /// </summary>
     public void Reload()
     {
         if (weapon == null) return;
@@ -230,16 +242,15 @@ public class PlayerWeaponController : MonoBehaviour
         StartCoroutine(ReloadRoutine());
     }
 
-    /// <summary>
-    /// ADS 더미 (필요시 구현)
-    /// </summary>
-    public void SetADS(bool isAiming) { }
+    public void SetADS(bool isAiming) { /* 필요하면 여기 연결 */ }
 
     // =========================
-    // Fire Internal
+    // Core Fire/Reload
     // =========================
     private void TryFireNow()
     {
+        if (weapon == null) return;
+        if (isReloading) return;
         if (fireCooldown > 0f) return;
         if (currentAmmoInMag <= 0) return;
 
@@ -247,16 +258,18 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (crosshair != null) crosshair.OnFire();
 
-        fireCooldown = 1f / Mathf.Max(0.01f, weapon.fireRate);
+        // fireRate = "초당 발사수" (shots per second)
+        float sps = Mathf.Max(0.01f, weapon.fireRate);
+        fireCooldown = 1f / sps;
+
         currentAmmoInMag--;
 
-        // ========= NEW: Notify ViewModel driver =========
+        if (debugLogFire)
+            Debug.Log($"[FIRE] id={equippedItemId} ammo={currentAmmoInMag}/{weapon.magazinesize} cooldown={fireCooldown:F3}");
+
         Fired?.Invoke();
     }
 
-    // =========================
-    // Reload (time-based, 임시)
-    // =========================
     private IEnumerator ReloadRoutine()
     {
         if (weapon == null) yield break;
@@ -265,11 +278,9 @@ public class PlayerWeaponController : MonoBehaviour
 
         isReloading = true;
         OnReloadStart();
-
-        // ========= NEW: Notify ViewModel driver =========
         ReloadStarted?.Invoke();
 
-        yield return new WaitForSeconds(weapon.reloadTime);
+        yield return new WaitForSeconds(Mathf.Max(0f, weapon.reloadTime));
 
         ApplyReload();
         isReloading = false;
@@ -287,7 +298,7 @@ public class PlayerWeaponController : MonoBehaviour
     }
 
     // =========================
-    // Fire (Raycast + Visual)
+    // Raycast + Visual bullet
     // =========================
     private void FireRaycastAndVisual()
     {
@@ -434,17 +445,15 @@ public class PlayerWeaponController : MonoBehaviour
 
     private IEnumerator AutoEquipWhenReady()
     {
-        // fpsPlayer가 비어있으면 자동으로 찾아서 넣어줌
         if (fpsPlayer == null)
             fpsPlayer = FindFirstObjectByType<FPSPlayer>();
 
-        // FPSPlayer가 무기 생성 끝날 때까지 기다림
-        yield return new WaitUntil(() => fpsPlayer != null && fpsPlayer.IsInitialized);
+        // 너가 쓰던 fpsPlayer.IsInitialized 쓰고 싶으면 FPSPlayer에 IsInitialized bool을 추가해야 함.
+        // 여기서는 안전하게 1프레임만 기다리는 버전으로 둠.
+        yield return null;
 
-        // 이제 안전하게 장착
         EquipByItemId(autoEquipItemId);
     }
-
 
     // UI Getters
     public int GetCurrentAmmo() => currentAmmoInMag;
