@@ -7,11 +7,14 @@ using UnityEngine.AI;
 public class EnemyAI : MonoBehaviour
 {
     [Header("Settings")]
-    public EnemyDataSO data; // 새로운 SO 데이터 연결
+    public EnemyDataSO data;
 
     public enum State { Patrol, Chase, Attack }
     [Header("Current State")]
     public State currentState;
+
+    [Header("Quest Settings")]
+    public string targetQuestName;
 
     private NavMeshAgent agent;
     private Transform playerTransform;
@@ -24,6 +27,7 @@ public class EnemyAI : MonoBehaviour
     private float lastProvokedTime = -999f;
     private bool isAttacking = false;
     private bool hasPerformedFirstAttack = false;
+    private bool isSelfDestructing = false;
 
     public LayerMask targetMask;
     public LayerMask obstacleMask;
@@ -211,6 +215,8 @@ public class EnemyAI : MonoBehaviour
 
         if (data.dieAfterAttack)
         {
+            isSelfDestructing = true;
+
             if (myHealth != null)
             {
                 myHealth.TakeDamage(99999f);
@@ -358,7 +364,24 @@ public class EnemyAI : MonoBehaviour
             agent.SetDestination(hit.position);
     }
 
-    void DropLoot() { Debug.Log("Loot Dropped"); }
+    void DropLoot()
+    {
+        Debug.Log("Loot Dropped / 적 사망 처리");
+
+        if (!isSelfDestructing)
+        {
+            if (!string.IsNullOrEmpty(targetQuestName))
+            {
+                QuestUIManager questManager = FindFirstObjectByType<QuestUIManager>();
+
+                if (questManager != null)
+                {
+                    questManager.AddQuestProgress(targetQuestName, 1);
+                    Debug.Log($"{targetQuestName} 퀘스트 카운트 증가!");
+                }
+            }
+        }
+    }
 
     void OnDrawGizmosSelected()
     {
