@@ -5513,6 +5513,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 1075531836872384762, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
+      propertyPath: m_Depth
+      value: -1
+      objectReference: {fileID: 0}
     - target: {fileID: 1091910890468779830, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -5748,14 +5752,14 @@ PrefabInstance:
     - target: {fileID: 3760683482695595775, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       propertyPath: m_VolumeTrigger
       value: 
-      objectReference: {fileID: 908717868}
+      objectReference: {fileID: 0}
     - target: {fileID: 3760683482695595775, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       propertyPath: m_VolumeLayerMask.m_Bits
-      value: 4294967295
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3760683482695595775, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       propertyPath: m_VolumeFrameworkUpdateModeOption
-      value: 0
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3873486034401579295, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -6128,11 +6132,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 412433272998944957, guid: 354cbc5726ca6414ab8584c87a71a348, type: 3}
---- !u!4 &908717868 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 480638948857634741, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
-  m_PrefabInstance: {fileID: 844527431}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &929053666
 PrefabInstance:
   m_ObjectHideFlags: 0
