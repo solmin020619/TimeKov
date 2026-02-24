@@ -21,6 +21,14 @@ public class PlayerController : MonoBehaviour
     public float staminaRegen = 5f;
     public float runSpeedCost = 10f;
 
+    [Header("Stamina Run Gating")]
+    [Tooltip("스태미나가 0이 되면 탈진 상태로 진입")]
+    public float exhaustedEnterStamina = 0.01f;
+
+    [Tooltip("탈진 상태 해제(= 다시 달리기 허용) 스태미나 임계치. Max의 비율")]
+    [Range(0f, 1f)]
+    public float resumeRunThreshold01 = 0.25f; // 예: 25% 차야 다시 달리기 가능
+
     [Header("Combat")]
     public int baseDefense;
     public int baseAttack;
@@ -42,7 +50,11 @@ public class PlayerController : MonoBehaviour
     // 내부
     private Vector3 moveInput;
     public float currentStamina;
+
     private bool isRunning;
+
+    // 탈진 상태(이 상태면 Shift 눌러도 달리기 금지)
+    private bool isExhausted;
 
     private float yaw;
     private float pitch;
@@ -65,6 +77,7 @@ public class PlayerController : MonoBehaviour
         rb.freezeRotation = true;
 
         currentStamina = staminaMax;
+        isExhausted = false; 
 
         // Time 시스템 연결
         playerTime = GetComponent<PlayerTime>();
@@ -105,7 +118,6 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         HandleInput();
-        HandleStamina();
         HandleMouseLook();
         PushToViewModel(); // ⭐ FPSPlayer에 입력 주입
     }
@@ -113,6 +125,7 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         MoveRigidbody();
+        HandleStaminaFixed();     // 스태미나 처리는 FixedUpdate 기준으로 통일(깜빡임 감소)
         ApplyCachedYawRotation();
         LockYPosition();
     }
@@ -137,22 +150,25 @@ public class PlayerController : MonoBehaviour
             velocity2.y = 0f;
             velocity2.z = 0f;
             rb.linearVelocity = velocity2;
+
             isRunning = false;
             return;
         }
 
         bool runKey = Input.GetKey(KeyCode.LeftShift);
-        bool canRun = currentStamina >= runSpeedCost;
-        bool wantRun = runKey && canRun;
+
+        //  탈진/재달리기 로직 반영한 canRun 계산
+        bool wantRun = runKey && CanRunNow();
 
         float speed = wantRun ? runSpeed : moveSpeed;
 
-        isRunning = false;
-        if (wantRun)
+        isRunning = wantRun;
+
+        //  스태미나 소모는 여기서만 (FixedUpdate)
+        if (isRunning)
         {
-            isRunning = true;
             currentStamina -= runSpeedCost * Time.fixedDeltaTime;
-            currentStamina = Mathf.Max(0f, currentStamina);
+            if (currentStamina < 0f) currentStamina = 0f;
         }
 
         Vector3 desired = moveDir.normalized * speed;
@@ -163,6 +179,16 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = finalVelocity;
     }
 
+    // "달리기 가능 여부"는 탈진 상태를 포함해서 판단
+    private bool CanRunNow()
+    {
+        // 이미 탈진이면 일정 이상 찰 때까지 달리기 금지
+        if (isExhausted) return false;
+
+        // 스태미나가 거의 없으면 달리기 금지
+        return currentStamina > exhaustedEnterStamina;
+    }
+
     Vector3 GetMoveDirectionLocal()
     {
         Vector3 direction = transform.right * moveInput.x + transform.forward * moveInput.z;
@@ -170,18 +196,35 @@ public class PlayerController : MonoBehaviour
         return direction;
     }
 
-    void HandleStamina()
+    // FixedUpdate에서 스태미나 회복 + 탈진 상태 갱신
+    void HandleStaminaFixed()
     {
+        // 1) 탈진 진입
+        if (!isExhausted && currentStamina <= exhaustedEnterStamina)
+        {
+            isExhausted = true;
+        }
+
+        // 2) 회복(달리지 않을 때만)
         if (!isRunning)
         {
-            currentStamina += staminaRegen * Time.deltaTime;
+            currentStamina += staminaRegen * Time.fixedDeltaTime;
             currentStamina = Mathf.Min(staminaMax, currentStamina);
+        }
+
+        // 3) 탈진 해제(= 다시 달리기 허용)
+        if (isExhausted)
+        {
+            float resumeThreshold = staminaMax * Mathf.Clamp01(resumeRunThreshold01);
+            if (currentStamina >= resumeThreshold)
+            {
+                isExhausted = false;
+            }
         }
     }
 
     void HandleMouseLook()
     {
-        // 네 기존 감도 로직 유지
         float sens = mouseSensitivity;
 
         float mx = Input.GetAxis("Mouse X") * sens;
@@ -214,13 +257,10 @@ public class PlayerController : MonoBehaviour
         if (viewModel == null) return;
 
         // 1) 이동 입력 -> GAIT
-        // FPSPlayer는 x=strafe, y=forward로 Vector2 받음
         Vector2 move01 = new Vector2(moveInput.x, moveInput.z);
         viewModel.SetMoveInput(move01, isRunning, false);
 
-        // 2) 피치 입력 주입 (팔이 위아래 따라가게)
-        // FPSPlayer.AddLookPitchDelta()는 내부에서 playerSettings.sensitivity를 곱함
-        // 우리는 "이미 스케일된 my"를 쓰고 있으니, 감도 중복을 피하려고 나눠서 넣음
+        // 2) 피치 입력 주입
         float sens = mouseSensitivity;
         float myScaled = Input.GetAxis("Mouse Y") * sens;
 
@@ -230,7 +270,7 @@ public class PlayerController : MonoBehaviour
 
         viewModel.AddLookPitchDelta(myScaled / vmSens);
 
-        // 3) ADS(조준) - 우클릭 기준 (원하면 나중에 네 입력 규칙으로 바꾸면 됨)
+        // 3) ADS(조준)
         bool aiming = Input.GetMouseButton(1);
         viewModel.SetAiming(aiming);
     }
@@ -262,4 +302,7 @@ public class PlayerController : MonoBehaviour
 
     public float GetStamina() => currentStamina;
     public float GetStaminaMax() => staminaMax;
+
+    // 디버그/튜닝용 (원하면 UI에서 탈진 표시할 때도 사용 가능)
+    public bool IsExhausted() => isExhausted;
 }

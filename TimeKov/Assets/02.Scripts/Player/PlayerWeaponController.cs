@@ -1,5 +1,6 @@
 // PlayerWeaponController.cs
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using KINEMATION.FPSAnimationPack.Scripts.Player;
 
@@ -28,6 +29,13 @@ public class PlayerWeaponController : MonoBehaviour
     public GameObject bulletPrefab;
     public float bulletSpeed = 40f;
     public float bulletLifeTime = 2f;
+
+    [Header("Visual Origin (Auto Muzzle)")]
+    [Tooltip("무기 교체될 때마다 '현재 활성 무기'에서 muzzle/firePoint를 자동 탐색해서 비주얼 탄 시작점으로 사용")]
+    public bool autoFindMuzzleOnEquip = true;
+
+    [Tooltip("총구 탐색 키워드(이름에 포함되면 총구로 간주). 기본값이면 대부분 커버됨.")]
+    public string[] muzzleNameKeywords = new string[] { "muzzle", "firepoint", "fire_point", "barrel", "tip" };
 
     [Header("Crosshair")]
     public CrosshairController crosshair;
@@ -60,6 +68,10 @@ public class PlayerWeaponController : MonoBehaviour
 
     private PlayerController playerController;
     private Camera cachedCam;
+
+    // muzzle cache
+    private Transform cachedMuzzle;
+    private readonly Dictionary<int, Transform> muzzleByItemId = new Dictionary<int, Transform>();
 
     private void Awake()
     {
@@ -156,9 +168,18 @@ public class PlayerWeaponController : MonoBehaviour
         // Kinemation weapon select
         int targetIndex = GetKinemationIndex(itemId);
         if (fpsPlayer != null && targetIndex >= 0)
+        {
             fpsPlayer.SetActiveWeaponIndex(targetIndex);
+
+            // ✅ 무기 바뀌면 muzzle 재탐색(활성 무기 프리팹 기준)
+            if (autoFindMuzzleOnEquip)
+                StartCoroutine(ResolveMuzzleNextFrame(itemId));
+        }
         else
+        {
             Debug.LogWarning($"[Equip] skip SetActiveWeaponIndex. fpsPlayer={(fpsPlayer ? "OK" : "NULL")} targetIndex={targetIndex}");
+            cachedMuzzle = null;
+        }
 
         RefreshUI();
         return true;
@@ -178,6 +199,8 @@ public class PlayerWeaponController : MonoBehaviour
 
         recoilAccumYaw = 0f;
         recoilIndex = 0;
+
+        cachedMuzzle = null;
 
         RefreshUI();
     }
@@ -325,6 +348,7 @@ public class PlayerWeaponController : MonoBehaviour
                 enemy.TakeDamage((int)weapon.damage);
         }
 
+        // ✅ 비주얼 탄 시작점은 "현재 무기 총구" (없으면 aimPoint -> 카메라 fallback)
         Vector3 origin = GetVisualOrigin(camOrigin);
 
         Vector3 forward = (hitPoint - origin);
@@ -346,12 +370,151 @@ public class PlayerWeaponController : MonoBehaviour
 
     private Vector3 GetVisualOrigin(Vector3 fallback)
     {
+        // 1) muzzle(무기 총구) 우선
+        if (cachedMuzzle != null)
+            return cachedMuzzle.position;
+
+        // 2) aimPoint (최후의 뷰모델 기준)
         if (fpsPlayer != null)
         {
             Transform ap = fpsPlayer.GetActiveAimPoint();
             if (ap != null) return ap.position;
         }
+
+        // 3) 카메라 fallback
         return fallback;
+    }
+
+    // =========================
+    // Auto-find muzzle per weapon
+    // =========================
+    private IEnumerator ResolveMuzzleNextFrame(int itemId)
+    {
+        // SetActiveWeaponIndex 후 계층/활성화 반영을 위해 1프레임 대기
+        yield return null;
+
+        // itemId 캐시가 있으면 재사용
+        if (muzzleByItemId.TryGetValue(itemId, out var cached) && cached != null)
+        {
+            cachedMuzzle = cached;
+            yield break;
+        }
+
+        if (fpsPlayer == null)
+        {
+            cachedMuzzle = null;
+            yield break;
+        }
+
+        // 1) "현재 활성 무기 루트" 찾기
+        Transform activeWeaponRoot = FindActiveWeaponRootUnder(fpsPlayer.transform);
+
+        // 2) 활성 무기 하위에서 muzzle 찾기 (이름 키워드 기반)
+        Transform muzzle = null;
+        if (activeWeaponRoot != null)
+            muzzle = FindMuzzleByKeywords(activeWeaponRoot);
+
+        // 3) 그래도 못 찾으면: fpsPlayer 전체에서 한번 더(최후)
+        if (muzzle == null)
+            muzzle = FindMuzzleByKeywords(fpsPlayer.transform);
+
+        cachedMuzzle = muzzle;
+
+        if (cachedMuzzle != null)
+            muzzleByItemId[itemId] = cachedMuzzle;
+
+        // 디버그 필요하면 켜
+        // Debug.Log($"[Muzzle] itemId={itemId} root={(activeWeaponRoot ? activeWeaponRoot.name : "NULL")} muzzle={(cachedMuzzle ? cachedMuzzle.name : "NULL")}");
+    }
+
+    /// <summary>
+    /// fpsPlayer 하위에서 "활성화된 무기 루트"를 휴리스틱으로 찾는다.
+    /// - activeInHierarchy인 노드 중
+    /// - muzzle 키워드를 가진 자식이 존재하는 가장 가까운 상위 노드를 우선 반환
+    /// </summary>
+    private Transform FindActiveWeaponRootUnder(Transform root)
+    {
+        if (root == null) return null;
+
+        var all = root.GetComponentsInChildren<Transform>(true);
+
+        // 1) active인 노드들 중, "무기 같아 보이는" 이름 + muzzle 존재면 우선
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (!t.gameObject.activeInHierarchy) continue;
+
+            string n = t.name.ToLowerInvariant();
+            bool looksWeapon = n.Contains("weapon") || n.Contains("gun") || n.Contains("rifle") || n.Contains("pistol");
+
+            if (!looksWeapon) continue;
+
+            if (FindMuzzleByKeywords(t) != null)
+                return t;
+        }
+
+        // 2) 그냥 active인 노드들 중 muzzle을 가진 노드의 상위를 반환
+        for (int i = 0; i < all.Length; i++)
+        {
+            var t = all[i];
+            if (!t.gameObject.activeInHierarchy) continue;
+
+            var mz = FindMuzzleByKeywords(t);
+            if (mz != null)
+                return t;
+        }
+
+        return null;
+    }
+
+    private Transform FindMuzzleByKeywords(Transform root)
+    {
+        if (root == null) return null;
+
+        var all = root.GetComponentsInChildren<Transform>(true);
+
+        Transform best = null;
+        int bestScore = int.MinValue;
+
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (!t.gameObject.activeInHierarchy) continue;
+
+            string n = t.name.ToLowerInvariant();
+
+            int score = 0;
+
+            // 포함 키워드 점수
+            if (muzzleNameKeywords != null)
+            {
+                for (int k = 0; k < muzzleNameKeywords.Length; k++)
+                {
+                    string key = muzzleNameKeywords[k];
+                    if (string.IsNullOrEmpty(key)) continue;
+                    if (n.Contains(key.ToLowerInvariant()))
+                    {
+                        // muzzle는 가장 강하게
+                        score += (key.ToLowerInvariant() == "muzzle") ? 200 : 80;
+                    }
+                }
+            }
+
+            // 제외(잘못 잡기 쉬운 것들)
+            if (n.Contains("hand")) score -= 80;
+            if (n.Contains("camera")) score -= 80;
+            if (n.Contains("aim")) score -= 40;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = t;
+            }
+        }
+
+        // 점수가 너무 낮으면 실패 처리 (엉뚱한 걸 muzzle로 잡지 않게)
+        if (bestScore < 80) return null;
+        return best;
     }
 
     private Vector3 ApplyRecoil(Vector3 forward)
@@ -384,7 +547,9 @@ public class PlayerWeaponController : MonoBehaviour
 
         float finalYaw = baseYaw + recoilAccumYaw;
         float rad = finalYaw * Mathf.Deg2Rad;
-        return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
+
+        // 기존 코드가 y=0 고정이었는데, forward.y 유지하면 위/아래 조준에서 덜 어색함
+        return new Vector3(Mathf.Sin(rad), forward.y, Mathf.Cos(rad)).normalized;
     }
 
     private Vector3 GetSpreadDirection(Vector3 forward, float spreadAngle)
@@ -398,7 +563,7 @@ public class PlayerWeaponController : MonoBehaviour
         float finalYaw = baseYaw + yawOffset;
 
         float rad = finalYaw * Mathf.Deg2Rad;
-        return new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
+        return new Vector3(Mathf.Sin(rad), forward.y, Mathf.Cos(rad)).normalized;
     }
 
     private void SpawnVisualBullet(Vector3 origin, Vector3 dir, Vector3? hitPoint = null)
@@ -448,8 +613,7 @@ public class PlayerWeaponController : MonoBehaviour
         if (fpsPlayer == null)
             fpsPlayer = FindFirstObjectByType<FPSPlayer>();
 
-        // 너가 쓰던 fpsPlayer.IsInitialized 쓰고 싶으면 FPSPlayer에 IsInitialized bool을 추가해야 함.
-        // 여기서는 안전하게 1프레임만 기다리는 버전으로 둠.
+        // 1프레임 대기(초기화 안정)
         yield return null;
 
         EquipByItemId(autoEquipItemId);
