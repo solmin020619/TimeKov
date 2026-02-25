@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 using KINEMATION.FPSAnimationPack.Scripts.Player; // FPSPlayer
 
 [RequireComponent(typeof(Rigidbody))]
@@ -46,6 +47,9 @@ public class PlayerController : MonoBehaviour
     [Header("ViewModel (KINEMATION)")]
     [Tooltip("SK_Arms_Mono 안에 붙어있는 FPSPlayer 컴포넌트를 드래그해서 넣어")]
     public FPSPlayer viewModel;
+
+    [Header("Audio Settings")]
+    public AudioMixerGroup sfxMixerGroup;
 
     // 내부
     private Vector3 moveInput;
@@ -113,6 +117,8 @@ public class PlayerController : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+
+        SyncSettings();
     }
 
     void Update()
@@ -298,6 +304,28 @@ public class PlayerController : MonoBehaviour
         while (angle > 180f) angle -= 360f;
         while (angle < -180f) angle += 360f;
         return angle;
+    }
+
+    public void SyncSettings()
+    {
+        if (PlayerPrefs.HasKey("MouseSensitivity"))
+        {
+            mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 2.0f);
+        }
+
+        if (PlayerPrefs.HasKey("SFXVolume") && sfxMixerGroup != null)
+        {
+            float sfxVol = PlayerPrefs.GetFloat("SFXVolume", 1f);
+            float decibel = sfxVol > 0.001f ? Mathf.Log10(sfxVol) * 20f : -80f;
+
+            sfxMixerGroup.audioMixer.SetFloat("SFXVolume", decibel);
+
+            AudioSource[] allAudioSources = GetComponentsInChildren<AudioSource>(true);
+            foreach (AudioSource audio in allAudioSources)
+            {
+                audio.outputAudioMixerGroup = sfxMixerGroup;
+            }
+        }
     }
 
     public float GetStamina() => currentStamina;

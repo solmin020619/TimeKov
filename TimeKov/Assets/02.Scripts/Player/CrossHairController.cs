@@ -57,6 +57,8 @@ public class CrosshairController : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale == 0f) return;
+
         if (!isEnabled) return;
 
         // 마우스 따라다니는 타입

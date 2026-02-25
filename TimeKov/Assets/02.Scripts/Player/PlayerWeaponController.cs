@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using KINEMATION.FPSAnimationPack.Scripts.Player;
 
 [RequireComponent(typeof(PlayerController))]
@@ -92,6 +93,8 @@ public class PlayerWeaponController : MonoBehaviour
 
     private void Update()
     {
+        if (Time.timeScale == 0f) return;
+
         if (fireCooldown > 0f)
             fireCooldown -= Time.deltaTime;
 
@@ -238,6 +241,9 @@ public class PlayerWeaponController : MonoBehaviour
     public void Fire()
     {
         if (weapon == null) return;
+
+        if(Time.timeScale == 0f) return;
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
         if (IsAutomaticWeapon())
         {

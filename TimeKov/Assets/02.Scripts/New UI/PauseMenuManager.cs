@@ -71,7 +71,13 @@ public class PauseMenuManager : MonoBehaviour
 
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
-        if (playerController != null) playerController.enabled = true;
+
+        if (playerController != null)
+        {
+            playerController.enabled = true;
+            playerController.SyncSettings();
+        }
+
     }
 
     public void OnClickSettings()
