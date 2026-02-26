@@ -44,7 +44,7 @@ public class InventoryManager : MonoBehaviour
 
     void Update()
     {
-        if (ownerType == InventoryOwnerType.Player && Input.GetKeyDown(KeyCode.I))
+        if (ownerType == InventoryOwnerType.Player && Input.GetKeyDown(KeyCode.Tab))
         {
             if (UIStateManager.Instance != null)
             {

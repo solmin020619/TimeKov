@@ -73,7 +73,6 @@ public class SlotInfo : MonoBehaviour
 
     public void SetSlot(int id, int count)
     {
-        // 상점 슬롯이면 ShopSlotMarker.itemId가 진짜 아이템 ID
         if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
         bool isShopSlot = (shopMarker != null);
 
@@ -82,32 +81,25 @@ public class SlotInfo : MonoBehaviour
         slotIndex = effectiveId;
         itemCount = count;
 
-        // ✅ 빈 슬롯 처리
+        // (선택) 배그 리스트 느낌: 빈 슬롯은 숨김 (장비칸/상점칸 제외)
+        if (!isShopSlot && ownerType != SlotOwnerType.Equip)
+            gameObject.SetActive(slotIndex != 0);
+        else
+            if (!gameObject.activeSelf) gameObject.SetActive(true);
+
+        // 빈 슬롯
         if (slotIndex == 0)
         {
-            // 장비칸만 기본 문구 복구, 인벤/창고 등은 비움
             if (slotText != null)
-            {
-                if (ownerType == SlotOwnerType.Equip) slotText.text = defaultSlotText;
-                else slotText.text = "";
-            }
+                slotText.text = (ownerType == SlotOwnerType.Equip) ? defaultSlotText : "";
 
             slotOldIndex = 0;
 
-            // ✅ 핵심 수정:
-            // "아이템 없을 때도 슬롯 배경 아이콘은 보여야 함" → icon을 꺼버리면 안 됨
-            // 대신, 원래 인스펙터에 들어있던 기본(슬롯 배경) 스프라이트로 복구한다.
+            // 아이템 아이콘 비우기(=투명/끄기) + 배경은 IconBG가 들고있게 해야 함
             if (!isShopSlot && iconImage != null)
             {
-                // 혹시 런타임에 iconImage가 바뀌었다면 안전하게 한 번 더 캡쳐
-                if (!defaultIconSpriteCaptured)
-                {
-                    defaultIconSprite = iconImage.sprite;
-                    defaultIconSpriteCaptured = true;
-                }
-
-                iconImage.sprite = defaultIconSprite;     // ✅ 슬롯 배경 복구
-                iconImage.enabled = (defaultIconSprite != null); // ✅ 슬롯 배경이 있으면 보이게
+                iconImage.sprite = null;
+                iconImage.enabled = false;
             }
 
             UpdateAmountText();
@@ -115,11 +107,19 @@ public class SlotInfo : MonoBehaviour
             return;
         }
 
-        // ✅ 아이템이 있는 슬롯이면 아이콘 표시
+        // 아이템 있을 때: 아이콘
         if (iconImage != null)
         {
             iconImage.sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
             iconImage.enabled = true;
+        }
+
+        // ✅ 아이템 있을 때: 이름 즉시 세팅 (Update 기다리지 않게)
+        if (slotText != null)
+        {
+            var item = DataManager.Instance?.GetItem(slotIndex);
+            slotText.text = (item != null) ? item.itemName : slotIndex.ToString();
+            slotOldIndex = slotIndex;
         }
 
         UpdateAmountText();
