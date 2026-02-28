@@ -4,10 +4,9 @@ using UnityEngine.SceneManagement;
 
 public class MapPortal : MonoBehaviour
 {
-    [Header("Settings")]
-    public string mapSelectSceneName = "MapSelectScene";
+    public string loadingSceneName = "Loading";
+    public string targetSceneName = "RaidScene";
 
-    [Header("Fade Effect")]
     public CanvasGroup fadeCanvasGroup;
     public float fadeDuration = 1.0f;
 
@@ -37,6 +36,7 @@ public class MapPortal : MonoBehaviour
             fadeCanvasGroup.alpha = 1f;
         }
 
-        SceneManager.LoadScene(mapSelectSceneName);
+        LoadingData.nextSceneName = targetSceneName;
+        SceneManager.LoadScene(loadingSceneName);
     }
 }
