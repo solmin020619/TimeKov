@@ -51,6 +51,13 @@ public class PlayerController : MonoBehaviour
     [Header("Audio Settings")]
     public AudioMixerGroup sfxMixerGroup;
 
+    [Header("ViewModel Pitch Sync")]
+    [Tooltip("손(뷰모델) 피치가 카메라 피치를 따라오도록 주입")]
+    public bool syncViewModelPitch = true;
+
+    [Tooltip("손이 반대로 움직이면 체크(부호 반전)")]
+    public bool invertViewModelPitch = false;
+
     // 내부
     private Vector3 moveInput;
     public float currentStamina;
@@ -62,6 +69,9 @@ public class PlayerController : MonoBehaviour
 
     private float yaw;
     private float pitch;
+
+    // cameraPivot 기반 델타 계산용
+    private float lastPivotPitch;
 
     private Quaternion cachedYawRotation;
     private bool hasCachedYawRotation;
@@ -81,7 +91,7 @@ public class PlayerController : MonoBehaviour
         rb.freezeRotation = true;
 
         currentStamina = staminaMax;
-        isExhausted = false; 
+        isExhausted = false;
 
         // Time 시스템 연결
         playerTime = GetComponent<PlayerTime>();
@@ -109,8 +119,20 @@ public class PlayerController : MonoBehaviour
         }
 
         yaw = transform.eulerAngles.y;
+
+        // pitch 초기값 세팅
         pitch = (cameraPivot != null) ? cameraPivot.localEulerAngles.x : 0f;
         pitch = NormalizeAngle(pitch);
+        pitch = Mathf.Clamp(pitch, pitchMin, pitchMax);
+
+        if (cameraPivot != null)
+            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+
+        // pivot 기반 동기화 초기값
+        if (cameraPivot != null)
+            lastPivotPitch = NormalizeAngle(cameraPivot.localEulerAngles.x);
+        else
+            lastPivotPitch = pitch;
 
         if (lockCursor)
         {
@@ -163,14 +185,14 @@ public class PlayerController : MonoBehaviour
 
         bool runKey = Input.GetKey(KeyCode.LeftShift);
 
-        //  탈진/재달리기 로직 반영한 canRun 계산
+        // 탈진/재달리기 로직 반영한 canRun 계산
         bool wantRun = runKey && CanRunNow();
 
         float speed = wantRun ? runSpeed : moveSpeed;
 
         isRunning = wantRun;
 
-        //  스태미나 소모는 여기서만 (FixedUpdate)
+        // 스태미나 소모는 여기서만 (FixedUpdate)
         if (isRunning)
         {
             currentStamina -= runSpeedCost * Time.fixedDeltaTime;
@@ -266,15 +288,22 @@ public class PlayerController : MonoBehaviour
         Vector2 move01 = new Vector2(moveInput.x, moveInput.z);
         viewModel.SetMoveInput(move01, isRunning, false);
 
-        // 2) 피치 입력 주입
-        float sens = mouseSensitivity;
-        float myScaled = Input.GetAxis("Mouse Y") * sens;
+        // 2) ✅ 뷰모델 피치 동기화: cameraPivot 변화량 기반(안정)
+        if (syncViewModelPitch && cameraPivot != null)
+        {
+            float vmSens = 1f;
+            if (viewModel.playerSettings != null)
+                vmSens = Mathf.Max(0.0001f, viewModel.playerSettings.sensitivity);
 
-        float vmSens = 1f;
-        if (viewModel.playerSettings != null)
-            vmSens = Mathf.Max(0.0001f, viewModel.playerSettings.sensitivity);
+            float pivotPitch = NormalizeAngle(cameraPivot.localEulerAngles.x);
 
-        viewModel.AddLookPitchDelta(myScaled / vmSens);
+            float deltaPitch = Mathf.DeltaAngle(lastPivotPitch, pivotPitch);
+            lastPivotPitch = pivotPitch;
+
+            if (invertViewModelPitch) deltaPitch = -deltaPitch;
+
+            viewModel.AddLookPitchDelta(deltaPitch / vmSens);
+        }
 
         // 3) ADS(조준)
         bool aiming = Input.GetMouseButton(1);
@@ -331,6 +360,6 @@ public class PlayerController : MonoBehaviour
     public float GetStamina() => currentStamina;
     public float GetStaminaMax() => staminaMax;
 
-    // 디버그/튜닝용 (원하면 UI에서 탈진 표시할 때도 사용 가능)
+    // 디버그/튜닝용
     public bool IsExhausted() => isExhausted;
 }

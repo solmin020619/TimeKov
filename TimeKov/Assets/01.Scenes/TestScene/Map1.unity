@@ -8769,9 +8769,21 @@ PrefabInstance:
       value: 2147483647
       objectReference: {fileID: 0}
     - target: {fileID: 5899166774360549670, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
+      propertyPath: pitchMax
+      value: 30
+      objectReference: {fileID: 0}
+    - target: {fileID: 5899166774360549670, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
+      propertyPath: pitchMin
+      value: -30
+      objectReference: {fileID: 0}
+    - target: {fileID: 5899166774360549670, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       propertyPath: sfxMixerGroup
       value: 
       objectReference: {fileID: 1887898413064667760, guid: 765411127c02835408afdbac522d87b6, type: 2}
+    - target: {fileID: 5899166774360549670, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
+      propertyPath: invertViewModelPitch
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5990758079797304268, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647

@@ -41,6 +41,10 @@ public class PlayerWeaponController : MonoBehaviour
     [Header("Crosshair")]
     public CrosshairController crosshair;
 
+    [Header("Fire Rule")]
+    [Tooltip("달리는 동안 발사 금지")]
+    public bool blockFireWhileRunning = true;
+
     [Header("Debug")]
     public bool autoEquipOnStart = false;
     public int autoEquipItemId = 1201;
@@ -105,6 +109,14 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         if (weapon == null) return;
+
+        // 달리는 중이면 발사 상태를 강제로 끊고(홀드/단발 포함) 이번 프레임 발사 로직 스킵
+        if (blockFireWhileRunning && playerController != null && playerController.IsRunning)
+        {
+            fireHeld = false;
+            semiConsume = false;
+            return;
+        }
 
         // 연사(자동) - 누르고 있는 동안 계속
         if (!isReloading && fireHeld && IsAutomaticWeapon())
@@ -174,7 +186,7 @@ public class PlayerWeaponController : MonoBehaviour
         {
             fpsPlayer.SetActiveWeaponIndex(targetIndex);
 
-            // ✅ 무기 바뀌면 muzzle 재탐색(활성 무기 프리팹 기준)
+            // 무기 바뀌면 muzzle 재탐색(활성 무기 프리팹 기준)
             if (autoFindMuzzleOnEquip)
                 StartCoroutine(ResolveMuzzleNextFrame(itemId));
         }
@@ -235,6 +247,21 @@ public class PlayerWeaponController : MonoBehaviour
     }
 
     // =========================
+    // Fire gate
+    // =========================
+    private bool CanFireNow()
+    {
+        if (weapon == null) return false;
+        if (Time.timeScale == 0f) return false;
+        if (isReloading) return false;
+
+        if (blockFireWhileRunning && playerController != null && playerController.IsRunning)
+            return false;
+
+        return true;
+    }
+
+    // =========================
     // Input API (Bridge -> Here)
     // =========================
     // 눌림(press/hold 시작)
@@ -242,8 +269,11 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) return;
 
-        if(Time.timeScale == 0f) return;
+        if (Time.timeScale == 0f) return;
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+        // 달리는 중 발사 입력 무시
+        if (!CanFireNow()) return;
 
         if (IsAutomaticWeapon())
         {
@@ -278,8 +308,9 @@ public class PlayerWeaponController : MonoBehaviour
     // =========================
     private void TryFireNow()
     {
-        if (weapon == null) return;
-        if (isReloading) return;
+        // 여기도 방어(연사 루프/외부 호출 대비)
+        if (!CanFireNow()) return;
+
         if (fireCooldown > 0f) return;
         if (currentAmmoInMag <= 0) return;
 
@@ -354,7 +385,7 @@ public class PlayerWeaponController : MonoBehaviour
                 enemy.TakeDamage((int)weapon.damage);
         }
 
-        // ✅ 비주얼 탄 시작점은 "현재 무기 총구" (없으면 aimPoint -> 카메라 fallback)
+        // 비주얼 탄 시작점은 "현재 무기 총구" (없으면 aimPoint -> 카메라 fallback)
         Vector3 origin = GetVisualOrigin(camOrigin);
 
         Vector3 forward = (hitPoint - origin);
@@ -428,16 +459,8 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (cachedMuzzle != null)
             muzzleByItemId[itemId] = cachedMuzzle;
-
-        // 디버그 필요하면 켜
-        // Debug.Log($"[Muzzle] itemId={itemId} root={(activeWeaponRoot ? activeWeaponRoot.name : "NULL")} muzzle={(cachedMuzzle ? cachedMuzzle.name : "NULL")}");
     }
 
-    /// <summary>
-    /// fpsPlayer 하위에서 "활성화된 무기 루트"를 휴리스틱으로 찾는다.
-    /// - activeInHierarchy인 노드 중
-    /// - muzzle 키워드를 가진 자식이 존재하는 가장 가까운 상위 노드를 우선 반환
-    /// </summary>
     private Transform FindActiveWeaponRootUnder(Transform root)
     {
         if (root == null) return null;
@@ -500,7 +523,6 @@ public class PlayerWeaponController : MonoBehaviour
                     if (string.IsNullOrEmpty(key)) continue;
                     if (n.Contains(key.ToLowerInvariant()))
                     {
-                        // muzzle는 가장 강하게
                         score += (key.ToLowerInvariant() == "muzzle") ? 200 : 80;
                     }
                 }
@@ -518,7 +540,6 @@ public class PlayerWeaponController : MonoBehaviour
             }
         }
 
-        // 점수가 너무 낮으면 실패 처리 (엉뚱한 걸 muzzle로 잡지 않게)
         if (bestScore < 80) return null;
         return best;
     }
@@ -554,7 +575,6 @@ public class PlayerWeaponController : MonoBehaviour
         float finalYaw = baseYaw + recoilAccumYaw;
         float rad = finalYaw * Mathf.Deg2Rad;
 
-        // 기존 코드가 y=0 고정이었는데, forward.y 유지하면 위/아래 조준에서 덜 어색함
         return new Vector3(Mathf.Sin(rad), forward.y, Mathf.Cos(rad)).normalized;
     }
 

@@ -2356,7 +2356,7 @@ MonoBehaviour:
   m_RequiresOpaqueTextureOption: 2
   m_CameraType: 0
   m_Cameras: []
-  m_RendererIndex: -1
+  m_RendererIndex: 0
   m_VolumeLayerMask:
     serializedVersion: 2
     m_Bits: 1
@@ -2378,7 +2378,7 @@ MonoBehaviour:
   m_Version: 2
   m_TaaSettings:
     m_Quality: 3
-    m_FrameInfluence: 0.1
+    m_FrameInfluence: 0.100000024
     m_JitterScale: 1
     m_MipBias: 0
     m_VarianceClampScale: 0.9
@@ -5041,7 +5041,7 @@ GameObject:
   - component: {fileID: 7618715733282882011}
   m_Layer: 9
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -5085,15 +5085,20 @@ MonoBehaviour:
   staminaMax: 100
   staminaRegen: 5
   runSpeedCost: 10
+  exhaustedEnterStamina: 0.01
+  resumeRunThreshold01: 0.25
   baseDefense: 0
   baseAttack: 0
   fixedY: 0
   cameraPivot: {fileID: 5501060357470507936}
   mouseSensitivity: 2
-  pitchMin: -80
-  pitchMax: 80
+  pitchMin: -30
+  pitchMax: 30
   lockCursor: 1
   viewModel: {fileID: 3561346087933501063}
+  sfxMixerGroup: {fileID: 0}
+  syncViewModelPitch: 1
+  invertViewModelPitch: 1
   currentStamina: 0
 --- !u!114 &7311188048756246545
 MonoBehaviour:
@@ -5141,6 +5146,13 @@ MonoBehaviour:
   bulletPrefab: {fileID: 4531478676750283146, guid: c3cd410c3ec13444eb76c1e685456e7a, type: 3}
   bulletSpeed: 20
   bulletLifeTime: 5
+  autoFindMuzzleOnEquip: 1
+  muzzleNameKeywords:
+  - muzzle
+  - firepoint
+  - fire_point
+  - barrel
+  - tip
   crosshair: {fileID: 0}
   autoEquipOnStart: 1
   autoEquipItemId: 1202
