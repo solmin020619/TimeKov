@@ -22,6 +22,9 @@ public class QuestUIManager : MonoBehaviour
     [Header("Player Control")]
     private PlayerController playerController;
 
+    public GameObject crosshairUI;
+    public GameObject pausePanel;
+
     private Quest selectedQuest;
 
     void Start()
@@ -35,7 +38,15 @@ public class QuestUIManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.J))
         {
-            ToggleQuestWindow();
+            if (pausePanel != null && pausePanel.activeSelf)
+            {
+                return;
+            }
+
+            if (!questWindow.activeSelf)
+            {
+                ToggleQuestWindow();
+            }
         }
     }
 
@@ -63,6 +74,11 @@ public class QuestUIManager : MonoBehaviour
 
             if (playerController != null) playerController.enabled = true;
         }
+
+        if (crosshairUI != null) crosshairUI.SetActive(false);
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        Time.timeScale = 0f;
     }
 
     void UpdateQuestList()
@@ -139,5 +155,10 @@ public class QuestUIManager : MonoBehaviour
 
             if (playerController != null) playerController.enabled = true;
         }
+
+        if (crosshairUI != null) crosshairUI.SetActive(true);
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Time.timeScale = 1f;
     }
 }

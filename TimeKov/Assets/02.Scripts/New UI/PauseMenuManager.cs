@@ -6,8 +6,9 @@ using UnityEngine.SceneManagement;
 public class PauseMenuManager : MonoBehaviour
 {
     [Header("UI Objects")]
-    public GameObject pausePanel; 
+    public GameObject pausePanel;
     public GlobalSettingsManager globalSettings;
+    public GameObject questPanel;
 
     [Header("Settings")]
     public string mainMenuSceneName = "MainMenu";
@@ -39,11 +40,12 @@ public class PauseMenuManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            if (isPaused)
+            if (questPanel != null && questPanel.activeSelf)
             {
-                ResumeGame();
+                return;
             }
-            else
+
+            if (!isPaused && (pausePanel == null || !pausePanel.activeSelf))
             {
                 PauseGame();
             }
@@ -57,8 +59,9 @@ public class PauseMenuManager : MonoBehaviour
 
         Time.timeScale = 0f;
 
-        Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         if (playerController != null) playerController.enabled = false;
     }
 
@@ -69,15 +72,14 @@ public class PauseMenuManager : MonoBehaviour
 
         Time.timeScale = 1f;
 
-        Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         if (playerController != null)
         {
             playerController.enabled = true;
             playerController.SyncSettings();
         }
-
     }
 
     public void OnClickSettings()
@@ -91,7 +93,7 @@ public class PauseMenuManager : MonoBehaviour
     public void OnClickQuit()
     {
         Time.timeScale = 1f;
-        LoadingData.nextSceneName = mainMenuSceneName; // (로딩바 쓰고 싶으면 사용)
-        SceneManager.LoadScene(mainMenuSceneName); // 바로 이동 or 로딩씬 경유
+        LoadingData.nextSceneName = mainMenuSceneName;
+        SceneManager.LoadScene(mainMenuSceneName);
     }
 }

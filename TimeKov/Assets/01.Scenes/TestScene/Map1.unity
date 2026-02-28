@@ -1892,6 +1892,10 @@ PrefabInstance:
     - target: {fileID: 2493356935157328849, guid: 2d036568ae0d2754ea4f1ba4ee97974b, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
+      objectReference: {fileID: 1476889206}
+    - target: {fileID: 2493356935157328849, guid: 2d036568ae0d2754ea4f1ba4ee97974b, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: CloseQuestWindow
       objectReference: {fileID: 0}
     - target: {fileID: 4891997751710239687, guid: 2d036568ae0d2754ea4f1ba4ee97974b, type: 3}
       propertyPath: m_Name
@@ -22002,6 +22006,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 183213481}
     - target: {fileID: 352990086702440314, guid: defc2737928b8af4085d027d86a99b38, type: 3}
+      propertyPath: pausePanel
+      value: 
+      objectReference: {fileID: 1426596048}
+    - target: {fileID: 352990086702440314, guid: defc2737928b8af4085d027d86a99b38, type: 3}
+      propertyPath: crosshairUI
+      value: 
+      objectReference: {fileID: 139779464}
+    - target: {fileID: 352990086702440314, guid: defc2737928b8af4085d027d86a99b38, type: 3}
       propertyPath: detailTitle
       value: 
       objectReference: {fileID: 183213482}
@@ -24108,6 +24120,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pausePanel: {fileID: 1426596048}
   globalSettings: {fileID: 636822359}
+  questPanel: {fileID: 183213484}
   mainMenuSceneName: MainMenu
 --- !u!4 &1472253547 stripped
 Transform:
@@ -24189,6 +24202,17 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1475102194}
   m_CullTransparentMesh: 1
+--- !u!114 &1476889206 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 352990086702440314, guid: defc2737928b8af4085d027d86a99b38, type: 3}
+  m_PrefabInstance: {fileID: 1253039466}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbdd393eb60538544aa112bbbd131bd0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1478772861 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9009271250527875239, guid: 29122a59d0ae96d4f87ac657b5e3e8de, type: 3}
@@ -31456,13 +31480,13 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 139779465}
-  - {fileID: 1467860619}
-  - {fileID: 183213479}
-  - {fileID: 636822358}
   - {fileID: 4522934081643172856}
   - {fileID: 1188832568}
   - {fileID: 1035492291}
   - {fileID: 879500316}
+  - {fileID: 183213479}
+  - {fileID: 1467860619}
+  - {fileID: 636822358}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
