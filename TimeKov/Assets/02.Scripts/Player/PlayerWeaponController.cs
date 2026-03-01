@@ -22,6 +22,24 @@ public class PlayerWeaponController : MonoBehaviour
     [Header("ItemId -> Kinemation Weapon Index")]
     public ItemIdToKinemationIndex[] weaponIndexMap;
 
+    // =========================
+    // ✅ Ammo Link (추가)
+    // =========================
+    [System.Serializable]
+    public struct WeaponIdToAmmoId
+    {
+        public int weaponItemId;
+        public int ammoItemId;
+    }
+
+    [Header("Ammo Link (WeaponItemId -> AmmoItemId)")]
+    [Tooltip("총 아이템ID와 탄약 아이템ID를 매핑해줘야 overlapsCount(탄창 최대)를 탄약 기준으로 계산함")]
+    public WeaponIdToAmmoId[] weaponAmmoMap;
+
+    [Header("Inventory Reference (Ammo Source)")]
+    [Tooltip("플레이어 인벤토리(탄약을 소비할 InventoryManager). 비어있으면 씬에서 자동 탐색 시도")]
+    public InventoryManager playerInventory;
+
     [Header("Hit")]
     [Tooltip("Enemy 레이어 포함")]
     public LayerMask hitMask = ~0;
@@ -85,6 +103,10 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (fpsPlayer == null)
             fpsPlayer = FindFirstObjectByType<FPSPlayer>();
+
+        // ✅ 인벤 참조 자동 탐색(비어있을 때만)
+        if (playerInventory == null)
+            playerInventory = FindFirstObjectByType<InventoryManager>();
     }
 
     private void Start()
@@ -134,7 +156,8 @@ public class PlayerWeaponController : MonoBehaviour
         // 임시: R키로 리로드
         if (!isReloading)
         {
-            if (Input.GetKeyDown(KeyCode.R) && currentAmmoInMag < weapon.magazinesize)
+            int cap = GetMagazineCapacity();
+            if (Input.GetKeyDown(KeyCode.R) && currentAmmoInMag < cap)
                 Reload();
         }
     }
@@ -170,7 +193,9 @@ public class PlayerWeaponController : MonoBehaviour
         Debug.Log($"[DATA] id={weapon.id} name={weapon.itemName} mag={weapon.magazinesize} fireRate={weapon.fireRate} reload={weapon.reloadTime} auto={weapon.isAutomatic}");
 
         // gameplay reset
-        currentAmmoInMag = Mathf.Max(0, weapon.magazinesize);
+        // ✅ 탄창 최대(cap)는 탄약 overlapsCount 기반 (매핑 없으면 기존 magazinesize로 fallback)
+        int cap = GetMagazineCapacity();
+        currentAmmoInMag = Mathf.Max(0, cap); // 기존 동작(장착 시 꽉 찬 상태) 유지
         isReloading = false;
         fireCooldown = 0f;
 
@@ -247,6 +272,61 @@ public class PlayerWeaponController : MonoBehaviour
     }
 
     // =========================
+    // ✅ Ammo Link Helpers (추가)
+    // =========================
+    private int GetAmmoItemIdForWeapon(int weaponItemId)
+    {
+        if (weaponAmmoMap == null) return 0;
+        for (int i = 0; i < weaponAmmoMap.Length; i++)
+        {
+            if (weaponAmmoMap[i].weaponItemId == weaponItemId)
+                return weaponAmmoMap[i].ammoItemId;
+        }
+        return 0;
+    }
+
+    private int GetMagazineCapacity()
+    {
+        if (weapon == null) return 0;
+
+        // 탄약 매핑이 있으면 overlapsCount 기반
+        int ammoId = GetAmmoItemIdForWeapon(equippedItemId);
+        if (ammoId != 0 && DataManager.Instance != null)
+        {
+            ItemInfo ammo = DataManager.Instance.GetItem(ammoId);
+            if (ammo != null)
+            {
+                // 요구사항: 탄창 최대 = 탄약 아이템 overlapsCount
+                int cap = Mathf.Max(1, ammo.overlapsCount);
+                return cap;
+            }
+        }
+
+        // 매핑/데이터 없으면 기존 magazinesize로 fallback (안전)
+        return Mathf.Max(0, weapon.magazinesize);
+    }
+
+    private int GetInventoryAmmoCount()
+    {
+        int ammoId = GetAmmoItemIdForWeapon(equippedItemId);
+        if (ammoId == 0) return 0;
+        if (playerInventory == null) return 0;
+
+        return playerInventory.GetTotalItemCount(ammoId);
+    }
+
+    private bool TryConsumeInventoryAmmo(int amount)
+    {
+        if (amount <= 0) return false;
+        int ammoId = GetAmmoItemIdForWeapon(equippedItemId);
+        if (ammoId == 0) return false;
+        if (playerInventory == null) return false;
+
+        // 부분소비 금지 정책은 InventoryManager.TryConsumeItem이 보장
+        return playerInventory.TryConsumeItem(ammoId, amount);
+    }
+
+    // =========================
     // Fire gate
     // =========================
     private bool CanFireNow()
@@ -296,7 +376,12 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) return;
         if (isReloading) return;
-        if (currentAmmoInMag >= weapon.magazinesize) return;
+
+        int cap = GetMagazineCapacity();
+        if (currentAmmoInMag >= cap) return;
+
+        // ✅ 인벤 탄약 0이면 장전 불가
+        if (GetInventoryAmmoCount() <= 0) return;
 
         StartCoroutine(ReloadRoutine());
     }
@@ -312,6 +397,8 @@ public class PlayerWeaponController : MonoBehaviour
         if (!CanFireNow()) return;
 
         if (fireCooldown > 0f) return;
+
+        // ✅ 탄창 0이면 발사 불가 (기존 동작 유지)
         if (currentAmmoInMag <= 0) return;
 
         FireRaycastAndVisual();
@@ -325,7 +412,7 @@ public class PlayerWeaponController : MonoBehaviour
         currentAmmoInMag--;
 
         if (debugLogFire)
-            Debug.Log($"[FIRE] id={equippedItemId} ammo={currentAmmoInMag}/{weapon.magazinesize} cooldown={fireCooldown:F3}");
+            Debug.Log($"[FIRE] id={equippedItemId} ammo={currentAmmoInMag}/{GetMagazineCapacity()} cooldown={fireCooldown:F3}");
 
         Fired?.Invoke();
     }
@@ -334,7 +421,12 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) yield break;
         if (isReloading) yield break;
-        if (currentAmmoInMag >= weapon.magazinesize) yield break;
+
+        int cap = GetMagazineCapacity();
+        if (currentAmmoInMag >= cap) yield break;
+
+        // ✅ 인벤 탄약 0이면 리로드 시작 자체를 막음
+        if (GetInventoryAmmoCount() <= 0) yield break;
 
         isReloading = true;
         OnReloadStart();
@@ -354,7 +446,25 @@ public class PlayerWeaponController : MonoBehaviour
     private void ApplyReload()
     {
         if (weapon == null) return;
-        currentAmmoInMag = weapon.magazinesize;
+
+        int cap = GetMagazineCapacity();
+        if (cap <= 0) return;
+
+        int need = cap - currentAmmoInMag;
+        if (need <= 0) return;
+
+        int available = GetInventoryAmmoCount();
+        if (available <= 0) return;
+
+        int load = Mathf.Min(need, available);
+
+        // ✅ 장전 시 인벤 탄약 소비 -> 탄창 채움
+        // (부분소비 금지 정책: load는 available 이하로 잡았기 때문에 항상 전량 소비 가능)
+        if (TryConsumeInventoryAmmo(load))
+        {
+            currentAmmoInMag += load;
+            currentAmmoInMag = Mathf.Clamp(currentAmmoInMag, 0, cap);
+        }
     }
 
     // =========================
@@ -647,7 +757,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     // UI Getters
     public int GetCurrentAmmo() => currentAmmoInMag;
-    public int GetMagazineSize() => weapon != null ? weapon.magazinesize : 0;
+    public int GetMagazineSize() => weapon != null ? GetMagazineCapacity() : 0; // ✅ 탄약 기반 cap
     public int GetEquippedItemId() => equippedItemId;
     public bool IsReloading() => isReloading;
     public bool HasWeaponEquipped() => weapon != null;

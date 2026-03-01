@@ -35,8 +35,9 @@ public class ShopManager : MonoBehaviour
 
     void Update()
     {
-      
+
     }
+
     public bool IsShopOpen()
     {
         return shopPanel != null && shopPanel.activeSelf;
@@ -178,9 +179,12 @@ public class ShopManager : MonoBehaviour
 
         // 판매가(임시): ItemDataBase의 SaleTime 그대로 사용 (너 DB 구조 기준)
         int sellPrice = 0;
-        var item = DataManager.Instance.GetItem(id);
-        if (item != null)
-            sellPrice = item.saleTime;
+        if (DataManager.Instance != null)
+        {
+            var item = DataManager.Instance.GetItem(id);
+            if (item != null)
+                sellPrice = item.saleTime;
+        }
 
         if (sellPrice < 0) sellPrice = 0;
 
@@ -192,6 +196,12 @@ public class ShopManager : MonoBehaviour
             invSlot.SetSlot(0, 0);
         else
             invSlot.SetSlot(id, newCount);
+
+        // ✅✅✅ [추가] 판매 후 인벤 UI 갱신(정렬/빈칸숨김/인벤 5/10 텍스트 갱신)
+        if (playerInventory != null)
+        {
+            playerInventory.ForceRefreshUI();
+        }
 
         Debug.Log($"[판매] {id} / +{sellPrice} / 남은 돈: {playerMoney}");
     }

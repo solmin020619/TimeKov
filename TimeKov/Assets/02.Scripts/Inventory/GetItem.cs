@@ -8,6 +8,9 @@ public class GetItem : MonoBehaviour
     public TextMeshProUGUI getItemText;
     public Image ItemIcon;
 
+    // ✅ 추가: 드랍 슬롯 수량 표시 텍스트 (Hierarchy의 Amount TMP를 여기에 연결)
+    public TextMeshProUGUI amountText;
+
     public int insertID;
     public int insertItemCount;
 
@@ -34,6 +37,23 @@ public class GetItem : MonoBehaviour
         RefreshUI();
     }
 
+    // ✅ 추가: 수량 텍스트 갱신(표시/숨김)
+    private void RefreshAmountUI()
+    {
+        if (amountText == null) return;
+
+        if (insertID != 0 && insertItemCount > 1)
+        {
+            amountText.gameObject.SetActive(true);
+            amountText.text = insertItemCount.ToString();
+        }
+        else
+        {
+            amountText.text = "";
+            amountText.gameObject.SetActive(false);
+        }
+    }
+
     public void RefreshUI()
     {
         if (getItemText == null || ItemIcon == null)
@@ -44,13 +64,15 @@ public class GetItem : MonoBehaviour
 
         if (insertID == 0)
         {
-            // ✅ 문제 1: 빈칸에 글씨 뜨면 안 됨
+            // ✅ 빈칸에 글씨 뜨면 안 됨
             getItemText.text = "";
 
-            // ✅ 문제 2: 빈칸이면 아이콘/이미지는 반드시 슬롯 배경으로 복구
+            // ✅ 빈칸이면 아이콘/이미지는 반드시 슬롯 배경으로 복구
             ItemIcon.sprite = defaultSlotSprite;
             ItemIcon.enabled = (defaultSlotSprite != null);
 
+            // ✅ 추가: 빈칸이면 수량 숨김
+            RefreshAmountUI();
             return;
         }
 
@@ -63,6 +85,9 @@ public class GetItem : MonoBehaviour
             // 그래도 아이콘 못 찾으면 슬롯배경으로 fallback
             ItemIcon.sprite = defaultSlotSprite;
             ItemIcon.enabled = (defaultSlotSprite != null);
+
+            // ✅ 추가: 데이터매니저가 없어도 수량은 표시 가능
+            RefreshAmountUI();
             return;
         }
 
@@ -74,6 +99,9 @@ public class GetItem : MonoBehaviour
 
             ItemIcon.sprite = defaultSlotSprite;
             ItemIcon.enabled = (defaultSlotSprite != null);
+
+            // ✅ 추가
+            RefreshAmountUI();
             return;
         }
 
@@ -92,6 +120,9 @@ public class GetItem : MonoBehaviour
             ItemIcon.enabled = (defaultSlotSprite != null);
             Debug.LogWarning($"[GetItem] Missing icon sprite: Resources/Icon/{insertID}");
         }
+
+        // ✅ 추가: 정상 표시 케이스에서도 수량 갱신
+        RefreshAmountUI();
     }
 
     public void ItemClick()
@@ -111,10 +142,26 @@ public class GetItem : MonoBehaviour
             return;
         }
 
-        // 인벤에 넣기
-        inv.AddItem(insertID, insertItemCount);
+        // ✅ 핵심: 인벤에 "넣은 만큼만" 드랍에서 줄이기 (인벤 꽉차면 증발 방지)
+        int remaining = inv.TryAddItemFromLoot(insertID, insertItemCount);
+        int added = insertItemCount - remaining;
 
-        // ✅ 먹었으면 해당 슬롯은 비우고 UI도 즉시 빈칸으로
+        if (added <= 0)
+        {
+            // 하나도 못 넣었으면: 드랍 슬롯 변화 없음
+            Debug.Log("[GetItem] 인벤이 가득 차서 루팅 실패");
+            return;
+        }
+
+        if (remaining > 0)
+        {
+            // 부분만 들어갔으면: 드랍 슬롯 수량만 감소 (아이템 유지)
+            insertItemCount = remaining;
+            RefreshUI();
+            return;
+        }
+
+        // 전부 들어갔으면: 슬롯 비우기
         insertID = 0;
         insertItemCount = 0;
         RefreshUI();

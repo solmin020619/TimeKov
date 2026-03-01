@@ -71,8 +71,18 @@ public class EquipmentManager : MonoBehaviour
         equipSlot.SetSlot(newId, 1);
 
         // 인벤 슬롯은 장비템이니까 "교환"만 (스택 개념 없음)
-        if (oldId == 0) invSlot.SetSlot(0, 0);
-        else invSlot.SetSlot(oldId, 1);
+        if (oldId == 0)
+        {
+            invSlot.SetSlot(0, 0);
+
+            // ✅ 배그식(B): 빈 슬롯은 화면에서 바로 사라지게
+            invSlot.gameObject.SetActive(false);
+        }
+        else
+        {
+            invSlot.SetSlot(oldId, 1);
+            if (!invSlot.gameObject.activeSelf) invSlot.gameObject.SetActive(true);
+        }
 
         // ✅ [추가] 가방 장착/교체면 인벤 칸수 갱신
         if (type.Value == EquipSlotType.Bag && inven != null)

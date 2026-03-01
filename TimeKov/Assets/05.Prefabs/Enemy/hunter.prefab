@@ -726,6 +726,7 @@ GameObject:
   - component: {fileID: 1957974272831920470}
   - component: {fileID: 6905181736662738918}
   - component: {fileID: 3486406762328473993}
+  - component: {fileID: -1742848027772647041}
   m_Layer: 0
   m_Name: hunter
   m_TagString: Untagged
@@ -882,6 +883,20 @@ MonoBehaviour:
   obstacleMask:
     serializedVersion: 2
     m_Bits: 1024
+--- !u!114 &-1742848027772647041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2174521992536225324}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27e003c987c8bb642a975d740bcfebda, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enemyHealth: {fileID: 1957974272831920470}
+  corpsePrefab: {fileID: 4058803597381055991, guid: d13e72dc96790ab4aaa119e164235b04, type: 3}
 --- !u!1 &2500334390537028487
 GameObject:
   m_ObjectHideFlags: 0

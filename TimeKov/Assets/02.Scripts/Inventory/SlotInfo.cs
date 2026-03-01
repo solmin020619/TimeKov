@@ -5,65 +5,58 @@ using UnityEngine.UI;
 
 public class SlotInfo : MonoBehaviour
 {
-    public int slotIndex; // 아이템 ID
+    public int slotIndex;
     public int slotOldIndex;
-    public int itemCount; // 아이템 개수
+    public int itemCount;
 
-    public Image iconImage; // 아이템 아이콘 (자식 Icon)
+    public Image iconImage;
     public TextMeshProUGUI slotText;
-    public TextMeshProUGUI amountText; // 개수 표시 텍스트
+    public TextMeshProUGUI amountText; // 인벤: 수량 / 상점: 가격 재활용 가능
 
-    public enum SlotOwnerType
-    {
-        Inventory,
-        Equip,
-        Warehouse,
-        Loot
-    }
+    public enum SlotOwnerType { Inventory, Equip, Warehouse, Loot, Shop }
     public SlotOwnerType ownerType;
 
     [Header("Shop Price (Optional)")]
-    public TextMeshProUGUI priceText; // 프리팹의 Image 아래 Text(TMP) 연결
+    public TextMeshProUGUI priceText; // 있으면 이걸 가격으로, 없으면(상점 슬롯일 때만) amountText 사용
 
     private GameObject priceRoot;
     private ShopSlotMarker shopMarker;
-
-    private bool shopPriceInitialized = false;
-
-    // 장비칸 기본 문구(총기칸/방탄모칸 등) 복구용
     private string defaultSlotText = "";
-
-    // ✅ (추가) 아이템 없을 때 보여줄 "기본 슬롯 배경 아이콘" 스프라이트 캐시
-    private Sprite defaultIconSprite = null;
-    private bool defaultIconSpriteCaptured = false;
 
     private void Awake()
     {
         shopMarker = GetComponent<ShopSlotMarker>();
+        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
 
-        // 초기 슬롯 텍스트 저장
+        if (isShopSlot && ownerType == SlotOwnerType.Inventory)
+            ownerType = SlotOwnerType.Shop;
+
         if (slotText != null)
             defaultSlotText = slotText.text;
-
-        // ✅ (추가) Icon에 원래 들어있던 기본 스프라이트(= 슬롯 배경) 저장
-        if (iconImage != null)
-        {
-            defaultIconSprite = iconImage.sprite; // 인스펙터에 박혀있는 슬롯 배경 이미지
-            defaultIconSpriteCaptured = true;
-        }
 
         if (priceText != null && priceText.transform.parent != null)
             priceRoot = priceText.transform.parent.gameObject;
 
-        // 기본은 무조건 OFF (상점 슬롯에서만 켜짐)
-        if (priceRoot != null) priceRoot.SetActive(false);
-        if (priceText != null) priceText.gameObject.SetActive(false);
+        if (priceRoot == this.gameObject)
+            priceRoot = null;
+
+        // ✅ 인벤 수량 텍스트는 절대 Awake에서 끄지 않음
+        if (!isShopSlot)
+        {
+            if (priceRoot != null) priceRoot.SetActive(false);
+            if (priceText != null) priceText.gameObject.SetActive(false);
+
+            if (amountText != null && !amountText.gameObject.activeSelf)
+                amountText.gameObject.SetActive(true);
+        }
+        else
+        {
+            // ✅ 상점 슬롯인데 priceText가 비어있으면 amountText를 가격 표시로 재활용
+            if (priceText == null) priceText = amountText;
+        }
     }
 
-    private void OnEnable()
-    {
-        RefreshShopPriceUI();
-    }
+    private void OnEnable() => RefreshShopPriceUI();
 
     private IEnumerator Start()
     {
@@ -74,28 +67,25 @@ public class SlotInfo : MonoBehaviour
     public void SetSlot(int id, int count)
     {
         if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
-        bool isShopSlot = (shopMarker != null);
+        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
+
+        if (isShopSlot && ownerType == SlotOwnerType.Inventory)
+            ownerType = SlotOwnerType.Shop;
 
         int effectiveId = isShopSlot ? shopMarker.itemId : id;
 
         slotIndex = effectiveId;
         itemCount = count;
 
-        // (선택) 배그 리스트 느낌: 빈 슬롯은 숨김 (장비칸/상점칸 제외)
-        if (!isShopSlot && ownerType != SlotOwnerType.Equip)
-            gameObject.SetActive(slotIndex != 0);
-        else
-            if (!gameObject.activeSelf) gameObject.SetActive(true);
+        if (!gameObject.activeSelf) gameObject.SetActive(true);
 
-        // 빈 슬롯
-        if (slotIndex == 0)
+        if (slotIndex == 0 || itemCount <= 0)
         {
             if (slotText != null)
                 slotText.text = (ownerType == SlotOwnerType.Equip) ? defaultSlotText : "";
 
             slotOldIndex = 0;
 
-            // 아이템 아이콘 비우기(=투명/끄기) + 배경은 IconBG가 들고있게 해야 함
             if (!isShopSlot && iconImage != null)
             {
                 iconImage.sprite = null;
@@ -107,14 +97,12 @@ public class SlotInfo : MonoBehaviour
             return;
         }
 
-        // 아이템 있을 때: 아이콘
         if (iconImage != null)
         {
             iconImage.sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
-            iconImage.enabled = true;
+            iconImage.enabled = (iconImage.sprite != null);
         }
 
-        // ✅ 아이템 있을 때: 이름 즉시 세팅 (Update 기다리지 않게)
         if (slotText != null)
         {
             var item = DataManager.Instance?.GetItem(slotIndex);
@@ -129,29 +117,34 @@ public class SlotInfo : MonoBehaviour
     void UpdateAmountText()
     {
         if (amountText == null) return;
+
+        if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
+        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
+
+        // ✅ 상점 슬롯은 amountText를 가격으로 쓰므로 수량 로직이 덮어쓰면 안 됨
+        if (isShopSlot) return;
+
+        if (!amountText.gameObject.activeSelf)
+            amountText.gameObject.SetActive(true);
+
         amountText.text = (slotIndex == 0 || itemCount <= 1) ? "" : itemCount.ToString();
     }
 
     private void RefreshShopPriceUI()
     {
+        if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
+        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
+        if (!isShopSlot) return;
+
+        if (priceText == null) priceText = amountText;
         if (priceText == null) return;
 
         if (priceRoot == null && priceText.transform.parent != null)
             priceRoot = priceText.transform.parent.gameObject;
 
-        if (shopMarker == null)
-            shopMarker = GetComponent<ShopSlotMarker>();
+        if (priceRoot == this.gameObject)
+            priceRoot = null;
 
-        // 상점 슬롯이 아니면 무조건 숨김
-        if (shopMarker == null)
-        {
-            if (priceRoot != null && priceRoot.activeSelf) priceRoot.SetActive(false);
-            if (priceText.gameObject.activeSelf) priceText.gameObject.SetActive(false);
-            shopPriceInitialized = false;
-            return;
-        }
-
-        // ✅ 상점 슬롯이면 표시 (배경+텍스트)
         if (priceRoot != null && !priceRoot.activeSelf) priceRoot.SetActive(true);
         if (!priceText.gameObject.activeSelf) priceText.gameObject.SetActive(true);
 
@@ -159,34 +152,14 @@ public class SlotInfo : MonoBehaviour
 
         int price = 0;
         var item = DataManager.Instance?.GetItem(targetId);
-        if (item != null)
-        {
-            price = item.saleTime; // 너 프로젝트 기준
-        }
-
+        if (item != null) price = item.saleTime;
         if (price <= 0) price = shopMarker.buyPrice;
 
         priceText.text = $"{price}s";
-        shopPriceInitialized = true;
     }
 
     void Update()
     {
-        // ✅ 상점 슬롯인데 SetSlot/OnEnable이 안 타서 가격이 한 번도 안 바뀌는 경우 대비
-        if (!shopPriceInitialized)
-        {
-            if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
-
-            if (shopMarker != null && priceText != null)
-            {
-                bool rootOff = (priceRoot != null && !priceRoot.activeSelf);
-                bool looksUninitialized = rootOff || priceText.text == "d" || string.IsNullOrEmpty(priceText.text);
-
-                if (looksUninitialized)
-                    RefreshShopPriceUI();
-            }
-        }
-
         if (slotIndex == 0) return;
 
         if (slotIndex != slotOldIndex)

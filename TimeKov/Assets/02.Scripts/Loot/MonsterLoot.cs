@@ -35,6 +35,16 @@ public class MonsterLoot : MonoBehaviour
     public GetItem[] lootSlots;              // Drop 패널 오른쪽 슬롯들
     public GameObject playerInventoryManagerGO;
 
+    [Header("BG식(빈 슬롯 숨김/자동 정렬)")]
+    [Tooltip("인벤토리처럼: 아이템 있는 슬롯만 보이게 + 아이템 빠지면 아래 아이템이 위로 당겨짐")]
+    public bool enableBGStyleLoot = true;
+
+    [Tooltip("루팅창이 열려있는 동안 슬롯 상태를 주기적으로 감지해서 자동 정렬/숨김 처리")]
+    public float bgSyncInterval = 0.1f;
+
+    private float _nextBgSyncTime = 0f;
+    private int _lastSnapshotHash = 0;
+
     private bool _rolled = false;
     private int _rolledTier = -1;            // 1~5
     private string _rolledTableId = "";      // 예: C_T3
@@ -54,7 +64,6 @@ public class MonsterLoot : MonoBehaviour
         else
             lootPanelRoot.SetActive(true);
 
-        // Loot 상태가 아니면 중단(토글 실패 등)
         if (UIStateManager.Instance != null &&
             UIStateManager.Instance.GetCurrentState() != UIStateManager.UIState.Loot)
             return;
@@ -65,7 +74,6 @@ public class MonsterLoot : MonoBehaviour
             return;
         }
 
-        // 슬롯/인벤 연결 체크
         if (lootSlots == null || lootSlots.Length == 0)
         {
             Debug.LogError("[MonsterLoot] lootSlots 비어있음. Drop 패널 하위에 GetItem 슬롯이 있어야 함");
@@ -80,10 +88,9 @@ public class MonsterLoot : MonoBehaviour
 
         if (!_rolled)
         {
-            // ✅ 1단계: Tier 먼저 뽑고 tableId 만들기
             _rolledTier = RollTier();
             _rolledTableId = BuildTableId(monsterType, _rolledTier);
-            tableId = _rolledTableId; // 인스펙터에서도 보이게
+            tableId = _rolledTableId;
 
             RollAndFill(_rolledTableId);
             _rolled = true;
@@ -92,8 +99,13 @@ public class MonsterLoot : MonoBehaviour
         }
         else
         {
-            // ✅ 재오픈해도 동일 테이블/동일 아이템 유지
             Debug.Log($"[MonsterLoot] Re-open fixed loot 유지 (Tier=T{_rolledTier}, tableId={_rolledTableId})");
+        }
+
+        if (enableBGStyleLoot)
+        {
+            ApplyBGStyleVisibility();
+            CompactAndRefreshIfNeeded(force: true);
         }
     }
 
@@ -102,7 +114,6 @@ public class MonsterLoot : MonoBehaviour
         EnsureRefs();
         ClearSlots();
 
-        // Guaranteed: 첫 유효 슬롯에 1개
         int guaranteedSlot = GetNextValidSlotIndex(0);
         if (guaranteedSlot == -1)
         {
@@ -112,7 +123,6 @@ public class MonsterLoot : MonoBehaviour
 
         FillOne(resolvedTableId, MonsterDropType.Guaranteed, guaranteedSlot);
 
-        // Bonus: min~max회
         int rollCount = Random.Range(minRoll, maxRoll + 1);
         int filled = 0;
 
@@ -124,13 +134,18 @@ public class MonsterLoot : MonoBehaviour
             if (FillOne(resolvedTableId, MonsterDropType.Bonus, i))
                 filled++;
         }
+
+        if (enableBGStyleLoot)
+        {
+            ApplyBGStyleVisibility();
+            CompactAndRefreshIfNeeded(force: true);
+        }
     }
 
     private bool FillOne(string resolvedTableId, MonsterDropType type, int slotIndex)
     {
         EnsureRefs();
 
-        // Null 가드 (NRE 방지)
         if (dropDb == null) return false;
         if (lootSlots == null || lootSlots.Length == 0) return false;
         if (slotIndex < 0 || slotIndex >= lootSlots.Length) return false;
@@ -147,7 +162,6 @@ public class MonsterLoot : MonoBehaviour
         var picked = PickByWeight(list);
         if (picked == null) return false;
 
-        // ItemDB 체크 (없으면 스킵)
         if (itemDb != null && itemDb.GetItemById(picked.ItemID) == null)
         {
             Debug.LogWarning($"[MonsterLoot] ItemDB에 없는 ItemID={picked.ItemID} 스킵");
@@ -159,12 +173,8 @@ public class MonsterLoot : MonoBehaviour
         return true;
     }
 
-    // -------------------------
-    // Tier Roll
-    // -------------------------
     private int RollTier()
     {
-        // maxTier 제한 반영 (예: 3이면 T1~T3만)
         int cap = Mathf.Clamp(maxTier, 1, 5);
 
         float w1 = (cap >= 1) ? Mathf.Max(0f, T1) : 0f;
@@ -174,11 +184,7 @@ public class MonsterLoot : MonoBehaviour
         float w5 = (cap >= 5) ? Mathf.Max(0f, T5) : 0f;
 
         float sum = w1 + w2 + w3 + w4 + w5;
-        if (sum <= 0f)
-        {
-            // 전부 0이면 안전하게 T1 고정
-            return 1;
-        }
+        if (sum <= 0f) return 1;
 
         float r = Random.value * sum;
         float acc = 0f;
@@ -196,10 +202,8 @@ public class MonsterLoot : MonoBehaviour
         return $"{prefix}_T{tier}";
     }
 
-    // MonsterType -> Table Prefix 매핑 (시트 오른쪽 설명 그대로)
     private string GetPrefixFromMonsterType(string mType)
     {
-        // 정확히 일치하는 케이스들
         switch (mType)
         {
             case "Chaser": return "C";
@@ -209,19 +213,14 @@ public class MonsterLoot : MonoBehaviour
             case "Exploder": return "E";
         }
 
-        // 혹시 너희가 Shooter로 뭉쳐 쓰는 경우 대비
-        if (mType == "Shooter") return "SR"; // 기본값(원하면 바꿔)
+        if (mType == "Shooter") return "SR";
         if (mType.Contains("Pistol")) return "SP";
         if (mType.Contains("Shotgun")) return "SS";
         if (mType.Contains("Rifle")) return "SR";
 
-        // 마지막 fallback: CSV에 맞춰 직접 쓰는 경우를 위해 그냥 mType 첫 글자 사용은 위험해서 C로 둠
         return "C";
     }
 
-    // -------------------------
-    // Slots / UI refs
-    // -------------------------
     private void EnsureRefs()
     {
         // 1) Drop 패널(비활성 포함) 찾기
@@ -229,10 +228,33 @@ public class MonsterLoot : MonoBehaviour
             lootPanelRoot = FindSceneObjectEvenIfInactive("Drop");
 
         // 2) InventoryManager 찾기 (비활성 포함)
+        // ✅ 핵심 수정: "InventoryManager 타입이면 아무거나"가 아니라
+        //   - 실제 타입이 정확히 InventoryManager인 컴포넌트만 (서브클래스/다른 매니저 제외)
+        //   - 가능하면 GameObject 이름이 "InventoryManager"인 걸 우선
         if (playerInventoryManagerGO == null)
         {
-            var inv = FindObjectOfType<InventoryManager>(true);
-            if (inv != null) playerInventoryManagerGO = inv.gameObject;
+            InventoryManager picked = null;
+            var all = Resources.FindObjectsOfTypeAll<InventoryManager>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                var inv = all[i];
+                if (inv == null) continue;
+                if (!inv.gameObject.scene.IsValid()) continue; // 에셋/프리팹 제외
+
+                // 서브클래스(예: WarehouseManager : InventoryManager)면 제외
+                if (inv.GetType() != typeof(InventoryManager)) continue;
+
+                if (inv.gameObject.name == "InventoryManager")
+                {
+                    picked = inv;
+                    break;
+                }
+
+                if (picked == null) picked = inv;
+            }
+
+            if (picked != null)
+                playerInventoryManagerGO = picked.gameObject;
         }
 
         // 3) GetItem 슬롯 찾기 (길이는 있는데 요소가 None인 케이스 포함 재빌드)
@@ -269,25 +291,129 @@ public class MonsterLoot : MonoBehaviour
             if (lootSlots[i] != null && playerInventoryManagerGO != null)
                 lootSlots[i].SetData(playerInventoryManagerGO, 0, 0);
         }
+
+        if (enableBGStyleLoot)
+        {
+            ApplyBGStyleVisibility();
+            _lastSnapshotHash = 0;
+        }
+    }
+
+    private void Update()
+    {
+        if (!enableBGStyleLoot) return;
+        if (lootPanelRoot == null) return;
+        if (!lootPanelRoot.activeInHierarchy) return;
+        if (Time.unscaledTime < _nextBgSyncTime) return;
+
+        _nextBgSyncTime = Time.unscaledTime + Mathf.Max(0.02f, bgSyncInterval);
+        CompactAndRefreshIfNeeded(force: false);
+    }
+
+    private void CompactAndRefreshIfNeeded(bool force)
+    {
+        if (lootSlots == null || lootSlots.Length == 0) return;
+        if (playerInventoryManagerGO == null) return;
+
+        int snapshotHash = ComputeSnapshotHash();
+        if (!force && snapshotHash == _lastSnapshotHash) return;
+        _lastSnapshotHash = snapshotHash;
+
+        var items = new List<(int id, int count)>(lootSlots.Length);
+        for (int i = 0; i < lootSlots.Length; i++)
+        {
+            var slot = lootSlots[i];
+            if (slot == null) continue;
+
+            int id = ReadIntField(slot, "InsertID", "insertID", "itemId", "slotIndex");
+            int count = ReadIntField(slot, "InsertItemCount", "insertItemCount", "count", "itemCount");
+
+            if (id != 0 && count > 0)
+                items.Add((id, count));
+        }
+
+        for (int i = 0; i < lootSlots.Length; i++)
+        {
+            if (lootSlots[i] == null) continue;
+            if (i < items.Count)
+                lootSlots[i].SetData(playerInventoryManagerGO, items[i].id, items[i].count);
+            else
+                lootSlots[i].SetData(playerInventoryManagerGO, 0, 0);
+        }
+
+        ApplyBGStyleVisibility();
+    }
+
+    private void ApplyBGStyleVisibility()
+    {
+        if (lootSlots == null) return;
+        for (int i = 0; i < lootSlots.Length; i++)
+        {
+            var slot = lootSlots[i];
+            if (slot == null) continue;
+
+            int id = ReadIntField(slot, "InsertID", "insertID", "itemId", "slotIndex");
+            int count = ReadIntField(slot, "InsertItemCount", "insertItemCount", "count", "itemCount");
+
+            bool shouldShow = (id != 0 && count > 0);
+            if (slot.gameObject.activeSelf != shouldShow)
+                slot.gameObject.SetActive(shouldShow);
+        }
+    }
+
+    private int ComputeSnapshotHash()
+    {
+        unchecked
+        {
+            int hash = 17;
+            if (lootSlots == null) return hash;
+
+            for (int i = 0; i < lootSlots.Length; i++)
+            {
+                var slot = lootSlots[i];
+                if (slot == null) continue;
+
+                int id = ReadIntField(slot, "InsertID", "insertID", "itemId", "slotIndex");
+                int count = ReadIntField(slot, "InsertItemCount", "insertItemCount", "count", "itemCount");
+
+                hash = hash * 31 + id;
+                hash = hash * 31 + count;
+            }
+            return hash;
+        }
+    }
+
+    private int ReadIntField(object obj, params string[] fieldNames)
+    {
+        if (obj == null) return 0;
+        var type = obj.GetType();
+
+        for (int i = 0; i < fieldNames.Length; i++)
+        {
+            var f = type.GetField(fieldNames[i]);
+            if (f != null && f.FieldType == typeof(int))
+                return (int)f.GetValue(obj);
+
+            var p = type.GetProperty(fieldNames[i]);
+            if (p != null && p.PropertyType == typeof(int) && p.CanRead)
+                return (int)p.GetValue(obj, null);
+        }
+        return 0;
     }
 
     private GameObject FindSceneObjectEvenIfInactive(string targetName)
     {
-        // GameObject.Find는 비활성 못 찾음 -> Resources로 씬 오브젝트 전체 탐색
         var all = Resources.FindObjectsOfTypeAll<Transform>();
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
             if (t == null) continue;
-            if (!t.gameObject.scene.IsValid()) continue; // 씬 오브젝트만
+            if (!t.gameObject.scene.IsValid()) continue;
             if (t.name == targetName) return t.gameObject;
         }
         return null;
     }
 
-    // -------------------------
-    // Weight Pick
-    // -------------------------
     private MonsterDropRow PickByWeight(List<MonsterDropRow> entries)
     {
         float sum = 0f;

@@ -23,13 +23,12 @@ public class SlotRightClick : MonoBehaviour, IPointerClickHandler
         if (eventData.button != PointerEventData.InputButton.Right)
             return;
 
-        if (slot == null || menu == null || ownerManager == null)
+        if (slot == null || menu == null)
             return;
 
-        // ✅ [추가] 창고(Warehouse) 슬롯은 우클릭 메뉴 "아예 안 뜨게" (파밍상자처럼)
+        // ✅ 창고 슬롯은 우클릭 메뉴 안 뜨게 유지
         if (slot.ownerType == SlotInfo.SlotOwnerType.Warehouse)
         {
-            // 혹시 다른 곳에서 열려있던 메뉴가 남아있으면 닫기 시도 (메서드 없어도 에러 안 남)
             menu.SendMessage("HideMenu", SendMessageOptions.DontRequireReceiver);
             menu.SendMessage("CloseMenu", SendMessageOptions.DontRequireReceiver);
             menu.SendMessage("Hide", SendMessageOptions.DontRequireReceiver);
@@ -37,7 +36,24 @@ public class SlotRightClick : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        // 나머지는 기존 그대로
-        menu.Show(slot, ownerManager, eventData.position);
+        // ✅ 장비칸(Equip)은 InventoryManager가 부모에 없을 수 있음 -> 플레이어 인벤 매니저 찾아서 주입
+        InventoryManager resolvedOwner = ownerManager;
+        if (resolvedOwner == null)
+        {
+            var all = FindObjectsByType<InventoryManager>(FindObjectsSortMode.None);
+            foreach (var m in all)
+            {
+                if (m.ownerType == InventoryManager.InventoryOwnerType.Player)
+                {
+                    resolvedOwner = m;
+                    break;
+                }
+            }
+        }
+
+        if (resolvedOwner == null)
+            return;
+
+        menu.Show(slot, resolvedOwner, eventData.position);
     }
 }

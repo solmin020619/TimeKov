@@ -148,12 +148,9 @@ GameObject:
   - component: {fileID: 4046662273388661145}
   - component: {fileID: 200028987282615874}
   - component: {fileID: 2745044400352255117}
-  - component: {fileID: 2337632056848987466}
-  - component: {fileID: 588442638419262282}
-  - component: {fileID: 3757646248385400856}
-  - component: {fileID: 5549222302182304720}
+  - component: {fileID: 1106543898920455583}
   m_Layer: 5
-  m_Name: Slot
+  m_Name: DropSlot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -177,10 +174,10 @@ RectTransform:
   - {fileID: 3514994678013596361}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.5}
-  m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 540}
-  m_SizeDelta: {x: 450, y: 75}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &4046662273388661145
 CanvasRenderer:
@@ -264,9 +261,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 5549222302182304720}
-        m_TargetAssemblyTypeName: SlotInfo, Assembly-CSharp
-        m_MethodName: SlotClick
+      - m_Target: {fileID: 1106543898920455583}
+        m_TargetAssemblyTypeName: GetItem, Assembly-CSharp
+        m_MethodName: ItemClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -276,7 +273,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &2337632056848987466
+--- !u!114 &1106543898920455583
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -285,64 +282,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 3004623949922908827}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 111d555619ab8ca439455889f72f2c48, type: 3}
+  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  doubleClickTime: 0.25
-  invenManager: {fileID: 0}
---- !u!114 &588442638419262282
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3004623949922908827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc1e3225939630b46a9eafa087ed9b8b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ownerManager: {fileID: 0}
---- !u!114 &3757646248385400856
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3004623949922908827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_IgnoreLayout: 0
-  m_MinWidth: -1
-  m_MinHeight: -1
-  m_PreferredWidth: -1
-  m_PreferredHeight: 80
-  m_FlexibleWidth: -1
-  m_FlexibleHeight: -1
-  m_LayoutPriority: 1
---- !u!114 &5549222302182304720
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3004623949922908827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 23285d30fa04cae46b3665531ea9e176, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  slotIndex: 0
-  slotOldIndex: 0
-  itemCount: 0
-  iconImage: {fileID: 8847100435151674293}
-  slotText: {fileID: 839445203947945951}
-  amountText: {fileID: 6121178744931085870}
-  ownerType: 0
-  priceText: {fileID: 6121178744931085870}
+  invenMana: {fileID: 0}
+  getItemText: {fileID: 839445203947945951}
+  ItemIcon: {fileID: 8847100435151674293}
+  insertID: 0
+  insertItemCount: 0
 --- !u!1 &5281174338692283593
 GameObject:
   m_ObjectHideFlags: 0
