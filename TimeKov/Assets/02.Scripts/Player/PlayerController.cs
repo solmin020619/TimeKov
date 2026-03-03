@@ -83,6 +83,9 @@ public class PlayerController : MonoBehaviour
     public Vector3 MoveInput => moveInput;
     public bool IsRunning => isRunning;
 
+    // ✅ [추가] UI 열렸을 때 입력 차단용 캐시
+    private bool wasGameplayEnabled = true;
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -145,6 +148,35 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        // ✅ [추가] UI가 열려있으면: 이동/시점/조준 입력 전부 차단
+        // (Time.timeScale은 건드리지 않아서 시간은 계속 줄어듦)
+        bool gameplayEnabled = UIStateManager.GameplayInputEnabled;
+
+        if (!gameplayEnabled)
+        {
+            // UI 열리는 순간에만 1회 리셋(불필요한 연산 줄임)
+            if (wasGameplayEnabled)
+            {
+                wasGameplayEnabled = false;
+
+                moveInput = Vector3.zero;
+                isRunning = false;
+
+                // 뷰모델도 "정지 상태"로 보내서 손/가동 입력 멈춤
+                if (viewModel != null)
+                {
+                    viewModel.SetMoveInput(Vector2.zero, false, false);
+                    viewModel.SetAiming(false);
+                }
+            }
+
+            return; // ✅ 여기서 Update 입력 처리 중단
+        }
+
+        // UI 닫혔을 때 플래그 복구
+        if (!wasGameplayEnabled)
+            wasGameplayEnabled = true;
+
         HandleInput();
         HandleMouseLook();
         PushToViewModel(); // ⭐ FPSPlayer에 입력 주입
@@ -152,6 +184,19 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // ✅ [추가] UI 열려있으면: 물리 이동도 멈춰서 미끄러짐/잔진동 방지
+        if (!UIStateManager.GameplayInputEnabled)
+        {
+            Vector3 vel = rb.linearVelocity;
+            vel.x = 0f;
+            vel.z = 0f;
+            vel.y = 0f;
+            rb.linearVelocity = vel;
+
+            LockYPosition();
+            return;
+        }
+
         MoveRigidbody();
         HandleStaminaFixed();     // 스태미나 처리는 FixedUpdate 기준으로 통일(깜빡임 감소)
         ApplyCachedYawRotation();

@@ -1,16 +1,18 @@
-﻿// UIStateManager.cs (원본 유지 + Loot 상태 추가 + 레이드에서 인벤만 열리게 옵션)
-using UnityEngine;
+﻿using UnityEngine;
 
 public class UIStateManager : MonoBehaviour
 {
     public static UIStateManager Instance;
 
+    public static bool GameplayInputEnabled { get; private set; } = true;
+
     public enum UIState
     {
         None,
-        Inventory,   // I키: 인벤(옵션에 따라 창고 포함/미포함)
-        Shop,        // F키: 상점
-        Loot         // F키: 파밍 상자(루팅패널 + 인벤 같이)
+        Inventory,
+        Shop,
+        Loot,
+        Pause
     }
 
     [Header("UI Panels")]
@@ -18,29 +20,32 @@ public class UIStateManager : MonoBehaviour
     public GameObject warehouseUI;
     public GameObject shopUI;
 
-    [Header("Loot UI (루팅패널은 상자마다 다를 수 있어서 런타임 주입도 지원)")]
-    public GameObject defaultLootUI; // (선택) 공통 루팅 UI가 있으면 연결, 없으면 비워도 됨
+    [Header("Pause Root & Panels")]
+    public GameObject pauseRoot;          // ✅ PauseSystem (부모)
+    public GameObject pauseMainPanel;     // ✅ Pause_V1Blue (실제 Pause 패널)
+    public GameObject pauseSettingsPanel; // ✅ SettingsSystem (설정 패널 루트)
+
+    [Header("Loot UI")]
+    public GameObject defaultLootUI;
 
     [Header("Rules")]
-    [Tooltip("I키 Inventory 상태에서 창고 UI도 같이 켤지(기지=true / 레이드=false)")]
     public bool enableWarehouseInInventory = true;
 
-    // ✅ [추가] "창고 이동" 버튼(기지에서 인벤 열 때만 보이게)
-    // 인벤 UI 내부에 있는 버튼 오브젝트를 여기로 연결해주면 됨.
     [Header("Inventory Buttons (Optional)")]
     public GameObject moveToWarehouseButton;
 
     [Header("Managers (optional but recommended)")]
     public ShopManager shopManager;
 
-    // ✅ [추가] DimBlocker(어둡게 + 입력차단) 제어 매니저 (없어도 동작은 함)
     [Header("Dim Blocker (Optional)")]
     public DimBlockerManager dimBlockerManager;
 
     private UIState currentState = UIState.None;
 
-    // 현재 열려있는 루팅 UI(상자마다 다르면 여기로 주입)
     private GameObject currentLootUI = null;
+
+    // ✅ Pause 안에서 Settings가 열려있는지 플래그
+    private bool pauseSettingsOpen = false;
 
     void Awake()
     {
@@ -51,60 +56,87 @@ public class UIStateManager : MonoBehaviour
         }
         Instance = this;
 
-        // ✅ [추가] 인스펙터에 안 넣어도 자동으로 찾아줌
         if (dimBlockerManager == null)
             dimBlockerManager = FindAnyObjectByType<DimBlockerManager>();
     }
 
-    public UIState GetCurrentState()
+    void Update()
     {
-        return currentState;
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            HandleEscape();
+        }
+
+        // ✅ 외부에서 패널을 직접 껐다/켰어도 상태가 꼬이지 않게 싱크
+        if (currentState != UIState.None && !IsAnyManagedUIPanelActive())
+        {
+            currentState = UIState.None;
+            pauseSettingsOpen = false;
+            ApplyState();
+        }
     }
 
-    public bool IsUIBlocking()
+    public UIState GetCurrentState() => currentState;
+    public bool IsUIBlocking() => currentState != UIState.None;
+
+    // ✅ ESC 규칙
+    // 1) 아무 UI도 없으면 -> Pause 켜기
+    // 2) Pause 상태에서 Settings가 열려있으면 -> Settings 먼저 닫기
+    // 3) 그 외 UI가 열려있으면 -> 닫기(None)
+    public void HandleEscape()
     {
-        return currentState != UIState.None;
+        if (currentState == UIState.None)
+        {
+            currentState = UIState.Pause;
+            pauseSettingsOpen = false;
+            ApplyState();
+            return;
+        }
+
+        if (currentState == UIState.Pause && pauseSettingsOpen)
+        {
+            ClosePauseSettings();
+            return;
+        }
+
+        currentState = UIState.None;
+        pauseSettingsOpen = false;
+        ApplyState();
     }
 
-    // =========================
-    // ✅ I키 전용 토글
-    // - Shop/Loot 상태에서 I 눌러도 아무 일 안 함
-    // - None <-> Inventory 만 토글
-    // =========================
+    public void CloseAllUI()
+    {
+        currentState = UIState.None;
+        pauseSettingsOpen = false;
+        ApplyState();
+    }
+
     public void ToggleInventory()
     {
         if (currentState == UIState.Shop) return;
         if (currentState == UIState.Loot) return;
+        if (currentState == UIState.Pause) return;
 
         currentState = (currentState == UIState.Inventory) ? UIState.None : UIState.Inventory;
         ApplyState();
     }
 
-    // =========================
-    // ✅ F키(상점 상호작용) 전용 토글
-    // - Inventory/Loot 상태에서 F 눌러도 아무 일 안 함
-    // - None <-> Shop 만 토글
-    // =========================
     public void ToggleShop()
     {
         if (currentState == UIState.Inventory) return;
         if (currentState == UIState.Loot) return;
+        if (currentState == UIState.Pause) return;
 
         currentState = (currentState == UIState.Shop) ? UIState.None : UIState.Shop;
         ApplyState();
     }
 
-    // =========================
-    // ✅ F키(파밍 상자) 전용 토글
-    // - Inventory/Shop 상태에서 Loot로 못 넘어가게 막음(원하면 풀어도 됨)
-    // - None <-> Loot 만 토글
-    // =========================
     public void ToggleLoot(GameObject lootUI)
     {
         if (currentState == UIState.Inventory) return;
         if (currentState == UIState.Shop) return;
+        if (currentState == UIState.Pause) return;
 
-        // LootUI 주입
         if (lootUI != null) currentLootUI = lootUI;
         else if (currentLootUI == null) currentLootUI = defaultLootUI;
 
@@ -112,10 +144,36 @@ public class UIStateManager : MonoBehaviour
         ApplyState();
     }
 
-    // (혹시 기존 코드가 SetState를 직접 쓰고 있으면 깨질 수 있어서 남겨둠)
     public void SetState(UIState newState)
     {
         currentState = newState;
+
+        // Pause가 아니면 Settings 플래그 해제
+        if (currentState != UIState.Pause) pauseSettingsOpen = false;
+
+        ApplyState();
+    }
+
+    // ✅ Pause의 Settings 열기 (버튼에서 이거 호출)
+    public void OpenPauseSettings()
+    {
+        // Pause가 아니면 Pause로 강제 진입
+        if (currentState != UIState.Pause)
+            currentState = UIState.Pause;
+
+        pauseSettingsOpen = true;
+        ApplyState();
+    }
+
+    // ✅ Pause의 Settings 닫기 (ESC에서 우선 닫기)
+    public void ClosePauseSettings()
+    {
+        pauseSettingsOpen = false;
+
+        // Pause 상태는 유지하고 메인 패널로 복귀
+        if (currentState != UIState.Pause)
+            currentState = UIState.Pause;
+
         ApplyState();
     }
 
@@ -125,6 +183,11 @@ public class UIStateManager : MonoBehaviour
         if (playerInventoryUI) playerInventoryUI.SetActive(false);
         if (warehouseUI) warehouseUI.SetActive(false);
         if (shopUI) shopUI.SetActive(false);
+
+        // Pause 쪽은 Root/Panel/Settings 따로 관리
+        if (pauseRoot) pauseRoot.SetActive(false);
+        if (pauseMainPanel) pauseMainPanel.SetActive(false);
+        if (pauseSettingsPanel) pauseSettingsPanel.SetActive(false);
 
         if (defaultLootUI) defaultLootUI.SetActive(false);
         if (currentLootUI && currentLootUI != defaultLootUI) currentLootUI.SetActive(false);
@@ -137,13 +200,11 @@ public class UIStateManager : MonoBehaviour
         switch (currentState)
         {
             case UIState.Inventory:
-                // ✅ 레이드에서는 왼쪽 인벤만 켜고 싶다 -> enableWarehouseInInventory = false
                 if (playerInventoryUI) playerInventoryUI.SetActive(true);
                 if (warehouseUI) warehouseUI.SetActive(enableWarehouseInInventory);
                 break;
 
             case UIState.Shop:
-                // ✅ 상점에서는 인벤 같이 보이게(기존 유지)
                 if (playerInventoryUI) playerInventoryUI.SetActive(true);
                 if (warehouseUI) warehouseUI.SetActive(false);
 
@@ -152,7 +213,6 @@ public class UIStateManager : MonoBehaviour
                 break;
 
             case UIState.Loot:
-                // ✅ 덕코프처럼: 루팅패널 + 인벤 같이 ON, 창고/상점 OFF
                 if (playerInventoryUI) playerInventoryUI.SetActive(true);
                 if (warehouseUI) warehouseUI.SetActive(false);
                 if (shopUI) shopUI.SetActive(false);
@@ -161,23 +221,39 @@ public class UIStateManager : MonoBehaviour
                 else if (defaultLootUI) defaultLootUI.SetActive(true);
                 break;
 
+            case UIState.Pause:
+                // ✅ Root는 항상 켬
+                if (pauseRoot) pauseRoot.SetActive(true);
+
+                // ✅ Settings 열려있으면 Settings만 / 아니면 메인 Pause 패널
+                if (pauseSettingsOpen)
+                {
+                    if (pauseSettingsPanel) pauseSettingsPanel.SetActive(true);
+                    if (pauseMainPanel) pauseMainPanel.SetActive(false);
+                }
+                else
+                {
+                    if (pauseMainPanel) pauseMainPanel.SetActive(true);
+                    if (pauseSettingsPanel) pauseSettingsPanel.SetActive(false);
+                }
+                break;
+
             case UIState.None:
             default:
                 break;
         }
 
-        // ✅ [추가] "창고 이동" 버튼은 기지(=enableWarehouseInInventory=true)에서
-        // Inventory 상태일 때만 보이게 (레이드/상점/루팅에서는 숨김)
+        // 창고 이동 버튼 노출 규칙
         if (moveToWarehouseButton != null)
         {
             bool show = (currentState == UIState.Inventory) && enableWarehouseInInventory;
             moveToWarehouseButton.SetActive(show);
         }
 
-        // 커서 처리
+        // 커서 + 입력 플래그 처리
         SetGameplayInputEnabled(currentState == UIState.None);
 
-        // ✅ [추가] UI가 하나라도 켜져있으면 DimBlocker ON (입력 차단/어둡게)
+        // 딤블로커
         if (dimBlockerManager == null)
             dimBlockerManager = FindAnyObjectByType<DimBlockerManager>();
 
@@ -185,8 +261,27 @@ public class UIStateManager : MonoBehaviour
             dimBlockerManager.SetDim(currentState != UIState.None);
     }
 
+    // ✅ “관리 대상 UI가 실제로 하나라도 켜져있는가” 체크
+    private bool IsAnyManagedUIPanelActive()
+    {
+        if (playerInventoryUI != null && playerInventoryUI.activeInHierarchy) return true;
+        if (warehouseUI != null && warehouseUI.activeInHierarchy) return true;
+        if (shopUI != null && shopUI.activeInHierarchy) return true;
+
+        if (pauseRoot != null && pauseRoot.activeInHierarchy) return true;
+        if (pauseMainPanel != null && pauseMainPanel.activeInHierarchy) return true;
+        if (pauseSettingsPanel != null && pauseSettingsPanel.activeInHierarchy) return true;
+
+        if (currentLootUI != null && currentLootUI.activeInHierarchy) return true;
+        if (defaultLootUI != null && defaultLootUI.activeInHierarchy) return true;
+
+        return false;
+    }
+
     private void SetGameplayInputEnabled(bool enabled)
     {
+        GameplayInputEnabled = enabled;
+
         Cursor.visible = !enabled;
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
     }

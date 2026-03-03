@@ -121,6 +121,14 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (Time.timeScale == 0f) return;
 
+        // ✅✅ [추가] UI 열려있으면 발사/연사/단발 입력 상태 끊고 아무것도 안 함
+        if (!UIStateManager.GameplayInputEnabled)
+        {
+            fireHeld = false;
+            semiConsume = false;
+            return;
+        }
+
         if (fireCooldown > 0f)
             fireCooldown -= Time.deltaTime;
 
@@ -333,6 +341,10 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) return false;
         if (Time.timeScale == 0f) return false;
+
+        // ✅✅ [추가] UI 열려있으면 발사 불가
+        if (!UIStateManager.GameplayInputEnabled) return false;
+
         if (isReloading) return false;
 
         if (blockFireWhileRunning && playerController != null && playerController.IsRunning)
@@ -350,6 +362,15 @@ public class PlayerWeaponController : MonoBehaviour
         if (weapon == null) return;
 
         if (Time.timeScale == 0f) return;
+
+        // ✅✅ [추가] UI 열려있으면 발사 입력 자체 무시 + 상태 끊기
+        if (!UIStateManager.GameplayInputEnabled)
+        {
+            fireHeld = false;
+            semiConsume = false;
+            return;
+        }
+
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
         // 달리는 중 발사 입력 무시
@@ -376,6 +397,9 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) return;
         if (isReloading) return;
+
+        // ✅✅ [추가] UI 열려있으면 장전 시작 불가
+        if (!UIStateManager.GameplayInputEnabled) return;
 
         int cap = GetMagazineCapacity();
         if (currentAmmoInMag >= cap) return;
@@ -422,6 +446,9 @@ public class PlayerWeaponController : MonoBehaviour
         if (weapon == null) yield break;
         if (isReloading) yield break;
 
+        // ✅✅ [추가] 리로드 도중 UI가 열리면 아예 진행하지 않게(시작 시점 방어)
+        if (!UIStateManager.GameplayInputEnabled) yield break;
+
         int cap = GetMagazineCapacity();
         if (currentAmmoInMag >= cap) yield break;
 
@@ -433,6 +460,13 @@ public class PlayerWeaponController : MonoBehaviour
         ReloadStarted?.Invoke();
 
         yield return new WaitForSeconds(Mathf.Max(0f, weapon.reloadTime));
+
+        // ✅✅ [추가/선택] 리로드 진행 중 UI가 열렸으면 "적용 없이 취소"
+        if (!UIStateManager.GameplayInputEnabled)
+        {
+            isReloading = false;
+            yield break;
+        }
 
         ApplyReload();
         isReloading = false;
