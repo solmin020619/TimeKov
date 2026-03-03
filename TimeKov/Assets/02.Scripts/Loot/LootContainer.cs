@@ -22,12 +22,51 @@ public class LootContainer : MonoBehaviour
 
     private bool _rolled = false;
 
+    private float _nextToggleAllowedTime = 0f;
+
+
     public void Open()
     {
-        if (UIStateManager.Instance != null)
+        if (Time.unscaledTime < _nextToggleAllowedTime) return;
+        _nextToggleAllowedTime = Time.unscaledTime + 0.2f;
+
+
+        // ✅ 추가: Loot 상태에서 F 한번 더 누르면 닫기
+        if (UIStateManager.Instance != null &&
+            UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Loot)
+        {
+            // ✅ 진단 로그(추가)
+            Debug.Log($"[LootContainer] (Close) BEFORE Toggle state={UIStateManager.Instance.GetCurrentState()} root={(lootPanelRoot ? lootPanelRoot.name : "NULL")}");
+
             UIStateManager.Instance.ToggleLoot(lootPanelRoot);
+
+            // ✅ 진단 로그(추가)
+            Debug.Log($"[LootContainer] (Close) AFTER Toggle state={UIStateManager.Instance.GetCurrentState()} " +
+                      $"rootActiveSelf={(lootPanelRoot ? lootPanelRoot.activeSelf.ToString() : "NULL")} " +
+                      $"rootActiveInHierarchy={(lootPanelRoot ? lootPanelRoot.activeInHierarchy.ToString() : "NULL")}");
+
+            return;
+        }
+
+        // ✅ 진단 로그(추가): 열기 시도 직전
+        Debug.Log($"[LootContainer] (Open) BEFORE Toggle state={(UIStateManager.Instance != null ? UIStateManager.Instance.GetCurrentState().ToString() : "NoUIStateMgr")} " +
+                  $"root={(lootPanelRoot ? lootPanelRoot.name : "NULL")}");
+
+        // 기존 열기 보장 로직
+        if (UIStateManager.Instance != null)
+        {
+            if (UIStateManager.Instance.GetCurrentState() != UIStateManager.UIState.Loot)
+                UIStateManager.Instance.ToggleLoot(lootPanelRoot);
+        }
         else if (lootPanelRoot != null)
+        {
             lootPanelRoot.SetActive(true);
+        }
+
+        // ✅ 진단 로그(추가): 토글 직후 상태/활성 확인
+        Debug.Log($"[LootContainer] (Open) AFTER Toggle state={(UIStateManager.Instance != null ? UIStateManager.Instance.GetCurrentState().ToString() : "NoUIStateMgr")} " +
+                  $"rootActiveSelf={(lootPanelRoot ? lootPanelRoot.activeSelf.ToString() : "NULL")} " +
+                  $"rootActiveInHierarchy={(lootPanelRoot ? lootPanelRoot.activeInHierarchy.ToString() : "NULL")}");
 
         if (UIStateManager.Instance != null &&
             UIStateManager.Instance.GetCurrentState() != UIStateManager.UIState.Loot)
@@ -36,37 +75,42 @@ public class LootContainer : MonoBehaviour
         var dm = LootDataManager.Instance;
         if (dm == null) return;
 
-        if (!dm.TryGetContainer(containerId, out var cdef)) return;
+        if (!dm.TryGetContainer(containerId, out var cdef))
+        {
+            Debug.LogWarning($"[LootContainer] ContainerDef 못 찾음. containerId={containerId}");
+            return;
+        }
 
         if (cdef.reroll == 1) _rolled = false;
 
         if (!_rolled)
         {
             RollAndFill(cdef);
-            _rolled = true; // ✅ 예외 안 터지면 여기 찍힘 -> 이후 재오픈해도 고정
+            _rolled = true;
         }
         else
         {
             Debug.Log($"[LootContainer] Re-open (fixed loot 유지) containerId={containerId}");
-        }
-
-        // ✅ BG식(빈칸 숨김/정렬) 반영
-        if (enableBGStyleLoot)
-        {
-            ApplyBGStyleVisibility();
-            CompactAndRefreshIfNeeded(force: true);
         }
     }
 
     private void RollAndFill(LootDataManager.ContainerDef cdef)
     {
         var dm = LootDataManager.Instance;
-        if (!dm.TryGetLootTable(cdef.lootTableId, out var tdef)) return;
+        if (!dm.TryGetLootTable(cdef.lootTableId, out var tdef))
+        {
+            Debug.LogWarning($"[LootContainer] LootTableDef 못 찾음. lootTableId={cdef.lootTableId} (Unified CSV 확인)", gameObject);
+            return;
+        }
 
         ClearSlots();
 
         if (lootSlots == null || lootSlots.Length == 0) return;
-        if (playerInventoryManagerGO == null) return;
+        if (playerInventoryManagerGO == null)
+        {
+            Debug.LogWarning("[LootContainer] playerInventoryManagerGO가 null (Inspector 연결 필요)", gameObject);
+            return;
+        }
 
         int rollCount = Random.Range(tdef.minRoll, tdef.maxRoll + 1);
         rollCount = Mathf.Clamp(rollCount, 0, lootSlots.Length);
@@ -93,7 +137,6 @@ public class LootContainer : MonoBehaviour
                 pool.RemoveAt(pickedIndex);
         }
 
-        // ✅ BG식 반영(초기 롤 단계)
         if (enableBGStyleLoot)
         {
             ApplyBGStyleVisibility();
@@ -128,10 +171,6 @@ public class LootContainer : MonoBehaviour
         CompactAndRefreshIfNeeded(force: false);
     }
 
-    // =========================
-    // ✅ BG식(빈칸 숨김 + 아이템 당김 정렬)
-    // GetItem 스크립트는 건드리지 않고, 현재 슬롯 상태를 읽어서 재배치함
-    // =========================
     private void CompactAndRefreshIfNeeded(bool force)
     {
         if (lootSlots == null || lootSlots.Length == 0) return;
@@ -141,7 +180,6 @@ public class LootContainer : MonoBehaviour
         if (!force && snapshotHash == _lastSnapshotHash) return;
         _lastSnapshotHash = snapshotHash;
 
-        // 1) 현재 슬롯에서 아이템만 뽑기
         var items = new List<(int id, int count)>(lootSlots.Length);
         for (int i = 0; i < lootSlots.Length; i++)
         {
@@ -155,7 +193,6 @@ public class LootContainer : MonoBehaviour
                 items.Add((id, count));
         }
 
-        // 2) 위에서부터 다시 채우기 (정렬 = 빈칸 제거)
         for (int i = 0; i < lootSlots.Length; i++)
         {
             if (lootSlots[i] == null) continue;
@@ -243,4 +280,5 @@ public class LootContainer : MonoBehaviour
         }
         return entries.Count - 1;
     }
+
 }

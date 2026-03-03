@@ -795,4 +795,42 @@ public class PlayerWeaponController : MonoBehaviour
     public int GetEquippedItemId() => equippedItemId;
     public bool IsReloading() => isReloading;
     public bool HasWeaponEquipped() => weapon != null;
+
+    // =========================================================
+    // ✅ Session Export / Import (씬 이동 시 무기/탄창 유지)
+    // ❌ 기존 기능 삭제/변경 없이 "추가"만
+    // =========================================================
+
+    public PlayerSessionData.WeaponSnapshot ExportToSessionSnapshot()
+    {
+        var s = new PlayerSessionData.WeaponSnapshot();
+        s.equippedItemId = GetEquippedItemId();
+        s.currentAmmoInMag = GetCurrentAmmo();
+        return s;
+    }
+
+    public void ImportFromSessionSnapshot(PlayerSessionData.WeaponSnapshot s)
+    {
+        if (s == null) return;
+
+        if (s.equippedItemId <= 0)
+        {
+            // 무기 없던 상태
+            Unequip();
+            return;
+        }
+
+        // 기존 장착 로직 사용
+        EquipByItemId(s.equippedItemId);
+
+        // 장착 로직에서 탄창을 "꽉 채우는" 기존 동작이 있으므로
+        // 여기서 다시 저장값으로 덮어씀 (기존 로직은 건드리지 않음)
+        int cap = GetMagazineCapacity();
+        int clamped = Mathf.Clamp(s.currentAmmoInMag, 0, Mathf.Max(0, cap));
+
+        // private 변수라서 함수가 없으면 직접 접근이 불가하지만,
+        // 이 스크립트 내부이므로 필드에 접근 가능
+        currentAmmoInMag = clamped;
+    }
+
 }

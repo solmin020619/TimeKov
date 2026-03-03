@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -152,6 +152,12 @@ public class GameOverUIManager : MonoBehaviour
         }
 
         yield return new WaitForSecondsRealtime(returnDelay);
+
+        // ✅ [추가] 레이드 사망 시 세션 데이터 초기화 (인벤/장비/무기탄창 리셋)
+        if (PlayerSessionData.Instance != null)
+        {
+            PlayerSessionData.Instance.ClearSnapshot();
+        }
 
         Time.timeScale = 1f;
         SceneManager.LoadScene("Base");

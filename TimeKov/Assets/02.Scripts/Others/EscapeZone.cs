@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 
@@ -12,6 +12,7 @@ public class EscapeZone : MonoBehaviour
 
     private float currentTimer = 0f;
     private bool isPlayerInside = false;
+    private bool hasLoaded = false; // ✅ 중복 로드 방지
 
     void Start()
     {
@@ -33,8 +34,14 @@ public class EscapeZone : MonoBehaviour
                 escapeText.text = "Escape " + remainingTime.ToString();
             }
 
-            if (currentTimer >= requiredTime)
+            if (currentTimer >= requiredTime && !hasLoaded)
             {
+                hasLoaded = true;
+
+                // ✅ 씬 이동 직전 세션 캡처 (인벤/장비/무기탄창 유지)
+                if (PlayerSessionData.Instance != null)
+                    PlayerSessionData.Instance.CaptureCurrent();
+
                 SceneManager.LoadScene(nextSceneName);
             }
         }

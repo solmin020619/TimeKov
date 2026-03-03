@@ -47,6 +47,9 @@ public class UIStateManager : MonoBehaviour
     // ✅ Pause 안에서 Settings가 열려있는지 플래그
     private bool pauseSettingsOpen = false;
 
+    // ✅ 추가: 같은 프레임에 Loot 토글이 두 번 들어오면 "켜졌다가 바로 꺼짐" 방지
+    private int _lastLootToggleFrame = -1;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -136,6 +139,10 @@ public class UIStateManager : MonoBehaviour
         if (currentState == UIState.Inventory) return;
         if (currentState == UIState.Shop) return;
         if (currentState == UIState.Pause) return;
+
+        // ✅ 추가: 같은 프레임에 두 번 호출되면 2번째는 무시 (켜졌다가 바로 꺼짐 방지)
+        if (Time.frameCount == _lastLootToggleFrame) return;
+        _lastLootToggleFrame = Time.frameCount;
 
         if (lootUI != null) currentLootUI = lootUI;
         else if (currentLootUI == null) currentLootUI = defaultLootUI;

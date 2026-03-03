@@ -109,4 +109,36 @@ public class EquipmentManager : MonoBehaviour
             inven.ApplyBagById(0);
         }
     }
+
+    // =========================================================
+    // ✅ Session Export / Import (씬 이동 데이터 유지)
+    // ❌ 기존 기능 삭제/변경 없이 "추가"만
+    // =========================================================
+
+    public PlayerSessionData.EquipmentSnapshot ExportToSessionSnapshot()
+    {
+        var s = new PlayerSessionData.EquipmentSnapshot();
+        s.weaponId = (equipWeapon != null) ? equipWeapon.slotIndex : 0;
+        s.helmetId = (equipHelmet != null) ? equipHelmet.slotIndex : 0;
+        s.armorId = (equipArmor != null) ? equipArmor.slotIndex : 0;
+        s.bagId = (equipBag != null) ? equipBag.slotIndex : 0;
+        return s;
+    }
+
+    public void ImportFromSessionSnapshot(PlayerSessionData.EquipmentSnapshot s)
+    {
+        if (s == null) return;
+
+        // 장비 슬롯은 "장착 여부"만 의미하므로 count는 1로 통일
+        if (equipWeapon != null) equipWeapon.SetSlot(s.weaponId, s.weaponId == 0 ? 0 : 1);
+        if (equipHelmet != null) equipHelmet.SetSlot(s.helmetId, s.helmetId == 0 ? 0 : 1);
+        if (equipArmor != null) equipArmor.SetSlot(s.armorId, s.armorId == 0 ? 0 : 1);
+        if (equipBag != null) equipBag.SetSlot(s.bagId, s.bagId == 0 ? 0 : 1);
+    }
+
+    public int GetEquippedBagId()
+    {
+        return (equipBag != null) ? equipBag.slotIndex : 0;
+    }
+
 }

@@ -201,13 +201,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1796479}
+    - targetCorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1796478}
   m_SourcePrefab: {fileID: 100100000, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
 --- !u!4 &1796476 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3550072761798161382, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
   m_PrefabInstance: {fileID: 1796475}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1796477 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+  m_PrefabInstance: {fileID: 1796475}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1796478
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1796477}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &1796479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1796477}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &6188734
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1113,13 +1172,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 128920886}
+    - targetCorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 128920885}
   m_SourcePrefab: {fileID: 100100000, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
 --- !u!4 &128920883 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3550072761798161382, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
   m_PrefabInstance: {fileID: 128920882}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &128920884 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+  m_PrefabInstance: {fileID: 128920882}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &128920885
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 128920884}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &128920886
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 128920884}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1 &131619573
 GameObject:
   m_ObjectHideFlags: 0
@@ -1836,13 +1954,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 238956368}
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 238956367}
   m_SourcePrefab: {fileID: 100100000, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
 --- !u!4 &238956365 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5081098002723872337, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
   m_PrefabInstance: {fileID: 238956364}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &238956366 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+  m_PrefabInstance: {fileID: 238956364}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &238956367
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 238956366}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &238956368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 238956366}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1 &247806351
 GameObject:
   m_ObjectHideFlags: 0
@@ -2564,13 +2741,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 303623294}
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 303623293}
   m_SourcePrefab: {fileID: 100100000, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
 --- !u!4 &303623291 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2035197687177983372, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
   m_PrefabInstance: {fileID: 303623290}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &303623292 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+  m_PrefabInstance: {fileID: 303623290}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &303623293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 303623292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &303623294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 303623292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &311481345
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3570,6 +3806,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &378843495
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4066,13 +4307,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 390477031}
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 390477030}
   m_SourcePrefab: {fileID: 100100000, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
 --- !u!4 &390477028 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2035197687177983372, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
   m_PrefabInstance: {fileID: 390477027}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &390477029 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+  m_PrefabInstance: {fileID: 390477027}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &390477030
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 390477029}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &390477031
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 390477029}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1 &411497259 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9009271250527875239, guid: 29122a59d0ae96d4f87ac657b5e3e8de, type: 3}
@@ -4786,13 +5086,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 500336830}
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 500336829}
   m_SourcePrefab: {fileID: 100100000, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
 --- !u!4 &500336827 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5081098002723872337, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
   m_PrefabInstance: {fileID: 500336826}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &500336828 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+  m_PrefabInstance: {fileID: 500336826}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &500336829
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 500336828}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &500336830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 500336828}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!4 &513705461 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8972374787103289244, guid: 54b42505277524642a37aa9a359c200b, type: 3}
@@ -4853,13 +5212,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 513883497}
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 513883496}
   m_SourcePrefab: {fileID: 100100000, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
 --- !u!4 &513883494 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5081098002723872337, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
   m_PrefabInstance: {fileID: 513883493}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &513883495 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+  m_PrefabInstance: {fileID: 513883493}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &513883496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 513883495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &513883497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 513883495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1 &529386389 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9009271250527875239, guid: 29122a59d0ae96d4f87ac657b5e3e8de, type: 3}
@@ -5936,6 +6354,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &623018427
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6352,13 +6775,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6105377158560319693, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 665198292}
+    - targetCorrespondingSourceObject: {fileID: 6105377158560319693, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 665198291}
   m_SourcePrefab: {fileID: 100100000, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
 --- !u!4 &665198289 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6913439398595252855, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
   m_PrefabInstance: {fileID: 665198288}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &665198290 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6105377158560319693, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
+  m_PrefabInstance: {fileID: 665198288}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &665198291
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 665198290}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &665198292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 665198290}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1 &666451913 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3683399066982121940, guid: b357f3ed62607f340bec16f39198b370, type: 3}
@@ -6505,13 +6987,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 687570448}
+    - targetCorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 687570447}
   m_SourcePrefab: {fileID: 100100000, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
 --- !u!4 &687570445 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3550072761798161382, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
   m_PrefabInstance: {fileID: 687570444}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &687570446 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4183761533537659228, guid: f8fd5137b27d84846a7d82080c0faab3, type: 3}
+  m_PrefabInstance: {fileID: 687570444}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &687570447
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 687570446}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &687570448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 687570446}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1 &698743532 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9009271250527875239, guid: 29122a59d0ae96d4f87ac657b5e3e8de, type: 3}
@@ -6779,6 +7320,9 @@ MonoBehaviour:
   playerInventoryUI: {fileID: 1271335229}
   warehouseUI: {fileID: 32643807}
   shopUI: {fileID: 0}
+  pauseRoot: {fileID: 5635010792128724727}
+  pauseMainPanel: {fileID: 1426596048}
+  pauseSettingsPanel: {fileID: 5635010792128724726}
   defaultLootUI: {fileID: 627977518}
   enableWarehouseInInventory: 1
   moveToWarehouseButton: {fileID: 0}
@@ -7027,6 +7571,11 @@ PrefabInstance:
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 630b6e3981b5e1a49869335ca33e9d7f, type: 3}
   m_PrefabInstance: {fileID: 754252580}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &759549335 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3053390833822161805, guid: b357f3ed62607f340bec16f39198b370, type: 3}
+  m_PrefabInstance: {fileID: 1314597035}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &772046111
 PrefabInstance:
@@ -7489,6 +8038,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &815509176
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9100,6 +9654,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &933404571
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -20969,13 +21528,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 73d2422e8d27d594e88553cb7e14ef57, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1217914343}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 73d2422e8d27d594e88553cb7e14ef57, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1217914342}
   m_SourcePrefab: {fileID: 100100000, guid: 73d2422e8d27d594e88553cb7e14ef57, type: 3}
 --- !u!4 &1217914340 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 73d2422e8d27d594e88553cb7e14ef57, type: 3}
   m_PrefabInstance: {fileID: 1217914339}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1217914341 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 73d2422e8d27d594e88553cb7e14ef57, type: 3}
+  m_PrefabInstance: {fileID: 1217914339}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1217914342
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1217914341}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &1217914343
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1217914341}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &1219457531
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -21210,6 +21828,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &1232893556
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21537,6 +22160,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &1272128169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22205,13 +22833,32 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6245582507243322765, guid: b357f3ed62607f340bec16f39198b370, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1314597037}
   m_SourcePrefab: {fileID: 100100000, guid: b357f3ed62607f340bec16f39198b370, type: 3}
 --- !u!224 &1314597036 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 5545270170414735076, guid: b357f3ed62607f340bec16f39198b370, type: 3}
   m_PrefabInstance: {fileID: 1314597035}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1314597037
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1271335229}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b67d57979fdaf947b1d91c34b23d3aa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  baseSceneNames:
+  - Base
+  warehousePanelRoot: {fileID: 32643807}
+  moveToWarehouseButton: {fileID: 759549335}
 --- !u!1001 &1331863695
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -23480,13 +24127,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1438900211}
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1438900210}
   m_SourcePrefab: {fileID: 100100000, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
 --- !u!4 &1438900208 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5081098002723872337, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
   m_PrefabInstance: {fileID: 1438900207}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1438900209 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+  m_PrefabInstance: {fileID: 1438900207}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1438900210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1438900209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &1438900211
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1438900209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &1444699299
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25256,13 +25962,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1580656338}
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1580656337}
   m_SourcePrefab: {fileID: 100100000, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
 --- !u!4 &1580656335 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2035197687177983372, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
   m_PrefabInstance: {fileID: 1580656334}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1580656336 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+  m_PrefabInstance: {fileID: 1580656334}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1580656337
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1580656336}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &1580656338
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1580656336}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &1583685011
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25436,6 +26201,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!64 &1584538048
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -26174,6 +26944,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &1630933597
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -26873,13 +27648,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6105377158560319693, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1698631035}
+    - targetCorrespondingSourceObject: {fileID: 6105377158560319693, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1698631034}
   m_SourcePrefab: {fileID: 100100000, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
 --- !u!4 &1698631032 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6913439398595252855, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
   m_PrefabInstance: {fileID: 1698631031}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1698631033 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6105377158560319693, guid: 2baec230ef472d94c895f8ae3fb980e0, type: 3}
+  m_PrefabInstance: {fileID: 1698631031}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1698631034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1698631033}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &1698631035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1698631033}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &1704684298
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -27530,6 +28364,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &1774937626
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28033,13 +28872,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88874e0a36aeb634baea70de9c841408, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1850749250}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88874e0a36aeb634baea70de9c841408, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1850749249}
   m_SourcePrefab: {fileID: 100100000, guid: 88874e0a36aeb634baea70de9c841408, type: 3}
 --- !u!4 &1850749247 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 88874e0a36aeb634baea70de9c841408, type: 3}
   m_PrefabInstance: {fileID: 1850749246}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1850749248 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 88874e0a36aeb634baea70de9c841408, type: 3}
+  m_PrefabInstance: {fileID: 1850749246}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1850749249
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1850749248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &1850749250
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1850749248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &1863568805
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -29150,13 +30048,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1965295249}
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1965295248}
   m_SourcePrefab: {fileID: 100100000, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
 --- !u!4 &1965295246 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5081098002723872337, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
   m_PrefabInstance: {fileID: 1965295245}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1965295247 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+  m_PrefabInstance: {fileID: 1965295245}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1965295248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1965295247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &1965295249
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1965295247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!4 &1973447466 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 683681805684439010, guid: 31b3355bc57151b4283c8e358a778416, type: 3}
@@ -29948,6 +30905,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &2040326831
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -30274,13 +31236,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2081919871}
+    - targetCorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2081919870}
   m_SourcePrefab: {fileID: 100100000, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
 --- !u!4 &2081919868 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5081098002723872337, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
   m_PrefabInstance: {fileID: 2081919867}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2081919869 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5604869489867736299, guid: 92d3f26dc5cc2384abf00643d615c417, type: 3}
+  m_PrefabInstance: {fileID: 2081919867}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2081919870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2081919869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &2081919871
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2081919869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &2088323836
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -30636,13 +31657,72 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2119648988}
+    - targetCorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2119648987}
   m_SourcePrefab: {fileID: 100100000, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
 --- !u!4 &2119648985 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2035197687177983372, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
   m_PrefabInstance: {fileID: 2119648984}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2119648986 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1690443258456502070, guid: a78e7a47ff99e1c4db18b3334e248bdd, type: 3}
+  m_PrefabInstance: {fileID: 2119648984}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2119648987
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2119648986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  containerId: LC_001
+  lootPanelRoot: {fileID: 627977518}
+  lootSlots:
+  - {fileID: 1353788204}
+  - {fileID: 1097192340}
+  - {fileID: 1543132287}
+  - {fileID: 1672526363}
+  - {fileID: 705587028}
+  - {fileID: 228885966}
+  - {fileID: 944479704}
+  - {fileID: 1747100744}
+  - {fileID: 1227580201}
+  - {fileID: 714122544}
+  playerInventoryManagerGO: {fileID: 235797826}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!114 &2119648988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2119648986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea59a09ffcf15c14490dfa9931d82de7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  action: 2
+  interactKey: 102
+  uiStateManager: {fileID: 721145545}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!1001 &2126998570
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -31747,6 +32827,16 @@ PrefabInstance:
 --- !u!224 &5635010792128724725 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 1070553889580541094, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
+  m_PrefabInstance: {fileID: 5635010792128724724}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &5635010792128724726 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7486712826998816174, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
+  m_PrefabInstance: {fileID: 5635010792128724724}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &5635010792128724727 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 538792425466137792, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
   m_PrefabInstance: {fileID: 5635010792128724724}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &5645013858846531949

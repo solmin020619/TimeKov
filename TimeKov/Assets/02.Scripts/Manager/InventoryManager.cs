@@ -511,4 +511,89 @@ public class InventoryManager : MonoBehaviour
         ApplyBGSyleVisibility();
         return true;
     }
+
+    // =========================================================
+    // ✅ Session Export / Import (씬 이동 데이터 유지)
+    // ❌ 기존 기능 삭제/변경 없이 "추가"만
+    // =========================================================
+
+    public PlayerSessionData.InventorySnapshot ExportToSessionSnapshot()
+    {
+        var snap = new PlayerSessionData.InventorySnapshot();
+        snap.ownerType = (int)ownerType;
+
+        // 슬롯 생성 보장
+        CreateSlots();
+
+        snap.slotCount = SlotData.Count;
+        snap.ids.Clear();
+        snap.counts.Clear();
+
+        for (int i = 0; i < SlotData.Count; i++)
+        {
+            var s = SlotData[i];
+            if (s == null)
+            {
+                snap.ids.Add(0);
+                snap.counts.Add(0);
+                continue;
+            }
+
+            // SlotInfo.slotIndex = 아이템 ID / itemCount = 수량
+            snap.ids.Add(s.slotIndex);
+            snap.counts.Add(s.itemCount);
+        }
+
+        return snap;
+    }
+
+    /// <summary>
+    /// equipManager가 있으면 "가방"을 먼저 적용해서 인벤 슬롯 수 맞춘 뒤 복원.
+    /// (창고 인벤은 equipManager 없이 복원)
+    /// </summary>
+    public void ImportFromSessionSnapshot(PlayerSessionData.InventorySnapshot snap, EquipmentManager equipManager)
+    {
+        if (snap == null) return;
+
+        CreateSlots();
+
+        // 1) 가방 영향 적용 (플레이어 인벤만)
+        if (ownerType == InventoryOwnerType.Player && equipManager != null)
+        {
+            int bagId = equipManager.GetEquippedBagId();
+            ApplyBagById(bagId);
+        }
+
+        // 2) 슬롯 수 맞추기 (세션 스냅샷이 더 크면 늘려줌)
+        int desired = Mathf.Max(0, snap.slotCount);
+        if (SlotData.Count != desired)
+            ResizeInventory(desired);
+
+        // 3) 전체 초기화
+        for (int i = 0; i < SlotData.Count; i++)
+        {
+            if (SlotData[i] == null) continue;
+            SlotData[i].SetSlot(0, 0);
+        }
+
+        // 4) 슬롯 그대로 복원 (배치 유지)
+        int n = Mathf.Min(SlotData.Count, snap.ids.Count);
+        for (int i = 0; i < n; i++)
+        {
+            var s = SlotData[i];
+            if (s == null) continue;
+
+            int id = snap.ids[i];
+            int c = (i < snap.counts.Count) ? snap.counts[i] : 0;
+
+            if (id <= 0 || c <= 0)
+                s.SetSlot(0, 0);
+            else
+                s.SetSlot(id, c);
+        }
+
+        // 5) UI/가시성 갱신 (기존 함수 사용)
+        ForceRefreshUI();
+    }
+
 }
