@@ -30,10 +30,11 @@ Transform:
   m_GameObject: {fileID: 4058803597381055991}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -23.01, y: 1.1300001, z: 21.52}
+  m_LocalPosition: {x: -23.01, y: 0, z: 21.52}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 2644820131789862700}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &2377409773976886898
@@ -51,7 +52,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4058803597381055991}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -125,6 +126,11 @@ MonoBehaviour:
   action: 2
   interactKey: 102
   uiStateManager: {fileID: 0}
+  useDedicatedInteractionTrigger: 1
+  autoCreateTriggerIfMissing: 1
+  triggerSize: {x: 2, y: 2, z: 2}
+  triggerCenter: {x: 0, y: 1, z: 0}
+  forceAllCollidersToTrigger_Legacy: 0
 --- !u!114 &7739942772323426104
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -139,6 +145,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   monsterType: Chaser
   tableId: C_T1
+  T1: 50
+  T2: 35
+  T3: 15
+  T4: 0
+  T5: 0
+  maxTier: 5
   minRoll: 1
   maxRoll: 2
   dropDb: {fileID: 11400000, guid: 6846a803c51eae9409bdfef1ccefbf8e, type: 2}
@@ -151,3 +163,67 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   playerInventoryManagerGO: {fileID: 0}
+  enableBGStyleLoot: 1
+  bgSyncInterval: 0.1
+--- !u!1001 &2539731779210678471
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 5843857666986279976}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.00000003774895
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+      propertyPath: m_Name
+      value: gravestone
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+--- !u!4 &2644820131789862700 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+  m_PrefabInstance: {fileID: 2539731779210678471}
+  m_PrefabAsset: {fileID: 0}

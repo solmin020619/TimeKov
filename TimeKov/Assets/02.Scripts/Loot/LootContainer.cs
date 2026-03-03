@@ -11,10 +11,7 @@ public class LootContainer : MonoBehaviour
     public GameObject playerInventoryManagerGO;
 
     [Header("BG식(빈 슬롯 숨김/자동 정렬)")]
-    [Tooltip("인벤토리처럼: 아이템 있는 슬롯만 보이게 + 아이템 빠지면 아래 아이템이 위로 당겨짐")]
     public bool enableBGStyleLoot = true;
-
-    [Tooltip("루팅창이 열려있는 동안 슬롯 상태를 주기적으로 감지해서 자동 정렬/숨김 처리")]
     public float bgSyncInterval = 0.1f;
 
     private float _nextBgSyncTime = 0f;
@@ -22,75 +19,94 @@ public class LootContainer : MonoBehaviour
 
     private bool _rolled = false;
 
+    // ✅ 입력 디바운스
     private float _nextToggleAllowedTime = 0f;
 
+    // ✅ [추가] 현재 Loot UI에 "바인딩되어 있는" 컨테이너 (덕코프처럼 Loot UI는 하나, 컨테이너만 스위칭)
+    public static LootContainer ActiveContainer { get; private set; }
+
+    [System.Serializable]
+    private struct LootStack
+    {
+        public int itemId;
+        public int count;
+        public LootStack(int id, int c) { itemId = id; count = c; }
+    }
+    private readonly List<LootStack> _cachedLoot = new List<LootStack>(16);
+
+    private int _seenRaidSession = -1;
+
+    private void OnDisable()
+    {
+        if (ActiveContainer == this) ActiveContainer = null;
+    }
 
     public void Open()
     {
+        SyncRaidSessionAndResetIfNeeded();
+
         if (Time.unscaledTime < _nextToggleAllowedTime) return;
-        _nextToggleAllowedTime = Time.unscaledTime + 0.2f;
+        _nextToggleAllowedTime = Time.unscaledTime + 0.15f;
 
+        var ui = UIStateManager.Instance;
 
-        // ✅ 추가: Loot 상태에서 F 한번 더 누르면 닫기
-        if (UIStateManager.Instance != null &&
-            UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Loot)
+        // ✅ [핵심] Loot UI는 하나를 유지하고, 컨테이너만 스위칭
+        if (ui != null)
         {
-            // ✅ 진단 로그(추가)
-            Debug.Log($"[LootContainer] (Close) BEFORE Toggle state={UIStateManager.Instance.GetCurrentState()} root={(lootPanelRoot ? lootPanelRoot.name : "NULL")}");
+            if (ui.GetCurrentState() == UIStateManager.UIState.Loot)
+            {
+                if (ActiveContainer == this)
+                {
+                    // 같은 상자에서 다시 F -> 닫기
+                    CacheFromSlots();
+                    ui.ToggleLoot(lootPanelRoot);
+                    ActiveContainer = null;
+                    return;
+                }
 
-            UIStateManager.Instance.ToggleLoot(lootPanelRoot);
+                // 다른 상자에서 F -> Loot UI 유지 + 현재 컨테이너 교체
+                ActiveContainer = this;
+                ui.SetCurrentLootUI(lootPanelRoot);
+            }
+            else
+            {
+                ActiveContainer = this;
+                ui.ToggleLoot(lootPanelRoot);
+            }
 
-            // ✅ 진단 로그(추가)
-            Debug.Log($"[LootContainer] (Close) AFTER Toggle state={UIStateManager.Instance.GetCurrentState()} " +
-                      $"rootActiveSelf={(lootPanelRoot ? lootPanelRoot.activeSelf.ToString() : "NULL")} " +
-                      $"rootActiveInHierarchy={(lootPanelRoot ? lootPanelRoot.activeInHierarchy.ToString() : "NULL")}");
-
-            return;
+            if (ui.GetCurrentState() != UIStateManager.UIState.Loot)
+                return;
         }
-
-        // ✅ 진단 로그(추가): 열기 시도 직전
-        Debug.Log($"[LootContainer] (Open) BEFORE Toggle state={(UIStateManager.Instance != null ? UIStateManager.Instance.GetCurrentState().ToString() : "NoUIStateMgr")} " +
-                  $"root={(lootPanelRoot ? lootPanelRoot.name : "NULL")}");
-
-        // 기존 열기 보장 로직
-        if (UIStateManager.Instance != null)
+        else
         {
-            if (UIStateManager.Instance.GetCurrentState() != UIStateManager.UIState.Loot)
-                UIStateManager.Instance.ToggleLoot(lootPanelRoot);
+            if (lootPanelRoot != null) lootPanelRoot.SetActive(true);
+            ActiveContainer = this;
         }
-        else if (lootPanelRoot != null)
-        {
-            lootPanelRoot.SetActive(true);
-        }
-
-        // ✅ 진단 로그(추가): 토글 직후 상태/활성 확인
-        Debug.Log($"[LootContainer] (Open) AFTER Toggle state={(UIStateManager.Instance != null ? UIStateManager.Instance.GetCurrentState().ToString() : "NoUIStateMgr")} " +
-                  $"rootActiveSelf={(lootPanelRoot ? lootPanelRoot.activeSelf.ToString() : "NULL")} " +
-                  $"rootActiveInHierarchy={(lootPanelRoot ? lootPanelRoot.activeInHierarchy.ToString() : "NULL")}");
-
-        if (UIStateManager.Instance != null &&
-            UIStateManager.Instance.GetCurrentState() != UIStateManager.UIState.Loot)
-            return;
 
         var dm = LootDataManager.Instance;
         if (dm == null) return;
 
         if (!dm.TryGetContainer(containerId, out var cdef))
         {
-            Debug.LogWarning($"[LootContainer] ContainerDef 못 찾음. containerId={containerId}");
+            Debug.LogWarning($"[LootContainer] ContainerDef 못 찾음. containerId={containerId}", gameObject);
             return;
         }
 
-        if (cdef.reroll == 1) _rolled = false;
+        if (cdef.reroll == 1)
+        {
+            _rolled = false;
+            _cachedLoot.Clear();
+        }
 
         if (!_rolled)
         {
             RollAndFill(cdef);
             _rolled = true;
+            CacheFromSlots();
         }
         else
         {
-            Debug.Log($"[LootContainer] Re-open (fixed loot 유지) containerId={containerId}");
+            FillSlotsFromCache();
         }
     }
 
@@ -99,7 +115,7 @@ public class LootContainer : MonoBehaviour
         var dm = LootDataManager.Instance;
         if (!dm.TryGetLootTable(cdef.lootTableId, out var tdef))
         {
-            Debug.LogWarning($"[LootContainer] LootTableDef 못 찾음. lootTableId={cdef.lootTableId} (Unified CSV 확인)", gameObject);
+            Debug.LogWarning($"[LootContainer] LootTableDef 못 찾음. lootTableId={cdef.lootTableId}", gameObject);
             return;
         }
 
@@ -115,8 +131,6 @@ public class LootContainer : MonoBehaviour
         int rollCount = Random.Range(tdef.minRoll, tdef.maxRoll + 1);
         rollCount = Mathf.Clamp(rollCount, 0, lootSlots.Length);
 
-        Debug.Log($"[LootContainer] Roll containerId={containerId}, table={cdef.lootTableId}, rollCount={rollCount}, slots={lootSlots.Length}");
-
         var pool = new List<LootDataManager.LootEntry>(tdef.entries);
 
         for (int i = 0; i < rollCount; i++)
@@ -128,8 +142,6 @@ public class LootContainer : MonoBehaviour
 
             var picked = pool[pickedIndex];
             int count = Random.Range(picked.minCount, picked.maxCount + 1);
-
-            Debug.Log($"[LootContainer]  -> slot[{i}] itemId={picked.itemId}, count={count}");
 
             lootSlots[i].SetData(playerInventoryManagerGO, picked.itemId, count);
 
@@ -165,10 +177,13 @@ public class LootContainer : MonoBehaviour
         if (!enableBGStyleLoot) return;
         if (lootPanelRoot == null) return;
         if (!lootPanelRoot.activeInHierarchy) return;
-        if (Time.unscaledTime < _nextBgSyncTime) return;
+        if (ActiveContainer != this) return;
 
+        if (Time.unscaledTime < _nextBgSyncTime) return;
         _nextBgSyncTime = Time.unscaledTime + Mathf.Max(0.02f, bgSyncInterval);
+
         CompactAndRefreshIfNeeded(force: false);
+        CacheFromSlots();
     }
 
     private void CompactAndRefreshIfNeeded(bool force)
@@ -281,4 +296,57 @@ public class LootContainer : MonoBehaviour
         return entries.Count - 1;
     }
 
+    private void CacheFromSlots()
+    {
+        if (lootSlots == null) return;
+        _cachedLoot.Clear();
+
+        for (int i = 0; i < lootSlots.Length; i++)
+        {
+            var slot = lootSlots[i];
+            if (slot == null) continue;
+
+            int id = ReadIntField(slot, "InsertID", "insertID", "itemId", "slotIndex");
+            int count = ReadIntField(slot, "InsertItemCount", "insertItemCount", "count", "itemCount");
+
+            if (id != 0 && count > 0)
+                _cachedLoot.Add(new LootStack(id, count));
+        }
+    }
+
+    private void FillSlotsFromCache()
+    {
+        if (lootSlots == null || lootSlots.Length == 0) return;
+        if (playerInventoryManagerGO == null) return;
+
+        for (int i = 0; i < lootSlots.Length; i++)
+        {
+            if (lootSlots[i] == null) continue;
+
+            if (i < _cachedLoot.Count)
+                lootSlots[i].SetData(playerInventoryManagerGO, _cachedLoot[i].itemId, _cachedLoot[i].count);
+            else
+                lootSlots[i].SetData(playerInventoryManagerGO, 0, 0);
+        }
+
+        if (enableBGStyleLoot)
+        {
+            ApplyBGStyleVisibility();
+            _lastSnapshotHash = 0;
+            CompactAndRefreshIfNeeded(force: true);
+        }
+    }
+
+    private void SyncRaidSessionAndResetIfNeeded()
+    {
+        int cur = LootDataManager.CurrentRaidSession;
+        if (_seenRaidSession == cur) return;
+
+        _seenRaidSession = cur;
+        _rolled = false;
+        _cachedLoot.Clear();
+        _lastSnapshotHash = 0;
+
+        if (ActiveContainer == this) ActiveContainer = null;
+    }
 }

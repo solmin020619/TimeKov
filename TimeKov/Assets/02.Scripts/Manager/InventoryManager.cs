@@ -195,30 +195,68 @@ public class InventoryManager : MonoBehaviour
         return remaining; // 0이면 전부 성공, >0이면 그만큼 못 넣음
     }
 
+    // ✅✅✅ 여기만 바뀜: 정리(스택 합치기 포함)
     public void SortInventory()
     {
-        List<ItemData> tempList = new List<ItemData>();
+        // ✅ 정리 = (1) ID 오름차순 정렬 + (2) 스택 가능 아이템은 overlapsCount(최대스택)까지 합치기
+        // - SlotInfo 구조: slotIndex=아이템ID, itemCount=수량
+        // - GetMaxStackSize(itemId)로 아이템별 최대 스택을 가져옴(duplicated==1이면 overlapsCount)
 
-        foreach (SlotInfo slot in SlotData)
-            tempList.Add(new ItemData(slot.slotIndex, slot.itemCount));
-
-        tempList.Sort((a, b) =>
-        {
-            if (a.id == 0 && b.id == 0) return 0;
-            if (a.id == 0) return 1;
-            if (b.id == 0) return -1;
-            return a.id.CompareTo(b.id);
-        });
-
+        // 1) 현재 슬롯에서 아이템 수량 총합 집계
+        Dictionary<int, int> totals = new Dictionary<int, int>();
         for (int i = 0; i < SlotData.Count; i++)
         {
-            SlotData[i].SetSlot(tempList[i].id, tempList[i].count);
+            var s = SlotData[i];
+            if (s == null) continue;
+
+            int id = s.slotIndex;
+            int c = s.itemCount;
+
+            if (id <= 0 || c <= 0) continue;
+
+            if (totals.ContainsKey(id)) totals[id] += c;
+            else totals[id] = c;
+        }
+
+        // 2) ID 기준 정렬된 키 목록 생성
+        List<int> ids = new List<int>(totals.Keys);
+        ids.Sort();
+
+        // 3) 정렬 + 스택 합치기 결과 리스트 생성
+        List<ItemData> packed = new List<ItemData>(SlotData.Count);
+
+        for (int k = 0; k < ids.Count; k++)
+        {
+            int id = ids[k];
+            int remaining = totals[id];
+
+            int maxStack = GetMaxStackSize(id);
+            if (maxStack <= 0) maxStack = 1;
+
+            while (remaining > 0)
+            {
+                int put = Mathf.Min(maxStack, remaining);
+                packed.Add(new ItemData(id, put));
+                remaining -= put;
+            }
+        }
+
+        // 4) 남는 슬롯은 빈칸으로 채우기
+        while (packed.Count < SlotData.Count)
+            packed.Add(new ItemData(0, 0));
+
+        // 5) 슬롯에 반영
+        for (int i = 0; i < SlotData.Count; i++)
+        {
+            if (SlotData[i] == null) continue;
+
+            SlotData[i].SetSlot(packed[i].id, packed[i].count);
 
             // 표시/숨김은 ApplyBGSyleVisibility가 결정
             if (!SlotData[i].gameObject.activeSelf) SlotData[i].gameObject.SetActive(true);
         }
 
-        Debug.Log("인벤토리 정렬 완료!");
+        Debug.Log("인벤토리 정렬(스택 합치기 포함) 완료!");
         ApplyBGSyleVisibility();
     }
 
@@ -595,5 +633,4 @@ public class InventoryManager : MonoBehaviour
         // 5) UI/가시성 갱신 (기존 함수 사용)
         ForceRefreshUI();
     }
-
 }

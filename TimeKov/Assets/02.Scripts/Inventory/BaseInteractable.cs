@@ -1,8 +1,11 @@
 ﻿// BaseInteractable.cs
 // 기능 유지: F키 상호작용 + ActionType 분기 + MonsterLoot 우선 -> LootContainer
-// 변경: 기존 콜라이더 전부 Trigger로 강제하던 방식(ForceTriggerOnSelfAndChildren)을 "옵션"으로 내리고,
-//      기본은 '상호작용 전용 Trigger 콜라이더(BoxCollider)'를 자동으로 만들어서 사용.
+// 변경(추가): 플레이어가 여러 Interactable 트리거에 동시에 들어가 있을 때
+//            F 입력이 "여러 개에 동시에 처리"되어 LootContainer.Open()이 중복 호출되는 문제를 방지.
+//            - 한 프레임에 입력은 1개만 소비
+//            - 소비 주체는 "플레이어와 가장 가까운 Interactable" 1개
 
+using System.Collections.Generic;
 using UnityEngine;
 
 public class BaseInteractable : MonoBehaviour
@@ -41,11 +44,15 @@ public class BaseInteractable : MonoBehaviour
     public bool forceAllCollidersToTrigger_Legacy = false;
 
     private bool playerInRange = false;
-    private Collider interactionTrigger; // 전용 트리거 참조(있으면 이 콜라이더로만 범위 판정)
+    private Collider interactionTrigger;
+
+    // ✅ [추가] 동시에 여러 상자 범위에 있을 때 입력을 1개만 처리하기 위한 전역 상태
+    private static readonly List<BaseInteractable> _inRangeList = new List<BaseInteractable>(64);
+    private static Transform _playerTransform;
+    private static int _lastConsumeFrame = -1;
 
     void Reset()
     {
-        // Reset에서는 기본값 세팅만. (원래처럼 강제 트리거는 끔)
         useDedicatedInteractionTrigger = true;
         autoCreateTriggerIfMissing = true;
         forceAllCollidersToTrigger_Legacy = false;
@@ -53,21 +60,25 @@ public class BaseInteractable : MonoBehaviour
 
     void Awake()
     {
-        // UIStateManager 자동 참조
         if (uiStateManager == null)
             uiStateManager = UIStateManager.Instance;
 
-        // 1) 레거시 모드면 기존 동작 유지 (원래 기능을 옵션으로 남겨둠)
         if (forceAllCollidersToTrigger_Legacy)
         {
             ForceTriggerOnSelfAndChildren();
         }
 
-        // 2) 추천 모드: 전용 트리거 확보 (기존 "막는 콜라이더"는 그대로 둠)
         if (useDedicatedInteractionTrigger)
         {
             SetupDedicatedTrigger();
         }
+    }
+
+    void OnDisable()
+    {
+        if (_inRangeList.Contains(this))
+            _inRangeList.Remove(this);
+        playerInRange = false;
     }
 
     void Update()
@@ -78,6 +89,18 @@ public class BaseInteractable : MonoBehaviour
             uiStateManager = UIStateManager.Instance;
 
         if (!Input.GetKeyDown(interactKey)) return;
+
+        // ✅ [추가] 한 프레임에 입력은 1개만 소비
+        if (Time.frameCount == _lastConsumeFrame) return;
+
+        // ✅ [추가] 동시에 여러 Interactable이 범위 안이면, "가장 가까운 1개"만 실행
+        if (_playerTransform != null)
+        {
+            BaseInteractable nearest = GetNearestInRange(_playerTransform.position);
+            if (nearest != this) return;
+        }
+
+        _lastConsumeFrame = Time.frameCount;
 
         switch (action)
         {
@@ -93,7 +116,6 @@ public class BaseInteractable : MonoBehaviour
 
             case ActionType.OpenLootContainer:
                 {
-                    // ✅ 1) 시체 루팅(몬스터 드랍)
                     MonsterLoot monsterLoot = GetComponent<MonsterLoot>();
                     if (monsterLoot != null)
                     {
@@ -101,7 +123,6 @@ public class BaseInteractable : MonoBehaviour
                         return;
                     }
 
-                    // ✅ 2) 기존 파밍 상자 루팅
                     LootContainer loot = GetComponent<LootContainer>();
                     if (loot != null)
                     {
@@ -115,40 +136,62 @@ public class BaseInteractable : MonoBehaviour
         }
     }
 
+    private BaseInteractable GetNearestInRange(Vector3 playerPos)
+    {
+        BaseInteractable nearest = null;
+        float best = float.MaxValue;
+
+        for (int i = _inRangeList.Count - 1; i >= 0; i--)
+        {
+            var it = _inRangeList[i];
+            if (it == null)
+            {
+                _inRangeList.RemoveAt(i);
+                continue;
+            }
+            if (!it.playerInRange) continue;
+
+            float d = (it.transform.position - playerPos).sqrMagnitude;
+            if (d < best)
+            {
+                best = d;
+                nearest = it;
+            }
+        }
+
+        return nearest;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
-        // 전용 트리거를 쓰는 경우:
-        // "상호작용 트리거 콜라이더"에 들어온 트리거 이벤트만 인정하고 싶다면,
-        // other는 플레이어 콜라이더라서 여기서 구분이 어려움.
-        // 대신 "내 오브젝트에 어떤 트리거로 들어왔는지"는 Unity 이벤트 구조상 직접 못 받으니,
-        // 전용 트리거를 이 스크립트가 붙은 동일 오브젝트에 두는 방식으로 통일함(SetupDedicatedTrigger가 그렇게 함).
+        if (!other.CompareTag("Player")) return;
 
-        if (other.CompareTag("Player"))
-            playerInRange = true;
+        playerInRange = true;
+        _playerTransform = other.transform;
+
+        if (!_inRangeList.Contains(this))
+            _inRangeList.Add(this);
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
-            playerInRange = false;
+        if (!other.CompareTag("Player")) return;
+
+        playerInRange = false;
+
+        if (_inRangeList.Contains(this))
+            _inRangeList.Remove(this);
     }
 
     private void SetupDedicatedTrigger()
     {
-        // 전용 트리거는 "이 컴포넌트가 붙은 같은 GameObject"에 두는 걸 기본으로 함.
-        // (그래야 OnTriggerEnter/Exit가 확실히 이 스크립트로 들어옴)
         interactionTrigger = GetComponent<Collider>();
 
-        // 같은 오브젝트에 콜라이더가 이미 있고 그게 Trigger라면 그냥 사용
         if (interactionTrigger != null && interactionTrigger.isTrigger)
             return;
 
-        // 같은 오브젝트에 콜라이더가 있는데 Trigger가 아니면 (막는 콜라이더)
-        // -> 전용 트리거(BoxCollider)를 "추가"로 만든다.
-        // 단, 이미 BoxCollider가 2개 이상 붙어도 Unity는 문제없음.
         if (interactionTrigger == null || !interactionTrigger.isTrigger)
         {
-            // 이미 존재하는 "Trigger BoxCollider"가 있으면 그걸 사용
             var allCols = GetComponents<Collider>();
             for (int i = 0; i < allCols.Length; i++)
             {
@@ -171,25 +214,19 @@ public class BaseInteractable : MonoBehaviour
 
     private void ForceTriggerOnSelfAndChildren()
     {
-        // 자기 자신 Collider
-        var col = GetComponent<Collider>();
-        if (col != null) col.isTrigger = true;
-
-        // 자식 Collider까지
-        var childCols = GetComponentsInChildren<Collider>(true);
-        for (int i = 0; i < childCols.Length; i++)
+        var cols = GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < cols.Length; i++)
         {
-            childCols[i].isTrigger = true;
+            if (cols[i] == null) continue;
+            cols[i].isTrigger = true;
         }
     }
 
-#if UNITY_EDITOR
     private void OnValidate()
-    {
-        // 값이 이상하게 들어가면 최소 보정
-        triggerSize.x = Mathf.Max(0.1f, triggerSize.x);
-        triggerSize.y = Mathf.Max(0.1f, triggerSize.y);
-        triggerSize.z = Mathf.Max(0.1f, triggerSize.z);
+    { 
+        // 값이 이상하게 들어가면 최소 보정 
+        triggerSize.x = Mathf.Max(0.1f, triggerSize.x); 
+        triggerSize.y = Mathf.Max(0.1f, triggerSize.y); 
+        triggerSize.z = Mathf.Max(0.1f, triggerSize.z); 
     }
-#endif
-}
+ }

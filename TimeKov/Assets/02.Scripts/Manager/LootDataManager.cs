@@ -1,10 +1,14 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement; // âœ… [ì¶”ê°€]
 
 public class LootDataManager : MonoBehaviour
 {
     public static LootDataManager Instance { get; private set; }
+
+    // âœ… [ì¶”ê°€] ë ˆì´ë“œ ì„¸ì…˜ ë²ˆí˜¸ (ë ˆì´ë“œ ì”¬ ë‹¤ì‹œ ë“¤ì–´ì˜¬ ë•Œ ì¦ê°€)
+    public static int CurrentRaidSession { get; private set; } = 0;
 
     [Header("CSV (TextAsset)")]
     public TextAsset containerTableCsv;      // LootContainerTable_2files.csv
@@ -51,6 +55,31 @@ public class LootDataManager : MonoBehaviour
         LoadAll();
     }
 
+    // âœ… [ì¶”ê°€] ì”¬ ë¡œë“œ í›…
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    // âœ… [ì¶”ê°€]
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    // âœ… [ì¶”ê°€] ë ˆì´ë“œ ì”¬(= LootContainerê°€ ì¡´ì¬í•˜ëŠ” ì”¬) ë“¤ì–´ì˜¤ë©´ ì„¸ì…˜ ì¦ê°€
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // ì£¼ì˜: base ì”¬ì— LootContainerê°€ ì—†ìœ¼ë©´ ì„¸ì…˜ ì¦ê°€ ì•ˆ í•¨
+        // ë ˆì´ë“œ ì”¬ì— LootContainerê°€ í•˜ë‚˜ë¼ë„ ìˆìœ¼ë©´ ì„¸ì…˜ ì¦ê°€
+        var containers = FindObjectsOfType<LootContainer>(true);
+        if (containers != null && containers.Length > 0)
+        {
+            CurrentRaidSession++;
+            Debug.Log($"[LootDataManager] New Raid Session = {CurrentRaidSession} (scene={scene.name}, containers={containers.Length})");
+        }
+    }
+
     public bool TryGetContainer(string containerId, out ContainerDef def) => _containerById.TryGetValue(containerId, out def);
     public bool TryGetLootTable(string lootTableId, out LootTableDef def) => _lootTableById.TryGetValue(lootTableId, out def);
 
@@ -61,7 +90,7 @@ public class LootDataManager : MonoBehaviour
 
         if (containerTableCsv == null || lootTableUnifiedCsv == null)
         {
-            Debug.LogError("[LootDataManager] CSV TextAssetÀÌ ÀÎ½ºÆåÅÍ¿¡ ¿¬°á ¾ÈµÊ");
+            Debug.LogError("[LootDataManager] CSV TextAssetì´ ì¸ìŠ¤í™í„°ì— ì—°ê²° ì•ˆë¨");
             return;
         }
 
@@ -136,8 +165,8 @@ public class LootDataManager : MonoBehaviour
                 _lootTableById[tableId] = table;
             }
 
-            // tableÀÇ ·ê °ªÀº Ã¹ ÁÙ ±âÁØÀ¸·Î À¯Áö(³ªÁß¿¡ Çà¸¶´Ù Áßº¹À¸·Î µé¾î¿À´Ï±î)
-            // entries¸¸ °è¼Ó Ãß°¡
+            // tableì˜ ë£° ê°’ì€ ì²« ì¤„ ê¸°ì¤€ìœ¼ë¡œ ìœ ì§€(ë‚˜ì¤‘ì— í–‰ë§ˆë‹¤ ì¤‘ë³µìœ¼ë¡œ ë“¤ì–´ì˜¤ë‹ˆê¹Œ)
+            // entriesë§Œ ê³„ì† ì¶”ê°€
             table.entries.Add(new LootEntry
             {
                 itemId = itemId,
@@ -161,7 +190,7 @@ public class LootDataManager : MonoBehaviour
         return list;
     }
 
-    // µû¿ÈÇ¥ Æ÷ÇÔ CSVµµ ÃÖ¼ÒÇÑ Ã³¸® (°£´Ü ÆÄ¼­)
+    // ë”°ì˜´í‘œ í¬í•¨ CSVë„ ìµœì†Œí•œ ì²˜ë¦¬ (ê°„ë‹¨ íŒŒì„œ)
     private static List<string> SplitCsvLine(string line)
     {
         var result = new List<string>();

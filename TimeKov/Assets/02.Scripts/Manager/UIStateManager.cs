@@ -151,6 +151,18 @@ public class UIStateManager : MonoBehaviour
         ApplyState();
     }
 
+    // ✅ [추가] Loot UI가 이미 열린 상태에서, 다른 LootContainer가 다른 루트로 바인딩해야 할 때 사용
+    // ToggleLoot처럼 상태를 토글하지 않고, 현재 Loot UI 루트만 교체합니다.
+    public void SetCurrentLootUI(GameObject lootUI)
+    {
+        if (lootUI != null) currentLootUI = lootUI;
+        else if (currentLootUI == null) currentLootUI = defaultLootUI;
+
+        // Loot 상태라면 즉시 반영
+        if (currentState == UIState.Loot)
+            ApplyState();
+    }
+
     public void SetState(UIState newState)
     {
         currentState = newState;
