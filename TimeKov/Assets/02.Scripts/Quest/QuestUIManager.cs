@@ -7,17 +7,17 @@ using TMPro;
 public class QuestUIManager : MonoBehaviour
 {
     [Header("UI Objects")]
-    public GameObject questWindow;      
-    public Transform questListContent;   
-    public GameObject questSlotPrefab;   
+    public GameObject questWindow;
+    public Transform questListContent;
+    public GameObject questSlotPrefab;
 
     [Header("Right Side Details")]
-    public TextMeshProUGUI detailTitle;  
-    public TextMeshProUGUI detailDesc;  
-    public Button acceptButton;        
+    public TextMeshProUGUI detailTitle;
+    public TextMeshProUGUI detailDesc;
+    public Button acceptButton;
 
-    [Header("Quest Data")]
-    public List<Quest> allQuests = new List<Quest>();
+    [Header("Quest Data (Initial Setup)")]
+    public List<Quest> initialQuests = new List<Quest>();
 
     [Header("Player Control")]
     private PlayerController playerController;
@@ -32,85 +32,79 @@ public class QuestUIManager : MonoBehaviour
         questWindow.SetActive(false);
         acceptButton.onClick.AddListener(OnClickAccept);
         playerController = FindFirstObjectByType<PlayerController>();
+
+        if (!QuestDataManager.isInitialized)
+        {
+            QuestDataManager.globalQuests = new List<Quest>(initialQuests);
+            QuestDataManager.isInitialized = true;
+        }
     }
 
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.J))
         {
-            if (pausePanel != null && pausePanel.activeSelf)
-            {
-                return;
-            }
+            if (pausePanel != null && pausePanel.activeSelf) return;
 
             if (!questWindow.activeSelf)
             {
-                ToggleQuestWindow();
+                OpenQuestWindow();
             }
         }
     }
 
-    public void ToggleQuestWindow()
+    public void OpenQuestWindow()
     {
-        bool isActive = questWindow.activeSelf;
-        questWindow.SetActive(!isActive);
-
-        if (!isActive)
-        {
-            UpdateQuestList();
-            detailTitle.text = "";
-            detailDesc.text = "";
-            acceptButton.gameObject.SetActive(false);
-
-            Cursor.visible = true;
-            Cursor.lockState = CursorLockMode.None;
-
-            if (playerController != null) playerController.enabled = false;
-        }
-        else
-        {
-            Cursor.visible = false;
-            Cursor.lockState = CursorLockMode.Locked;
-
-            if (playerController != null) playerController.enabled = true;
-        }
+        questWindow.SetActive(true);
+        UpdateQuestList();
+        detailTitle.text = "";
+        detailDesc.text = "";
+        acceptButton.gameObject.SetActive(false);
 
         if (crosshairUI != null) crosshairUI.SetActive(false);
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
+        if (playerController != null) playerController.enabled = false;
         Time.timeScale = 0f;
+    }
+
+    public void CloseQuestWindow()
+    {
+        if (questWindow != null) questWindow.SetActive(false);
+        if (crosshairUI != null) crosshairUI.SetActive(true);
+
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        if (playerController != null)
+        {
+            playerController.enabled = true;
+            playerController.SyncSettings();
+        }
+        Time.timeScale = 1f;
     }
 
     void UpdateQuestList()
     {
         foreach (Transform child in questListContent)
         {
-            Destroy(child.gameObject);
+            if (child != null) Destroy(child.gameObject);
         }
 
-        foreach (Quest quest in allQuests)
+        foreach (Quest quest in QuestDataManager.globalQuests)
         {
             GameObject newSlot = Instantiate(questSlotPrefab, questListContent);
             QuestSlotUI slotScript = newSlot.GetComponent<QuestSlotUI>();
             slotScript.Setup(quest, this);
         }
     }
+
     public void ShowQuestDetail(Quest quest)
     {
         selectedQuest = quest;
-
         detailTitle.text = quest.title;
-
         detailDesc.text = $"{quest.description}\n\n<color=yellow>Progress: ({quest.currentAmount} / {quest.targetAmount})</color>";
 
-        if (quest.state == QuestState.Available)
-        {
-            acceptButton.gameObject.SetActive(true);
-        }
-        else
-        {
-            acceptButton.gameObject.SetActive(false);
-        }
+        acceptButton.gameObject.SetActive(quest.state == QuestState.Available);
     }
 
     void OnClickAccept()
@@ -118,22 +112,18 @@ public class QuestUIManager : MonoBehaviour
         if (selectedQuest != null && selectedQuest.state == QuestState.Available)
         {
             selectedQuest.state = QuestState.Accepted;
-
             UpdateQuestList();
             ShowQuestDetail(selectedQuest);
-
-            Debug.Log($"Äù½ºÆ® ¼ö¶ôµÊ: {selectedQuest.title}");
         }
     }
 
     public void AddQuestProgress(string questTitle, int amount)
     {
-        foreach (Quest quest in allQuests)
+        foreach (Quest quest in QuestDataManager.globalQuests)
         {
             if (quest.title == questTitle && quest.state == QuestState.Accepted)
             {
                 quest.AddProgress(amount);
-
                 if (questWindow.activeSelf)
                 {
                     UpdateQuestList();
@@ -142,23 +132,5 @@ public class QuestUIManager : MonoBehaviour
                 break;
             }
         }
-    }
-
-    public void CloseQuestWindow()
-    {
-        if (questWindow != null && questWindow.activeSelf)
-        {
-            questWindow.SetActive(false);
-
-            Cursor.visible = false;
-            Cursor.lockState = CursorLockMode.Locked;
-
-            if (playerController != null) playerController.enabled = true;
-        }
-
-        if (crosshairUI != null) crosshairUI.SetActive(true);
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
-        Time.timeScale = 1f;
     }
 }
