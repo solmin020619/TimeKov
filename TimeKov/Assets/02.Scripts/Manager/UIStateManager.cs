@@ -12,6 +12,7 @@ public class UIStateManager : MonoBehaviour
         Inventory,
         Shop,
         Loot,
+        Quest,
         Pause
     }
 
@@ -33,6 +34,9 @@ public class UIStateManager : MonoBehaviour
 
     [Header("Inventory Buttons (Optional)")]
     public GameObject moveToWarehouseButton;
+
+    [Header("Quest UI")]
+    public GameObject questUI;
 
     [Header("Managers (optional but recommended)")]
     public ShopManager shopManager;
@@ -68,9 +72,9 @@ public class UIStateManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             HandleEscape();
+            return; //  이거 추가
         }
 
-        // ✅ 외부에서 패널을 직접 껐다/켰어도 상태가 꼬이지 않게 싱크
         if (currentState != UIState.None && !IsAnyManagedUIPanelActive())
         {
             currentState = UIState.None;
@@ -151,6 +155,17 @@ public class UIStateManager : MonoBehaviour
         ApplyState();
     }
 
+    public void ToggleQuest()
+    {
+        if (currentState == UIState.Inventory) return;
+        if (currentState == UIState.Shop) return;
+        if (currentState == UIState.Loot) return;
+        if (currentState == UIState.Pause) return;
+
+        currentState = (currentState == UIState.Quest) ? UIState.None : UIState.Quest;
+        ApplyState();
+    }
+
     // ✅ [추가] Loot UI가 이미 열린 상태에서, 다른 LootContainer가 다른 루트로 바인딩해야 할 때 사용
     // ToggleLoot처럼 상태를 토글하지 않고, 현재 Loot UI 루트만 교체합니다.
     public void SetCurrentLootUI(GameObject lootUI)
@@ -202,6 +217,7 @@ public class UIStateManager : MonoBehaviour
         if (playerInventoryUI) playerInventoryUI.SetActive(false);
         if (warehouseUI) warehouseUI.SetActive(false);
         if (shopUI) shopUI.SetActive(false);
+        if (questUI) questUI.SetActive(false);
 
         // Pause 쪽은 Root/Panel/Settings 따로 관리
         if (pauseRoot) pauseRoot.SetActive(false);
@@ -229,6 +245,10 @@ public class UIStateManager : MonoBehaviour
 
                 if (shopManager != null) shopManager.OpenShop();
                 else if (shopUI) shopUI.SetActive(true);
+                break;
+
+            case UIState.Quest:
+                if (questUI) questUI.SetActive(true);
                 break;
 
             case UIState.Loot:
@@ -286,6 +306,8 @@ public class UIStateManager : MonoBehaviour
         if (playerInventoryUI != null && playerInventoryUI.activeInHierarchy) return true;
         if (warehouseUI != null && warehouseUI.activeInHierarchy) return true;
         if (shopUI != null && shopUI.activeInHierarchy) return true;
+        if (questUI != null && questUI.activeInHierarchy) return true;
+
 
         if (pauseRoot != null && pauseRoot.activeInHierarchy) return true;
         if (pauseMainPanel != null && pauseMainPanel.activeInHierarchy) return true;
@@ -296,6 +318,7 @@ public class UIStateManager : MonoBehaviour
 
         return false;
     }
+
 
     private void SetGameplayInputEnabled(bool enabled)
     {

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -29,8 +29,9 @@ public class QuestUIManager : MonoBehaviour
 
     void Start()
     {
-        questWindow.SetActive(false);
-        acceptButton.onClick.AddListener(OnClickAccept);
+        if (questWindow != null) questWindow.SetActive(false);
+        if (acceptButton != null) acceptButton.onClick.AddListener(OnClickAccept);
+
         playerController = FindFirstObjectByType<PlayerController>();
 
         if (!QuestDataManager.isInitialized)
@@ -44,22 +45,65 @@ public class QuestUIManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.J))
         {
+            // PausePanel이 따로 켜져있으면 퀘스트 열기 금지 (기존 로직 유지)
             if (pausePanel != null && pausePanel.activeSelf) return;
 
-            if (!questWindow.activeSelf)
+            // ✅ [추가] UIStateManager가 있으면 무조건 거기로 위임
+            if (UIStateManager.Instance != null)
+            {
+                UIStateManager.Instance.ToggleQuest();
+
+                // 퀘스트가 열리는 프레임이면 UI 내용 갱신만 해준다(입력/커서/타임스케일은 UIStateManager가 담당)
+                if (UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Quest)
+                {
+                    PrepareQuestUIOnly();
+                }
+                return;
+            }
+
+            // ------------------------------
+            // (레거시) UIStateManager가 없는 씬에서는 기존 방식 유지
+            // ------------------------------
+            if (questWindow != null && !questWindow.activeSelf)
             {
                 OpenQuestWindow();
             }
         }
     }
 
+    // ✅ [추가] UI 내용만 갱신 (입력/커서/타임스케일/플컨 enable 건드리지 않음)
+    private void PrepareQuestUIOnly()
+    {
+        if (questWindow == null) return;
+
+        // questWindow.SetActive(true)는 UIStateManager가 켜주지만, 혹시 직접 켜진 경우도 대비해서 안전하게 처리
+        if (!questWindow.activeSelf) questWindow.SetActive(true);
+
+        UpdateQuestList();
+
+        if (detailTitle != null) detailTitle.text = "";
+        if (detailDesc != null) detailDesc.text = "";
+        if (acceptButton != null) acceptButton.gameObject.SetActive(false);
+    }
+
     public void OpenQuestWindow()
     {
-        questWindow.SetActive(true);
+        // ✅ [추가] UIStateManager가 있으면 상태 전환은 거기로 위임
+        if (UIStateManager.Instance != null)
+        {
+            UIStateManager.Instance.SetState(UIStateManager.UIState.Quest);
+            PrepareQuestUIOnly();
+            return;
+        }
+
+        // ------------------------------
+        // (레거시) 기존 동작 유지
+        // ------------------------------
+        if (questWindow != null) questWindow.SetActive(true);
         UpdateQuestList();
-        detailTitle.text = "";
-        detailDesc.text = "";
-        acceptButton.gameObject.SetActive(false);
+        if (detailTitle != null) detailTitle.text = "";
+        if (detailDesc != null) detailDesc.text = "";
+        if (acceptButton != null) acceptButton.gameObject.SetActive(false);
 
         if (crosshairUI != null) crosshairUI.SetActive(false);
         Cursor.visible = true;
@@ -70,6 +114,16 @@ public class QuestUIManager : MonoBehaviour
 
     public void CloseQuestWindow()
     {
+        // ✅ [추가] UIStateManager가 있으면 닫기는 CloseAllUI로 통일 (입력/커서/타임스케일 복구 포함)
+        if (UIStateManager.Instance != null)
+        {
+            UIStateManager.Instance.CloseAllUI();
+            return;
+        }
+
+        // ------------------------------
+        // (레거시) 기존 동작 유지
+        // ------------------------------
         if (questWindow != null) questWindow.SetActive(false);
         if (crosshairUI != null) crosshairUI.SetActive(true);
 
@@ -85,9 +139,12 @@ public class QuestUIManager : MonoBehaviour
 
     void UpdateQuestList()
     {
-        foreach (Transform child in questListContent)
+        if (questListContent != null)
         {
-            if (child != null) Destroy(child.gameObject);
+            foreach (Transform child in questListContent)
+            {
+                if (child != null) Destroy(child.gameObject);
+            }
         }
 
         foreach (Quest quest in QuestDataManager.globalQuests)
@@ -101,10 +158,11 @@ public class QuestUIManager : MonoBehaviour
     public void ShowQuestDetail(Quest quest)
     {
         selectedQuest = quest;
-        detailTitle.text = quest.title;
-        detailDesc.text = $"{quest.description}\n\n<color=yellow>Progress: ({quest.currentAmount} / {quest.targetAmount})</color>";
+        if (detailTitle != null) detailTitle.text = quest.title;
+        if (detailDesc != null) detailDesc.text = $"{quest.description}\n\n<color=yellow>Progress: ({quest.currentAmount} / {quest.targetAmount})</color>";
 
-        acceptButton.gameObject.SetActive(quest.state == QuestState.Available);
+        if (acceptButton != null)
+            acceptButton.gameObject.SetActive(quest.state == QuestState.Available);
     }
 
     void OnClickAccept()
@@ -124,7 +182,7 @@ public class QuestUIManager : MonoBehaviour
             if (quest.title == questTitle && quest.state == QuestState.Accepted)
             {
                 quest.AddProgress(amount);
-                if (questWindow.activeSelf)
+                if (questWindow != null && questWindow.activeSelf)
                 {
                     UpdateQuestList();
                     if (selectedQuest == quest) ShowQuestDetail(quest);
