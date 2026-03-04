@@ -99,14 +99,17 @@ public class PlayerWeaponController : MonoBehaviour
     private void Awake()
     {
         playerController = GetComponent<PlayerController>();
-        cachedCam = Camera.main;
+
+        cachedCam = GetComponentInChildren<Camera>();
+        if (cachedCam == null) cachedCam = Camera.main;
 
         if (fpsPlayer == null)
             fpsPlayer = FindFirstObjectByType<FPSPlayer>();
 
-        // ✅ 인벤 참조 자동 탐색(비어있을 때만)
         if (playerInventory == null)
             playerInventory = FindFirstObjectByType<InventoryManager>();
+
+        Debug.Log($"[Weapon] {gameObject.name}이 사용하는 카메라: {(cachedCam != null ? cachedCam.name : "NULL")}");
     }
 
     private void Start()
@@ -506,7 +509,9 @@ public class PlayerWeaponController : MonoBehaviour
     // =========================
     private void FireRaycastAndVisual()
     {
-        if (cachedCam == null) cachedCam = Camera.main;
+        if (cachedCam == null || !cachedCam.gameObject.activeInHierarchy)
+            cachedCam = GetComponentInChildren<Camera>() ?? Camera.main;
+
         if (cachedCam == null) return;
 
         Vector3 camOrigin = cachedCam.transform.position;
@@ -514,13 +519,16 @@ public class PlayerWeaponController : MonoBehaviour
 
         float range = weapon.effectiveRange;
 
+        Vector3 rayStart = camOrigin + camDir * 0.5f;
         Vector3 hitPoint = camOrigin + camDir * range;
         bool hasHitPoint = false;
 
-        if (Physics.Raycast(camOrigin, camDir, out RaycastHit hit, range, hitMask, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(rayStart, camDir, out RaycastHit hit, range, hitMask, QueryTriggerInteraction.Ignore))
         {
             hasHitPoint = true;
             hitPoint = hit.point;
+
+            if (debugLogFire) Debug.Log($"[Hit] 맞은 물체: {hit.collider.name} / 위치: {hit.point}");
 
             if (crosshair != null) crosshair.OnHitConfirm();
 
@@ -529,7 +537,6 @@ public class PlayerWeaponController : MonoBehaviour
                 enemy.TakeDamage((int)weapon.damage);
         }
 
-        // 비주얼 탄 시작점은 "현재 무기 총구" (없으면 aimPoint -> 카메라 fallback)
         Vector3 origin = GetVisualOrigin(camOrigin);
 
         Vector3 forward = (hitPoint - origin);
@@ -687,10 +694,9 @@ public class PlayerWeaponController : MonoBehaviour
         if (bestScore < 80) return null;
         return best;
     }
-
     private Vector3 ApplyRecoil(Vector3 forward)
     {
-        float baseYaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+        if (cachedCam == null) cachedCam = Camera.main;
 
         if (Time.time - lastFireTime > weapon.recoilResetTime)
         {
@@ -699,41 +705,40 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         float deltaYaw = 0f;
-
         if (weapon.useRecoilPattern == 1)
         {
             float[] pattern = GetRecoilPatternByItemId(equippedItemId);
             if (pattern != null && pattern.Length > 0)
             {
-                deltaYaw += pattern[Mathf.Min(recoilIndex, pattern.Length - 1)];
-                recoilIndex++;
+                if (recoilIndex < pattern.Length)
+                {
+                    deltaYaw = pattern[recoilIndex];
+                    recoilIndex++;
+                }
             }
         }
 
         float rand = Mathf.Abs(weapon.randomRecoilAngle);
-        if (rand > 0f)
-            deltaYaw += Random.Range(-rand, rand);
+        if (rand > 0f) deltaYaw += Random.Range(-rand, rand);
 
         recoilAccumYaw += deltaYaw;
 
-        float finalYaw = baseYaw + recoilAccumYaw;
-        float rad = finalYaw * Mathf.Deg2Rad;
+        Quaternion horizRecoil = Quaternion.AngleAxis(recoilAccumYaw, cachedCam.transform.up);
 
-        return new Vector3(Mathf.Sin(rad), forward.y, Mathf.Cos(rad)).normalized;
+        return (horizRecoil * forward).normalized;
     }
 
     private Vector3 GetSpreadDirection(Vector3 forward, float spreadAngle)
     {
         if (spreadAngle <= 0.01f) return forward;
 
-        float half = spreadAngle * 0.5f;
-        float yawOffset = Random.Range(-half, half);
+        float randomYaw = Random.Range(-spreadAngle * 0.5f, spreadAngle * 0.5f);
+        float randomPitch = Random.Range(-spreadAngle * 0.5f, spreadAngle * 0.5f);
 
-        float baseYaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
-        float finalYaw = baseYaw + yawOffset;
+        Quaternion baseRot = Quaternion.FromToRotation(Vector3.forward, forward);
+        Quaternion spreadRot = Quaternion.Euler(randomPitch, randomYaw, 0f);
 
-        float rad = finalYaw * Mathf.Deg2Rad;
-        return new Vector3(Mathf.Sin(rad), forward.y, Mathf.Cos(rad)).normalized;
+        return (baseRot * spreadRot * Vector3.forward).normalized;
     }
 
     private void SpawnVisualBullet(Vector3 origin, Vector3 dir, Vector3? hitPoint = null)
