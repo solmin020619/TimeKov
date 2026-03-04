@@ -301,7 +301,18 @@ public class UIStateManager : MonoBehaviour
     {
         GameplayInputEnabled = enabled;
 
+        // 커서 처리
         Cursor.visible = !enabled;
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
+
+        // 🔥 게임 일시정지
+        if (enabled)
+        {
+            Time.timeScale = 1f;
+        }
+        else
+        {
+            Time.timeScale = 0f;
+        }
     }
 }
