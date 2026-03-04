@@ -3073,6 +3073,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1352265172 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 909053351953100893, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
+  m_PrefabInstance: {fileID: 2102523757}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6d748a133ce17b4cb7d95a9d248282a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1366728752 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 94a0f3758dae08540a7cb99af32b51dd, type: 3}
@@ -4752,14 +4763,14 @@ PrefabInstance:
     - target: {fileID: 8021552874145117938, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 2077030186}
+      objectReference: {fileID: 1352265172}
     - target: {fileID: 8021552874145117938, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: ClosePauseSettings
+      value: CloseSettings
       objectReference: {fileID: 0}
     - target: {fileID: 8021552874145117938, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
-      value: UIStateManager, Assembly-CSharp
+      value: GlobalSettingsManager, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 8089260811217402077, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
       propertyPath: m_Name
@@ -4809,7 +4820,7 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 1070553889580541094, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
-      insertIndex: -1
+      insertIndex: 5
       addedObject: {fileID: 2072667568}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}

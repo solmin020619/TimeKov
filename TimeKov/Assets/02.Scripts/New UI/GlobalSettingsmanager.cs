@@ -74,7 +74,7 @@ public class GlobalSettingsManager : MonoBehaviour
             OpenSettings();
     }
 
-    void PlayClickSound()
+    public void PlayClickSound()
     {
         if (sceneSFXSpeaker != null && clickSound != null)
             sceneSFXSpeaker.PlayOneShot(clickSound);
