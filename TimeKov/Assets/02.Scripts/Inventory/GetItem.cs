@@ -158,6 +158,9 @@ public class GetItem : MonoBehaviour
             // 부분만 들어갔으면: 드랍 슬롯 수량만 감소 (아이템 유지)
             insertItemCount = remaining;
             RefreshUI();
+
+            // ✅ 루팅 이후 드랍 슬롯 스택 자동 합치기
+            GetComponentInParent<LootContainer>()?.NotifyLootChanged();
             return;
         }
 
@@ -165,5 +168,8 @@ public class GetItem : MonoBehaviour
         insertID = 0;
         insertItemCount = 0;
         RefreshUI();
+
+        // ✅ 루팅 이후 드랍 슬롯 스택 자동 합치기
+        GetComponentInParent<LootContainer>()?.NotifyLootChanged();
     }
 }

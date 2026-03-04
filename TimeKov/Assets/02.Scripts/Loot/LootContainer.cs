@@ -41,6 +41,18 @@ public class LootContainer : MonoBehaviour
         if (ActiveContainer == this) ActiveContainer = null;
     }
 
+    // ✅ GetItem(슬롯)에서 루팅/변경이 발생했을 때 즉시 동기화하고 싶을 때 호출
+    public void NotifyLootChanged()
+    {
+        if (!enableBGStyleLoot) return;
+        if (lootPanelRoot == null || !lootPanelRoot.activeInHierarchy) return;
+        if (ActiveContainer != this) return;
+
+        _lastSnapshotHash = 0;
+        CompactAndRefreshIfNeeded(force: true);
+        CacheFromSlots();
+    }
+
     public void Open()
     {
         SyncRaidSessionAndResetIfNeeded();
@@ -152,7 +164,7 @@ public class LootContainer : MonoBehaviour
         if (enableBGStyleLoot)
         {
             ApplyBGStyleVisibility();
-            CompactAndRefreshIfNeeded(force: true);
+            CompactAndRefreshIfNeeded(force: true); // ✅ 여기서 스택 머지까지 같이 됨
         }
     }
 
@@ -186,6 +198,21 @@ public class LootContainer : MonoBehaviour
         CacheFromSlots();
     }
 
+    // =========================
+    // ✅ 스택 규칙 (InventoryManager와 동일 룰)
+    // duplicated==1이면 overlapsCount, 아니면 1
+    // =========================
+    private int GetMaxStackSize(int itemId)
+    {
+        var item = (DataManager.Instance != null) ? DataManager.Instance.GetItem(itemId) : null;
+        if (item == null) return 1;
+
+        if (item.duplicated == 1)
+            return Mathf.Max(1, item.overlapsCount);
+
+        return 1;
+    }
+
     private void CompactAndRefreshIfNeeded(bool force)
     {
         if (lootSlots == null || lootSlots.Length == 0) return;
@@ -195,7 +222,10 @@ public class LootContainer : MonoBehaviour
         if (!force && snapshotHash == _lastSnapshotHash) return;
         _lastSnapshotHash = snapshotHash;
 
-        var items = new List<(int id, int count)>(lootSlots.Length);
+        // 1) 현재 슬롯에서 아이템 읽기 (등장 순서 유지)
+        var order = new List<int>(lootSlots.Length);
+        var totals = new Dictionary<int, int>(lootSlots.Length);
+
         for (int i = 0; i < lootSlots.Length; i++)
         {
             var slot = lootSlots[i];
@@ -204,15 +234,45 @@ public class LootContainer : MonoBehaviour
             int id = ReadIntField(slot, "InsertID", "insertID", "itemId", "slotIndex");
             int count = ReadIntField(slot, "InsertItemCount", "insertItemCount", "count", "itemCount");
 
-            if (id != 0 && count > 0)
-                items.Add((id, count));
+            if (id == 0 || count <= 0) continue;
+
+            if (!totals.ContainsKey(id))
+            {
+                totals[id] = count;
+                order.Add(id);
+            }
+            else
+            {
+                totals[id] += count;
+            }
         }
 
+        // 2) order 순서대로 "최대 스택까지" 쪼개서 packed 만들기
+        var packed = new List<(int id, int count)>(lootSlots.Length);
+
+        for (int k = 0; k < order.Count; k++)
+        {
+            int id = order[k];
+            int remaining = totals[id];
+
+            int maxStack = GetMaxStackSize(id);
+            if (maxStack <= 0) maxStack = 1;
+
+            while (remaining > 0)
+            {
+                int put = Mathf.Min(maxStack, remaining);
+                packed.Add((id, put));
+                remaining -= put;
+            }
+        }
+
+        // 3) 슬롯에 반영 (남는 칸은 0,0)
         for (int i = 0; i < lootSlots.Length; i++)
         {
             if (lootSlots[i] == null) continue;
-            if (i < items.Count)
-                lootSlots[i].SetData(playerInventoryManagerGO, items[i].id, items[i].count);
+
+            if (i < packed.Count)
+                lootSlots[i].SetData(playerInventoryManagerGO, packed[i].id, packed[i].count);
             else
                 lootSlots[i].SetData(playerInventoryManagerGO, 0, 0);
         }
@@ -333,7 +393,7 @@ public class LootContainer : MonoBehaviour
         {
             ApplyBGStyleVisibility();
             _lastSnapshotHash = 0;
-            CompactAndRefreshIfNeeded(force: true);
+            CompactAndRefreshIfNeeded(force: true); // ✅ 여기서 스택 머지까지 같이 됨
         }
     }
 
