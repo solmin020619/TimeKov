@@ -29,6 +29,8 @@ public class GlobalSettingsManager : MonoBehaviour
         LoadAndApplySettings();
         InitResolutionOptions();
 
+        SyncUIValues();
+
         if (bgmSlider != null) bgmSlider.onValueChanged.AddListener(SetBGMVolume);
         if (sfxSlider != null) sfxSlider.onValueChanged.AddListener(SetSFXVolume);
         if (sensitivitySlider != null) sensitivitySlider.onValueChanged.AddListener(SetSensitivity);
@@ -38,7 +40,7 @@ public class GlobalSettingsManager : MonoBehaviour
 
     void Update()
     {
-        
+
     }
 
     public void OpenSettings()
@@ -82,16 +84,18 @@ public class GlobalSettingsManager : MonoBehaviour
     {
         float bgm = PlayerPrefs.GetFloat("BGMVolume", 1.0f);
         float sfx = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+
         if (sceneBGMSpeaker != null) sceneBGMSpeaker.volume = bgm;
-        if (sceneSFXSpeaker != null) sceneSFXSpeaker.volume = sfx;
+
+        SetSFXVolume(sfx);
     }
 
     void SyncUIValues()
     {
-        if (bgmSlider != null) bgmSlider.value = PlayerPrefs.GetFloat("BGMVolume", 1.0f);
-        if (sfxSlider != null) sfxSlider.value = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
-        if (sensitivitySlider != null) sensitivitySlider.value = PlayerPrefs.GetFloat("MouseSensitivity", 1.0f);
-        if (fullscreenToggle != null) fullscreenToggle.isOn = Screen.fullScreen;
+        if (bgmSlider != null) bgmSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat("BGMVolume", 1.0f));
+        if (sfxSlider != null) sfxSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat("SFXVolume", 1.0f));
+        if (sensitivitySlider != null) sensitivitySlider.SetValueWithoutNotify(PlayerPrefs.GetFloat("MouseSensitivity", 1.0f));
+        if (fullscreenToggle != null) fullscreenToggle.SetIsOnWithoutNotify(Screen.fullScreen);
     }
 
     public void SetBGMVolume(float volume)
@@ -102,7 +106,28 @@ public class GlobalSettingsManager : MonoBehaviour
     public void SetSFXVolume(float volume)
     {
         if (sceneSFXSpeaker != null) sceneSFXSpeaker.volume = volume;
-        PlayerPrefs.SetFloat("SFXVolume", volume); PlayerPrefs.Save();
+        PlayerPrefs.SetFloat("SFXVolume", volume);
+        PlayerPrefs.Save();
+
+        PlayerController player = FindFirstObjectByType<PlayerController>();
+        if (player != null)
+        {
+            AudioSource[] playerAudios = player.GetComponentsInChildren<AudioSource>();
+            foreach (var audio in playerAudios)
+            {
+                audio.volume = volume;
+            }
+        }
+
+        EnemyAI[] enemies = FindObjectsByType<EnemyAI>(FindObjectsSortMode.None);
+        foreach (var enemy in enemies)
+        {
+            AudioSource enemyAudio = enemy.GetComponent<AudioSource>();
+            if (enemyAudio != null)
+            {
+                enemyAudio.volume = volume;
+            }
+        }
     }
     public void SetSensitivity(float sens)
     {

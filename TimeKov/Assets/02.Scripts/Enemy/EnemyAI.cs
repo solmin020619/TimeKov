@@ -21,13 +21,18 @@ public class EnemyAI : MonoBehaviour
     private PlayerTime playerTime;
     private EnemyHealth myHealth;
     private Animator anim;
+    private AudioSource audioSource;
 
     private Vector3 startPosition;
     private float lastAttackTime;
     private float lastProvokedTime = -999f;
+    private float lastRoarTime = -999f;
     private bool isAttacking = false;
     private bool hasPerformedFirstAttack = false;
     private bool isSelfDestructing = false;
+
+    private float footstepTimer = 0f;
+    private State previousState;
 
     public LayerMask targetMask;
     public LayerMask obstacleMask;
@@ -37,6 +42,18 @@ public class EnemyAI : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         myHealth = GetComponent<EnemyHealth>();
         anim = GetComponentInChildren<Animator>();
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        audioSource.spatialBlend = 1f;
+        audioSource.rolloffMode = AudioRolloffMode.Linear;
+        audioSource.minDistance = 5f;
+        audioSource.maxDistance = 30f;
+        audioSource.volume = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
 
         if (data != null)
         {
@@ -56,7 +73,7 @@ public class EnemyAI : MonoBehaviour
             startPosition = transform.position;
         }
 
-            PlayerController pc = FindAnyObjectByType<PlayerController>();
+        PlayerController pc = FindAnyObjectByType<PlayerController>();
         if (pc != null)
         {
             playerTransform = pc.transform;
@@ -67,6 +84,7 @@ public class EnemyAI : MonoBehaviour
         myHealth.OnDamage += OnTakeDamage;
 
         currentState = State.Patrol;
+        previousState = currentState;
         SetRandomPatrolDestination();
     }
 
@@ -81,6 +99,12 @@ public class EnemyAI : MonoBehaviour
 
     void OnTakeDamage()
     {
+        if (data.hitVFXPrefab != null)
+        {
+            GameObject vfx = Instantiate(data.hitVFXPrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity);
+            Destroy(vfx, 1f);
+        }
+
         lastProvokedTime = Time.time;
         if (currentState != State.Chase && currentState != State.Attack)
         {
@@ -94,6 +118,37 @@ public class EnemyAI : MonoBehaviour
         if (data == null) return;
 
         if (anim != null) anim.SetFloat("Speed", agent.velocity.magnitude);
+
+        if (currentState == State.Chase && previousState != State.Chase)
+        {
+            if (Time.time >= lastRoarTime + 4f)
+            {
+                if (data.chaseRoarSound != null && audioSource != null)
+                {
+                    audioSource.PlayOneShot(data.chaseRoarSound);
+                    lastRoarTime = Time.time;
+                }
+            }
+        }
+        previousState = currentState;
+
+        if (agent.velocity.magnitude > 0.1f && !isAttacking)
+        {
+            footstepTimer += Time.deltaTime;
+            float interval = (currentState == State.Chase) ? 0.35f : 0.6f;
+            if (footstepTimer >= interval)
+            {
+                if (data.footstepSound != null && audioSource != null)
+                {
+                    audioSource.PlayOneShot(data.footstepSound, 0.6f);
+                }
+                footstepTimer = 0f;
+            }
+        }
+        else
+        {
+            footstepTimer = 0f;
+        }
 
         switch (currentState)
         {
@@ -192,16 +247,17 @@ public class EnemyAI : MonoBehaviour
         isAttacking = true;
         lastAttackTime = Time.time;
 
-        Debug.Log("<color=orange>ÀÚÆø ½ÃÄö½º ½ÃÀÛ! (ºÎÇ®¾î ¿À¸§)</color>");
-
         if (anim != null) anim.SetTrigger("Attack");
 
         yield return new WaitForSeconds(data.attackHitDelay);
 
-        Collider[] hits = Physics.OverlapSphere(transform.position, data.explosionRadius, targetMask);
-        bool hitPlayer = false;
+        if (data.explosionSound != null)
+        {
+            float sfxVol = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+            AudioSource.PlayClipAtPoint(data.explosionSound, transform.position, sfxVol);
+        }
 
-        Debug.Log("Äç!!!!");
+        Collider[] hits = Physics.OverlapSphere(transform.position, data.explosionRadius, targetMask);
 
         foreach (var hit in hits)
         {
@@ -209,7 +265,6 @@ public class EnemyAI : MonoBehaviour
             if (target != null)
             {
                 target.TakeDamage(data.attackDamage);
-                hitPlayer = true;
             }
         }
 
@@ -242,6 +297,11 @@ public class EnemyAI : MonoBehaviour
         for (int i = 0; i < comboCount; i++)
         {
             if (anim != null) anim.SetTrigger("Attack");
+
+            if (data.normalAttackSound != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(data.normalAttackSound);
+            }
 
             float timer = 0f;
             while (timer < data.attackHitDelay)
@@ -314,6 +374,11 @@ public class EnemyAI : MonoBehaviour
             yield return null;
         }
 
+        if (data.jumpAttackSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(data.jumpAttackSound);
+        }
+
         Collider[] hits = Physics.OverlapSphere(transform.position, data.jumpAttackRadius, targetMask);
         foreach (var hit in hits)
         {
@@ -328,7 +393,6 @@ public class EnemyAI : MonoBehaviour
         currentState = State.Chase;
         agent.isStopped = false;
     }
-
 
     void RotateTowards(Vector3 target, float speed = 10f)
     {
@@ -366,8 +430,6 @@ public class EnemyAI : MonoBehaviour
 
     void DropLoot()
     {
-        Debug.Log("Loot Dropped / Àû »ç¸Á Ã³¸®");
-
         if (!isSelfDestructing)
         {
             if (!string.IsNullOrEmpty(targetQuestName))
@@ -377,7 +439,6 @@ public class EnemyAI : MonoBehaviour
                 if (questManager != null)
                 {
                     questManager.AddQuestProgress(targetQuestName, 1);
-                    Debug.Log($"{targetQuestName} Äù½ºÆ® Ä«¿îÆ® Áõ°¡!");
                 }
             }
         }

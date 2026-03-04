@@ -40,4 +40,13 @@ public class EnemyDataSO : ScriptableObject
     public float jumpFullTime = 2.8f;
     public float jumpLungeSpeed = 10f;
     [Range(0f, 1f)] public float jumpChanceOnMiss = 0.7f;
+
+    [Header("VFX & Audio")]
+    public GameObject hitVFXPrefab;
+    public AudioClip hitSound;
+    public AudioClip footstepSound;
+    public AudioClip chaseRoarSound;
+    public AudioClip normalAttackSound;
+    public AudioClip jumpAttackSound;
+    public AudioClip explosionSound;
 }

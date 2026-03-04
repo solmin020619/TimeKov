@@ -1,6 +1,4 @@
-﻿// Designed by KINEMATION, 2025.
-
-using KINEMATION.FPSAnimationPack.Scripts.Weapon;
+﻿using KINEMATION.FPSAnimationPack.Scripts.Weapon;
 using UnityEngine;
 
 namespace KINEMATION.FPSAnimationPack.Scripts.Sounds
@@ -10,7 +8,7 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Sounds
     {
         private FPSWeaponSettings _settings;
         private AudioSource _audioSource;
-        
+
         private void Awake()
         {
             _settings = transform.parent.GetComponent<FPSWeapon>().weaponSettings;
@@ -25,8 +23,10 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Sounds
                 return;
             }
 
+            float sfxVol = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+
             _audioSource.pitch = Random.Range(_settings.firePitchRange.x, _settings.firePitchRange.y);
-            _audioSource.volume = Random.Range(_settings.fireVolumeRange.x, _settings.fireVolumeRange.y);
+            _audioSource.volume = Random.Range(_settings.fireVolumeRange.x, _settings.fireVolumeRange.y) * sfxVol;
             _audioSource.PlayOneShot(FPSPlayerSound.GetRandomAudioClip(_settings.fireSounds));
         }
 
@@ -43,7 +43,10 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Sounds
                 Debug.LogWarning($"Failed to play weapon sound: invalid Audio Source!");
                 return;
             }
-            
+
+            float sfxVol = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+            _audioSource.volume = sfxVol;
+
             _audioSource.PlayOneShot(_settings.weaponEventSounds[clipIndex]);
         }
     }
