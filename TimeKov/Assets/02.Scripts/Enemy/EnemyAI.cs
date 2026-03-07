@@ -34,6 +34,9 @@ public class EnemyAI : MonoBehaviour
     private float footstepTimer = 0f;
     private State previousState;
 
+    private float pathUpdateDelay = 0.2f;
+    private float pathUpdateTimer = 0f;
+
     public LayerMask targetMask;
     public LayerMask obstacleMask;
 
@@ -192,7 +195,12 @@ public class EnemyAI : MonoBehaviour
             return;
         }
 
-        agent.SetDestination(playerTransform.position);
+        pathUpdateTimer += Time.deltaTime;
+        if (pathUpdateTimer >= pathUpdateDelay)
+        {
+            agent.SetDestination(playerTransform.position);
+            pathUpdateTimer = 0f;
+        }
 
         if (dist <= data.attackRange)
         {
