@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2948505920896598827}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Muzzle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -40,7 +40,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 129538254066334122}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: AimPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -72,7 +72,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8477934389330719888}
   - component: {fileID: 658169595114379324}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: MPS5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -126,6 +126,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8477934389330719888}
     m_Modifications:
+    - target: {fileID: -8687840553588982436, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
       propertyPath: m_RootOrder
       value: 0
@@ -170,13 +174,49 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7737149279750406024, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: -6170321275583392128, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: -5676366785140467058, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: -4794385104838295287, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
       propertyPath: m_Name
       value: MPS5
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 2578673608490316179, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 4719922171023903492, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 5332809968238436118, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
     - target: {fileID: 6150774018030635730, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
       propertyPath: m_Name
       value: MPS5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6150774018030635730, guid: 7a6288eca542bac4ea39ef33b4d68e13, type: 3}
+      propertyPath: m_Layer
+      value: 9
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
