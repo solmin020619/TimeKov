@@ -15,6 +15,7 @@ public class GlobalSettingsManager : MonoBehaviour
     public Slider bgmSlider;
     public Slider sfxSlider;
     public Slider sensitivitySlider;
+    public GameObject pauseMenuPanel;
 
     [Header("Effect")]
     public AudioClip clickSound;
@@ -43,6 +44,11 @@ public class GlobalSettingsManager : MonoBehaviour
             PlayClickSound();
             settingsPanel.SetActive(true);
             SyncUIValues();
+
+            if (pauseMenuPanel != null && pauseMenuPanel.activeSelf)
+            {
+                pauseMenuPanel.SetActive(false);
+            }
         }
     }
 
@@ -52,6 +58,29 @@ public class GlobalSettingsManager : MonoBehaviour
         {
             PlayClickSound();
             settingsPanel.SetActive(false);
+
+            PlayerController player = FindFirstObjectByType<PlayerController>();
+
+            if (player != null)
+            {
+                if (pauseMenuPanel != null)
+                {
+                    pauseMenuPanel.SetActive(true);
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+                else
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                    Time.timeScale = 1f;
+                }
+            }
+            else
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
         }
     }
 
