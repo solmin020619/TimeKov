@@ -2319,6 +2319,11 @@ VisualEffect:
       m_Array: []
     m_Bool:
       m_Array: []
+--- !u!1 &262571682 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8089260811217402077, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
+  m_PrefabInstance: {fileID: 5635010792128724724}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &264935065
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6101,6 +6106,7 @@ GameObject:
   m_Component:
   - component: {fileID: 548931504}
   - component: {fileID: 548931505}
+  - component: {fileID: 548931506}
   m_Layer: 0
   m_Name: Audio Source
   m_TagString: Untagged
@@ -6220,6 +6226,19 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &548931506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 548931503}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 0
 --- !u!1 &549955330
 GameObject:
   m_ObjectHideFlags: 0
@@ -10233,7 +10252,10 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 480638948857634741, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1292491376}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6744170691319629504, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1832124414}
   m_SourcePrefab: {fileID: 100100000, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
 --- !u!114 &844527432 stripped
 MonoBehaviour:
@@ -10489,6 +10511,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 870745844}
+  - component: {fileID: 870745845}
   m_Layer: 0
   m_Name: Area4 Enemy
   m_TagString: Untagged
@@ -10530,6 +10553,19 @@ Transform:
   - {fileID: 1287936356}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &870745845
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 870745843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
 --- !u!1 &879500315 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8324399841357599590, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
@@ -26613,6 +26649,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1502234691}
+  - component: {fileID: 1502234692}
   m_Layer: 0
   m_Name: Area3 Enemy
   m_TagString: Untagged
@@ -26644,6 +26681,19 @@ Transform:
   - {fileID: 1192392999}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1502234692
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1502234690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
 --- !u!1 &1509021183 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8880587759642962682, guid: 31b3355bc57151b4283c8e358a778416, type: 3}
@@ -28161,6 +28211,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1601452584}
+  - component: {fileID: 1601452585}
   m_Layer: 0
   m_Name: Area2 Enemy
   m_TagString: Untagged
@@ -28191,6 +28242,19 @@ Transform:
   - {fileID: 890382289}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1601452585
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1601452583}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
 --- !u!1001 &1611836091
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -29006,6 +29070,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1655610698}
+  - component: {fileID: 1655610699}
   m_Layer: 0
   m_Name: Area1 Enemy
   m_TagString: Untagged
@@ -29035,6 +29100,19 @@ Transform:
   - {fileID: 353440966}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1655610699
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1655610697}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
 --- !u!114 &1672526363 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8502071347433147820, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
@@ -29710,6 +29788,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1710776050}
+  - component: {fileID: 1710776051}
   m_Layer: 0
   m_Name: Ground Enemy
   m_TagString: Untagged
@@ -29734,6 +29813,19 @@ Transform:
   - {fileID: 1156528129}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1710776051
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1710776049}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
 --- !u!1 &1711768058 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: f33b90567fb627a49be83cb6933aef17, type: 3}
@@ -30579,6 +30671,24 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 630b6e3981b5e1a49869335ca33e9d7f, type: 3}
   m_PrefabInstance: {fileID: 1816879184}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1832124412 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6744170691319629504, guid: 66a1dc2036dea634882366a0ceb6ec10, type: 3}
+  m_PrefabInstance: {fileID: 844527431}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1832124414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1832124412}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
 --- !u!1 &1844599548
 GameObject:
   m_ObjectHideFlags: 0
@@ -30801,6 +30911,19 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.05
   m_Center: {x: 0.000000059604645, y: 0.0000000013969839, z: 0.000000059604645}
+--- !u!114 &1851880404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 262571682}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
 --- !u!1001 &1863568805
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -34784,7 +34907,10 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 9178835469402040454, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 344483179}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8089260811217402077, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1851880404}
   m_SourcePrefab: {fileID: 100100000, guid: 5236bdd2b56489a4e817e2f4412c9ad1, type: 3}
 --- !u!224 &5635010792128724725 stripped
 RectTransform:

@@ -1,12 +1,13 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using UnityEngine.SceneManagement;
 
 public class GlobalSettingsManager : MonoBehaviour
 {
+    public static event System.Action<float> OnBGMVolumeChanged;
+    public static event System.Action<float> OnSFXVolumeChanged;
+
     [Header("UI Components")]
     public GameObject settingsPanel;
     public TMP_Dropdown resolutionDropdown;
@@ -15,12 +16,9 @@ public class GlobalSettingsManager : MonoBehaviour
     public Slider sfxSlider;
     public Slider sensitivitySlider;
 
-    [Header("Scene Audio")]
-    public AudioSource sceneBGMSpeaker;
-    public AudioSource sceneSFXSpeaker;
-
     [Header("Effect")]
     public AudioClip clickSound;
+    public AudioSource uiSFXSpeaker;
 
     List<Resolution> resolutions = new List<Resolution>();
 
@@ -38,11 +36,6 @@ public class GlobalSettingsManager : MonoBehaviour
         if (resolutionDropdown != null) resolutionDropdown.onValueChanged.AddListener(SetResolution);
     }
 
-    void Update()
-    {
-
-    }
-
     public void OpenSettings()
     {
         if (settingsPanel != null)
@@ -50,7 +43,6 @@ public class GlobalSettingsManager : MonoBehaviour
             PlayClickSound();
             settingsPanel.SetActive(true);
             SyncUIValues();
-
         }
     }
 
@@ -76,8 +68,8 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void PlayClickSound()
     {
-        if (sceneSFXSpeaker != null && clickSound != null)
-            sceneSFXSpeaker.PlayOneShot(clickSound);
+        if (uiSFXSpeaker != null && clickSound != null)
+            uiSFXSpeaker.PlayOneShot(clickSound);
     }
 
     void LoadAndApplySettings()
@@ -85,8 +77,7 @@ public class GlobalSettingsManager : MonoBehaviour
         float bgm = PlayerPrefs.GetFloat("BGMVolume", 1.0f);
         float sfx = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
 
-        if (sceneBGMSpeaker != null) sceneBGMSpeaker.volume = bgm;
-
+        SetBGMVolume(bgm);
         SetSFXVolume(sfx);
     }
 
@@ -100,40 +91,29 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void SetBGMVolume(float volume)
     {
-        if (sceneBGMSpeaker != null) sceneBGMSpeaker.volume = volume;
-        PlayerPrefs.SetFloat("BGMVolume", volume); PlayerPrefs.Save();
+        PlayerPrefs.SetFloat("BGMVolume", volume);
+        PlayerPrefs.Save();
+        OnBGMVolumeChanged?.Invoke(volume);
     }
+
     public void SetSFXVolume(float volume)
     {
-        if (sceneSFXSpeaker != null) sceneSFXSpeaker.volume = volume;
         PlayerPrefs.SetFloat("SFXVolume", volume);
         PlayerPrefs.Save();
-
-        PlayerController player = FindFirstObjectByType<PlayerController>();
-        if (player != null)
-        {
-            AudioSource[] playerAudios = player.GetComponentsInChildren<AudioSource>();
-            foreach (var audio in playerAudios)
-            {
-                audio.volume = volume;
-            }
-        }
-
-        EnemyAI[] enemies = FindObjectsByType<EnemyAI>(FindObjectsSortMode.None);
-        foreach (var enemy in enemies)
-        {
-            AudioSource enemyAudio = enemy.GetComponent<AudioSource>();
-            if (enemyAudio != null)
-            {
-                enemyAudio.volume = volume;
-            }
-        }
+        OnSFXVolumeChanged?.Invoke(volume);
     }
+
     public void SetSensitivity(float sens)
     {
-        PlayerPrefs.SetFloat("MouseSensitivity", sens); PlayerPrefs.Save();
+        PlayerPrefs.SetFloat("MouseSensitivity", sens);
+        PlayerPrefs.Save();
     }
-    public void SetFullscreen(bool isFullscreen) { Screen.fullScreen = isFullscreen; }
+
+    public void SetFullscreen(bool isFullscreen)
+    {
+        Screen.fullScreen = isFullscreen;
+    }
+
     public void SetResolution(int index)
     {
         if (index >= 0 && index < resolutions.Count)
@@ -142,22 +122,38 @@ public class GlobalSettingsManager : MonoBehaviour
             Screen.SetResolution(res.width, res.height, Screen.fullScreen);
         }
     }
+
     void InitResolutionOptions()
     {
         if (resolutionDropdown == null) return;
-        Resolution[] allRes = Screen.resolutions; resolutions.Clear(); resolutionDropdown.ClearOptions();
-        List<string> options = new List<string>(); HashSet<string> uniqueRes = new HashSet<string>(); int currentResIndex = 0;
+        Resolution[] allRes = Screen.resolutions;
+        resolutions.Clear();
+        resolutionDropdown.ClearOptions();
+
+        List<string> options = new List<string>();
+        HashSet<string> uniqueRes = new HashSet<string>();
+        int currentResIndex = 0;
+
         for (int i = 0; i < allRes.Length; i++)
         {
             if (allRes[i].width < 1280 || allRes[i].height < 720) continue;
             string option = allRes[i].width + " x " + allRes[i].height;
             if (!uniqueRes.Contains(option))
             {
-                uniqueRes.Add(option); options.Add(option); resolutions.Add(allRes[i]);
-                if (allRes[i].width == Screen.width && allRes[i].height == Screen.height) currentResIndex = resolutions.Count - 1;
+                uniqueRes.Add(option);
+                options.Add(option);
+                resolutions.Add(allRes[i]);
+                if (allRes[i].width == Screen.width && allRes[i].height == Screen.height)
+                    currentResIndex = resolutions.Count - 1;
             }
         }
-        if (options.Count == 0) { options.Add(Screen.width + " x " + Screen.height); resolutions.Add(Screen.currentResolution); }
-        resolutionDropdown.AddOptions(options); resolutionDropdown.value = currentResIndex; resolutionDropdown.RefreshShownValue();
+        if (options.Count == 0)
+        {
+            options.Add(Screen.width + " x " + Screen.height);
+            resolutions.Add(Screen.currentResolution);
+        }
+        resolutionDropdown.AddOptions(options);
+        resolutionDropdown.value = currentResIndex;
+        resolutionDropdown.RefreshShownValue();
     }
 }
