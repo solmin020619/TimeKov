@@ -1,84 +1,114 @@
-using System;
+ï»¿using System;
 using UnityEngine;
+using UnityEngine.SceneManagement; // âœ… ì¶”ê°€
 
 public class PlayerTime : MonoBehaviour
 {
     [Header("Base Time Settings")]
-    public int baseMaxTime = 300;               // ÇÃ·¹ÀÌ¾î ½ÃÀÛ Ã¼·Â(Time)
-    public int timeDecay = 1;                   // ÃÊ´ç Time °¨¼Ò(·¹ÀÌµå)
+    public int baseMaxTime = 300;
+    public int timeDecay = 1;
 
     [Header("Raid State")]
-    public bool isInRaid = false;               // ·¹ÀÌµå µé¾î°¡¸é true
-    public float zoneDecayMultiplier = 1f;      // ·¹ÀÌµå Áö¿ª º¸Á¤ °ª
+    public bool isInRaid = false;
+    public float zoneDecayMultiplier = 1f;
 
-    public float currentTime {get; private set;}    // ÇöÀç Ã¼·Â(Time)
-    public float maxTime {get; private set;}        // ÃÖ´ë Ã¼·Â(Time)
+    public float currentTime { get; private set; }
+    public float maxTime { get; private set; }
 
-    public Action<float, float> onTimeChanged;      // UI ¾÷µ¥ÀÌÆ® ¿ë
-    public Action onTimeDepleted;                   // TimeÀÌ 0ÀÌ µÇ¾úÀ»‹š
+    public Action<float, float> onTimeChanged;
+    public Action onTimeDepleted;
+
+    // âœ… ë² ì´ìŠ¤ ì”¬ì—ì„œëŠ” ì‹œê°„ ê°ì†Œ/í”¼í•´ ê°ì†Œ ë§‰ê¸°
+    [Header("Base Scene Rule")]
+    public bool freezeTimeInBase = true;
+    public string[] baseSceneNames = new string[] { "Base", "BaseScene", "Lobby" };
+
+    private bool IsBaseScene()
+    {
+        if (!freezeTimeInBase) return false;
+        string s = SceneManager.GetActiveScene().name;
+        if (baseSceneNames == null || baseSceneNames.Length == 0) return false;
+
+        for (int i = 0; i < baseSceneNames.Length; i++)
+        {
+            if (!string.IsNullOrEmpty(baseSceneNames[i]) && baseSceneNames[i] == s)
+                return true;
+        }
+        return false;
+    }
 
     private void Start()
     {
         InitTime();
     }
 
-    // TimeÀ» ÃÊ±âÈ­(·¹ÀÌµå ½ÃÀÛ ½Ã , ±âÁö º¹±Í ÈÄ)
     public void InitTime()
     {
         maxTime = baseMaxTime;
         currentTime = maxTime;
 
-        // UI¿¡ Ã³À½°ª ¾Ë¸®±â
         onTimeChanged?.Invoke(currentTime, maxTime);
-
     }
 
     private void Update()
     {
-        // ·¹ÀÌµå ÁßÀÏ‹š¸¸ TimeÀÌ ÃÊ´ç °¨¼Ò
+        // âœ…âœ… ë² ì´ìŠ¤ ì”¬ì´ë©´ ì‹œê°„ ê°ì†Œ ìì²´ë¥¼ í•˜ì§€ ì•ŠìŒ
+        if (IsBaseScene()) return;
+
+        // ë ˆì´ë“œ ì¤‘ì¼ ë•Œë§Œ Timeì´ ì´ˆë‹¹ ê°ì†Œ
         if (!isInRaid) return;
 
-        float decay = timeDecay * zoneDecayMultiplier * Time.deltaTime;
+        float dt = Time.unscaledDeltaTime; // âœ… ê¸°ë³¸ì€ UIë¡œ timeScale=0ì´ì–´ë„ ê³„ì† íë¦„
+
+        // âœ… ESC Pause ìƒíƒœì¼ ë•Œë§Œ ì‹œê°„ ê°ì†Œ ë©ˆì¶¤
+        if (UIStateManager.Instance != null &&
+            UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Pause)
+        {
+            dt = 0f;
+        }
+
+        float decay = timeDecay * zoneDecayMultiplier * dt;
         ApplyTimeChange(-decay);
     }
 
-    // ÇÇÇØ¸¦ ÀÔÀ»‹š È£Ãâ
     public void TakeDamage(float amount)
     {
+        // âœ…âœ… ë² ì´ìŠ¤ ì”¬ì´ë©´ ë°ë¯¸ì§€ë¡œ ì‹œê°„ ê°ì†Œë„ ë§‰ê¸°
+        if (IsBaseScene()) return;
+
         ApplyTimeChange(-amount);
 
         if (FindAnyObjectByType<CrosshairController>() != null)
             FindAnyObjectByType<CrosshairController>().OnHurt();
-
     }
 
-    // Time È¸º¹
     public void Recover(float amount)
     {
         ApplyTimeChange(amount);
     }
 
-    // Time°ªÀ» º¯°æÇÏ°í ¹Ù²î¾úÀ¸¸é ÀÌº¥Æ® ¹ß»ı
     private void ApplyTimeChange(float delta)
     {
-        float old = currentTime;                                            // º¯°æÇÏ±âÀü ÀÌÀü Time°ª ÀúÀå
-        currentTime = Mathf.Clamp(currentTime + delta,0,maxTime);           // delta -> TimeÀÇ Áõ°¡/°¨¼Ò·® + È¸º¹ - µ¥¹ÌÁö TimeÀÌ 0 ¾Æ·¡·Î ³»·Á°¡Áö¾Êµµ·Ï clamp(°ª,ÃÖ¼Ò,ÃÖ´ë)
+        // âœ… (ì•ˆì „) ë² ì´ìŠ¤ ì”¬ì—ì„œëŠ” ìŒìˆ˜ ë³€í™”(ê°ì†Œ)ë§Œ ë§‰ê³  íšŒë³µì€ í—ˆìš©
+        if (IsBaseScene() && delta < 0f) return;
 
-        if(Mathf.Abs(old - currentTime) > Mathf.Epsilon)                    // Epsilon -> float ºñ±³¿¡¼­ °ÅÀÇ 0¿¡ °¡±î¿î °ª
+        float old = currentTime;
+        currentTime = Mathf.Clamp(currentTime + delta, 0, maxTime);
+
+        if (Mathf.Abs(old - currentTime) > Mathf.Epsilon)
         {
-            onTimeChanged?.Invoke(currentTime, maxTime);                    // Time°ªÀÌ ½ÇÁ¦·Î ¹Ù²î¾ú´ÂÁö È®ÀÎ ÈÄ UI ¾÷µ¥ÀÌÆ®
+            onTimeChanged?.Invoke(currentTime, maxTime);
         }
 
-        if(currentTime <= 0)                                                // »ç¸Á Ã¼Å©(TimeÀÌ 0ÀÌÇÏÀÎÁö)
+        if (currentTime <= 0)
         {
-            HandleTimeDepleted();                                           
+            HandleTimeDepleted();
         }
     }
 
-    // TimeÀÌ 0ÀÌ µÇ¾úÀ»‹š È£Ãâ
     private void HandleTimeDepleted()
     {
-        Debug.Log("·¹ÀÌµå ½ÇÆĞ");
-        onTimeDepleted?.Invoke();                                           // ´Ù¸¥ ½ºÅ©¸³Æ®¿¡°Ô Á×¾ú´Ù°í ¾Ë¸®´Â ¿ëµµ
+        Debug.Log("ë ˆì´ë“œ ì‹¤íŒ¨");
+        onTimeDepleted?.Invoke();
     }
 }

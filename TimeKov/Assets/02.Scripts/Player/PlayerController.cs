@@ -362,15 +362,15 @@ public class PlayerController : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
     }
 
-    void LockYPosition()
+    void LockYPosition() //3.11 캐릭터 떨림 오류 주석 처리로 임시 해결
     {
-        Vector3 pos = rb.position;
-        pos.y = fixedY;
-        rb.position = pos;
+        //Vector3 pos = rb.position;
+        //pos.y = fixedY;
+        //rb.position = pos;
 
-        Vector3 v = rb.linearVelocity;
-        v.y = 0f;
-        rb.linearVelocity = v;
+        //Vector3 v = rb.linearVelocity;
+        //v.y = 0f;
+        //rb.linearVelocity = v;
     }
 
     float NormalizeAngle(float angle)

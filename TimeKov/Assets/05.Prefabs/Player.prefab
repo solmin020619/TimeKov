@@ -5077,7 +5077,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerName: 
-  baseMaxTime: 300
+  baseMaxTime: 100
   timeDecay: 1
   moveSpeed: 5
   runSpeed: 10
@@ -5112,10 +5112,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43a0a980f58274c41af87d6fb590e225, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  baseMaxTime: 300
+  baseMaxTime: 100
   timeDecay: 1
   isInRaid: 0
   zoneDecayMultiplier: 1
+  freezeTimeInBase: 1
+  baseSceneNames:
+  - Base
+  - BaseScene
+  - Lobby
 --- !u!114 &7289741332910087556
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5140,6 +5145,8 @@ MonoBehaviour:
     weaponIndex: 3
   - itemId: 1401
     weaponIndex: 4
+  weaponAmmoMap: []
+  playerInventory: {fileID: 0}
   hitMask:
     serializedVersion: 2
     m_Bits: 64
@@ -5154,8 +5161,9 @@ MonoBehaviour:
   - barrel
   - tip
   crosshair: {fileID: 0}
-  autoEquipOnStart: 1
-  autoEquipItemId: 1202
+  blockFireWhileRunning: 1
+  autoEquipOnStart: 0
+  autoEquipItemId: 0
   debugLogFire: 0
 --- !u!136 &5604545066046927778
 CapsuleCollider:

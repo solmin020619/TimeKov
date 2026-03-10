@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 
 public class CrosshairController : MonoBehaviour
@@ -9,22 +9,22 @@ public class CrosshairController : MonoBehaviour
     public RectTransform bottom;
     public RectTransform left;
     public RectTransform right;
-    public Image hitMarker;         // X ÀÌ¹ÌÁö (±âº» ºñÈ°¼º ÃßÃµ)
+    public Image hitMarker;         // X ì´ë¯¸ì§€ (ê¸°ë³¸ ë¹„í™œì„± ì¶”ì²œ)
 
     [Header("Cursor Mode")]
     public bool hideSystemCursor = true;
     public bool followMouse = true;
 
     [Header("Spread Tuning")]
-    public float baseSpread = 10f;          // ±âº» ¹ú¾îÁü
-    public float maxSpread = 60f;           // ÃÖ´ë ¹ú¾îÁü
-    public float recoverSpeed = 18f;        // È¸º¹ ¼Óµµ(Å¬¼ö·Ï »¡¸® Á¼¾ÆÁü)
+    public float baseSpread = 10f;          // ê¸°ë³¸ ë²Œì–´ì§
+    public float maxSpread = 60f;           // ìµœëŒ€ ë²Œì–´ì§
+    public float recoverSpeed = 18f;        // íšŒë³µ ì†ë„(í´ìˆ˜ë¡ ë¹¨ë¦¬ ì¢ì•„ì§)
 
     [Header("Spread Kicks")]
-    public float fireKick = 8f;             // ¹ß»ç ½Ã ÆÛÁü Áõ°¡
-    public float runAdd = 14f;              // ´Ş¸®±â Áß Ãß°¡ ÆÛÁü
-    public float hurtKick = 18f;            // ÇÇ°İ ½Ã ÆÛÁü Áõ°¡
-    public float hitShrink = 10f;           // ¸íÁß ½Ã ¼ø°£(ÆÛÁü °¨¼Ò)
+    public float fireKick = 8f;             // ë°œì‚¬ ì‹œ í¼ì§ ì¦ê°€
+    public float runAdd = 14f;              // ë‹¬ë¦¬ê¸° ì¤‘ ì¶”ê°€ í¼ì§
+    public float hurtKick = 18f;            // í”¼ê²© ì‹œ í¼ì§ ì¦ê°€
+    public float hitShrink = 10f;           // ëª…ì¤‘ ì‹œ ìˆœê°„(í¼ì§ ê°ì†Œ)
 
     [Header("Hit Marker")]
     public float hitMarkerTime = 0.06f;
@@ -35,6 +35,9 @@ public class CrosshairController : MonoBehaviour
 
     private bool isEnabled;
     private bool isRunning;
+
+    // âœ… ì¶”ê°€: ADS ìƒíƒœ
+    private bool isADS;
 
     void Awake()
     {
@@ -61,23 +64,23 @@ public class CrosshairController : MonoBehaviour
 
         if (!isEnabled) return;
 
-        // ¸¶¿ì½º µû¶ó´Ù´Ï´Â Å¸ÀÔ
+        // ë§ˆìš°ìŠ¤ ë”°ë¼ë‹¤ë‹ˆëŠ” íƒ€ì…
         if (followMouse && root != null)
         {
             root.position = Input.mousePosition;
         }
 
-        // ´Ş¸®±â »óÅÂ¿¡ µû¸¥ ¸ñÇ¥ ÆÛÁü
+        // ë‹¬ë¦¬ê¸° ìƒíƒœì— ë”°ë¥¸ ëª©í‘œ í¼ì§
         float runSpread = isRunning ? runAdd : 0f;
         targetSpread = baseSpread + runSpread;
 
-        // ÇöÀç ÆÛÁüÀÌ ¸ñÇ¥·Î È¸º¹
+        // í˜„ì¬ í¼ì§ì´ ëª©í‘œë¡œ íšŒë³µ
         currentSpread = Mathf.MoveTowards(currentSpread, targetSpread, recoverSpeed * Time.deltaTime);
         currentSpread = Mathf.Clamp(currentSpread, baseSpread, maxSpread);
 
         ApplySpread(currentSpread);
 
-        // È÷Æ®¸¶Ä¿ Å¸ÀÌ¸Ó
+        // íˆíŠ¸ë§ˆì»¤ íƒ€ì´ë¨¸
         if (hitMarkerTimer > 0f)
         {
             hitMarkerTimer -= Time.deltaTime;
@@ -98,51 +101,69 @@ public class CrosshairController : MonoBehaviour
     {
         if (!hideSystemCursor) return;
         Cursor.visible = !active;
-        // Cursor.lockState´Â ÄõÅÍºä/¸¶¿ì½º Á¶ÁØÀÌ¸é ±»ÀÌ Lock ¾È ÇÏ´Â°Ô º¸Åë ¾ÈÁ¤Àû
+        // Cursor.lockStateëŠ” ì¿¼í„°ë·°/ë§ˆìš°ìŠ¤ ì¡°ì¤€ì´ë©´ êµ³ì´ Lock ì•ˆ í•˜ëŠ”ê²Œ ë³´í†µ ì•ˆì •ì 
     }
 
-    // ¿ÜºÎ¿¡¼­ È£ÃâÇÒ API
+    // âœ… ì¶”ê°€: ì‹¤ì œ í‘œì‹œ ì—¬ë¶€ ê°±ì‹ 
+    void RefreshCrosshairVisible()
+    {
+        bool visible = isEnabled && !isADS;
 
-    // ¹«±â µé¾úÀ» ¶§/³»·ÈÀ» ¶§
+        if (root != null)
+            root.gameObject.SetActive(visible);
+
+        // ADS ì¤‘ì—ëŠ” íˆíŠ¸ë§ˆì»¤ë„ ìˆ¨ê¹€
+        if (!visible && hitMarker != null)
+            hitMarker.enabled = false;
+    }
+
+    // ì™¸ë¶€ì—ì„œ í˜¸ì¶œí•  API
+
+    // ë¬´ê¸° ë“¤ì—ˆì„ ë•Œ/ë‚´ë ¸ì„ ë•Œ
     public void SetEnabled(bool enabled)
     {
         isEnabled = enabled;
 
-        if (root != null)
-            root.gameObject.SetActive(enabled);
-
         ApplyCursorState(enabled);
 
-        // ²ø ¶§ È÷Æ®¸¶Ä¿µµ Á¤¸®
         if (!enabled && hitMarker != null)
             hitMarker.enabled = false;
+
+        RefreshCrosshairVisible();
     }
 
-    // ´Ş¸®±â »óÅÂ Àü´Ş
+    // ë‹¬ë¦¬ê¸° ìƒíƒœ ì „ë‹¬
     public void SetRunning(bool running)
     {
         isRunning = running;
     }
 
-    // ¹ß»ç ¼º°ø ½Ã È£Ãâ
+    // âœ… ì¶”ê°€: ADS ìƒíƒœ ì „ë‹¬
+    public void SetADS(bool aiming)
+    {
+        isADS = aiming;
+        RefreshCrosshairVisible();
+    }
+
+    // ë°œì‚¬ ì„±ê³µ ì‹œ í˜¸ì¶œ
     public void OnFire()
     {
         currentSpread = Mathf.Min(maxSpread, currentSpread + fireKick);
     }
 
-    // ÇÃ·¹ÀÌ¾î ÇÇ°İ ½Ã È£Ãâ
+    // í”Œë ˆì´ì–´ í”¼ê²© ì‹œ í˜¸ì¶œ
     public void OnHurt()
     {
         currentSpread = Mathf.Min(maxSpread, currentSpread + hurtKick);
     }
 
-    // ¸íÁß È®ÀÎ ½Ã È£Ãâ (È÷Æ®¸¶Ä¿ + ¼ø°£)
+    // ëª…ì¤‘ í™•ì¸ ì‹œ í˜¸ì¶œ (íˆíŠ¸ë§ˆì»¤ + ìˆœê°„)
     public void OnHitConfirm()
     {
-        // ¼ø°£õê(ÆÛÁü °¨¼Ò)
+        // ìˆœê°„ç¸®(í¼ì§ ê°ì†Œ)
         currentSpread = Mathf.Max(baseSpread, currentSpread - hitShrink);
 
-        // È÷Æ®¸¶Ä¿
+        // íˆíŠ¸ë§ˆì»¤
         if (hitMarker != null)
         {
             hitMarker.enabled = true;

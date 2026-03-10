@@ -81,6 +81,10 @@ public class UIStateManager : MonoBehaviour
             pauseSettingsOpen = false;
             ApplyState();
         }
+
+        // ✅ 추가: 다른 스크립트가 커서를 다시 숨기거나 잠궈도
+        // UI가 열려있는 동안에는 계속 UI 조작 가능하게 커서 상태를 강제 유지
+        RefreshCursorState();
     }
 
     public UIState GetCurrentState() => currentState;
@@ -292,6 +296,9 @@ public class UIStateManager : MonoBehaviour
         // 커서 + 입력 플래그 처리
         SetGameplayInputEnabled(currentState == UIState.None);
 
+        // ✅ Pause 상태일 때만 게임 정지
+        SetPauseTimeScale(currentState == UIState.Pause);
+
         // 딤블로커
         if (dimBlockerManager == null)
             dimBlockerManager = FindAnyObjectByType<DimBlockerManager>();
@@ -319,7 +326,6 @@ public class UIStateManager : MonoBehaviour
         return false;
     }
 
-
     private void SetGameplayInputEnabled(bool enabled)
     {
         GameplayInputEnabled = enabled;
@@ -327,15 +333,30 @@ public class UIStateManager : MonoBehaviour
         // 커서 처리
         Cursor.visible = !enabled;
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
+    }
 
-        // 🔥 게임 일시정지
-        if (enabled)
+    // ✅ 추가: UI 상태에 맞는 커서 상태를 매 프레임 보정
+    private void RefreshCursorState()
+    {
+        bool shouldShowCursor = currentState != UIState.None;
+
+        if (shouldShowCursor)
         {
-            Time.timeScale = 1f;
+            if (!Cursor.visible) Cursor.visible = true;
+            if (Cursor.lockState != CursorLockMode.None)
+                Cursor.lockState = CursorLockMode.None;
         }
         else
         {
-            Time.timeScale = 0f;
+            if (Cursor.visible) Cursor.visible = false;
+            if (Cursor.lockState != CursorLockMode.Locked)
+                Cursor.lockState = CursorLockMode.Locked;
         }
+    }
+
+    // ✅ Pause 상태일 때만 게임 일시정지
+    private void SetPauseTimeScale(bool paused)
+    {
+        Time.timeScale = paused ? 0f : 1f;
     }
 }

@@ -42,6 +42,12 @@ public class WeaponInputBridge : MonoBehaviour
     public void OnAim(InputValue value)
     {
         if (weapon == null) return;
+        if (!weapon.HasWeaponEquipped())
+        {
+            weapon.SetADS(false);
+            return;
+        }
+
         weapon.SetADS(value.isPressed || value.Get<float>() > 0.5f);
     }
 #endif
@@ -68,6 +74,15 @@ public class WeaponInputBridge : MonoBehaviour
         weapon.Reload();
     }
 
-    public void OnAimDown() { if (weapon != null) weapon.SetADS(true); }
-    public void OnAimUp() { if (weapon != null) weapon.SetADS(false); }
+    public void OnAimDown()
+    {
+        if (weapon != null && weapon.HasWeaponEquipped())
+            weapon.SetADS(true);
+    }
+
+    public void OnAimUp()
+    {
+        if (weapon != null)
+            weapon.SetADS(false);
+    }
 }

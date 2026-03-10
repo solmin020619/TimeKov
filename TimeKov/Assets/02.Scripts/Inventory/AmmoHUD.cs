@@ -2,14 +2,15 @@
 using TMPro;
 
 /// <summary>
-/// PUBG-style ammo HUD: "탄창 / 예비탄" (ex: 30 / 120)
+/// PUBG-style ammo HUD
+/// - 현재는 장착된 탄창 탄 수만 표시
 /// - PlayerWeaponController: GetCurrentAmmo(), GetEquippedItemId(), weaponAmmoMap 사용
-/// - InventoryManager: GetTotalItemCount(ammoItemId)로 예비탄 표시
+/// - InventoryManager 참조 및 기존 함수 구조는 유지
 /// </summary>
 public class AmmoHUD : MonoBehaviour
 {
     [Header("UI")]
-    [SerializeField] private TMP_Text ammoText; // ex) "30 / 120"
+    [SerializeField] private TMP_Text ammoText; // ex) "30"
 
     [Header("Refs")]
     [SerializeField] private PlayerWeaponController weapon;
@@ -46,7 +47,8 @@ public class AmmoHUD : MonoBehaviour
         if (inventory != null && ammoItemId > 0)
             reserve = inventory.GetTotalItemCount(ammoItemId);
 
-        ammoText.text = $"{inMag} / {reserve}";
+        // 기존 reserve 계산 구조는 유지하고, 표시만 현재 장착 탄 수만 나오게 변경
+        ammoText.text = $"{inMag}";
     }
 
     /// <summary>
