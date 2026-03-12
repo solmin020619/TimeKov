@@ -54,19 +54,6 @@ public class PlayerAnimationController : MonoBehaviour
         ApplyAnimSet(AnimSet.Basic);
     }
 
-    // ================================
-    // [추가]
-    // 시작 직후에도 현재 무기 상태 기준으로 다시 한 번 강제 동기화
-    // + Basic일 경우 포즈를 완전히 초기화해서 어색한 시작 자세 방지
-    // ================================
-    private void Start()
-    {
-        if (anim == null) return;
-
-        UpdateAnimatorOverrideByWeapon();
-        ForceResetCurrentPose();
-    }
-
     private void OnEnable()
     {
         // Time(체력)이 0이 되는 이벤트를 받으면 애니 파라미터 IsDead를 true로 바꿔 Dead 상태로 보냄
@@ -181,36 +168,5 @@ public class PlayerAnimationController : MonoBehaviour
             anim.runtimeAnimatorController = next;
 
         currentSet = set;
-
-        // ================================
-        // [추가]
-        // 오버라이드만 바꾸면 이전 포즈가 남을 수 있어서
-        // 무기 없음/무기 변경 시 현재 자세를 강제로 초기화
-        // ================================
-        ForceResetCurrentPose();
-    }
-
-    // ================================
-    // [추가]
-    // 현재 애니메이션 세트 포즈 강제 초기화
-    // - Basic 시작 시 어색한 손 자세 방지
-    // - 무기 해제 시 확실히 no gun idle로 복귀
-    // ================================
-    private void ForceResetCurrentPose()
-    {
-        if (anim == null) return;
-
-        // 현재 프레임의 이동값 잔상 제거
-        anim.SetFloat(HashMoveX, 0f);
-        anim.SetFloat(HashMoveY, 0f);
-        anim.SetInteger(HashSpeed, 0);
-
-        // 컨트롤러 교체 직후 포즈를 재바인드해서 이전 무기 포즈 잔상 제거
-        anim.Rebind();
-        anim.Update(0f);
-
-        // Base Layer의 기본 상태(Idle 시작점)부터 다시 시작
-        anim.Play(0, 0, 0f);
-        anim.Update(0f);
     }
 }

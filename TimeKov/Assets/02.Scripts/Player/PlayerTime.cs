@@ -40,6 +40,11 @@ public class PlayerTime : MonoBehaviour
     private void Start()
     {
         InitTime();
+
+        // =========================
+        // ✅ 추가: 세션 데이터에 저장된 Time 복원
+        // =========================
+        RestoreTimeFromSession();
     }
 
     public void InitTime()
@@ -47,6 +52,31 @@ public class PlayerTime : MonoBehaviour
         maxTime = baseMaxTime;
         currentTime = maxTime;
 
+        onTimeChanged?.Invoke(currentTime, maxTime);
+    }
+
+    // =========================
+    // ✅ 추가: 세션에서 Time 복원
+    // =========================
+    private void RestoreTimeFromSession()
+    {
+        if (PlayerSessionData.Instance == null) return;
+        if (!PlayerSessionData.Instance.hasSavedPlayerTime) return;
+
+        SetTime(PlayerSessionData.Instance.savedCurrentTime);
+
+        // =========================
+        // ✅ 추가: 복원 후 플래그 소비 (세션 Time 꼬임 방지)
+        // =========================
+        PlayerSessionData.Instance.hasSavedPlayerTime = false;
+    }
+
+    // =========================
+    // ✅ 추가: 외부에서 Time 설정
+    // =========================
+    public void SetTime(float value)
+    {
+        currentTime = Mathf.Clamp(value, 0f, maxTime);
         onTimeChanged?.Invoke(currentTime, maxTime);
     }
 

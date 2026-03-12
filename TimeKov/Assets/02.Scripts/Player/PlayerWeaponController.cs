@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using KINEMATION.FPSAnimationPack.Scripts.Player;
-using KINEMATION.FPSAnimationPack.Scripts.Weapon; // [추가] 현재 활성 무기 오브젝트 제어용
 
 [RequireComponent(typeof(PlayerController))]
 public class PlayerWeaponController : MonoBehaviour
@@ -97,17 +96,6 @@ public class PlayerWeaponController : MonoBehaviour
     private Transform cachedMuzzle;
     private readonly Dictionary<int, Transform> muzzleByItemId = new Dictionary<int, Transform>();
 
-    // =========================
-    // [추가] nogun 전환 시 숨겨둔 Kinemation 무기 오브젝트 기억
-    // =========================
-    private GameObject hiddenKinemationWeaponObject;
-
-    // =========================
-    // [추가] Kinemation 팔 Animator / UnEquip 트리거
-    // =========================
-    private Animator fpsArmsAnimator;
-    private static readonly int HashUnEquip = Animator.StringToHash("UnEquip");
-
     private void Awake()
     {
         playerController = GetComponent<PlayerController>();
@@ -121,10 +109,6 @@ public class PlayerWeaponController : MonoBehaviour
         if (playerInventory == null)
             playerInventory = FindFirstObjectByType<InventoryManager>();
 
-        // [추가] FPSPlayer가 붙은 SK_Arms_Mono Animator 자동 탐색
-        if (fpsPlayer != null)
-            fpsArmsAnimator = fpsPlayer.GetComponent<Animator>();
-
         Debug.Log($"[Weapon] {gameObject.name}이 사용하는 카메라: {(cachedCam != null ? cachedCam.name : "NULL")}");
     }
 
@@ -132,12 +116,6 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (autoEquipOnStart)
             StartCoroutine(AutoEquipWhenReady());
-
-        // [추가]
-        // 시작 시 자동 장착 테스트를 안 쓰고, 실제 장착 무기도 없으면
-        // 1프레임 뒤 총 숨김 + UnEquip 트리거
-        if (!autoEquipOnStart)
-            StartCoroutine(ForceNoWeaponViewAtStart());
 
         RefreshUI();
     }
@@ -238,20 +216,11 @@ public class PlayerWeaponController : MonoBehaviour
         recoilAccumYaw = 0f;
         recoilIndex = 0;
 
-        // [추가] nogun 상태에서 숨겨둔 무기 오브젝트 복구
-        RestoreHiddenKinemationWeaponObject();
-
-        // [추가] UnEquip 트리거 잔여 상태 정리
-        ResetKinemationUnequipTrigger();
-
         // Kinemation weapon select
         int targetIndex = GetKinemationIndex(itemId);
         if (fpsPlayer != null && targetIndex >= 0)
         {
             fpsPlayer.SetActiveWeaponIndex(targetIndex);
-
-            // [추가] SetActiveWeaponIndex 다음 프레임에 무기 오브젝트 복구 보정
-            StartCoroutine(RestoreWeaponObjectNextFrame());
 
             // 무기 바뀌면 muzzle 재탐색(활성 무기 프리팹 기준)
             if (autoFindMuzzleOnEquip)
@@ -283,15 +252,6 @@ public class PlayerWeaponController : MonoBehaviour
         recoilIndex = 0;
 
         cachedMuzzle = null;
-
-        // [추가] 실제 현재 보이는 총 오브젝트 숨김
-        HideCurrentKinemationWeaponObject();
-
-        // [추가] Kinemation 팔 Animator를 맨손 상태로 전환
-        TriggerKinemationUnequip();
-
-        if (crosshair != null)
-            crosshair.SetADS(false);
 
         RefreshUI();
     }
@@ -453,19 +413,7 @@ public class PlayerWeaponController : MonoBehaviour
         StartCoroutine(ReloadRoutine());
     }
 
-    public void SetADS(bool isAiming)
-    {
-        // 무기 없으면 ADS 강제 해제
-        if (weapon == null)
-        {
-            if (crosshair != null)
-                crosshair.SetADS(false);
-            return;
-        }
-
-        if (crosshair != null)
-            crosshair.SetADS(isAiming);
-    }
+    public void SetADS(bool isAiming) { /* 필요하면 여기 연결 */ }
 
     // =========================
     // Core Fire/Reload
@@ -515,6 +463,13 @@ public class PlayerWeaponController : MonoBehaviour
         ReloadStarted?.Invoke();
 
         yield return new WaitForSeconds(Mathf.Max(0f, weapon.reloadTime));
+
+        // ✅✅ [추가/선택] 리로드 진행 중 UI가 열렸으면 "적용 없이 취소"
+        if (!UIStateManager.GameplayInputEnabled)
+        {
+            isReloading = false;
+            yield break;
+        }
 
         ApplyReload();
         isReloading = false;
@@ -616,89 +571,6 @@ public class PlayerWeaponController : MonoBehaviour
 
         // 3) 카메라 fallback
         return fallback;
-    }
-
-    // [추가]
-    // 시작 직후 장비 무기가 없으면 총 숨김 + UnEquip 트리거
-    private IEnumerator ForceNoWeaponViewAtStart()
-    {
-        yield return null;
-
-        if (equippedItemId > 0) yield break;
-
-        HideCurrentKinemationWeaponObject();
-        TriggerKinemationUnequip();
-    }
-
-    // [추가]
-    // nogun 상태에서 숨겨둔 총 오브젝트 복구
-    private void RestoreHiddenKinemationWeaponObject()
-    {
-        if (hiddenKinemationWeaponObject != null)
-        {
-            hiddenKinemationWeaponObject.SetActive(true);
-            hiddenKinemationWeaponObject = null;
-        }
-    }
-
-    // [추가]
-    // 현재 활성 무기 오브젝트 숨김
-    private void HideCurrentKinemationWeaponObject()
-    {
-        if (fpsPlayer == null) return;
-
-        FPSWeapon activeWeapon = fpsPlayer.GetActiveWeapon();
-        if (activeWeapon == null) return;
-
-        hiddenKinemationWeaponObject = activeWeapon.gameObject;
-        if (hiddenKinemationWeaponObject != null && hiddenKinemationWeaponObject.activeSelf)
-        {
-            hiddenKinemationWeaponObject.SetActive(false);
-        }
-    }
-
-    // [추가]
-    // SetActiveWeaponIndex 직후 다음 프레임에 활성 무기 오브젝트 복구
-    private IEnumerator RestoreWeaponObjectNextFrame()
-    {
-        yield return null;
-
-        if (fpsPlayer == null) yield break;
-
-        FPSWeapon activeWeapon = fpsPlayer.GetActiveWeapon();
-        if (activeWeapon == null) yield break;
-
-        if (!activeWeapon.gameObject.activeSelf)
-            activeWeapon.gameObject.SetActive(true);
-
-        if (hiddenKinemationWeaponObject == activeWeapon.gameObject)
-            hiddenKinemationWeaponObject = null;
-    }
-
-    // [추가]
-    // Kinemation 팔 Animator에 UnEquip Trigger 호출
-    private void TriggerKinemationUnequip()
-    {
-        if (fpsArmsAnimator == null && fpsPlayer != null)
-            fpsArmsAnimator = fpsPlayer.GetComponent<Animator>();
-
-        if (fpsArmsAnimator == null) return;
-
-        fpsArmsAnimator.ResetTrigger(HashUnEquip);
-        fpsArmsAnimator.SetTrigger(HashUnEquip);
-        fpsArmsAnimator.Update(0f);
-    }
-
-    // [추가]
-    // 장착 시 UnEquip 잔여 트리거 정리
-    private void ResetKinemationUnequipTrigger()
-    {
-        if (fpsArmsAnimator == null && fpsPlayer != null)
-            fpsArmsAnimator = fpsPlayer.GetComponent<Animator>();
-
-        if (fpsArmsAnimator == null) return;
-
-        fpsArmsAnimator.ResetTrigger(HashUnEquip);
     }
 
     // =========================
@@ -822,7 +694,6 @@ public class PlayerWeaponController : MonoBehaviour
         if (bestScore < 80) return null;
         return best;
     }
-
     private Vector3 ApplyRecoil(Vector3 forward)
     {
         if (cachedCam == null) cachedCam = Camera.main;
@@ -966,4 +837,5 @@ public class PlayerWeaponController : MonoBehaviour
         // 이 스크립트 내부이므로 필드에 접근 가능
         currentAmmoInMag = clamped;
     }
+
 }

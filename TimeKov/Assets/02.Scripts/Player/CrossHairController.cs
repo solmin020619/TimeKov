@@ -36,9 +36,6 @@ public class CrosshairController : MonoBehaviour
     private bool isEnabled;
     private bool isRunning;
 
-    // ✅ 추가: ADS 상태
-    private bool isADS;
-
     void Awake()
     {
         currentSpread = baseSpread;
@@ -104,19 +101,6 @@ public class CrosshairController : MonoBehaviour
         // Cursor.lockState는 쿼터뷰/마우스 조준이면 굳이 Lock 안 하는게 보통 안정적
     }
 
-    // ✅ 추가: 실제 표시 여부 갱신
-    void RefreshCrosshairVisible()
-    {
-        bool visible = isEnabled && !isADS;
-
-        if (root != null)
-            root.gameObject.SetActive(visible);
-
-        // ADS 중에는 히트마커도 숨김
-        if (!visible && hitMarker != null)
-            hitMarker.enabled = false;
-    }
-
     // 외부에서 호출할 API
 
     // 무기 들었을 때/내렸을 때
@@ -124,25 +108,20 @@ public class CrosshairController : MonoBehaviour
     {
         isEnabled = enabled;
 
+        if (root != null)
+            root.gameObject.SetActive(enabled);
+
         ApplyCursorState(enabled);
 
+        // 끌 때 히트마커도 정리
         if (!enabled && hitMarker != null)
             hitMarker.enabled = false;
-
-        RefreshCrosshairVisible();
     }
 
     // 달리기 상태 전달
     public void SetRunning(bool running)
     {
         isRunning = running;
-    }
-
-    // ✅ 추가: ADS 상태 전달
-    public void SetADS(bool aiming)
-    {
-        isADS = aiming;
-        RefreshCrosshairVisible();
     }
 
     // 발사 성공 시 호출
