@@ -129,6 +129,12 @@ public class EquipmentManager : MonoBehaviour
 
             // ✅ 배그식(B): 빈 슬롯은 화면에서 바로 사라지게
             invSlot.gameObject.SetActive(false);
+
+            // ⭐ 인벤 UI 갱신
+            if (inven != null)
+            {
+                inven.ForceRefreshUI();
+            }
         }
         else
         {
@@ -175,6 +181,11 @@ public class EquipmentManager : MonoBehaviour
         if (type != null && type.Value == EquipSlotType.Weapon)
         {
             SyncEquippedWeaponToPlayer();
+        }
+
+        if (inven != null)
+        {
+            inven.ForceRefreshUI();
         }
     }
 
