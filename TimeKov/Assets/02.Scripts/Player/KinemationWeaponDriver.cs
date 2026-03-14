@@ -4,12 +4,9 @@ using UnityEngine;
 using KINEMATION.FPSAnimationPack.Scripts.Player;
 using KINEMATION.FPSAnimationPack.Scripts.Weapon;
 
-/// <summary>
-/// SK_Arms_Mono(=FPSPlayer가 붙은 오브젝트)에 붙인다.
 /// - 우리 게임플레이(PWC)에서 "성공 발사/리로드 시작" 이벤트를 받으면
 /// - KINEMATION 쪽 FPSPlayer/FPSWeapon을 호출해 발사 반동/사운드/카메라쉐이크/장전 애니를 재생한다.
 /// - FPSWeapon 내부 _activeAmmo를 우리 탄 수로 동기화해서, 탄약 때문에 애니가 끊기는 문제를 막는다.
-/// </summary>
 public class KinemationWeaponDriver : MonoBehaviour
 {
     [SerializeField] private FPSPlayer fpsPlayer;

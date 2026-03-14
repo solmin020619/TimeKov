@@ -22,9 +22,7 @@ public class PlayerWeaponController : MonoBehaviour
     [Header("ItemId -> Kinemation Weapon Index")]
     public ItemIdToKinemationIndex[] weaponIndexMap;
 
-    // =========================
-    // ✅ Ammo Link (추가)
-    // =========================
+    //  Ammo Link (추가)
     [System.Serializable]
     public struct WeaponIdToAmmoId
     {
@@ -124,7 +122,7 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (Time.timeScale == 0f) return;
 
-        // ✅✅ [추가] UI 열려있으면 발사/연사/단발 입력 상태 끊고 아무것도 안 함
+        // UI 열려있으면 발사/연사/단발 입력 상태 끊고 아무것도 안 함
         if (!UIStateManager.GameplayInputEnabled)
         {
             fireHeld = false;
@@ -204,7 +202,7 @@ public class PlayerWeaponController : MonoBehaviour
         Debug.Log($"[DATA] id={weapon.id} name={weapon.itemName} mag={weapon.magazinesize} fireRate={weapon.fireRate} reload={weapon.reloadTime} auto={weapon.isAutomatic}");
 
         // gameplay reset
-        // ✅ 탄창 최대(cap)는 탄약 overlapsCount 기반 (매핑 없으면 기존 magazinesize로 fallback)
+        // 탄창 최대(cap)는 탄약 overlapsCount 기반 (매핑 없으면 기존 magazinesize로 fallback)
         int cap = GetMagazineCapacity();
         currentAmmoInMag = Mathf.Max(0, cap); // 기존 동작(장착 시 꽉 찬 상태) 유지
         isReloading = false;
@@ -282,9 +280,7 @@ public class PlayerWeaponController : MonoBehaviour
             crosshair.SetEnabled(weapon != null);
     }
 
-    // =========================
-    // ✅ Ammo Link Helpers (추가)
-    // =========================
+    // Ammo Link Helpers
     private int GetAmmoItemIdForWeapon(int weaponItemId)
     {
         if (weaponAmmoMap == null) return 0;
@@ -336,16 +332,12 @@ public class PlayerWeaponController : MonoBehaviour
         // 부분소비 금지 정책은 InventoryManager.TryConsumeItem이 보장
         return playerInventory.TryConsumeItem(ammoId, amount);
     }
-
-    // =========================
-    // Fire gate
-    // =========================
     private bool CanFireNow()
     {
         if (weapon == null) return false;
         if (Time.timeScale == 0f) return false;
 
-        // ✅✅ [추가] UI 열려있으면 발사 불가
+        // UI 열려있으면 발사 불가
         if (!UIStateManager.GameplayInputEnabled) return false;
 
         if (isReloading) return false;
@@ -355,18 +347,13 @@ public class PlayerWeaponController : MonoBehaviour
 
         return true;
     }
-
-    // =========================
-    // Input API (Bridge -> Here)
-    // =========================
-    // 눌림(press/hold 시작)
     public void Fire()
     {
         if (weapon == null) return;
 
         if (Time.timeScale == 0f) return;
 
-        // ✅✅ [추가] UI 열려있으면 발사 입력 자체 무시 + 상태 끊기
+        // UI 열려있으면 발사 입력 자체 무시 + 상태 끊기
         if (!UIStateManager.GameplayInputEnabled)
         {
             fireHeld = false;
@@ -401,13 +388,13 @@ public class PlayerWeaponController : MonoBehaviour
         if (weapon == null) return;
         if (isReloading) return;
 
-        // ✅✅ [추가] UI 열려있으면 장전 시작 불가
+        // UI 열려있으면 장전 시작 불가
         if (!UIStateManager.GameplayInputEnabled) return;
 
         int cap = GetMagazineCapacity();
         if (currentAmmoInMag >= cap) return;
 
-        // ✅ 인벤 탄약 0이면 장전 불가
+        // 인벤 탄약 0이면 장전 불가
         if (GetInventoryAmmoCount() <= 0) return;
 
         StartCoroutine(ReloadRoutine());
@@ -425,7 +412,7 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (fireCooldown > 0f) return;
 
-        // ✅ 탄창 0이면 발사 불가 (기존 동작 유지)
+        // 탄창 0이면 발사 불가 (기존 동작 유지)
         if (currentAmmoInMag <= 0) return;
 
         FireRaycastAndVisual();
@@ -449,13 +436,13 @@ public class PlayerWeaponController : MonoBehaviour
         if (weapon == null) yield break;
         if (isReloading) yield break;
 
-        // ✅✅ [추가] 리로드 도중 UI가 열리면 아예 진행하지 않게(시작 시점 방어)
+        // 리로드 도중 UI가 열리면 아예 진행하지 않게(시작 시점 방어)
         if (!UIStateManager.GameplayInputEnabled) yield break;
 
         int cap = GetMagazineCapacity();
         if (currentAmmoInMag >= cap) yield break;
 
-        // ✅ 인벤 탄약 0이면 리로드 시작 자체를 막음
+        // 인벤 탄약 0이면 리로드 시작 자체를 막음
         if (GetInventoryAmmoCount() <= 0) yield break;
 
         isReloading = true;
@@ -464,7 +451,7 @@ public class PlayerWeaponController : MonoBehaviour
 
         yield return new WaitForSeconds(Mathf.Max(0f, weapon.reloadTime));
 
-        // ✅✅ [추가/선택] 리로드 진행 중 UI가 열렸으면 "적용 없이 취소"
+        // 리로드 진행 중 UI가 열렸으면 "적용 없이 취소"
         if (!UIStateManager.GameplayInputEnabled)
         {
             isReloading = false;
@@ -495,7 +482,7 @@ public class PlayerWeaponController : MonoBehaviour
 
         int load = Mathf.Min(need, available);
 
-        // ✅ 장전 시 인벤 탄약 소비 -> 탄창 채움
+        // 장전 시 인벤 탄약 소비 -> 탄창 채움
         // (부분소비 금지 정책: load는 available 이하로 잡았기 때문에 항상 전량 소비 가능)
         if (TryConsumeInventoryAmmo(load))
         {
@@ -802,8 +789,8 @@ public class PlayerWeaponController : MonoBehaviour
     public bool HasWeaponEquipped() => weapon != null;
 
     // =========================================================
-    // ✅ Session Export / Import (씬 이동 시 무기/탄창 유지)
-    // ❌ 기존 기능 삭제/변경 없이 "추가"만
+    //  Session Export / Import (씬 이동 시 무기/탄창 유지)
+    //  기존 기능 삭제/변경 없이 "추가"만
     // =========================================================
 
     public PlayerSessionData.WeaponSnapshot ExportToSessionSnapshot()

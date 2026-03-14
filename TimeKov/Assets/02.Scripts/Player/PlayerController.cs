@@ -83,7 +83,7 @@ public class PlayerController : MonoBehaviour
     public Vector3 MoveInput => moveInput;
     public bool IsRunning => isRunning;
 
-    // ✅ [추가] UI 열렸을 때 입력 차단용 캐시
+    // UI 열렸을 때 입력 차단용 캐시
     private bool wasGameplayEnabled = true;
 
     void Start()
@@ -148,7 +148,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // ✅ [추가] UI가 열려있으면: 이동/시점/조준 입력 전부 차단
+        // UI가 열려있으면: 이동/시점/조준 입력 전부 차단
         // (Time.timeScale은 건드리지 않아서 시간은 계속 줄어듦)
         bool gameplayEnabled = UIStateManager.GameplayInputEnabled;
 
@@ -170,7 +170,7 @@ public class PlayerController : MonoBehaviour
                 }
             }
 
-            return; // ✅ 여기서 Update 입력 처리 중단
+            return; //  여기서 Update 입력 처리 중단
         }
 
         // UI 닫혔을 때 플래그 복구
@@ -179,12 +179,12 @@ public class PlayerController : MonoBehaviour
 
         HandleInput();
         HandleMouseLook();
-        PushToViewModel(); // ⭐ FPSPlayer에 입력 주입
+        PushToViewModel(); // FPSPlayer에 입력 주입
     }
 
     private void FixedUpdate()
     {
-        // ✅ [추가] UI 열려있으면: 물리 이동도 멈춰서 미끄러짐/잔진동 방지
+        // UI 열려있으면: 물리 이동도 멈춰서 미끄러짐/잔진동 방지
         if (!UIStateManager.GameplayInputEnabled)
         {
             Vector3 vel = rb.linearVelocity;
@@ -333,7 +333,7 @@ public class PlayerController : MonoBehaviour
         Vector2 move01 = new Vector2(moveInput.x, moveInput.z);
         viewModel.SetMoveInput(move01, isRunning, false);
 
-        // 2) ✅ 뷰모델 피치 동기화: cameraPivot 변화량 기반(안정)
+        // 2) 뷰모델 피치 동기화: cameraPivot 변화량 기반(안정)
         if (syncViewModelPitch && cameraPivot != null)
         {
             float vmSens = 1f;

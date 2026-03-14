@@ -1,6 +1,6 @@
 ﻿using System;
 using UnityEngine;
-using UnityEngine.SceneManagement; // ✅ 추가
+using UnityEngine.SceneManagement; 
 
 public class PlayerTime : MonoBehaviour
 {
@@ -18,7 +18,7 @@ public class PlayerTime : MonoBehaviour
     public Action<float, float> onTimeChanged;
     public Action onTimeDepleted;
 
-    // ✅ 베이스 씬에서는 시간 감소/피해 감소 막기
+    // 베이스 씬에서는 시간 감소/피해 감소 막기
     [Header("Base Scene Rule")]
     public bool freezeTimeInBase = true;
     public string[] baseSceneNames = new string[] { "Base", "BaseScene", "Lobby" };
@@ -41,9 +41,7 @@ public class PlayerTime : MonoBehaviour
     {
         InitTime();
 
-        // =========================
-        // ✅ 추가: 세션 데이터에 저장된 Time 복원
-        // =========================
+        // 세션 데이터에 저장된 Time 복원
         RestoreTimeFromSession();
     }
 
@@ -55,9 +53,9 @@ public class PlayerTime : MonoBehaviour
         onTimeChanged?.Invoke(currentTime, maxTime);
     }
 
-    // =========================
-    // ✅ 추가: 세션에서 Time 복원
-    // =========================
+
+    // 추가: 세션에서 Time 복원
+ 
     private void RestoreTimeFromSession()
     {
         if (PlayerSessionData.Instance == null) return;
@@ -65,15 +63,12 @@ public class PlayerTime : MonoBehaviour
 
         SetTime(PlayerSessionData.Instance.savedCurrentTime);
 
-        // =========================
-        // ✅ 추가: 복원 후 플래그 소비 (세션 Time 꼬임 방지)
-        // =========================
+        //  추가: 복원 후 플래그 소비 (세션 Time 꼬임 방지)
+
         PlayerSessionData.Instance.hasSavedPlayerTime = false;
     }
+    // 추가: 외부에서 Time 설정
 
-    // =========================
-    // ✅ 추가: 외부에서 Time 설정
-    // =========================
     public void SetTime(float value)
     {
         currentTime = Mathf.Clamp(value, 0f, maxTime);
@@ -82,15 +77,15 @@ public class PlayerTime : MonoBehaviour
 
     private void Update()
     {
-        // ✅✅ 베이스 씬이면 시간 감소 자체를 하지 않음
+        // 베이스 씬이면 시간 감소 자체를 하지 않음
         if (IsBaseScene()) return;
 
         // 레이드 중일 때만 Time이 초당 감소
         if (!isInRaid) return;
 
-        float dt = Time.unscaledDeltaTime; // ✅ 기본은 UI로 timeScale=0이어도 계속 흐름
+        float dt = Time.unscaledDeltaTime; // 기본은 UI로 timeScale=0이어도 계속 흐름
 
-        // ✅ ESC Pause 상태일 때만 시간 감소 멈춤
+        //  ESC Pause 상태일 때만 시간 감소 멈춤
         if (UIStateManager.Instance != null &&
             UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Pause)
         {
@@ -103,7 +98,7 @@ public class PlayerTime : MonoBehaviour
 
     public void TakeDamage(float amount)
     {
-        // ✅✅ 베이스 씬이면 데미지로 시간 감소도 막기
+        // 베이스 씬이면 데미지로 시간 감소도 막기
         if (IsBaseScene()) return;
 
         ApplyTimeChange(-amount);
@@ -119,7 +114,7 @@ public class PlayerTime : MonoBehaviour
 
     private void ApplyTimeChange(float delta)
     {
-        // ✅ (안전) 베이스 씬에서는 음수 변화(감소)만 막고 회복은 허용
+        // 베이스 씬에서는 음수 변화(감소)만 막고 회복은 허용
         if (IsBaseScene() && delta < 0f) return;
 
         float old = currentTime;
