@@ -1,19 +1,17 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 public class MainMenuManager : MonoBehaviour
 {
     [Header("Scene Settings")]
-    public string loadingSceneName = "Loading"; // 로딩 씬 이름
-    public string firstSceneName = "Base";     // 처음 시작할 씬
+    public string loadingSceneName = "Loading";
+    public string firstSceneName = "Base";
 
     [Header("UI Groups")]
     public GameObject mainButtonGroup;
     public GameObject quitConfirmPanel;
 
-    [Header("Settings Link (중요)")]
+    [Header("Settings Link")]
     public GlobalSettingsManager globalSettingsManager;
 
     [Header("Fade Effect")]
@@ -38,10 +36,8 @@ public class MainMenuManager : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            if (quitConfirmPanel.activeSelf) OnClickQuitNo();
-        }
+        if (Input.GetKeyDown(KeyCode.Escape) && quitConfirmPanel.activeSelf)
+            OnClickQuitNo();
     }
 
     public void PlayClickSound()
@@ -53,7 +49,7 @@ public class MainMenuManager : MonoBehaviour
     public void OnClickNewGame()
     {
         PlayClickSound();
-        LoadingData.nextSceneName = firstSceneName;
+        CoreUtilities.NextSceneName = firstSceneName;
         StartCoroutine(FadeOutAndLoad(loadingSceneName));
     }
 
@@ -66,13 +62,9 @@ public class MainMenuManager : MonoBehaviour
     public void OnClickOption()
     {
         if (globalSettingsManager != null)
-        {
             globalSettingsManager.OpenSettings();
-        }
         else
-        {
-            Debug.LogError("GlobalSettingsManager 연결 안됨!");
-        }
+            Debug.LogError("GlobalSettingsManager가 연결되지 않았습니다!");
     }
 
     public void OnClickQuit()
@@ -101,15 +93,9 @@ public class MainMenuManager : MonoBehaviour
         if (fadeCanvasGroup != null)
         {
             fadeCanvasGroup.blocksRaycasts = true;
-            float timer = 0f;
-            while (timer < fadeDuration)
-            {
-                timer += Time.deltaTime;
-                fadeCanvasGroup.alpha = Mathf.Lerp(0f, 1f, timer / fadeDuration);
-                yield return null;
-            }
-            fadeCanvasGroup.alpha = 1f;
+            yield return StartCoroutine(CoreUtilities.Fade(fadeCanvasGroup, 0f, 1f, fadeDuration));
         }
-        SceneManager.LoadScene(targetScene);
+
+        CoreUtilities.LoadDirect(targetScene);
     }
 }

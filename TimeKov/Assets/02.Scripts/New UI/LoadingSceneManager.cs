@@ -25,18 +25,9 @@ public class LoadingSceneManager : MonoBehaviour
 
     IEnumerator LoadProcess()
     {
-        fadeCanvasGroup.alpha = 1f;
-        float fadeTimer = 0f;
+        yield return StartCoroutine(CoreUtilities.Fade(fadeCanvasGroup, 1f, 0f, fadeDuration));
 
-        while (fadeTimer < fadeDuration)
-        {
-            fadeTimer += Time.deltaTime;
-            fadeCanvasGroup.alpha = Mathf.Lerp(1f, 0f, fadeTimer / fadeDuration);
-            yield return null;
-        }
-        fadeCanvasGroup.alpha = 0f;
-
-        AsyncOperation op = SceneManager.LoadSceneAsync(LoadingData.nextSceneName);
+        AsyncOperation op = SceneManager.LoadSceneAsync(CoreUtilities.NextSceneName);
         op.allowSceneActivation = false;
 
         float targetValue = 0f;
@@ -45,21 +36,12 @@ public class LoadingSceneManager : MonoBehaviour
         {
             yield return null;
 
-            if (op.progress < 0.9f)
-            {
-                targetValue = op.progress;
-            }
-            else
-            {
-                targetValue = 1.0f;
-            }
+            targetValue = op.progress < 0.9f ? op.progress : 1.0f;
 
             loadingSlider.value = Mathf.MoveTowards(loadingSlider.value, targetValue, Time.deltaTime * loadingSpeed);
 
             if (loadingText != null)
-            {
-                loadingText.text = ((int)(loadingSlider.value * 100)).ToString() + "%";
-            }
+                loadingText.text = ((int)(loadingSlider.value * 100)) + "%";
 
             if (op.progress >= 0.9f && loadingSlider.value >= 0.99f)
             {
@@ -71,15 +53,7 @@ public class LoadingSceneManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-
-        fadeTimer = 0f;
-        while (fadeTimer < fadeDuration)
-        {
-            fadeTimer += Time.deltaTime;
-            fadeCanvasGroup.alpha = Mathf.Lerp(0f, 1f, fadeTimer / fadeDuration);
-            yield return null;
-        }
-        fadeCanvasGroup.alpha = 1f;
+        yield return StartCoroutine(CoreUtilities.Fade(fadeCanvasGroup, 0f, 1f, fadeDuration));
 
         op.allowSceneActivation = true;
     }

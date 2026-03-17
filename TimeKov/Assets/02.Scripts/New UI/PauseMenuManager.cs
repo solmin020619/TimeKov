@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class PauseMenuManager : MonoBehaviour
 {
@@ -22,17 +21,12 @@ public class PauseMenuManager : MonoBehaviour
         playerController = FindFirstObjectByType<PlayerController>();
     }
 
-    void Update()
-    {
-
-    }
+    void Update() { }
 
     public void PlayClickSound()
     {
         if (globalSettings != null)
-        {
             globalSettings.PlayClickSound();
-        }
     }
 
     public void PauseGame()
@@ -82,6 +76,7 @@ public class PauseMenuManager : MonoBehaviour
     public void OnClickSettings()
     {
         PlayClickSound();
+
         if (UIStateManager.Instance != null)
         {
             UIStateManager.Instance.OpenPauseSettings();
@@ -96,7 +91,6 @@ public class PauseMenuManager : MonoBehaviour
     {
         PlayClickSound();
         Time.timeScale = 1f;
-        LoadingData.nextSceneName = mainMenuSceneName;
-        SceneManager.LoadScene(mainMenuSceneName);
+        CoreUtilities.LoadDirect(mainMenuSceneName);
     }
 }

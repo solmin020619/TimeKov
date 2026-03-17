@@ -11,20 +11,14 @@ public class SceneEntry : MonoBehaviour
         if (fadeCanvasGroup != null)
         {
             fadeCanvasGroup.alpha = 1f;
-            StartCoroutine(FadeIn());
+            StartCoroutine(FadeInRoutine());
         }
     }
 
-    IEnumerator FadeIn()
+    IEnumerator FadeInRoutine()
     {
-        float timer = 0f;
-        while (timer < fadeDuration)
-        {
-            timer += Time.deltaTime;
-            fadeCanvasGroup.alpha = Mathf.Lerp(1f, 0f, timer / fadeDuration);
-            yield return null;
-        }
-        fadeCanvasGroup.alpha = 0f;
+        yield return StartCoroutine(CoreUtilities.Fade(fadeCanvasGroup, 1f, 0f, fadeDuration));
+
         fadeCanvasGroup.blocksRaycasts = false;
         gameObject.SetActive(false);
     }
