@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 
 [System.Serializable]
@@ -31,59 +32,77 @@ public class ItemDataBase : ScriptableObject
 {
     public List<ItemInfo> allItems = new List<ItemInfo>();
 
+    private Dictionary<int, ItemInfo> itemLookup = new Dictionary<int, ItemInfo>();
+
     public ItemInfo GetItemById(int id)
     {
-        // 리스트를 뒤져서 ID가 같은 걸 찾아 반환. 없으면 null 반환.
-        return allItems.Find(item => item.id == id);
+        if (id <= 0)
+            return null;
+
+        EnsureLookup();
+
+        if (itemLookup.TryGetValue(id, out ItemInfo item))
+            return item;
+
+        return null;
     }
 
     [Header("CSV 파일 연결")]
-    // 변수 이름 위에 우클릭
     [ContextMenuItem("이거 눌러서 데이터 로드하기", "LoadCSV")]
     public TextAsset csvFile;
+
     public void LoadCSV()
     {
-        // 기존 데이터 비우기 (중복 방지)
         allItems.Clear();
+        itemLookup.Clear();
 
-        // 엔터(\n)를 기준으로 한 줄씩 
+        if (csvFile == null)
+        {
+            Debug.LogWarning("[ItemDataBase] csvFile 이 비어있음");
+            return;
+        }
+
         string[] lines = csvFile.text.Split('\n');
-
-        // i = 1 부터 시작 (0번 줄은 제목 줄이니까 건너뜀)
         for (int i = 2; i < lines.Length; i++)
         {
-            // 데이터가 없는 빈 줄은 패스
-            if (string.IsNullOrWhiteSpace(lines[i])) continue;
+            if (string.IsNullOrWhiteSpace(lines[i]))
+                continue;
 
-            // 콤마(,)를 기준으로 칸을 쪼갭니다.
-            string[] data = lines[i].Split(',');
+            string line = lines[i].Trim();
+            string[] data = line.Split(',');
 
-            // 새 아이템 생성
-            ItemInfo newItem = new ItemInfo();
+            if (data.Length < 20)
+            {
+                Debug.LogWarning($"[ItemDataBase] CSV 열 개수 부족 - line:{i + 1}");
+                continue;
+            }
 
-            newItem.id = int.Parse(data[0]);
-            newItem.itemType = data[1];
-            newItem.itemName = data[2];
-            newItem.description = data[3];
-            newItem.magazinesize = int.Parse(data[4]);
-            newItem.duplicated = int.Parse(data[5]);
-            newItem.overlapsCount = int.Parse(data[6]);
-            newItem.saleTime = int.Parse(data[7]);
-            newItem.iconImange = data[8];
-            newItem.weight = float.Parse(data[9]);
-            newItem.isAutomatic = int.Parse(data[10]);
-            newItem.damage = float.Parse(data[11]);
-            newItem.fireRate = float.Parse(data[12]);
-            newItem.reloadTime = float.Parse(data[13]);
-            newItem.effectiveRange = float.Parse(data[14]);
-            newItem.useRecoilPattern = int.Parse(data[15]);
-            newItem.randomRecoilAngle = int.Parse(data[16]);
-            newItem.recoilResetTime = float.Parse(data[17]);
-            newItem.pelletsPerShot = int.Parse(data[18]);
-            newItem.spreadAngle = float.Parse(data[19]);
+            ItemInfo newItem = new ItemInfo
+            {
+                id = ParseInt(data[0]),
+                itemType = data[1],
+                itemName = data[2],
+                description = data[3],
+                magazinesize = ParseInt(data[4]),
+                duplicated = ParseInt(data[5]),
+                overlapsCount = ParseInt(data[6]),
+                saleTime = ParseInt(data[7]),
+                iconImange = data[8],
+                weight = ParseFloat(data[9]),
+                isAutomatic = ParseInt(data[10]),
+                damage = ParseFloat(data[11]),
+                fireRate = ParseFloat(data[12]),
+                reloadTime = ParseFloat(data[13]),
+                effectiveRange = ParseFloat(data[14]),
+                useRecoilPattern = ParseInt(data[15]),
+                randomRecoilAngle = ParseInt(data[16]),
+                recoilResetTime = ParseFloat(data[17]),
+                pelletsPerShot = ParseInt(data[18]),
+                spreadAngle = ParseFloat(data[19]),
+            };
 
-            // 리스트에 추가
             allItems.Add(newItem);
+            itemLookup[newItem.id] = newItem;
         }
 
 #if UNITY_EDITOR
@@ -92,5 +111,46 @@ public class ItemDataBase : ScriptableObject
 #endif
 
         Debug.Log("<color=green>데이터 로드 완료! 아이템 개수: " + allItems.Count + "</color>");
+    }
+
+    private void OnEnable()
+    {
+        EnsureLookup();
+    }
+
+    private void EnsureLookup()
+    {
+        if (itemLookup == null)
+            itemLookup = new Dictionary<int, ItemInfo>();
+
+        if (itemLookup.Count == allItems.Count && itemLookup.Count > 0)
+            return;
+
+        itemLookup.Clear();
+
+        for (int i = 0; i < allItems.Count; i++)
+        {
+            ItemInfo item = allItems[i];
+            if (item == null) continue;
+
+            itemLookup[item.id] = item;
+        }
+    }
+
+    private int ParseInt(string value)
+    {
+        int.TryParse(Clean(value), NumberStyles.Integer, CultureInfo.InvariantCulture, out int result);
+        return result;
+    }
+
+    private float ParseFloat(string value)
+    {
+        float.TryParse(Clean(value), NumberStyles.Float, CultureInfo.InvariantCulture, out float result);
+        return result;
+    }
+
+    private string Clean(string value)
+    {
+        return string.IsNullOrEmpty(value) ? string.Empty : value.Trim().Replace("\r", "");
     }
 }

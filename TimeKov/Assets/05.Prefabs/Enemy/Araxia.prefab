@@ -2522,7 +2522,6 @@ GameObject:
   - component: {fileID: 2316188370562584548}
   - component: {fileID: 6100387037183085579}
   - component: {fileID: 7032517437412450209}
-  - component: {fileID: 3893409792005259669}
   m_Layer: 0
   m_Name: Araxia
   m_TagString: Untagged
@@ -2642,6 +2641,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHP: 1000
   currentHP: 0
+  corpsePrefab: {fileID: 0}
 --- !u!195 &6100387037183085579
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -2700,20 +2700,6 @@ MonoBehaviour:
   missileSpeed: 15
   bombCount: 6
   bombingRadius: 8
---- !u!114 &3893409792005259669
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7691760956567570064}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 27e003c987c8bb642a975d740bcfebda, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  enemyHealth: {fileID: 2316188370562584548}
-  corpsePrefab: {fileID: 4058803597381055991, guid: d13e72dc96790ab4aaa119e164235b04, type: 3}
 --- !u!1 &7768234858518290659
 GameObject:
   m_ObjectHideFlags: 0

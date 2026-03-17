@@ -148,10 +148,9 @@ GameObject:
   - component: {fileID: 4046662273388661145}
   - component: {fileID: 200028987282615874}
   - component: {fileID: 2745044400352255117}
-  - component: {fileID: 2337632056848987466}
-  - component: {fileID: 588442638419262282}
   - component: {fileID: 3757646248385400856}
   - component: {fileID: 5549222302182304720}
+  - component: {fileID: -1012475604178912562}
   m_Layer: 5
   m_Name: Slot
   m_TagString: Untagged
@@ -276,33 +275,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &2337632056848987466
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3004623949922908827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 111d555619ab8ca439455889f72f2c48, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  doubleClickTime: 0.25
-  invenManager: {fileID: 0}
---- !u!114 &588442638419262282
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3004623949922908827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc1e3225939630b46a9eafa087ed9b8b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ownerManager: {fileID: 0}
 --- !u!114 &3757646248385400856
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -343,6 +315,23 @@ MonoBehaviour:
   amountText: {fileID: 6121178744931085870}
   ownerType: 0
   priceText: {fileID: 6121178744931085870}
+--- !u!114 &-1012475604178912562
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3004623949922908827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65c7e2672682c1046a903f7ed3ed9cb8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  doubleClickTime: 0.25
+  ownerManager: {fileID: 0}
+  invenManager: {fileID: 0}
+  menu: {fileID: 0}
+  equipmentManager: {fileID: 0}
 --- !u!1 &5281174338692283593
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,9 +1,6 @@
 ﻿// BaseInteractable.cs
 // 기능 유지: F키 상호작용 + ActionType 분기 + MonsterLoot 우선 -> LootContainer
-// 변경(추가): 플레이어가 여러 Interactable 트리거에 동시에 들어가 있을 때
-//            F 입력이 "여러 개에 동시에 처리"되어 LootContainer.Open()이 중복 호출되는 문제를 방지.
-//            - 한 프레임에 입력은 1개만 소비
-//            - 소비 주체는 "플레이어와 가장 가까운 Interactable" 1개
+// 변경(최적화): GetComponent 반복 캐싱, 입력 처리 분리, 리스트 제거 중복 정리
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -46,7 +43,10 @@ public class BaseInteractable : MonoBehaviour
     private bool playerInRange = false;
     private Collider interactionTrigger;
 
-    // ✅ [추가] 동시에 여러 상자 범위에 있을 때 입력을 1개만 처리하기 위한 전역 상태
+    private MonsterLoot cachedMonsterLoot;
+    private LootContainer cachedLootContainer;
+
+    //  동시에 여러 상자 범위에 있을 때 입력을 1개만 처리하기 위한 전역 상태
     private static readonly List<BaseInteractable> _inRangeList = new List<BaseInteractable>(64);
     private static Transform _playerTransform;
     private static int _lastConsumeFrame = -1;
@@ -60,47 +60,59 @@ public class BaseInteractable : MonoBehaviour
 
     void Awake()
     {
-        if (uiStateManager == null)
-            uiStateManager = UIStateManager.Instance;
+        ResolveRefs();
 
         if (forceAllCollidersToTrigger_Legacy)
-        {
             ForceTriggerOnSelfAndChildren();
-        }
 
         if (useDedicatedInteractionTrigger)
-        {
             SetupDedicatedTrigger();
-        }
     }
 
     void OnDisable()
     {
-        if (_inRangeList.Contains(this))
-            _inRangeList.Remove(this);
+        RemoveFromRangeList();
         playerInRange = false;
     }
 
     void Update()
     {
-        if (!playerInRange) return;
+        if (!playerInRange)
+            return;
 
-        if (uiStateManager == null)
-            uiStateManager = UIStateManager.Instance;
+        if (!Input.GetKeyDown(interactKey))
+            return;
 
-        if (!Input.GetKeyDown(interactKey)) return;
+        if (Time.frameCount == _lastConsumeFrame)
+            return;
 
-        // ✅ [추가] 한 프레임에 입력은 1개만 소비
-        if (Time.frameCount == _lastConsumeFrame) return;
-
-        // ✅ [추가] 동시에 여러 Interactable이 범위 안이면, "가장 가까운 1개"만 실행
         if (_playerTransform != null)
         {
             BaseInteractable nearest = GetNearestInRange(_playerTransform.position);
-            if (nearest != this) return;
+            if (nearest != this)
+                return;
         }
 
         _lastConsumeFrame = Time.frameCount;
+        ExecuteAction();
+    }
+
+    private void ResolveRefs()
+    {
+        if (uiStateManager == null)
+            uiStateManager = UIStateManager.Instance;
+
+        if (cachedMonsterLoot == null)
+            cachedMonsterLoot = GetComponent<MonsterLoot>();
+
+        if (cachedLootContainer == null)
+            cachedLootContainer = GetComponent<LootContainer>();
+    }
+
+    private void ExecuteAction()
+    {
+        if (uiStateManager == null)
+            uiStateManager = UIStateManager.Instance;
 
         switch (action)
         {
@@ -115,24 +127,20 @@ public class BaseInteractable : MonoBehaviour
                 break;
 
             case ActionType.OpenLootContainer:
+                if (cachedMonsterLoot != null)
                 {
-                    MonsterLoot monsterLoot = GetComponent<MonsterLoot>();
-                    if (monsterLoot != null)
-                    {
-                        monsterLoot.Open();
-                        return;
-                    }
-
-                    LootContainer loot = GetComponent<LootContainer>();
-                    if (loot != null)
-                    {
-                        loot.Open();
-                        return;
-                    }
-
-                    Debug.LogWarning("[BaseInteractable] OpenLootContainer인데 MonsterLoot/LootContainer 둘 다 없음", gameObject);
-                    break;
+                    cachedMonsterLoot.Open();
+                    return;
                 }
+
+                if (cachedLootContainer != null)
+                {
+                    cachedLootContainer.Open();
+                    return;
+                }
+
+                Debug.LogWarning("[BaseInteractable] OpenLootContainer인데 MonsterLoot/LootContainer 둘 다 없음", gameObject);
+                break;
         }
     }
 
@@ -149,7 +157,9 @@ public class BaseInteractable : MonoBehaviour
                 _inRangeList.RemoveAt(i);
                 continue;
             }
-            if (!it.playerInRange) continue;
+
+            if (!it.playerInRange)
+                continue;
 
             float d = (it.transform.position - playerPos).sqrMagnitude;
             if (d < best)
@@ -164,21 +174,31 @@ public class BaseInteractable : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player"))
+            return;
 
         playerInRange = true;
         _playerTransform = other.transform;
-
-        if (!_inRangeList.Contains(this))
-            _inRangeList.Add(this);
+        AddToRangeList();
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player"))
+            return;
 
         playerInRange = false;
+        RemoveFromRangeList();
+    }
 
+    private void AddToRangeList()
+    {
+        if (!_inRangeList.Contains(this))
+            _inRangeList.Add(this);
+    }
+
+    private void RemoveFromRangeList()
+    {
         if (_inRangeList.Contains(this))
             _inRangeList.Remove(this);
     }
@@ -202,7 +222,8 @@ public class BaseInteractable : MonoBehaviour
                 }
             }
 
-            if (!autoCreateTriggerIfMissing) return;
+            if (!autoCreateTriggerIfMissing)
+                return;
 
             BoxCollider bc = gameObject.AddComponent<BoxCollider>();
             bc.isTrigger = true;
@@ -223,10 +244,9 @@ public class BaseInteractable : MonoBehaviour
     }
 
     private void OnValidate()
-    { 
-        // 값이 이상하게 들어가면 최소 보정 
-        triggerSize.x = Mathf.Max(0.1f, triggerSize.x); 
-        triggerSize.y = Mathf.Max(0.1f, triggerSize.y); 
-        triggerSize.z = Mathf.Max(0.1f, triggerSize.z); 
+    {
+        triggerSize.x = Mathf.Max(0.1f, triggerSize.x);
+        triggerSize.y = Mathf.Max(0.1f, triggerSize.y);
+        triggerSize.z = Mathf.Max(0.1f, triggerSize.z);
     }
- }
+}

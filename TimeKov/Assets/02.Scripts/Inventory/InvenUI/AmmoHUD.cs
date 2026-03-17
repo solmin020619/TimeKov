@@ -20,11 +20,20 @@ public class AmmoHUD : MonoBehaviour
     [SerializeField] private float refreshInterval = 0.1f;
 
     private float _t;
+    private int _lastInMag = int.MinValue;
+    private int _lastReserve = int.MinValue;
+    private int _lastWeaponItemId = int.MinValue;
+    private bool _hasInitializedText = false;
 
     private void Awake()
     {
-        if (weapon == null) weapon = FindFirstObjectByType<PlayerWeaponController>();
-        if (inventory == null) inventory = FindFirstObjectByType<InventoryManager>(); // Player 인벤 1개라고 가정
+        ResolveRefs();
+    }
+
+    private void OnEnable()
+    {
+        _t = refreshInterval;
+        Refresh(force: true);
     }
 
     private void Update()
@@ -33,22 +42,54 @@ public class AmmoHUD : MonoBehaviour
         if (_t < refreshInterval) return;
         _t = 0f;
 
-        Refresh();
+        Refresh(force: false);
     }
 
-    private void Refresh()
+    private void ResolveRefs()
     {
-        if (ammoText == null || weapon == null) return;
+        if (weapon == null)
+            weapon = FindFirstObjectByType<PlayerWeaponController>();
+
+        if (inventory == null)
+            inventory = FindFirstObjectByType<InventoryManager>(); // Player 인벤 1개라고 가정
+    }
+
+    private void Refresh(bool force)
+    {
+        if (ammoText == null)
+            return;
+
+        if (weapon == null || inventory == null)
+            ResolveRefs();
+
+        if (weapon == null)
+            return;
 
         int inMag = weapon.GetCurrentAmmo();
+        int weaponItemId = weapon.GetEquippedItemId();
         int ammoItemId = GetAmmoItemIdFromWeapon(weapon);
 
         int reserve = 0;
         if (inventory != null && ammoItemId > 0)
             reserve = inventory.GetTotalItemCount(ammoItemId);
 
+        bool changed =
+            !_hasInitializedText ||
+            force ||
+            inMag != _lastInMag ||
+            reserve != _lastReserve ||
+            weaponItemId != _lastWeaponItemId;
+
+        if (!changed)
+            return;
+
         // 기존 reserve 계산 구조는 유지하고, 표시만 현재 장착 탄 수만 나오게 변경
         ammoText.text = $"{inMag}";
+
+        _lastInMag = inMag;
+        _lastReserve = reserve;
+        _lastWeaponItemId = weaponItemId;
+        _hasInitializedText = true;
     }
 
     /// <summary>

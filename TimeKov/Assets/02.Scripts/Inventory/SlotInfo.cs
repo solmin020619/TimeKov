@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,24 +24,21 @@ public class SlotInfo : MonoBehaviour
     private ShopSlotMarker shopMarker;
     private string defaultSlotText = "";
 
+    private static readonly Dictionary<int, Sprite> _iconCache = new Dictionary<int, Sprite>();
+
     private void Awake()
     {
-        shopMarker = GetComponent<ShopSlotMarker>();
-        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
-
-        if (isShopSlot && ownerType == SlotOwnerType.Inventory)
-            ownerType = SlotOwnerType.Shop;
+        CacheRefs();
+        ApplyOwnerTypeForShopSlot();
 
         if (slotText != null)
             defaultSlotText = slotText.text;
 
-        if (priceText != null && priceText.transform.parent != null)
-            priceRoot = priceText.transform.parent.gameObject;
+        ResolvePriceRoot();
 
-        if (priceRoot == this.gameObject)
-            priceRoot = null;
+        bool isShopSlot = IsShopSlot();
 
-        // ✅ 인벤 수량 텍스트는 절대 Awake에서 끄지 않음
+        //  인벤 수량 텍스트는 절대 Awake에서 끄지 않음
         if (!isShopSlot)
         {
             if (priceRoot != null) priceRoot.SetActive(false);
@@ -51,12 +49,15 @@ public class SlotInfo : MonoBehaviour
         }
         else
         {
-            // ✅ 상점 슬롯인데 priceText가 비어있으면 amountText를 가격 표시로 재활용
+            //  상점 슬롯인데 priceText가 비어있으면 amountText를 가격 표시로 재활용
             if (priceText == null) priceText = amountText;
         }
     }
 
-    private void OnEnable() => RefreshShopPriceUI();
+    private void OnEnable()
+    {
+        RefreshShopPriceUI();
+    }
 
     private IEnumerator Start()
     {
@@ -64,65 +65,117 @@ public class SlotInfo : MonoBehaviour
         RefreshShopPriceUI();
     }
 
+    private void CacheRefs()
+    {
+        if (shopMarker == null)
+            shopMarker = GetComponent<ShopSlotMarker>();
+    }
+
+    private void ApplyOwnerTypeForShopSlot()
+    {
+        if (IsShopSlot() && ownerType == SlotOwnerType.Inventory)
+            ownerType = SlotOwnerType.Shop;
+    }
+
+    private bool IsShopSlot()
+    {
+        return shopMarker != null && shopMarker.itemId != 0;
+    }
+
+    private void ResolvePriceRoot()
+    {
+        if (priceText != null && priceText.transform.parent != null)
+            priceRoot = priceText.transform.parent.gameObject;
+
+        if (priceRoot == gameObject)
+            priceRoot = null;
+    }
+
     public void SetSlot(int id, int count)
     {
-        if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
-        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
+        CacheRefs();
+        ApplyOwnerTypeForShopSlot();
 
-        if (isShopSlot && ownerType == SlotOwnerType.Inventory)
-            ownerType = SlotOwnerType.Shop;
-
+        bool isShopSlot = IsShopSlot();
         int effectiveId = isShopSlot ? shopMarker.itemId : id;
 
         slotIndex = effectiveId;
         itemCount = count;
+        slotOldIndex = slotIndex;
 
-        if (!gameObject.activeSelf) gameObject.SetActive(true);
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
 
         if (slotIndex == 0 || itemCount <= 0)
         {
-            if (slotText != null)
-                slotText.text = (ownerType == SlotOwnerType.Equip) ? defaultSlotText : "";
-
-            slotOldIndex = 0;
-
-            if (!isShopSlot && iconImage != null)
-            {
-                iconImage.sprite = null;
-                iconImage.enabled = false;
-            }
-
+            ApplyEmptyState(isShopSlot);
             UpdateAmountText();
             RefreshShopPriceUI();
             return;
         }
 
-        if (iconImage != null)
-        {
-            iconImage.sprite = Resources.Load<Sprite>("Icon/" + slotIndex);
-            iconImage.enabled = (iconImage.sprite != null);
-        }
-
-        if (slotText != null)
-        {
-            var item = DataManager.Instance?.GetItem(slotIndex);
-            slotText.text = (item != null) ? item.itemName : slotIndex.ToString();
-            slotOldIndex = slotIndex;
-        }
-
+        ApplyFilledState();
         UpdateAmountText();
         RefreshShopPriceUI();
+    }
+
+    private void ApplyEmptyState(bool isShopSlot)
+    {
+        if (slotText != null)
+            slotText.text = (ownerType == SlotOwnerType.Equip) ? defaultSlotText : "";
+
+        slotOldIndex = 0;
+
+        if (!isShopSlot && iconImage != null)
+        {
+            iconImage.sprite = null;
+            iconImage.enabled = false;
+        }
+    }
+
+    private void ApplyFilledState()
+    {
+        ApplyIcon(slotIndex);
+        ApplySlotText(slotIndex);
+    }
+
+    private void ApplyIcon(int id)
+    {
+        if (iconImage == null)
+            return;
+
+        Sprite sprite = GetCachedIcon(id);
+        iconImage.sprite = sprite;
+        iconImage.enabled = (sprite != null);
+    }
+
+    private void ApplySlotText(int id)
+    {
+        if (slotText == null)
+            return;
+
+        var item = DataManager.Instance?.GetItem(id);
+        slotText.text = (item != null) ? item.itemName : id.ToString();
+    }
+
+    private Sprite GetCachedIcon(int id)
+    {
+        if (id <= 0)
+            return null;
+
+        if (_iconCache.TryGetValue(id, out Sprite cached))
+            return cached;
+
+        Sprite loaded = Resources.Load<Sprite>("Icon/" + id);
+        _iconCache[id] = loaded;
+        return loaded;
     }
 
     void UpdateAmountText()
     {
         if (amountText == null) return;
 
-        if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
-        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
-
-        // ✅ 상점 슬롯은 amountText를 가격으로 쓰므로 수량 로직이 덮어쓰면 안 됨
-        if (isShopSlot) return;
+        if (IsShopSlot()) return;
 
         if (!amountText.gameObject.activeSelf)
             amountText.gameObject.SetActive(true);
@@ -132,21 +185,24 @@ public class SlotInfo : MonoBehaviour
 
     private void RefreshShopPriceUI()
     {
-        if (shopMarker == null) shopMarker = GetComponent<ShopSlotMarker>();
-        bool isShopSlot = (shopMarker != null && shopMarker.itemId != 0);
-        if (!isShopSlot) return;
+        CacheRefs();
 
-        if (priceText == null) priceText = amountText;
-        if (priceText == null) return;
+        if (!IsShopSlot()) return;
 
-        if (priceRoot == null && priceText.transform.parent != null)
-            priceRoot = priceText.transform.parent.gameObject;
+        if (priceText == null)
+            priceText = amountText;
 
-        if (priceRoot == this.gameObject)
-            priceRoot = null;
+        if (priceText == null)
+            return;
 
-        if (priceRoot != null && !priceRoot.activeSelf) priceRoot.SetActive(true);
-        if (!priceText.gameObject.activeSelf) priceText.gameObject.SetActive(true);
+        if (priceRoot == null)
+            ResolvePriceRoot();
+
+        if (priceRoot != null && !priceRoot.activeSelf)
+            priceRoot.SetActive(true);
+
+        if (!priceText.gameObject.activeSelf)
+            priceText.gameObject.SetActive(true);
 
         int targetId = shopMarker.itemId;
 
@@ -158,28 +214,16 @@ public class SlotInfo : MonoBehaviour
         priceText.text = $"{price}s";
     }
 
-    void Update()
-    {
-        if (slotIndex == 0) return;
-
-        if (slotIndex != slotOldIndex)
-        {
-            if (slotText == null) { slotOldIndex = slotIndex; return; }
-            if (DataManager.Instance == null) { slotText.text = slotIndex.ToString(); slotOldIndex = slotIndex; return; }
-
-            var item = DataManager.Instance.GetItem(slotIndex);
-            if (item == null) { slotText.text = slotIndex.ToString(); slotOldIndex = slotIndex; return; }
-
-            slotText.text = item.itemName;
-            slotOldIndex = slotIndex;
-        }
-    }
-
     public void SlotClick()
     {
-        if (slotIndex == 0) { Debug.Log("노아이템"); return; }
+        if (slotIndex == 0)
+        {
+            Debug.Log("노아이템");
+            return;
+        }
 
         if (DataManager.Instance == null) return;
+
         var item = DataManager.Instance.GetItem(slotIndex);
         if (item == null) return;
 

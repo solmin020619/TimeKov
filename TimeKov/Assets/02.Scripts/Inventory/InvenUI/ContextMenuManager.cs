@@ -10,7 +10,7 @@ public class ContextMenuManager : MonoBehaviour
     [Header("Buttons")]
     public Button btnEquip;
     public Button btnUnequip;
-    public Button btnSell;  // ✅ 이 버튼을 '판매/구매'로 재사용
+    public Button btnSell;  //  이 버튼을 '판매/구매'로 재사용
     public Button btnDrop;
 
     [Header("Refs")]
@@ -19,11 +19,29 @@ public class ContextMenuManager : MonoBehaviour
 
     private SlotInfo currentSlot;
     private InventoryManager currentOwnerManager;
+    private ShopSlotMarker currentShopMarker;
+    private RectTransform menuRect;
+
+    private TMP_Text btnEquipLabel;
+    private TMP_Text btnUnequipLabel;
+    private TMP_Text btnSellLabel;
+    private TMP_Text btnDropLabel;
 
     void Awake()
     {
         if (menuRoot != null)
+        {
+            menuRect = menuRoot.GetComponent<RectTransform>();
             menuRoot.SetActive(false);
+        }
+
+        if (equipmentManager == null)
+            equipmentManager = FindFirstObjectByType<EquipmentManager>();
+
+        if (shopManager == null)
+            shopManager = FindFirstObjectByType<ShopManager>();
+
+        CacheButtonLabels();
 
         if (btnEquip != null) btnEquip.onClick.AddListener(OnClickEquip);
         if (btnUnequip != null) btnUnequip.onClick.AddListener(OnClickUnequip);
@@ -33,23 +51,36 @@ public class ContextMenuManager : MonoBehaviour
 
     void Update()
     {
-        if (menuRoot != null && menuRoot.activeSelf)
-        {
-            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
-            {
-                if (!IsPointerInsideMenu())
-                    Hide();
-            }
-        }
+        if (menuRoot == null || !menuRoot.activeSelf)
+            return;
+
+        if (!Input.GetMouseButtonDown(0) && !Input.GetMouseButtonDown(1))
+            return;
+
+        if (!IsPointerInsideMenu())
+            Hide();
+    }
+
+    private void CacheButtonLabels()
+    {
+        btnEquipLabel = GetButtonLabel(btnEquip);
+        btnUnequipLabel = GetButtonLabel(btnUnequip);
+        btnSellLabel = GetButtonLabel(btnSell);
+        btnDropLabel = GetButtonLabel(btnDrop);
+    }
+
+    private TMP_Text GetButtonLabel(Button button)
+    {
+        if (button == null) return null;
+        return button.GetComponentInChildren<TMP_Text>(true);
     }
 
     bool IsPointerInsideMenu()
     {
-        if (menuRoot == null) return false;
-        RectTransform rt = menuRoot.GetComponent<RectTransform>();
-        if (rt == null) return false;
+        if (menuRect == null)
+            return false;
 
-        return RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null);
+        return RectTransformUtility.RectangleContainsScreenPoint(menuRect, Input.mousePosition, null);
     }
 
     public void Show(SlotInfo slot, InventoryManager ownerManager, Vector2 screenPos)
@@ -57,22 +88,21 @@ public class ContextMenuManager : MonoBehaviour
         if (slot == null) return;
         if (ownerManager == null) return;
         if (menuRoot == null) return;
-
-        if (slot.slotIndex == 0)
-            return;
+        if (slot.slotIndex == 0) return;
 
         currentSlot = slot;
         currentOwnerManager = ownerManager;
+        currentShopMarker = slot.GetComponent<ShopSlotMarker>();
 
-        RectTransform rt = menuRoot.GetComponent<RectTransform>();
-        if (rt != null)
-            rt.position = screenPos;
+        if (menuRect == null)
+            menuRect = menuRoot.GetComponent<RectTransform>();
+
+        if (menuRect != null)
+            menuRect.position = screenPos;
 
         RefreshButtons();
 
         menuRoot.SetActive(true);
-
-        // ✅ 항상 맨 앞으로(최상단) 가져오기
         menuRoot.transform.SetAsLastSibling();
     }
 
@@ -83,7 +113,13 @@ public class ContextMenuManager : MonoBehaviour
 
         currentSlot = null;
         currentOwnerManager = null;
+        currentShopMarker = null;
     }
+
+    // 기존 SendMessage 호환용
+    public void HideMenu() => Hide();
+    public void CloseMenu() => Hide();
+    public void Close() => Hide();
 
     void RefreshButtons()
     {
@@ -91,78 +127,70 @@ public class ContextMenuManager : MonoBehaviour
 
         bool isEquipSlot = (currentSlot.ownerType == SlotInfo.SlotOwnerType.Equip);
         bool isInventorySlot = (currentSlot.ownerType == SlotInfo.SlotOwnerType.Inventory);
+        bool isShopSlot = (currentShopMarker != null);
 
-        // 상점 슬롯인지 판별(ShopSlotMarker가 붙어있으면 상점 슬롯)
-        ShopSlotMarker shopMarker = currentSlot.GetComponent<ShopSlotMarker>();
-        bool isShopSlot = (shopMarker != null);
-
-        // 상점 열림 여부
         bool shopOpen = (shopManager != null && shopManager.IsShopOpen());
 
-        // 장비템 판별
         bool isEquippable = false;
         if (equipmentManager != null)
-        {
             isEquippable = (equipmentManager.GetTypeById(currentSlot.slotIndex) != null);
-        }
 
-        // ✅ 장착/해제 기존 규칙 유지
         if (btnEquip != null)
             btnEquip.gameObject.SetActive(!isEquipSlot && isInventorySlot && isEquippable);
 
         if (btnUnequip != null)
             btnUnequip.gameObject.SetActive(isEquipSlot);
 
-        // ✅ 판매/구매 버튼(=btnSell)
         if (btnSell != null)
         {
-            // 상점이 열려있을 때만 표시
             if (!shopOpen)
             {
                 btnSell.gameObject.SetActive(false);
             }
             else
             {
-                // 상점 슬롯이면 "구매", 인벤 슬롯이면 "판매"
                 if (isShopSlot)
                 {
-                    SetButtonText(btnSell, "구매");
+                    SetButtonText(btnSell, btnSellLabel, "구매");
                     btnSell.gameObject.SetActive(true);
                 }
                 else if (isInventorySlot)
                 {
-                    SetButtonText(btnSell, "판매");
+                    SetButtonText(btnSell, btnSellLabel, "판매");
                     btnSell.gameObject.SetActive(true);
                 }
                 else
                 {
-                    // 장비칸/창고 등은 판매/구매 숨김(원하면 바꿔도 됨)
                     btnSell.gameObject.SetActive(false);
                 }
             }
         }
 
-        // 드롭은 일단 인벤에서만 (원하면 shopOpen 여부 상관없이 켜도 됨)
         if (btnDrop != null)
             btnDrop.gameObject.SetActive(isInventorySlot);
     }
 
-    void SetButtonText(Button b, string text)
+    void SetButtonText(Button button, TMP_Text cachedLabel, string text)
     {
-        if (b == null) return;
+        if (button == null) return;
 
-        TextMeshProUGUI tmp = b.GetComponentInChildren<TextMeshProUGUI>();
+        if (cachedLabel != null)
+        {
+            cachedLabel.text = text;
+            return;
+        }
+
+        TextMeshProUGUI tmp = button.GetComponentInChildren<TextMeshProUGUI>(true);
         if (tmp != null)
         {
             tmp.text = text;
             return;
         }
 
-        Text uText = b.GetComponentInChildren<Text>();
+        Text uText = button.GetComponentInChildren<Text>(true);
         if (uText != null)
         {
             uText.text = text;
-            return;
         }
     }
 
@@ -189,12 +217,9 @@ public class ContextMenuManager : MonoBehaviour
         if (currentSlot == null) return;
         if (shopManager == null) return;
 
-        ShopSlotMarker shopMarker = currentSlot.GetComponent<ShopSlotMarker>();
-        bool isShopSlot = (shopMarker != null);
-
-        if (isShopSlot)
+        if (currentShopMarker != null)
         {
-            shopManager.TryBuyFromContext(shopMarker);
+            shopManager.TryBuyFromContext(currentShopMarker);
         }
         else
         {

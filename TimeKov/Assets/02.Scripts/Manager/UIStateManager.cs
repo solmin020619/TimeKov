@@ -22,9 +22,9 @@ public class UIStateManager : MonoBehaviour
     public GameObject shopUI;
 
     [Header("Pause Root & Panels")]
-    public GameObject pauseRoot;          // ✅ PauseSystem (부모)
-    public GameObject pauseMainPanel;     // ✅ Pause_V1Blue (실제 Pause 패널)
-    public GameObject pauseSettingsPanel; // ✅ SettingsSystem (설정 패널 루트)
+    public GameObject pauseRoot;          //  PauseSystem (부모)
+    public GameObject pauseMainPanel;     //  Pause_V1Blue (실제 Pause 패널)
+    public GameObject pauseSettingsPanel; //  SettingsSystem (설정 패널 루트)
 
     [Header("Loot UI")]
     public GameObject defaultLootUI;
@@ -41,17 +41,22 @@ public class UIStateManager : MonoBehaviour
     [Header("Managers (optional but recommended)")]
     public ShopManager shopManager;
 
-    [Header("Dim Blocker (Optional)")]
-    public DimBlockerManager dimBlockerManager;
+    [Header("Dim Blocker")]
+    public GameObject dimBlocker;
+
+    [Header("Base Scene Settings")]
+    public string[] baseSceneNames = { "Base" };
+
+
 
     private UIState currentState = UIState.None;
 
     private GameObject currentLootUI = null;
 
-    // ✅ Pause 안에서 Settings가 열려있는지 플래그
+    //  Pause 안에서 Settings가 열려있는지 플래그
     private bool pauseSettingsOpen = false;
 
-    // ✅ 추가: 같은 프레임에 Loot 토글이 두 번 들어오면 "켜졌다가 바로 꺼짐" 방지
+    //  추가: 같은 프레임에 Loot 토글이 두 번 들어오면 "켜졌다가 바로 꺼짐" 방지
     private int _lastLootToggleFrame = -1;
 
     void Awake()
@@ -62,9 +67,6 @@ public class UIStateManager : MonoBehaviour
             return;
         }
         Instance = this;
-
-        if (dimBlockerManager == null)
-            dimBlockerManager = FindAnyObjectByType<DimBlockerManager>();
     }
 
     void Update()
@@ -82,7 +84,7 @@ public class UIStateManager : MonoBehaviour
             ApplyState();
         }
 
-        // ✅ 추가: 다른 스크립트가 커서를 다시 숨기거나 잠궈도
+        //  추가: 다른 스크립트가 커서를 다시 숨기거나 잠궈도
         // UI가 열려있는 동안에는 계속 UI 조작 가능하게 커서 상태를 강제 유지
         RefreshCursorState();
     }
@@ -90,7 +92,7 @@ public class UIStateManager : MonoBehaviour
     public UIState GetCurrentState() => currentState;
     public bool IsUIBlocking() => currentState != UIState.None;
 
-    // ✅ ESC 규칙
+    //  ESC 규칙
     // 1) 아무 UI도 없으면 -> Pause 켜기
     // 2) Pause 상태에서 Settings가 열려있으면 -> Settings 먼저 닫기
     // 3) 그 외 UI가 열려있으면 -> 닫기(None)
@@ -148,7 +150,7 @@ public class UIStateManager : MonoBehaviour
         if (currentState == UIState.Shop) return;
         if (currentState == UIState.Pause) return;
 
-        // ✅ 추가: 같은 프레임에 두 번 호출되면 2번째는 무시 (켜졌다가 바로 꺼짐 방지)
+        //  추가: 같은 프레임에 두 번 호출되면 2번째는 무시 (켜졌다가 바로 꺼짐 방지)
         if (Time.frameCount == _lastLootToggleFrame) return;
         _lastLootToggleFrame = Time.frameCount;
 
@@ -170,7 +172,7 @@ public class UIStateManager : MonoBehaviour
         ApplyState();
     }
 
-    // ✅ [추가] Loot UI가 이미 열린 상태에서, 다른 LootContainer가 다른 루트로 바인딩해야 할 때 사용
+    //  [추가] Loot UI가 이미 열린 상태에서, 다른 LootContainer가 다른 루트로 바인딩해야 할 때 사용
     // ToggleLoot처럼 상태를 토글하지 않고, 현재 Loot UI 루트만 교체합니다.
     public void SetCurrentLootUI(GameObject lootUI)
     {
@@ -192,7 +194,7 @@ public class UIStateManager : MonoBehaviour
         ApplyState();
     }
 
-    // ✅ Pause의 Settings 열기 (버튼에서 이거 호출)
+    //  Pause의 Settings 열기 (버튼에서 이거 호출)
     public void OpenPauseSettings()
     {
         // Pause가 아니면 Pause로 강제 진입
@@ -203,7 +205,7 @@ public class UIStateManager : MonoBehaviour
         ApplyState();
     }
 
-    // ✅ Pause의 Settings 닫기 (ESC에서 우선 닫기)
+    //  Pause의 Settings 닫기 (ESC에서 우선 닫기)
     public void ClosePauseSettings()
     {
         pauseSettingsOpen = false;
@@ -235,12 +237,17 @@ public class UIStateManager : MonoBehaviour
         if (shopManager != null && currentState != UIState.Shop)
             shopManager.CloseShop();
 
+        if (dimBlocker != null)
+            dimBlocker.SetActive(currentState != UIState.None);
+
         // 2) 상태별로 켬
         switch (currentState)
         {
             case UIState.Inventory:
                 if (playerInventoryUI) playerInventoryUI.SetActive(true);
-                if (warehouseUI) warehouseUI.SetActive(enableWarehouseInInventory);
+                bool isBase = IsBaseScene();
+                if (warehouseUI)
+                    warehouseUI.SetActive(enableWarehouseInInventory && isBase);
                 break;
 
             case UIState.Shop:
@@ -257,18 +264,19 @@ public class UIStateManager : MonoBehaviour
 
             case UIState.Loot:
                 if (playerInventoryUI) playerInventoryUI.SetActive(true);
+
                 if (warehouseUI) warehouseUI.SetActive(false);
-                if (shopUI) shopUI.SetActive(false);
 
                 if (currentLootUI) currentLootUI.SetActive(true);
                 else if (defaultLootUI) defaultLootUI.SetActive(true);
+
                 break;
 
             case UIState.Pause:
-                // ✅ Root는 항상 켬
+                //  Root는 항상 켬
                 if (pauseRoot) pauseRoot.SetActive(true);
 
-                // ✅ Settings 열려있으면 Settings만 / 아니면 메인 Pause 패널
+                //  Settings 열려있으면 Settings만 / 아니면 메인 Pause 패널
                 if (pauseSettingsOpen)
                 {
                     if (pauseSettingsPanel) pauseSettingsPanel.SetActive(true);
@@ -281,33 +289,31 @@ public class UIStateManager : MonoBehaviour
                 }
                 break;
 
+
             case UIState.None:
             default:
                 break;
+
+            
         }
 
         // 창고 이동 버튼 노출 규칙
         if (moveToWarehouseButton != null)
         {
-            bool show = (currentState == UIState.Inventory) && enableWarehouseInInventory;
+            bool show = (currentState == UIState.Inventory) && enableWarehouseInInventory && IsBaseScene();
             moveToWarehouseButton.SetActive(show);
         }
 
         // 커서 + 입력 플래그 처리
         SetGameplayInputEnabled(currentState == UIState.None);
 
-        // ✅ Pause 상태일 때만 게임 정지
+        //  Pause 상태일 때만 게임 정지
         SetPauseTimeScale(currentState == UIState.Pause);
 
-        // 딤블로커
-        if (dimBlockerManager == null)
-            dimBlockerManager = FindAnyObjectByType<DimBlockerManager>();
-
-        if (dimBlockerManager != null)
-            dimBlockerManager.SetDim(currentState != UIState.None);
+       
     }
 
-    // ✅ “관리 대상 UI가 실제로 하나라도 켜져있는가” 체크
+    //  “관리 대상 UI가 실제로 하나라도 켜져있는가” 체크
     private bool IsAnyManagedUIPanelActive()
     {
         if (playerInventoryUI != null && playerInventoryUI.activeInHierarchy) return true;
@@ -335,7 +341,7 @@ public class UIStateManager : MonoBehaviour
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
     }
 
-    // ✅ 추가: UI 상태에 맞는 커서 상태를 매 프레임 보정
+    //  추가: UI 상태에 맞는 커서 상태를 매 프레임 보정
     private void RefreshCursorState()
     {
         bool shouldShowCursor = currentState != UIState.None;
@@ -354,9 +360,22 @@ public class UIStateManager : MonoBehaviour
         }
     }
 
-    // ✅ Pause 상태일 때만 게임 일시정지
+    //  Pause 상태일 때만 게임 일시정지
     private void SetPauseTimeScale(bool paused)
     {
         Time.timeScale = paused ? 0f : 1f;
+    }
+
+    private bool IsBaseScene()
+    {
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+
+        for (int i = 0; i < baseSceneNames.Length; i++)
+        {
+            if (sceneName == baseSceneNames[i])
+                return true;
+        }
+
+        return false;
     }
 }

@@ -6,6 +6,9 @@ public class EnemyHealth : MonoBehaviour
     public float maxHP = 100f;
     public float currentHP;
 
+    [Header("Corpse Spawn")]
+    public GameObject corpsePrefab;
+
     // 이벤트 정의
     public event Action OnDeath;
     public event Action OnDamage;
@@ -31,6 +34,12 @@ public class EnemyHealth : MonoBehaviour
     void Die()
     {
         OnDeath?.Invoke();
+
+        if (corpsePrefab != null)
+        {
+            Instantiate(corpsePrefab, transform.position, transform.rotation);
+        }
+
         Debug.Log($"{gameObject.name} 사망");
         Destroy(gameObject);
     }

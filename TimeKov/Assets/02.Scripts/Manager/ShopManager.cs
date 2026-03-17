@@ -94,22 +94,15 @@ public class ShopManager : MonoBehaviour
             marker.buyPrice = entry.buyPrice;
             marker.stock = entry.stock;
 
-            // 3) 상점 슬롯에서는 더블클릭 이동은 막음(구매는 우클릭 메뉴로)
-            DoubleClickEquip dc = slotObj.GetComponent<DoubleClickEquip>();
-            if (dc != null) dc.enabled = false;
-
-            // ✅ 4) 우클릭 메뉴는 "켜야" 구매가 가능함
-            SlotRightClick rc = slotObj.GetComponent<SlotRightClick>();
-            if (rc != null)
+            SlotInputHandler input = slotObj.GetComponent<SlotInputHandler>();
+            if (input != null)
             {
-                rc.enabled = true;
-
-                // 메뉴 로직이 ownerManager를 요구하니까, 플레이어 인벤을 넣어준다
-                // (shop 슬롯은 InventoryManager 소속이 아니기 때문에 주입이 필요)
-                rc.ownerManager = playerInventory;
+                input.ownerManager = playerInventory;
+                input.invenManager = playerInventory;
+                input.allowDoubleClick = false; // 상점 슬롯은 더블클릭만 막음
             }
 
-            // ✅ 5) 테스트용 '클릭 구매'는 이제 필요 없음 (우클릭 구매로 갈 거니까)
+            //  5) 테스트용 '클릭 구매'는 이제 필요 없음 (우클릭 구매로 갈 거니까)
             Button btn = slotObj.GetComponent<Button>();
             if (btn != null)
             {
@@ -120,9 +113,8 @@ public class ShopManager : MonoBehaviour
         }
     }
 
-    // =========================
     // 우클릭 메뉴에서 호출할 함수들
-    // =========================
+
 
     public void TryBuyFromContext(ShopSlotMarker marker)
     {
@@ -197,7 +189,7 @@ public class ShopManager : MonoBehaviour
         else
             invSlot.SetSlot(id, newCount);
 
-        // ✅✅✅ [추가] 판매 후 인벤 UI 갱신(정렬/빈칸숨김/인벤 5/10 텍스트 갱신)
+        //  [추가] 판매 후 인벤 UI 갱신(정렬/빈칸숨김/인벤 5/10 텍스트 갱신)
         if (playerInventory != null)
         {
             playerInventory.ForceRefreshUI();
