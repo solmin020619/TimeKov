@@ -23,6 +23,8 @@ public class EnemyAI : MonoBehaviour
     private Animator anim;
     private AudioSource audioSource;
 
+    private QuestUIManager questManager;
+
     private Vector3 startPosition;
     private float lastAttackTime;
     private float lastProvokedTime = -999f;
@@ -37,6 +39,12 @@ public class EnemyAI : MonoBehaviour
     private float pathUpdateDelay = 0.2f;
     private float pathUpdateTimer = 0f;
 
+    // sqrMagnitude ºñ±³¿ë Ä³½Ì
+    private float attackRangeSqr;
+    private float proximityRangeSqr;
+    private float giveUpRangeSqr;
+    private float visionRangeSqr;
+
     public LayerMask targetMask;
     public LayerMask obstacleMask;
 
@@ -48,9 +56,7 @@ public class EnemyAI : MonoBehaviour
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
-        {
             audioSource = gameObject.AddComponent<AudioSource>();
-        }
 
         audioSource.spatialBlend = 1f;
         audioSource.rolloffMode = AudioRolloffMode.Linear;
@@ -58,11 +64,18 @@ public class EnemyAI : MonoBehaviour
         audioSource.maxDistance = 30f;
         audioSource.volume = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
 
+        GlobalSettingsManager.OnSFXVolumeChanged += OnSFXVolumeChanged;
+
         if (data != null)
         {
             myHealth.maxHP = data.maxHP;
             myHealth.currentHP = data.maxHP;
             agent.speed = data.moveSpeed;
+
+            attackRangeSqr = data.attackRange * data.attackRange;
+            proximityRangeSqr = data.proximityRange * data.proximityRange;
+            giveUpRangeSqr = data.giveUpChaseRange * data.giveUpChaseRange;
+            visionRangeSqr = data.visionRange * data.visionRange;
         }
 
         if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 10.0f, NavMesh.AllAreas))
@@ -83,6 +96,8 @@ public class EnemyAI : MonoBehaviour
             playerTime = pc.GetComponent<PlayerTime>();
         }
 
+        questManager = FindFirstObjectByType<QuestUIManager>();
+
         myHealth.OnDeath += DropLoot;
         myHealth.OnDamage += OnTakeDamage;
 
@@ -93,11 +108,19 @@ public class EnemyAI : MonoBehaviour
 
     void OnDestroy()
     {
+        GlobalSettingsManager.OnSFXVolumeChanged -= OnSFXVolumeChanged;
+
         if (myHealth != null)
         {
             myHealth.OnDeath -= DropLoot;
             myHealth.OnDamage -= OnTakeDamage;
         }
+    }
+
+    void OnSFXVolumeChanged(float vol)
+    {
+        if (audioSource != null)
+            audioSource.volume = vol;
     }
 
     void OnTakeDamage()
@@ -110,27 +133,21 @@ public class EnemyAI : MonoBehaviour
 
         lastProvokedTime = Time.time;
         if (currentState != State.Chase && currentState != State.Attack)
-        {
             currentState = State.Chase;
-        }
     }
 
     void Update()
     {
-        if (playerTransform == null) return;
-        if (data == null) return;
+        if (playerTransform == null || data == null) return;
 
         if (anim != null) anim.SetFloat("Speed", agent.velocity.magnitude);
 
         if (currentState == State.Chase && previousState != State.Chase)
         {
-            if (Time.time >= lastRoarTime + 4f)
+            if (Time.time >= lastRoarTime + 4f && data.chaseRoarSound != null && audioSource != null)
             {
-                if (data.chaseRoarSound != null && audioSource != null)
-                {
-                    audioSource.PlayOneShot(data.chaseRoarSound);
-                    lastRoarTime = Time.time;
-                }
+                audioSource.PlayOneShot(data.chaseRoarSound);
+                lastRoarTime = Time.time;
             }
         }
         previousState = currentState;
@@ -142,9 +159,7 @@ public class EnemyAI : MonoBehaviour
             if (footstepTimer >= interval)
             {
                 if (data.footstepSound != null && audioSource != null)
-                {
                     audioSource.PlayOneShot(data.footstepSound, 0.6f);
-                }
                 footstepTimer = 0f;
             }
         }
@@ -168,13 +183,14 @@ public class EnemyAI : MonoBehaviour
 
         if (data.enemyType == EnemyType.Melee) hasPerformedFirstAttack = false;
 
-        float dist = Vector3.Distance(transform.position, playerTransform.position);
-        if (dist <= data.proximityRange && HasLineOfSight(dist)) { currentState = State.Chase; return; }
+        float distSqr = (playerTransform.position - transform.position).sqrMagnitude;
+        if (distSqr <= proximityRangeSqr && HasLineOfSight(Mathf.Sqrt(distSqr))) { currentState = State.Chase; return; }
         if (CanSeePlayer()) { currentState = State.Chase; return; }
 
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
-            if (!IsInvoking(nameof(SetRandomPatrolDestination))) Invoke(nameof(SetRandomPatrolDestination), 2f);
+            if (!IsInvoking(nameof(SetRandomPatrolDestination)))
+                Invoke(nameof(SetRandomPatrolDestination), 2f);
         }
     }
 
@@ -184,10 +200,10 @@ public class EnemyAI : MonoBehaviour
         agent.speed = data.chaseSpeed;
         if (agent.isStopped) agent.isStopped = false;
 
-        float dist = Vector3.Distance(transform.position, playerTransform.position);
+        float distSqr = (playerTransform.position - transform.position).sqrMagnitude;
         bool isProvoked = (Time.time < lastProvokedTime + data.provokedDuration);
 
-        if (dist > data.giveUpChaseRange && !isProvoked)
+        if (distSqr > giveUpRangeSqr && !isProvoked)
         {
             currentState = State.Patrol;
             agent.ResetPath();
@@ -202,7 +218,7 @@ public class EnemyAI : MonoBehaviour
             pathUpdateTimer = 0f;
         }
 
-        if (dist <= data.attackRange)
+        if (distSqr <= attackRangeSqr)
         {
             currentState = State.Attack;
             agent.ResetPath();
@@ -214,9 +230,9 @@ public class EnemyAI : MonoBehaviour
         agent.isStopped = true;
         agent.velocity = Vector3.zero;
 
-        float dist = Vector3.Distance(transform.position, playerTransform.position);
+        float distSqr = (playerTransform.position - transform.position).sqrMagnitude;
 
-        if (dist > data.attackRange && !isAttacking)
+        if (distSqr > attackRangeSqr && !isAttacking)
         {
             currentState = State.Chase;
             agent.isStopped = false;
@@ -260,34 +276,22 @@ public class EnemyAI : MonoBehaviour
         yield return new WaitForSeconds(data.attackHitDelay);
 
         if (data.explosionSound != null)
-        {
-            float sfxVol = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
-            AudioSource.PlayClipAtPoint(data.explosionSound, transform.position, sfxVol);
-        }
+            AudioSource.PlayClipAtPoint(data.explosionSound, transform.position, audioSource.volume);
 
         Collider[] hits = Physics.OverlapSphere(transform.position, data.explosionRadius, targetMask);
-
         foreach (var hit in hits)
         {
             PlayerTime target = hit.GetComponent<PlayerTime>();
-            if (target != null)
-            {
-                target.TakeDamage(data.attackDamage);
-            }
+            if (target != null) target.TakeDamage(data.attackDamage);
         }
 
         if (data.dieAfterAttack)
         {
             isSelfDestructing = true;
-
             if (myHealth != null)
-            {
                 myHealth.TakeDamage(99999f);
-            }
             else
-            {
                 Destroy(gameObject);
-            }
         }
         else
         {
@@ -305,11 +309,8 @@ public class EnemyAI : MonoBehaviour
         for (int i = 0; i < comboCount; i++)
         {
             if (anim != null) anim.SetTrigger("Attack");
-
             if (data.normalAttackSound != null && audioSource != null)
-            {
                 audioSource.PlayOneShot(data.normalAttackSound);
-            }
 
             float timer = 0f;
             while (timer < data.attackHitDelay)
@@ -375,17 +376,13 @@ public class EnemyAI : MonoBehaviour
             RotateTowards(targetPos, 10f);
             Vector3 dir = (targetPos - transform.position).normalized;
             if (Vector3.Distance(transform.position, targetPos) > 0.2f)
-            {
                 agent.Move(dir * data.jumpLungeSpeed * Time.deltaTime);
-            }
             timer += Time.deltaTime;
             yield return null;
         }
 
         if (data.jumpAttackSound != null && audioSource != null)
-        {
             audioSource.PlayOneShot(data.jumpAttackSound);
-        }
 
         Collider[] hits = Physics.OverlapSphere(transform.position, data.jumpAttackRadius, targetMask);
         foreach (var hit in hits)
@@ -407,9 +404,7 @@ public class EnemyAI : MonoBehaviour
         Vector3 dir = (target - transform.position).normalized;
         dir.y = 0;
         if (dir != Vector3.zero)
-        {
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * speed);
-        }
     }
 
     bool HasLineOfSight(float dist)
@@ -419,12 +414,12 @@ public class EnemyAI : MonoBehaviour
 
     bool CanSeePlayer()
     {
-        float dist = Vector3.Distance(transform.position, playerTransform.position);
-        if (dist < data.visionRange)
+        float distSqr = (playerTransform.position - transform.position).sqrMagnitude;
+        if (distSqr < visionRangeSqr)
         {
             Vector3 dir = (playerTransform.position - transform.position).normalized;
             if (Vector3.Angle(transform.forward, dir) < data.visionAngle / 2)
-                return HasLineOfSight(dist);
+                return HasLineOfSight(Mathf.Sqrt(distSqr));
         }
         return false;
     }
@@ -438,18 +433,8 @@ public class EnemyAI : MonoBehaviour
 
     void DropLoot()
     {
-        if (!isSelfDestructing)
-        {
-            if (!string.IsNullOrEmpty(targetQuestName))
-            {
-                QuestUIManager questManager = FindFirstObjectByType<QuestUIManager>();
-
-                if (questManager != null)
-                {
-                    questManager.AddQuestProgress(targetQuestName, 1);
-                }
-            }
-        }
+        if (!isSelfDestructing && !string.IsNullOrEmpty(targetQuestName) && questManager != null)
+            questManager.AddQuestProgress(targetQuestName, 1);
     }
 
     void OnDrawGizmosSelected()
