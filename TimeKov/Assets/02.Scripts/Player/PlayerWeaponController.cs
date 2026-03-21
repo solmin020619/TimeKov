@@ -1,4 +1,3 @@
-// PlayerWeaponController.cs
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,7 +21,6 @@ public class PlayerWeaponController : MonoBehaviour
     [Header("ItemId -> Kinemation Weapon Index")]
     public ItemIdToKinemationIndex[] weaponIndexMap;
 
-    //  Ammo Link (추가)
     [System.Serializable]
     public struct WeaponIdToAmmoId
     {
@@ -47,6 +45,9 @@ public class PlayerWeaponController : MonoBehaviour
     public float bulletSpeed = 40f;
     public float bulletLifeTime = 2f;
 
+    [Header("Bullet Pool")]
+    public int bulletPoolSize = 30;
+
     [Header("Visual Origin (Auto Muzzle)")]
     [Tooltip("무기 교체될 때마다 '현재 활성 무기'에서 muzzle/firePoint를 자동 탐색해서 비주얼 탄 시작점으로 사용")]
     public bool autoFindMuzzleOnEquip = true;
@@ -67,8 +68,8 @@ public class PlayerWeaponController : MonoBehaviour
     public bool debugLogFire = false;
 
     // ========= Events (for KinemationWeaponDriver) =========
-    public System.Action Fired;         // "한 발 성공 발사" 했을 때
-    public System.Action ReloadStarted; // "리로드 시작" 했을 때
+    public System.Action Fired;
+    public System.Action ReloadStarted;
 
     // runtime
     private ItemInfo weapon;
@@ -79,8 +80,8 @@ public class PlayerWeaponController : MonoBehaviour
 
     // fire
     private float fireCooldown;
-    private bool fireHeld;      // 누르고 있는 상태(연사에 사용)
-    private bool semiConsume;   // 단발: 눌림 1회 소비용
+    private bool fireHeld;
+    private bool semiConsume;
 
     // recoil/spread state
     private float recoilAccumYaw;
@@ -93,6 +94,9 @@ public class PlayerWeaponController : MonoBehaviour
     // muzzle cache
     private Transform cachedMuzzle;
     private readonly Dictionary<int, Transform> muzzleByItemId = new Dictionary<int, Transform>();
+
+    // bullet pool
+    private readonly Queue<VisualBullet> bulletPool = new Queue<VisualBullet>();
 
     private void Awake()
     {
@@ -115,14 +119,70 @@ public class PlayerWeaponController : MonoBehaviour
         if (autoEquipOnStart)
             StartCoroutine(AutoEquipWhenReady());
 
+        InitBulletPool();
         RefreshUI();
+    }
+
+    private void InitBulletPool()
+    {
+        if (bulletPrefab == null) return;
+
+        for (int i = 0; i < bulletPoolSize; i++)
+        {
+            GameObject go = Instantiate(bulletPrefab);
+            go.SetActive(false);
+
+            VisualBullet vb = go.GetComponent<VisualBullet>();
+            if (vb == null)
+            {
+                Debug.LogError("[PlayerWeaponController] bulletPrefab에 VisualBullet이 없음");
+                Destroy(go);
+                continue;
+            }
+
+            vb.SetOwner(this);
+            bulletPool.Enqueue(vb);
+        }
+    }
+
+    private VisualBullet GetPooledBullet()
+    {
+        while (bulletPool.Count > 0)
+        {
+            VisualBullet vb = bulletPool.Dequeue();
+            if (vb != null) return vb;
+        }
+
+        if (bulletPrefab != null)
+        {
+            GameObject go = Instantiate(bulletPrefab);
+            go.SetActive(false);
+
+            VisualBullet vb = go.GetComponent<VisualBullet>();
+            if (vb != null)
+            {
+                vb.SetOwner(this);
+                return vb;
+            }
+
+            Destroy(go);
+        }
+
+        return null;
+    }
+
+    public void ReturnBullet(VisualBullet bullet)
+    {
+        if (bullet == null) return;
+
+        bullet.gameObject.SetActive(false);
+        bulletPool.Enqueue(bullet);
     }
 
     private void Update()
     {
         if (Time.timeScale == 0f) return;
 
-        // UI 열려있으면 발사/연사/단발 입력 상태 끊고 아무것도 안 함
         if (!UIStateManager.GameplayInputEnabled)
         {
             fireHeld = false;
@@ -141,7 +201,6 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (weapon == null) return;
 
-        // 달리는 중이면 발사 상태를 강제로 끊고(홀드/단발 포함) 이번 프레임 발사 로직 스킵
         if (blockFireWhileRunning && playerController != null && playerController.IsRunning)
         {
             fireHeld = false;
@@ -149,20 +208,17 @@ public class PlayerWeaponController : MonoBehaviour
             return;
         }
 
-        // 연사(자동) - 누르고 있는 동안 계속
         if (!isReloading && fireHeld && IsAutomaticWeapon())
         {
             TryFireNow();
         }
 
-        // 단발 - 눌림 1회만
         if (!isReloading && semiConsume && !IsAutomaticWeapon())
         {
             semiConsume = false;
             TryFireNow();
         }
 
-        // 임시: R키로 리로드
         if (!isReloading)
         {
             int cap = GetMagazineCapacity();
@@ -171,9 +227,6 @@ public class PlayerWeaponController : MonoBehaviour
         }
     }
 
-    // =========================
-    // Equip (Inventory -> itemId)
-    // =========================
     public bool EquipByItemId(int itemId)
     {
         if (DataManager.Instance == null)
@@ -201,10 +254,8 @@ public class PlayerWeaponController : MonoBehaviour
 
         Debug.Log($"[DATA] id={weapon.id} name={weapon.itemName} mag={weapon.magazinesize} fireRate={weapon.fireRate} reload={weapon.reloadTime} auto={weapon.isAutomatic}");
 
-        // gameplay reset
-        // 탄창 최대(cap)는 탄약 overlapsCount 기반 (매핑 없으면 기존 magazinesize로 fallback)
         int cap = GetMagazineCapacity();
-        currentAmmoInMag = Mathf.Max(0, cap); // 기존 동작(장착 시 꽉 찬 상태) 유지
+        currentAmmoInMag = Mathf.Max(0, cap);
         isReloading = false;
         fireCooldown = 0f;
 
@@ -214,13 +265,11 @@ public class PlayerWeaponController : MonoBehaviour
         recoilAccumYaw = 0f;
         recoilIndex = 0;
 
-        // Kinemation weapon select
         int targetIndex = GetKinemationIndex(itemId);
         if (fpsPlayer != null && targetIndex >= 0)
         {
             fpsPlayer.SetActiveWeaponIndex(targetIndex);
 
-            // 무기 바뀌면 muzzle 재탐색(활성 무기 프리팹 기준)
             if (autoFindMuzzleOnEquip)
                 StartCoroutine(ResolveMuzzleNextFrame(itemId));
         }
@@ -261,7 +310,6 @@ public class PlayerWeaponController : MonoBehaviour
 
     private bool IsAutomaticWeapon()
     {
-        // ItemInfo.isAutomatic: 1이면 자동(연사), 0이면 단발
         return weapon != null && weapon.isAutomatic == 1;
     }
 
@@ -280,7 +328,6 @@ public class PlayerWeaponController : MonoBehaviour
             crosshair.SetEnabled(weapon != null);
     }
 
-    // Ammo Link Helpers
     private int GetAmmoItemIdForWeapon(int weaponItemId)
     {
         if (weaponAmmoMap == null) return 0;
@@ -296,20 +343,17 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) return 0;
 
-        // 탄약 매핑이 있으면 overlapsCount 기반
         int ammoId = GetAmmoItemIdForWeapon(equippedItemId);
         if (ammoId != 0 && DataManager.Instance != null)
         {
             ItemInfo ammo = DataManager.Instance.GetItem(ammoId);
             if (ammo != null)
             {
-                // 요구사항: 탄창 최대 = 탄약 아이템 overlapsCount
                 int cap = Mathf.Max(1, ammo.overlapsCount);
                 return cap;
             }
         }
 
-        // 매핑/데이터 없으면 기존 magazinesize로 fallback (안전)
         return Mathf.Max(0, weapon.magazinesize);
     }
 
@@ -329,17 +373,14 @@ public class PlayerWeaponController : MonoBehaviour
         if (ammoId == 0) return false;
         if (playerInventory == null) return false;
 
-        // 부분소비 금지 정책은 InventoryManager.TryConsumeItem이 보장
         return playerInventory.TryConsumeItem(ammoId, amount);
     }
+
     private bool CanFireNow()
     {
         if (weapon == null) return false;
         if (Time.timeScale == 0f) return false;
-
-        // UI 열려있으면 발사 불가
         if (!UIStateManager.GameplayInputEnabled) return false;
-
         if (isReloading) return false;
 
         if (blockFireWhileRunning && playerController != null && playerController.IsRunning)
@@ -347,13 +388,12 @@ public class PlayerWeaponController : MonoBehaviour
 
         return true;
     }
+
     public void Fire()
     {
         if (weapon == null) return;
-
         if (Time.timeScale == 0f) return;
 
-        // UI 열려있으면 발사 입력 자체 무시 + 상태 끊기
         if (!UIStateManager.GameplayInputEnabled)
         {
             fireHeld = false;
@@ -362,21 +402,12 @@ public class PlayerWeaponController : MonoBehaviour
         }
 
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-
-        // 달리는 중 발사 입력 무시
         if (!CanFireNow()) return;
 
-        if (IsAutomaticWeapon())
-        {
-            fireHeld = true; // Update에서 반복 발사
-        }
-        else
-        {
-            semiConsume = true; // Update에서 1회 발사
-        }
+        if (IsAutomaticWeapon()) fireHeld = true;
+        else semiConsume = true;
     }
 
-    // 뗌(release)
     public void FireUp()
     {
         fireHeld = false;
@@ -387,39 +418,27 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) return;
         if (isReloading) return;
-
-        // UI 열려있으면 장전 시작 불가
         if (!UIStateManager.GameplayInputEnabled) return;
 
         int cap = GetMagazineCapacity();
         if (currentAmmoInMag >= cap) return;
-
-        // 인벤 탄약 0이면 장전 불가
         if (GetInventoryAmmoCount() <= 0) return;
 
         StartCoroutine(ReloadRoutine());
     }
 
-    public void SetADS(bool isAiming) { /* 필요하면 여기 연결 */ }
+    public void SetADS(bool isAiming) { }
 
-    // =========================
-    // Core Fire/Reload
-    // =========================
     private void TryFireNow()
     {
-        // 여기도 방어(연사 루프/외부 호출 대비)
         if (!CanFireNow()) return;
-
         if (fireCooldown > 0f) return;
-
-        // 탄창 0이면 발사 불가 (기존 동작 유지)
         if (currentAmmoInMag <= 0) return;
 
         FireRaycastAndVisual();
 
         if (crosshair != null) crosshair.OnFire();
 
-        // fireRate = "초당 발사수" (shots per second)
         float sps = Mathf.Max(0.01f, weapon.fireRate);
         fireCooldown = 1f / sps;
 
@@ -435,14 +454,10 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (weapon == null) yield break;
         if (isReloading) yield break;
-
-        // 리로드 도중 UI가 열리면 아예 진행하지 않게(시작 시점 방어)
         if (!UIStateManager.GameplayInputEnabled) yield break;
 
         int cap = GetMagazineCapacity();
         if (currentAmmoInMag >= cap) yield break;
-
-        // 인벤 탄약 0이면 리로드 시작 자체를 막음
         if (GetInventoryAmmoCount() <= 0) yield break;
 
         isReloading = true;
@@ -451,7 +466,6 @@ public class PlayerWeaponController : MonoBehaviour
 
         yield return new WaitForSeconds(Mathf.Max(0f, weapon.reloadTime));
 
-        // 리로드 진행 중 UI가 열렸으면 "적용 없이 취소"
         if (!UIStateManager.GameplayInputEnabled)
         {
             isReloading = false;
@@ -464,7 +478,6 @@ public class PlayerWeaponController : MonoBehaviour
 
     public void OnReloadStart()
     {
-        // UI/사운드 훅 자리
     }
 
     private void ApplyReload()
@@ -482,8 +495,6 @@ public class PlayerWeaponController : MonoBehaviour
 
         int load = Mathf.Min(need, available);
 
-        // 장전 시 인벤 탄약 소비 -> 탄창 채움
-        // (부분소비 금지 정책: load는 available 이하로 잡았기 때문에 항상 전량 소비 가능)
         if (TryConsumeInventoryAmmo(load))
         {
             currentAmmoInMag += load;
@@ -491,9 +502,6 @@ public class PlayerWeaponController : MonoBehaviour
         }
     }
 
-    // =========================
-    // Raycast + Visual bullet
-    // =========================
     private void FireRaycastAndVisual()
     {
         if (cachedCam == null || !cachedCam.gameObject.activeInHierarchy)
@@ -545,30 +553,22 @@ public class PlayerWeaponController : MonoBehaviour
 
     private Vector3 GetVisualOrigin(Vector3 fallback)
     {
-        // 1) muzzle(무기 총구) 우선
         if (cachedMuzzle != null)
             return cachedMuzzle.position;
 
-        // 2) aimPoint (최후의 뷰모델 기준)
         if (fpsPlayer != null)
         {
             Transform ap = fpsPlayer.GetActiveAimPoint();
             if (ap != null) return ap.position;
         }
 
-        // 3) 카메라 fallback
         return fallback;
     }
 
-    // =========================
-    // Auto-find muzzle per weapon
-    // =========================
     private IEnumerator ResolveMuzzleNextFrame(int itemId)
     {
-        // SetActiveWeaponIndex 후 계층/활성화 반영을 위해 1프레임 대기
         yield return null;
 
-        // itemId 캐시가 있으면 재사용
         if (muzzleByItemId.TryGetValue(itemId, out var cached) && cached != null)
         {
             cachedMuzzle = cached;
@@ -581,15 +581,12 @@ public class PlayerWeaponController : MonoBehaviour
             yield break;
         }
 
-        // 1) "현재 활성 무기 루트" 찾기
         Transform activeWeaponRoot = FindActiveWeaponRootUnder(fpsPlayer.transform);
 
-        // 2) 활성 무기 하위에서 muzzle 찾기 (이름 키워드 기반)
         Transform muzzle = null;
         if (activeWeaponRoot != null)
             muzzle = FindMuzzleByKeywords(activeWeaponRoot);
 
-        // 3) 그래도 못 찾으면: fpsPlayer 전체에서 한번 더(최후)
         if (muzzle == null)
             muzzle = FindMuzzleByKeywords(fpsPlayer.transform);
 
@@ -605,7 +602,6 @@ public class PlayerWeaponController : MonoBehaviour
 
         var all = root.GetComponentsInChildren<Transform>(true);
 
-        // 1) active인 노드들 중, "무기 같아 보이는" 이름 + muzzle 존재면 우선
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
@@ -620,7 +616,6 @@ public class PlayerWeaponController : MonoBehaviour
                 return t;
         }
 
-        // 2) 그냥 active인 노드들 중 muzzle을 가진 노드의 상위를 반환
         for (int i = 0; i < all.Length; i++)
         {
             var t = all[i];
@@ -649,10 +644,8 @@ public class PlayerWeaponController : MonoBehaviour
             if (!t.gameObject.activeInHierarchy) continue;
 
             string n = t.name.ToLowerInvariant();
-
             int score = 0;
 
-            // 포함 키워드 점수
             if (muzzleNameKeywords != null)
             {
                 for (int k = 0; k < muzzleNameKeywords.Length; k++)
@@ -666,7 +659,6 @@ public class PlayerWeaponController : MonoBehaviour
                 }
             }
 
-            // 제외(잘못 잡기 쉬운 것들)
             if (n.Contains("hand")) score -= 80;
             if (n.Contains("camera")) score -= 80;
             if (n.Contains("aim")) score -= 40;
@@ -681,6 +673,7 @@ public class PlayerWeaponController : MonoBehaviour
         if (bestScore < 80) return null;
         return best;
     }
+
     private Vector3 ApplyRecoil(Vector3 forward)
     {
         if (cachedCam == null) cachedCam = Camera.main;
@@ -711,7 +704,6 @@ public class PlayerWeaponController : MonoBehaviour
         recoilAccumYaw += deltaYaw;
 
         Quaternion horizRecoil = Quaternion.AngleAxis(recoilAccumYaw, cachedCam.transform.up);
-
         return (horizRecoil * forward).normalized;
     }
 
@@ -732,13 +724,8 @@ public class PlayerWeaponController : MonoBehaviour
     {
         if (bulletPrefab == null) return;
 
-        GameObject bullet = Instantiate(bulletPrefab);
-        var vb = bullet.GetComponent<VisualBullet>();
-        if (vb == null)
-        {
-            Destroy(bullet);
-            return;
-        }
+        VisualBullet vb = GetPooledBullet();
+        if (vb == null) return;
 
         float lt = bulletLifeTime;
 
@@ -749,6 +736,7 @@ public class PlayerWeaponController : MonoBehaviour
             lt = Mathf.Max(0.02f, t);
         }
 
+        vb.gameObject.SetActive(true);
         vb.Init(origin, dir, bulletSpeed, lt, hitPoint);
     }
 
@@ -775,23 +763,15 @@ public class PlayerWeaponController : MonoBehaviour
         if (fpsPlayer == null)
             fpsPlayer = FindFirstObjectByType<FPSPlayer>();
 
-        // 1프레임 대기(초기화 안정)
         yield return null;
-
         EquipByItemId(autoEquipItemId);
     }
 
-    // UI Getters
     public int GetCurrentAmmo() => currentAmmoInMag;
-    public int GetMagazineSize() => weapon != null ? GetMagazineCapacity() : 0; // ✅ 탄약 기반 cap
+    public int GetMagazineSize() => weapon != null ? GetMagazineCapacity() : 0;
     public int GetEquippedItemId() => equippedItemId;
     public bool IsReloading() => isReloading;
     public bool HasWeaponEquipped() => weapon != null;
-
-    // =========================================================
-    //  Session Export / Import (씬 이동 시 무기/탄창 유지)
-    //  기존 기능 삭제/변경 없이 "추가"만
-    // =========================================================
 
     public PlayerSessionData.WeaponSnapshot ExportToSessionSnapshot()
     {
@@ -807,22 +787,14 @@ public class PlayerWeaponController : MonoBehaviour
 
         if (s.equippedItemId <= 0)
         {
-            // 무기 없던 상태
             Unequip();
             return;
         }
 
-        // 기존 장착 로직 사용
         EquipByItemId(s.equippedItemId);
 
-        // 장착 로직에서 탄창을 "꽉 채우는" 기존 동작이 있으므로
-        // 여기서 다시 저장값으로 덮어씀 (기존 로직은 건드리지 않음)
         int cap = GetMagazineCapacity();
         int clamped = Mathf.Clamp(s.currentAmmoInMag, 0, Mathf.Max(0, cap));
-
-        // private 변수라서 함수가 없으면 직접 접근이 불가하지만,
-        // 이 스크립트 내부이므로 필드에 접근 가능
         currentAmmoInMag = clamped;
     }
-
 }

@@ -8,20 +8,26 @@ public class VisualBullet : MonoBehaviour
     private bool hasTarget;
     private Vector3 targetPoint;
     private float t;
+    private PlayerWeaponController owner;
+
+    public void SetOwner(PlayerWeaponController owner)
+    {
+        this.owner = owner;
+    }
 
     public void Init(Vector3 origin, Vector3 dir, float speed, float lifeTime, Vector3? hitPoint)
     {
         transform.position = origin;
         transform.rotation = Quaternion.LookRotation(dir);
+
         this.dir = dir.normalized;
         this.speed = Mathf.Max(0.01f, speed);
         this.lifeTime = Mathf.Max(0.01f, lifeTime);
 
-        if (hitPoint.HasValue)
-        {
-            hasTarget = true;
+        hasTarget = hitPoint.HasValue;
+        if(hasTarget)
             targetPoint = hitPoint.Value;
-        }
+
         t = 0f;
     }
 
@@ -30,7 +36,11 @@ public class VisualBullet : MonoBehaviour
         float dt = Time.deltaTime;
         t += dt;
 
-        if (t >= lifeTime) { Destroy(gameObject); return; }
+        if(t >= lifeTime)
+        {
+            Despawn();
+            return;
+        }
 
         Vector3 moveStep = dir * speed * dt;
 
@@ -40,10 +50,18 @@ public class VisualBullet : MonoBehaviour
             if (moveStep.magnitude >= distToTarget)
             {
                 transform.position = targetPoint;
-                Destroy(gameObject);
+                Despawn();
                 return;
             }
         }
         transform.position += moveStep;
+    }
+
+    private void Despawn()
+    {
+        if (owner != null)
+            owner.ReturnBullet(this);
+        else
+            gameObject.SetActive(false);
     }
 }

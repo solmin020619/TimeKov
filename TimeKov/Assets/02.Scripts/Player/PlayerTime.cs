@@ -1,6 +1,6 @@
 ﻿using System;
 using UnityEngine;
-using UnityEngine.SceneManagement; 
+using UnityEngine.SceneManagement;
 
 public class PlayerTime : MonoBehaviour
 {
@@ -23,26 +23,58 @@ public class PlayerTime : MonoBehaviour
     public bool freezeTimeInBase = true;
     public string[] baseSceneNames = new string[] { "Base", "BaseScene", "Lobby" };
 
+    private CrosshairController crosshairController;
+    private bool isBaseSceneCached;
+
     private bool IsBaseScene()
     {
-        if (!freezeTimeInBase) return false;
-        string s = SceneManager.GetActiveScene().name;
-        if (baseSceneNames == null || baseSceneNames.Length == 0) return false;
+        return isBaseSceneCached;
+    }
 
-        for (int i = 0; i < baseSceneNames.Length; i++)
-        {
-            if (!string.IsNullOrEmpty(baseSceneNames[i]) && baseSceneNames[i] == s)
-                return true;
-        }
-        return false;
+    private void OnEnable()
+    {
+        SceneManager.activeSceneChanged += OnActiveSceneChanged;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.activeSceneChanged -= OnActiveSceneChanged;
     }
 
     private void Start()
     {
+        RefreshBaseSceneCache();
+
         InitTime();
 
         // 세션 데이터에 저장된 Time 복원
         RestoreTimeFromSession();
+
+        crosshairController = FindAnyObjectByType<CrosshairController>();
+    }
+
+    private void OnActiveSceneChanged(Scene oldScene, Scene newScene)
+    {
+        RefreshBaseSceneCache();
+    }
+
+    private void RefreshBaseSceneCache()
+    {
+        isBaseSceneCached = false;
+
+        if (!freezeTimeInBase) return;
+        if (baseSceneNames == null || baseSceneNames.Length == 0) return;
+
+        string sceneName = SceneManager.GetActiveScene().name;
+
+        for (int i = 0; i < baseSceneNames.Length; i++)
+        {
+            if (!string.IsNullOrEmpty(baseSceneNames[i]) && baseSceneNames[i] == sceneName)
+            {
+                isBaseSceneCached = true;
+                return;
+            }
+        }
     }
 
     public void InitTime()
@@ -53,9 +85,6 @@ public class PlayerTime : MonoBehaviour
         onTimeChanged?.Invoke(currentTime, maxTime);
     }
 
-
-    // 추가: 세션에서 Time 복원
- 
     private void RestoreTimeFromSession()
     {
         if (PlayerSessionData.Instance == null) return;
@@ -63,11 +92,9 @@ public class PlayerTime : MonoBehaviour
 
         SetTime(PlayerSessionData.Instance.savedCurrentTime);
 
-        //  추가: 복원 후 플래그 소비 (세션 Time 꼬임 방지)
-
+        // 추가: 복원 후 플래그 소비 (세션 Time 꼬임 방지)
         PlayerSessionData.Instance.hasSavedPlayerTime = false;
     }
-    // 추가: 외부에서 Time 설정
 
     public void SetTime(float value)
     {
@@ -85,7 +112,7 @@ public class PlayerTime : MonoBehaviour
 
         float dt = Time.unscaledDeltaTime; // 기본은 UI로 timeScale=0이어도 계속 흐름
 
-        //  ESC Pause 상태일 때만 시간 감소 멈춤
+        // ESC Pause 상태일 때만 시간 감소 멈춤
         if (UIStateManager.Instance != null &&
             UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Pause)
         {
@@ -103,8 +130,8 @@ public class PlayerTime : MonoBehaviour
 
         ApplyTimeChange(-amount);
 
-        if (FindAnyObjectByType<CrosshairController>() != null)
-            FindAnyObjectByType<CrosshairController>().OnHurt();
+        if (crosshairController != null)
+            crosshairController.OnHurt();
     }
 
     public void Recover(float amount)
