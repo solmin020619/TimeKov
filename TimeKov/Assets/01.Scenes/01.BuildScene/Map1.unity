@@ -15,9 +15,9 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 1
-  m_FogColor: {r: 0.3019608, g: 0.40000004, b: 0.52156866, a: 1}
+  m_FogColor: {r: 0, g: 0, b: 0, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.005
+  m_FogDensity: 0.02
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000000, guid: caad80c34410758418acea2132da244a, type: 2}
+  m_LightingDataAsset: {fileID: 112000000, guid: 3cce780f8cf677c459e00b9faf4d5c2d, type: 2}
   m_LightingSettings: {fileID: 4890085278179872738, guid: 828d06a3377578e4884032744d51443f, type: 2}
 --- !u!196 &4
 NavMeshSettings:
@@ -32958,7 +32958,7 @@ Light:
   serializedVersion: 11
   m_Type: 1
   m_Color: {r: 0.4943396, g: 0.4943396, b: 0.4943396, a: 1}
-  m_Intensity: 1.5
+  m_Intensity: 0.8
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
