@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class Map1TestGun : MonoBehaviour
 {
+    // Base에서 Map1 으로 넘어와서 싸우는거 테스트하고싶으면 혹시 모르니 이거 비활성화 해서 써
     // 세션 데이터(PlayerSessionData)가 무기 탄약을 덮어써서 테스트용 임시방편 스크립트
     // Inspector에서 직접 연결하는 게 가장 안전함
     [SerializeField] private PlayerWeaponController weaponCtrl;

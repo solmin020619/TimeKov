@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea20a0cc6e7c6c14b80f2267dcb62efd, type: 3}
+  m_Name: Melee_SkeletonKnight
+  m_EditorClassIdentifier: 
+  enemyName: 
+  enemyType: 0
+  maxHP: 200
+  moveSpeed: 3.5
+  chaseSpeed: 7
+  patrolRadius: 15
+  visionRange: 20
+  visionAngle: 180
+  proximityRange: 4
+  giveUpChaseRange: 8
+  provokedDuration: 10
+  attackDamage: 15
+  attackRange: 3
+  attackCooldown: 2
+  attackHitDelay: 1.5
+  attackAnimLength: 2.667
+  explosionRadius: 4
+  dieAfterAttack: 1
+  useJumpAttack: 0
+  jumpAttackDamage: 25
+  jumpAttackRadius: 5
+  jumpWindup: 0.5
+  jumpHitDelay: 1.7
+  jumpFullTime: 2.887
+  jumpLungeSpeed: 12
+  jumpChanceOnMiss: 0.7
+  hitVFXPrefab: {fileID: 3652830730883529323, guid: bb33a0a3f6dcc6a449e44e9b56aad0a8, type: 3}
+  hitSound: {fileID: 0}
+  footstepSound: {fileID: 8300000, guid: c6414d2dc0517b440acaefbe372b971f, type: 3}
+  chaseRoarSound: {fileID: 8300000, guid: f5e2da6699b973f4c9c10947c1848555, type: 3}
+  normalAttackSound: {fileID: 8300000, guid: a1b922659babb8341a0e5d872b4a5d9a, type: 3}
+  jumpAttackSound: {fileID: 8300000, guid: 9370493de3a56c6469ee3f1d3e089712, type: 3}
+  explosionSound: {fileID: 0}
