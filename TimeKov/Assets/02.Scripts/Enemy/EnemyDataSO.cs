@@ -41,6 +41,13 @@ public class EnemyDataSO : ScriptableObject
     public float jumpLungeSpeed = 10f;
     [Range(0f, 1f)] public float jumpChanceOnMiss = 0.7f;
 
+    // 은신기능
+    [Header("Type Specific: stealth")] 
+    public bool useStealth;
+    public float stealthAlpha = 0.35f;
+    public float visibleAlpha = 1f;
+    public bool revealOnHit = true;
+
     [Header("VFX & Audio")]
     public GameObject hitVFXPrefab;
     public AudioClip hitSound;

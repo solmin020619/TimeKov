@@ -16,6 +16,9 @@ public class EnemyAI : MonoBehaviour
     [Header("Quest Settings")]
     public string targetQuestName;
 
+    private bool isStealthActive;
+    private Renderer[] renderers;
+
     private NavMeshAgent agent;
     private Transform playerTransform;
     private PlayerTime playerTime;
@@ -48,6 +51,17 @@ public class EnemyAI : MonoBehaviour
     public LayerMask targetMask;
     public LayerMask obstacleMask;
 
+
+    private void Awake()
+    {
+        renderers = GetComponentsInChildren<Renderer>();
+
+        if (data.useStealth)
+        {
+            isStealthActive = true;
+            SetStealthVisual(data.stealthAlpha);
+        }
+    }
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -139,6 +153,13 @@ public class EnemyAI : MonoBehaviour
     void Update()
     {
         if (playerTransform == null || data == null) return;
+
+        // 은신 상태일 때 알파가 살짝 흔들리게 갱신
+        if (isStealthActive)
+        {
+            float alpha = data.stealthAlpha + Mathf.Sin(Time.time * 5f) * 0.05f;
+            SetStealthVisual(alpha);
+        }
 
         if (anim != null) anim.SetFloat("Speed", agent.velocity.magnitude);
 
@@ -397,6 +418,27 @@ public class EnemyAI : MonoBehaviour
         isAttacking = false;
         currentState = State.Chase;
         agent.isStopped = false;
+    }
+    void SetStealthVisual(float alpha) //은신기능
+    {
+        foreach (var renderer in renderers)
+        {
+            foreach (var mat in renderer.materials)
+            {
+                Color color = mat.color;
+                color.a = alpha;
+                mat.color = color;
+            }
+        }
+    }
+    // 여기서 머티리얼 알파를 1로 돌리거나
+    // 은신 상태 해제 처리 넣으면 됨
+    public void RevealFromHit() //은신
+    {
+        if (!isStealthActive) return;
+
+        isStealthActive = false;
+        SetStealthVisual(data.visibleAlpha);
     }
 
     void RotateTowards(Vector3 target, float speed = 10f)
