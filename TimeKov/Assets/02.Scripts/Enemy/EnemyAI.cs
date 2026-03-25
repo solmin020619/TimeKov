@@ -419,7 +419,7 @@ public class EnemyAI : MonoBehaviour
         currentState = State.Chase;
         agent.isStopped = false;
     }
-    void SetStealthVisual(float alpha) //은신기능
+    void SetStealthVisual(float alpha) //은신관련
     {
         foreach (var renderer in renderers)
         {
@@ -431,9 +431,8 @@ public class EnemyAI : MonoBehaviour
             }
         }
     }
-    // 여기서 머티리얼 알파를 1로 돌리거나
-    // 은신 상태 해제 처리 넣으면 됨
-    public void RevealFromHit() //은신
+
+    public void RevealFromHit() //은신관련
     {
         if (!isStealthActive) return;
 

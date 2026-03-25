@@ -3,7 +3,7 @@ using System;
 
 public class EnemyHealth : MonoBehaviour
 {
-    private EnemyAI enemyAI;
+    private EnemyAI enemyAI; //은신 기능 사용하기위해
 
     public float maxHP = 100f;
     public float currentHP;
