@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea20a0cc6e7c6c14b80f2267dcb62efd, type: 3}
+  m_Name: Turret_Basic
+  m_EditorClassIdentifier: 
+  enemyName: 
+  enemyType: 3
+  maxHP: 30
+  moveSpeed: 0
+  chaseSpeed: 0
+  patrolRadius: 0
+  visionRange: 0
+  visionAngle: 0
+  proximityRange: 0
+  giveUpChaseRange: 0
+  provokedDuration: 0
+  attackDamage: 10
+  attackRange: 0
+  attackCooldown: 0
+  attackHitDelay: 0
+  attackAnimLength: 0
+  explosionRadius: 4
+  dieAfterAttack: 1
+  useJumpAttack: 0
+  jumpAttackDamage: 25
+  jumpAttackRadius: 3
+  jumpWindup: 0.35
+  jumpHitDelay: 1.1
+  jumpFullTime: 2.8
+  jumpLungeSpeed: 10
+  jumpChanceOnMiss: 0.7
+  useStealth: 0
+  stealthAlpha: 0.35
+  visibleAlpha: 1
+  revealOnHit: 1
+  turretRange: 15
+  turretRotateSpeed: 8
+  turretFireCooldown: 1
+  turretProjectileSpeed: 12
+  turretProjectileLifeTime: 3
+  hitVFXPrefab: {fileID: 3652830730883529323, guid: bb33a0a3f6dcc6a449e44e9b56aad0a8, type: 3}
+  hitSound: {fileID: 0}
+  footstepSound: {fileID: 8300000, guid: c6414d2dc0517b440acaefbe372b971f, type: 3}
+  chaseRoarSound: {fileID: 8300000, guid: f5e2da6699b973f4c9c10947c1848555, type: 3}
+  normalAttackSound: {fileID: 0}
+  jumpAttackSound: {fileID: 0}
+  explosionSound: {fileID: 8300000, guid: 81a54105c7d5e474884dbf9237e21e04, type: 3}
