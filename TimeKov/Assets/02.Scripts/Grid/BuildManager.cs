@@ -13,6 +13,12 @@ public class BuildManager : MonoBehaviour
         public Vector2Int size = Vector2Int.one; // x,z 기준 몇 칸 차지하는지
     }
 
+    [Header("Demolish")] // 건축 해제관련
+    public LayerMask placedBuildingMask;
+
+    private bool isDemolishMode = false;
+    private PlacedBuilding currentHoveredBuilding;
+
     [Header("References")]
     public Camera mainCam;
     public PlayerBuildZoneChecker zoneChecker;
@@ -61,7 +67,12 @@ public class BuildManager : MonoBehaviour
 
         HandleSelectInput();
         HandleRotateInput();
-        HandleBuild();
+        HandleDemolishModeInput();
+
+        if (isDemolishMode)
+            HandleDemolish();
+        else
+            HandleBuild();
     }
 
     private void HandleModeInput()
@@ -70,8 +81,12 @@ public class BuildManager : MonoBehaviour
         {
             IsBuildMode = !IsBuildMode;
 
+
             if (!IsBuildMode)
             {
+                isDemolishMode = false;
+                ClearHoveredBuilding();
+
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
             }
@@ -80,6 +95,8 @@ public class BuildManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
         {
             IsBuildMode = false;
+            isDemolishMode = false;
+            ClearHoveredBuilding();
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
@@ -163,13 +180,20 @@ public class BuildManager : MonoBehaviour
         if (prefab == null)
             return;
 
-        Instantiate(prefab, position, rotation, buildParent);
+        GameObject obj = Instantiate(prefab, position, rotation, buildParent);
 
         Vector2Int rotatedSize = GetRotatedSize(currentItem.size, currentRotationY);
         List<Vector2Int> footprintCells = GetFootprintCells(position, rotatedSize);
 
         OccupyCells(footprintCells);
-    }
+
+        PlacedBuilding placedBuilding = obj.GetComponent<PlacedBuilding>();
+        if (placedBuilding == null)
+            placedBuilding = obj.AddComponent<PlacedBuilding>();
+
+        placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
+        placedBuilding.CacheRenderers();
+    }//해제관련 스크립트 추가
 
     private Vector3 SnapToGrid(Vector3 worldPos)
     {
@@ -358,4 +382,76 @@ public class BuildManager : MonoBehaviour
 
         return buildItems[currentIndex].itemName;
     }
+
+    private void HandleDemolishModeInput()
+    {
+        if (Input.GetKeyDown(KeyCode.X))
+        {
+            isDemolishMode = !isDemolishMode;
+
+            if (isDemolishMode)
+            {
+                if (previewMarker != null)
+                    previewMarker.SetActive(false);
+            }
+            else
+            {
+                ClearHoveredBuilding();
+            }
+        }
+    }//해제관련
+    private void HandleDemolish()
+    {
+        if (mainCam == null)
+            return;
+
+        Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, rayDistance, placedBuildingMask))
+        {
+            PlacedBuilding building = hit.collider.GetComponentInParent<PlacedBuilding>();
+
+            if (building != null)
+            {
+                SetHoveredBuilding(building);
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    RemoveOccupiedCells(building.occupiedCells);
+                    ClearHoveredBuilding();
+                    Destroy(building.gameObject);
+                }
+
+                return;
+            }
+        }
+
+        ClearHoveredBuilding();
+    }//해제관련
+    private void SetHoveredBuilding(PlacedBuilding building)
+    {
+        if (currentHoveredBuilding == building)
+            return;
+
+        ClearHoveredBuilding();
+
+        currentHoveredBuilding = building;
+        currentHoveredBuilding.SetHighlight(Color.red);
+    }//해제관련
+
+    private void ClearHoveredBuilding()
+    {
+        if (currentHoveredBuilding != null)
+        {
+            currentHoveredBuilding.RestoreColor();
+            currentHoveredBuilding = null;
+        }
+    }//해제관련
+    private void RemoveOccupiedCells(List<Vector2Int> cells)
+    {
+        for (int i = 0; i < cells.Count; i++)
+        {
+            occupiedCells.Remove(cells[i]);
+        }
+    } //해제관련
 }
