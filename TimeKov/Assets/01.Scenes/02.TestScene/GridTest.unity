@@ -10530,11 +10530,14 @@ MonoBehaviour:
   buildItems:
   - itemName: a
     prefab: {fileID: 5390688553588702571, guid: 387f98aecbcd79749935dee316421f96, type: 3}
+    size: {x: 1, y: 1}
   - itemName: b
     prefab: {fileID: 5390688553588702571, guid: 00b3854a74360044f9bb645d5ac2c18c, type: 3}
+    size: {x: 2, y: 2}
   - itemName: c
     prefab: {fileID: 5390688553588702571, guid: e7ed2d28632c4884aa4f540598762229, type: 3}
-  previewMarker: {fileID: 67699859}
+    size: {x: 3, y: 3}
+  previewMarker: {fileID: 0}
   groundMask:
     serializedVersion: 2
     m_Bits: 128
@@ -10545,7 +10548,7 @@ MonoBehaviour:
   blockingMask:
     serializedVersion: 2
     m_Bits: 0
-  checkHalfExtents: {x: 0.45, y: 0.45, z: 0.45}
+  checkHeight: 0.45
 --- !u!4 &1985246426
 Transform:
   m_ObjectHideFlags: 0
