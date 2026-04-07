@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class PlacedBuilding : MonoBehaviour
 {
+    [HideInInspector] public int facilityId;
+    [HideInInspector] public int currentLevel = 1;
     [HideInInspector] public List<Vector2Int> occupiedCells = new List<Vector2Int>();
     [HideInInspector] public Renderer[] cachedRenderers;
 
@@ -11,7 +13,6 @@ public class PlacedBuilding : MonoBehaviour
     public void CacheRenderers()
     {
         cachedRenderers = GetComponentsInChildren<Renderer>(true);
-
         originalColors = new Color[cachedRenderers.Length];
 
         for (int i = 0; i < cachedRenderers.Length; i++)

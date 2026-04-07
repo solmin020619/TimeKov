@@ -4,16 +4,13 @@ using UnityEngine;
 public class BuildManager : MonoBehaviour
 {
     [System.Serializable]
-    public class BuildItem
+    public class BuildSlot
     {
-        public string itemName;
-        public GameObject prefab;
-
-        [Header("Grid Footprint")]
-        public Vector2Int size = Vector2Int.one; // x,z 기준 몇 칸 차지하는지
+        [Header("DataStore.FacilityById에 있는 facilityId")]
+        public int facilityId;
     }
 
-    [Header("Demolish")] // 건축 해제관련
+    [Header("Demolish")]
     public LayerMask placedBuildingMask;
 
     private bool isDemolishMode = false;
@@ -23,9 +20,10 @@ public class BuildManager : MonoBehaviour
     public Camera mainCam;
     public PlayerBuildZoneChecker zoneChecker;
     public Transform buildParent;
+    public FacilityPrefabDatabase prefabDatabase;
 
-    [Header("Build List (1~5 keys)")]
-    public BuildItem[] buildItems;
+    [Header("Build Slots (1~5 keys)")]
+    public BuildSlot[] buildSlots;
 
     [Header("Preview")]
     public GameObject previewMarker;
@@ -41,7 +39,7 @@ public class BuildManager : MonoBehaviour
 
     [Header("Build Check")]
     public LayerMask blockingMask;
-    public float checkHeight = 0.45f; // 높이만 따로 사용
+    public float checkHeight = 0.45f;
 
     public bool IsBuildMode { get; private set; }
 
@@ -52,6 +50,11 @@ public class BuildManager : MonoBehaviour
 
     private void Start()
     {
+        if (!DataStore.IsLoaded)
+        {
+            Debug.LogWarning("[BuildManager] DataStore is not loaded. Make sure DataBoot runs before BuildManager.");
+        }
+
         RefreshPreviewMarker();
 
         if (previewMarker != null)
@@ -81,7 +84,6 @@ public class BuildManager : MonoBehaviour
         {
             IsBuildMode = !IsBuildMode;
 
-
             if (!IsBuildMode)
             {
                 isDemolishMode = false;
@@ -105,18 +107,22 @@ public class BuildManager : MonoBehaviour
 
     private void HandleSelectInput()
     {
-        if (Input.GetKeyDown(KeyCode.Alpha1)) SetCurrentItem(0);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) SetCurrentItem(1);
-        if (Input.GetKeyDown(KeyCode.Alpha3)) SetCurrentItem(2);
-        if (Input.GetKeyDown(KeyCode.Alpha4)) SetCurrentItem(3);
-        if (Input.GetKeyDown(KeyCode.Alpha5)) SetCurrentItem(4);
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SetCurrentSlot(0);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SetCurrentSlot(1);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) SetCurrentSlot(2);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) SetCurrentSlot(3);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) SetCurrentSlot(4);
     }
 
     private void HandleRotateInput()
     {
+        if (!CanCurrentFacilityRotate())
+            return;
+
         if (Input.GetKeyDown(KeyCode.R))
         {
             currentRotationY += 90;
+
             if (currentRotationY >= 360)
                 currentRotationY = 0;
         }
@@ -124,11 +130,17 @@ public class BuildManager : MonoBehaviour
 
     private void HandleBuild()
     {
-        if (mainCam == null || buildItems == null || buildItems.Length == 0)
+        if (mainCam == null || buildSlots == null || buildSlots.Length == 0)
             return;
 
-        if (buildItems[currentIndex] == null || buildItems[currentIndex].prefab == null)
+        FacilityRow currentFacility = GetCurrentFacilityRow();
+        GameObject currentPrefab = GetCurrentFacilityPrefab();
+
+        if (currentFacility == null || currentPrefab == null)
+        {
+            SetPreviewActive(false);
             return;
+        }
 
         Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
 
@@ -141,48 +153,58 @@ public class BuildManager : MonoBehaviour
         Vector3 snappedPos = SnapToGrid(hit.point);
         Quaternion rotation = Quaternion.Euler(0f, currentRotationY, 0f);
 
-        BuildItem currentItem = buildItems[currentIndex];
-        Vector2Int rotatedSize = GetRotatedSize(currentItem.size, currentRotationY);
+        Vector2Int rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
         List<Vector2Int> footprintCells = GetFootprintCells(snappedPos, rotatedSize);
 
         bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
         bool isCorrectHeight = Mathf.Abs(hit.point.y - fixedY) <= yTolerance;
         bool isOccupied = IsAnyCellOccupied(footprintCells);
         bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
+        bool installRuleOk = CheckInstallRule(currentFacility);
 
-        bool canBuild = isInBuildZone && isCorrectHeight && !isOccupied && !isBlocked;
+        bool canBuild = isInBuildZone && isCorrectHeight && !isOccupied && !isBlocked && installRuleOk;
 
         UpdatePreview(snappedPos, rotation, canBuild);
 
         if (Input.GetMouseButtonDown(0) && canBuild)
         {
-            PlaceCurrentItem(snappedPos, rotation);
+            PlaceCurrentFacility(snappedPos, rotation);
         }
     }
 
-    private void SetCurrentItem(int index)
+    private void SetCurrentSlot(int index)
     {
-        if (buildItems == null || index < 0 || index >= buildItems.Length)
+        if (buildSlots == null || index < 0 || index >= buildSlots.Length)
             return;
 
-        if (buildItems[index] == null || buildItems[index].prefab == null)
+        if (DataStore.GetFacility(buildSlots[index].facilityId) == null)
+        {
+            Debug.LogWarning($"[BuildManager] Invalid facilityId in slot index={index}, facilityId={buildSlots[index].facilityId}");
             return;
+        }
+
+        if (prefabDatabase == null || prefabDatabase.GetPrefab(buildSlots[index].facilityId) == null)
+        {
+            Debug.LogWarning($"[BuildManager] Missing prefab mapping for facilityId={buildSlots[index].facilityId}");
+            return;
+        }
 
         currentIndex = index;
+        currentRotationY = 0;
         RefreshPreviewMarker();
     }
 
-    private void PlaceCurrentItem(Vector3 position, Quaternion rotation)
+    private void PlaceCurrentFacility(Vector3 position, Quaternion rotation)
     {
-        BuildItem currentItem = buildItems[currentIndex];
-        GameObject prefab = currentItem.prefab;
+        FacilityRow facility = GetCurrentFacilityRow();
+        GameObject prefab = GetCurrentFacilityPrefab();
 
-        if (prefab == null)
+        if (facility == null || prefab == null)
             return;
 
         GameObject obj = Instantiate(prefab, position, rotation, buildParent);
 
-        Vector2Int rotatedSize = GetRotatedSize(currentItem.size, currentRotationY);
+        Vector2Int rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
         List<Vector2Int> footprintCells = GetFootprintCells(position, rotatedSize);
 
         OccupyCells(footprintCells);
@@ -191,21 +213,25 @@ public class BuildManager : MonoBehaviour
         if (placedBuilding == null)
             placedBuilding = obj.AddComponent<PlacedBuilding>();
 
+        placedBuilding.facilityId = facility.facilityId;
+        placedBuilding.currentLevel = 1;
         placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
         placedBuilding.CacheRenderers();
-    }//해제관련 스크립트 추가
+
+        FacilityInstance facilityInstance = obj.GetComponent<FacilityInstance>();
+        if (facilityInstance == null)
+            facilityInstance = obj.AddComponent<FacilityInstance>();
+
+        facilityInstance.Initialize(facility.facilityId);
+    }
 
     private Vector3 SnapToGrid(Vector3 worldPos)
     {
-        if (buildItems == null || buildItems.Length == 0 || buildItems[currentIndex] == null)
-            return worldPos;
-
-        Vector2Int size = GetRotatedSize(buildItems[currentIndex].size, currentRotationY);
+        Vector2Int size = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
 
         float x;
         float z;
 
-        // 홀수 크기면 셀 중심에 맞춤
         if (size.x % 2 == 1)
             x = Mathf.Floor(worldPos.x / cellSize) * cellSize + cellSize * 0.5f;
         else
@@ -217,12 +243,6 @@ public class BuildManager : MonoBehaviour
             z = Mathf.Round(worldPos.z / cellSize) * cellSize;
 
         return new Vector3(x, fixedY, z);
-    }
-    private Vector2Int WorldToCell(Vector3 worldPos)
-    {
-        int x = Mathf.FloorToInt(worldPos.x / cellSize);
-        int z = Mathf.FloorToInt(worldPos.z / cellSize);
-        return new Vector2Int(x, z);
     }
 
     private Vector2Int GetRotatedSize(Vector2Int originalSize, int rotationY)
@@ -239,17 +259,12 @@ public class BuildManager : MonoBehaviour
     {
         List<Vector2Int> cells = new List<Vector2Int>();
 
-        // snappedPos는 현재 "한 칸 중심" 기준으로 잡혀 있으니
-        // 여기서 설치 기준 셀을 먼저 구한다.
         int baseX = Mathf.FloorToInt(snappedPos.x / cellSize);
         int baseZ = Mathf.FloorToInt(snappedPos.z / cellSize);
 
-        // 홀수 크기면 현재 셀 중심 기준으로 좌우 대칭
-        // 짝수 크기면 현재 셀을 좌하단 쪽 기준으로 포함하도록 보정
         int startX = baseX - (size.x - 1) / 2;
         int startZ = baseZ - (size.y - 1) / 2;
 
-        // 짝수 크기는 한 칸 더 왼쪽/아래로 시작해야 셀 밀림이 안 생김
         if (size.x % 2 == 0)
             startX -= 1;
 
@@ -283,6 +298,14 @@ public class BuildManager : MonoBehaviour
         for (int i = 0; i < cells.Count; i++)
         {
             occupiedCells.Add(cells[i]);
+        }
+    }
+
+    private void RemoveOccupiedCells(List<Vector2Int> cells)
+    {
+        for (int i = 0; i < cells.Count; i++)
+        {
+            occupiedCells.Remove(cells[i]);
         }
     }
 
@@ -322,6 +345,7 @@ public class BuildManager : MonoBehaviour
         previewMarker.transform.rotation = rotation;
 
         Renderer[] renderers = previewMarker.GetComponentsInChildren<Renderer>();
+
         for (int i = 0; i < renderers.Length; i++)
         {
             if (renderers[i].material.HasProperty("_Color"))
@@ -334,14 +358,13 @@ public class BuildManager : MonoBehaviour
         if (previewMarker != null)
             Destroy(previewMarker);
 
-        if (buildItems == null || buildItems.Length == 0)
+        GameObject prefab = GetCurrentFacilityPrefab();
+
+        if (prefab == null)
             return;
 
-        if (buildItems[currentIndex] == null || buildItems[currentIndex].prefab == null)
-            return;
-
-        previewMarker = Instantiate(buildItems[currentIndex].prefab);
-        previewMarker.name = buildItems[currentIndex].itemName + "_Preview";
+        previewMarker = Instantiate(prefab);
+        previewMarker.name = GetCurrentFacilityName() + "_Preview";
 
         Collider[] colliders = previewMarker.GetComponentsInChildren<Collider>();
         for (int i = 0; i < colliders.Length; i++)
@@ -374,13 +397,90 @@ public class BuildManager : MonoBehaviour
 
     public string GetCurrentItemName()
     {
-        if (buildItems == null || buildItems.Length == 0)
+        return GetCurrentFacilityName();
+    }
+
+    public string GetCurrentFacilityName()
+    {
+        FacilityRow row = GetCurrentFacilityRow();
+
+        if (row == null)
             return "None";
 
-        if (buildItems[currentIndex] == null)
-            return "None";
+        return row.facilityName;
+    }
 
-        return buildItems[currentIndex].itemName;
+    private int GetCurrentFacilityId()
+    {
+        if (buildSlots == null || currentIndex < 0 || currentIndex >= buildSlots.Length)
+            return 0;
+
+        return buildSlots[currentIndex].facilityId;
+    }
+
+    private FacilityRow GetCurrentFacilityRow()
+    {
+        int facilityId = GetCurrentFacilityId();
+
+        if (facilityId == 0)
+            return null;
+
+        return DataStore.GetFacility(facilityId);
+    }
+
+    private GameObject GetCurrentFacilityPrefab()
+    {
+        if (prefabDatabase == null)
+            return null;
+
+        return prefabDatabase.GetPrefab(GetCurrentFacilityId());
+    }
+
+    private Vector2Int GetCurrentFacilitySize()
+    {
+        FacilityRow row = GetCurrentFacilityRow();
+
+        if (row == null)
+            return Vector2Int.one;
+
+        return new Vector2Int(row.gridW, row.gridH);
+    }
+
+    private bool CanCurrentFacilityRotate()
+    {
+        FacilityRow row = GetCurrentFacilityRow();
+
+        if (row == null)
+            return false;
+
+        return row.canRotate == 1;
+    }
+
+    private bool CheckInstallRule(FacilityRow facility)
+    {
+        if (facility == null)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(facility.installRule))
+            return true;
+
+        string rule = facility.installRule.Trim().ToLower();
+
+        switch (rule)
+        {
+            case "any":
+            case "default":
+            case "ground":
+            case "buildzone":
+            case "baseonly":
+            case "veinonly":
+            case "gridonly":
+                return true;
+
+            default:
+                Debug.LogWarning($"[BuildManager] Unknown installRule={facility.installRule}, facilityId={facility.facilityId}");
+                return true;
+        }
     }
 
     private void HandleDemolishModeInput()
@@ -399,7 +499,8 @@ public class BuildManager : MonoBehaviour
                 ClearHoveredBuilding();
             }
         }
-    }//해제관련
+    }
+
     private void HandleDemolish()
     {
         if (mainCam == null)
@@ -427,7 +528,8 @@ public class BuildManager : MonoBehaviour
         }
 
         ClearHoveredBuilding();
-    }//해제관련
+    }
+
     private void SetHoveredBuilding(PlacedBuilding building)
     {
         if (currentHoveredBuilding == building)
@@ -437,7 +539,7 @@ public class BuildManager : MonoBehaviour
 
         currentHoveredBuilding = building;
         currentHoveredBuilding.SetHighlight(Color.red);
-    }//해제관련
+    }
 
     private void ClearHoveredBuilding()
     {
@@ -446,12 +548,5 @@ public class BuildManager : MonoBehaviour
             currentHoveredBuilding.RestoreColor();
             currentHoveredBuilding = null;
         }
-    }//해제관련
-    private void RemoveOccupiedCells(List<Vector2Int> cells)
-    {
-        for (int i = 0; i < cells.Count; i++)
-        {
-            occupiedCells.Remove(cells[i]);
-        }
-    } //해제관련
+    }
 }
