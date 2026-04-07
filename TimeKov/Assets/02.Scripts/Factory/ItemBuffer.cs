@@ -1,9 +1,6 @@
 // =====================================================================
 // ItemBuffer.cs
-// 설비 내부 입출력 버퍼. itemId → 보유 수량 을 관리한다.
-//
-// ItemData 참조가 필요한 곳(UI 아이콘 등)은 ItemDatabase를 통해
-// 다른 팀원 코드에서 조회한다. 여기서는 순수하게 수량만 다룬다.
+// 설비 내부 재고. itemId(int) → 수량 관리.
 // =====================================================================
 
 using System.Collections.Generic;
@@ -13,50 +10,50 @@ namespace TIMEKOV.Factory
 {
     public class ItemBuffer
     {
-        private readonly Dictionary<string, int> _stock = new();
-        private readonly int _capacity;
+        private readonly Dictionary<int, int> _stock = new();
 
-        public ItemBuffer(int capacity = 999) => _capacity = capacity;
+        public IReadOnlyDictionary<int, int> Stock => _stock;
 
-        // 수량 추가
-        public void Add(string itemId, int amount)
+        public void Add(int itemId, int amount)
         {
+            if (itemId <= 0) return;
             _stock.TryGetValue(itemId, out int cur);
-            _stock[itemId] = Mathf.Min(cur + amount, _capacity);
+            _stock[itemId] = cur + amount;
         }
 
-        // 수량 소모 (부족하면 false)
-        public bool Consume(string itemId, int amount)
+        public bool Consume(int itemId, int amount)
         {
             if (!Has(itemId, amount)) return false;
             _stock[itemId] -= amount;
-            if (_stock[itemId] == 0) _stock.Remove(itemId);
+            if (_stock[itemId] <= 0) _stock.Remove(itemId);
             return true;
         }
 
-        // 보유 여부 확인
-        public bool Has(string itemId, int amount)
+        public bool Has(int itemId, int amount)
         {
             _stock.TryGetValue(itemId, out int cur);
             return cur >= amount;
         }
 
-        // 레시피 inputs 전체 충족 여부
-        public bool HasAll(ItemSlot[] slots)
+        public bool HasAll(FactorySlot[] slots)
         {
-            foreach (var slot in slots)
-                if (!Has(slot.itemId, slot.amount)) return false;
+            foreach (var s in slots)
+                if (!Has(s.itemId, s.amount)) return false;
             return true;
         }
 
-        // 레시피 inputs 전체 소모
-        public void ConsumeAll(ItemSlot[] slots)
+        public void ConsumeAll(FactorySlot[] slots)
         {
-            foreach (var slot in slots)
-                Consume(slot.itemId, slot.amount);
+            foreach (var s in slots)
+                Consume(s.itemId, s.amount);
         }
 
-        // 보유 목록 열거 (UI 갱신용)
-        public IReadOnlyDictionary<string, int> Stock => _stock;
+        public int GetAmount(int itemId)
+        {
+            _stock.TryGetValue(itemId, out int cur);
+            return cur;
+        }
+
+        public void Clear() => _stock.Clear();
     }
 }
