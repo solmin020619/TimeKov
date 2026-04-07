@@ -21,17 +21,6 @@ public class PlayerWeaponController : MonoBehaviour
     [Header("ItemId -> Kinemation Weapon Index")]
     public ItemIdToKinemationIndex[] weaponIndexMap;
 
-    [System.Serializable]
-    public struct WeaponIdToAmmoId
-    {
-        public int weaponItemId;
-        public int ammoItemId;
-    }
-
-    [Header("Ammo Link (WeaponItemId -> AmmoItemId)")]
-    [Tooltip("총 아이템ID와 탄약 아이템ID를 매핑해줘야 overlapsCount(탄창 최대)를 탄약 기준으로 계산함")]
-    public WeaponIdToAmmoId[] weaponAmmoMap;
-
     [Header("Inventory Reference (Ammo Source)")]
     [Tooltip("플레이어 인벤토리(탄약을 소비할 InventoryManager). 비어있으면 씬에서 자동 탐색 시도")]
     public InventoryManager playerInventory;
@@ -72,7 +61,8 @@ public class PlayerWeaponController : MonoBehaviour
     public System.Action ReloadStarted;
 
     // runtime
-    private ItemInfo weapon;
+    private ItemRow equippedItem;
+    private WeaponRow weapon;
     private int equippedItemId;
 
     private int currentAmmoInMag;
@@ -111,6 +101,8 @@ public class PlayerWeaponController : MonoBehaviour
         if (playerInventory == null)
             playerInventory = FindFirstObjectByType<InventoryManager>();
 
+        EnsureDataStoreLoaded();
+
         Debug.Log($"[Weapon] {gameObject.name}이 사용하는 카메라: {(cachedCam != null ? cachedCam.name : "NULL")}");
     }
 
@@ -121,6 +113,14 @@ public class PlayerWeaponController : MonoBehaviour
 
         InitBulletPool();
         RefreshUI();
+    }
+
+    private void EnsureDataStoreLoaded()
+    {
+        if (DataStore.IsLoaded) return;
+
+        Debug.LogWarning("[PlayerWeaponController] DataStore가 아직 로드되지 않아 LoadAll()을 실행합니다.");
+        DataStore.LoadAll();
     }
 
     private void InitBulletPool()
@@ -229,30 +229,34 @@ public class PlayerWeaponController : MonoBehaviour
 
     public bool EquipByItemId(int itemId)
     {
-        if (DataManager.Instance == null)
-        {
-            Debug.LogError("[PlayerWeaponController] DataManager.Instance is null.");
-            return false;
-        }
+        EnsureDataStoreLoaded();
 
-        ItemInfo item = DataManager.Instance.GetItem(itemId);
-        if (item == null)
+        ItemRow itemRow = DataStore.GetItem(itemId);
+        if (itemRow == null)
         {
-            Debug.LogWarning($"[PlayerWeaponController] Item not found. id={itemId}");
+            Debug.LogWarning($"[PlayerWeaponController] Item not found. itemId={itemId}");
             Unequip();
             return false;
         }
 
-        if (!IsWeaponItem(item))
+        if (!IsWeaponItem(itemRow))
         {
-            Debug.LogWarning($"[PlayerWeaponController] Not a weapon item. id={itemId} type={item.itemType}");
+            Debug.LogWarning($"[PlayerWeaponController] Not a weapon item. itemId={itemId}, itemType={itemRow.itemType}");
+            return false;
+        }
+
+        WeaponRow weaponRow = DataStore.GetWeapon(itemId);
+        if (weaponRow == null)
+        {
+            Debug.LogError($"[PlayerWeaponController] WeaponRow not found. itemId={itemId}");
             return false;
         }
 
         equippedItemId = itemId;
-        weapon = item;
+        equippedItem = itemRow;
+        weapon = weaponRow;
 
-        Debug.Log($"[DATA] id={weapon.id} name={weapon.itemName} mag={weapon.magazinesize} fireRate={weapon.fireRate} reload={weapon.reloadTime} auto={weapon.isAutomatic}");
+        Debug.Log($"[DATA] id={equippedItem.itemId} name={equippedItem.itemName} mag={weapon.magazineSize} fireRate={weapon.fireRate} reload={weapon.reloadTime} auto={weapon.isAutomatic}");
 
         int cap = GetMagazineCapacity();
         currentAmmoInMag = Mathf.Max(0, cap);
@@ -285,6 +289,7 @@ public class PlayerWeaponController : MonoBehaviour
 
     public void Unequip()
     {
+        equippedItem = null;
         weapon = null;
         equippedItemId = 0;
 
@@ -303,9 +308,9 @@ public class PlayerWeaponController : MonoBehaviour
         RefreshUI();
     }
 
-    private bool IsWeaponItem(ItemInfo item)
+    private bool IsWeaponItem(ItemRow item)
     {
-        return item != null && item.id >= 1100 && item.id < 1500;
+        return item != null && item.itemType == "weapon";
     }
 
     private bool IsAutomaticWeapon()
@@ -316,9 +321,13 @@ public class PlayerWeaponController : MonoBehaviour
     private int GetKinemationIndex(int itemId)
     {
         if (weaponIndexMap == null) return -1;
+
         for (int i = 0; i < weaponIndexMap.Length; i++)
+        {
             if (weaponIndexMap[i].itemId == itemId)
                 return weaponIndexMap[i].weaponIndex;
+        }
+
         return -1;
     }
 
@@ -328,52 +337,36 @@ public class PlayerWeaponController : MonoBehaviour
             crosshair.SetEnabled(weapon != null);
     }
 
-    private int GetAmmoItemIdForWeapon(int weaponItemId)
-    {
-        if (weaponAmmoMap == null) return 0;
-        for (int i = 0; i < weaponAmmoMap.Length; i++)
-        {
-            if (weaponAmmoMap[i].weaponItemId == weaponItemId)
-                return weaponAmmoMap[i].ammoItemId;
-        }
-        return 0;
-    }
-
     private int GetMagazineCapacity()
     {
         if (weapon == null) return 0;
+        return Mathf.Max(0, weapon.magazineSize);
+    }
 
-        int ammoId = GetAmmoItemIdForWeapon(equippedItemId);
-        if (ammoId != 0 && DataManager.Instance != null)
-        {
-            ItemInfo ammo = DataManager.Instance.GetItem(ammoId);
-            if (ammo != null)
-            {
-                int cap = Mathf.Max(1, ammo.overlapsCount);
-                return cap;
-            }
-        }
-
-        return Mathf.Max(0, weapon.magazinesize);
+    private int GetAmmoItemId()
+    {
+        if (weapon == null) return 0;
+        return weapon.ammoItemId;
     }
 
     private int GetInventoryAmmoCount()
     {
-        int ammoId = GetAmmoItemIdForWeapon(equippedItemId);
-        if (ammoId == 0) return 0;
+        int ammoItemId = GetAmmoItemId();
+        if (ammoItemId == 0) return 0;
         if (playerInventory == null) return 0;
 
-        return playerInventory.GetTotalItemCount(ammoId);
+        return playerInventory.GetTotalItemCount(ammoItemId);
     }
 
     private bool TryConsumeInventoryAmmo(int amount)
     {
         if (amount <= 0) return false;
-        int ammoId = GetAmmoItemIdForWeapon(equippedItemId);
-        if (ammoId == 0) return false;
+
+        int ammoItemId = GetAmmoItemId();
+        if (ammoItemId == 0) return false;
         if (playerInventory == null) return false;
 
-        return playerInventory.TryConsumeItem(ammoId, amount);
+        return playerInventory.TryConsumeItem(ammoItemId, amount);
     }
 
     private bool CanFireNow()
@@ -427,7 +420,9 @@ public class PlayerWeaponController : MonoBehaviour
         StartCoroutine(ReloadRoutine());
     }
 
-    public void SetADS(bool isAiming) { }
+    public void SetADS(bool isAiming)
+    {
+    }
 
     private void TryFireNow()
     {
@@ -437,7 +432,8 @@ public class PlayerWeaponController : MonoBehaviour
 
         FireRaycastAndVisual();
 
-        if (crosshair != null) crosshair.OnFire();
+        if (crosshair != null)
+            crosshair.OnFire();
 
         float sps = Mathf.Max(0.01f, weapon.fireRate);
         fireCooldown = 1f / sps;
@@ -445,7 +441,9 @@ public class PlayerWeaponController : MonoBehaviour
         currentAmmoInMag--;
 
         if (debugLogFire)
+        {
             Debug.Log($"[FIRE] id={equippedItemId} ammo={currentAmmoInMag}/{GetMagazineCapacity()} cooldown={fireCooldown:F3}");
+        }
 
         Fired?.Invoke();
     }
@@ -507,7 +505,7 @@ public class PlayerWeaponController : MonoBehaviour
         if (cachedCam == null || !cachedCam.gameObject.activeInHierarchy)
             cachedCam = GetComponentInChildren<Camera>() ?? Camera.main;
 
-        if (cachedCam == null) return;
+        if (cachedCam == null || weapon == null) return;
 
         Vector3 camOrigin = cachedCam.transform.position;
         Vector3 camDir = cachedCam.transform.forward;
@@ -523,15 +521,17 @@ public class PlayerWeaponController : MonoBehaviour
             hasHitPoint = true;
             hitPoint = hit.point;
 
-            if (debugLogFire) Debug.Log($"[Hit] 맞은 물체: {hit.collider.name} / 위치: {hit.point}");
+            if (debugLogFire)
+                Debug.Log($"[Hit] 맞은 물체: {hit.collider.name} / 위치: {hit.point}");
 
-            if (crosshair != null) crosshair.OnHitConfirm();
+            if (crosshair != null)
+                crosshair.OnHitConfirm();
 
             EnemyHealth enemy = hit.collider.GetComponent<EnemyHealth>();
             if (enemy != null)
                 enemy.TakeDamage((int)weapon.damage);
 
-            HomingFruit fruit = hit.collider.GetComponentInParent<HomingFruit>(); //유도탄 추가
+            HomingFruit fruit = hit.collider.GetComponentInParent<HomingFruit>();
             if (fruit != null)
             {
                 fruit.DestroySelf();
@@ -659,6 +659,7 @@ public class PlayerWeaponController : MonoBehaviour
                 {
                     string key = muzzleNameKeywords[k];
                     if (string.IsNullOrEmpty(key)) continue;
+
                     if (n.Contains(key.ToLowerInvariant()))
                     {
                         score += (key.ToLowerInvariant() == "muzzle") ? 200 : 80;
@@ -684,6 +685,7 @@ public class PlayerWeaponController : MonoBehaviour
     private Vector3 ApplyRecoil(Vector3 forward)
     {
         if (cachedCam == null) cachedCam = Camera.main;
+        if (weapon == null || cachedCam == null) return forward;
 
         if (Time.time - lastFireTime > weapon.recoilResetTime)
         {

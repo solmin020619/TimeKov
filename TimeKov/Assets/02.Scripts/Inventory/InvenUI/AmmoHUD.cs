@@ -4,8 +4,7 @@ using TMPro;
 /// <summary>
 /// PUBG-style ammo HUD
 /// - 현재는 장착된 탄창 탄 수만 표시
-/// - PlayerWeaponController: GetCurrentAmmo(), GetEquippedItemId(), weaponAmmoMap 사용
-/// - InventoryManager 참조 및 기존 함수 구조는 유지
+/// - reserve 계산은 유지하되, ammoItemId는 DataStore.GetWeapon(itemId).ammoItemId 사용
 /// </summary>
 public class AmmoHUD : MonoBehaviour
 {
@@ -28,6 +27,7 @@ public class AmmoHUD : MonoBehaviour
     private void Awake()
     {
         ResolveRefs();
+        EnsureDataStoreLoaded();
     }
 
     private void OnEnable()
@@ -51,7 +51,13 @@ public class AmmoHUD : MonoBehaviour
             weapon = FindFirstObjectByType<PlayerWeaponController>();
 
         if (inventory == null)
-            inventory = FindFirstObjectByType<InventoryManager>(); // Player 인벤 1개라고 가정
+            inventory = FindFirstObjectByType<InventoryManager>();
+    }
+
+    private void EnsureDataStoreLoaded()
+    {
+        if (DataStore.IsLoaded) return;
+        DataStore.LoadAll();
     }
 
     private void Refresh(bool force)
@@ -67,7 +73,7 @@ public class AmmoHUD : MonoBehaviour
 
         int inMag = weapon.GetCurrentAmmo();
         int weaponItemId = weapon.GetEquippedItemId();
-        int ammoItemId = GetAmmoItemIdFromWeapon(weapon);
+        int ammoItemId = GetAmmoItemIdFromWeaponItemId(weaponItemId);
 
         int reserve = 0;
         if (inventory != null && ammoItemId > 0)
@@ -83,7 +89,7 @@ public class AmmoHUD : MonoBehaviour
         if (!changed)
             return;
 
-        // 기존 reserve 계산 구조는 유지하고, 표시만 현재 장착 탄 수만 나오게 변경
+        // 현재 표시 규칙: 탄창 내 탄 수만 표시
         ammoText.text = $"{inMag}";
 
         _lastInMag = inMag;
@@ -93,25 +99,19 @@ public class AmmoHUD : MonoBehaviour
     }
 
     /// <summary>
-    /// PlayerWeaponController.weaponAmmoMap(weaponItemId -> ammoItemId)를 이용해서
-    /// 현재 장착 무기의 탄약 아이템ID를 찾는다.
+    /// DataStore의 WeaponRow에서 ammoItemId를 가져온다.
     /// </summary>
-    private int GetAmmoItemIdFromWeapon(PlayerWeaponController w)
+    private int GetAmmoItemIdFromWeaponItemId(int weaponItemId)
     {
-        if (w == null) return 0;
+        if (weaponItemId <= 0)
+            return 0;
 
-        int weaponItemId = w.GetEquippedItemId();
-        if (weaponItemId <= 0) return 0;
+        EnsureDataStoreLoaded();
 
-        var map = w.weaponAmmoMap;
-        if (map == null || map.Length == 0) return 0;
+        WeaponRow weaponRow = DataStore.GetWeapon(weaponItemId);
+        if (weaponRow == null)
+            return 0;
 
-        for (int i = 0; i < map.Length; i++)
-        {
-            if (map[i].weaponItemId == weaponItemId)
-                return map[i].ammoItemId;
-        }
-
-        return 0;
+        return weaponRow.ammoItemId;
     }
 }
