@@ -333,15 +333,25 @@ public class InventoryManager : MonoBehaviour
         ApplyBGSyleVisibility();
     }
 
+    // 기존 API 유지:
+    // EquipmentManager, 세션 복원 등에서 그대로 호출 가능하게 두고
+    // 내부만 DataStore 기반으로 교체
     int GetBagBonus(int bagId)
     {
-        switch (bagId)
-        {
-            case 4101: return 32;
-            case 4102: return 24;
-            case 4103: return 16;
-            default: return 0;
-        }
+        if (bagId <= 0)
+            return 0;
+
+        EnsureDataStoreLoaded();
+
+        EquipmentRow equip = DataStore.GetEquipment(bagId);
+        if (equip == null)
+            return 0;
+
+        string equipType = (equip.equipType ?? string.Empty).Trim().ToLowerInvariant();
+        if (equipType != "bag" && equipType != "backpack")
+            return 0;
+
+        return Mathf.Max(0, equip.addSlotCount);
     }
 
     public void ApplyBagById(int bagId)
