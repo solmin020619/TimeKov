@@ -12,13 +12,13 @@ public class SlotInfo : MonoBehaviour
 
     public Image iconImage;
     public TextMeshProUGUI slotText;
-    public TextMeshProUGUI amountText; // 인벤: 수량 / 상점: 가격 재활용 가능
+    public TextMeshProUGUI amountText;
 
     public enum SlotOwnerType { Inventory, Equip, Warehouse, Loot, Shop }
     public SlotOwnerType ownerType;
 
     [Header("Shop Price (Optional)")]
-    public TextMeshProUGUI priceText; // 있으면 이걸 가격으로, 없으면(상점 슬롯일 때만) amountText 사용
+    public TextMeshProUGUI priceText;
 
     private GameObject priceRoot;
     private ShopSlotMarker shopMarker;
@@ -28,6 +28,7 @@ public class SlotInfo : MonoBehaviour
 
     private void Awake()
     {
+        EnsureDataStoreLoaded();
         CacheRefs();
         ApplyOwnerTypeForShopSlot();
 
@@ -38,7 +39,6 @@ public class SlotInfo : MonoBehaviour
 
         bool isShopSlot = IsShopSlot();
 
-        //  인벤 수량 텍스트는 절대 Awake에서 끄지 않음
         if (!isShopSlot)
         {
             if (priceRoot != null) priceRoot.SetActive(false);
@@ -49,7 +49,6 @@ public class SlotInfo : MonoBehaviour
         }
         else
         {
-            //  상점 슬롯인데 priceText가 비어있으면 amountText를 가격 표시로 재활용
             if (priceText == null) priceText = amountText;
         }
     }
@@ -63,6 +62,12 @@ public class SlotInfo : MonoBehaviour
     {
         yield return null;
         RefreshShopPriceUI();
+    }
+
+    private void EnsureDataStoreLoaded()
+    {
+        if (!DataStore.IsLoaded)
+            DataStore.LoadAll();
     }
 
     private void CacheRefs()
@@ -93,6 +98,7 @@ public class SlotInfo : MonoBehaviour
 
     public void SetSlot(int id, int count)
     {
+        EnsureDataStoreLoaded();
         CacheRefs();
         ApplyOwnerTypeForShopSlot();
 
@@ -154,7 +160,7 @@ public class SlotInfo : MonoBehaviour
         if (slotText == null)
             return;
 
-        var item = DataManager.Instance?.GetItem(id);
+        ItemRow item = DataStore.GetItem(id);
         slotText.text = (item != null) ? item.itemName : id.ToString();
     }
 
@@ -171,7 +177,7 @@ public class SlotInfo : MonoBehaviour
         return loaded;
     }
 
-    void UpdateAmountText()
+    private void UpdateAmountText()
     {
         if (amountText == null) return;
 
@@ -204,13 +210,7 @@ public class SlotInfo : MonoBehaviour
         if (!priceText.gameObject.activeSelf)
             priceText.gameObject.SetActive(true);
 
-        int targetId = shopMarker.itemId;
-
-        int price = 0;
-        var item = DataManager.Instance?.GetItem(targetId);
-        if (item != null) price = item.saleTime;
-        if (price <= 0) price = shopMarker.buyPrice;
-
+        int price = Mathf.Max(0, shopMarker.buyPrice);
         priceText.text = $"{price}s";
     }
 
@@ -222,13 +222,13 @@ public class SlotInfo : MonoBehaviour
             return;
         }
 
-        if (DataManager.Instance == null) return;
+        EnsureDataStoreLoaded();
 
-        var item = DataManager.Instance.GetItem(slotIndex);
+        ItemRow item = DataStore.GetItem(slotIndex);
         if (item == null) return;
 
         Debug.Log("아이템 이름 :" + item.itemName);
         Debug.Log("아이템 설명 :" + item.description);
-        Debug.Log("아이콘 이미지 파일 이름 :" + item.iconImange);
+        Debug.Log("아이콘 키 :" + item.iconKey);
     }
 }

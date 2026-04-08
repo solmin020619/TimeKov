@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using TMPro; //  인벤토리 5/10 표시용
+using TMPro;
 
 public class InventoryManager : MonoBehaviour
 {
@@ -27,7 +27,6 @@ public class InventoryManager : MonoBehaviour
     [Header("연결(창고 인벤에서만 사용)")]
     public InventoryManager playerInventory;
 
-    //  왼쪽 위 "인벤토리 5/10" 텍스트
     [Header("UI 텍스트(플레이어 인벤)")]
     [SerializeField] private TMP_Text inventoryCountText;
 
@@ -43,6 +42,7 @@ public class InventoryManager : MonoBehaviour
 
     void Start()
     {
+        EnsureDataStoreLoaded();
         CreateSlots();
         ApplyBGSyleVisibility();
     }
@@ -54,6 +54,12 @@ public class InventoryManager : MonoBehaviour
             if (UIStateManager.Instance != null)
                 UIStateManager.Instance.ToggleInventory();
         }
+    }
+
+    private void EnsureDataStoreLoaded()
+    {
+        if (!DataStore.IsLoaded)
+            DataStore.LoadAll();
     }
 
     public void ToggleInventory()
@@ -89,8 +95,6 @@ public class InventoryManager : MonoBehaviour
                     : SlotInfo.SlotOwnerType.Warehouse;
 
                 newSlotScript.SetSlot(0, 0);
-
-                // 배그식(B): 빈 슬롯은 시작부터 안 보이게
                 newSlotScript.gameObject.SetActive(false);
             }
 
@@ -108,29 +112,25 @@ public class InventoryManager : MonoBehaviour
         ApplyBGSyleVisibility();
     }
 
-    
-    //  스택 규칙
-    // duplicated==1이면 overlapsCount까지, 아니면 1
-  
     private int GetMaxStackSize(int itemId)
     {
-        var item = (DataManager.Instance != null) ? DataManager.Instance.GetItem(itemId) : null;
+        EnsureDataStoreLoaded();
+
+        ItemRow item = DataStore.GetItem(itemId);
         if (item == null) return 1;
 
-        if (item.duplicated == 1)
-            return Mathf.Max(1, item.overlapsCount);
+        if (item.stackable == 1)
+            return Mathf.Max(1, item.maxStack);
 
         return 1;
     }
 
-    // target 인벤에 스택 규칙 적용해서 넣고, 남으면 remaining 반환
     private int AddItemWithStacking(InventoryManager target, int itemId, int addCount)
     {
         if (target == null || addCount <= 0) return addCount;
 
         int maxStack = target.GetMaxStackSize(itemId);
 
-        // 1) 기존 스택 채우기
         for (int i = 0; i < target.SlotData.Count && addCount > 0; i++)
         {
             var s = target.SlotData[i];
@@ -145,7 +145,6 @@ public class InventoryManager : MonoBehaviour
             addCount -= put;
         }
 
-        // 2) 빈 슬롯에 새 스택 생성
         for (int i = 0; i < target.SlotData.Count && addCount > 0; i++)
         {
             var s = target.SlotData[i];
@@ -161,7 +160,6 @@ public class InventoryManager : MonoBehaviour
         return addCount;
     }
 
-    //  외부(상점 판매/이동 등)에서 강제 UI 최신화
     public void ForceRefreshUI()
     {
         SortInventory();
@@ -180,30 +178,18 @@ public class InventoryManager : MonoBehaviour
         ApplyBGSyleVisibility();
     }
 
-    //  드랍/루팅에서 사용할 "안전 Add" (부분 성공/실패 판정 가능)
-    // - 기존 AddItem()은 그대로 둠 (절대 수정 X)
-    // - 내부 스택 규칙(AddItemWithStacking)을 그대로 사용함
     public int TryAddItemFromLoot(int insertItemID, int count)
     {
         if (count <= 0) return 0;
 
-        // 기존 스택/빈슬롯 채우기 로직 그대로 사용
         int remaining = AddItemWithStacking(this, insertItemID, count);
-
-        // UI 갱신도 기존 방식 그대로
         ApplyBGSyleVisibility();
 
-        return remaining; // 0이면 전부 성공, >0이면 그만큼 못 넣음
+        return remaining;
     }
 
-    //  여기만 바뀜: 정리(스택 합치기 포함)
     public void SortInventory()
     {
-        //  정리 = (1) ID 오름차순 정렬 + (2) 스택 가능 아이템은 overlapsCount(최대스택)까지 합치기
-        // - SlotInfo 구조: slotIndex=아이템ID, itemCount=수량
-        // - GetMaxStackSize(itemId)로 아이템별 최대 스택을 가져옴(duplicated==1이면 overlapsCount)
-
-        // 1) 현재 슬롯에서 아이템 수량 총합 집계
         Dictionary<int, int> totals = new Dictionary<int, int>();
         for (int i = 0; i < SlotData.Count; i++)
         {
@@ -219,11 +205,9 @@ public class InventoryManager : MonoBehaviour
             else totals[id] = c;
         }
 
-        // 2) ID 기준 정렬된 키 목록 생성
         List<int> ids = new List<int>(totals.Keys);
         ids.Sort();
 
-        // 3) 정렬 + 스택 합치기 결과 리스트 생성
         List<ItemData> packed = new List<ItemData>(SlotData.Count);
 
         for (int k = 0; k < ids.Count; k++)
@@ -242,18 +226,15 @@ public class InventoryManager : MonoBehaviour
             }
         }
 
-        // 4) 남는 슬롯은 빈칸으로 채우기
         while (packed.Count < SlotData.Count)
             packed.Add(new ItemData(0, 0));
 
-        // 5) 슬롯에 반영
         for (int i = 0; i < SlotData.Count; i++)
         {
             if (SlotData[i] == null) continue;
 
             SlotData[i].SetSlot(packed[i].id, packed[i].count);
 
-            // 표시/숨김은 ApplyBGSyleVisibility가 결정
             if (!SlotData[i].gameObject.activeSelf) SlotData[i].gameObject.SetActive(true);
         }
 
@@ -324,7 +305,6 @@ public class InventoryManager : MonoBehaviour
         return true;
     }
 
-    // 버튼 Missing 복구용 (기존 유지)
     public void MoveAllItemsTo(InventoryManager targetInventory)
     {
         if (UIStateManager.Instance != null)
@@ -388,7 +368,6 @@ public class InventoryManager : MonoBehaviour
 
         if (newSlotCount < currentCount)
         {
-            // 줄어든 범위의 아이템 제거
             for (int i = newSlotCount; i < currentCount; i++)
             {
                 if (SlotData[i] != null && SlotData[i].slotIndex != 0)
@@ -416,7 +395,7 @@ public class InventoryManager : MonoBehaviour
                         : SlotInfo.SlotOwnerType.Warehouse;
 
                     newSlotScript.SetSlot(0, 0);
-                    newSlotScript.gameObject.SetActive(false); // 배그식: 빈칸 숨김
+                    newSlotScript.gameObject.SetActive(false);
                 }
 
                 SlotInputHandler input = newSlot.GetComponent<SlotInputHandler>();
@@ -435,9 +414,6 @@ public class InventoryManager : MonoBehaviour
         ApplyBGSyleVisibility();
     }
 
-    
-    //  배그식(B): 빈 슬롯은 안 보이게 +  인벤 숫자 갱신
-    
     private void ApplyBGSyleVisibility()
     {
         if (SlotData == null) return;
@@ -452,11 +428,9 @@ public class InventoryManager : MonoBehaviour
                 s.gameObject.SetActive(shouldShow);
         }
 
-        //  여기서 같이 갱신
         RefreshInventoryCountText();
     }
 
-    //  사용중 슬롯 개수
     private int GetUsedSlotCount()
     {
         if (SlotData == null) return 0;
@@ -471,13 +445,11 @@ public class InventoryManager : MonoBehaviour
         return used;
     }
 
-    //  최대 슬롯 개수(현재 용량)
     private int GetMaxSlotCount()
     {
         return (SlotData != null && SlotData.Count > 0) ? SlotData.Count : targetSlotCount;
     }
 
-    //  외부에서도 호출 가능하게 public
     public void RefreshInventoryCountText()
     {
         if (ownerType != InventoryOwnerType.Player) return;
@@ -488,10 +460,6 @@ public class InventoryManager : MonoBehaviour
         inventoryCountText.text = $"인벤토리 {used}/{max}";
     }
 
-    //  Ammo 연동용 유틸 3종 (추가 / 기존 로직 삭제 없음)
-  
-
-    // 전체 수량 합
     public int GetTotalItemCount(int itemId)
     {
         if (itemId == 0) return 0;
@@ -514,18 +482,15 @@ public class InventoryManager : MonoBehaviour
         return GetTotalItemCount(itemId) >= atLeast;
     }
 
-    // 부분소비 금지: amount 전부 가능할 때만 소비
     public bool TryConsumeItem(int itemId, int amount)
     {
         if (itemId == 0) return false;
         if (amount <= 0) return true;
         if (SlotData == null) return false;
 
-        // 1) 먼저 충분한지 검사
         int total = GetTotalItemCount(itemId);
         if (total < amount) return false;
 
-        // 2) 소비(여러 슬롯에 걸쳐 차감)
         int remain = amount;
 
         for (int i = 0; i < SlotData.Count && remain > 0; i++)
@@ -546,22 +511,15 @@ public class InventoryManager : MonoBehaviour
             remain -= take;
         }
 
-        // 3) UI 갱신 (기존 방식 유지)
         ApplyBGSyleVisibility();
         return true;
     }
-
-
-    //  Session Export / Import (씬 이동 데이터 유지)
-  
-
 
     public PlayerSessionData.InventorySnapshot ExportToSessionSnapshot()
     {
         var snap = new PlayerSessionData.InventorySnapshot();
         snap.ownerType = (int)ownerType;
 
-        // 슬롯 생성 보장
         CreateSlots();
 
         snap.slotCount = SlotData.Count;
@@ -578,7 +536,6 @@ public class InventoryManager : MonoBehaviour
                 continue;
             }
 
-            // SlotInfo.slotIndex = 아이템 ID / itemCount = 수량
             snap.ids.Add(s.slotIndex);
             snap.counts.Add(s.itemCount);
         }
@@ -586,36 +543,28 @@ public class InventoryManager : MonoBehaviour
         return snap;
     }
 
-    /// <summary>
-    /// equipManager가 있으면 "가방"을 먼저 적용해서 인벤 슬롯 수 맞춘 뒤 복원.
-    /// (창고 인벤은 equipManager 없이 복원)
-    /// </summary>
     public void ImportFromSessionSnapshot(PlayerSessionData.InventorySnapshot snap, EquipmentManager equipManager)
     {
         if (snap == null) return;
 
         CreateSlots();
 
-        // 1) 가방 영향 적용 (플레이어 인벤만)
         if (ownerType == InventoryOwnerType.Player && equipManager != null)
         {
             int bagId = equipManager.GetEquippedBagId();
             ApplyBagById(bagId);
         }
 
-        // 2) 슬롯 수 맞추기 (세션 스냅샷이 더 크면 늘려줌)
         int desired = Mathf.Max(0, snap.slotCount);
         if (SlotData.Count != desired)
             ResizeInventory(desired);
 
-        // 3) 전체 초기화
         for (int i = 0; i < SlotData.Count; i++)
         {
             if (SlotData[i] == null) continue;
             SlotData[i].SetSlot(0, 0);
         }
 
-        // 4) 슬롯 그대로 복원 (배치 유지)
         int n = Mathf.Min(SlotData.Count, snap.ids.Count);
         for (int i = 0; i < n; i++)
         {
@@ -631,7 +580,6 @@ public class InventoryManager : MonoBehaviour
                 s.SetSlot(id, c);
         }
 
-        // 5) UI/가시성 갱신 (기존 함수 사용)
         ForceRefreshUI();
     }
 }
