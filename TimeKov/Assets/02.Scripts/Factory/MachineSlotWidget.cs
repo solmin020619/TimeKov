@@ -1,22 +1,31 @@
 // =====================================================================
 // MachineSlotWidget.cs
-// MachineUI 내 입력/출력 슬롯 하나를 표현하는 위젯.
-// Setup(itemId, amount) 호출 시 DataManager에서 아이콘/이름 자동 조회.
+// 단일 클릭과 더블클릭을 분리 처리하는 슬롯 위젯.
+// 클릭   → 1개 투입
+// 더블클릭 → 전체 투입 or 회수
 // =====================================================================
 
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace TIMEKOV.Factory
 {
-    public class MachineSlotWidget : MonoBehaviour
+    public class MachineSlotWidget : MonoBehaviour,
+        IPointerClickHandler
     {
         [SerializeField] private Image           iconImage;
         [SerializeField] private TextMeshProUGUI itemNameText;
         [SerializeField] private TextMeshProUGUI amountText;
-        [SerializeField] private Button          slotButton;
+
+        private Action _onClick;
+        private Action _onDoubleClick;
+        private float  _lastClickTime;
+        private const float DoubleClickThreshold = 0.3f;
+
+        // ── 세팅 ────────────────────────────────────────────────────
 
         public void Setup(int itemId, int amount)
         {
@@ -36,20 +45,26 @@ namespace TIMEKOV.Factory
                 amountText.text = amount > 1 ? $"x{amount}" : "";
         }
 
-        /// <summary>출력 슬롯은 클릭 시 회수 액션 등록. 입력 슬롯은 null.</summary>
-        public void SetClickAction(Action onClick)
-        {
-            if (slotButton == null) return;
-            slotButton.onClick.RemoveAllListeners();
+        public void SetClickAction(Action a)       => _onClick       = a;
+        public void SetDoubleClickAction(Action a) => _onDoubleClick = a;
 
-            if (onClick != null)
+        // ── 클릭 감지 ───────────────────────────────────────────────
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            float now = Time.unscaledTime;
+
+            if (now - _lastClickTime < DoubleClickThreshold)
             {
-                slotButton.onClick.AddListener(() => onClick());
-                slotButton.interactable = true;
+                // 더블클릭
+                _onDoubleClick?.Invoke();
+                _lastClickTime = 0f; // 연속 트리거 방지
             }
             else
             {
-                slotButton.interactable = false;
+                // 단일클릭 (더블클릭 판정 후가 아닐 때)
+                _onClick?.Invoke();
+                _lastClickTime = now;
             }
         }
     }

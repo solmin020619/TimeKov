@@ -1,14 +1,13 @@
 // =====================================================================
 // MachineUI.cs
-// 플레이어가 설비에 가까이 가서 F키를 누르면 열리는 설비 전용 UI.
 //
-// UI 구성:
-//   [입력 슬롯]  현재 설비 InputBuffer 내용 (아이콘 + 이름 + 수량)
-//   [레시피]     이 설비의 조합식 목록
-//   [출력 슬롯]  완성된 아이템 (아이콘 + 이름 + 수량) + 회수 버튼
-//   [진행 바]    가공 진행도
-//
-// MachineInteraction 이 SetMachine() 을 호출해 대상 설비를 넣어준다.
+// F키로 열리는 설비 UI. 구성:
+//  [설비 이름]
+//  [설비 내부 입력] — 더블클릭 → 인벤토리 반환
+//  [레시피]
+//  [출력 슬롯]     — 더블클릭 → 인벤토리 회수
+//  [진행 바 + 상태]
+//  [인벤토리]      — 클릭 1개 투입 / 더블클릭 전체 투입
 // =====================================================================
 
 using System.Collections.Generic;
@@ -20,212 +19,241 @@ namespace TIMEKOV.Factory
 {
     public class MachineUI : MonoBehaviour
     {
-        [Header("패널 루트")]
+        [Header("루트 패널")]
         public GameObject uiPanel;
 
         [Header("설비 이름")]
         public TextMeshProUGUI machineTitleText;
 
-        [Header("입력 슬롯 영역")]
+        [Header("설비 입력 슬롯 부모")]
         public Transform inputSlotParent;
-        public GameObject slotPrefab; // MachineSlotWidget 프리팹
 
-        [Header("레시피 영역")]
+        [Header("레시피 부모")]
         public Transform recipeParent;
-        public GameObject recipeRowPrefab; // MachineRecipeRow 프리팹
+        public GameObject recipeRowPrefab;
 
-        [Header("출력 슬롯 영역")]
+        [Header("출력 슬롯 부모")]
         public Transform outputSlotParent;
 
-        [Header("진행 바 + 상태 텍스트")]
-        public Slider     progressBar;
+        [Header("진행")]
+        public Slider          progressBar;
         public TextMeshProUGUI statusText;
 
-        [Header("인벤토리 참조 (재료 투입/회수용)")]
+        [Header("인벤토리 슬롯 부모 (UI 하단)")]
+        public Transform inventorySlotParent;
+
+        [Header("슬롯 프리팹")]
+        public GameObject slotPrefab;
+
+        [Header("플레이어 인벤토리")]
         public InventoryManager playerInventory;
 
-        // ── 내부 상태 ───────────────────────────────────────────────
+        // ── 내부 ────────────────────────────────────────────────────
         private ProcessingMachine _machine;
-        private string            _machineName;
-
-        private readonly List<GameObject> _inputWidgets  = new();
-        private readonly List<GameObject> _outputWidgets = new();
-        private readonly List<GameObject> _recipeWidgets = new();
+        private readonly List<GameObject> _inputW  = new();
+        private readonly List<GameObject> _outputW = new();
+        private readonly List<GameObject> _recipeW = new();
+        private readonly List<GameObject> _invW    = new();
 
         // ============================================================
-        // 외부 호출 API
+        // 공개 API
         // ============================================================
 
-        /// <summary>MachineInteraction이 호출 — 대상 설비 세팅 후 UI 열기</summary>
-        public void OpenFor(ProcessingMachine machine, string machineName)
+        public void OpenFor(ProcessingMachine machine, string title)
         {
-            if (_machine != null)
-                _machine.OnBufferChanged -= RefreshBufferUI;
-
-            _machine     = machine;
-            _machineName = machineName;
-            _machine.OnBufferChanged += RefreshBufferUI;
+            if (_machine != null) _machine.OnBufferChanged -= RefreshAll;
+            _machine = machine;
+            _machine.OnBufferChanged += RefreshAll;
 
             uiPanel.SetActive(true);
-            if (machineTitleText != null)
-                machineTitleText.text = machineName;
+            if (machineTitleText != null) machineTitleText.text = title;
 
-            BuildRecipeUI();
-            RefreshBufferUI();
+            BuildRecipes();
+            RefreshAll();
         }
 
         public void Close()
         {
-            if (_machine != null)
-                _machine.OnBufferChanged -= RefreshBufferUI;
-
+            if (_machine != null) _machine.OnBufferChanged -= RefreshAll;
             _machine = null;
             uiPanel.SetActive(false);
         }
 
         // ============================================================
-        // UI 빌드
+        // 레시피 (고정)
         // ============================================================
 
-        /// <summary>레시피 목록은 고정이므로 한 번만 생성</summary>
-        private void BuildRecipeUI()
+        private void BuildRecipes()
         {
-            foreach (var go in _recipeWidgets) Destroy(go);
-            _recipeWidgets.Clear();
+            foreach (var g in _recipeW) Destroy(g);
+            _recipeW.Clear();
+            if (recipeParent == null || recipeRowPrefab == null || _machine == null) return;
 
-            if (recipeParent == null || recipeRowPrefab == null) return;
-
-            foreach (var recipe in _machine.Recipes)
+            foreach (var r in _machine.Recipes)
             {
-                var row = Instantiate(recipeRowPrefab, recipeParent);
-                _recipeWidgets.Add(row);
-
-                if (row.TryGetComponent<MachineRecipeRow>(out var r))
-                    r.Setup(recipe);
+                var go = Instantiate(recipeRowPrefab, recipeParent);
+                _recipeW.Add(go);
+                go.GetComponent<MachineRecipeRow>()?.Setup(r);
             }
         }
 
-        /// <summary>버퍼 변경 시마다 호출 — 입력/출력 슬롯 갱신</summary>
-        private void RefreshBufferUI()
+        // ============================================================
+        // 버퍼 갱신
+        // ============================================================
+
+        private void RefreshAll()
         {
-            RefreshSlots(_machine.InputBuffer.Stock,  inputSlotParent,  _inputWidgets,  false);
-            RefreshSlots(_machine.OutputBuffer.Stock, outputSlotParent, _outputWidgets, true);
+            BuildMachineSlots(_machine.InputBuffer.Stock,  inputSlotParent,  _inputW,  isOutput: false);
+            BuildMachineSlots(_machine.OutputBuffer.Stock, outputSlotParent, _outputW, isOutput: true);
+            BuildInventorySlots();
         }
 
-        private void RefreshSlots(
-            System.Collections.Generic.IReadOnlyDictionary<int, int> stock,
+        // ── 설비 슬롯 ───────────────────────────────────────────────
+        private void BuildMachineSlots(
+            IReadOnlyDictionary<int, int> stock,
             Transform parent,
             List<GameObject> pool,
             bool isOutput)
         {
             if (parent == null || slotPrefab == null) return;
-
-            // 기존 위젯 제거
-            foreach (var go in pool) Destroy(go);
+            foreach (var g in pool) Destroy(g);
             pool.Clear();
 
             foreach (var kv in stock)
             {
                 if (kv.Value <= 0) continue;
-
                 var go = Instantiate(slotPrefab, parent);
                 pool.Add(go);
 
-                if (go.TryGetComponent<MachineSlotWidget>(out var w))
-                {
-                    w.Setup(kv.Key, kv.Value);
+                if (!go.TryGetComponent<MachineSlotWidget>(out var w)) continue;
+                w.Setup(kv.Key, kv.Value);
 
-                    // 출력 슬롯이면 클릭 시 인벤토리로 회수
-                    if (isOutput)
-                    {
-                        int capturedId     = kv.Key;
-                        int capturedAmount = kv.Value;
-                        w.SetClickAction(() => TakeOutput(capturedId, capturedAmount));
-                    }
-                    else
-                    {
-                        w.SetClickAction(null);
-                    }
-                }
+                int id = kv.Key, amt = kv.Value;
+                if (isOutput)
+                    w.SetDoubleClickAction(() => TakeOutput(id, amt));
+                else
+                    w.SetDoubleClickAction(() => ReturnInput(id, amt));
+            }
+        }
+
+        // ── 인벤토리 슬롯 ───────────────────────────────────────────
+        private void BuildInventorySlots()
+        {
+            if (inventorySlotParent == null || slotPrefab == null || playerInventory == null) return;
+            foreach (var g in _invW) Destroy(g);
+            _invW.Clear();
+
+            if (DataManager.Instance == null) return;
+
+            // DataManager에서 전체 아이템 목록 순회
+            // GetAllItems() 는 팀원 DataManager의 공개 메서드명에 맞게 수정
+            var allItems = DataManager.Instance.itemDB?.allItems;
+            if (allItems == null) return;
+
+            foreach (var item in allItems)
+            {
+                int total = playerInventory.GetTotalItemCount(item.id);
+                if (total <= 0) continue;
+
+                var go = Instantiate(slotPrefab, inventorySlotParent);
+                _invW.Add(go);
+                if (!go.TryGetComponent<MachineSlotWidget>(out var w)) continue;
+
+                w.Setup(item.id, total);
+                int cId = item.id, cAmt = total;
+                w.SetClickAction(       () => InsertOne(cId));
+                w.SetDoubleClickAction( () => InsertAll(cId, cAmt));
             }
         }
 
         // ============================================================
-        // 매 프레임: 진행 바 + 상태 텍스트 갱신
+        // 이동 로직
+        // ============================================================
+
+        // 인벤토리 → 설비 1개
+        private void InsertOne(int itemId)
+        {
+            if (_machine == null || playerInventory == null) return;
+            if (!playerInventory.HasItem(itemId, 1)) return;
+            playerInventory.TryConsumeItem(itemId, 1);
+            playerInventory.ForceRefreshUI();
+            _machine.Receive(itemId, 1);
+            BuildInventorySlots();
+        }
+
+        // 인벤토리 → 설비 전량
+        private void InsertAll(int itemId, int amount)
+        {
+            if (_machine == null || playerInventory == null) return;
+            int actual = Mathf.Min(amount, playerInventory.GetTotalItemCount(itemId));
+            if (actual <= 0) return;
+            playerInventory.TryConsumeItem(itemId, actual);
+            playerInventory.ForceRefreshUI();
+            _machine.Receive(itemId, actual);
+            BuildInventorySlots();
+        }
+
+        // 설비 입력 버퍼 → 인벤토리 반환
+        private void ReturnInput(int itemId, int amount)
+        {
+            if (_machine == null || playerInventory == null) return;
+            if (_machine.Status == MachineStatus.Processing)
+            {
+                Debug.Log("[MachineUI] 가공 중에는 재료를 꺼낼 수 없습니다");
+                return;
+            }
+            if (!_machine.InputBuffer.Consume(itemId, amount)) return;
+            _machine.PublicNotifyBufferChanged();
+            playerInventory.AddItem(itemId, amount);
+            playerInventory.ForceRefreshUI();
+            BuildInventorySlots();
+        }
+
+        // 출력 버퍼 → 인벤토리
+        private void TakeOutput(int itemId, int amount)
+        {
+            if (_machine == null || playerInventory == null) return;
+            if (!_machine.TryTakeOutput(itemId, amount)) return;
+            playerInventory.AddItem(itemId, amount);
+            playerInventory.ForceRefreshUI();
+            BuildInventorySlots();
+        }
+
+        // ============================================================
+        // Update: 진행 바
         // ============================================================
 
         private void Update()
         {
             if (_machine == null || !uiPanel.activeSelf) return;
 
-            // 진행 바
             if (progressBar != null)
                 progressBar.value = _machine.Progress;
 
-            // 상태 텍스트
             if (statusText != null)
             {
+                string outName = "";
+                if (_machine.ActiveRecipe != null && _machine.ActiveRecipe.outputs?.Length > 0)
+                {
+                    var item = DataManager.Instance?.GetItem(_machine.ActiveRecipe.outputs[0].itemId);
+                    outName  = item != null ? $"\n→ {item.itemName}" : "";
+                }
+
                 statusText.text = _machine.Status switch
                 {
-                    MachineStatus.Idle         => "대기 중",
-                    MachineStatus.Processing   =>
-                        $"제작 중... {(_machine.Progress * 100f):F0}%"
-                        + (_machine.ActiveRecipe != null
-                            ? $"\n→ {GetOutputName(_machine.ActiveRecipe)}"
-                            : ""),
-                    MachineStatus.OutputReady  => "완료 — 클릭해서 회수",
+                    MachineStatus.Idle        => "재료를 투입하세요",
+                    MachineStatus.Processing  => $"제작 중 {(_machine.Progress * 100f):F0}%{outName}",
+                    MachineStatus.OutputReady => "완료 — 더블클릭으로 회수",
                     MachineStatus.Disconnected => "벨트 미연결",
                     _                          => ""
                 };
             }
         }
 
-        // ============================================================
-        // 버튼: 인벤토리에서 재료 꺼내 설비에 투입
-        // ============================================================
-
-        /// <summary>
-        /// UI 버튼에 연결.
-        /// itemId와 amount를 Inspector에서 받거나 별도 InputField로 받아서 호출.
-        /// </summary>
         public void AddItemFromInventory(int itemId, int amount)
         {
-            if (_machine == null || playerInventory == null) return;
-
-            if (!playerInventory.HasItem(itemId, amount))
-            {
-                Debug.Log($"[MachineUI] 인벤토리에 아이템 부족 (ID:{itemId})");
-                return;
-            }
-
-            playerInventory.TryConsumeItem(itemId, amount);
-            playerInventory.ForceRefreshUI();
-            _machine.Receive(itemId, amount);
-        }
-
-        // ============================================================
-        // 출력 슬롯 클릭 → 인벤토리 회수
-        // ============================================================
-
-        private void TakeOutput(int itemId, int amount)
-        {
-            if (_machine == null || playerInventory == null) return;
-
-            if (_machine.TryTakeOutput(itemId, amount))
-            {
-                playerInventory.AddItem(itemId, amount);
-                playerInventory.ForceRefreshUI();
-                Debug.Log($"[MachineUI] 회수: ID {itemId} x{amount} → 인벤토리");
-            }
-        }
-
-        // ── 유틸 ────────────────────────────────────────────────────
-
-        private string GetOutputName(FactoryRecipe recipe)
-        {
-            if (recipe.outputs == null || recipe.outputs.Length == 0) return "";
-            var item = DataManager.Instance?.GetItem(recipe.outputs[0].itemId);
-            return item != null ? item.itemName : recipe.outputs[0].itemId.ToString();
+            InsertAll(itemId, amount);
         }
     }
+
 }
