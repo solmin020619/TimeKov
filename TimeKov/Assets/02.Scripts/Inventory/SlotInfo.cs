@@ -231,4 +231,9 @@ public class SlotInfo : MonoBehaviour
         Debug.Log("아이템 설명 :" + item.description);
         Debug.Log("아이콘 키 :" + item.iconKey);
     }
+
+    public bool IsEmpty()
+    {
+        return slotIndex == 0 || itemCount <= 0;
+    }
 }

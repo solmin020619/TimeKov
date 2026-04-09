@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
+public class SlotInputHandler : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Double Click")]
     public float doubleClickTime = 0.25f;
@@ -72,6 +72,19 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
         return null;
     }
 
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (slot == null) return;
+        if (slot.slotIndex == 0 || slot.itemCount <= 0) return;
+
+        ItemTooltipUI.Instance?.Show(slot);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        ItemTooltipUI.Instance?.Hide();
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (slot == null)
@@ -94,6 +107,8 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
         ResolveMenu();
         if (menu == null)
             return;
+
+        ItemTooltipUI.Instance?.Hide();
 
         if (slot.ownerType == SlotInfo.SlotOwnerType.Warehouse)
         {
@@ -143,6 +158,9 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
         if (slot == null || slot.slotIndex == 0)
             return;
 
+        ItemTooltipUI.Instance?.Hide();
+
+        // 인벤 / 창고
         if (slot.ownerType == SlotInfo.SlotOwnerType.Inventory ||
             slot.ownerType == SlotInfo.SlotOwnerType.Warehouse)
         {
@@ -154,6 +172,7 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
             return;
         }
 
+        // 장비
         if (slot.ownerType == SlotInfo.SlotOwnerType.Equip)
         {
             ResolveEquipmentManager();
@@ -161,6 +180,28 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
                 return;
 
             equipmentManager.UnequipToInventory(slot);
+            return;
+        }
+
+        // 루트(시체/상자)
+        if (slot.ownerType == SlotInfo.SlotOwnerType.Loot)
+        {
+            InventoryManager playerInv = ResolvePlayerOwnerManager();
+            if (playerInv == null)
+                return;
+
+            int remaining = playerInv.TryAddItemFromLoot(slot.slotIndex, slot.itemCount);
+            int added = slot.itemCount - remaining;
+
+            if (added <= 0)
+                return;
+
+            if (remaining > 0)
+                slot.SetSlot(slot.slotIndex, remaining);
+            else
+                slot.SetSlot(0, 0);
+
+            return;
         }
     }
 }

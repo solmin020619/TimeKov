@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
-using UnityEngine;
 using TMPro;
+using UnityEngine;
+using static UIStateManager;
 
 public class InventoryManager : MonoBehaviour
 {
@@ -95,7 +96,7 @@ public class InventoryManager : MonoBehaviour
                     : SlotInfo.SlotOwnerType.Warehouse;
 
                 newSlotScript.SetSlot(0, 0);
-                newSlotScript.gameObject.SetActive(false);
+                newSlotScript.gameObject.SetActive(true);
             }
 
             SlotInputHandler input = newSlot.GetComponent<SlotInputHandler>();
@@ -249,7 +250,7 @@ public class InventoryManager : MonoBehaviour
         if (UIStateManager.Instance != null)
         {
             var state = UIStateManager.Instance.GetCurrentState();
-            if (state != UIStateManager.UIState.Inventory) return;
+            if (state != UIState.Inventory && state != UIState.Loot) return;
             if (UIStateManager.Instance.enableWarehouseInInventory == false) return;
         }
 
@@ -405,7 +406,7 @@ public class InventoryManager : MonoBehaviour
                         : SlotInfo.SlotOwnerType.Warehouse;
 
                     newSlotScript.SetSlot(0, 0);
-                    newSlotScript.gameObject.SetActive(false);
+                    newSlotScript.gameObject.SetActive(true);
                 }
 
                 SlotInputHandler input = newSlot.GetComponent<SlotInputHandler>();
@@ -433,9 +434,10 @@ public class InventoryManager : MonoBehaviour
             var s = SlotData[i];
             if (s == null) continue;
 
-            bool shouldShow = (s.slotIndex != 0 && s.itemCount > 0);
-            if (s.gameObject.activeSelf != shouldShow)
-                s.gameObject.SetActive(shouldShow);
+            if (!s.gameObject.activeSelf)
+                s.gameObject.SetActive(true);
+
+            s.SetSlot(s.slotIndex, s.itemCount);
         }
 
         RefreshInventoryCountText();
