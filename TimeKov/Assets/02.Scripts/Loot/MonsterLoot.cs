@@ -1,110 +1,147 @@
 ﻿using System.Collections.Generic;
+using UnityEngine.SceneManagement;
+using System.Linq;
 using UnityEngine;
 
 public class MonsterLoot : MonoBehaviour
 {
-    [Header("Drop Key")]
-    public string monsterType = "MeleeBot_Ghoul";
-
-    [Header("Drop Source")]
+    [Header("Drop Info")]
+    public string monsterType;
     public string sourceType = "monster";
-
-    [Header("Drop Tier")]
     public int dropTier = 0;
 
     [Header("UI")]
-    public Transform lootContentTransform;
-    public GameObject lootSlotPrefab;
-    public GameObject playerInventoryManagerGO;
+    [SerializeField] private GameObject lootSlotPrefab;
 
-    private bool _rolled = false;
+    private RectTransform _content;
+    private GameObject _lootPanel;
 
-    private readonly List<LootStack> _rolledLoot = new List<LootStack>(32);
-    private readonly List<GetItem> _spawnedLootSlots = new List<GetItem>(32);
+    private List<GameObject> _spawnedSlots = new List<GameObject>();
+    private List<LootData> _rolledLoot = new List<LootData>();
 
-    [System.Serializable]
-    private struct LootStack
+
+    public class LootData
     {
         public int itemId;
         public int count;
 
-        public LootStack(int id, int c)
+        public LootData(int id, int cnt)
         {
             itemId = id;
-            count = c;
+            count = cnt;
         }
+    }
+
+    void Awake()
+    {
+        FindUI();
+    }
+
+    void FindUI()
+    {
+        var all = Resources.FindObjectsOfTypeAll<Transform>();
+
+        var inventory = all.FirstOrDefault(t => t.name == "Inventory");
+        if (inventory == null)
+        {
+            Debug.LogError("Inventory 없음");
+            return;
+        }
+
+        var panel = inventory.Find("RightPanel/LootPanel");
+        if (panel == null)
+        {
+            Debug.LogError("LootPanel 못찾음");
+            return;
+        }
+
+        _lootPanel = panel.gameObject;
+
+        var content = panel.Find("Scroll View/Viewport/Content");
+        if (content == null)
+        {
+            Debug.LogError("Content 못찾음");
+            return;
+        }
+
+        _content = content.GetComponent<RectTransform>();
     }
 
     public void Open()
     {
+        if (_content == null || _lootPanel == null)
+        {
+            FindUI();
+            if (_content == null) return;
+        }
+
+       
+        if (UIStateManager.Instance != null &&
+            UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Loot)
+        {
+            UIStateManager.Instance.SetState(UIStateManager.UIState.None);
+            return;
+        }
+
         EnsureDataStoreLoaded();
 
-        if (UIStateManager.Instance != null)
-        {
-            RightPanelController rpc = Object.FindFirstObjectByType<RightPanelController>();
-
-            if (rpc != null)
-                rpc.ShowPanel(RightPanelController.PanelType.Loot);
-
-            UIStateManager.Instance.SetState(UIStateManager.UIState.Loot);
-        }
-
-        if (!_rolled)
-        {
-            List<DropRow> rows = GetDropRowsForMonster();
-            if (rows == null || rows.Count == 0)
-            {
-                Debug.LogWarning($"[MonsterLoot] drop rows empty: {monsterType}");
-                return;
-            }
-
-            RollAndFill(rows);
-            _rolled = true;
-        }
-        else
-        {
-            FillSlotsFromCache();
-        }
-    }
-
-    private List<DropRow> GetDropRowsForMonster()
-    {
-        List<DropRow> best = null;
-
-        foreach (var kv in DataStore.DropRowsByDropId)
-        {
-            var rows = kv.Value;
-            if (rows == null || rows.Count == 0) continue;
-
-            var head = rows[0];
-
-
-            if (!head.sourceType.Equals(sourceType, System.StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            if (!head.sourceId.Equals(monsterType, System.StringComparison.OrdinalIgnoreCase))
-                continue;
-
-
-            if (head.dropTier != dropTier)
-            {
-
-                if (dropTier != 0)
-                    continue;
-            }
-
-
-            return new List<DropRow>(rows);
-        }
-
-        Debug.LogWarning($"[MonsterLoot] drop rows not found: {sourceType}, {monsterType}, tier:{dropTier}");
-        return null;
-    }
-
-    private void RollAndFill(List<DropRow> rows)
-    {
-        ClearSpawnedSlots();
+        ClearSlots();
         _rolledLoot.Clear();
+
+        RollLoot();
+        BuildSlots();
+
+        if (UIStateManager.Instance != null)
+            UIStateManager.Instance.ToggleLoot(_lootPanel);
+        else
+            _lootPanel.SetActive(true);
+    }
+
+    public void Close()
+    {
+        if (UIStateManager.Instance != null)
+            UIStateManager.Instance.SetState(UIStateManager.UIState.None);
+        else if (_lootPanel != null)
+            _lootPanel.SetActive(false);
+
+        ClearSlots();
+    }
+
+    void BuildSlots()
+    {
+        foreach (var data in _rolledLoot)
+        {
+            GameObject slot = Instantiate(lootSlotPrefab, _content);
+
+            var slotInfo = slot.GetComponent<SlotInfo>();
+            if (slotInfo != null)
+            {
+                slotInfo.ownerType = SlotInfo.SlotOwnerType.Loot;
+                slotInfo.SetSlot(data.itemId, data.count);
+            }
+
+            _spawnedSlots.Add(slot);
+        }
+    }
+
+    void ClearSlots()
+    {
+        if (_content == null) return;
+
+        for (int i = _content.childCount - 1; i >= 0; i--)
+        {
+            Destroy(_content.GetChild(i).gameObject);
+        }
+
+        _spawnedSlots.Clear();
+    }
+
+    void RollLoot()
+    {
+        var rows = GetMatchedDropRows();
+
+        if (rows == null || rows.Count == 0)
+            return;
 
         int pickCount = Mathf.Max(1, rows[0].pickCount);
         List<DropRow> pool = new List<DropRow>(rows);
@@ -113,83 +150,41 @@ public class MonsterLoot : MonoBehaviour
         {
             if (pool.Count == 0) break;
 
-            int index = PickWeightedIndex(pool);
-            if (index < 0) break;
+            int index = Random.Range(0, pool.Count);
+            var picked = pool[index];
 
-            DropRow picked = pool[index];
+            int count = Random.Range(picked.minCount, picked.maxCount + 1);
+            _rolledLoot.Add(new LootData(picked.itemId, count));
 
-            int min = Mathf.Max(1, picked.minCount);
-            int max = Mathf.Max(min, picked.maxCount);
-            int count = Random.Range(min, max + 1);
-
-            _rolledLoot.Add(new LootStack(picked.itemId, count));
             pool.RemoveAt(index);
         }
-
-        BuildSlots();
     }
 
-    private void BuildSlots()
+    List<DropRow> GetMatchedDropRows()
     {
-        ClearSpawnedSlots();
-
-        for (int i = 0; i < _rolledLoot.Count; i++)
+        foreach (var kv in DataStore.DropRowsByDropId)
         {
-            GameObject go = Instantiate(lootSlotPrefab, lootContentTransform);
-            GetItem slot = go.GetComponent<GetItem>();
+            var rows = kv.Value;
+            if (rows == null || rows.Count == 0) continue;
 
-            if (slot == null)
-            {
-                Debug.LogError("GetItem 없음");
-                Destroy(go);
+            var head = rows[0];
+
+            if (!head.sourceType.Equals(sourceType, System.StringComparison.OrdinalIgnoreCase))
                 continue;
-            }
 
-            slot.SetData(playerInventoryManagerGO,
-                _rolledLoot[i].itemId,
-                _rolledLoot[i].count);
+            if (!head.sourceId.Equals(monsterType, System.StringComparison.OrdinalIgnoreCase))
+                continue;
 
-            _spawnedLootSlots.Add(slot);
-        }
-    }
+            if (head.dropTier != dropTier)
+                continue;
 
-    private void FillSlotsFromCache()
-    {
-        BuildSlots();
-    }
-
-    private void ClearSpawnedSlots()
-    {
-        foreach (var s in _spawnedLootSlots)
-        {
-            if (s != null)
-                Destroy(s.gameObject);
+            return new List<DropRow>(rows);
         }
 
-        _spawnedLootSlots.Clear();
+        return null;
     }
 
-    private int PickWeightedIndex(List<DropRow> entries)
-    {
-        float sum = 0f;
-        foreach (var e in entries)
-            sum += Mathf.Max(0f, e.dropWeight);
-
-        if (sum <= 0f) return -1;
-
-        float r = Random.value * sum;
-        float acc = 0f;
-
-        for (int i = 0; i < entries.Count; i++)
-        {
-            acc += Mathf.Max(0f, entries[i].dropWeight);
-            if (r <= acc) return i;
-        }
-
-        return entries.Count - 1;
-    }
-
-    private void EnsureDataStoreLoaded()
+    void EnsureDataStoreLoaded()
     {
         if (!DataStore.IsLoaded)
             DataStore.LoadAll();

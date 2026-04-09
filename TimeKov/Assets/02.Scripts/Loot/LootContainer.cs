@@ -18,7 +18,6 @@ public class LootContainer : MonoBehaviour
     private List<GameObject> _spawnedSlots = new List<GameObject>();
     private List<LootData> _rolledLoot = new List<LootData>();
 
-    private bool _isOpened = false;
 
     public class LootData
     {
@@ -34,39 +33,34 @@ public class LootContainer : MonoBehaviour
 
     public void Open()
     {
-        if (_isOpened)
+       
+        if (UIStateManager.Instance != null &&
+            UIStateManager.Instance.GetCurrentState() == UIStateManager.UIState.Loot)
         {
-            Close();
+            UIStateManager.Instance.SetState(UIStateManager.UIState.None);
             return;
         }
+
+  
+        _rolledLoot.Clear();
 
         RollLoot();
         BuildSlotsFromRolledLoot();
 
         if (UIStateManager.Instance != null)
-        {
             UIStateManager.Instance.ToggleLoot(lootPanelRoot);
-        }
         else
-        {
             lootPanelRoot.SetActive(true);
-        }
-
-        _isOpened = true;
     }
 
     public void Close()
     {
         if (UIStateManager.Instance != null)
-        {
             UIStateManager.Instance.SetState(UIStateManager.UIState.None);
-        }
         else
-        {
             lootPanelRoot.SetActive(false);
-        }
 
-        _isOpened = false;
+        ClearSlots();
     }
 
     private void RollLoot()
@@ -114,19 +108,20 @@ public class LootContainer : MonoBehaviour
         }
     }
 
-  
+
     private void ClearSlots()
     {
-        foreach (var slot in _spawnedSlots)
+        if (lootContentTransform == null) return;
+
+        for (int i = lootContentTransform.childCount - 1; i >= 0; i--)
         {
-            if (slot != null)
-                Destroy(slot);
+            Destroy(lootContentTransform.GetChild(i).gameObject);
         }
 
         _spawnedSlots.Clear();
     }
 
-   
+
     public void NotifyLootChanged()
     {
         BuildSlotsFromRolledLoot();

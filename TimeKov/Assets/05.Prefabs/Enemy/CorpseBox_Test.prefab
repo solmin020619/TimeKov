@@ -1,5 +1,91 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3458651578604629398
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2644820131789862700}
+  - component: {fileID: 1376855124654028937}
+  - component: {fileID: 3818882304759893059}
+  m_Layer: 0
+  m_Name: gravestone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2644820131789862700
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3458651578604629398}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.00000003774895, y: 0, z: -0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: 0}
+  m_LocalScale: {x: 100, y: 100, z: 100}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5843857666986279976}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1376855124654028937
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3458651578604629398}
+  m_Mesh: {fileID: -8143485959275845568, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+--- !u!23 &3818882304759893059
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3458651578604629398}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: -6478536213147159724, guid: e1014a52d56eada458d88950c7727af2, type: 3}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &4058803597381055991
 GameObject:
   m_ObjectHideFlags: 0
@@ -143,87 +229,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f96558f6cdb3929438e5ff0317c2cfd8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  monsterType: Chaser
-  tableId: C_T1
-  T1: 50
-  T2: 35
-  T3: 15
-  T4: 0
-  T5: 0
-  maxTier: 5
-  minRoll: 1
-  maxRoll: 2
-  dropDb: {fileID: 11400000, guid: 6846a803c51eae9409bdfef1ccefbf8e, type: 2}
-  itemDb: {fileID: 11400000, guid: c44a939f214fdd64d9c43daa9171f0ac, type: 2}
-  lootPanelRoot: {fileID: 0}
-  lootSlots:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  playerInventoryManagerGO: {fileID: 0}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
---- !u!1001 &2539731779210678471
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 5843857666986279976}
-    m_Modifications:
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0.00000003774895
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 919132149155446097, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-      propertyPath: m_Name
-      value: gravestone
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: e1014a52d56eada458d88950c7727af2, type: 3}
---- !u!4 &2644820131789862700 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e1014a52d56eada458d88950c7727af2, type: 3}
-  m_PrefabInstance: {fileID: 2539731779210678471}
-  m_PrefabAsset: {fileID: 0}
+  monsterType: MeleeBot_Ghoul
+  sourceType: monster
+  dropTier: 0
+  lootPanelRoot: {fileID: 7892595545364533339, guid: 67671407416822448bfd4bdb868cef2e, type: 3}
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 3004623949922908827, guid: afeca97fa3b535c46aaa2763215612ac, type: 3}
