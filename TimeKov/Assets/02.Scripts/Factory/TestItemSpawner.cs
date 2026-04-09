@@ -7,33 +7,31 @@ public class TestItemSpawner : MonoBehaviour
     [System.Serializable]
     public struct SpawnInfo
     {
-        [Tooltip("ÆÄ½ÌµÈ µ¥ÀÌÅÍÀÇ ¾ÆÀÌÅÛ ID (¿¹: 5104)")]
+        [Tooltip("íŒŒì‹±ëœ ì•„ì´í…œ ID (ì˜ˆ: 4104)")]
         public int itemID;
         public int amount;
     }
 
-    [Header("½ÃÀÛ ½Ã Áö±ŞÇÒ ¾ÆÀÌÅÛ ¸ñ·Ï")]
+    [Header("ì§€ê¸‰í•  ì•„ì´í…œ ëª©ë¡")]
     public List<SpawnInfo> startItems = new List<SpawnInfo>();
 
-    [Header("ÀÎº¥Åä¸® ½Ã½ºÅÛ ¿¬°á")]
+    [Header("ì¸ë²¤í† ë¦¬ ì—°ê²°")]
     public InventoryManager inventoryManager;
 
-    [Header("´ÜÃàÅ° Áö±Ş (¼±ÅÃ)")]
+    [Header("ì¬ì§€ê¸‰ ë‹¨ì¶•í‚¤")]
     public KeyCode debugKey = KeyCode.F12;
 
     private void Start()
     {
         if (startItems.Count > 0)
-        {
             StartCoroutine(GiveItemsRoutine());
-        }
     }
 
     private void Update()
     {
         if (Input.GetKeyDown(debugKey))
         {
-            Debug.Log("<color=cyan>[TestSpawner]</color> F12 Å° ´­¸² ÀÎ½ÄµÊ!");
+            Debug.Log("<color=cyan>[TestSpawner]</color> ì¬ì§€ê¸‰ í‚¤ ì…ë ¥!");
             StartCoroutine(GiveItemsRoutine());
         }
     }
@@ -42,32 +40,32 @@ public class TestItemSpawner : MonoBehaviour
     {
         if (startItems.Count == 0)
         {
-            Debug.LogError("<color=red>[TestSpawner]</color> ÀÎ½ºÆåÅÍ¿¡ Start Items°¡ ÇÏ³ªµµ µî·ÏµÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogError("[TestSpawner] Start Itemsê°€ ë¹„ì–´ìˆìŠµë‹ˆë‹¤");
             yield break;
         }
-
-        Debug.Log($"<color=yellow>[TestSpawner]</color> µ¥ÀÌÅÍ ·Îµù ´ë±â ½ÃÀÛ... (Ã£´Â ID: {startItems[0].itemID})");
-
-        // ¿©±â¼­ ¸·ÇôÀÖÀ» È®·üÀÌ °¡Àå ³ô½À´Ï´Ù!
-        yield return new WaitUntil(() => DataManager.Instance != null && DataManager.Instance.GetItem(startItems[0].itemID) != null);
-
-        Debug.Log("<color=yellow>[TestSpawner]</color> µ¥ÀÌÅÍ ·Îµù ¿Ï·á! ÀÎº¥Åä¸® ³Ö±â ½Ãµµ...");
 
         if (inventoryManager == null)
         {
-            Debug.LogError("<color=red>[TestSpawner]</color> InventoryManager°¡ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogError("[TestSpawner] InventoryManagerê°€ ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤");
             yield break;
         }
+
+        // DataStore ë¡œë“œ ì™„ë£Œ ëŒ€ê¸°
+        yield return new WaitUntil(() => DataStore.IsLoaded);
 
         inventoryManager.CreateSlots();
 
         foreach (var info in startItems)
         {
-            var itemData = DataManager.Instance.GetItem(info.itemID);
-            if (itemData != null)
+            var row = DataStore.GetItem(info.itemID);
+            if (row != null)
             {
                 inventoryManager.AddItem(info.itemID, info.amount);
-                Debug.Log($"<color=green>[TestSpawner]</color> {itemData.itemName}(ID:{info.itemID}) {info.amount}°³ Áö±Ş ¿Ï·á!");
+                Debug.Log($"<color=green>[TestSpawner]</color> {row.itemName}(ID:{info.itemID}) {info.amount}ê°œ ì§€ê¸‰ ì™„ë£Œ");
+            }
+            else
+            {
+                Debug.LogWarning($"[TestSpawner] ID:{info.itemID} â€” DataStoreì— ì—†ëŠ” ì•„ì´í…œ");
             }
         }
 

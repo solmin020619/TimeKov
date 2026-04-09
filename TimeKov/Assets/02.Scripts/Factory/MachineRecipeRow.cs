@@ -1,9 +1,3 @@
-// =====================================================================
-// MachineRecipeRow.cs
-// MachineUI 레시피 영역에 조합식 한 줄을 표시하는 위젯.
-// 재료 아이콘들 → [화살표] → 결과물 아이콘들 형태로 표시.
-// =====================================================================
-
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -37,9 +31,7 @@ namespace TIMEKOV.Factory
         {
             if (parent == null || iconSlotPrefab == null || slots == null) return;
 
-            // 기존 자식 제거
-            foreach (Transform child in parent)
-                Destroy(child.gameObject);
+            foreach (Transform child in parent) Destroy(child.gameObject);
 
             foreach (var slot in slots)
             {
@@ -47,7 +39,9 @@ namespace TIMEKOV.Factory
                 var icon = go.GetComponentInChildren<Image>();
                 var text = go.GetComponentInChildren<TextMeshProUGUI>();
 
-                var sprite = Resources.Load<Sprite>("Icon/" + slot.itemId);
+                var row    = DataStore.GetItem(slot.itemId);
+                var sprite = row != null ? Resources.Load<Sprite>("Icon/" + row.iconKey) : null;
+
                 if (icon != null)
                 {
                     icon.sprite  = sprite;
@@ -56,9 +50,8 @@ namespace TIMEKOV.Factory
 
                 if (text != null)
                 {
-                    var item  = DataManager.Instance?.GetItem(slot.itemId);
-                    string nm = item != null ? item.itemName : slot.itemId.ToString();
-                    text.text = slot.amount > 1 ? $"{nm}\nx{slot.amount}" : nm;
+                    string nm = row?.itemName ?? slot.itemId.ToString();
+                    text.text  = slot.amount > 1 ? $"{nm}\nx{slot.amount}" : nm;
                 }
             }
         }

@@ -1,15 +1,3 @@
-// =====================================================================
-// MachineUI.cs
-//
-// F키로 열리는 설비 UI. 구성:
-//  [설비 이름]
-//  [설비 내부 입력] — 더블클릭 → 인벤토리 반환
-//  [레시피]
-//  [출력 슬롯]     — 더블클릭 → 인벤토리 회수
-//  [진행 바 + 상태]
-//  [인벤토리]      — 클릭 1개 투입 / 더블클릭 전체 투입
-// =====================================================================
-
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -29,31 +17,31 @@ namespace TIMEKOV.Factory
         public Transform inputSlotParent;
 
         [Header("레시피 부모")]
-        public Transform recipeParent;
+        public Transform  recipeParent;
         public GameObject recipeRowPrefab;
 
         [Header("출력 슬롯 부모")]
         public Transform outputSlotParent;
 
-        [Header("진행")]
+        [Header("진행 바 / 상태 텍스트")]
         public Slider          progressBar;
         public TextMeshProUGUI statusText;
 
         [Header("인벤토리 슬롯 부모 (UI 하단)")]
         public Transform inventorySlotParent;
 
-        [Header("슬롯 프리팹")]
+        [Header("슬롯 프리팹 (MachineSlotWidget)")]
         public GameObject slotPrefab;
 
         [Header("플레이어 인벤토리")]
         public InventoryManager playerInventory;
 
         // ── 내부 ────────────────────────────────────────────────────
-        private ProcessingMachine _machine;
-        private readonly List<GameObject> _inputW  = new();
-        private readonly List<GameObject> _outputW = new();
-        private readonly List<GameObject> _recipeW = new();
-        private readonly List<GameObject> _invW    = new();
+        private ProcessingMachine          _machine;
+        private readonly List<GameObject>  _inputW  = new();
+        private readonly List<GameObject>  _outputW = new();
+        private readonly List<GameObject>  _recipeW = new();
+        private readonly List<GameObject>  _invW    = new();
 
         // ============================================================
         // 공개 API
@@ -79,8 +67,10 @@ namespace TIMEKOV.Factory
             uiPanel.SetActive(false);
         }
 
+        public void AddItemFromInventory(int itemId, int amount) => InsertAll(itemId, amount);
+
         // ============================================================
-        // 레시피 (고정)
+        // 레시피 (고정 — 열 때 한 번만 생성)
         // ============================================================
 
         private void BuildRecipes()
@@ -108,7 +98,7 @@ namespace TIMEKOV.Factory
             BuildInventorySlots();
         }
 
-        // ── 설비 슬롯 ───────────────────────────────────────────────
+        // ── 설비 내부 슬롯 ──────────────────────────────────────────
         private void BuildMachineSlots(
             IReadOnlyDictionary<int, int> stock,
             Transform parent,
@@ -124,10 +114,9 @@ namespace TIMEKOV.Factory
                 if (kv.Value <= 0) continue;
                 var go = Instantiate(slotPrefab, parent);
                 pool.Add(go);
-
                 if (!go.TryGetComponent<MachineSlotWidget>(out var w)) continue;
-                w.Setup(kv.Key, kv.Value);
 
+                w.Setup(kv.Key, kv.Value);
                 int id = kv.Key, amt = kv.Value;
                 if (isOutput)
                     w.SetDoubleClickAction(() => TakeOutput(id, amt));
@@ -136,33 +125,29 @@ namespace TIMEKOV.Factory
             }
         }
 
-        // ── 인벤토리 슬롯 ───────────────────────────────────────────
+        // ── 인벤토리 슬롯 (DataStore.ItemById 순회) ──────────────────
         private void BuildInventorySlots()
         {
             if (inventorySlotParent == null || slotPrefab == null || playerInventory == null) return;
             foreach (var g in _invW) Destroy(g);
             _invW.Clear();
 
-            if (DataManager.Instance == null) return;
+            if (!DataStore.IsLoaded) return;
 
-            // DataManager에서 전체 아이템 목록 순회
-            // GetAllItems() 는 팀원 DataManager의 공개 메서드명에 맞게 수정
-            var allItems = DataManager.Instance.itemDB?.allItems;
-            if (allItems == null) return;
-
-            foreach (var item in allItems)
+            foreach (var kv in DataStore.ItemById)
             {
-                int total = playerInventory.GetTotalItemCount(item.id);
+                int id    = kv.Key;
+                int total = playerInventory.GetTotalItemCount(id);
                 if (total <= 0) continue;
 
                 var go = Instantiate(slotPrefab, inventorySlotParent);
                 _invW.Add(go);
                 if (!go.TryGetComponent<MachineSlotWidget>(out var w)) continue;
 
-                w.Setup(item.id, total);
-                int cId = item.id, cAmt = total;
-                w.SetClickAction(       () => InsertOne(cId));
-                w.SetDoubleClickAction( () => InsertAll(cId, cAmt));
+                w.Setup(id, total);
+                int cId = id, cAmt = total;
+                w.SetClickAction(      () => InsertOne(cId));
+                w.SetDoubleClickAction(() => InsertAll(cId, cAmt));
             }
         }
 
@@ -193,7 +178,7 @@ namespace TIMEKOV.Factory
             BuildInventorySlots();
         }
 
-        // 설비 입력 버퍼 → 인벤토리 반환
+        // 설비 입력 버퍼 → 인벤토리 반환 (가공 중엔 불가)
         private void ReturnInput(int itemId, int amount)
         {
             if (_machine == null || playerInventory == null) return;
@@ -220,7 +205,7 @@ namespace TIMEKOV.Factory
         }
 
         // ============================================================
-        // Update: 진행 바
+        // Update: 진행 바 / 상태 텍스트
         // ============================================================
 
         private void Update()
@@ -230,30 +215,24 @@ namespace TIMEKOV.Factory
             if (progressBar != null)
                 progressBar.value = _machine.Progress;
 
-            if (statusText != null)
+            if (statusText == null) return;
+
+            string outName = "";
+            if (_machine.ActiveRecipe != null && _machine.ActiveRecipe.outputs?.Length > 0)
             {
-                string outName = "";
-                if (_machine.ActiveRecipe != null && _machine.ActiveRecipe.outputs?.Length > 0)
-                {
-                    var item = DataManager.Instance?.GetItem(_machine.ActiveRecipe.outputs[0].itemId);
-                    outName  = item != null ? $"\n→ {item.itemName}" : "";
-                }
-
-                statusText.text = _machine.Status switch
-                {
-                    MachineStatus.Idle        => "재료를 투입하세요",
-                    MachineStatus.Processing  => $"제작 중 {(_machine.Progress * 100f):F0}%{outName}",
-                    MachineStatus.OutputReady => "완료 — 더블클릭으로 회수",
-                    MachineStatus.Disconnected => "벨트 미연결",
-                    _                          => ""
-                };
+                int id  = _machine.ActiveRecipe.outputs[0].itemId;
+                var row = DataStore.GetItem(id);
+                outName = row != null ? $"\n→ {row.itemName}" : "";
             }
-        }
 
-        public void AddItemFromInventory(int itemId, int amount)
-        {
-            InsertAll(itemId, amount);
+            statusText.text = _machine.Status switch
+            {
+                MachineStatus.Idle         => "재료를 투입하세요",
+                MachineStatus.Processing   => $"제작 중 {(_machine.Progress * 100f):F0}%{outName}",
+                MachineStatus.OutputReady  => "완료 — 더블클릭으로 회수",
+                MachineStatus.Disconnected => "벨트 미연결",
+                _                          => ""
+            };
         }
     }
-
 }
