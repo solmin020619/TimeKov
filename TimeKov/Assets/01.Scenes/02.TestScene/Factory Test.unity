@@ -319,7 +319,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 126442955}
-  - component: {fileID: 126442956}
   m_Layer: 0
   m_Name: Belt (2)
   m_TagString: Untagged
@@ -345,24 +344,6 @@ Transform:
   - {fileID: 1152301840}
   m_Father: {fileID: 1029704990}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &126442956
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 126442954}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05e5a026479b9cc43926ea0cec23ad69, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  source: {fileID: 0}
-  target: {fileID: 0}
-  beltItemPrefab: {fileID: 5075299125611819207, guid: 9402348c21bf49b428d610184bca87ba, type: 3}
-  spawnPoint: {fileID: 0}
-  endPoint: {fileID: 0}
-  travelTime: 2
 --- !u!1 &182281995
 GameObject:
   m_ObjectHideFlags: 0
@@ -2661,10 +2642,11 @@ MonoBehaviour:
   shopPanel: {fileID: 604896847}
   shopGridContent: {fileID: 1372606260}
   closeButton: {fileID: 0}
-  catalog: {fileID: 11400000, guid: baa4a66b0de440b44a4878886ccaa267, type: 2}
   slotPrefab: {fileID: 3004623949922908827, guid: afeca97fa3b535c46aaa2763215612ac, type: 3}
   playerInventory: {fileID: 2077868438}
   playerMoney: 999999
+  excludeZeroPriceItems: 1
+  sortByItemId: 1
 --- !u!4 &889791390
 Transform:
   m_ObjectHideFlags: 0
@@ -5564,7 +5546,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1527449124}
-  - component: {fileID: 1527449125}
   m_Layer: 0
   m_Name: Belt (1)
   m_TagString: Untagged
@@ -5590,24 +5571,6 @@ Transform:
   - {fileID: 919529720}
   m_Father: {fileID: 1029704990}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1527449125
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1527449123}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05e5a026479b9cc43926ea0cec23ad69, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  source: {fileID: 0}
-  target: {fileID: 0}
-  beltItemPrefab: {fileID: 5075299125611819207, guid: 9402348c21bf49b428d610184bca87ba, type: 3}
-  spawnPoint: {fileID: 0}
-  endPoint: {fileID: 0}
-  travelTime: 2
 --- !u!1 &1646783252
 GameObject:
   m_ObjectHideFlags: 0
@@ -8542,6 +8505,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   outputBelt: {fileID: 0}
+  inputBelt: {fileID: 0}
   recipes:
   - inputs:
     - itemId: 6109
@@ -11083,6 +11047,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   outputBelt: {fileID: 0}
+  inputBelt: {fileID: 0}
   playerInventory: {fileID: 2077868438}
 --- !u!65 &1916487916628779166
 BoxCollider:
@@ -20359,12 +20324,13 @@ MonoBehaviour:
   uiPanel: {fileID: 6500464728598924651}
   machineTitleText: {fileID: 7771806441720189115}
   inputSlotParent: {fileID: 8667162357645013577}
-  slotPrefab: {fileID: 0}
   recipeParent: {fileID: 0}
   recipeRowPrefab: {fileID: 0}
   outputSlotParent: {fileID: 6609825711822056486}
   progressBar: {fileID: 0}
   statusText: {fileID: 0}
+  inventorySlotParent: {fileID: 0}
+  slotPrefab: {fileID: 0}
   playerInventory: {fileID: 2077868438}
 --- !u!224 &6502786406985091774
 RectTransform:
@@ -21807,17 +21773,6 @@ MonoBehaviour:
     weaponIndex: 3
   - itemId: 1401
     weaponIndex: 4
-  weaponAmmoMap:
-  - weaponItemId: 1101
-    ammoItemId: 5101
-  - weaponItemId: 1201
-    ammoItemId: 5102
-  - weaponItemId: 1202
-    ammoItemId: 5102
-  - weaponItemId: 1301
-    ammoItemId: 5104
-  - weaponItemId: 1401
-    ammoItemId: 5013
   playerInventory: {fileID: 2077868438}
   hitMask:
     serializedVersion: 2
@@ -22201,6 +22156,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7788738688166376320}
+  - component: {fileID: 7788738688166376322}
   - component: {fileID: 7788738688166376321}
   m_Layer: 0
   m_Name: Belt
@@ -22998,15 +22954,36 @@ MonoBehaviour:
   m_GameObject: {fileID: 7448100831600044346}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 05e5a026479b9cc43926ea0cec23ad69, type: 3}
+  m_Script: {fileID: 11500000, guid: 934f3116f9011574988851c634cbf1a0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  source: {fileID: 919132147946438840}
-  target: {fileID: 1916487916628779165}
-  beltItemPrefab: {fileID: 5075299125611819207, guid: 9402348c21bf49b428d610184bca87ba, type: 3}
-  spawnPoint: {fileID: 543450651595446799}
-  endPoint: {fileID: 1284488205723040294}
-  travelTime: 2
+  iconImage: {fileID: 0}
+  nameText: {fileID: 0}
+  countText: {fileID: 0}
+--- !u!114 &7788738688166376322
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7448100831600044346}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94d799b769463c74f88c0ed6a3575fa0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  beltItemPrefab: {fileID: 0}
+  travelTimePerSegment: 1
+  prevSegment: {fileID: 0}
+  nextSegment: {fileID: 0}
+  sourceM: {fileID: 0}
+  targetM: {fileID: 0}
+  endpointFront: {fileID: 0}
+  endpointBack: {fileID: 0}
+  detectRadius: 0.4
+  detectMask:
+    serializedVersion: 2
+    m_Bits: 32768
 --- !u!222 &7793487126059672002
 CanvasRenderer:
   m_ObjectHideFlags: 0

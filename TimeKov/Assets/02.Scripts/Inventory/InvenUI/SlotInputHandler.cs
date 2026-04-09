@@ -1,17 +1,17 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
+public class SlotInputHandler : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Double Click")]
     public float doubleClickTime = 0.25f;
-    public bool allowDoubleClick = true;   
+    public bool allowDoubleClick = true;
 
     [Header("Optional Refs")]
-    public InventoryManager ownerManager;   // 우클릭 메뉴 표시용 owner
-    public InventoryManager invenManager;   // 더블클릭 이동용 inventory
-    public ContextMenuManager menu;         // 우클릭 메뉴
-    public EquipmentManager equipmentManager; // 장비칸 더블클릭 해제용
+    public InventoryManager ownerManager;
+    public InventoryManager invenManager;
+    public ContextMenuManager menu;
+    public EquipmentManager equipmentManager;
 
     private SlotInfo slot;
     private float lastLeftClickTime;
@@ -72,6 +72,19 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
         return null;
     }
 
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (slot == null) return;
+        if (slot.slotIndex == 0 || slot.itemCount <= 0) return;
+
+        ItemTooltipUI.Instance?.Show(slot);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        ItemTooltipUI.Instance?.Hide();
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (slot == null)
@@ -95,21 +108,20 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
         if (menu == null)
             return;
 
-        // 기존 기능 유지: 창고 슬롯은 우클릭 메뉴 안 뜸
+        ItemTooltipUI.Instance?.Hide();
+
         if (slot.ownerType == SlotInfo.SlotOwnerType.Warehouse)
         {
             menu.Hide();
             return;
         }
 
-        // 빈 슬롯이면 기존처럼 메뉴 안 뜸
         if (slot.slotIndex == 0)
         {
             menu.Hide();
             return;
         }
 
-        // 장비칸은 부모 InventoryManager가 없을 수 있으므로 플레이어 인벤 기준 owner 확보
         InventoryManager resolvedOwner = ResolvePlayerOwnerManager();
         if (resolvedOwner == null)
             return;
@@ -119,6 +131,12 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
 
     private void HandleLeftClick()
     {
+        if (!allowDoubleClick)
+        {
+            lastLeftClickTime = Time.time;
+            return;
+        }
+
         float timeSinceLast = Time.time - lastLeftClickTime;
 
         if (timeSinceLast <= doubleClickTime)
@@ -134,10 +152,15 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
 
     private void OnDoubleClick()
     {
+        if (!allowDoubleClick)
+            return;
+
         if (slot == null || slot.slotIndex == 0)
             return;
 
-        // 인벤 / 창고 슬롯 => 더블클릭 이동
+        ItemTooltipUI.Instance?.Hide();
+
+        // 인벤 / 창고
         if (slot.ownerType == SlotInfo.SlotOwnerType.Inventory ||
             slot.ownerType == SlotInfo.SlotOwnerType.Warehouse)
         {
@@ -149,7 +172,7 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
             return;
         }
 
-        // 장비 슬롯 => 더블클릭 해제
+        // 장비
         if (slot.ownerType == SlotInfo.SlotOwnerType.Equip)
         {
             ResolveEquipmentManager();
@@ -157,6 +180,28 @@ public class SlotInputHandler : MonoBehaviour, IPointerClickHandler
                 return;
 
             equipmentManager.UnequipToInventory(slot);
+            return;
+        }
+
+        // 루트(시체/상자)
+        if (slot.ownerType == SlotInfo.SlotOwnerType.Loot)
+        {
+            InventoryManager playerInv = ResolvePlayerOwnerManager();
+            if (playerInv == null)
+                return;
+
+            int remaining = playerInv.TryAddItemFromLoot(slot.slotIndex, slot.itemCount);
+            int added = slot.itemCount - remaining;
+
+            if (added <= 0)
+                return;
+
+            if (remaining > 0)
+                slot.SetSlot(slot.slotIndex, remaining);
+            else
+                slot.SetSlot(0, 0);
+
+            return;
         }
     }
 }

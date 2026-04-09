@@ -98,6 +98,7 @@ public class UIStateManager : MonoBehaviour
     // 3) 그 외 UI가 열려있으면 -> 닫기(None)
     public void HandleEscape()
     {
+        ItemTooltipUI.Instance?.Hide();
         if (currentState == UIState.None)
         {
             currentState = UIState.Pause;
@@ -293,6 +294,8 @@ public class UIStateManager : MonoBehaviour
             case UIState.None:
             default:
                 break;
+
+
 
             
         }

@@ -75,7 +75,8 @@ namespace TIMEKOV.Factory
             foreach (var output in recipe.outputs)
                 Dispatch(output.itemId, output.amount);
 
-            SetStatus(MachineStatus.Idle);
+            if (OutputBuffer.Stock.Count == 0)
+                SetStatus(MachineStatus.Idle);
             NotifyBufferChanged();
 
             // 버퍼에 재료 남아있으면 연속 처리

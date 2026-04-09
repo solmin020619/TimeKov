@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
 using UnityEngine.UI;
 
 public class ShopManager : MonoBehaviour
@@ -7,35 +9,37 @@ public class ShopManager : MonoBehaviour
 
     [Header("UI")]
     public GameObject shopPanel;
-    public Transform shopGridContent; // GridLayoutGroup 붙은 오브젝트
+    public Transform shopGridContent;
     public Button closeButton;
 
-    [Header("Data")]
-    public ShopCatalogSO catalog;
-
     [Header("Prefabs")]
-    public GameObject slotPrefab; // 너가 쓰는 Slot 프리팹 그대로 재사용
+    public GameObject slotPrefab;
 
     [Header("Refs")]
-    public InventoryManager playerInventory; // 구매하면 여기로 들어감
+    public InventoryManager playerInventory;
 
     [Header("Test Money (임시)")]
-    public int playerMoney = 999999; // 일단 테스트용. 나중에 너 돈 시스템으로 교체
+    public int playerMoney = 999999;
 
-    void Awake()
+    [Header("Shop Options")]
+    [Tooltip("tradeValue가 0 이하인 sellOnly 아이템은 상점 목록에서 제외")]
+    public bool excludeZeroPriceItems = true;
+
+    [Tooltip("정렬 기준: itemId 오름차순")]
+    public bool sortByItemId = true;
+
+    private void Awake()
     {
         Instance = this;
+
+        if (!DataStore.IsLoaded)
+            DataStore.LoadAll();
 
         if (closeButton != null)
             closeButton.onClick.AddListener(CloseShop);
 
         if (shopPanel != null)
             shopPanel.SetActive(false);
-    }
-
-    void Update()
-    {
-
     }
 
     public bool IsShopOpen()
@@ -45,14 +49,16 @@ public class ShopManager : MonoBehaviour
 
     public void OpenShop()
     {
-        if (shopPanel == null || shopGridContent == null || catalog == null || slotPrefab == null)
+        if (shopPanel == null || shopGridContent == null || slotPrefab == null)
         {
-            Debug.LogWarning("ShopManager 연결이 부족함 (shopPanel/shopGridContent/catalog/slotPrefab 확인)");
+            Debug.LogWarning("ShopManager 연결 부족 (shopPanel / shopGridContent / slotPrefab 확인)");
             return;
         }
 
+        if (!DataStore.IsLoaded)
+            DataStore.LoadAll();
+
         shopPanel.SetActive(true);
-        // ShopGrid(컨텐츠)가 비활성화된 상태면 슬롯을 만들어도 화면에 안 보임 → 상점 열 때 강제로 켜줌
         shopGridContent.gameObject.SetActive(true);
 
         BuildShopSlots();
@@ -64,57 +70,71 @@ public class ShopManager : MonoBehaviour
             shopPanel.SetActive(false);
     }
 
-    void BuildShopSlots()
+    private void BuildShopSlots()
     {
         for (int i = shopGridContent.childCount - 1; i >= 0; i--)
         {
             Destroy(shopGridContent.GetChild(i).gameObject);
         }
 
-        for (int i = 0; i < catalog.entries.Count; i++)
+        List<FactoryItemRow> shopItems = GetSellOnlyItems();
+
+        for (int i = 0; i < shopItems.Count; i++)
         {
-            ShopEntry entry = catalog.entries[i];
-            if (entry == null) continue;
+            FactoryItemRow factoryRow = shopItems[i];
+            if (factoryRow == null) continue;
+
+            ItemRow itemRow = DataStore.GetItem(factoryRow.itemId);
+            if (itemRow == null) continue;
 
             GameObject slotObj = Instantiate(slotPrefab, shopGridContent);
 
-            // 1) SlotInfo로 아이콘 표시
-            SlotInfo slotInfo = slotObj.GetComponent<SlotInfo>();
-            if (slotInfo != null)
-            {
-                slotInfo.SetSlot(entry.itemId, 1);
-            }
-
-            // 2) 상점 슬롯 표식(구매 가격/재고)
             ShopSlotMarker marker = slotObj.GetComponent<ShopSlotMarker>();
             if (marker == null)
                 marker = slotObj.AddComponent<ShopSlotMarker>();
 
-            marker.itemId = entry.itemId;
-            marker.buyPrice = entry.buyPrice;
-            marker.stock = entry.stock;
+            marker.itemId = factoryRow.itemId;
+            marker.buyPrice = Mathf.Max(0, factoryRow.tradeValue);
+            marker.stock = -1;
+
+            SlotInfo slotInfo = slotObj.GetComponent<SlotInfo>();
+            if (slotInfo != null)
+            {
+                slotInfo.ownerType = SlotInfo.SlotOwnerType.Shop;
+                slotInfo.SetSlot(factoryRow.itemId, 1);
+            }
 
             SlotInputHandler input = slotObj.GetComponent<SlotInputHandler>();
             if (input != null)
             {
                 input.ownerManager = playerInventory;
                 input.invenManager = playerInventory;
-                input.allowDoubleClick = false; // 상점 슬롯은 더블클릭만 막음
+                input.allowDoubleClick = false;
             }
 
-            //  5) 테스트용 '클릭 구매'는 이제 필요 없음 (우클릭 구매로 갈 거니까)
             Button btn = slotObj.GetComponent<Button>();
             if (btn != null)
             {
                 btn.onClick.RemoveAllListeners();
             }
 
-            slotObj.name = $"ShopSlot_{entry.itemId}";
+            slotObj.name = $"ShopSlot_{factoryRow.itemId}";
         }
     }
 
-    // 우클릭 메뉴에서 호출할 함수들
+    private List<FactoryItemRow> GetSellOnlyItems()
+    {
+        IEnumerable<FactoryItemRow> query = DataStore.FactoryItemById.Values
+            .Where(x => x != null && x.factoryUsage == "sellOnly");
 
+        if (excludeZeroPriceItems)
+            query = query.Where(x => x.tradeValue > 0);
+
+        if (sortByItemId)
+            query = query.OrderBy(x => x.itemId);
+
+        return query.ToList();
+    }
 
     public void TryBuyFromContext(ShopSlotMarker marker)
     {
@@ -161,7 +181,6 @@ public class ShopManager : MonoBehaviour
             return;
         }
 
-        // 판매는 플레이어 인벤 슬롯에서만(창고/상점 슬롯은 제외)
         if (invSlot.ownerType != SlotInfo.SlotOwnerType.Inventory)
             return;
 
@@ -169,18 +188,15 @@ public class ShopManager : MonoBehaviour
         int count = invSlot.itemCount;
         if (id == 0 || count <= 0) return;
 
-        // 판매가(임시): ItemDataBase의 SaleTime 그대로 사용 (너 DB 구조 기준)
-        int sellPrice = 0;
-        if (DataManager.Instance != null)
+        ItemRow item = DataStore.GetItem(id);
+        if (item == null)
         {
-            var item = DataManager.Instance.GetItem(id);
-            if (item != null)
-                sellPrice = item.saleTime;
+            Debug.LogWarning($"판매 실패: ItemRow 없음 ({id})");
+            return;
         }
 
-        if (sellPrice < 0) sellPrice = 0;
+        int sellPrice = Mathf.Max(0, item.sellValue);
 
-        // 1개 판매(원하면 전량 판매로 바꿀 수 있음)
         playerMoney += sellPrice;
 
         int newCount = count - 1;
@@ -189,11 +205,8 @@ public class ShopManager : MonoBehaviour
         else
             invSlot.SetSlot(id, newCount);
 
-        //  [추가] 판매 후 인벤 UI 갱신(정렬/빈칸숨김/인벤 5/10 텍스트 갱신)
         if (playerInventory != null)
-        {
             playerInventory.ForceRefreshUI();
-        }
 
         Debug.Log($"[판매] {id} / +{sellPrice} / 남은 돈: {playerMoney}");
     }

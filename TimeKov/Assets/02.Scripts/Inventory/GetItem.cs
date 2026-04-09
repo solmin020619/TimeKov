@@ -25,16 +25,22 @@ public class GetItem : MonoBehaviour
 
     private void Awake()
     {
-        // 시작 전 프리팹/씬에서 세팅된 슬롯 배경을 저장해둠
         if (ItemIcon != null)
             defaultSlotSprite = ItemIcon.sprite;
 
+        EnsureDataStoreLoaded();
         CacheRefs();
     }
 
     private void Start()
     {
         RefreshUI();
+    }
+
+    private void EnsureDataStoreLoaded()
+    {
+        if (!DataStore.IsLoaded)
+            DataStore.LoadAll();
     }
 
     private void CacheRefs()
@@ -96,7 +102,7 @@ public class GetItem : MonoBehaviour
 
     private void ApplyFilledState()
     {
-        var item = DataManager.Instance.GetItem(insertID);
+        ItemRow item = DataStore.GetItem(insertID);
         if (item == null)
         {
             Debug.LogWarning($"[GetItem] Item not found (id={insertID})");
@@ -149,13 +155,7 @@ public class GetItem : MonoBehaviour
             return;
         }
 
-        if (DataManager.Instance == null)
-        {
-            Debug.LogWarning($"[GetItem] DataManager.Instance is null (insertID={insertID})");
-            ApplyFallbackState(insertID.ToString());
-            return;
-        }
-
+        EnsureDataStoreLoaded();
         ApplyFilledState();
     }
 
@@ -178,27 +178,24 @@ public class GetItem : MonoBehaviour
             return;
         }
 
-        // 핵심: 인벤에 "넣은 만큼만" 드랍에서 줄이기 (인벤 꽉차면 증발 방지)
+        // 인벤에 실제로 들어간 만큼만 드랍에서 감소
         int remaining = cachedInventoryManager.TryAddItemFromLoot(insertID, insertItemCount);
         int added = insertItemCount - remaining;
 
         if (added <= 0)
         {
-            // 하나도 못 넣었으면: 드랍 슬롯 변화 없음
             Debug.Log("[GetItem] 인벤이 가득 차서 루팅 실패");
             return;
         }
 
         if (remaining > 0)
         {
-            // 부분만 들어갔으면: 드랍 슬롯 수량만 감소 (아이템 유지)
             insertItemCount = remaining;
             RefreshUI();
             NotifyLootChanged();
             return;
         }
 
-        // 전부 들어갔으면: 슬롯 비우기
         insertID = 0;
         insertItemCount = 0;
         RefreshUI();
