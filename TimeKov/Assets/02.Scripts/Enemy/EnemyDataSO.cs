@@ -59,6 +59,10 @@ public class EnemyDataSO : ScriptableObject
     public float turretProjectileSpeed = 12f;       // 발사체 속도
     public float turretProjectileLifeTime = 3f;     // 발사체 생존 시간
 
+    [Header("DropTable Link")]
+    public string dropSourceId;   // dropTable.csv의 sourceId와 정확히 일치해야 함
+    public int dropTier = 0;      // 현재 구조상 대부분 0이면 충분
+
 
     [Header("VFX & Audio")]
     public GameObject hitVFXPrefab;     // 피격 시 이펙트 프리팹

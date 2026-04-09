@@ -13,7 +13,6 @@ public class MonsterLoot : MonoBehaviour
     public int dropTier = 0;
 
     [Header("UI")]
-    public GameObject lootPanelRoot;
     public Transform lootContentTransform;
     public GameObject lootSlotPrefab;
     public GameObject playerInventoryManagerGO;
@@ -40,28 +39,15 @@ public class MonsterLoot : MonoBehaviour
     {
         EnsureDataStoreLoaded();
 
-        if (lootPanelRoot == null)
-        {
-            Debug.LogError("[MonsterLoot] lootPanelRoot 없음");
-            return;
-        }
-
         if (UIStateManager.Instance != null)
         {
             RightPanelController rpc = Object.FindFirstObjectByType<RightPanelController>();
+
             if (rpc != null)
                 rpc.ShowPanel(RightPanelController.PanelType.Loot);
 
-            UIStateManager.Instance.ToggleLoot(lootPanelRoot);
+            UIStateManager.Instance.SetState(UIStateManager.UIState.Loot);
         }
-        else
-        {
-            lootPanelRoot.SetActive(true);
-        }
-
-        if (UIStateManager.Instance != null &&
-            UIStateManager.Instance.GetCurrentState() != UIStateManager.UIState.Loot)
-            return;
 
         if (!_rolled)
         {
@@ -92,22 +78,22 @@ public class MonsterLoot : MonoBehaviour
 
             var head = rows[0];
 
-           
+
             if (!head.sourceType.Equals(sourceType, System.StringComparison.OrdinalIgnoreCase))
                 continue;
 
             if (!head.sourceId.Equals(monsterType, System.StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            
+
             if (head.dropTier != dropTier)
             {
-                
+
                 if (dropTier != 0)
                     continue;
             }
 
-         
+
             return new List<DropRow>(rows);
         }
 

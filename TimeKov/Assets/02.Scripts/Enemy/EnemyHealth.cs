@@ -3,7 +3,7 @@ using System;
 
 public class EnemyHealth : MonoBehaviour
 {
-    private EnemyAI enemyAI; //은신 기능 사용하기위해
+    private EnemyAI enemyAI;
 
     public float maxHP = 100f;
     public float currentHP;
@@ -14,6 +14,8 @@ public class EnemyHealth : MonoBehaviour
     public event Action OnDeath;
     public event Action OnDamage;
 
+    private bool isDead = false;
+
     private void Awake()
     {
         currentHP = maxHP;
@@ -22,23 +24,50 @@ public class EnemyHealth : MonoBehaviour
 
     public void TakeDamage(float amount)
     {
+        if (isDead) return;
+
         currentHP -= amount;
         OnDamage?.Invoke();
 
-        // 은신 몬스터라면 피격 시 은신 해제
         if (enemyAI != null)
             enemyAI.RevealFromHit();
 
         if (currentHP <= 0f)
+        {
+            currentHP = 0f;
             Die();
+        }
     }
 
     void Die()
     {
+        if (isDead) return;
+        isDead = true;
+
         OnDeath?.Invoke();
 
+        GameObject corpse = null;
+
         if (corpsePrefab != null)
-            Instantiate(corpsePrefab, transform.position, transform.rotation);
+        {
+            corpse = Instantiate(corpsePrefab, transform.position, transform.rotation);
+
+            MonsterLoot monsterLoot = corpse.GetComponent<MonsterLoot>();
+            if (monsterLoot != null && enemyAI != null)
+            {
+                string dropSourceId = enemyAI.GetDropSourceId();
+                int dropTier = enemyAI.GetDropTier();
+
+                monsterLoot.sourceType = "monster";
+                monsterLoot.monsterType = dropSourceId;
+                monsterLoot.dropTier = dropTier;
+
+                if (string.IsNullOrWhiteSpace(dropSourceId))
+                {
+                    Debug.LogWarning($"[EnemyHealth] dropSourceId가 비어 있음: {gameObject.name}", gameObject);
+                }
+            }
+        }
 
         Destroy(gameObject);
     }

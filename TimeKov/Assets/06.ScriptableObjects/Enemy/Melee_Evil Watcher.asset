@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemyName: 
   enemyType: 0
-  maxHP: 200
+  maxHP: 1
   moveSpeed: 3.5
   chaseSpeed: 7
   patrolRadius: 15
@@ -42,6 +42,13 @@ MonoBehaviour:
   stealthAlpha: 0.01
   visibleAlpha: 1
   revealOnHit: 1
+  turretRange: 15
+  turretRotateSpeed: 8
+  turretFireCooldown: 1
+  turretProjectileSpeed: 12
+  turretProjectileLifeTime: 3
+  dropSourceId: MeleeBot_EvilWatcher
+  dropTier: 0
   hitVFXPrefab: {fileID: 3652830730883529323, guid: bb33a0a3f6dcc6a449e44e9b56aad0a8, type: 3}
   hitSound: {fileID: 0}
   footstepSound: {fileID: 8300000, guid: c6414d2dc0517b440acaefbe372b971f, type: 3}

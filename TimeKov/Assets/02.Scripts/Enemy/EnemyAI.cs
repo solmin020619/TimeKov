@@ -10,6 +10,7 @@ public class EnemyAI : MonoBehaviour
     public EnemyDataSO data;
 
     public enum State { Patrol, Chase, Attack }
+
     [Header("Current State")]
     public State currentState;
 
@@ -42,7 +43,6 @@ public class EnemyAI : MonoBehaviour
     private float pathUpdateDelay = 0.2f;
     private float pathUpdateTimer = 0f;
 
-    // sqrMagnitude 비교용 캐싱
     private float attackRangeSqr;
     private float proximityRangeSqr;
     private float giveUpRangeSqr;
@@ -51,17 +51,17 @@ public class EnemyAI : MonoBehaviour
     public LayerMask targetMask;
     public LayerMask obstacleMask;
 
-
     private void Awake()
     {
         renderers = GetComponentsInChildren<Renderer>();
 
-        if (data.useStealth)
+        if (data != null && data.useStealth)
         {
             isStealthActive = true;
             SetStealthVisual(data.stealthAlpha);
         }
     }
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -139,13 +139,14 @@ public class EnemyAI : MonoBehaviour
 
     void OnTakeDamage()
     {
-        if (data.hitVFXPrefab != null)
+        if (data != null && data.hitVFXPrefab != null)
         {
             GameObject vfx = Instantiate(data.hitVFXPrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity);
             Destroy(vfx, 1f);
         }
 
         lastProvokedTime = Time.time;
+
         if (currentState != State.Chase && currentState != State.Attack)
             currentState = State.Chase;
     }
@@ -154,14 +155,14 @@ public class EnemyAI : MonoBehaviour
     {
         if (playerTransform == null || data == null) return;
 
-        // 은신 상태일 때 알파가 살짝 흔들리게 갱신
         if (isStealthActive)
         {
             float alpha = data.stealthAlpha + Mathf.Sin(Time.time * 5f) * 0.05f;
             SetStealthVisual(alpha);
         }
 
-        if (anim != null) anim.SetFloat("Speed", agent.velocity.magnitude);
+        if (anim != null)
+            anim.SetFloat("Speed", agent.velocity.magnitude);
 
         if (currentState == State.Chase && previousState != State.Chase)
         {
@@ -171,16 +172,19 @@ public class EnemyAI : MonoBehaviour
                 lastRoarTime = Time.time;
             }
         }
+
         previousState = currentState;
 
         if (agent.velocity.magnitude > 0.1f && !isAttacking)
         {
             footstepTimer += Time.deltaTime;
             float interval = (currentState == State.Chase) ? 0.35f : 0.6f;
+
             if (footstepTimer >= interval)
             {
                 if (data.footstepSound != null && audioSource != null)
                     audioSource.PlayOneShot(data.footstepSound, 0.6f);
+
                 footstepTimer = 0f;
             }
         }
@@ -191,22 +195,40 @@ public class EnemyAI : MonoBehaviour
 
         switch (currentState)
         {
-            case State.Patrol: PatrolLogic(); break;
-            case State.Chase: ChaseLogic(); break;
-            case State.Attack: AttackLogic(); break;
+            case State.Patrol:
+                PatrolLogic();
+                break;
+            case State.Chase:
+                ChaseLogic();
+                break;
+            case State.Attack:
+                AttackLogic();
+                break;
         }
     }
 
     void PatrolLogic()
     {
         if (!agent.isOnNavMesh) return;
+
         agent.speed = data.moveSpeed;
 
-        if (data.enemyType == EnemyType.Melee) hasPerformedFirstAttack = false;
+        if (data.enemyType == EnemyType.Melee)
+            hasPerformedFirstAttack = false;
 
         float distSqr = (playerTransform.position - transform.position).sqrMagnitude;
-        if (distSqr <= proximityRangeSqr && HasLineOfSight(Mathf.Sqrt(distSqr))) { currentState = State.Chase; return; }
-        if (CanSeePlayer()) { currentState = State.Chase; return; }
+
+        if (distSqr <= proximityRangeSqr && HasLineOfSight(Mathf.Sqrt(distSqr)))
+        {
+            currentState = State.Chase;
+            return;
+        }
+
+        if (CanSeePlayer())
+        {
+            currentState = State.Chase;
+            return;
+        }
 
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
@@ -218,8 +240,11 @@ public class EnemyAI : MonoBehaviour
     void ChaseLogic()
     {
         if (!agent.isOnNavMesh) return;
+
         agent.speed = data.chaseSpeed;
-        if (agent.isStopped) agent.isStopped = false;
+
+        if (agent.isStopped)
+            agent.isStopped = false;
 
         float distSqr = (playerTransform.position - transform.position).sqrMagnitude;
         bool isProvoked = (Time.time < lastProvokedTime + data.provokedDuration);
@@ -292,7 +317,8 @@ public class EnemyAI : MonoBehaviour
         isAttacking = true;
         lastAttackTime = Time.time;
 
-        if (anim != null) anim.SetTrigger("Attack");
+        if (anim != null)
+            anim.SetTrigger("Attack");
 
         yield return new WaitForSeconds(data.attackHitDelay);
 
@@ -303,12 +329,14 @@ public class EnemyAI : MonoBehaviour
         foreach (var hit in hits)
         {
             PlayerTime target = hit.GetComponent<PlayerTime>();
-            if (target != null) target.TakeDamage(data.attackDamage);
+            if (target != null)
+                target.TakeDamage(data.attackDamage);
         }
 
         if (data.dieAfterAttack)
         {
             isSelfDestructing = true;
+
             if (myHealth != null)
                 myHealth.TakeDamage(99999f);
             else
@@ -329,7 +357,9 @@ public class EnemyAI : MonoBehaviour
         int comboCount = Random.Range(1, 3);
         for (int i = 0; i < comboCount; i++)
         {
-            if (anim != null) anim.SetTrigger("Attack");
+            if (anim != null)
+                anim.SetTrigger("Attack");
+
             if (data.normalAttackSound != null && audioSource != null)
                 audioSource.PlayOneShot(data.normalAttackSound);
 
@@ -344,7 +374,8 @@ public class EnemyAI : MonoBehaviour
             float d = Vector3.Distance(transform.position, playerTransform.position);
             if (d <= data.attackRange + 0.8f)
             {
-                if (playerTime != null) playerTime.TakeDamage(data.attackDamage);
+                if (playerTime != null)
+                    playerTime.TakeDamage(data.attackDamage);
 
                 float wait = data.attackAnimLength - data.attackHitDelay;
                 yield return new WaitForSeconds(wait < 0 ? 0 : wait);
@@ -378,7 +409,8 @@ public class EnemyAI : MonoBehaviour
         agent.isStopped = true;
         agent.velocity = Vector3.zero;
 
-        if (anim != null) anim.SetTrigger("JumpAttack");
+        if (anim != null)
+            anim.SetTrigger("JumpAttack");
 
         float timer = 0f;
         while (timer < data.jumpWindup)
@@ -395,9 +427,11 @@ public class EnemyAI : MonoBehaviour
         while (timer < airTime)
         {
             RotateTowards(targetPos, 10f);
+
             Vector3 dir = (targetPos - transform.position).normalized;
             if (Vector3.Distance(transform.position, targetPos) > 0.2f)
                 agent.Move(dir * data.jumpLungeSpeed * Time.deltaTime);
+
             timer += Time.deltaTime;
             yield return null;
         }
@@ -409,7 +443,8 @@ public class EnemyAI : MonoBehaviour
         foreach (var hit in hits)
         {
             PlayerTime pt = hit.GetComponent<PlayerTime>();
-            if (pt != null) pt.TakeDamage(data.jumpAttackDamage);
+            if (pt != null)
+                pt.TakeDamage(data.jumpAttackDamage);
         }
 
         float wait = data.jumpFullTime - data.jumpHitDelay;
@@ -419,7 +454,8 @@ public class EnemyAI : MonoBehaviour
         currentState = State.Chase;
         agent.isStopped = false;
     }
-    void SetStealthVisual(float alpha) //은신관련
+
+    void SetStealthVisual(float alpha)
     {
         foreach (var renderer in renderers)
         {
@@ -432,9 +468,11 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    public void RevealFromHit() //은신관련
+    public void RevealFromHit()
     {
         if (!isStealthActive) return;
+        if (data == null) return;
+        if (!data.revealOnHit) return;
 
         isStealthActive = false;
         SetStealthVisual(data.visibleAlpha);
@@ -443,31 +481,46 @@ public class EnemyAI : MonoBehaviour
     void RotateTowards(Vector3 target, float speed = 10f)
     {
         Vector3 dir = (target - transform.position).normalized;
-        dir.y = 0;
+        dir.y = 0f;
+
         if (dir != Vector3.zero)
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * speed);
+        {
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                Quaternion.LookRotation(dir),
+                Time.deltaTime * speed
+            );
+        }
     }
 
     bool HasLineOfSight(float dist)
     {
-        return !Physics.Raycast(transform.position + Vector3.up, (playerTransform.position - transform.position).normalized, dist, obstacleMask);
+        return !Physics.Raycast(
+            transform.position + Vector3.up,
+            (playerTransform.position - transform.position).normalized,
+            dist,
+            obstacleMask
+        );
     }
 
     bool CanSeePlayer()
     {
         float distSqr = (playerTransform.position - transform.position).sqrMagnitude;
+
         if (distSqr < visionRangeSqr)
         {
             Vector3 dir = (playerTransform.position - transform.position).normalized;
-            if (Vector3.Angle(transform.forward, dir) < data.visionAngle / 2)
+            if (Vector3.Angle(transform.forward, dir) < data.visionAngle / 2f)
                 return HasLineOfSight(Mathf.Sqrt(distSqr));
         }
+
         return false;
     }
 
     void SetRandomPatrolDestination()
     {
         Vector3 randomPoint = startPosition + Random.insideUnitSphere * data.patrolRadius;
+
         if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, 5f, NavMesh.AllAreas))
             agent.SetDestination(hit.position);
     }
@@ -478,15 +531,38 @@ public class EnemyAI : MonoBehaviour
             questManager.AddQuestProgress(targetQuestName, 1);
     }
 
+    public string GetDropSourceId()
+    {
+        if (data == null)
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(data.dropSourceId))
+            return data.dropSourceId;
+
+        return data.enemyName;
+    }
+
+    public int GetDropTier()
+    {
+        if (data == null)
+            return 0;
+
+        return data.dropTier;
+    }
+
     void OnDrawGizmosSelected()
     {
         if (data == null) return;
-        Gizmos.color = Color.yellow; Gizmos.DrawWireSphere(transform.position, data.visionRange);
-        Gizmos.color = Color.red; Gizmos.DrawWireSphere(transform.position, data.attackRange);
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, data.visionRange);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, data.attackRange);
 
         if (data.enemyType == EnemyType.SuicideBomber)
         {
-            Gizmos.color = new Color(1, 0.5f, 0, 0.5f);
+            Gizmos.color = new Color(1f, 0.5f, 0f, 0.5f);
             Gizmos.DrawSphere(transform.position, data.explosionRadius);
         }
     }

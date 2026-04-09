@@ -240,22 +240,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_002
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &1796479
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1457,22 +1447,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &128920886
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2149,17 +2129,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8524343039121566237, guid: 29122a59d0ae96d4f87ac657b5e3e8de, type: 3}
   m_PrefabInstance: {fileID: 221590127}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &228885966 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6499707644321725667, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &235797826
 GameObject:
   m_ObjectHideFlags: 0
@@ -2308,22 +2277,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &238956368
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3165,22 +3124,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &303623294
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3607,8 +3556,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94f228e1f2faca54c989e5d8858572e7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerTableCsv: {fileID: 4900000, guid: b173d36d61e9e7047beb5ebe9293923e, type: 3}
-  lootTableUnifiedCsv: {fileID: 4900000, guid: 3889b42cd77b2c049b31c55b97bb2512, type: 3}
 --- !u!1001 &323484907
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3990,6 +3937,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -4432,22 +4380,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &379135907
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4955,22 +4893,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &390477031
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5679,22 +5607,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &500336830
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5866,22 +5784,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &513883497
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7227,22 +7135,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1 &627977518 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 760282382284676259, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
@@ -7670,22 +7568,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &665198292
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7943,22 +7831,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &687570448
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8063,17 +7941,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 4350422056524947617, guid: 8d9cfb79a555d6149b278d62240120e5, type: 3}
---- !u!114 &705587028 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7802551801847817565, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &708895547
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8240,17 +8107,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -6658783450715115853, guid: 76e76cf195f80eb46a01a66033d24bb9, type: 3}
---- !u!114 &714122544 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4490469833688373760, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &721145543
 GameObject:
   m_ObjectHideFlags: 0
@@ -9039,22 +8895,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &827088527
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -11368,22 +11214,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &935947202
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -11543,17 +11379,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 9009271250527875239, guid: 29122a59d0ae96d4f87ac657b5e3e8de, type: 3}
   m_PrefabInstance: {fileID: 1067158379}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &944479704 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2349156961717944834, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &953409637 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8867346049903910917, guid: b357f3ed62607f340bec16f39198b370, type: 3}
@@ -22109,17 +21934,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1097192340 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5934602014149777461, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &1101023143
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -22547,96 +22361,6 @@ PrefabInstance:
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 8d9cfb79a555d6149b278d62240120e5, type: 3}
   m_PrefabInstance: {fileID: 1147138373}
-  m_PrefabAsset: {fileID: 0}
---- !u!1001 &1156528128
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 1710776050}
-    m_Modifications:
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 1.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 1.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 1.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -4.99
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 3.76
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -27.35
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.97705597
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0.21298268
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 24.594
-      objectReference: {fileID: 0}
-    - target: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6152199759030418368, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_Center.y
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311011421841881339, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_Name
-      value: MeleeBot----
-      objectReference: {fileID: 0}
-    - target: {fileID: 6311011421841881339, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7775756814065140146, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: targetQuestName
-      value: Melee
-      objectReference: {fileID: 0}
-    - target: {fileID: 7775756814065140146, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-      propertyPath: obstacleMask.m_Bits
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
---- !u!4 &1156528129 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
-  m_PrefabInstance: {fileID: 1156528128}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1156905549
 PrefabInstance:
@@ -23497,22 +23221,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &1217914343
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23685,17 +23399,6 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 4302755391705698891, guid: 0a1e7c3aab6fa4d4783282375cf4bcb8, type: 3}
---- !u!114 &1227580201 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8538039331516339608, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &1230922884 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3288040728420944285, guid: b357f3ed62607f340bec16f39198b370, type: 3}
@@ -23836,22 +23539,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &1254332279
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24168,22 +23861,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &1274656184
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25511,17 +25194,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4304395986016722040, guid: bf5fa9e8490ab304f8d42ac5c84c1547, type: 3}
   m_PrefabInstance: {fileID: 1348502199}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1353788204 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7120175044640211401, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &1364317813 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2821520368503132789, guid: 2bad72f987891494c91d7f4128de1ec3, type: 3}
@@ -26549,10 +26221,11 @@ MonoBehaviour:
   shopPanel: {fileID: 0}
   shopGridContent: {fileID: 0}
   closeButton: {fileID: 0}
-  catalog: {fileID: 11400000, guid: baa4a66b0de440b44a4878886ccaa267, type: 2}
   slotPrefab: {fileID: 3004623949922908827, guid: 02d1423abd338544d9c514fab907e402, type: 3}
   playerInventory: {fileID: 235797827}
   playerMoney: 999999
+  excludeZeroPriceItems: 1
+  sortByItemId: 1
 --- !u!4 &1433242976
 Transform:
   m_ObjectHideFlags: 0
@@ -26662,22 +26335,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &1438900211
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27814,17 +27477,6 @@ Transform:
   - {fileID: 1001180957}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1543132287 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4314987942824931998, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &1544023438
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -28557,22 +28209,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &1580656338
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28857,22 +28499,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &1586724117
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -29600,22 +29232,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &1634484917
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -29967,17 +29589,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   soundType: 1
---- !u!114 &1672526363 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 8502071347433147820, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &1689559929
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -30348,22 +29959,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &1698631035
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -30663,7 +30264,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1156528129}
   - {fileID: 4304395985793443751}
   - {fileID: 4304395984633587470}
   - {fileID: 4304395985591451750}
@@ -30972,17 +30572,6 @@ VisualEffect:
       m_Array: []
     m_Bool:
       m_Array: []
---- !u!114 &1747100744 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6368711850788043754, guid: 0dc2d1be31cf0724eaff2499add41fef, type: 3}
-  m_PrefabInstance: {fileID: 1386829927}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f82a2b7af938cc46ab0e11314558503, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1769963099 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 9073278588157676370, guid: 54b42505277524642a37aa9a359c200b, type: 3}
@@ -31127,22 +30716,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!1001 &1777596802
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -31683,22 +31262,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &1850749250
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -32945,22 +32514,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &1965295249
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -33772,22 +33331,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &2053102130 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8630711389985585852, guid: 2bad72f987891494c91d7f4128de1ec3, type: 3}
@@ -34125,22 +33674,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &2081919871
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -34607,22 +34146,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9744075f7d0ee114b9974fe3dc4259fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  containerId: LC_001
+  dropKey: 0
+  sourceType: 
   lootPanelRoot: {fileID: 627977518}
-  lootSlots:
-  - {fileID: 1353788204}
-  - {fileID: 1097192340}
-  - {fileID: 1543132287}
-  - {fileID: 1672526363}
-  - {fileID: 705587028}
-  - {fileID: 228885966}
-  - {fileID: 944479704}
-  - {fileID: 1747100744}
-  - {fileID: 1227580201}
-  - {fileID: 714122544}
-  playerInventoryManagerGO: {fileID: 235797826}
-  enableBGStyleLoot: 1
-  bgSyncInterval: 0.1
+  lootContentTransform: {fileID: 0}
+  lootSlotPrefab: {fileID: 0}
+  playerInventoryManager: {fileID: 0}
 --- !u!114 &2119648988
 MonoBehaviour:
   m_ObjectHideFlags: 0
