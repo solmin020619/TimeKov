@@ -24,10 +24,13 @@ namespace TIMEKOV.Factory
         [Header("상호작용 힌트 텍스트 (선택)")]
         public TextMeshProUGUI hintText;
 
-        // 현재 범위 안에 있는 설비
+        // UI 열기 전 커서 상태 저장 → 닫을 때 복원
+        private CursorLockMode _prevLockState;
+        private bool _prevVisible;
+
         private ProcessingMachine _nearMachine;
-        private string            _nearMachineName;
-        private bool              _uiOpen;
+        private string _nearMachineName;
+        private bool _uiOpen;
 
         private void Update()
         {
@@ -50,7 +53,7 @@ namespace TIMEKOV.Factory
             var zone = other.GetComponent<MachineZone>();
             if (zone == null || zone.machine == null) return;
 
-            _nearMachine     = zone.machine;
+            _nearMachine = zone.machine;
             _nearMachineName = zone.machineName;
 
             if (hintText != null)
@@ -62,11 +65,11 @@ namespace TIMEKOV.Factory
             var zone = other.GetComponent<MachineZone>();
             if (zone == null || zone.machine != _nearMachine) return;
 
-            _nearMachine     = null;
+            _nearMachine = null;
             _nearMachineName = "";
 
             if (hintText != null) hintText.text = "";
-            if (_uiOpen)  CloseUI();
+            if (_uiOpen) CloseUI();
         }
 
         // ── UI 열기/닫기 ────────────────────────────────────────────
@@ -74,6 +77,15 @@ namespace TIMEKOV.Factory
         private void OpenUI()
         {
             if (machineUI == null || _nearMachine == null) return;
+
+            // 현재 커서 상태 저장
+            _prevLockState = Cursor.lockState;
+            _prevVisible = Cursor.visible;
+
+            // 커서 표시
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
             machineUI.OpenFor(_nearMachine, _nearMachineName);
             _uiOpen = true;
 
@@ -84,6 +96,10 @@ namespace TIMEKOV.Factory
         {
             machineUI?.Close();
             _uiOpen = false;
+
+            // 커서 상태 복원
+            Cursor.lockState = _prevLockState;
+            Cursor.visible = _prevVisible;
 
             if (hintText != null)
                 hintText.text = _nearMachine != null
