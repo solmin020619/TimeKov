@@ -39,32 +39,46 @@ public class MonsterLoot : MonoBehaviour
 
     void FindUI()
     {
-        var all = Resources.FindObjectsOfTypeAll<Transform>();
+        // 기존에는 Resources.FindObjectsOfTypeAll<Transform>()로 Inventory를 찾았는데,
+        // 이 방식은 프리팹 에셋까지 검색해서 잘못된 Content를 잡을 수 있음.
+        // 그 결과 loot slot 생성 시 persistent parent 에러가 발생할 수 있음,
+        // 씬에 로드된 오브젝트만 대상으로 UI를 찾도록 수정.
+        // 보고 이해 안 되면 한종욱에게 질문하십쇼 안승현씨
 
-        var inventory = all.FirstOrDefault(t => t.name == "Inventory");
+        Transform[] allSceneTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        Transform inventory = allSceneTransforms.FirstOrDefault(t =>
+            t.name == "Inventory" &&
+            t.gameObject.scene.IsValid() &&
+            t.gameObject.scene.isLoaded);
+
         if (inventory == null)
         {
-            Debug.LogError("Inventory 없음");
+            Debug.LogError("[MonsterLoot] 씬에서 Inventory 못찾음");
             return;
         }
 
-        var panel = inventory.Find("RightPanel/LootPanel");
+        Transform panel = inventory.Find("RightPanel/LootPanel");
         if (panel == null)
         {
-            Debug.LogError("LootPanel 못찾음");
+            Debug.LogError("[MonsterLoot] LootPanel 못찾음");
             return;
         }
 
         _lootPanel = panel.gameObject;
 
-        var content = panel.Find("Scroll View/Viewport/Content");
+        Transform content = panel.Find("Scroll View/Viewport/Content");
         if (content == null)
         {
-            Debug.LogError("Content 못찾음");
+            Debug.LogError("[MonsterLoot] Content 못찾음");
             return;
         }
 
         _content = content.GetComponent<RectTransform>();
+        if (_content == null)
+        {
+            Debug.LogError("[MonsterLoot] Content에 RectTransform 없음");
+        }
     }
 
     public void Open()
@@ -109,6 +123,20 @@ public class MonsterLoot : MonoBehaviour
 
     void BuildSlots()
     {
+        // UI 참조 누락 상태에서 슬롯 생성 시 null 관련 오류를 막기 위한 방어 코드
+
+        if (lootSlotPrefab == null)
+        {
+            Debug.LogError("[MonsterLoot] lootSlotPrefab이 비어 있음", this);
+            return;
+        }
+
+        if (_content == null)
+        {
+            Debug.LogError("[MonsterLoot] _content가 비어 있음", this);
+            return;
+        }
+
         foreach (var data in _rolledLoot)
         {
             GameObject slot = Instantiate(lootSlotPrefab, _content);

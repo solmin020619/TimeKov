@@ -14,11 +14,38 @@ public class TurretController : MonoBehaviour
 
     private Transform target;
     private float lastFireTime;
+    private AudioSource audioSource;
 
     private void Start()
     {
         if (firePoint == null)
             firePoint = transform;
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.spatialBlend = 1f;
+        audioSource.rolloffMode = AudioRolloffMode.Linear;
+        audioSource.minDistance = 5f;
+        audioSource.maxDistance = 30f;
+        audioSource.volume = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+    }
+
+    private void PlayClip(AudioClip clip, float volumeScale = 1f)
+    {
+        if (audioSource == null || clip == null) return;
+        audioSource.PlayOneShot(clip, volumeScale);
+    }
+
+    private void SpawnVFX(GameObject prefab, Vector3 position, Quaternion rotation, float lifeTime = 1f)
+    {
+        if (prefab == null) return;
+
+        GameObject vfx = Instantiate(prefab, position, rotation);
+
+        if (lifeTime > 0f)
+            Destroy(vfx, lifeTime);
     }
 
     private void Update()
@@ -97,13 +124,15 @@ public class TurretController : MonoBehaviour
         Vector3 spawnPos = firePoint.position;
         Vector3 dir = (target.position - firePoint.position).normalized;
 
+        SpawnVFX(data.turretMuzzleVFXPrefab, firePoint.position, firePoint.rotation, 1f);
+        PlayClip(data.turretFireSound);
+
         GameObject projectileObj = Instantiate(
             projectilePrefab,
             spawnPos,
             Quaternion.LookRotation(dir)
         );
 
-        // 1순위: TurretProjectile이 있으면 그걸로 처리
         TurretProjectile turretProjectile = projectileObj.GetComponent<TurretProjectile>();
         if (turretProjectile != null)
         {
@@ -112,12 +141,13 @@ public class TurretController : MonoBehaviour
                 data.turretProjectileSpeed,
                 data.attackDamage,
                 data.turretProjectileLifeTime,
-                targetMask
+                targetMask,
+                data.hitVFXPrefab,
+                data.hitSound
             );
             return;
         }
 
-        // 2순위: Rigidbody만 있으면 앞으로 밀어주기
         Rigidbody rb = projectileObj.GetComponent<Rigidbody>();
         if (rb != null)
         {
@@ -126,7 +156,6 @@ public class TurretController : MonoBehaviour
             return;
         }
 
-        // 3순위: 아무것도 없으면 그냥 경고
         Debug.LogWarning("[TurretController] 발사체에 TurretProjectile 또는 Rigidbody가 없습니다.");
     }
 

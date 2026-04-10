@@ -63,13 +63,23 @@ public class EnemyDataSO : ScriptableObject
     public string dropSourceId;   // dropTable.csv의 sourceId와 정확히 일치해야 함
     public int dropTier = 0;      // 현재 구조상 대부분 0이면 충분
 
+    [Header("VFX")]
+    public GameObject spawnVFXPrefab;          // NEW: 스폰 시 이펙트
+    public GameObject hitVFXPrefab;            // (기존) 피격 이펙트
+    public GameObject attackVFXPrefab;         // NEW: 공격 시작 이펙트
+    public GameObject jumpLandVFXPrefab;       // NEW: 점프 공격 착지 이펙트
+    public GameObject explosionVFXPrefab;      // NEW: 자폭/폭발 이펙트
+    public GameObject deathVFXPrefab;          // NEW: 사망 이펙트
+    public GameObject turretMuzzleVFXPrefab;   // NEW: 터렛 발사 이펙트 (총구)
 
-    [Header("VFX & Audio")]
-    public GameObject hitVFXPrefab;     // 피격 시 이펙트 프리팹
-    public AudioClip hitSound;          // 피격 사운드
-    public AudioClip footstepSound;     // 이동 시 발소리
-    public AudioClip chaseRoarSound;    // 추적 시작 시 사운드
-    public AudioClip normalAttackSound; // 일반 공격 사운드
-    public AudioClip jumpAttackSound;   // 점프 공격 사운드
-    public AudioClip explosionSound;    // 폭발 사운드
+    [Header("Audio")]
+    public AudioClip spawnSound;               // NEW: 스폰 사운드
+    public AudioClip hitSound;                 // (기존) 피격 사운드
+    public AudioClip footstepSound;            // (기존) 발소리
+    public AudioClip chaseRoarSound;           // (기존) 추적 시작 사운드
+    public AudioClip normalAttackSound;        // (기존) 일반 공격 사운드
+    public AudioClip jumpAttackSound;          // (기존) 점프 공격 사운드
+    public AudioClip explosionSound;           // (기존) 폭발 사운드
+    public AudioClip deathSound;               // NEW: 사망 사운드
+    public AudioClip turretFireSound;          // NEW: 터렛 발사 사운드
 }

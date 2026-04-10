@@ -113,10 +113,13 @@ public class EnemyAI : MonoBehaviour
         questManager = FindFirstObjectByType<QuestUIManager>();
 
         myHealth.OnDeath += DropLoot;
+        myHealth.OnDeath += HandleDeathPresentation;
         myHealth.OnDamage += OnTakeDamage;
 
         currentState = State.Patrol;
         previousState = currentState;
+
+        PlaySpawnPresentation();
         SetRandomPatrolDestination();
     }
 
@@ -127,6 +130,7 @@ public class EnemyAI : MonoBehaviour
         if (myHealth != null)
         {
             myHealth.OnDeath -= DropLoot;
+            myHealth.OnDeath -= HandleDeathPresentation;
             myHealth.OnDamage -= OnTakeDamage;
         }
     }
@@ -137,13 +141,46 @@ public class EnemyAI : MonoBehaviour
             audioSource.volume = vol;
     }
 
+    void PlayClip(AudioClip clip, float volumeScale = 1f)
+    {
+        if (audioSource == null || clip == null) return;
+        audioSource.PlayOneShot(clip, volumeScale);
+    }
+
+    void SpawnVFX(GameObject prefab, Vector3 position, float lifeTime = 1f)
+    {
+        if (prefab == null) return;
+
+        GameObject vfx = Instantiate(prefab, position, Quaternion.identity);
+
+        if (lifeTime > 0f)
+            Destroy(vfx, lifeTime);
+    }
+
+    void PlaySpawnPresentation()
+    {
+        if (data == null) return;
+
+        SpawnVFX(data.spawnVFXPrefab, transform.position, 2f);
+        PlayClip(data.spawnSound);
+    }
+
+    void HandleDeathPresentation()
+    {
+        if (data == null) return;
+
+        SpawnVFX(data.deathVFXPrefab, transform.position, 2f);
+
+        if (data.deathSound != null)
+            AudioSource.PlayClipAtPoint(data.deathSound, transform.position, audioSource != null ? audioSource.volume : 1f);
+    }
+
     void OnTakeDamage()
     {
-        if (data != null && data.hitVFXPrefab != null)
-        {
-            GameObject vfx = Instantiate(data.hitVFXPrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity);
-            Destroy(vfx, 1f);
-        }
+        if (data == null) return;
+
+        SpawnVFX(data.hitVFXPrefab, transform.position + Vector3.up * 1.5f, 1f);
+        PlayClip(data.hitSound);
 
         lastProvokedTime = Time.time;
 
@@ -166,9 +203,9 @@ public class EnemyAI : MonoBehaviour
 
         if (currentState == State.Chase && previousState != State.Chase)
         {
-            if (Time.time >= lastRoarTime + 4f && data.chaseRoarSound != null && audioSource != null)
+            if (Time.time >= lastRoarTime + 4f)
             {
-                audioSource.PlayOneShot(data.chaseRoarSound);
+                PlayClip(data.chaseRoarSound);
                 lastRoarTime = Time.time;
             }
         }
@@ -182,9 +219,7 @@ public class EnemyAI : MonoBehaviour
 
             if (footstepTimer >= interval)
             {
-                if (data.footstepSound != null && audioSource != null)
-                    audioSource.PlayOneShot(data.footstepSound, 0.6f);
-
+                PlayClip(data.footstepSound, 0.6f);
                 footstepTimer = 0f;
             }
         }
@@ -322,6 +357,8 @@ public class EnemyAI : MonoBehaviour
 
         yield return new WaitForSeconds(data.attackHitDelay);
 
+        SpawnVFX(data.explosionVFXPrefab, transform.position, 2f);
+
         if (data.explosionSound != null)
             AudioSource.PlayClipAtPoint(data.explosionSound, transform.position, audioSource.volume);
 
@@ -360,8 +397,8 @@ public class EnemyAI : MonoBehaviour
             if (anim != null)
                 anim.SetTrigger("Attack");
 
-            if (data.normalAttackSound != null && audioSource != null)
-                audioSource.PlayOneShot(data.normalAttackSound);
+            SpawnVFX(data.attackVFXPrefab, transform.position + transform.forward * 0.8f + Vector3.up * 1.0f, 1f);
+            PlayClip(data.normalAttackSound);
 
             float timer = 0f;
             while (timer < data.attackHitDelay)
@@ -436,8 +473,8 @@ public class EnemyAI : MonoBehaviour
             yield return null;
         }
 
-        if (data.jumpAttackSound != null && audioSource != null)
-            audioSource.PlayOneShot(data.jumpAttackSound);
+        SpawnVFX(data.jumpLandVFXPrefab, transform.position, 1.5f);
+        PlayClip(data.jumpAttackSound);
 
         Collider[] hits = Physics.OverlapSphere(transform.position, data.jumpAttackRadius, targetMask);
         foreach (var hit in hits)

@@ -9,13 +9,25 @@ public class TurretProjectile : MonoBehaviour
     private float timer;
     private LayerMask targetMask;
 
-    public void Init(Vector3 dir, float speed, float damage, float lifeTime, LayerMask targetMask)
+    private GameObject hitVfxPrefab;
+    private AudioClip hitClip;
+
+    public void Init(
+        Vector3 dir,
+        float speed,
+        float damage,
+        float lifeTime,
+        LayerMask targetMask,
+        GameObject hitVfxPrefab,
+        AudioClip hitClip)
     {
         this.moveDir = dir.normalized;
         this.moveSpeed = speed;
         this.damage = damage;
         this.lifeTime = lifeTime;
         this.targetMask = targetMask;
+        this.hitVfxPrefab = hitVfxPrefab;
+        this.hitClip = hitClip;
     }
 
     private void Update()
@@ -25,6 +37,22 @@ public class TurretProjectile : MonoBehaviour
         timer += Time.deltaTime;
         if (timer >= lifeTime)
             Destroy(gameObject);
+    }
+
+    private void SpawnVFX(GameObject prefab, Vector3 position, float lifeTime = 1f)
+    {
+        if (prefab == null) return;
+
+        GameObject vfx = Instantiate(prefab, position, Quaternion.identity);
+
+        if (lifeTime > 0f)
+            Destroy(vfx, lifeTime);
+    }
+
+    private void PlayClipAtPoint(AudioClip clip, Vector3 position, float volume = 1f)
+    {
+        if (clip == null) return;
+        AudioSource.PlayClipAtPoint(clip, position, volume);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -47,6 +75,9 @@ public class TurretProjectile : MonoBehaviour
         {
             Debug.LogWarning($"[TurretProjectile] PlayerTime ¸ø Ã£À½: {other.name}");
         }
+
+        SpawnVFX(hitVfxPrefab, transform.position, 1f);
+        PlayClipAtPoint(hitClip, transform.position);
 
         Destroy(gameObject);
     }
