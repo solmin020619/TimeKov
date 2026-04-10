@@ -10,6 +10,20 @@ public class BuildManager : MonoBehaviour
         public int facilityId;
     }
 
+    [Header("Build Effect")]
+    public Material hologramMaterial;
+    public float buildEffectDuration = 1.2f;
+    private bool isPlacing = false;
+
+    [Header("Build Audio")]
+    public AudioSource audioSource;
+    public AudioClip buildStartClip;
+    public AudioClip buildCompleteClip;
+
+    [Header("Build VFX")]
+    public GameObject buildCompleteEffectPrefab;
+    public Vector3 buildCompleteEffectOffset = Vector3.zero;
+
     [Header("Demolish")]
     public LayerMask placedBuildingMask;
 
@@ -166,9 +180,9 @@ public class BuildManager : MonoBehaviour
 
         UpdatePreview(snappedPos, rotation, canBuild);
 
-        if (Input.GetMouseButtonDown(0) && canBuild)
+        if (Input.GetMouseButtonDown(0) && canBuild && !isPlacing)
         {
-            PlaceCurrentFacility(snappedPos, rotation);
+            StartCoroutine(PlaceCurrentFacilityRoutine(snappedPos, rotation));
         }
     }
 
@@ -194,20 +208,50 @@ public class BuildManager : MonoBehaviour
         RefreshPreviewMarker();
     }
 
-    private void PlaceCurrentFacility(Vector3 position, Quaternion rotation)
+    private System.Collections.IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation)
     {
         FacilityRow facility = GetCurrentFacilityRow();
         GameObject prefab = GetCurrentFacilityPrefab();
 
         if (facility == null || prefab == null)
-            return;
+            yield break;
 
-        GameObject obj = Instantiate(prefab, position, rotation, buildParent);
+        isPlacing = true;
 
         Vector2Int rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
         List<Vector2Int> footprintCells = GetFootprintCells(position, rotatedSize);
 
         OccupyCells(footprintCells);
+
+        PlayBuildStartSound();
+
+        GameObject hologramObj = Instantiate(prefab, position, rotation);
+        ApplyHologramVisual(hologramObj);
+
+        Collider[] hologramColliders = hologramObj.GetComponentsInChildren<Collider>();
+        for (int i = 0; i < hologramColliders.Length; i++)
+            hologramColliders[i].enabled = false;
+
+        Rigidbody[] rigidbodies = hologramObj.GetComponentsInChildren<Rigidbody>();
+        for (int i = 0; i < rigidbodies.Length; i++)
+        {
+            rigidbodies[i].isKinematic = true;
+            rigidbodies[i].detectCollisions = false;
+        }
+
+        MonoBehaviour[] behaviours = hologramObj.GetComponentsInChildren<MonoBehaviour>();
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            if (behaviours[i] != this)
+                behaviours[i].enabled = false;
+        }
+
+        yield return new WaitForSeconds(buildEffectDuration);
+
+        if (hologramObj != null)
+            Destroy(hologramObj);
+
+        GameObject obj = Instantiate(prefab, position, rotation, buildParent);
 
         PlacedBuilding placedBuilding = obj.GetComponent<PlacedBuilding>();
         if (placedBuilding == null)
@@ -223,6 +267,31 @@ public class BuildManager : MonoBehaviour
             facilityInstance = obj.AddComponent<FacilityInstance>();
 
         facilityInstance.Initialize(facility.facilityId);
+
+        PlayBuildCompleteSound();
+        SpawnBuildCompleteEffect(position, rotation);
+
+        isPlacing = false;
+    }
+
+    private void ApplyHologramVisual(GameObject target)
+    {
+        if (target == null || hologramMaterial == null)
+            return;
+
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Material[] mats = renderers[i].materials;
+
+            for (int j = 0; j < mats.Length; j++)
+            {
+                mats[j] = hologramMaterial;
+            }
+
+            renderers[i].materials = mats;
+        }
     }
 
     private Vector3 SnapToGrid(Vector3 worldPos)
@@ -548,5 +617,33 @@ public class BuildManager : MonoBehaviour
             currentHoveredBuilding.RestoreColor();
             currentHoveredBuilding = null;
         }
+    }
+
+    private void PlayBuildStartSound()         //사운드관련코드들
+    {
+        if (audioSource == null || buildStartClip == null)
+            return;
+
+        audioSource.PlayOneShot(buildStartClip);
+    }
+
+    private void PlayBuildCompleteSound()
+    {
+        if (audioSource == null || buildCompleteClip == null)
+            return;
+
+        audioSource.PlayOneShot(buildCompleteClip);
+    }
+
+    private void SpawnBuildCompleteEffect(Vector3 position, Quaternion rotation) //건축완료시 파티클
+    {
+        if (buildCompleteEffectPrefab == null)
+            return;
+
+        Instantiate(
+            buildCompleteEffectPrefab,
+            position + buildCompleteEffectOffset,
+            rotation
+        );
     }
 }
