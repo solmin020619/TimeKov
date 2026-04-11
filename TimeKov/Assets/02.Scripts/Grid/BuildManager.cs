@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class BuildManager : MonoBehaviour
 {
@@ -9,6 +11,16 @@ public class BuildManager : MonoBehaviour
         [Header("DataStore.FacilityById에 있는 facilityId")]
         public int facilityId;
     }
+
+    [Header("Top View")]
+    [SerializeField] private Camera gameplayCamera;
+    [SerializeField] private Camera topViewCamera;
+    [SerializeField] private KeyCode topViewToggleKey = KeyCode.CapsLock;
+    [SerializeField] private TopViewPanCamera topViewPanCamera;
+    [SerializeField] private PlayerInput playerInput;
+    [SerializeField] private Transform topViewStartTarget;
+    [SerializeField] private Vector3 topViewStartOffset = new Vector3(0f, 25f, 0f);
+    [SerializeField] private MonoBehaviour[] disableInTopView;
 
     [Header("Build Effect")]
     public Material hologramMaterial;
@@ -56,6 +68,7 @@ public class BuildManager : MonoBehaviour
     public float checkHeight = 0.45f;
 
     public bool IsBuildMode { get; private set; }
+    public bool IsTopViewMode { get; private set; }
 
     private int currentIndex = 0;
     private int currentRotationY = 0;
@@ -73,11 +86,18 @@ public class BuildManager : MonoBehaviour
 
         if (previewMarker != null)
             previewMarker.SetActive(false);
+
+        SetTopViewMode(false, true);
+        ResolveActiveBuildCamera();
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     private void Update()
     {
         HandleModeInput();
+        HandleTopViewInput();
 
         if (!IsBuildMode)
             return;
@@ -102,6 +122,7 @@ public class BuildManager : MonoBehaviour
             {
                 isDemolishMode = false;
                 ClearHoveredBuilding();
+                SetTopViewMode(false);
 
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
@@ -113,10 +134,90 @@ public class BuildManager : MonoBehaviour
             IsBuildMode = false;
             isDemolishMode = false;
             ClearHoveredBuilding();
+            SetTopViewMode(false);
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
         }
+    }
+
+    private void HandleTopViewInput()
+    {
+        if (!IsBuildMode)
+        {
+            if (IsTopViewMode)
+                SetTopViewMode(false);
+
+            return;
+        }
+
+        if (Input.GetKeyDown(topViewToggleKey))
+        {
+            SetTopViewMode(!IsTopViewMode);
+        }
+    }
+
+    private void SetTopViewMode(bool value, bool force = false)
+    {
+        if (!force && IsTopViewMode == value)
+            return;
+
+        IsTopViewMode = value;
+
+        if (gameplayCamera != null)
+            gameplayCamera.gameObject.SetActive(!value);
+
+        if (topViewCamera != null)
+            topViewCamera.gameObject.SetActive(value);
+
+        if (playerInput != null)
+            playerInput.enabled = !value;
+
+        if (disableInTopView != null)
+        {
+            for (int i = 0; i < disableInTopView.Length; i++)
+            {
+                if (disableInTopView[i] != null)
+                    disableInTopView[i].enabled = !value;
+            }
+        }
+
+        if (topViewPanCamera != null)
+            topViewPanCamera.SetControlEnabled(value);
+
+        if (value)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            if (topViewCamera != null)
+            {
+                Vector3 startPos = topViewCamera.transform.position;
+
+                if (topViewStartTarget != null)
+                {
+                    startPos = topViewStartTarget.position + topViewStartOffset;
+                }
+
+                topViewCamera.transform.position = startPos;
+                topViewCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            }
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        ResolveActiveBuildCamera();
+    }
+
+    private void ResolveActiveBuildCamera()
+    {
+        if (IsTopViewMode && topViewCamera != null)
+            mainCam = topViewCamera;
+        else if (gameplayCamera != null)
+            mainCam = gameplayCamera;
     }
 
     private void HandleSelectInput()
@@ -208,7 +309,7 @@ public class BuildManager : MonoBehaviour
         RefreshPreviewMarker();
     }
 
-    private System.Collections.IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation)
+    private IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation)
     {
         FacilityRow facility = GetCurrentFacilityRow();
         GameObject prefab = GetCurrentFacilityPrefab();
@@ -286,9 +387,7 @@ public class BuildManager : MonoBehaviour
             Material[] mats = renderers[i].materials;
 
             for (int j = 0; j < mats.Length; j++)
-            {
                 mats[j] = hologramMaterial;
-            }
 
             renderers[i].materials = mats;
         }
@@ -365,17 +464,13 @@ public class BuildManager : MonoBehaviour
     private void OccupyCells(List<Vector2Int> cells)
     {
         for (int i = 0; i < cells.Count; i++)
-        {
             occupiedCells.Add(cells[i]);
-        }
     }
 
     private void RemoveOccupiedCells(List<Vector2Int> cells)
     {
         for (int i = 0; i < cells.Count; i++)
-        {
             occupiedCells.Remove(cells[i]);
-        }
     }
 
     private bool IsBlockedByPhysics(Vector3 centerPos, Vector2Int size, Quaternion rotation)
@@ -437,9 +532,7 @@ public class BuildManager : MonoBehaviour
 
         Collider[] colliders = previewMarker.GetComponentsInChildren<Collider>();
         for (int i = 0; i < colliders.Length; i++)
-        {
             colliders[i].enabled = false;
-        }
 
         Rigidbody[] rigidbodies = previewMarker.GetComponentsInChildren<Rigidbody>();
         for (int i = 0; i < rigidbodies.Length; i++)
@@ -619,7 +712,7 @@ public class BuildManager : MonoBehaviour
         }
     }
 
-    private void PlayBuildStartSound()         //사운드관련코드들
+    private void PlayBuildStartSound()
     {
         if (audioSource == null || buildStartClip == null)
             return;
@@ -635,7 +728,7 @@ public class BuildManager : MonoBehaviour
         audioSource.PlayOneShot(buildCompleteClip);
     }
 
-    private void SpawnBuildCompleteEffect(Vector3 position, Quaternion rotation) //건축완료시 파티클
+    private void SpawnBuildCompleteEffect(Vector3 position, Quaternion rotation)
     {
         if (buildCompleteEffectPrefab == null)
             return;
