@@ -23,7 +23,7 @@ namespace TIMEKOV.Factory
             if (timeText != null)
                 timeText.text = $"{recipe.processingTime}s";
 
-            BuildIconRow(inputIconParent,  recipe.inputs);
+            BuildIconRow(inputIconParent, recipe.inputs);
             BuildIconRow(outputIconParent, recipe.outputs);
         }
 
@@ -35,23 +35,23 @@ namespace TIMEKOV.Factory
 
             foreach (var slot in slots)
             {
-                var go   = Instantiate(iconSlotPrefab, parent);
+                var go = Instantiate(iconSlotPrefab, parent);
                 var icon = go.GetComponentInChildren<Image>();
                 var text = go.GetComponentInChildren<TextMeshProUGUI>();
 
-                var row    = DataStore.GetItem(slot.itemId);
-                var sprite = row != null ? Resources.Load<Sprite>("Icon/" + row.iconKey) : null;
+                var row = DataStore.GetItem(slot.itemId);
+                var sprite = Resources.Load<Sprite>("Icon/" + slot.itemId);
 
                 if (icon != null)
                 {
-                    icon.sprite  = sprite;
+                    icon.sprite = sprite;
                     icon.enabled = sprite != null;
                 }
 
                 if (text != null)
                 {
                     string nm = row?.itemName ?? slot.itemId.ToString();
-                    text.text  = slot.amount > 1 ? $"{nm}\nx{slot.amount}" : nm;
+                    text.text = slot.amount > 1 ? $"{nm}\nx{slot.amount}" : nm;
                 }
             }
         }
