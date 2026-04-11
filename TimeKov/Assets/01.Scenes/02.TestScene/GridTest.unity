@@ -1132,9 +1132,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   buildManager: {fileID: 1985246425}
-  originTransform: {fileID: 0}
+  originTransform: {fileID: 595650676}
   width: 80
-  height: 80
+  height: 200
   yOffset: 0.05
   showOnlyInBuildMode: 1
   showOnlyInTopViewMode: 1
@@ -1200,7 +1200,7 @@ Transform:
   m_GameObject: {fileID: 221775318}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -4.7, y: 0, z: -23.8}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2405,6 +2405,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 574414011}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &595650675
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 595650676}
+  m_Layer: 0
+  m_Name: W
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &595650676
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 595650675}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &603054576
 GameObject:
   m_ObjectHideFlags: 0
@@ -6603,15 +6634,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entries:
   - facilityId: 1
-    prefab: {fileID: 6301837561607726260, guid: 3548223f619733e4186e41d43cea964a, type: 3}
+    prefab: {fileID: 4816475483233169569, guid: d13433ec074bdcb4bba80057442e8743, type: 3}
   - facilityId: 2
-    prefab: {fileID: 3437770530570551244, guid: 5d4bd0c4e54bed241802070cfb46ea5e, type: 3}
+    prefab: {fileID: 4744003936105191107, guid: 168237d890c4b2948acf48f038fff5a4, type: 3}
   - facilityId: 3
-    prefab: {fileID: 3388094596540654697, guid: 4d78ebcb03a05fb418845bd966dd9862, type: 3}
+    prefab: {fileID: 4816475483233169569, guid: d13433ec074bdcb4bba80057442e8743, type: 3}
   - facilityId: 4
-    prefab: {fileID: 5370051887721565272, guid: add205101b77b44468b63280e4513af6, type: 3}
+    prefab: {fileID: 381477864289183839, guid: e57cf7c03603d2b498bdf169a6221b43, type: 3}
   - facilityId: 5
-    prefab: {fileID: 5163264880098459649, guid: d262998032faa1d4c88851d441ae4ce0, type: 3}
+    prefab: {fileID: 8247299433171893314, guid: 40900a9d49b0f674499c50866ff3b63a, type: 3}
 --- !u!4 &1257206007
 Transform:
   m_ObjectHideFlags: 0
@@ -10901,6 +10932,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 128
   rayDistance: 300
+  gridOrigin: {fileID: 595650676}
   cellSize: 1
   fixedY: 0
   yTolerance: 0.1
@@ -11722,3 +11754,4 @@ SceneRoots:
   - {fileID: 1985246426}
   - {fileID: 981555067}
   - {fileID: 221775322}
+  - {fileID: 595650676}

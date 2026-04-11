@@ -22,6 +22,7 @@ public class BuildManager : MonoBehaviour
     [SerializeField] private Vector3 topViewStartOffset = new Vector3(0f, 25f, 0f);
     [SerializeField] private MonoBehaviour[] disableInTopView;
 
+
     [Header("Build Effect")]
     public Material hologramMaterial;
     public float buildEffectDuration = 1.2f;
@@ -59,6 +60,7 @@ public class BuildManager : MonoBehaviour
     public float rayDistance = 300f;
 
     [Header("Grid")]
+    public Transform gridOrigin;
     public float cellSize = 1f;
     public float fixedY = 0f;
     public float yTolerance = 0.1f;
@@ -265,11 +267,12 @@ public class BuildManager : MonoBehaviour
             return;
         }
 
-        Vector3 snappedPos = SnapToGrid(hit.point);
-        Quaternion rotation = Quaternion.Euler(0f, currentRotationY, 0f);
-
         Vector2Int rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
-        List<Vector2Int> footprintCells = GetFootprintCells(snappedPos, rotatedSize);
+        Vector2Int startCell = WorldToStartCell(hit.point);
+        Vector3 snappedPos = StartCellToWorldCenter(startCell, rotatedSize);
+        List<Vector2Int> footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
+
+        Quaternion rotation = Quaternion.Euler(0f, currentRotationY, 0f);
 
         bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
         bool isCorrectHeight = Mathf.Abs(hit.point.y - fixedY) <= yTolerance;
@@ -283,7 +286,7 @@ public class BuildManager : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0) && canBuild && !isPlacing)
         {
-            StartCoroutine(PlaceCurrentFacilityRoutine(snappedPos, rotation));
+            StartCoroutine(PlaceCurrentFacilityRoutine(snappedPos, rotation, footprintCells));
         }
     }
 
@@ -309,7 +312,7 @@ public class BuildManager : MonoBehaviour
         RefreshPreviewMarker();
     }
 
-    private IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation)
+    private IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
         FacilityRow facility = GetCurrentFacilityRow();
         GameObject prefab = GetCurrentFacilityPrefab();
@@ -318,9 +321,6 @@ public class BuildManager : MonoBehaviour
             yield break;
 
         isPlacing = true;
-
-        Vector2Int rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
-        List<Vector2Int> footprintCells = GetFootprintCells(position, rotatedSize);
 
         OccupyCells(footprintCells);
 
@@ -396,23 +396,46 @@ public class BuildManager : MonoBehaviour
     private Vector3 SnapToGrid(Vector3 worldPos)
     {
         Vector2Int size = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
-
-        float x;
-        float z;
-
-        if (size.x % 2 == 1)
-            x = Mathf.Floor(worldPos.x / cellSize) * cellSize + cellSize * 0.5f;
-        else
-            x = Mathf.Round(worldPos.x / cellSize) * cellSize;
-
-        if (size.y % 2 == 1)
-            z = Mathf.Floor(worldPos.z / cellSize) * cellSize + cellSize * 0.5f;
-        else
-            z = Mathf.Round(worldPos.z / cellSize) * cellSize;
-
-        return new Vector3(x, fixedY, z);
+        Vector2Int startCell = WorldToStartCell(worldPos);
+        return StartCellToWorldCenter(startCell, size);
     }
 
+
+    private Vector2Int WorldToStartCell(Vector3 worldPos)
+    {
+        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
+        Vector3 local = worldPos - origin;
+
+        int cellX = Mathf.FloorToInt(local.x / cellSize);
+        int cellZ = Mathf.FloorToInt(local.z / cellSize);
+
+        return new Vector2Int(cellX, cellZ);
+    }
+
+    private Vector3 StartCellToWorldCenter(Vector2Int startCell, Vector2Int size)
+    {
+        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
+
+        float centerX = origin.x + (startCell.x + size.x * 0.5f) * cellSize;
+        float centerZ = origin.z + (startCell.y + size.y * 0.5f) * cellSize;
+
+        return new Vector3(centerX, fixedY, centerZ);
+    }
+
+    private List<Vector2Int> GetFootprintCellsFromStartCell(Vector2Int startCell, Vector2Int size)
+    {
+        List<Vector2Int> cells = new List<Vector2Int>();
+
+        for (int x = 0; x < size.x; x++)
+        {
+            for (int z = 0; z < size.y; z++)
+            {
+                cells.Add(new Vector2Int(startCell.x + x, startCell.y + z));
+            }
+        }
+
+        return cells;
+    }
     private Vector2Int GetRotatedSize(Vector2Int originalSize, int rotationY)
     {
         rotationY %= 360;
@@ -425,29 +448,15 @@ public class BuildManager : MonoBehaviour
 
     private List<Vector2Int> GetFootprintCells(Vector3 snappedPos, Vector2Int size)
     {
-        List<Vector2Int> cells = new List<Vector2Int>();
+        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
 
-        int baseX = Mathf.FloorToInt(snappedPos.x / cellSize);
-        int baseZ = Mathf.FloorToInt(snappedPos.z / cellSize);
+        float localCenterX = snappedPos.x - origin.x;
+        float localCenterZ = snappedPos.z - origin.z;
 
-        int startX = baseX - (size.x - 1) / 2;
-        int startZ = baseZ - (size.y - 1) / 2;
+        int startX = Mathf.RoundToInt((localCenterX / cellSize) - (size.x * 0.5f));
+        int startZ = Mathf.RoundToInt((localCenterZ / cellSize) - (size.y * 0.5f));
 
-        if (size.x % 2 == 0)
-            startX -= 1;
-
-        if (size.y % 2 == 0)
-            startZ -= 1;
-
-        for (int x = 0; x < size.x; x++)
-        {
-            for (int z = 0; z < size.y; z++)
-            {
-                cells.Add(new Vector2Int(startX + x, startZ + z));
-            }
-        }
-
-        return cells;
+        return GetFootprintCellsFromStartCell(new Vector2Int(startX, startZ), size);
     }
 
     private bool IsAnyCellOccupied(List<Vector2Int> cells)
