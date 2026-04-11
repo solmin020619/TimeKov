@@ -78,13 +78,16 @@ namespace TIMEKOV.Factory
         {
             if (machineUI == null || _nearMachine == null) return;
 
-            // 현재 커서 상태 저장
-            _prevLockState = Cursor.lockState;
-            _prevVisible = Cursor.visible;
-
-            // 커서 표시
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            // UIStateManager를 통해 Factory 상태로 전환
+            // → RefreshCursorState가 커서를 덮어쓰지 않게 됨
+            if (UIStateManager.Instance != null)
+                UIStateManager.Instance.OpenFactoryUI();
+            else
+            {
+                // UIStateManager 없을 때 직접 제어
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
 
             machineUI.OpenFor(_nearMachine, _nearMachineName);
             _uiOpen = true;
@@ -97,9 +100,14 @@ namespace TIMEKOV.Factory
             machineUI?.Close();
             _uiOpen = false;
 
-            // 커서 상태 복원
-            Cursor.lockState = _prevLockState;
-            Cursor.visible = _prevVisible;
+            // UIStateManager를 통해 None 상태로 복원
+            if (UIStateManager.Instance != null)
+                UIStateManager.Instance.CloseFactoryUI();
+            else
+            {
+                Cursor.lockState = _prevLockState;
+                Cursor.visible = _prevVisible;
+            }
 
             if (hintText != null)
                 hintText.text = _nearMachine != null

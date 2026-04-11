@@ -1226,7 +1226,7 @@ MonoBehaviour:
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
   m_RenderPostProcessing: 1
-  m_Antialiasing: 3
+  m_Antialiasing: 2
   m_AntialiasingQuality: 2
   m_StopNaN: 0
   m_Dithering: 0
@@ -2587,6 +2587,8 @@ GameObject:
   - component: {fileID: 3031027816759201222}
   - component: {fileID: 8481010945412190130}
   - component: {fileID: 7618715733282882011}
+  - component: {fileID: 3226357606801416946}
+  - component: {fileID: 9209200022972939358}
   m_Layer: 9
   m_Name: Player
   m_TagString: Player
@@ -2643,7 +2645,7 @@ MonoBehaviour:
   pitchMax: 30
   lockCursor: 1
   viewModel: {fileID: 3561346087933501063}
-  sfxMixerGroup: {fileID: 0}
+  sfxMixerGroup: {fileID: 1887898413064667760, guid: 765411127c02835408afdbac522d87b6, type: 2}
   syncViewModelPitch: 1
   invertViewModelPitch: 1
   currentStamina: 0
@@ -2692,7 +2694,6 @@ MonoBehaviour:
     weaponIndex: 3
   - itemId: 1401
     weaponIndex: 4
-  weaponAmmoMap: []
   playerInventory: {fileID: 0}
   hitMask:
     serializedVersion: 2
@@ -2700,6 +2701,7 @@ MonoBehaviour:
   bulletPrefab: {fileID: 4531478676750283146, guid: c3cd410c3ec13444eb76c1e685456e7a, type: 3}
   bulletSpeed: 20
   bulletLifeTime: 5
+  bulletPoolSize: 30
   autoFindMuzzleOnEquip: 1
   muzzleNameKeywords:
   - muzzle
@@ -2806,6 +2808,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weapon: {fileID: 7289741332910087556}
   logCalls: 0
+--- !u!114 &3226357606801416946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8185736944768849092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  soundType: 1
+--- !u!114 &9209200022972939358
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8185736944768849092}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b3da0d51fae6194fbd76ff956944325, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  machineUI: {fileID: 0}
+  hintText: {fileID: 0}
 --- !u!1 &8415433995124380158
 GameObject:
   m_ObjectHideFlags: 0

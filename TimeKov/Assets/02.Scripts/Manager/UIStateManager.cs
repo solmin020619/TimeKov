@@ -13,7 +13,8 @@ public class UIStateManager : MonoBehaviour
         Shop,
         Loot,
         Quest,
-        Pause
+        Pause,
+        Factory   // 공장 설비 UI
     }
 
     [Header("UI Panels")]
@@ -122,6 +123,19 @@ public class UIStateManager : MonoBehaviour
     {
         currentState = UIState.None;
         pauseSettingsOpen = false;
+        ApplyState();
+    }
+
+    // ── 공장 설비 UI 전용 ────────────────────────────────────────
+    public void OpenFactoryUI()
+    {
+        currentState = UIState.Factory;
+        ApplyState();
+    }
+
+    public void CloseFactoryUI()
+    {
+        currentState = UIState.None;
         ApplyState();
     }
 
@@ -291,13 +305,18 @@ public class UIStateManager : MonoBehaviour
                 break;
 
 
+            case UIState.Factory:
+                // MachineUI는 MachineInteraction이 직접 관리
+                // 여기서는 커서/입력 제어만 담당
+                break;
+
             case UIState.None:
             default:
                 break;
 
 
 
-            
+
         }
 
         // 창고 이동 버튼 노출 규칙
@@ -313,7 +332,7 @@ public class UIStateManager : MonoBehaviour
         //  Pause 상태일 때만 게임 정지
         SetPauseTimeScale(currentState == UIState.Pause);
 
-       
+
     }
 
     //  “관리 대상 UI가 실제로 하나라도 켜져있는가” 체크
@@ -331,6 +350,7 @@ public class UIStateManager : MonoBehaviour
 
         if (currentLootUI != null && currentLootUI.activeInHierarchy) return true;
         if (defaultLootUI != null && defaultLootUI.activeInHierarchy) return true;
+        if (currentState == UIState.Factory) return true;
 
         return false;
     }
