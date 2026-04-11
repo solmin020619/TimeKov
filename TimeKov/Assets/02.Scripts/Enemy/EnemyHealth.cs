@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.AI;
 using System;
+using System.Collections;
 
 public class EnemyHealth : MonoBehaviour
 {
@@ -12,13 +14,12 @@ public class EnemyHealth : MonoBehaviour
     public GameObject corpsePrefab;
 
     [Header("UI")]
-    [SerializeField] private EnemyWorldUI enemyWorldUI;   // NEW: 적 머리 위 UI 연결
-    [SerializeField] private Transform uiAnchor;          // NEW: 데미지 넘버 / UI 기준 위치
+    [SerializeField] private EnemyWorldUI enemyWorldUI;
+    [SerializeField] private Transform uiAnchor;
 
     public event Action OnDeath;
     public event Action OnDamage;
-
-    public event Action<float, bool, Vector3> OnDamageUI; // NEW: 데미지, 치명타 여부, 표시 위치 전달
+    public event Action<float, bool, Vector3> OnDamageUI;
 
     private bool isDead = false;
 
@@ -32,7 +33,10 @@ public class EnemyHealth : MonoBehaviour
 
         if (enemyWorldUI != null)
         {
-            string enemyName = enemyAI != null && enemyAI.data != null ? enemyAI.data.enemyName : gameObject.name;
+            string enemyName = (enemyAI != null && enemyAI.data != null && !string.IsNullOrWhiteSpace(enemyAI.data.enemyName))
+                ? enemyAI.data.enemyName
+                : gameObject.name;
+
             enemyWorldUI.Initialize(this, enemyName);
         }
     }
@@ -44,58 +48,144 @@ public class EnemyHealth : MonoBehaviour
 
     public void TakeDamage(float amount, bool isCritical)
     {
-        if (isDead) return;
+        if (isDead)
+            return;
 
         currentHP -= amount;
         currentHP = Mathf.Max(currentHP, 0f);
 
         OnDamage?.Invoke();
 
-        Vector3 hitPos = uiAnchor != null ? uiAnchor.position : transform.position + Vector3.up * 2f;
-        OnDamageUI?.Invoke(amount, isCritical, hitPos); // NEW: UI 쪽으로 데미지 정보 전달
+        Vector3 hitPos = uiAnchor != null
+            ? uiAnchor.position
+            : transform.position + Vector3.up * 2f;
 
-        if (enemyWorldUI != null)
-            enemyWorldUI.OnDamaged(); // NEW: 맞으면 체력바 잠깐 표시
+        OnDamageUI?.Invoke(amount, isCritical, hitPos);
 
         if (enemyAI != null)
             enemyAI.RevealFromHit();
 
         if (currentHP <= 0f)
-        {
             Die();
+    }
+
+    private void Die()
+    {
+        if (isDead)
+            return;
+
+        isDead = true;
+
+        if (enemyWorldUI != null)
+            enemyWorldUI.gameObject.SetActive(false);
+
+        bool useDeathAnimation = enemyAI != null &&
+                                 enemyAI.data != null &&
+                                 enemyAI.data.useDeathAnimation;
+
+        Debug.Log($"[EnemyHealth] Die called | useDeathAnimation = {useDeathAnimation}", gameObject);
+
+        if (useDeathAnimation)
+        {
+            StartCoroutine(DeathRoutine());
+        }
+        else
+        {
+            Debug.Log("[EnemyHealth] useDeathAnimation false -> SpawnCorpseLootObject 즉시 실행", gameObject);
+            SpawnCorpseLootObject();
+            Destroy(gameObject);
         }
     }
 
-    void Die()
+    private void PlayDeathEffect()
     {
-        if (isDead) return;
-        isDead = true;
+        if (enemyAI == null || enemyAI.data == null)
+            return;
 
-        OnDeath?.Invoke();
-
-        GameObject corpse = null;
-
-        if (corpsePrefab != null)
+        if (enemyAI.data.deathVFXPrefab != null)
         {
-            corpse = Instantiate(corpsePrefab, transform.position, transform.rotation);
-
-            MonsterLoot monsterLoot = corpse.GetComponent<MonsterLoot>();
-            if (monsterLoot != null && enemyAI != null)
-            {
-                string dropSourceId = enemyAI.GetDropSourceId();
-                int dropTier = enemyAI.GetDropTier();
-
-                monsterLoot.sourceType = "monster";
-                monsterLoot.monsterType = dropSourceId;
-                monsterLoot.dropTier = dropTier;
-
-                if (string.IsNullOrWhiteSpace(dropSourceId))
-                {
-                    Debug.LogWarning($"[EnemyHealth] dropSourceId가 비어 있음: {gameObject.name}", gameObject);
-                }
-            }
+            Instantiate(
+                enemyAI.data.deathVFXPrefab,
+                transform.position,
+                Quaternion.identity
+            );
         }
 
+        AudioSource audioSource = GetComponent<AudioSource>();
+        if (audioSource != null && enemyAI.data.deathSound != null)
+        {
+            audioSource.PlayOneShot(enemyAI.data.deathSound);
+        }
+    }
+
+    private IEnumerator DeathRoutine()
+    {
+        Debug.Log("[EnemyHealth] DeathRoutine 시작", gameObject);
+
+        NavMeshAgent agent = GetComponent<NavMeshAgent>();
+        Animator anim = GetComponentInChildren<Animator>();
+
+        Collider[] allCols = GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < allCols.Length; i++)
+        {
+            if (allCols[i] != null)
+                allCols[i].enabled = false;
+        }
+
+        if (agent != null)
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
+
+            agent.enabled = false;
+        }
+
+        if (enemyAI != null)
+            enemyAI.enabled = false;
+
+        if (anim != null)
+            anim.SetTrigger("Dead");
+
+        float delay = 1f;
+        if (enemyAI != null && enemyAI.data != null)
+            delay = enemyAI.data.deathAnimDuration;
+
+        // 죽는 애니 중간쯤, 바닥에 닿을 타이밍쯤 이펙트/사운드
+        yield return new WaitForSeconds(delay * 0.7f);
+
+        PlayDeathEffect();
+
+        yield return new WaitForSeconds(delay * 0.3f);
+
+        SpawnCorpseLootObject();
         Destroy(gameObject);
+    }
+    private void SpawnCorpseLootObject()
+    {
+        Debug.Log("[EnemyHealth] SpawnCorpseLootObject 호출됨", gameObject);
+
+        if (corpsePrefab == null)
+            return;
+
+        GameObject corpse = Instantiate(corpsePrefab, transform.position, transform.rotation);
+
+        MonsterLoot monsterLoot = corpse.GetComponent<MonsterLoot>();
+        if (monsterLoot != null && enemyAI != null)
+        {
+            string dropSourceId = enemyAI.GetDropSourceId();
+            int dropTier = enemyAI.GetDropTier();
+
+            monsterLoot.sourceType = "monster";
+            monsterLoot.monsterType = dropSourceId;
+            monsterLoot.dropTier = dropTier;
+
+            if (string.IsNullOrWhiteSpace(dropSourceId))
+            {
+                Debug.LogWarning($"[EnemyHealth] dropSourceId가 비어 있음: {gameObject.name}", gameObject);
+            }
+        }
     }
 }

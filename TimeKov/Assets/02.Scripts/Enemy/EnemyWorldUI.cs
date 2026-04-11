@@ -1,4 +1,3 @@
-using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,17 +7,32 @@ public class EnemyWorldUI : MonoBehaviour
     [Header("References")]
     [SerializeField] private CanvasGroup canvasGroup;
     [SerializeField] private Slider hpSlider;
-    [SerializeField] private TMP_Text nameText;
+    [SerializeField] private TextMeshProUGUI nameText;
     [SerializeField] private DamageNumberSpawner damageNumberSpawner;
 
-    [Header("Settings")]
-    [SerializeField] private float visibleDuration = 2f;   // NEW: 맞았을 때 표시 유지 시간
-    [SerializeField] private Vector3 worldOffset = new Vector3(0f, 2.2f, 0f); // NEW: UI 위치 보정
+    [Header("Display Settings")]
+    [SerializeField] private Vector3 worldOffset = new Vector3(0f, 2.2f, 0f);
+    [SerializeField] private float showDistance = 20f;
+    [SerializeField] private bool alwaysShowBossLike = false;
 
     private EnemyHealth targetHealth;
     private Transform targetTransform;
     private Camera cam;
-    private Coroutine hideRoutine;
+
+    private void Awake()
+    {
+        if (canvasGroup == null)
+            canvasGroup = GetComponentInChildren<CanvasGroup>(true);
+
+        if (hpSlider == null)
+            hpSlider = GetComponentInChildren<Slider>(true);
+
+        if (nameText == null)
+            nameText = GetComponentInChildren<TextMeshProUGUI>(true);
+
+        if (damageNumberSpawner == null)
+            damageNumberSpawner = GetComponentInChildren<DamageNumberSpawner>(true);
+    }
 
     public void Initialize(EnemyHealth health, string enemyName)
     {
@@ -32,7 +46,7 @@ public class EnemyWorldUI : MonoBehaviour
         RefreshHP();
 
         if (canvasGroup != null)
-            canvasGroup.alpha = 0f;
+            canvasGroup.alpha = 1f;
 
         targetHealth.OnDamage += RefreshHP;
         targetHealth.OnDeath += HandleDeath;
@@ -53,21 +67,29 @@ public class EnemyWorldUI : MonoBehaviour
         if (cam != null)
         {
             transform.forward = cam.transform.forward;
+            UpdateVisibilityByDistance();
         }
     }
 
-    public void OnDamaged()
+    private void UpdateVisibilityByDistance()
     {
-        RefreshHP();
-        ShowTemporarily();
+        if (canvasGroup == null || cam == null || targetTransform == null)
+            return;
+
+        if (alwaysShowBossLike)
+        {
+            canvasGroup.alpha = 1f;
+            return;
+        }
+
+        float distance = Vector3.Distance(cam.transform.position, targetTransform.position);
+        canvasGroup.alpha = distance <= showDistance ? 1f : 0f;
     }
 
     private void HandleDamageUI(float damage, bool isCritical, Vector3 worldPos)
     {
         if (damageNumberSpawner != null)
             damageNumberSpawner.ShowDamage(damage, isCritical, worldPos);
-
-        ShowTemporarily();
     }
 
     private void RefreshHP()
@@ -77,27 +99,6 @@ public class EnemyWorldUI : MonoBehaviour
 
         hpSlider.maxValue = targetHealth.maxHP;
         hpSlider.value = targetHealth.currentHP;
-    }
-
-    private void ShowTemporarily()
-    {
-        if (canvasGroup != null)
-            canvasGroup.alpha = 1f;
-
-        if (hideRoutine != null)
-            StopCoroutine(hideRoutine);
-
-        hideRoutine = StartCoroutine(HideRoutine());
-    }
-
-    private IEnumerator HideRoutine()
-    {
-        yield return new WaitForSeconds(visibleDuration);
-
-        if (canvasGroup != null)
-            canvasGroup.alpha = 0f;
-
-        hideRoutine = null;
     }
 
     private void HandleDeath()

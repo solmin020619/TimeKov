@@ -21,7 +21,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &513267464988207773
 Transform:
   m_ObjectHideFlags: 0
@@ -151,6 +151,8 @@ MonoBehaviour:
   maxHP: 100
   currentHP: 0
   corpsePrefab: {fileID: 4058803597381055991, guid: d13e72dc96790ab4aaa119e164235b04, type: 3}
+  enemyWorldUI: {fileID: 0}
+  uiAnchor: {fileID: 0}
 --- !u!114 &395803130065172989
 MonoBehaviour:
   m_ObjectHideFlags: 0

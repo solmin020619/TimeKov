@@ -37,6 +37,10 @@ public class EnemyAI : MonoBehaviour
     private bool hasPerformedFirstAttack = false;
     private bool isSelfDestructing = false;
 
+    private bool isHitStunned = false;
+    private float hitStunTimer = 0f;
+    private Coroutine currentAttackRoutine;
+
     private float footstepTimer = 0f;
     private State previousState;
 
@@ -179,18 +183,78 @@ public class EnemyAI : MonoBehaviour
     {
         if (data == null) return;
 
-        SpawnVFX(data.hitVFXPrefab, transform.position + Vector3.up * 1.5f, 1f);
-        PlayClip(data.hitSound);
+        if (data.hitVFXPrefab != null)
+        {
+            GameObject vfx = Instantiate(data.hitVFXPrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity);
+            Destroy(vfx, 1f);
+        }
+
+        if (data.hitSound != null && audioSource != null)
+            audioSource.PlayOneShot(data.hitSound);
 
         lastProvokedTime = Time.time;
 
         if (currentState != State.Chase && currentState != State.Attack)
             currentState = State.Chase;
+
+        if (!data.useHitStun)
+            return;
+
+        if (data.interruptAttackOnHit && isAttacking)
+        {
+            if (currentAttackRoutine != null)
+            {
+                StopCoroutine(currentAttackRoutine);
+                currentAttackRoutine = null;
+            }
+
+            isAttacking = false;
+            currentState = State.Chase;
+
+            if (agent != null && agent.isOnNavMesh)
+                agent.isStopped = false;
+        }
+
+        isHitStunned = true;
+        hitStunTimer = data.hitStunDuration;
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        if (data.playHitAnimation && anim != null)
+            anim.SetTrigger("Hit");
     }
 
     void Update()
     {
         if (playerTransform == null || data == null) return;
+
+        if (isHitStunned)
+        {
+            hitStunTimer -= Time.deltaTime;
+
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
+
+            if (anim != null)
+                anim.SetFloat("Speed", 0f);
+
+            if (hitStunTimer <= 0f)
+            {
+                isHitStunned = false;
+
+                if (agent != null && agent.isOnNavMesh && currentState != State.Attack)
+                    agent.isStopped = false;
+            }
+
+            return;
+        }
 
         if (isStealthActive)
         {
@@ -305,7 +369,13 @@ public class EnemyAI : MonoBehaviour
             agent.ResetPath();
         }
     }
+    void BeginAttackRoutine(IEnumerator routine)
+    {
+        if (currentAttackRoutine != null)
+            StopCoroutine(currentAttackRoutine);
 
+        currentAttackRoutine = StartCoroutine(routine);
+    }
     void AttackLogic()
     {
         agent.isStopped = true;
@@ -327,17 +397,17 @@ public class EnemyAI : MonoBehaviour
                 case EnemyType.Melee:
                     if (data.useJumpAttack && !hasPerformedFirstAttack)
                     {
-                        StartCoroutine(PerformJumpAttack());
+                        BeginAttackRoutine(PerformJumpAttack());
                         hasPerformedFirstAttack = true;
                     }
                     else
                     {
-                        StartCoroutine(PerformMeleeAttack());
+                        BeginAttackRoutine(PerformMeleeAttack());
                     }
                     break;
 
                 case EnemyType.SuicideBomber:
-                    StartCoroutine(PerformSuicideAttack());
+                    BeginAttackRoutine(PerformSuicideAttack());
                     break;
             }
         }
@@ -384,6 +454,7 @@ public class EnemyAI : MonoBehaviour
             isAttacking = false;
             currentState = State.Chase;
         }
+        currentAttackRoutine = null;
     }
 
     IEnumerator PerformMeleeAttack()
@@ -437,6 +508,7 @@ public class EnemyAI : MonoBehaviour
         isAttacking = false;
         currentState = State.Chase;
         agent.isStopped = false;
+        currentAttackRoutine = null;
     }
 
     IEnumerator PerformJumpAttack()
@@ -490,6 +562,7 @@ public class EnemyAI : MonoBehaviour
         isAttacking = false;
         currentState = State.Chase;
         agent.isStopped = false;
+        currentAttackRoutine = null;
     }
 
     void SetStealthVisual(float alpha)

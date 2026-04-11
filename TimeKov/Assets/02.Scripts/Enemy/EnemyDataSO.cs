@@ -44,6 +44,16 @@ public class EnemyDataSO : ScriptableObject
     public float jumpLungeSpeed = 10f;           // 점프 돌진 속도
     [Range(0f, 1f)] public float jumpChanceOnMiss = 0.7f; // 공격 빗나갔을 때 점프 공격 확률
 
+    [Header("Hit Reaction")]                     // 피격 반응 관련 설정 묶음
+    public bool useHitStun = true;               // 맞았을 때 잠깐 멈추는 경직을 사용할지 여부
+    public float hitStunDuration = 0.12f;        // 피격 경직이 유지되는 시간
+    public bool interruptAttackOnHit = true;     // 맞았을 때 현재 공격을 끊을지 여부
+    public bool playHitAnimation = true;         // 맞았을 때 Hit 애니메이션을 재생할지 여부
+
+    [Header("Death Presentation")]               // 사망 연출 관련 설정 묶음
+    public bool useDeathAnimation = false;       // 죽을 때 즉시 사라지지 않고 죽는 애니메이션을 재생할지 여부
+    public float deathAnimDuration = 1.0f;       // 죽는 애니메이션 재생 후 오브젝트를 제거하거나 다음 처리를 하기까지의 시간
+
     // 은신관련
     [Header("Type Specific: stealth")]
     public bool useStealth;             // 은신 기능 사용 여부
