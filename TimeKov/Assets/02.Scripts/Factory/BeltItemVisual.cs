@@ -6,7 +6,7 @@ namespace TIMEKOV.Factory
 {
     public class BeltItemVisual : MonoBehaviour
     {
-        [SerializeField] private Image           iconImage;
+        [SerializeField] private Image iconImage;
         [SerializeField] private TextMeshProUGUI nameText;
         [SerializeField] private TextMeshProUGUI countText;
 
@@ -20,17 +20,17 @@ namespace TIMEKOV.Factory
 
         public void Setup(int itemId, int amount)
         {
-            var row    = DataStore.GetItem(itemId);
-            var sprite = row != null ? Resources.Load<Sprite>("Icon/" + row.iconKey) : null;
+            var row = DataStore.GetItem(itemId);
+            var sprite = Resources.Load<Sprite>("Icon/" + itemId);
 
             if (iconImage != null)
             {
-                iconImage.sprite  = sprite;
+                iconImage.sprite = sprite;
                 iconImage.enabled = sprite != null;
             }
 
-            if (nameText  != null) nameText.text  = row?.itemName ?? itemId.ToString();
-            if (countText != null) countText.text  = amount > 1 ? $"x{amount}" : "";
+            if (nameText != null) nameText.text = row?.itemName ?? itemId.ToString();
+            if (countText != null) countText.text = amount > 1 ? $"x{amount}" : "";
 
             gameObject.name = $"[Belt] {itemId} x{amount}";
         }

@@ -8,23 +8,23 @@ namespace TIMEKOV.Factory
 {
     public class MachineSlotWidget : MonoBehaviour, IPointerClickHandler
     {
-        [SerializeField] private Image           iconImage;
+        [SerializeField] private Image iconImage;
         [SerializeField] private TextMeshProUGUI itemNameText;
         [SerializeField] private TextMeshProUGUI amountText;
 
         private Action _onClick;
         private Action _onDoubleClick;
-        private float  _lastClickTime;
+        private float _lastClickTime;
         private const float DoubleClickThreshold = 0.3f;
 
         public void Setup(int itemId, int amount)
         {
-            var row    = DataStore.GetItem(itemId);
-            var sprite = row != null ? Resources.Load<Sprite>("Icon/" + row.iconKey) : null;
+            var row = DataStore.GetItem(itemId);
+            var sprite = Resources.Load<Sprite>("Icon/" + itemId);
 
             if (iconImage != null)
             {
-                iconImage.sprite  = sprite;
+                iconImage.sprite = sprite;
                 iconImage.enabled = sprite != null;
             }
 
@@ -35,7 +35,7 @@ namespace TIMEKOV.Factory
                 amountText.text = amount > 1 ? $"x{amount}" : "";
         }
 
-        public void SetClickAction(Action a)       => _onClick       = a;
+        public void SetClickAction(Action a) => _onClick = a;
         public void SetDoubleClickAction(Action a) => _onDoubleClick = a;
 
         public void OnPointerClick(PointerEventData eventData)
