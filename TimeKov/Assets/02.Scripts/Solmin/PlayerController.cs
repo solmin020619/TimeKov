@@ -402,6 +402,45 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public void ResetInputState()
+    {
+        moveInput = Vector3.zero;
+        isRunning = false;
+
+        if (viewModel != null)
+        {
+            viewModel.SetMoveInput(Vector2.zero, false, false);
+            viewModel.SetAiming(false);
+        }
+    }
+
+    public void StopImmediately()
+    {
+        moveInput = Vector3.zero;
+        isRunning = false;
+        hasCachedYawRotation = false;
+
+        if (rb == null)
+            rb = GetComponent<Rigidbody>();
+
+        if (rb != null)
+        {
+            Vector3 v = rb.linearVelocity;
+            v.x = 0f;
+            v.y = 0f;
+            v.z = 0f;
+            rb.linearVelocity = v;
+
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        if (viewModel != null)
+        {
+            viewModel.SetMoveInput(Vector2.zero, false, false);
+            viewModel.SetAiming(false);
+        }
+    }
+
     public float GetStamina() => currentStamina;
     public float GetStaminaMax() => staminaMax;
 

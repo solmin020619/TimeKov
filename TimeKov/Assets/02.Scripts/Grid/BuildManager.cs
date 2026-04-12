@@ -8,7 +8,7 @@ public class BuildManager : MonoBehaviour
     [System.Serializable]
     public class BuildSlot
     {
-        [Header("DataStore.FacilityById¿¡ ÀÖ´Â facilityId")]
+        [Header("DataStore.FacilityByIdï¿½ï¿½ ï¿½Ö´ï¿½ facilityId")]
         public int facilityId;
     }
 
@@ -26,7 +26,6 @@ public class BuildManager : MonoBehaviour
     [Header("Build Effect")]
     public Material hologramMaterial;
     public float buildEffectDuration = 1.2f;
-    private bool isPlacing = false;
 
     [Header("Build Audio")]
     public AudioSource audioSource;
@@ -69,6 +68,10 @@ public class BuildManager : MonoBehaviour
     public LayerMask blockingMask;
     public float checkHeight = 0.45f;
 
+    [SerializeField] private Rigidbody playerRigidbody;
+    [SerializeField] private CharacterController playerCharacterController;
+    [SerializeField] private MonoBehaviour playerMovementScript;
+    [SerializeField] private Animator playerAnimator;
     public bool IsBuildMode { get; private set; }
     public bool IsTopViewMode { get; private set; }
 
@@ -76,6 +79,9 @@ public class BuildManager : MonoBehaviour
     private int currentRotationY = 0;
 
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
+
+    private bool isDragBuilding = false;
+    private readonly HashSet<Vector2Int> dragPlacedStartCells = new HashSet<Vector2Int>();
 
     private void Start()
     {
@@ -166,6 +172,11 @@ public class BuildManager : MonoBehaviour
 
         IsTopViewMode = value;
 
+        if (value)
+        {
+            StopPlayerImmediately();
+        }
+
         if (gameplayCamera != null)
             gameplayCamera.gameObject.SetActive(!value);
 
@@ -247,46 +258,41 @@ public class BuildManager : MonoBehaviour
 
     private void HandleBuild()
     {
-        if (mainCam == null || buildSlots == null || buildSlots.Length == 0)
-            return;
-
-        FacilityRow currentFacility = GetCurrentFacilityRow();
-        GameObject currentPrefab = GetCurrentFacilityPrefab();
-
-        if (currentFacility == null || currentPrefab == null)
+        if (!TryGetCurrentBuildData(
+            out RaycastHit hit,
+            out Vector2Int startCell,
+            out Vector3 snappedPos,
+            out Quaternion rotation,
+            out Vector2Int rotatedSize,
+            out List<Vector2Int> footprintCells,
+            out bool canBuild))
         {
-            SetPreviewActive(false);
-            return;
-        }
+            if (Input.GetMouseButtonUp(0))
+            {
+                isDragBuilding = false;
+                dragPlacedStartCells.Clear();
+            }
 
-        Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
-
-        if (!Physics.Raycast(ray, out RaycastHit hit, rayDistance, groundMask))
-        {
-            SetPreviewActive(false);
             return;
         }
 
-        Vector2Int rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
-        Vector2Int startCell = WorldToStartCell(hit.point);
-        Vector3 snappedPos = StartCellToWorldCenter(startCell, rotatedSize);
-        List<Vector2Int> footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
-
-        Quaternion rotation = Quaternion.Euler(0f, currentRotationY, 0f);
-
-        bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
-        bool isCorrectHeight = Mathf.Abs(hit.point.y - fixedY) <= yTolerance;
-        bool isOccupied = IsAnyCellOccupied(footprintCells);
-        bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
-        bool installRuleOk = CheckInstallRule(currentFacility);
-
-        bool canBuild = isInBuildZone && isCorrectHeight && !isOccupied && !isBlocked && installRuleOk;
-
-        UpdatePreview(snappedPos, rotation, canBuild);
-
-        if (Input.GetMouseButtonDown(0) && canBuild && !isPlacing)
+        if (Input.GetMouseButtonDown(0))
         {
-            StartCoroutine(PlaceCurrentFacilityRoutine(snappedPos, rotation, footprintCells));
+            isDragBuilding = true;
+            dragPlacedStartCells.Clear();
+
+            TryDragPlace(startCell, snappedPos, rotation, footprintCells, canBuild);
+        }
+
+        if (Input.GetMouseButton(0) && isDragBuilding)
+        {
+            TryDragPlace(startCell, snappedPos, rotation, footprintCells, canBuild);
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            isDragBuilding = false;
+            dragPlacedStartCells.Clear();
         }
     }
 
@@ -320,7 +326,6 @@ public class BuildManager : MonoBehaviour
         if (facility == null || prefab == null)
             yield break;
 
-        isPlacing = true;
 
         OccupyCells(footprintCells);
 
@@ -372,7 +377,6 @@ public class BuildManager : MonoBehaviour
         PlayBuildCompleteSound();
         SpawnBuildCompleteEffect(position, rotation);
 
-        isPlacing = false;
     }
 
     private void ApplyHologramVisual(GameObject target)
@@ -748,4 +752,90 @@ public class BuildManager : MonoBehaviour
             rotation
         );
     }
+
+    private bool TryGetCurrentBuildData(out RaycastHit hit, out Vector2Int startCell, out Vector3 snappedPos, out Quaternion rotation, out Vector2Int rotatedSize, out List<Vector2Int> footprintCells, out bool canBuild)
+    {
+        hit = default;
+        startCell = default;
+        snappedPos = default;
+        rotation = Quaternion.identity;
+        rotatedSize = default;
+        footprintCells = null;
+        canBuild = false;
+
+        if (mainCam == null || buildSlots == null || buildSlots.Length == 0)
+            return false;
+
+        FacilityRow currentFacility = GetCurrentFacilityRow();
+        GameObject currentPrefab = GetCurrentFacilityPrefab();
+
+        if (currentFacility == null || currentPrefab == null)
+        {
+            SetPreviewActive(false);
+            return false;
+        }
+
+        Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
+
+        if (!Physics.Raycast(ray, out hit, rayDistance, groundMask))
+        {
+            SetPreviewActive(false);
+            return false;
+        }
+
+        rotation = Quaternion.Euler(0f, currentRotationY, 0f);
+        rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
+
+        startCell = WorldToStartCell(hit.point);
+        snappedPos = StartCellToWorldCenter(startCell, rotatedSize);
+        footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
+
+        bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
+        bool isCorrectHeight = Mathf.Abs(hit.point.y - fixedY) <= yTolerance;
+        bool isOccupied = IsAnyCellOccupied(footprintCells);
+        bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
+        bool installRuleOk = CheckInstallRule(currentFacility);
+
+        canBuild = isInBuildZone && isCorrectHeight && !isOccupied && !isBlocked && installRuleOk;
+
+        UpdatePreview(snappedPos, rotation, canBuild);
+        return true;
+    }
+
+    private void TryDragPlace(Vector2Int startCell, Vector3 snappedPos, Quaternion rotation, List<Vector2Int> footprintCells, bool canBuild)
+    {
+        if (!canBuild)
+            return;
+
+        if (dragPlacedStartCells.Contains(startCell))
+            return;
+
+        dragPlacedStartCells.Add(startCell);
+        StartCoroutine(PlaceCurrentFacilityRoutine(snappedPos, rotation, footprintCells));
+    }
+
+
+    private void StopPlayerImmediately()
+    {
+        if (playerRigidbody != null)
+        {
+            playerRigidbody.linearVelocity = Vector3.zero;
+            playerRigidbody.angularVelocity = Vector3.zero;
+        }
+
+        if (playerMovementScript != null)
+        {
+            playerMovementScript.SendMessage("ResetInputState", SendMessageOptions.DontRequireReceiver);
+            playerMovementScript.SendMessage("StopImmediately", SendMessageOptions.DontRequireReceiver);
+        }
+
+        if (playerAnimator != null)
+        {
+            playerAnimator.SetFloat("MoveSpeed", 0f);
+            playerAnimator.SetFloat("InputX", 0f);
+            playerAnimator.SetFloat("InputY", 0f);
+        }
+    }
+
+
 }
