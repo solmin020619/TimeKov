@@ -9,7 +9,7 @@ public class PlacedBuilding : MonoBehaviour
     [HideInInspector] public Renderer[] cachedRenderers;
 
     private Color[] originalColors;
-
+    public Vector2Int originCell;
     public void CacheRenderers()
     {
         cachedRenderers = GetComponentsInChildren<Renderer>(true);
