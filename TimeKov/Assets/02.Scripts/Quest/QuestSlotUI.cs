@@ -22,13 +22,13 @@ public class QuestSlotUI : MonoBehaviour
         switch (quest.state)
         {
             case QuestState.Available:
-                statusText.text = "<color=green>New</color>";
+                statusText.text = "New";
                 break;
             case QuestState.Accepted:
-                statusText.text = $"<color=yellow>Accepted ({quest.currentAmount}/{quest.targetAmount})</color>";
+                statusText.text = $"Accepted ({quest.currentAmount}/{quest.targetAmount})";
                 break;
             case QuestState.Completed:
-                statusText.text = "<color=gray>Completed</color>";
+                statusText.text = "Completed";
                 break;
         }
 
