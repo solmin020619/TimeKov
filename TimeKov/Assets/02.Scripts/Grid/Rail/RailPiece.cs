@@ -25,22 +25,22 @@ public class RailPiece : MonoBehaviour
         if (left) count++;
         if (right) count++;
 
-        if (count <= 1)
+        // 이 구조에서는 최대 2연결만 허용.
+        // 0개 / 1개 연결도 끝 레일처럼 straight를 사용한다.
+        bool useStraight = count <= 1 || (up && down) || (left && right);
+
+        if (useStraight)
         {
             currentVisual = Instantiate(straightPrefab, transform);
             currentVisual.transform.localPosition = Vector3.zero;
 
-            float yRot = (left || right) ? 90f : 0f;
-            currentVisual.transform.localRotation = Quaternion.Euler(0f, yRot + straightRotationOffsetY, 0f);
-            return;
-        }
+            float yRot = 0f;
 
-        if ((up && down) || (left && right))
-        {
-            currentVisual = Instantiate(straightPrefab, transform);
-            currentVisual.transform.localPosition = Vector3.zero;
+            if (left || right)
+                yRot = 90f;
+            else if (up || down)
+                yRot = 0f;
 
-            float yRot = (left && right) ? 90f : 0f;
             currentVisual.transform.localRotation = Quaternion.Euler(0f, yRot + straightRotationOffsetY, 0f);
             return;
         }

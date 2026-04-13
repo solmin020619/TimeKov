@@ -35,6 +35,13 @@ public class RailBuildManager : MonoBehaviour
     private readonly Dictionary<Vector2Int, RailPiece> railMap = new();
     private readonly List<Vector2Int> currentPathCells = new();
 
+    private enum RouteEvalResult
+    {
+        Invalid,
+        Normal,
+        Finish
+    }
+
     public void BeginRailMode(BuildManager buildManager)
     {
         owner = buildManager;
@@ -66,22 +73,37 @@ public class RailBuildManager : MonoBehaviour
 
     private void HandleLeftClick()
     {
+        BuildPort hoveredPort = null;
+        bool hasPortUnderMouse = TryGetPortUnderMouse(out hoveredPort) && hoveredPort != null;
+
+        // 라우팅 시작 전
         if (!isRouting)
         {
-            if (TryGetPortUnderMouse(out BuildPort clickedPort) && clickedPort != null)
+            if (hasPortUnderMouse)
+                TryStartRoute(hoveredPort);
+
+            return;
+        }
+
+        // 라우팅 중
+        // 포트 위를 클릭했으면 포트 처리만 한다.
+        // 성공 가능한 종료 포트면 완료, 아니면 그냥 무시하고 끝.
+        // 절대 바닥 셀 설치로 떨어지지 않게 해야 함.
+        if (hasPortUnderMouse)
+        {
+            if (CanFinishByPlacingNextCell(hoveredPort))
             {
-                TryStartRoute(clickedPort);
+                Vector2Int finishCell = hoveredPort.GetFrontCell();
+                TryPlaceNextStep(finishCell);
+            }
+            else
+            {
+                Debug.Log("[Rail] Hovered port is not a valid finish target.");
             }
 
             return;
         }
-
-        if (TryGetPortUnderMouse(out BuildPort targetPort) && targetPort != null)
-        {
-            TryFinishRoute(targetPort);
-            return;
-        }
-
+        // 포트가 아닐 때만 일반 셀 설치
         if (!TryGetMouseCell(out Vector2Int cell))
             return;
 
@@ -111,55 +133,122 @@ public class RailBuildManager : MonoBehaviour
         currentEndCell = firstCell;
         currentPathCells.Clear();
 
-        PlaceRailAt(firstCell);
+        EnsureRailExists(firstCell);
         currentPathCells.Add(firstCell);
 
         Debug.Log($"[Rail] Route started from {startPort.name}");
     }
 
-    private void TryFinishRoute(BuildPort port)
+    private bool IsFirstExpansionPending()
     {
-        if (!isRouting || startPort == null || port == null)
-            return;
+        return isRouting && startPort != null && currentPathCells.Count == 1;
+    }
 
-        if (port == startPort)
-            return;
+    private bool HasLeftStartForwardOnce()
+    {
+        return currentPathCells.Count >= 2;
+    }
 
-        if (!port.CanEndConnection())
+    private Vector2Int GetRequiredFirstExpansionCell()
+    {
+        return startPort.GetFrontCell() + startPort.GetWorldDirection();
+    }
+
+    private RouteEvalResult EvaluateCellCandidate(Vector2Int nextCell, out BuildPort finishPort)
+    {
+        finishPort = null;
+
+        if (!isRouting)
+            return RouteEvalResult.Invalid;
+
+        if (nextCell == currentEndCell)
+            return RouteEvalResult.Invalid;
+
+        if (!IsAdjacent(currentEndCell, nextCell))
+            return RouteEvalResult.Invalid;
+
+        if (IsFirstExpansionPending() && nextCell != GetRequiredFirstExpansionCell())
+            return RouteEvalResult.Invalid;
+
+        // 포트 정면칸은 그냥 일반 칸처럼 쓰면 안 됨.
+        // 정확한 정면 진입일 때만 Finish 후보로 허용.
+        BuildPort[] ports = FindObjectsByType<BuildPort>(FindObjectsSortMode.None);
+        for (int i = 0; i < ports.Length; i++)
         {
-            Debug.Log("[Rail] End port invalid.");
-            return;
-        }
+            BuildPort port = ports[i];
+            if (port == null)
+                continue;
 
-        if (port.OwnerBuilding != null && startPort.OwnerBuilding != null && port.OwnerBuilding == startPort.OwnerBuilding)
-        {
-            Debug.Log("[Rail] Cannot connect to same building.");
-            return;
-        }
+            Vector2Int frontCell = port.GetFrontCell();
+            if (frontCell != nextCell)
+                continue;
 
-        Vector2Int targetFrontCell = port.GetFrontCell();
-
-        if (!IsAdjacent(currentEndCell, targetFrontCell) && currentEndCell != targetFrontCell)
-        {
-            Debug.Log("[Rail] End port is not adjacent to current rail end.");
-            return;
-        }
-
-        if (currentEndCell != targetFrontCell)
-        {
-            if (!CanUseCellAsRail(targetFrontCell, currentEndCell, allowExisting: true))
+            if (IsExactFinishCandidate(port, currentEndCell, nextCell))
             {
-                Debug.Log("[Rail] End port front cell cannot be used.");
-                return;
+                finishPort = port;
+                return RouteEvalResult.Finish;
             }
 
-            PlaceRailAt(targetFrontCell);
-
-            if (!currentPathCells.Contains(targetFrontCell))
-                currentPathCells.Add(targetFrontCell);
-
-            currentEndCell = targetFrontCell;
+            // 어떤 포트의 frontCell인데 정면 진입이 아니면 일반 레일 배치도 금지.
+            return RouteEvalResult.Invalid;
         }
+
+        return CanUseCellAsRail(nextCell, currentEndCell, allowExisting: true)
+            ? RouteEvalResult.Normal
+            : RouteEvalResult.Invalid;
+    }
+
+    private bool IsExactFinishCandidate(BuildPort port, Vector2Int prevCell, Vector2Int nextCell)
+    {
+        if (port == null || !port.CanEndConnection())
+            return false;
+
+        if (startPort == null)
+            return false;
+
+        if (port == startPort)
+            return false;
+
+        if (!HasLeftStartForwardOnce())
+            return false;
+
+        if (port.OwnerBuilding != null && startPort.OwnerBuilding != null && port.OwnerBuilding == startPort.OwnerBuilding)
+            return false;
+
+        Vector2Int frontCell = port.GetFrontCell();
+        Vector2Int requiredApproachCell = frontCell + port.GetWorldDirection();
+
+        return nextCell == frontCell && prevCell == requiredApproachCell;
+    }
+
+    private bool CanFinishNow(BuildPort port)
+    {
+        if (!isRouting || port == null)
+            return false;
+
+        if (currentPathCells.Count < 2)
+            return false;
+
+        Vector2Int frontCell = port.GetFrontCell();
+        if (currentEndCell != frontCell)
+            return false;
+
+        Vector2Int prevCell = currentPathCells[currentPathCells.Count - 2];
+        return IsExactFinishCandidate(port, prevCell, frontCell);
+    }
+
+    private bool CanFinishByPlacingNextCell(BuildPort port)
+    {
+        if (!isRouting || port == null)
+            return false;
+
+        RouteEvalResult result = EvaluateCellCandidate(port.GetFrontCell(), out BuildPort finishPort);
+        return result == RouteEvalResult.Finish && finishPort == port;
+    }
+    private void CompleteRoute(BuildPort port)
+    {
+        if (!CanFinishNow(port))
+            return;
 
         startPort.AddConnection();
         port.AddConnection();
@@ -175,62 +264,42 @@ public class RailBuildManager : MonoBehaviour
         if (!isRouting)
             return;
 
-        if (cell == currentEndCell)
-            return;
-
-        if (!IsAdjacent(currentEndCell, cell))
-        {
-            Debug.Log("[Rail] Only adjacent cells can be connected.");
-            return;
-        }
-
-        if (!CanUseCellAsRail(cell, currentEndCell, allowExisting: true))
+        RouteEvalResult result = EvaluateCellCandidate(cell, out BuildPort finishPort);
+        if (result == RouteEvalResult.Invalid)
         {
             Debug.Log("[Rail] This cell cannot be used.");
             return;
         }
 
-        PlaceRailAt(cell);
+        ConnectOrCreateRail(currentEndCell, cell);
 
-        if (!currentPathCells.Contains(cell))
+        if (currentPathCells.Count == 0 || currentPathCells[currentPathCells.Count - 1] != cell)
             currentPathCells.Add(cell);
 
         currentEndCell = cell;
+
+        if (result == RouteEvalResult.Finish && finishPort != null)
+            CompleteRoute(finishPort);
     }
 
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
     {
-        if (railMap.TryGetValue(cell, out RailPiece existingPiece))
-        {
-            int existingConnections = GetConnectionCount(existingPiece);
-
-            if (!allowExisting)
-                return false;
-
-            // 기존 칸 사용은 가능하지만 2연결 초과는 막음
-            if (previousCell != cell)
-            {
-                bool alreadyConnectedToPrevious = IsConnectedTo(existingPiece, previousCell);
-                if (!alreadyConnectedToPrevious && existingConnections >= 2)
-                    return false;
-            }
-
+        if (!railMap.TryGetValue(cell, out RailPiece existingPiece))
             return true;
-        }
 
-        int futureConnections = 0;
+        if (!allowExisting)
+            return false;
 
-        if (cell + Vector2Int.up == previousCell || HasRail(cell + Vector2Int.up)) futureConnections++;
-        if (cell + Vector2Int.down == previousCell || HasRail(cell + Vector2Int.down)) futureConnections++;
-        if (cell + Vector2Int.left == previousCell || HasRail(cell + Vector2Int.left)) futureConnections++;
-        if (cell + Vector2Int.right == previousCell || HasRail(cell + Vector2Int.right)) futureConnections++;
+        int existingConnections = GetConnectionCount(existingPiece);
 
-        return futureConnections <= 2;
-    }
+        if (previousCell == default || previousCell == cell)
+            return existingConnections < 2;
 
-    private bool HasRail(Vector2Int cell)
-    {
-        return railMap.ContainsKey(cell);
+        bool alreadyConnectedToPrevious = IsConnectedTo(existingPiece, previousCell);
+        if (alreadyConnectedToPrevious)
+            return true;
+
+        return existingConnections < 2;
     }
 
     private int GetConnectionCount(RailPiece piece)
@@ -254,6 +323,65 @@ public class RailBuildManager : MonoBehaviour
         if (piece.cell + Vector2Int.right == otherCell) return piece.right;
 
         return false;
+    }
+
+    private void ConnectOrCreateRail(Vector2Int fromCell, Vector2Int toCell)
+    {
+        if (!IsAdjacent(fromCell, toCell))
+        {
+            Debug.LogWarning($"[Rail] Connect failed. {fromCell} and {toCell} are not adjacent.");
+            return;
+        }
+
+        RailPiece fromPiece = EnsureRailExists(fromCell);
+        RailPiece toPiece = EnsureRailExists(toCell);
+
+        if (fromPiece == null || toPiece == null)
+            return;
+
+        if (!CanAddConnection(fromPiece, toCell) || !CanAddConnection(toPiece, fromCell))
+        {
+            Debug.LogWarning($"[Rail] Connect failed. Connection limit reached. from={fromCell}, to={toCell}");
+            return;
+        }
+
+        SetConnection(fromPiece, toCell, true);
+        SetConnection(toPiece, fromCell, true);
+
+        RefreshRail(fromCell);
+        RefreshRail(toCell);
+    }
+
+    private RailPiece EnsureRailExists(Vector2Int cell)
+    {
+        if (railMap.TryGetValue(cell, out RailPiece existingPiece))
+            return existingPiece;
+
+        RailPiece newPiece = CreateRailPiece(cell);
+        railMap.Add(cell, newPiece);
+        RefreshRail(cell);
+        return newPiece;
+    }
+
+    private bool CanAddConnection(RailPiece piece, Vector2Int otherCell)
+    {
+        if (piece == null)
+            return false;
+
+        if (IsConnectedTo(piece, otherCell))
+            return true;
+
+        return GetConnectionCount(piece) < 2;
+    }
+
+    private void SetConnection(RailPiece piece, Vector2Int otherCell, bool value)
+    {
+        Vector2Int delta = otherCell - piece.cell;
+
+        if (delta == Vector2Int.up) piece.up = value;
+        else if (delta == Vector2Int.down) piece.down = value;
+        else if (delta == Vector2Int.left) piece.left = value;
+        else if (delta == Vector2Int.right) piece.right = value;
     }
 
     private bool TryGetPortUnderMouse(out BuildPort port)
@@ -298,17 +426,6 @@ public class RailBuildManager : MonoBehaviour
         return Mathf.Abs(delta.x) + Mathf.Abs(delta.y) == 1;
     }
 
-    private void PlaceRailAt(Vector2Int cell)
-    {
-        if (!railMap.ContainsKey(cell))
-        {
-            RailPiece piece = CreateRailPiece(cell);
-            railMap.Add(cell, piece);
-        }
-
-        RefreshWithNeighbors(cell);
-    }
-
     private RailPiece CreateRailPiece(Vector2Int cell)
     {
         Vector3 worldPos = CellToWorld(cell);
@@ -332,24 +449,10 @@ public class RailBuildManager : MonoBehaviour
         return new Vector3(x, fixedY, z);
     }
 
-    private void RefreshWithNeighbors(Vector2Int cell)
-    {
-        RefreshRail(cell);
-        RefreshRail(cell + Vector2Int.up);
-        RefreshRail(cell + Vector2Int.down);
-        RefreshRail(cell + Vector2Int.left);
-        RefreshRail(cell + Vector2Int.right);
-    }
-
     private void RefreshRail(Vector2Int cell)
     {
         if (!railMap.TryGetValue(cell, out RailPiece piece))
             return;
-
-        piece.up = railMap.ContainsKey(cell + Vector2Int.up);
-        piece.down = railMap.ContainsKey(cell + Vector2Int.down);
-        piece.left = railMap.ContainsKey(cell + Vector2Int.left);
-        piece.right = railMap.ContainsKey(cell + Vector2Int.right);
 
         piece.ApplyVisual(straightPrefab, cornerPrefab);
     }
@@ -414,11 +517,13 @@ public class RailBuildManager : MonoBehaviour
             bool valid;
 
             if (!isRouting)
-                valid = port.CanStartConnection();
+            {
+                valid = port.CanStartConnection() && CanUseCellAsRail(frontCell, default, allowExisting: true);
+            }
             else
-                valid = port != startPort &&
-                        port.CanEndConnection() &&
-                        IsAdjacent(currentEndCell, frontCell);
+            {
+                valid = CanFinishByPlacingNextCell(port);
+            }
 
             ApplyPreviewMaterial(valid);
             return;
@@ -434,9 +539,8 @@ public class RailBuildManager : MonoBehaviour
         previewInstance.transform.position = CellToWorld(cell);
         previewInstance.transform.rotation = Quaternion.identity;
 
-        bool canPlace = isRouting &&
-                        IsAdjacent(currentEndCell, cell) &&
-                        CanUseCellAsRail(cell, currentEndCell, allowExisting: true);
+        RouteEvalResult result = EvaluateCellCandidate(cell, out _);
+        bool canPlace = result != RouteEvalResult.Invalid;
 
         ApplyPreviewMaterial(canPlace);
     }
