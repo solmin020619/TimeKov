@@ -2038,6 +2038,66 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 486983025}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &507994560
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 507994562}
+  - component: {fileID: 507994561}
+  m_Layer: 0
+  m_Name: RailBulidManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &507994561
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 507994560}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d909912a15754de41b7bb13b155dc223, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  railParent: {fileID: 1362246801}
+  gridOrigin: {fileID: 595650676}
+  cellSize: 1
+  fixedY: 0
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 128
+  portMask:
+    serializedVersion: 2
+    m_Bits: 131072
+  rayDistance: 300
+  straightPrefab: {fileID: 999885032973497966, guid: b26b784e10b1ffb48945b76272454ee3, type: 3}
+  cornerPrefab: {fileID: 2803880445065579070, guid: d8969e3b5bee4774a84825fc55fccfc8, type: 3}
+  previewPrefab: {fileID: 999885032973497966, guid: b26b784e10b1ffb48945b76272454ee3, type: 3}
+  previewValidMaterial: {fileID: 2100000, guid: 144fe72e096e7d04fa1ebd3758552590, type: 2}
+  previewInvalidMaterial: {fileID: 2100000, guid: 490f092e52fa635489285255a9da6370, type: 2}
+--- !u!4 &507994562
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 507994560}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &532300388
 GameObject:
   m_ObjectHideFlags: 0
@@ -6778,8 +6838,16 @@ MonoBehaviour:
   - facilityId: 3
     prefab: {fileID: 4816475483233169569, guid: d13433ec074bdcb4bba80057442e8743, type: 3}
   - facilityId: 4
-    prefab: {fileID: 381477864289183839, guid: e57cf7c03603d2b498bdf169a6221b43, type: 3}
+    prefab: {fileID: 1109007719901765675, guid: 9788d8e0eb6cc5b488590d89b929cbff, type: 3}
   - facilityId: 5
+    prefab: {fileID: 8247299433171893314, guid: 40900a9d49b0f674499c50866ff3b63a, type: 3}
+  - facilityId: 6
+    prefab: {fileID: 8247299433171893314, guid: 40900a9d49b0f674499c50866ff3b63a, type: 3}
+  - facilityId: 7
+    prefab: {fileID: 8247299433171893314, guid: 40900a9d49b0f674499c50866ff3b63a, type: 3}
+  - facilityId: 8
+    prefab: {fileID: 8247299433171893314, guid: 40900a9d49b0f674499c50866ff3b63a, type: 3}
+  - facilityId: 9
     prefab: {fileID: 8247299433171893314, guid: 40900a9d49b0f674499c50866ff3b63a, type: 3}
 --- !u!4 &1257206007
 Transform:
@@ -7154,6 +7222,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1342046037}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1362246800
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1362246801}
+  m_Layer: 0
+  m_Name: Rail Parent
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1362246801
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1362246800}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1377523958
 GameObject:
   m_ObjectHideFlags: 0
@@ -11247,12 +11346,17 @@ MonoBehaviour:
   zoneChecker: {fileID: 1691109981}
   buildParent: {fileID: 1281123615}
   prefabDatabase: {fileID: 1257206006}
+  railBuildManager: {fileID: 507994561}
   buildSlots:
   - facilityId: 1
   - facilityId: 2
   - facilityId: 3
   - facilityId: 4
   - facilityId: 5
+  - facilityId: 6
+  - facilityId: 7
+  - facilityId: 8
+  - facilityId: 9
   previewMarker: {fileID: 0}
   groundMask:
     serializedVersion: 2
@@ -12078,10 +12182,12 @@ SceneRoots:
   - {fileID: 603350354}
   - {fileID: 1691109979}
   - {fileID: 1281123615}
+  - {fileID: 1362246801}
   - {fileID: 690036751}
   - {fileID: 1257206007}
   - {fileID: 1392992825}
   - {fileID: 1985246426}
+  - {fileID: 507994562}
   - {fileID: 981555067}
   - {fileID: 221775322}
   - {fileID: 595650676}

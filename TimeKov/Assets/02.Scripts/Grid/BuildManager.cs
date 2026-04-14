@@ -5,6 +5,12 @@ using UnityEngine.InputSystem;
 
 public class BuildManager : MonoBehaviour
 {
+    public enum BuildSubMode
+    {
+        Normal,
+        Rail
+    }
+
     [System.Serializable]
     public class BuildSlot
     {
@@ -48,7 +54,14 @@ public class BuildManager : MonoBehaviour
     public Transform buildParent;
     public FacilityPrefabDatabase prefabDatabase;
 
-    [Header("Build Slots (1~5 keys)")]
+    [Header("Rail")]
+    [SerializeField] private RailBuildManager railBuildManager;
+
+    public BuildSubMode CurrentSubMode { get; private set; } = BuildSubMode.Normal;
+    public bool IsRailSubMode => IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
+    public int CurrentSlotIndex => currentIndex;
+
+    [Header("Build Slots (1~9 keys)")]
     public BuildSlot[] buildSlots;
 
     [Header("Preview")]
@@ -100,6 +113,9 @@ public class BuildManager : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+
+        if (railBuildManager != null)
+            railBuildManager.EndRailMode();
     }
 
     private void Update()
@@ -109,6 +125,20 @@ public class BuildManager : MonoBehaviour
 
         if (!IsBuildMode)
             return;
+
+        HandleSubModeInput();
+
+        if (IsRailSubMode)
+        {
+            HandleDemolishModeInput();
+
+            if (isDemolishMode)
+                HandleDemolish();
+            else
+                railBuildManager?.TickRailMode();
+
+            return;
+        }
 
         HandleSelectInput();
         HandleRotateInput();
@@ -120,6 +150,44 @@ public class BuildManager : MonoBehaviour
             HandleBuild();
     }
 
+    private void HandleSubModeInput()
+    {
+        if (!IsBuildMode)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (IsRailSubMode)
+                SetSubMode(BuildSubMode.Normal);
+            else
+                SetSubMode(BuildSubMode.Rail);
+        }
+    }
+
+    public void SetSubMode(BuildSubMode mode)
+    {
+        CurrentSubMode = mode;
+
+        if (mode == BuildSubMode.Rail)
+        {
+            isDemolishMode = false;
+            ClearHoveredBuilding();
+            SetPreviewActive(false);
+
+            if (railBuildManager != null)
+                railBuildManager.BeginRailMode(this);
+        }
+        else
+        {
+            if (railBuildManager != null)
+                railBuildManager.EndRailMode();
+
+            RefreshPreviewMarker();
+
+            if (previewMarker != null)
+                previewMarker.SetActive(false);
+        }
+    }
     private void HandleModeInput()
     {
         if (Input.GetKeyDown(KeyCode.B))
@@ -131,18 +199,30 @@ public class BuildManager : MonoBehaviour
                 isDemolishMode = false;
                 ClearHoveredBuilding();
                 SetTopViewMode(false);
+                SetSubMode(BuildSubMode.Normal);
 
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
+            }
+            else
+            {
+                SetSubMode(BuildSubMode.Normal);
             }
         }
 
         if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
         {
+            if (IsRailSubMode)
+            {
+                SetSubMode(BuildSubMode.Normal);
+                return;
+            }
+
             IsBuildMode = false;
             isDemolishMode = false;
             ClearHoveredBuilding();
             SetTopViewMode(false);
+            SetSubMode(BuildSubMode.Normal);
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
@@ -235,15 +315,26 @@ public class BuildManager : MonoBehaviour
 
     private void HandleSelectInput()
     {
-        if (Input.GetKeyDown(KeyCode.Alpha1)) SetCurrentSlot(0);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) SetCurrentSlot(1);
-        if (Input.GetKeyDown(KeyCode.Alpha3)) SetCurrentSlot(2);
-        if (Input.GetKeyDown(KeyCode.Alpha4)) SetCurrentSlot(3);
-        if (Input.GetKeyDown(KeyCode.Alpha5)) SetCurrentSlot(4);
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SelectNormalSlot(0);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SelectNormalSlot(1);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) SelectNormalSlot(2);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) SelectNormalSlot(3);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) SelectNormalSlot(4);
+        if (Input.GetKeyDown(KeyCode.Alpha6)) SelectNormalSlot(5);
+        if (Input.GetKeyDown(KeyCode.Alpha7)) SelectNormalSlot(6);
+        if (Input.GetKeyDown(KeyCode.Alpha8)) SelectNormalSlot(7);
+        if (Input.GetKeyDown(KeyCode.Alpha9)) SelectNormalSlot(8);
     }
-
+    private void SelectNormalSlot(int index)
+    {
+        SetSubMode(BuildSubMode.Normal);
+        SetCurrentSlot(index);
+    }
     private void HandleRotateInput()
     {
+        if (IsRailSubMode)
+            return;
+
         if (!CanCurrentFacilityRotate())
             return;
 
@@ -258,6 +349,9 @@ public class BuildManager : MonoBehaviour
 
     private void HandleBuild()
     {
+        if (IsRailSubMode)
+            return;
+
         if (!TryGetCurrentBuildData(
             out RaycastHit hit,
             out Vector2Int startCell,
@@ -366,6 +460,7 @@ public class BuildManager : MonoBehaviour
         placedBuilding.facilityId = facility.facilityId;
         placedBuilding.currentLevel = 1;
         placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
+        placedBuilding.originCell = footprintCells[0];
         placedBuilding.CacheRenderers();
 
         FacilityInstance facilityInstance = obj.GetComponent<FacilityInstance>();
