@@ -7,14 +7,14 @@ public class BuildManager : MonoBehaviour
 {
     public enum BuildSubMode
     {
-        Normal,
+        Facility,
         Rail
     }
 
     [System.Serializable]
     public class BuildSlot
     {
-        [Header("DataStore.FacilityById�� �ִ� facilityId")]
+        [Header("DataStore.FacilityById에 있는 facilityId")]
         public int facilityId;
     }
 
@@ -27,7 +27,6 @@ public class BuildManager : MonoBehaviour
     [SerializeField] private Transform topViewStartTarget;
     [SerializeField] private Vector3 topViewStartOffset = new Vector3(0f, 25f, 0f);
     [SerializeField] private MonoBehaviour[] disableInTopView;
-
 
     [Header("Build Effect")]
     public Material hologramMaterial;
@@ -57,7 +56,7 @@ public class BuildManager : MonoBehaviour
     [Header("Rail")]
     [SerializeField] private RailBuildManager railBuildManager;
 
-    public BuildSubMode CurrentSubMode { get; private set; } = BuildSubMode.Normal;
+    public BuildSubMode CurrentSubMode { get; private set; } = BuildSubMode.Facility;
     public bool IsRailSubMode => IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
     public int CurrentSlotIndex => currentIndex;
 
@@ -85,6 +84,7 @@ public class BuildManager : MonoBehaviour
     [SerializeField] private CharacterController playerCharacterController;
     [SerializeField] private MonoBehaviour playerMovementScript;
     [SerializeField] private Animator playerAnimator;
+
     public bool IsBuildMode { get; private set; }
     public bool IsTopViewMode { get; private set; }
 
@@ -126,68 +126,90 @@ public class BuildManager : MonoBehaviour
         if (!IsBuildMode)
             return;
 
-        HandleSubModeInput();
-
-        if (IsRailSubMode)
-        {
-            HandleDemolishModeInput();
-
-            if (isDemolishMode)
-                HandleDemolish();
-            else
-                railBuildManager?.TickRailMode();
-
-            return;
-        }
-
-        HandleSelectInput();
-        HandleRotateInput();
+        HandleSelectionInput();
         HandleDemolishModeInput();
 
         if (isDemolishMode)
+        {
             HandleDemolish();
-        else
-            HandleBuild();
+            return;
+        }
+
+        if (IsRailSubMode)
+        {
+            railBuildManager?.TickRailMode();
+            return;
+        }
+
+        HandleRotateInput();
+        HandleBuild();
     }
 
-    private void HandleSubModeInput()
+    private void HandleSelectionInput()
     {
         if (!IsBuildMode)
             return;
 
+        // E = 레일 선택
         if (Input.GetKeyDown(KeyCode.E))
         {
-            if (IsRailSubMode)
-                SetSubMode(BuildSubMode.Normal);
-            else
-                SetSubMode(BuildSubMode.Rail);
+            SelectRailMode();
+            return;
         }
+
+        // 1~9 = 시설 선택
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SelectFacilitySlot(0);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SelectFacilitySlot(1);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) SelectFacilitySlot(2);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) SelectFacilitySlot(3);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) SelectFacilitySlot(4);
+        if (Input.GetKeyDown(KeyCode.Alpha6)) SelectFacilitySlot(5);
+        if (Input.GetKeyDown(KeyCode.Alpha7)) SelectFacilitySlot(6);
+        if (Input.GetKeyDown(KeyCode.Alpha8)) SelectFacilitySlot(7);
+        if (Input.GetKeyDown(KeyCode.Alpha9)) SelectFacilitySlot(8);
+    }
+
+    private void SelectRailMode()
+    {
+        SetSubMode(BuildSubMode.Rail);
+    }
+
+    private void SelectFacilitySlot(int index)
+    {
+        SetSubMode(BuildSubMode.Facility);
+        SetCurrentSlot(index);
     }
 
     public void SetSubMode(BuildSubMode mode)
     {
+        if (CurrentSubMode == mode)
+            return;
+
         CurrentSubMode = mode;
 
         if (mode == BuildSubMode.Rail)
         {
             isDemolishMode = false;
+            isDragBuilding = false;
+            dragPlacedStartCells.Clear();
+
             ClearHoveredBuilding();
             SetPreviewActive(false);
 
-            if (railBuildManager != null)
-                railBuildManager.BeginRailMode(this);
+            railBuildManager?.BeginRailMode(this);
         }
         else
         {
-            if (railBuildManager != null)
-                railBuildManager.EndRailMode();
+            railBuildManager?.EndRailMode();
 
+            currentRotationY = 0;
             RefreshPreviewMarker();
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
         }
     }
+
     private void HandleModeInput()
     {
         if (Input.GetKeyDown(KeyCode.B))
@@ -197,32 +219,35 @@ public class BuildManager : MonoBehaviour
             if (!IsBuildMode)
             {
                 isDemolishMode = false;
+                isDragBuilding = false;
+                dragPlacedStartCells.Clear();
+
                 ClearHoveredBuilding();
                 SetTopViewMode(false);
-                SetSubMode(BuildSubMode.Normal);
+                SetSubMode(BuildSubMode.Facility);
 
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
             }
             else
             {
-                SetSubMode(BuildSubMode.Normal);
+                SetSubMode(BuildSubMode.Facility);
             }
         }
 
         if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
         {
-            if (IsRailSubMode)
-            {
-                SetSubMode(BuildSubMode.Normal);
+            if (!IsBuildMode)
                 return;
-            }
 
             IsBuildMode = false;
             isDemolishMode = false;
+            isDragBuilding = false;
+            dragPlacedStartCells.Clear();
+
             ClearHoveredBuilding();
             SetTopViewMode(false);
-            SetSubMode(BuildSubMode.Normal);
+            SetSubMode(BuildSubMode.Facility);
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
@@ -313,23 +338,6 @@ public class BuildManager : MonoBehaviour
             mainCam = gameplayCamera;
     }
 
-    private void HandleSelectInput()
-    {
-        if (Input.GetKeyDown(KeyCode.Alpha1)) SelectNormalSlot(0);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) SelectNormalSlot(1);
-        if (Input.GetKeyDown(KeyCode.Alpha3)) SelectNormalSlot(2);
-        if (Input.GetKeyDown(KeyCode.Alpha4)) SelectNormalSlot(3);
-        if (Input.GetKeyDown(KeyCode.Alpha5)) SelectNormalSlot(4);
-        if (Input.GetKeyDown(KeyCode.Alpha6)) SelectNormalSlot(5);
-        if (Input.GetKeyDown(KeyCode.Alpha7)) SelectNormalSlot(6);
-        if (Input.GetKeyDown(KeyCode.Alpha8)) SelectNormalSlot(7);
-        if (Input.GetKeyDown(KeyCode.Alpha9)) SelectNormalSlot(8);
-    }
-    private void SelectNormalSlot(int index)
-    {
-        SetSubMode(BuildSubMode.Normal);
-        SetCurrentSlot(index);
-    }
     private void HandleRotateInput()
     {
         if (IsRailSubMode)
@@ -420,7 +428,6 @@ public class BuildManager : MonoBehaviour
         if (facility == null || prefab == null)
             yield break;
 
-
         OccupyCells(footprintCells);
 
         PlayBuildStartSound();
@@ -471,7 +478,6 @@ public class BuildManager : MonoBehaviour
 
         PlayBuildCompleteSound();
         SpawnBuildCompleteEffect(position, rotation);
-
     }
 
     private void ApplyHologramVisual(GameObject target)
@@ -498,7 +504,6 @@ public class BuildManager : MonoBehaviour
         Vector2Int startCell = WorldToStartCell(worldPos);
         return StartCellToWorldCenter(startCell, size);
     }
-
 
     private Vector2Int WorldToStartCell(Vector3 worldPos)
     {
@@ -535,6 +540,7 @@ public class BuildManager : MonoBehaviour
 
         return cells;
     }
+
     private Vector2Int GetRotatedSize(Vector2Int originalSize, int rotationY)
     {
         rotationY %= 360;
@@ -667,7 +673,7 @@ public class BuildManager : MonoBehaviour
 
     public string GetCurrentItemName()
     {
-        return GetCurrentFacilityName();
+        return IsRailSubMode ? "Rail" : GetCurrentFacilityName();
     }
 
     public string GetCurrentFacilityName()
@@ -848,7 +854,14 @@ public class BuildManager : MonoBehaviour
         );
     }
 
-    private bool TryGetCurrentBuildData(out RaycastHit hit, out Vector2Int startCell, out Vector3 snappedPos, out Quaternion rotation, out Vector2Int rotatedSize, out List<Vector2Int> footprintCells, out bool canBuild)
+    private bool TryGetCurrentBuildData(
+        out RaycastHit hit,
+        out Vector2Int startCell,
+        out Vector3 snappedPos,
+        out Quaternion rotation,
+        out Vector2Int rotatedSize,
+        out List<Vector2Int> footprintCells,
+        out bool canBuild)
     {
         hit = default;
         startCell = default;
@@ -909,7 +922,6 @@ public class BuildManager : MonoBehaviour
         StartCoroutine(PlaceCurrentFacilityRoutine(snappedPos, rotation, footprintCells));
     }
 
-
     private void StopPlayerImmediately()
     {
         if (playerRigidbody != null)
@@ -931,6 +943,4 @@ public class BuildManager : MonoBehaviour
             playerAnimator.SetFloat("InputY", 0f);
         }
     }
-
-
 }
