@@ -73,9 +73,6 @@
             "m_Id": "bcdd3cdf92c74b33b9cd0f2176bacdbf"
         },
         {
-            "m_Id": "3617c49dd1ea456ba16443cd77b2f98d"
-        },
-        {
             "m_Id": "a4e638447a8d4d418b8add6b3423e04e"
         },
         {
@@ -124,20 +121,6 @@
             "m_InputSlot": {
                 "m_Node": {
                     "m_Id": "ea58a4a26b274f2e87eaf68436fa776d"
-                },
-                "m_SlotId": 0
-            }
-        },
-        {
-            "m_OutputSlot": {
-                "m_Node": {
-                    "m_Id": "3617c49dd1ea456ba16443cd77b2f98d"
-                },
-                "m_SlotId": 0
-            },
-            "m_InputSlot": {
-                "m_Node": {
-                    "m_Id": "7bba5b564e6c460f9c762f13659c3ac8"
                 },
                 "m_SlotId": 0
             }
@@ -698,42 +681,6 @@
         "m_SerializableColors": []
     },
     "m_SerializedDescriptor": "SurfaceDescription.Occlusion"
-}
-
-{
-    "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.PropertyNode",
-    "m_ObjectId": "3617c49dd1ea456ba16443cd77b2f98d",
-    "m_Group": {
-        "m_Id": ""
-    },
-    "m_Name": "Property",
-    "m_DrawState": {
-        "m_Expanded": true,
-        "m_Position": {
-            "serializedVersion": "2",
-            "x": -236.0,
-            "y": 385.6000061035156,
-            "width": 105.5999755859375,
-            "height": 33.600006103515628
-        }
-    },
-    "m_Slots": [
-        {
-            "m_Id": "98f484ab32774144954996c00f89f447"
-        }
-    ],
-    "synonyms": [],
-    "m_Precision": 0,
-    "m_PreviewExpanded": true,
-    "m_DismissedVersion": 0,
-    "m_PreviewMode": 0,
-    "m_CustomColors": {
-        "m_SerializableColors": []
-    },
-    "m_Property": {
-        "m_Id": "76ad93b920374d24a658309cd869eb6b"
-    }
 }
 
 {
@@ -1634,31 +1581,6 @@
     "m_StageCapability": 2,
     "m_Value": 0.5,
     "m_DefaultValue": 0.5,
-    "m_Labels": []
-}
-
-{
-    "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.Vector4MaterialSlot",
-    "m_ObjectId": "98f484ab32774144954996c00f89f447",
-    "m_Id": 0,
-    "m_DisplayName": "Color",
-    "m_SlotType": 1,
-    "m_Hidden": false,
-    "m_ShaderOutputName": "Out",
-    "m_StageCapability": 3,
-    "m_Value": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
-    },
-    "m_DefaultValue": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
-    },
     "m_Labels": []
 }
 
