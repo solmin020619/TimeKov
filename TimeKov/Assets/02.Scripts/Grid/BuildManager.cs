@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class BuildManager : MonoBehaviour
 {
@@ -378,7 +379,7 @@ public class BuildManager : MonoBehaviour
             return;
         }
 
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && !IsPointerOverUI())
         {
             isDragBuilding = true;
             dragPlacedStartCells.Clear();
@@ -792,7 +793,7 @@ public class BuildManager : MonoBehaviour
             {
                 SetHoveredBuilding(building);
 
-                if (Input.GetMouseButtonDown(0))
+                if (Input.GetMouseButtonDown(0) && !IsPointerOverUI())
                 {
                     RemoveOccupiedCells(building.occupiedCells);
                     ClearHoveredBuilding();
@@ -942,5 +943,10 @@ public class BuildManager : MonoBehaviour
             playerAnimator.SetFloat("InputX", 0f);
             playerAnimator.SetFloat("InputY", 0f);
         }
+    }
+
+    private bool IsPointerOverUI()
+    {
+        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
     }
 }
