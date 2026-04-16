@@ -1,29 +1,27 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerBuildZoneChecker : MonoBehaviour
 {
-    public bool IsInBuildZone { get; private set; }
+    private readonly HashSet<BuildZone> zones = new();
 
-    private int zoneCount = 0;
+    public bool IsInBuildZone => zones.Count > 0;
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.GetComponent<BuildZone>() != null)
-        {
-            zoneCount++;
-            IsInBuildZone = zoneCount > 0;
-        }
+        BuildZone zone = other.GetComponent<BuildZone>();
+        if (zone == null) return;
+
+        zones.Add(zone);
+        Debug.Log($"[ZONE] Enter by {other.name} -> count={zones.Count}");
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.GetComponent<BuildZone>() != null)
-        {
-            zoneCount--;
-            if (zoneCount < 0)
-                zoneCount = 0;
+        BuildZone zone = other.GetComponent<BuildZone>();
+        if (zone == null) return;
 
-            IsInBuildZone = zoneCount > 0;
-        }
+        zones.Remove(zone);
+        Debug.Log($"[ZONE] Exit by {other.name} -> count={zones.Count}");
     }
 }

@@ -8,7 +8,6 @@ public class RailPiece : MonoBehaviour
     public bool left;
     public bool right;
 
-    // 흐름이 어느 그리드 방향에서 진입하는지 (RailBuildManager가 경로 완성 후 설정)
     [HideInInspector] public Vector2Int flowFrom;
 
     private GameObject currentVisual;
@@ -67,28 +66,52 @@ public class RailPiece : MonoBehaviour
         if (currentVisual == null || flowFrom == Vector2Int.zero)
             return;
 
-        // 이 회전에서 메시의 local +Z가 가리키는 그리드 방향
-        Vector2Int meshForwardGrid = YRotToGridDir(appliedYRot);
+        bool needsFlip;
 
-        // meshForwardGrid가 flowFrom 방향을 향하고 있으면 역방향 → flip
-        bool needsFlip = (meshForwardGrid == flowFrom);
+        int count = 0;
+        if (up) count++;
+        if (down) count++;
+        if (left) count++;
+        if (right) count++;
+        bool isCorner = count == 2 && !((up && down) || (left && right));
 
-        MaterialPropertyBlock mpb = new MaterialPropertyBlock();
-        mpb.SetFloat("_FlowDir", needsFlip ? -1f : 1f);
+        if (isCorner)
+        {
+            Vector2Int naturalEntry;
+            if (up && right) naturalEntry = Vector2Int.up;
+            else if (right && down) naturalEntry = Vector2Int.right;
+            else if (down && left) naturalEntry = Vector2Int.down;
+            else naturalEntry = Vector2Int.left;
+
+            needsFlip = (flowFrom != naturalEntry);
+        }
+        else
+        {
+            Vector2Int meshForwardGrid = YRotToGridDir(appliedYRot);
+
+            // 수정된 핵심 로직
+            needsFlip = (meshForwardGrid == -flowFrom);
+        }
+
+        float flowDir = needsFlip ? -1f : 1f;
 
         Renderer[] renderers = currentVisual.GetComponentsInChildren<Renderer>();
         foreach (Renderer r in renderers)
-            r.SetPropertyBlock(mpb);
-
-        Debug.Log($"[Rail] {cell} flowFrom={flowFrom} meshFwd={meshForwardGrid} flip={needsFlip}");
+        {
+            Material[] mats = r.materials;
+            foreach (Material m in mats)
+                m.SetFloat("_FlowDir", flowDir);
+            r.materials = mats;
+        }
     }
 
     private Vector2Int YRotToGridDir(float yRot)
     {
         float normalized = ((yRot % 360f) + 360f) % 360f;
-        if (normalized < 45f || normalized >= 315f) return Vector2Int.up;    // 0°
-        if (normalized < 135f) return Vector2Int.right;  // 90°
-        if (normalized < 225f) return Vector2Int.down;   // 180°
-        return Vector2Int.left;                                                  // 270°
+
+        if (normalized < 45f || normalized >= 315f) return Vector2Int.up;
+        if (normalized < 135f) return Vector2Int.right;
+        if (normalized < 225f) return Vector2Int.down;
+        return Vector2Int.left;
     }
 }

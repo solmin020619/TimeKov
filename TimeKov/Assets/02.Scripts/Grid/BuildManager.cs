@@ -900,12 +900,14 @@ public class BuildManager : MonoBehaviour
         footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
 
         bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
-        bool isCorrectHeight = Mathf.Abs(hit.point.y - fixedY) <= yTolerance;
+
+
         bool isOccupied = IsAnyCellOccupied(footprintCells);
+
         bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
         bool installRuleOk = CheckInstallRule(currentFacility);
 
-        canBuild = isInBuildZone && isCorrectHeight && !isOccupied && !isBlocked && installRuleOk;
+        canBuild = isInBuildZone && !isOccupied && !isBlocked && installRuleOk;
 
         UpdatePreview(snappedPos, rotation, canBuild);
         return true;

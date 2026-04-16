@@ -367,6 +367,14 @@ public class UIStateManager : MonoBehaviour
     //  추가: UI 상태에 맞는 커서 상태를 매 프레임 보정
     private void RefreshCursorState()
     {
+        BuildManager buildManager = FindObjectOfType<BuildManager>();
+        if (buildManager != null && buildManager.IsTopViewMode)
+        {
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+            return;
+        }
+
         bool shouldShowCursor = currentState != UIState.None;
 
         if (shouldShowCursor)
