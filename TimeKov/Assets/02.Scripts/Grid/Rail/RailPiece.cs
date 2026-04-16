@@ -8,6 +8,9 @@ public class RailPiece : MonoBehaviour
     public bool left;
     public bool right;
 
+    // 흐름이 어느 그리드 방향에서 진입하는지 (RailBuildManager가 경로 완성 후 설정)
+    [HideInInspector] public Vector2Int flowFrom;
+
     private GameObject currentVisual;
 
     [Header("Rotation Offset")]
@@ -25,9 +28,9 @@ public class RailPiece : MonoBehaviour
         if (left) count++;
         if (right) count++;
 
-        // 이 구조에서는 최대 2연결만 허용.
-        // 0개 / 1개 연결도 끝 레일처럼 straight를 사용한다.
         bool useStraight = count <= 1 || (up && down) || (left && right);
+
+        float appliedYRot;
 
         if (useStraight)
         {
@@ -35,26 +38,57 @@ public class RailPiece : MonoBehaviour
             currentVisual.transform.localPosition = Vector3.zero;
 
             float yRot = 0f;
+            if (left || right) yRot = 90f;
+            else if (up || down) yRot = 0f;
 
-            if (left || right)
-                yRot = 90f;
-            else if (up || down)
-                yRot = 0f;
+            appliedYRot = yRot + straightRotationOffsetY;
+            currentVisual.transform.localRotation = Quaternion.Euler(0f, appliedYRot, 0f);
+        }
+        else
+        {
+            currentVisual = Instantiate(cornerPrefab, transform);
+            currentVisual.transform.localPosition = Vector3.zero;
 
-            currentVisual.transform.localRotation = Quaternion.Euler(0f, yRot + straightRotationOffsetY, 0f);
-            return;
+            float cornerYRot = 0f;
+            if (up && right) cornerYRot = 0f;
+            else if (right && down) cornerYRot = 90f;
+            else if (down && left) cornerYRot = 180f;
+            else if (left && up) cornerYRot = 270f;
+
+            appliedYRot = cornerYRot + cornerRotationOffsetY;
+            currentVisual.transform.localRotation = Quaternion.Euler(0f, appliedYRot, 0f);
         }
 
-        currentVisual = Instantiate(cornerPrefab, transform);
-        currentVisual.transform.localPosition = Vector3.zero;
+        ApplyShaderFlowDirection(appliedYRot);
+    }
 
-        float cornerYRot = 0f;
+    private void ApplyShaderFlowDirection(float appliedYRot)
+    {
+        if (currentVisual == null || flowFrom == Vector2Int.zero)
+            return;
 
-        if (up && right) cornerYRot = 0f;
-        else if (right && down) cornerYRot = 90f;
-        else if (down && left) cornerYRot = 180f;
-        else if (left && up) cornerYRot = 270f;
+        // 이 회전에서 메시의 local +Z가 가리키는 그리드 방향
+        Vector2Int meshForwardGrid = YRotToGridDir(appliedYRot);
 
-        currentVisual.transform.localRotation = Quaternion.Euler(0f, cornerYRot + cornerRotationOffsetY, 0f);
+        // meshForwardGrid가 flowFrom 방향을 향하고 있으면 역방향 → flip
+        bool needsFlip = (meshForwardGrid == flowFrom);
+
+        MaterialPropertyBlock mpb = new MaterialPropertyBlock();
+        mpb.SetFloat("_FlowDir", needsFlip ? -1f : 1f);
+
+        Renderer[] renderers = currentVisual.GetComponentsInChildren<Renderer>();
+        foreach (Renderer r in renderers)
+            r.SetPropertyBlock(mpb);
+
+        Debug.Log($"[Rail] {cell} flowFrom={flowFrom} meshFwd={meshForwardGrid} flip={needsFlip}");
+    }
+
+    private Vector2Int YRotToGridDir(float yRot)
+    {
+        float normalized = ((yRot % 360f) + 360f) % 360f;
+        if (normalized < 45f || normalized >= 315f) return Vector2Int.up;    // 0°
+        if (normalized < 135f) return Vector2Int.right;  // 90°
+        if (normalized < 225f) return Vector2Int.down;   // 180°
+        return Vector2Int.left;                                                  // 270°
     }
 }

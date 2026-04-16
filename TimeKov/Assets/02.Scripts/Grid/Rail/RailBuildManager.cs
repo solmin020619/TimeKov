@@ -76,7 +76,6 @@ public class RailBuildManager : MonoBehaviour
         BuildPort hoveredPort = null;
         bool hasPortUnderMouse = TryGetPortUnderMouse(out hoveredPort) && hoveredPort != null;
 
-        // 라우팅 시작 전
         if (!isRouting)
         {
             if (hasPortUnderMouse)
@@ -85,10 +84,7 @@ public class RailBuildManager : MonoBehaviour
             return;
         }
 
-        // 라우팅 중
-        // 포트 위를 클릭했으면 포트 처리만 한다.
-        // 성공 가능한 종료 포트면 완료, 아니면 그냥 무시하고 끝.
-        // 절대 바닥 셀 설치로 떨어지지 않게 해야 함.
+ 
         if (hasPortUnderMouse)
         {
             if (CanFinishByPlacingNextCell(hoveredPort))
@@ -103,7 +99,6 @@ public class RailBuildManager : MonoBehaviour
 
             return;
         }
-        // 포트가 아닐 때만 일반 셀 설치
         if (!TryGetMouseCell(out Vector2Int cell))
             return;
 
@@ -170,8 +165,6 @@ public class RailBuildManager : MonoBehaviour
         if (IsFirstExpansionPending() && nextCell != GetRequiredFirstExpansionCell())
             return RouteEvalResult.Invalid;
 
-        // 포트 정면칸은 그냥 일반 칸처럼 쓰면 안 됨.
-        // 정확한 정면 진입일 때만 Finish 후보로 허용.
         BuildPort[] ports = FindObjectsByType<BuildPort>(FindObjectsSortMode.None);
         for (int i = 0; i < ports.Length; i++)
         {
@@ -189,7 +182,6 @@ public class RailBuildManager : MonoBehaviour
                 return RouteEvalResult.Finish;
             }
 
-            // 어떤 포트의 frontCell인데 정면 진입이 아니면 일반 레일 배치도 금지.
             return RouteEvalResult.Invalid;
         }
 
@@ -254,9 +246,48 @@ public class RailBuildManager : MonoBehaviour
         port.AddConnection();
         endPort = port;
 
+        // 경로 방향에 맞게 각 레일 조각의 쉐이더 흐름 방향을 설정
+        AssignFlowDirections();
+
         Debug.Log($"[Rail] Route completed: {startPort.name} -> {endPort.name}");
 
         CancelCurrentRouteStateOnly();
+    }
+
+    /// <summary>
+    /// currentPathCells 순서를 기반으로 각 RailPiece에 flowFrom을 설정하고
+    /// 쉐이더가 경로 방향과 일치하도록 ApplyVisual을 재호출합니다.
+    /// </summary>
+    private void AssignFlowDirections()
+    {
+        if (currentPathCells.Count == 0 || startPort == null)
+            return;
+
+        for (int i = 0; i < currentPathCells.Count; i++)
+        {
+            if (!railMap.TryGetValue(currentPathCells[i], out RailPiece piece))
+                continue;
+
+            Vector2Int flowFrom;
+
+            if (i == 0)
+            {
+                // 첫 번째 셀: startPort가 가리키는 방향의 반대에서 흐름이 들어옴
+                // GetWorldDirection()이 포트가 그리드 안쪽으로 향하는 방향이라면
+                // 흐름 진입은 그 반대 방향 (포트 쪽)
+                flowFrom = -startPort.GetWorldDirection();
+            }
+            else
+            {
+                // 이전 셀 → 현재 셀 방향 = 흐름 진입 방향 (curr 기준 prev 쪽)
+                Vector2Int prev = currentPathCells[i - 1];
+                Vector2Int curr = currentPathCells[i];
+                flowFrom = prev - curr; // curr 입장에서 prev가 있는 방향
+            }
+
+            piece.flowFrom = flowFrom;
+            piece.ApplyVisual(straightPrefab, cornerPrefab);
+        }
     }
 
     private void TryPlaceNextStep(Vector2Int cell)
