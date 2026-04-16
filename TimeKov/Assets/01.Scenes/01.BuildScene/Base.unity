@@ -8748,7 +8748,7 @@ MonoBehaviour:
   - facilityId: 1
     prefab: {fileID: 6553246250967790936, guid: 9788d8e0eb6cc5b488590d89b929cbff, type: 3}
   - facilityId: 2
-    prefab: {fileID: 0}
+    prefab: {fileID: 885389685774127005, guid: eafb773eb3c3db847bce40fed5c1d7df, type: 3}
   - facilityId: 3
     prefab: {fileID: 0}
   - facilityId: 4
@@ -9356,8 +9356,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1757894685}
-  - component: {fileID: 1757894687}
   - component: {fileID: 1757894686}
+  - component: {fileID: 1757894687}
   - component: {fileID: 1757894688}
   m_Layer: 0
   m_Name: BuildManager
@@ -9435,7 +9435,7 @@ MonoBehaviour:
   hologramMaterial: {fileID: 2100000, guid: 990a06ffeda43734e864d545330e132e, type: 2}
   buildEffectDuration: 1.2
   audioSource: {fileID: 1757894688}
-  buildStartClip: {fileID: 8300000, guid: 650992ccaa04b704698410ec8a176dc9, type: 3}
+  buildStartClip: {fileID: 0}
   buildCompleteClip: {fileID: 8300000, guid: fd10785fdf630034ab8303d451db6e26, type: 3}
   buildCompleteEffectPrefab: {fileID: 0}
   buildCompleteEffectOffset: {x: 0, y: 0, z: 0}
