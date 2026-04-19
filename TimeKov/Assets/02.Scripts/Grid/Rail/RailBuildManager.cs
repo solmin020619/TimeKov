@@ -23,8 +23,14 @@ public class RailBuildManager : MonoBehaviour
     [SerializeField] private Material previewInvalidMaterial;
 
     [Header("Drag")]
-    [Tooltip("드래그 시 한 프레임에 처리할 최대 셀 수. 너무 크면 프레임 스파이크 발생.")]
     [SerializeField] private int maxStepsPerFrame = 20;
+
+    [Header("Port Indicator")]
+    [Tooltip("연결 가능한 포트에 표시할 화살표 프리팹. 로컬 +Z = 화살표 앞방향.")]
+    [SerializeField] private GameObject portArrowPrefab;
+    [Tooltip("연결 불가 포트에 표시할 X 프리팹.")]
+    [SerializeField] private GameObject portXPrefab;
+    [SerializeField] private float indicatorYOffset = 0.1f;
 
     [Header("Debug")]
     [SerializeField] private bool enableDebugLog = false;
@@ -38,6 +44,7 @@ public class RailBuildManager : MonoBehaviour
 
     private bool isRouting = false;
     private bool isDragRouting = false;
+    private bool isRailModeActive = false;
 
     private Vector2Int currentEndCell;
 
@@ -55,39 +62,40 @@ public class RailBuildManager : MonoBehaviour
     private bool lastPreviewWasPort = false;
     private BuildPort lastPreviewPort = null;
 
-    private enum RouteEvalResult
-    {
-        Invalid,
-        Normal,
-        Finish
-    }
+    // 포트 → 현재 표시 중인 인디케이터
+    private readonly Dictionary<BuildPort, GameObject> portIndicatorMap = new();
+
+    private enum RouteEvalResult { Invalid, Normal, Finish }
+
+    // 포트 인디케이터 상태
+    private enum PortIndicatorState { Arrow, X, Hidden }
 
     public void BeginRailMode(BuildManager buildManager)
     {
         owner = buildManager;
+        isRailModeActive = true;
         RefreshPortCache();
-        CancelCurrentRoute();
+        CancelCurrentRouteStateOnly();
         ResetPreviewCache();
+        ShowPortIndicators();
         ShowPreview();
         Log("[Rail] Rail Mode ON");
     }
 
     public void EndRailMode()
     {
+        isRailModeActive = false;
         isDragRouting = false;
-        CancelCurrentRoute();
+        CancelCurrentRouteStateOnly();
+        ResetPreviewCache();
+        HidePortIndicators();
         HidePreview();
         owner = null;
         cachedPorts = Array.Empty<BuildPort>();
         cachedPortByFrontCell.Clear();
-        ResetPreviewCache();
         Log("[Rail] Rail Mode OFF");
     }
 
-    /// <summary>
-    /// 포트 캐시를 갱신합니다.
-    /// 새 건물 설치/철거 등으로 BuildPort 구성이 바뀐 직후 반드시 호출해야 합니다.
-    /// </summary>
     public void RefreshPortCache()
     {
         cachedPorts = FindObjectsByType<BuildPort>(FindObjectsSortMode.None);
@@ -96,20 +104,24 @@ public class RailBuildManager : MonoBehaviour
         for (int i = 0; i < cachedPorts.Length; i++)
         {
             BuildPort port = cachedPorts[i];
-            if (port == null)
-                continue;
+            if (port == null) continue;
 
             Vector2Int frontCell = port.GetFrontCell();
 
             if (!cachedPortByFrontCell.ContainsKey(frontCell))
-            {
                 cachedPortByFrontCell.Add(frontCell, port);
-            }
             else
-            {
                 Debug.LogWarning($"[Rail] Duplicate port frontCell detected: {frontCell}, ignored port: {port.name}");
-            }
         }
+    }
+
+    public void RefreshPortIndicators()
+    {
+        RefreshPortCache();
+
+        if (!isRailModeActive) return;
+
+        ShowPortIndicators();
     }
 
     public void TickRailMode()
@@ -130,9 +142,7 @@ public class RailBuildManager : MonoBehaviour
         }
 
         if (Input.GetMouseButtonUp(0))
-        {
             isDragRouting = false;
-        }
 
         if (Input.GetMouseButtonDown(1))
         {
@@ -140,6 +150,130 @@ public class RailBuildManager : MonoBehaviour
             CancelCurrentRoute();
         }
     }
+
+    // ─── 포트 인디케이터 ─────────────────────────────
+
+    private void ShowPortIndicators()
+    {
+        HidePortIndicators();
+
+        for (int i = 0; i < cachedPorts.Length; i++)
+        {
+            BuildPort port = cachedPorts[i];
+            if (port == null) continue;
+
+            PortIndicatorState state = GetIndicatorState(port);
+            GameObject indicator = CreateIndicator(port, state);
+
+            if (indicator != null)
+                portIndicatorMap[port] = indicator;
+        }
+    }
+
+    private void RefreshIndicators()
+    {
+        // 상태가 바뀌면 기존 인디케이터를 제거하고 맞는 프리팹으로 교체
+        for (int i = 0; i < cachedPorts.Length; i++)
+        {
+            BuildPort port = cachedPorts[i];
+            if (port == null) continue;
+
+            PortIndicatorState state = GetIndicatorState(port);
+
+            if (portIndicatorMap.TryGetValue(port, out GameObject existing))
+            {
+                if (existing != null)
+                    Destroy(existing);
+
+                portIndicatorMap.Remove(port);
+            }
+
+            if (state == PortIndicatorState.Hidden) continue;
+
+            GameObject indicator = CreateIndicator(port, state);
+            if (indicator != null)
+                portIndicatorMap[port] = indicator;
+        }
+    }
+
+    private GameObject CreateIndicator(BuildPort port, PortIndicatorState state)
+    {
+        if (state == PortIndicatorState.Hidden) return null;
+
+        GameObject prefab = state == PortIndicatorState.Arrow ? portArrowPrefab : portXPrefab;
+        if (prefab == null) return null;
+
+        Vector2Int dir = port.GetWorldDirection();
+
+        Vector3 pos = CellToWorld(port.GetFrontCell());
+        pos += new Vector3(dir.x, 0f, dir.y) * cellSize * 0.5f;
+        pos.y += indicatorYOffset;
+
+        Quaternion rot = Quaternion.identity;
+        if (state == PortIndicatorState.Arrow)
+        {
+            if (dir != Vector2Int.zero)
+            {
+                float yAngle = Mathf.Atan2(dir.x, dir.y) * Mathf.Rad2Deg;
+                rot = Quaternion.Euler(90f, yAngle, 0f);
+            }
+            else
+            {
+                rot = Quaternion.Euler(90f, 0f, 0f);
+            }
+        }
+        else
+        {
+            rot = Quaternion.Euler(90f, 0f, 0f);
+        }
+
+        GameObject indicator = Instantiate(prefab, pos, rot);
+        indicator.name = $"PortIndicator_{port.name}_{state}";
+        return indicator;
+    }
+
+    private PortIndicatorState GetIndicatorState(BuildPort port)
+    {
+        if (!isRouting)
+        {
+            // 라우팅 전: 연결 가능 → 화살표, 불가 → X
+            if (!port.HasCapacity)
+                return PortIndicatorState.X;
+
+            if (port.CanStartConnection() || port.CanEndConnection())
+                return PortIndicatorState.Arrow;
+
+            return PortIndicatorState.X;
+        }
+
+        // 라우팅 중
+        if (port == startPort)
+            return PortIndicatorState.Arrow; // 시작 포트는 화살표 유지
+
+        if (!port.HasCapacity)
+            return PortIndicatorState.X;
+
+        if (startPort != null &&
+            port.OwnerBuilding != null &&
+            startPort.OwnerBuilding != null &&
+            port.OwnerBuilding == startPort.OwnerBuilding)
+            return PortIndicatorState.X;
+
+        // 도착 가능 조건 → 화살표, 아니면 X
+        return port.CanEndConnection() ? PortIndicatorState.Arrow : PortIndicatorState.X;
+    }
+
+    private void HidePortIndicators()
+    {
+        foreach (var (_, indicator) in portIndicatorMap)
+        {
+            if (indicator != null)
+                Destroy(indicator);
+        }
+        portIndicatorMap.Clear();
+    }
+
+    // ─── 입력 처리 ────────────────────────────────────
 
     private void HandleLeftMouseDown()
     {
@@ -156,7 +290,6 @@ public class RailBuildManager : MonoBehaviour
             {
                 isDragRouting = false;
             }
-
             return;
         }
 
@@ -176,8 +309,7 @@ public class RailBuildManager : MonoBehaviour
 
     private void HandleLeftMouseHold()
     {
-        if (!isRouting)
-            return;
+        if (!isRouting) return;
 
         if (TryGetPortUnderMouse(out BuildPort hoveredPort) && hoveredPort != null)
         {
@@ -190,6 +322,8 @@ public class RailBuildManager : MonoBehaviour
         if (TryGetMouseCell(out Vector2Int cell))
             TryPlacePathToward(cell);
     }
+
+    // ─── 라우트 시작 ──────────────────────────────────
 
     private bool TryStartRoute(BuildPort port)
     {
@@ -218,10 +352,15 @@ public class RailBuildManager : MonoBehaviour
         currentPathCells.Clear();
         currentPathCells.Add(firstCell);
 
+        // 라우팅 시작 → 인디케이터 상태 갱신
+        // 시작 포트=화살표, 도착 가능=화살표, 불가=X
+        RefreshIndicators();
         ResetPreviewCache();
         Log($"[Rail] Route started from {startPort.name}");
         return true;
     }
+
+    // ─── 경로 배치 ────────────────────────────────────
 
     private void TryPlacePathToward(Vector2Int targetCell)
     {
@@ -265,8 +404,7 @@ public class RailBuildManager : MonoBehaviour
 
         if (TryEvaluateStep(primaryStep, out Vector2Int nextCell, out RouteEvalResult result, out BuildPort finishPort))
         {
-            if (!PlaceStep(nextCell))
-                return false;
+            if (!PlaceStep(nextCell)) return false;
 
             if (result == RouteEvalResult.Finish && finishPort != null)
             {
@@ -279,8 +417,7 @@ public class RailBuildManager : MonoBehaviour
 
         if (TryEvaluateStep(secondaryStep, out nextCell, out result, out finishPort))
         {
-            if (!PlaceStep(nextCell))
-                return false;
+            if (!PlaceStep(nextCell)) return false;
 
             if (result == RouteEvalResult.Finish && finishPort != null)
             {
@@ -304,8 +441,7 @@ public class RailBuildManager : MonoBehaviour
         result = RouteEvalResult.Invalid;
         finishPort = null;
 
-        if (step == Vector2Int.zero)
-            return false;
+        if (step == Vector2Int.zero) return false;
 
         nextCell = currentEndCell + step;
         result = EvaluateCellCandidate(nextCell, out finishPort);
@@ -324,6 +460,8 @@ public class RailBuildManager : MonoBehaviour
         currentEndCell = cell;
         return true;
     }
+
+    // ─── 셀 유효성 평가 ───────────────────────────────
 
     private RouteEvalResult EvaluateCellCandidate(Vector2Int nextCell, out BuildPort finishPort)
     {
@@ -397,10 +535,11 @@ public class RailBuildManager : MonoBehaviour
         return result == RouteEvalResult.Finish && finishPort == port;
     }
 
+    // ─── 라우트 완료 / 취소 ───────────────────────────
+
     private void CompleteRoute(BuildPort port)
     {
-        if (!CanFinishNow(port))
-            return;
+        if (!CanFinishNow(port)) return;
 
         startPort.AddConnection();
         port.AddConnection();
@@ -413,17 +552,16 @@ public class RailBuildManager : MonoBehaviour
         isDragRouting = false;
         CancelCurrentRouteStateOnly();
         ResetPreviewCache();
+        RefreshIndicators();
     }
 
     private void AssignFlowDirections()
     {
-        if (currentPathCells.Count == 0 || startPort == null)
-            return;
+        if (currentPathCells.Count == 0 || startPort == null) return;
 
         for (int i = 0; i < currentPathCells.Count; i++)
         {
-            if (!railMap.TryGetValue(currentPathCells[i], out RailPiece piece))
-                continue;
+            if (!railMap.TryGetValue(currentPathCells[i], out RailPiece piece)) continue;
 
             Vector2Int flowFrom = i == 0
                 ? -startPort.GetWorldDirection()
@@ -434,21 +572,39 @@ public class RailBuildManager : MonoBehaviour
         }
     }
 
+    private void CancelCurrentRoute()
+    {
+        CancelCurrentRouteStateOnly();
+        ResetPreviewCache();
+        RefreshIndicators();
+        Log("[Rail] Route canceled");
+    }
+
+    private void CancelCurrentRouteStateOnly()
+    {
+        isRouting = false;
+        isDragRouting = false;
+        startPort = null;
+        endPort = null;
+        currentEndCell = default;
+        currentPathCells.Clear();
+    }
+
+    // ─── 레일 셀 관리 ─────────────────────────────────
+
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
     {
         if (!railMap.TryGetValue(cell, out RailPiece existingPiece))
             return true;
 
-        if (!allowExisting)
-            return false;
+        if (!allowExisting) return false;
 
         int existingConnections = GetConnectionCount(existingPiece);
 
         if (previousCell == NoCell || previousCell == cell)
             return existingConnections < 2;
 
-        if (IsConnectedTo(existingPiece, previousCell))
-            return true;
+        if (IsConnectedTo(existingPiece, previousCell)) return true;
 
         return existingConnections < 2;
     }
@@ -483,11 +639,8 @@ public class RailBuildManager : MonoBehaviour
             return false;
         }
 
-        bool createdFrom = false;
-        bool createdTo = false;
-
-        RailPiece fromPiece = GetOrCreateRailPiece(fromCell, out createdFrom);
-        RailPiece toPiece = GetOrCreateRailPiece(toCell, out createdTo);
+        RailPiece fromPiece = GetOrCreateRailPiece(fromCell, out bool createdFrom);
+        RailPiece toPiece = GetOrCreateRailPiece(toCell, out bool createdTo);
 
         if (fromPiece == null || toPiece == null)
         {
@@ -500,11 +653,8 @@ public class RailBuildManager : MonoBehaviour
         {
             Debug.LogWarning($"[Rail] Connect failed - limit reached: {fromCell} -> {toCell}");
 
-            if (createdFrom && GetConnectionCount(fromPiece) == 0)
-                RemoveRailPiece(fromCell);
-
-            if (createdTo && GetConnectionCount(toPiece) == 0)
-                RemoveRailPiece(toCell);
+            if (createdFrom && GetConnectionCount(fromPiece) == 0) RemoveRailPiece(fromCell);
+            if (createdTo && GetConnectionCount(toPiece) == 0) RemoveRailPiece(toCell);
 
             return false;
         }
@@ -523,8 +673,7 @@ public class RailBuildManager : MonoBehaviour
             return existing;
 
         RailPiece newPiece = CreateRailPiece(cell);
-        if (newPiece == null)
-            return null;
+        if (newPiece == null) return null;
 
         railMap.Add(cell, newPiece);
         RefreshRail(cell);
@@ -539,8 +688,7 @@ public class RailBuildManager : MonoBehaviour
             return existing;
 
         RailPiece newPiece = CreateRailPiece(cell);
-        if (newPiece == null)
-            return null;
+        if (newPiece == null) return null;
 
         railMap.Add(cell, newPiece);
         createdNow = true;
@@ -549,8 +697,7 @@ public class RailBuildManager : MonoBehaviour
 
     private void RemoveRailPiece(Vector2Int cell)
     {
-        if (!railMap.TryGetValue(cell, out RailPiece piece))
-            return;
+        if (!railMap.TryGetValue(cell, out RailPiece piece)) return;
 
         railMap.Remove(cell);
 
@@ -592,12 +739,13 @@ public class RailBuildManager : MonoBehaviour
             piece.ApplyVisual(straightPrefab, cornerPrefab);
     }
 
+    // ─── 레이캐스트 헬퍼 ──────────────────────────────
+
     private bool TryGetPortUnderMouse(out BuildPort port)
     {
         port = null;
 
-        if (owner == null || owner.mainCam == null)
-            return false;
+        if (owner == null || owner.mainCam == null) return false;
 
         Ray ray = owner.mainCam.ScreenPointToRay(Input.mousePosition);
 
@@ -612,11 +760,8 @@ public class RailBuildManager : MonoBehaviour
     {
         cell = default;
 
-        if (owner == null || owner.mainCam == null)
-            return false;
-
-        if (cellSize <= 0f)
-            return false;
+        if (owner == null || owner.mainCam == null) return false;
+        if (cellSize <= 0f) return false;
 
         Ray ray = owner.mainCam.ScreenPointToRay(Input.mousePosition);
 
@@ -650,31 +795,14 @@ public class RailBuildManager : MonoBehaviour
         );
     }
 
-    private void CancelCurrentRoute()
-    {
-        CancelCurrentRouteStateOnly();
-        ResetPreviewCache();
-        Log("[Rail] Route canceled");
-    }
-
-    private void CancelCurrentRouteStateOnly()
-    {
-        isRouting = false;
-        isDragRouting = false;
-        startPort = null;
-        endPort = null;
-        currentEndCell = default;
-        currentPathCells.Clear();
-    }
+    // ─── 프리뷰 ───────────────────────────────────────
 
     private void ShowPreview()
     {
-        if (previewInstance != null)
-            return;
+        if (previewInstance != null) return;
 
         GameObject source = previewPrefab != null ? previewPrefab : straightPrefab;
-        if (source == null)
-            return;
+        if (source == null) return;
 
         previewInstance = Instantiate(source);
         previewInstance.name = "RailPreview";
@@ -697,8 +825,7 @@ public class RailBuildManager : MonoBehaviour
     private void UpdatePreview()
     {
         ShowPreview();
-        if (previewInstance == null)
-            return;
+        if (previewInstance == null) return;
 
         if (TryGetPortUnderMouse(out BuildPort port) && port != null)
         {
@@ -707,13 +834,8 @@ public class RailBuildManager : MonoBehaviour
                 ? port.CanStartConnection() && CanUseCellAsRail(frontCell, NoCell, allowExisting: true)
                 : CanFinishByPlacingNextCell(port);
 
-            bool samePortSameValidity =
-                lastPreviewWasPort &&
-                lastPreviewPort == port &&
-                lastPreviewValid == valid;
-
-            if (samePortSameValidity)
-                return;
+            bool same = lastPreviewWasPort && lastPreviewPort == port && lastPreviewValid == valid;
+            if (same) return;
 
             previewInstance.SetActive(true);
             previewInstance.transform.position = CellToWorld(frontCell);
@@ -744,13 +866,8 @@ public class RailBuildManager : MonoBehaviour
         RouteEvalResult evalResult = EvaluateCellCandidate(cell, out _);
         bool validCell = evalResult != RouteEvalResult.Invalid;
 
-        bool sameCellSameValidity =
-            !lastPreviewWasPort &&
-            cell == lastPreviewCell &&
-            lastPreviewValid == validCell;
-
-        if (sameCellSameValidity)
-            return;
+        bool sameCellSameValidity = !lastPreviewWasPort && cell == lastPreviewCell && lastPreviewValid == validCell;
+        if (sameCellSameValidity) return;
 
         previewInstance.SetActive(true);
         previewInstance.transform.position = CellToWorld(cell);
@@ -765,12 +882,10 @@ public class RailBuildManager : MonoBehaviour
 
     private void ApplyPreviewMaterial(bool valid)
     {
-        if (previewRenderers == null)
-            return;
+        if (previewRenderers == null) return;
 
         Material mat = valid ? previewValidMaterial : previewInvalidMaterial;
-        if (mat == null)
-            return;
+        if (mat == null) return;
 
         foreach (Renderer r in previewRenderers)
         {
