@@ -15,7 +15,6 @@ public class BuildManager : MonoBehaviour
     [System.Serializable]
     public class BuildSlot
     {
-        [Header("DataStore.FacilityById에 있는 facilityId")]
         public int facilityId;
     }
 
@@ -89,7 +88,8 @@ public class BuildManager : MonoBehaviour
     public bool IsBuildMode { get; private set; }
     public bool IsTopViewMode { get; private set; }
 
-    private int currentIndex = 0;
+    private int currentIndex = -1;          // -1 = 미선택 상태
+    private bool hasSelectedSlot = false;   // 슬롯이 선택됐는지 여부
     private int currentRotationY = 0;
 
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
@@ -103,8 +103,6 @@ public class BuildManager : MonoBehaviour
         {
             Debug.LogWarning("[BuildManager] DataStore is not loaded. Make sure DataBoot runs before BuildManager.");
         }
-
-        RefreshPreviewMarker();
 
         if (previewMarker != null)
             previewMarker.SetActive(false);
@@ -151,14 +149,12 @@ public class BuildManager : MonoBehaviour
         if (!IsBuildMode)
             return;
 
-        // E = 레일 선택
         if (Input.GetKeyDown(KeyCode.E))
         {
             SelectRailMode();
             return;
         }
 
-        // 1~9 = 시설 선택
         if (Input.GetKeyDown(KeyCode.Alpha1)) SelectFacilitySlot(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) SelectFacilitySlot(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) SelectFacilitySlot(2);
@@ -177,7 +173,29 @@ public class BuildManager : MonoBehaviour
 
     private void SelectFacilitySlot(int index)
     {
-        SetSubMode(BuildSubMode.Facility);
+        // 같은 슬롯 다시 누르면 선택 해제
+        if (hasSelectedSlot && currentIndex == index)
+        {
+            hasSelectedSlot = false;
+            currentIndex = -1;
+
+            if (CurrentSubMode != BuildSubMode.Facility)
+                CurrentSubMode = BuildSubMode.Facility;
+
+            if (previewMarker != null)
+                previewMarker.SetActive(false);
+
+            return;
+        }
+
+        // 레일 모드였으면 종료
+        if (CurrentSubMode == BuildSubMode.Rail)
+        {
+            railBuildManager?.EndRailMode();
+            CurrentSubMode = BuildSubMode.Facility;
+        }
+
+        hasSelectedSlot = true;
         SetCurrentSlot(index);
     }
 
@@ -204,9 +222,11 @@ public class BuildManager : MonoBehaviour
             railBuildManager?.EndRailMode();
 
             currentRotationY = 0;
-            RefreshPreviewMarker();
 
-            if (previewMarker != null)
+            // 선택된 슬롯이 있을 때만 프리뷰 갱신
+            if (hasSelectedSlot)
+                RefreshPreviewMarker();
+            else if (previewMarker != null)
                 previewMarker.SetActive(false);
         }
     }
@@ -219,20 +239,31 @@ public class BuildManager : MonoBehaviour
 
             if (!IsBuildMode)
             {
+                // 건축 모드 종료
                 isDemolishMode = false;
                 isDragBuilding = false;
                 dragPlacedStartCells.Clear();
+                hasSelectedSlot = false;
+                currentIndex = -1;
 
                 ClearHoveredBuilding();
                 SetTopViewMode(false);
-                SetSubMode(BuildSubMode.Facility);
+
+                railBuildManager?.EndRailMode();
+                CurrentSubMode = BuildSubMode.Facility;
 
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
             }
             else
             {
-                SetSubMode(BuildSubMode.Facility);
+                // 건축 모드 진입 — 슬롯은 자동 선택 안 함
+                hasSelectedSlot = false;
+                currentIndex = -1;
+                CurrentSubMode = BuildSubMode.Facility;
+
+                if (previewMarker != null)
+                    previewMarker.SetActive(false);
             }
         }
 
@@ -245,10 +276,14 @@ public class BuildManager : MonoBehaviour
             isDemolishMode = false;
             isDragBuilding = false;
             dragPlacedStartCells.Clear();
+            hasSelectedSlot = false;
+            currentIndex = -1;
 
             ClearHoveredBuilding();
             SetTopViewMode(false);
-            SetSubMode(BuildSubMode.Facility);
+
+            railBuildManager?.EndRailMode();
+            CurrentSubMode = BuildSubMode.Facility;
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
@@ -689,6 +724,8 @@ public class BuildManager : MonoBehaviour
 
     private int GetCurrentFacilityId()
     {
+        if (!hasSelectedSlot) return 0;
+
         if (buildSlots == null || currentIndex < 0 || currentIndex >= buildSlots.Length)
             return 0;
 
@@ -900,7 +937,6 @@ public class BuildManager : MonoBehaviour
         footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
 
         bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
-
 
         bool isOccupied = IsAnyCellOccupied(footprintCells);
 
