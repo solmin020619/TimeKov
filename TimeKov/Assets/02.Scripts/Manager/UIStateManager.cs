@@ -14,7 +14,8 @@ public class UIStateManager : MonoBehaviour
         Loot,
         Quest,
         Pause,
-        Factory   // 공장 설비 UI
+        Factory,  // 공장 설비 UI
+        Build     // 건축 모드 (QuickSlot UI)
     }
 
     [Header("UI Panels")]
@@ -45,6 +46,10 @@ public class UIStateManager : MonoBehaviour
     [Header("Dim Blocker")]
     public GameObject dimBlocker;
 
+    [Header("Build UI")]
+    public GameObject quickSlotUI;
+    public GameObject[] hideOnBuildMode; // 빌드 모드 진입 시 숨길 UI (PlayerStatusUI 등)
+
     [Header("Base Scene Settings")]
     public string[] baseSceneNames = { "Base" };
 
@@ -60,6 +65,8 @@ public class UIStateManager : MonoBehaviour
     //  추가: 같은 프레임에 Loot 토글이 두 번 들어오면 "켜졌다가 바로 꺼짐" 방지
     private int _lastLootToggleFrame = -1;
 
+    private BuildManager buildManager;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -68,6 +75,7 @@ public class UIStateManager : MonoBehaviour
             return;
         }
         Instance = this;
+        buildManager = FindObjectOfType<BuildManager>();
     }
 
     void Update()
@@ -99,6 +107,13 @@ public class UIStateManager : MonoBehaviour
     // 3) 그 외 UI가 열려있으면 -> 닫기(None)
     public void HandleEscape()
     {
+        if (buildManager == null)
+            buildManager = FindObjectOfType<BuildManager>();
+
+        // 건축 모드 ESC는 BuildManager가 단독 처리
+        if (buildManager != null && buildManager.IsBuildMode)
+            return;
+
         ItemTooltipUI.Instance?.Hide();
         if (currentState == UIState.None)
         {
@@ -247,6 +262,7 @@ public class UIStateManager : MonoBehaviour
 
         if (defaultLootUI) defaultLootUI.SetActive(false);
         if (currentLootUI && currentLootUI != defaultLootUI) currentLootUI.SetActive(false);
+        if (quickSlotUI) quickSlotUI.SetActive(false);
 
         // ShopManager 정리
         if (shopManager != null && currentState != UIState.Shop)
@@ -310,6 +326,10 @@ public class UIStateManager : MonoBehaviour
                 // 여기서는 커서/입력 제어만 담당
                 break;
 
+            case UIState.Build:
+                if (quickSlotUI) quickSlotUI.SetActive(true);
+                break;
+
             case UIState.None:
             default:
                 break;
@@ -327,9 +347,17 @@ public class UIStateManager : MonoBehaviour
         }
 
         // 커서 + 입력 플래그 처리
-        SetGameplayInputEnabled(currentState == UIState.None);
+        SetGameplayInputEnabled(currentState == UIState.None || currentState == UIState.Build);
 
-        //  Pause 상태일 때만 게임 정지
+        // 빌드 모드일 때 숨길 UI 처리 (PlayerStatusUI 등 상시 표시 HUD)
+        bool isBuild = currentState == UIState.Build;
+        if (hideOnBuildMode != null)
+        {
+            for (int i = 0; i < hideOnBuildMode.Length; i++)
+                if (hideOnBuildMode[i] != null)
+                    hideOnBuildMode[i].SetActive(!isBuild);
+        }
+
         SetPauseTimeScale(currentState == UIState.Pause);
 
 
@@ -351,6 +379,7 @@ public class UIStateManager : MonoBehaviour
         if (currentLootUI != null && currentLootUI.activeInHierarchy) return true;
         if (defaultLootUI != null && defaultLootUI.activeInHierarchy) return true;
         if (currentState == UIState.Factory) return true;
+        if (quickSlotUI != null && quickSlotUI.activeInHierarchy) return true;
 
         return false;
     }
@@ -367,7 +396,6 @@ public class UIStateManager : MonoBehaviour
     //  추가: UI 상태에 맞는 커서 상태를 매 프레임 보정
     private void RefreshCursorState()
     {
-        BuildManager buildManager = FindObjectOfType<BuildManager>();
         if (buildManager != null && buildManager.IsTopViewMode)
         {
             Cursor.visible = true;

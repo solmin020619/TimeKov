@@ -251,6 +251,8 @@ public class BuildManager : MonoBehaviour
 
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
+
+                UIStateManager.Instance?.CloseAllUI();
             }
             else
             {
@@ -264,6 +266,8 @@ public class BuildManager : MonoBehaviour
 
                 // B키 진입 시 탑뷰 자동 활성화
                 SetTopViewMode(true);
+
+                UIStateManager.Instance?.SetState(UIStateManager.UIState.Build);
             }
         }
 
@@ -287,6 +291,8 @@ public class BuildManager : MonoBehaviour
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
+
+            UIStateManager.Instance?.CloseAllUI();
         }
     }
 
