@@ -21,7 +21,6 @@ public class BuildManager : MonoBehaviour
     [Header("Top View")]
     [SerializeField] private Camera gameplayCamera;
     [SerializeField] private Camera topViewCamera;
-    [SerializeField] private KeyCode topViewToggleKey = KeyCode.CapsLock;
     [SerializeField] private TopViewPanCamera topViewPanCamera;
     [SerializeField] private PlayerInput playerInput;
     [SerializeField] private Transform topViewStartTarget;
@@ -108,7 +107,6 @@ public class BuildManager : MonoBehaviour
             previewMarker.SetActive(false);
 
         SetTopViewMode(false, true);
-        ResolveActiveBuildCamera();
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -120,7 +118,6 @@ public class BuildManager : MonoBehaviour
     private void Update()
     {
         HandleModeInput();
-        HandleTopViewInput();
 
         if (!IsBuildMode)
             return;
@@ -264,6 +261,9 @@ public class BuildManager : MonoBehaviour
 
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
+
+                // B키 진입 시 탑뷰 자동 활성화
+                SetTopViewMode(true);
             }
         }
 
@@ -287,22 +287,6 @@ public class BuildManager : MonoBehaviour
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
-        }
-    }
-
-    private void HandleTopViewInput()
-    {
-        if (!IsBuildMode)
-        {
-            if (IsTopViewMode)
-                SetTopViewMode(false);
-
-            return;
-        }
-
-        if (Input.GetKeyDown(topViewToggleKey))
-        {
-            SetTopViewMode(!IsTopViewMode);
         }
     }
 
