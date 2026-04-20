@@ -50,9 +50,6 @@ public class UIStateManager : MonoBehaviour
     public GameObject quickSlotUI;
     public GameObject[] hideOnBuildMode; // 빌드 모드 진입 시 숨길 UI (PlayerStatusUI 등)
 
-    [Header("Base Scene Settings")]
-    public string[] baseSceneNames = { "Base" };
-
 
 
     private UIState currentState = UIState.None;
@@ -276,9 +273,8 @@ public class UIStateManager : MonoBehaviour
         {
             case UIState.Inventory:
                 if (playerInventoryUI) playerInventoryUI.SetActive(true);
-                bool isBase = IsBaseScene();
                 if (warehouseUI)
-                    warehouseUI.SetActive(enableWarehouseInInventory && isBase);
+                    warehouseUI.SetActive(enableWarehouseInInventory);
                 break;
 
             case UIState.Shop:
@@ -342,7 +338,7 @@ public class UIStateManager : MonoBehaviour
         // 창고 이동 버튼 노출 규칙
         if (moveToWarehouseButton != null)
         {
-            bool show = (currentState == UIState.Inventory) && enableWarehouseInInventory && IsBaseScene();
+            bool show = (currentState == UIState.Inventory) && enableWarehouseInInventory;
             moveToWarehouseButton.SetActive(show);
         }
 
@@ -425,16 +421,4 @@ public class UIStateManager : MonoBehaviour
         Time.timeScale = paused ? 0f : 1f;
     }
 
-    private bool IsBaseScene()
-    {
-        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-
-        for (int i = 0; i < baseSceneNames.Length; i++)
-        {
-            if (sceneName == baseSceneNames[i])
-                return true;
-        }
-
-        return false;
-    }
 }
