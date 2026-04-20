@@ -62,6 +62,8 @@ public class RailBuildManager : MonoBehaviour
     private bool lastPreviewWasPort = false;
     private BuildPort lastPreviewPort = null;
 
+    private PlacedBuilding _railHighlightedBuilding;
+
     // 포트 → 현재 표시 중인 인디케이터
     private readonly Dictionary<BuildPort, GameObject> portIndicatorMap = new();
 
@@ -84,6 +86,7 @@ public class RailBuildManager : MonoBehaviour
 
     public void EndRailMode()
     {
+        ClearRailHighlight();
         isRailModeActive = false;
         isDragRouting = false;
         CancelCurrentRouteStateOnly();
@@ -94,6 +97,25 @@ public class RailBuildManager : MonoBehaviour
         cachedPorts = Array.Empty<BuildPort>();
         cachedPortByFrontCell.Clear();
         Log("[Rail] Rail Mode OFF");
+    }
+
+    // 포트 선택 시
+    private void OnRailSourceSelected(BuildPort port)
+    {
+        ClearRailHighlight();
+        var building = port.OwnerBuilding;
+        if (building != null)
+        {
+            building.SetRailConnectingHighlight(true);
+            _railHighlightedBuilding = building;
+        }
+    }
+
+    // 연결 완료 또는 취소 시
+    private void ClearRailHighlight()
+    {
+        _railHighlightedBuilding?.SetRailConnectingHighlight(false);
+        _railHighlightedBuilding = null;
     }
 
     public void RefreshPortCache()

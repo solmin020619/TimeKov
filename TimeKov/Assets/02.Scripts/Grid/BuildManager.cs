@@ -353,6 +353,14 @@ public class BuildManager : MonoBehaviour
             Cursor.visible = false;
         }
 
+        // 탑뷰 진입/종료 시 건물 레이블 표시/숨김
+        var labels = UnityEngine.Object.FindObjectsByType<BuildingLabelUI>(UnityEngine.FindObjectsSortMode.None);
+        foreach (var label in labels)
+        {
+            if (value) label.ShowLabel();
+            else label.HideLabel();
+        }
+
         ResolveActiveBuildCamera();
     }
 
@@ -501,6 +509,8 @@ public class BuildManager : MonoBehaviour
             facilityInstance = obj.AddComponent<FacilityInstance>();
 
         facilityInstance.Initialize(facility.facilityId);
+
+        placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
 
         PlayBuildCompleteSound();
         SpawnBuildCompleteEffect(position, rotation);
@@ -842,14 +852,14 @@ public class BuildManager : MonoBehaviour
         ClearHoveredBuilding();
 
         currentHoveredBuilding = building;
-        currentHoveredBuilding.SetHighlight(Color.red);
+        currentHoveredBuilding.SetDemolishHighlight(true);
     }
 
     private void ClearHoveredBuilding()
     {
         if (currentHoveredBuilding != null)
         {
-            currentHoveredBuilding.RestoreColor();
+            currentHoveredBuilding.SetDemolishHighlight(false);
             currentHoveredBuilding = null;
         }
     }
