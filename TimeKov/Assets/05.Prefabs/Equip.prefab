@@ -67,8 +67,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 50s
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 7fd30bfeb37f5884dabd391567e6530d, type: 2}
-  m_sharedMaterial: {fileID: -1032854704505651332, guid: 7fd30bfeb37f5884dabd391567e6530d, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -103,6 +103,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -225,8 +226,6 @@ GameObject:
   - component: {fileID: 8045116478713714091}
   - component: {fileID: 6580571624484968256}
   - component: {fileID: 4665979671174535470}
-  - component: {fileID: 7973683931764176829}
-  - component: {fileID: 2642615737406311003}
   m_Layer: 5
   m_Name: Equip
   m_TagString: Untagged
@@ -371,34 +370,6 @@ MonoBehaviour:
   amountText: {fileID: 8083302254051312221}
   ownerType: 0
   priceText: {fileID: 6869385952386031300}
-  disableGameObjectWhenEmpty: 0
---- !u!114 &7973683931764176829
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2714604906775217442}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 111d555619ab8ca439455889f72f2c48, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  doubleClickTime: 0.25
-  invenManager: {fileID: 0}
---- !u!114 &2642615737406311003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2714604906775217442}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc1e3225939630b46a9eafa087ed9b8b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ownerManager: {fileID: 0}
 --- !u!1 &3486389607244287306
 GameObject:
   m_ObjectHideFlags: 0
@@ -502,6 +473,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -713,6 +685,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0

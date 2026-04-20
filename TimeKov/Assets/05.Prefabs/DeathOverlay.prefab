@@ -215,6 +215,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -261,7 +262,6 @@ GameObject:
   - component: {fileID: 7654438604673263807}
   - component: {fileID: 7823445523001302822}
   - component: {fileID: 875411783964558474}
-  - component: {fileID: 6933662506167326622}
   m_Layer: 5
   m_Name: DeathOverlay
   m_TagString: Untagged
@@ -369,26 +369,6 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
---- !u!114 &6933662506167326622
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3453617617553831984}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d8fddbaabca7dff4085e6a55f600cfc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  overlayGroup: {fileID: 0}
-  fadeBlack: {fileID: 6859892650766362600}
-  timeZeroText: {fileID: 6224587564916702155}
-  msgText: {fileID: 1390299207095931263}
-  buttonsRoot: {fileID: 1717849694440855984}
-  fadeOutDuration: 1
-  showMsgDelay: 1
-  showButtonsDelay: 1
 --- !u!1 &4162838460987509487
 GameObject:
   m_ObjectHideFlags: 0
@@ -492,6 +472,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -612,7 +593,6 @@ GameObject:
   - component: {fileID: 3288001524343566575}
   - component: {fileID: 7849679567732010600}
   - component: {fileID: 2042167054040580336}
-  - component: {fileID: 3830749022022801555}
   m_Layer: 5
   m_Name: Btn_BackToBase
   m_TagString: Untagged
@@ -734,20 +714,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &3830749022022801555
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4436000902950497737}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ead02848c79b16e47909db87267fd798, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hoverScale: 1.06
-  animDuration: 0.08
 --- !u!1 &4536222235616928961
 GameObject:
   m_ObjectHideFlags: 0
@@ -835,7 +801,6 @@ GameObject:
   - component: {fileID: 2611755251936372451}
   - component: {fileID: 5315472005087302448}
   - component: {fileID: 1631420622649921248}
-  - component: {fileID: 5704313125334883030}
   m_Layer: 5
   m_Name: Btn_Quit
   m_TagString: Untagged
@@ -957,20 +922,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &5704313125334883030
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5267316272109036335}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ead02848c79b16e47909db87267fd798, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hoverScale: 1.06
-  animDuration: 0.08
 --- !u!1 &6650255831570034888
 GameObject:
   m_ObjectHideFlags: 0
@@ -1074,6 +1025,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -1210,6 +1162,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
