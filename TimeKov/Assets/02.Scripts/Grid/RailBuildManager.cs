@@ -26,9 +26,7 @@ public class RailBuildManager : MonoBehaviour
     [SerializeField] private int maxStepsPerFrame = 20;
 
     [Header("Port Indicator")]
-    [Tooltip("연결 가능한 포트에 표시할 화살표 프리팹. 로컬 +Z = 화살표 앞방향.")]
     [SerializeField] private GameObject portArrowPrefab;
-    [Tooltip("연결 불가 포트에 표시할 X 프리팹.")]
     [SerializeField] private GameObject portXPrefab;
     [SerializeField] private float indicatorYOffset = 0.1f;
 
@@ -64,12 +62,10 @@ public class RailBuildManager : MonoBehaviour
 
     private PlacedBuilding _railHighlightedBuilding;
 
-    // 포트 → 현재 표시 중인 인디케이터
     private readonly Dictionary<BuildPort, GameObject> portIndicatorMap = new();
 
     private enum RouteEvalResult { Invalid, Normal, Finish }
 
-    // 포트 인디케이터 상태
     private enum PortIndicatorState { Arrow, X, Hidden }
 
     public void BeginRailMode(BuildManager buildManager)
@@ -99,7 +95,22 @@ public class RailBuildManager : MonoBehaviour
         Log("[Rail] Rail Mode OFF");
     }
 
-    // 포트 선택 시
+    /// <summary>
+    /// 레일 모드가 활성이고 프리뷰가 켜져 있을 때 프리뷰의 월드 좌표를 돌려준다.
+    /// 외부(BuildGridOverlay 등)에서 커서 위치 기준으로 UI를 맞추는 용도.
+    /// </summary>
+    public bool TryGetPreviewPosition(out Vector3 worldPos)
+    {
+        if (isRailModeActive && previewInstance != null && previewInstance.activeSelf)
+        {
+            worldPos = previewInstance.transform.position;
+            return true;
+        }
+
+        worldPos = default;
+        return false;
+    }
+
     private void OnRailSourceSelected(BuildPort port)
     {
         ClearRailHighlight();
@@ -111,7 +122,6 @@ public class RailBuildManager : MonoBehaviour
         }
     }
 
-    // 연결 완료 또는 취소 시
     private void ClearRailHighlight()
     {
         _railHighlightedBuilding?.SetRailConnectingHighlight(false);
@@ -173,7 +183,6 @@ public class RailBuildManager : MonoBehaviour
         }
     }
 
-    // ─── 포트 인디케이터 ─────────────────────────────
 
     private void ShowPortIndicators()
     {
@@ -194,7 +203,6 @@ public class RailBuildManager : MonoBehaviour
 
     private void RefreshIndicators()
     {
-        // 상태가 바뀌면 기존 인디케이터를 제거하고 맞는 프리팹으로 교체
         for (int i = 0; i < cachedPorts.Length; i++)
         {
             BuildPort port = cachedPorts[i];
@@ -258,7 +266,6 @@ public class RailBuildManager : MonoBehaviour
     {
         if (!isRouting)
         {
-            // 라우팅 전: 연결 가능 → 화살표, 불가 → X
             if (!port.HasCapacity)
                 return PortIndicatorState.X;
 
@@ -268,9 +275,8 @@ public class RailBuildManager : MonoBehaviour
             return PortIndicatorState.X;
         }
 
-        // 라우팅 중
         if (port == startPort)
-            return PortIndicatorState.Arrow; // 시작 포트는 화살표 유지
+            return PortIndicatorState.Arrow; 
 
         if (!port.HasCapacity)
             return PortIndicatorState.X;
@@ -281,7 +287,6 @@ public class RailBuildManager : MonoBehaviour
             port.OwnerBuilding == startPort.OwnerBuilding)
             return PortIndicatorState.X;
 
-        // 도착 가능 조건 → 화살표, 아니면 X
         return port.CanEndConnection() ? PortIndicatorState.Arrow : PortIndicatorState.X;
     }
 
@@ -295,7 +300,6 @@ public class RailBuildManager : MonoBehaviour
         portIndicatorMap.Clear();
     }
 
-    // ─── 입력 처리 ────────────────────────────────────
 
     private void HandleLeftMouseDown()
     {
@@ -345,8 +349,6 @@ public class RailBuildManager : MonoBehaviour
             TryPlacePathToward(cell);
     }
 
-    // ─── 라우트 시작 ──────────────────────────────────
-
     private bool TryStartRoute(BuildPort port)
     {
         if (port == null || !port.CanStartConnection())
@@ -374,15 +376,12 @@ public class RailBuildManager : MonoBehaviour
         currentPathCells.Clear();
         currentPathCells.Add(firstCell);
 
-        // 라우팅 시작 → 인디케이터 상태 갱신
-        // 시작 포트=화살표, 도착 가능=화살표, 불가=X
         RefreshIndicators();
         ResetPreviewCache();
         Log($"[Rail] Route started from {startPort.name}");
         return true;
     }
 
-    // ─── 경로 배치 ────────────────────────────────────
 
     private void TryPlacePathToward(Vector2Int targetCell)
     {
@@ -483,7 +482,6 @@ public class RailBuildManager : MonoBehaviour
         return true;
     }
 
-    // ─── 셀 유효성 평가 ───────────────────────────────
 
     private RouteEvalResult EvaluateCellCandidate(Vector2Int nextCell, out BuildPort finishPort)
     {
@@ -557,8 +555,6 @@ public class RailBuildManager : MonoBehaviour
         return result == RouteEvalResult.Finish && finishPort == port;
     }
 
-    // ─── 라우트 완료 / 취소 ───────────────────────────
-
     private void CompleteRoute(BuildPort port)
     {
         if (!CanFinishNow(port)) return;
@@ -612,7 +608,6 @@ public class RailBuildManager : MonoBehaviour
         currentPathCells.Clear();
     }
 
-    // ─── 레일 셀 관리 ─────────────────────────────────
 
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
     {
@@ -761,7 +756,6 @@ public class RailBuildManager : MonoBehaviour
             piece.ApplyVisual(straightPrefab, cornerPrefab);
     }
 
-    // ─── 레이캐스트 헬퍼 ──────────────────────────────
 
     private bool TryGetPortUnderMouse(out BuildPort port)
     {
@@ -817,7 +811,6 @@ public class RailBuildManager : MonoBehaviour
         );
     }
 
-    // ─── 프리뷰 ───────────────────────────────────────
 
     private void ShowPreview()
     {

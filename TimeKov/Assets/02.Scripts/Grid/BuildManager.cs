@@ -59,6 +59,27 @@ public class BuildManager : MonoBehaviour
     public bool IsRailSubMode => IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
     public int CurrentSlotIndex => currentIndex;
 
+    /// <summary>
+    /// 현재 화면에 활성화되어 있는 프리뷰(시설 or 레일)의 월드 위치를 돌려준다.
+    /// BuildGridOverlay 등 외부 표시용.
+    /// </summary>
+    public bool TryGetActivePreviewPosition(out Vector3 worldPos)
+    {
+        // 시설 프리뷰 우선
+        if (previewMarker != null && previewMarker.activeSelf)
+        {
+            worldPos = previewMarker.transform.position;
+            return true;
+        }
+
+        // 레일 프리뷰
+        if (railBuildManager != null && railBuildManager.TryGetPreviewPosition(out worldPos))
+            return true;
+
+        worldPos = default;
+        return false;
+    }
+
     [Header("Build Slots (1~9 keys)")]
     public BuildSlot[] buildSlots;
 
