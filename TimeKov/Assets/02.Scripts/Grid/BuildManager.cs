@@ -558,7 +558,7 @@ public class BuildManager : MonoBehaviour
     private Vector3 SnapToGrid(Vector3 worldPos)
     {
         Vector2Int size = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
-        Vector2Int startCell = WorldToStartCell(worldPos);
+        Vector2Int startCell = WorldToStartCellCentered(worldPos, size);
         return StartCellToWorldCenter(startCell, size);
     }
 
@@ -571,6 +571,21 @@ public class BuildManager : MonoBehaviour
         int cellZ = Mathf.FloorToInt(local.z / cellSize);
 
         return new Vector2Int(cellX, cellZ);
+    }
+
+    /// <summary>
+    /// 커서(worldPos)가 건물의 '중앙'에 오도록 시작 셀을 계산한다.
+    /// 홀수 크기면 커서가 들어간 셀이 중심 셀, 짝수 크기면 가장 가까운 격자 교차점이 중심이 된다.
+    /// </summary>
+    private Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size)
+    {
+        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
+        Vector3 local = worldPos - origin;
+
+        int startX = Mathf.RoundToInt(local.x / cellSize - size.x * 0.5f);
+        int startZ = Mathf.RoundToInt(local.z / cellSize - size.y * 0.5f);
+
+        return new Vector2Int(startX, startZ);
     }
 
     private Vector3 StartCellToWorldCenter(Vector2Int startCell, Vector2Int size)
@@ -953,7 +968,7 @@ public class BuildManager : MonoBehaviour
         rotation = Quaternion.Euler(0f, currentRotationY, 0f);
         rotatedSize = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
 
-        startCell = WorldToStartCell(hit.point);
+        startCell = WorldToStartCellCentered(hit.point, rotatedSize);
         snappedPos = StartCellToWorldCenter(startCell, rotatedSize);
         footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
 
