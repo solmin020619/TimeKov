@@ -106,14 +106,7 @@ public class PlayerController : MonoBehaviour
             playerTime.onTimeDepleted += OnPlayerDeath;
         }
 
-        // 시작 위치 Y 고정
-        Vector3 p = rb.position;
-        p.y = fixedY;
-        rb.position = p;
 
-        Vector3 v = rb.linearVelocity;
-        v.y = 0f;
-        rb.linearVelocity = v;
 
         // cameraPivot 자동 탐색
         if (cameraPivot == null && Camera.main != null)
