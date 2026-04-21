@@ -869,7 +869,7 @@ public class BuildManager : MonoBehaviour
         if (audioSource == null || buildStartClip == null)
             return;
 
-        audioSource.PlayOneShot(buildStartClip);
+        audioSource.PlayOneShot(buildStartClip, 0.1f);
     }
 
     private void PlayBuildCompleteSound()
