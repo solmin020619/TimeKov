@@ -3,12 +3,13 @@
 // 플레이어 오브젝트에 붙이는 컴포넌트.
 //
 // 동작 흐름:
-//   1. 플레이어가 설비 Trigger 영역 진입
-//   2. 화면에 "F — [설비 이름] 열기" 힌트 표시
+//   1. 매 프레임 OverlapSphere로 "BuildPort" 레이어 오브젝트 감지
+//   2. 감지되면 화면에 "F — [설비 이름] 열기" 힌트 표시
 //   3. F키 → MachineUI.OpenFor() 호출
 //   4. F키 또는 Esc → MachineUI.Close()
 //
-// 설비 프리팹에는 Trigger Collider + MachineZone 컴포넌트가 필요.
+// 설비 오브젝트(또는 자식)의 레이어를 "BuildPort"로 설정해야 합니다.
+// MachineZone / Trigger Collider 불필요.
 // =====================================================================
 
 using UnityEngine;
@@ -24,6 +25,9 @@ namespace TIMEKOV.Factory
         [Header("상호작용 힌트 텍스트 (선택)")]
         public TextMeshProUGUI hintText;
 
+        [Header("BuildPort 감지 반경 (m)")]
+        public float detectRadius = 2.5f;
+
         // UI 열기 전 커서 상태 저장 → 닫을 때 복원
         private CursorLockMode _prevLockState;
         private bool _prevVisible;
@@ -32,44 +36,71 @@ namespace TIMEKOV.Factory
         private string _nearMachineName;
         private bool _uiOpen;
 
+        // "BuildPort" 레이어 마스크 (런타임에 한 번만 계산)
+        private int _buildPortMask;
+
+        private void Awake()
+        {
+            _buildPortMask = 1 << LayerMask.NameToLayer("BuildPort");
+        }
+
+        // ============================================================
+        // 매 프레임 감지 + 입력 처리
+        // ============================================================
+
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F))
+            // UI가 열려 있는 동안은 감지 갱신 없이 닫기 입력만 처리
+            if (_uiOpen)
             {
-                if (_uiOpen)
+                if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.Escape))
                     CloseUI();
-                else if (_nearMachine != null)
-                    OpenUI();
+                return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape) && _uiOpen)
-                CloseUI();
+            // BuildPort 레이어 오브젝트 탐색
+            ScanNearby();
+
+            if (Input.GetKeyDown(KeyCode.F) && _nearMachine != null)
+                OpenUI();
         }
 
-        // ── Trigger 감지 ────────────────────────────────────────────
-
-        private void OnTriggerEnter(Collider other)
+        // ── BuildPort 레이어 OverlapSphere 감지 ─────────────────────
+        private void ScanNearby()
         {
-            var zone = other.GetComponent<MachineZone>();
-            if (zone == null || zone.machine == null) return;
+            var hits = Physics.OverlapSphere(transform.position, detectRadius, _buildPortMask);
 
-            _nearMachine = zone.machine;
-            _nearMachineName = zone.machineName;
+            ProcessingMachine found = null;
+            string foundName = "";
 
-            if (hintText != null)
-                hintText.text = $"F  —  {_nearMachineName} 열기";
-        }
+            foreach (var hit in hits)
+            {
+                // BuildPort 오브젝트 자신 또는 부모에서 ProcessingMachine 탐색
+                var machine = hit.GetComponentInParent<ProcessingMachine>();
+                if (machine == null) continue;
 
-        private void OnTriggerExit(Collider other)
-        {
-            var zone = other.GetComponent<MachineZone>();
-            if (zone == null || zone.machine != _nearMachine) return;
+                found = machine;
 
-            _nearMachine = null;
-            _nearMachineName = "";
+                // 이름은 MachineZone이 있으면 그걸 우선, 없으면 GameObject 이름
+                var zone = hit.GetComponentInParent<MachineZone>();
+                foundName = (zone != null && !string.IsNullOrEmpty(zone.machineName))
+                    ? zone.machineName
+                    : machine.gameObject.name;
 
-            if (hintText != null) hintText.text = "";
-            if (_uiOpen) CloseUI();
+                break; // 가장 먼저 걸리는 설비 하나만 사용
+            }
+
+            // 상태 변화가 있을 때만 힌트 갱신
+            if (found != _nearMachine)
+            {
+                _nearMachine = found;
+                _nearMachineName = foundName;
+
+                if (hintText != null)
+                    hintText.text = _nearMachine != null
+                        ? $"F  —  {_nearMachineName} 열기"
+                        : "";
+            }
         }
 
         // ── UI 열기/닫기 ────────────────────────────────────────────
@@ -78,13 +109,12 @@ namespace TIMEKOV.Factory
         {
             if (machineUI == null || _nearMachine == null) return;
 
-            // UIStateManager를 통해 Factory 상태로 전환
-            // → RefreshCursorState가 커서를 덮어쓰지 않게 됨
             if (UIStateManager.Instance != null)
                 UIStateManager.Instance.OpenFactoryUI();
             else
             {
-                // UIStateManager 없을 때 직접 제어
+                _prevLockState = Cursor.lockState;
+                _prevVisible = Cursor.visible;
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
@@ -100,7 +130,6 @@ namespace TIMEKOV.Factory
             machineUI?.Close();
             _uiOpen = false;
 
-            // UIStateManager를 통해 None 상태로 복원
             if (UIStateManager.Instance != null)
                 UIStateManager.Instance.CloseFactoryUI();
             else
@@ -109,6 +138,7 @@ namespace TIMEKOV.Factory
                 Cursor.visible = _prevVisible;
             }
 
+            // 닫은 뒤 힌트 즉시 재갱신 (아직 범위 안에 있으면 "열기" 힌트 복원)
             if (hintText != null)
                 hintText.text = _nearMachine != null
                     ? $"F  —  {_nearMachineName} 열기"
