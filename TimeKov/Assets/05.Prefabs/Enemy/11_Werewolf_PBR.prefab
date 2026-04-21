@@ -53,7 +53,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5868827273233514925}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -150,7 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHP: 100
   currentHP: 0
-  corpsePrefab: {fileID: 4058803597381055991, guid: d13e72dc96790ab4aaa119e164235b04, type: 3}
+  corpsePrefab: {fileID: 0}
   enemyWorldUI: {fileID: 0}
   uiAnchor: {fileID: 0}
 --- !u!114 &1295533568524929182
