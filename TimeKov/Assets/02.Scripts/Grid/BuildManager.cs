@@ -9,7 +9,8 @@ public class BuildManager : MonoBehaviour
     public enum BuildSubMode
     {
         Facility,
-        Rail
+        Rail,
+        Blueprint
     }
 
     [System.Serializable]
@@ -55,9 +56,17 @@ public class BuildManager : MonoBehaviour
     [Header("Rail")]
     [SerializeField] private RailBuildManager railBuildManager;
 
+    [Header("Blueprint")]
+    [SerializeField] private BlueprintModeManager blueprintModeManager;
+
     public BuildSubMode CurrentSubMode { get; private set; } = BuildSubMode.Facility;
     public bool IsRailSubMode => IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
+    public bool IsBlueprintSubMode => IsBuildMode && CurrentSubMode == BuildSubMode.Blueprint;
     public int CurrentSlotIndex => currentIndex;
+
+    public RailBuildManager RailManager => railBuildManager;
+    public FacilityPrefabDatabase PrefabDatabase => prefabDatabase;
+    public Transform BuildParent => buildParent;
 
     /// <summary>
     /// 현재 화면에 활성화되어 있는 프리뷰(시설 or 레일)의 월드 위치를 돌려준다.
@@ -158,6 +167,12 @@ public class BuildManager : MonoBehaviour
             return;
         }
 
+        if (IsBlueprintSubMode)
+        {
+            blueprintModeManager?.Tick();
+            return;
+        }
+
         HandleRotateInput();
         HandleBuild();
     }
@@ -173,6 +188,12 @@ public class BuildManager : MonoBehaviour
             return;
         }
 
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            ToggleBlueprintMode();
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.Alpha1)) SelectFacilitySlot(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) SelectFacilitySlot(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) SelectFacilitySlot(2);
@@ -182,6 +203,17 @@ public class BuildManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha7)) SelectFacilitySlot(6);
         if (Input.GetKeyDown(KeyCode.Alpha8)) SelectFacilitySlot(7);
         if (Input.GetKeyDown(KeyCode.Alpha9)) SelectFacilitySlot(8);
+    }
+
+    private void ToggleBlueprintMode()
+    {
+        if (blueprintModeManager == null)
+        {
+            Debug.LogWarning("[BuildManager] BlueprintModeManager가 인스펙터에 연결돼 있지 않음.");
+            return;
+        }
+
+        SetSubMode(CurrentSubMode == BuildSubMode.Blueprint ? BuildSubMode.Facility : BuildSubMode.Blueprint);
     }
 
     private void SelectRailMode()
@@ -222,6 +254,12 @@ public class BuildManager : MonoBehaviour
         if (CurrentSubMode == mode)
             return;
 
+        // 기존 모드 종료 처리
+        if (CurrentSubMode == BuildSubMode.Rail)
+            railBuildManager?.EndRailMode();
+        if (CurrentSubMode == BuildSubMode.Blueprint)
+            blueprintModeManager?.Deactivate();
+
         CurrentSubMode = mode;
 
         if (mode == BuildSubMode.Rail)
@@ -235,10 +273,19 @@ public class BuildManager : MonoBehaviour
 
             railBuildManager?.BeginRailMode(this);
         }
+        else if (mode == BuildSubMode.Blueprint)
+        {
+            isDemolishMode = false;
+            isDragBuilding = false;
+            dragPlacedStartCells.Clear();
+
+            ClearHoveredBuilding();
+            SetPreviewActive(false);
+
+            blueprintModeManager?.Activate(this);
+        }
         else
         {
-            railBuildManager?.EndRailMode();
-
             currentRotationY = 0;
 
             // 선택된 슬롯이 있을 때만 프리뷰 갱신
@@ -561,6 +608,80 @@ public class BuildManager : MonoBehaviour
         Vector2Int startCell = WorldToStartCellCentered(worldPos, size);
         return StartCellToWorldCenter(startCell, size);
     }
+
+    // ───── Blueprint에서 쓰는 Public Helper ─────
+
+    public Vector3 GridOriginPos => gridOrigin != null ? gridOrigin.position : Vector3.zero;
+
+    public Vector2Int WorldToCellCoord(Vector3 worldPos)
+    {
+        Vector3 origin = GridOriginPos;
+        return new Vector2Int(
+            Mathf.FloorToInt((worldPos.x - origin.x) / cellSize),
+            Mathf.FloorToInt((worldPos.z - origin.z) / cellSize));
+    }
+
+    public Vector3 CellCenterToWorld(Vector2 cellCoord)
+    {
+        Vector3 origin = GridOriginPos;
+        return new Vector3(
+            origin.x + cellCoord.x * cellSize,
+            fixedY,
+            origin.z + cellCoord.y * cellSize);
+    }
+
+    public Vector2Int RotatedSizeOf(Vector2Int size, int rotationY) => GetRotatedSize(size, rotationY);
+
+    public List<Vector2Int> FootprintOf(Vector2Int startCell, Vector2Int size) => GetFootprintCellsFromStartCell(startCell, size);
+
+    public bool AreCellsOccupied(List<Vector2Int> cells) => IsAnyCellOccupied(cells);
+
+    public bool IsPhysicallyBlocked(Vector3 centerPos, Vector2Int size, Quaternion rotation)
+        => IsBlockedByPhysics(centerPos, size, rotation);
+
+    public bool IsInBuildZoneNow => zoneChecker != null && zoneChecker.IsInBuildZone;
+
+    /// <summary>
+    /// 홀로그램 연출 없이 즉시 설비를 배치한다. Blueprint 붙여넣기에서 호출.
+    /// 호출자가 footprintCells 비점유/물리 미충돌을 이미 검증했다고 가정.
+    /// </summary>
+    public PlacedBuilding PlaceFacilityImmediate(int facilityId, Vector3 worldPos, Quaternion rotation, List<Vector2Int> footprintCells)
+    {
+        FacilityRow facility = DataStore.GetFacility(facilityId);
+        GameObject prefab = prefabDatabase != null ? prefabDatabase.GetPrefab(facilityId) : null;
+        if (facility == null || prefab == null)
+        {
+            Debug.LogWarning($"[BuildManager] PlaceFacilityImmediate 실패. facilityId={facilityId}");
+            return null;
+        }
+
+        OccupyCells(footprintCells);
+
+        GameObject obj = Instantiate(prefab, worldPos, rotation, buildParent);
+
+        PlacedBuilding placedBuilding = obj.GetComponent<PlacedBuilding>() ?? obj.AddComponent<PlacedBuilding>();
+        placedBuilding.facilityId = facility.facilityId;
+        placedBuilding.currentLevel = 1;
+        placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
+        placedBuilding.originCell = footprintCells[0];
+        placedBuilding.CacheRenderers();
+
+        FacilityInstance facilityInstance = obj.GetComponent<FacilityInstance>() ?? obj.AddComponent<FacilityInstance>();
+        facilityInstance.Initialize(facility.facilityId);
+
+        placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
+
+        SpawnBuildCompleteEffect(worldPos, rotation);
+        return placedBuilding;
+    }
+
+    public Vector2Int SizeOfFacility(int facilityId)
+    {
+        FacilityRow row = DataStore.GetFacility(facilityId);
+        return row != null ? new Vector2Int(row.gridW, row.gridH) : Vector2Int.one;
+    }
+
+    // ───── end Public Helper ─────
 
     private Vector2Int WorldToStartCell(Vector3 worldPos)
     {

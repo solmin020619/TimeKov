@@ -95,10 +95,7 @@ public class RailBuildManager : MonoBehaviour
         Log("[Rail] Rail Mode OFF");
     }
 
-    /// <summary>
-    /// 레일 모드가 활성이고 프리뷰가 켜져 있을 때 프리뷰의 월드 좌표를 돌려준다.
-    /// 외부(BuildGridOverlay 등)에서 커서 위치 기준으로 UI를 맞추는 용도.
-    /// </summary>
+
     public bool TryGetPreviewPosition(out Vector3 worldPos)
     {
         if (isRailModeActive && previewInstance != null && previewInstance.activeSelf)
@@ -110,6 +107,50 @@ public class RailBuildManager : MonoBehaviour
         worldPos = default;
         return false;
     }
+
+    // ───── Blueprint에서 쓰는 Public API ─────
+
+    public IReadOnlyDictionary<Vector2Int, RailPiece> RailMap => railMap;
+    public Transform GridOriginRail => gridOrigin;
+    public float CellSizeRail => cellSize;
+    public float FixedYRail => fixedY;
+
+    /// <summary>
+    /// 연결 플래그를 명시해서 즉시 레일을 하나 놓는다. Blueprint 붙여넣기용.
+    /// 해당 셀에 이미 레일이 있으면 null 반환.
+    /// </summary>
+    public RailPiece PlaceRailImmediate(Vector2Int cell, bool up, bool down, bool left, bool right)
+    {
+        if (railMap.ContainsKey(cell))
+            return null;
+
+        RailPiece piece = CreateRailPiece(cell);
+        if (piece == null) return null;
+
+        piece.up = up;
+        piece.down = down;
+        piece.left = left;
+        piece.right = right;
+
+        railMap.Add(cell, piece);
+        piece.ApplyVisual(straightPrefab, cornerPrefab);
+
+        // 이웃 갱신(시각적 연결)
+        RefreshNeighbors(cell);
+        return piece;
+    }
+
+    private void RefreshNeighbors(Vector2Int cell)
+    {
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        foreach (var d in dirs)
+        {
+            Vector2Int neighbor = cell + d;
+            if (railMap.TryGetValue(neighbor, out RailPiece np) && np != null)
+                np.ApplyVisual(straightPrefab, cornerPrefab);
+        }
+    }
+
 
     private void OnRailSourceSelected(BuildPort port)
     {
@@ -349,6 +390,7 @@ public class RailBuildManager : MonoBehaviour
             TryPlacePathToward(cell);
     }
 
+
     private bool TryStartRoute(BuildPort port)
     {
         if (port == null || !port.CanStartConnection())
@@ -554,6 +596,7 @@ public class RailBuildManager : MonoBehaviour
         RouteEvalResult result = EvaluateCellCandidate(port.GetFrontCell(), out BuildPort finishPort);
         return result == RouteEvalResult.Finish && finishPort == port;
     }
+
 
     private void CompleteRoute(BuildPort port)
     {
