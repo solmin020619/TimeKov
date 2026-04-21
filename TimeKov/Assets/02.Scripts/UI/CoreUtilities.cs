@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 public static class CoreUtilities
 {
-    public static string NextSceneName = "Base";
+    public static string NextSceneName = "World";
     public const string DefaultLoadingScene = "Loading";
 
     public static void LoadDirect(string sceneName)
