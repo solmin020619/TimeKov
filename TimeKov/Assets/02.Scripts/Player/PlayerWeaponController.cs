@@ -527,9 +527,11 @@ public class PlayerWeaponController : MonoBehaviour
             if (crosshair != null)
                 crosshair.OnHitConfirm();
 
-            EnemyHealth enemy = hit.collider.GetComponent<EnemyHealth>();
+            EnemyHealth enemy = hit.collider.GetComponentInParent<EnemyHealth>();
             if (enemy != null)
-                enemy.TakeDamage((int)weapon.damage);
+            {
+                enemy.TakeDamage((int)weapon.damage, false, hit.point);
+            }
 
             HomingFruit fruit = hit.collider.GetComponentInParent<HomingFruit>();
             if (fruit != null)
