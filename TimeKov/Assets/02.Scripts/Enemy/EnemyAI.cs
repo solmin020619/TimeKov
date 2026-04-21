@@ -185,7 +185,12 @@ public class EnemyAI : MonoBehaviour
 
         if (data.hitVFXPrefab != null)
         {
-            GameObject vfx = Instantiate(data.hitVFXPrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity);
+            Vector3 spawnPos = transform.position + Vector3.up * 1.5f;
+
+            if (myHealth != null)
+                spawnPos = myHealth.LastHitPoint;
+
+            GameObject vfx = Instantiate(data.hitVFXPrefab, spawnPos, Quaternion.identity);
             Destroy(vfx, 1f);
         }
 
@@ -217,15 +222,6 @@ public class EnemyAI : MonoBehaviour
 
         isHitStunned = true;
         hitStunTimer = data.hitStunDuration;
-
-        if (agent != null && agent.isOnNavMesh)
-        {
-            agent.isStopped = true;
-            agent.velocity = Vector3.zero;
-        }
-
-        if (data.playHitAnimation && anim != null)
-            anim.SetTrigger("Hit");
     }
 
     void Update()

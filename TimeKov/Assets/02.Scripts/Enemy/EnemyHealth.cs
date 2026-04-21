@@ -22,7 +22,7 @@ public class EnemyHealth : MonoBehaviour
     public event Action<float, bool, Vector3> OnDamageUI;
 
     private bool isDead = false;
-
+    public Vector3 LastHitPoint { get; private set; }
     private void Awake()
     {
         currentHP = maxHP;
@@ -43,24 +43,26 @@ public class EnemyHealth : MonoBehaviour
 
     public void TakeDamage(float amount)
     {
-        TakeDamage(amount, false);
+        TakeDamage(amount, false, transform.position + Vector3.up * 1.5f);
     }
 
     public void TakeDamage(float amount, bool isCritical)
     {
+        TakeDamage(amount, isCritical, transform.position + Vector3.up * 1.5f);
+    }
+
+    public void TakeDamage(float amount, bool isCritical, Vector3 hitPoint)
+    {
         if (isDead)
             return;
+
+        LastHitPoint = hitPoint;
 
         currentHP -= amount;
         currentHP = Mathf.Max(currentHP, 0f);
 
         OnDamage?.Invoke();
-
-        Vector3 hitPos = uiAnchor != null
-            ? uiAnchor.position
-            : transform.position + Vector3.up * 2f;
-
-        OnDamageUI?.Invoke(amount, isCritical, hitPos);
+        OnDamageUI?.Invoke(amount, isCritical, hitPoint);
 
         if (enemyAI != null)
             enemyAI.RevealFromHit();
