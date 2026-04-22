@@ -95,7 +95,6 @@ public class RailBuildManager : MonoBehaviour
         Log("[Rail] Rail Mode OFF");
     }
 
-
     public bool TryGetPreviewPosition(out Vector3 worldPos)
     {
         if (isRailModeActive && previewInstance != null && previewInstance.activeSelf)
@@ -108,17 +107,11 @@ public class RailBuildManager : MonoBehaviour
         return false;
     }
 
-    // ───── Blueprint에서 쓰는 Public API ─────
-
     public IReadOnlyDictionary<Vector2Int, RailPiece> RailMap => railMap;
     public Transform GridOriginRail => gridOrigin;
     public float CellSizeRail => cellSize;
     public float FixedYRail => fixedY;
 
-    /// <summary>
-    /// 연결 플래그를 명시해서 즉시 레일을 하나 놓는다. Blueprint 붙여넣기용.
-    /// 해당 셀에 이미 레일이 있으면 null 반환.
-    /// </summary>
     public RailPiece PlaceRailImmediate(Vector2Int cell, bool up, bool down, bool left, bool right)
     {
         if (railMap.ContainsKey(cell))
@@ -135,7 +128,6 @@ public class RailBuildManager : MonoBehaviour
         railMap.Add(cell, piece);
         piece.ApplyVisual(straightPrefab, cornerPrefab);
 
-        // 이웃 갱신(시각적 연결)
         RefreshNeighbors(cell);
         return piece;
     }
@@ -151,6 +143,34 @@ public class RailBuildManager : MonoBehaviour
         }
     }
 
+    public bool RemoveRailAt(Vector2Int cell)
+    {
+        if (!railMap.TryGetValue(cell, out RailPiece piece) || piece == null)
+            return false;
+
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        foreach (var d in dirs)
+        {
+            Vector2Int neighbor = cell + d;
+            if (railMap.TryGetValue(neighbor, out RailPiece np) && np != null)
+                SetConnection(np, cell, false);
+        }
+
+        railMap.Remove(cell);
+        if (piece.gameObject != null)
+            Destroy(piece.gameObject);
+
+        foreach (var d in dirs)
+        {
+            Vector2Int neighbor = cell + d;
+            if (railMap.TryGetValue(neighbor, out RailPiece np) && np != null)
+                np.ApplyVisual(straightPrefab, cornerPrefab);
+        }
+
+        return true;
+    }
+
+    public bool HasRailAt(Vector2Int cell) => railMap.ContainsKey(cell);
 
     private void OnRailSourceSelected(BuildPort port)
     {
@@ -223,7 +243,6 @@ public class RailBuildManager : MonoBehaviour
             CancelCurrentRoute();
         }
     }
-
 
     private void ShowPortIndicators()
     {
@@ -317,7 +336,7 @@ public class RailBuildManager : MonoBehaviour
         }
 
         if (port == startPort)
-            return PortIndicatorState.Arrow; 
+            return PortIndicatorState.Arrow;
 
         if (!port.HasCapacity)
             return PortIndicatorState.X;
@@ -340,7 +359,6 @@ public class RailBuildManager : MonoBehaviour
         }
         portIndicatorMap.Clear();
     }
-
 
     private void HandleLeftMouseDown()
     {
@@ -390,7 +408,6 @@ public class RailBuildManager : MonoBehaviour
             TryPlacePathToward(cell);
     }
 
-
     private bool TryStartRoute(BuildPort port)
     {
         if (port == null || !port.CanStartConnection())
@@ -423,7 +440,6 @@ public class RailBuildManager : MonoBehaviour
         Log($"[Rail] Route started from {startPort.name}");
         return true;
     }
-
 
     private void TryPlacePathToward(Vector2Int targetCell)
     {
@@ -524,7 +540,6 @@ public class RailBuildManager : MonoBehaviour
         return true;
     }
 
-
     private RouteEvalResult EvaluateCellCandidate(Vector2Int nextCell, out BuildPort finishPort)
     {
         finishPort = null;
@@ -597,7 +612,6 @@ public class RailBuildManager : MonoBehaviour
         return result == RouteEvalResult.Finish && finishPort == port;
     }
 
-
     private void CompleteRoute(BuildPort port)
     {
         if (!CanFinishNow(port)) return;
@@ -650,7 +664,6 @@ public class RailBuildManager : MonoBehaviour
         currentEndCell = default;
         currentPathCells.Clear();
     }
-
 
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
     {
@@ -799,7 +812,6 @@ public class RailBuildManager : MonoBehaviour
             piece.ApplyVisual(straightPrefab, cornerPrefab);
     }
 
-
     private bool TryGetPortUnderMouse(out BuildPort port)
     {
         port = null;
@@ -853,7 +865,6 @@ public class RailBuildManager : MonoBehaviour
             origin.z + (cell.y + 0.5f) * cellSize
         );
     }
-
 
     private void ShowPreview()
     {
