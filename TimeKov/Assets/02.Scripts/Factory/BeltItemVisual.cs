@@ -15,7 +15,7 @@ namespace TIMEKOV.Factory
 
         private void LateUpdate()
         {
-            if (_cam != null) transform.forward = _cam.transform.forward;
+            //if (_cam != null) transform.rotation = Quaternion.LookRotation(transform.position - _cam.transform.position,Vector3.up);
         }
 
         public void Setup(int itemId, int amount)

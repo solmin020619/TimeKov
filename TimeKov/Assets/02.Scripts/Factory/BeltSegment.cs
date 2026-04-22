@@ -46,7 +46,7 @@ namespace TIMEKOV.Factory
         public Transform endpointBack;  // 아이템이 들어오는 쪽
 
         [Header("감지 반경")]
-        public float detectRadius = 0.4f;
+        public float detectRadius = 0.6f;
 
         // 감지 레이어 (설비 + 벨트)
         [Header("감지 레이어 (설비 + BeltSegment 레이어 포함)")]
@@ -66,6 +66,9 @@ namespace TIMEKOV.Factory
         {
             yield return null;
             DetectConnections();
+
+            yield return null;
+            PropagateChain();
         }
 
         // ── 양끝 감지 ───────────────────────────────────────────────
@@ -75,7 +78,7 @@ namespace TIMEKOV.Factory
             if (endpointFront != null) DetectAt(endpointFront.position, isFront: true);
 
             // 체인 전체 재연결
-            PropagateChain();
+            //PropagateChain();
         }
 
         private void DetectAt(Vector3 pos, bool isFront)
@@ -85,25 +88,55 @@ namespace TIMEKOV.Factory
             {
                 if (hit.gameObject == gameObject) continue;
 
-                // 인접 설비 감지
                 var machine = hit.GetComponentInParent<MachineBase>();
                 if (machine != null)
                 {
-                    if (isFront) targetM  = machine;
-                    else         sourceM  = machine;
+                    if (isFront) targetM = machine;
+                    else sourceM = machine;
 
-                    // 설비에게 이 벨트가 연결됐다고 알림
-                    if (isFront) machine.inputBelt  = GetChainHead();
-                    else         machine.outputBelt = GetChainHead();
+                    if (isFront) machine.inputBelt = GetChainHead();
+                    else machine.outputBelt = GetChainHead();
                     continue;
                 }
 
-                // 인접 벨트 세그먼트 감지
                 var seg = hit.GetComponentInParent<BeltSegment>();
                 if (seg != null && seg != this)
                 {
-                    if (isFront) nextSegment = seg;
-                    else         prevSegment = seg;
+                    bool neighborBackIsClose = seg.endpointBack != null &&
+                        Vector3.Distance(endpointFront != null ? endpointFront.position : pos, seg.endpointBack.position)<
+                        Vector3.Distance(endpointFront != null ? endpointFront.position : pos, seg.endpointFront != null ? seg.endpointFront.position : seg.transform.position);
+
+                    bool neighborFrontIsClose = seg.endpointFront != null &&
+                        Vector3.Distance(endpointBack != null ? endpointBack.position : pos, seg.endpointFront.position)<
+                        Vector3.Distance(endpointBack != null ? endpointBack.position : pos, seg.endpointBack != null ? seg.endpointBack.position : seg.transform.position);
+
+                    // ↓ 여기가 교체할 부분
+                    if (isFront)
+                    {
+                        if (neighborBackIsClose)
+                        {
+                            if (nextSegment == null) nextSegment = seg;
+                            if (seg.prevSegment == null) seg.prevSegment = this;
+                        }
+                        else
+                        {
+                            if (prevSegment == null) prevSegment = seg;
+                            if (seg.nextSegment == null) seg.nextSegment = this;
+                        }
+                    }
+                    else
+                    {
+                        if (neighborFrontIsClose)
+                        {
+                            if (prevSegment == null) prevSegment = seg;
+                            if (seg.nextSegment == null) seg.nextSegment = this;
+                        }
+                        else
+                        {
+                            if (nextSegment == null) nextSegment = seg;
+                            if (seg.prevSegment == null) seg.prevSegment = this;
+                        }
+                    }
                 }
             }
         }
@@ -138,9 +171,13 @@ namespace TIMEKOV.Factory
                 cur = cur.nextSegment;
             }
 
+            Debug.Log($"[Belt] 체인: {string.Join(" → ", chain.ConvertAll(s => s.gameObject.name))}");
+
             // 2) 양 끝 설비 찾기
             MachineBase src = null;
             MachineBase tgt = null;
+
+            Debug.Log($"[Belt] src={src?.name ?? "null"}, tgt={tgt?.name ?? "null"}");
 
             // Back쪽: chain[0].prevSegment 없고 sourceM 있으면 src
             src = chain[0].sourceM;
@@ -159,6 +196,8 @@ namespace TIMEKOV.Factory
             // 5) 연결 완성되면 헤드가 아이템 수신 준비
             if (src != null && tgt != null)
                 Debug.Log($"[Belt] 체인 연결 완성: {src.name} → ({chain.Count}칸) → {tgt.name}");
+
+
         }
 
         // ============================================================
@@ -188,7 +227,7 @@ namespace TIMEKOV.Factory
             GameObject visual = null;
             if (beltItemPrefab != null && chain[0].endpointBack != null)
             {
-                visual = Instantiate(beltItemPrefab, chain[0].endpointBack.position, Quaternion.identity);
+                visual = Instantiate(beltItemPrefab, chain[0].endpointBack.position, beltItemPrefab.transform.rotation);
                 if (visual.TryGetComponent<BeltItemVisual>(out var vis))
                     vis.Setup(itemId, amount);
             }
@@ -220,5 +259,15 @@ namespace TIMEKOV.Factory
             // 목적지 설비에 전달
             targetM?.Receive(itemId, amount);
         }
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = Color.green;
+            if (endpointFront != null)
+                Gizmos.DrawWireSphere(endpointFront.position, detectRadius);
+            Gizmos.color = Color.red;
+            if (endpointBack != null)
+                Gizmos.DrawWireSphere(endpointBack.position, detectRadius);
+        }
     }
+
 }
