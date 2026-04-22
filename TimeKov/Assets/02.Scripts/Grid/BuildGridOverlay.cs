@@ -93,33 +93,36 @@ public class BuildGridOverlay : MonoBehaviour
 
         float cellSize = buildManager.cellSize;
 
-        // 스타일/패치 파라미터 바뀌었을 때 메시 리빌드
+        int effectiveRadius = patchRadius;
+        if (buildManager.TryGetOverridePatchRadius(out int overrideRadius))
+        {
+            int margin = Mathf.Max(2, patchRadius / 2);
+            effectiveRadius = Mathf.Max(patchRadius, overrideRadius + margin);
+        }
+
         if (!Mathf.Approximately(cachedCellSize, cellSize) ||
-            cachedPatchRadius != patchRadius ||
+            cachedPatchRadius != effectiveRadius ||
             !Mathf.Approximately(cachedDotSize, dotSize) ||
             !Mathf.Approximately(cachedEdgeGap, edgeGap))
         {
-            RebuildPatchMesh(cellSize);
+            RebuildPatchMesh(cellSize, effectiveRadius);
             cachedCellSize = cellSize;
-            cachedPatchRadius = patchRadius;
+            cachedPatchRadius = effectiveRadius;
             cachedDotSize = dotSize;
             cachedEdgeGap = edgeGap;
         }
 
-        // 인스펙터에서 머티리얼 바꾸면 반영
         if (cachedDotMat != dotMaterial || cachedLineMat != lineMaterial)
             EnsureMaterialsAssigned();
 
-        // 중심 셀 계산 (BuildManager.WorldToStartCell과 동일 공식)
         Vector3 origin = buildManager.gridOrigin != null ? buildManager.gridOrigin.position : Vector3.zero;
         int centerCellX = Mathf.FloorToInt((centerWorld.x - origin.x) / cellSize);
         int centerCellZ = Mathf.FloorToInt((centerWorld.z - origin.z) / cellSize);
 
-        // 패치 좌하단 모서리를 transform.position 에 둔다
         Vector3 patchCornerWorld = new Vector3(
-            origin.x + (centerCellX - patchRadius) * cellSize,
+            origin.x + (centerCellX - effectiveRadius) * cellSize,
             buildManager.fixedY + yOffset,
-            origin.z + (centerCellZ - patchRadius) * cellSize
+            origin.z + (centerCellZ - effectiveRadius) * cellSize
         );
         transform.position = patchCornerWorld;
         transform.rotation = Quaternion.identity;
@@ -184,7 +187,7 @@ public class BuildGridOverlay : MonoBehaviour
         meshRenderer.sharedMaterials = new Material[] { d, l };
     }
 
-    private void RebuildPatchMesh(float cellSize)
+    private void RebuildPatchMesh(float cellSize, int radius)
     {
         if (gridMesh != null)
         {
@@ -195,7 +198,7 @@ public class BuildGridOverlay : MonoBehaviour
 #endif
         }
 
-        int side = Mathf.Max(1, patchRadius) * 2;    // 한 변의 셀 개수
+        int side = Mathf.Max(1, radius) * 2;    // 한 변의 셀 개수
         int n = side + 1;                            // 꼭짓점 행/열 개수
         float dot = Mathf.Max(0.001f, dotSize);
         float half = dot * 0.5f;
@@ -319,7 +322,7 @@ public class BuildGridOverlay : MonoBehaviour
         if (buildManager == null)
             return;
 
-        RebuildPatchMesh(buildManager.cellSize);
+        RebuildPatchMesh(buildManager.cellSize, patchRadius);
         cachedCellSize = buildManager.cellSize;
         cachedPatchRadius = patchRadius;
         cachedDotSize = dotSize;

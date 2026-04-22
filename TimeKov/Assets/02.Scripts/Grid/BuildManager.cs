@@ -74,18 +74,31 @@ public class BuildManager : MonoBehaviour
     /// </summary>
     public bool TryGetActivePreviewPosition(out Vector3 worldPos)
     {
-        // 시설 프리뷰 우선
         if (previewMarker != null && previewMarker.activeSelf)
         {
             worldPos = previewMarker.transform.position;
             return true;
         }
 
-        // 레일 프리뷰
         if (railBuildManager != null && railBuildManager.TryGetPreviewPosition(out worldPos))
             return true;
 
+        if (blueprintModeManager != null && blueprintModeManager.TryGetPointerWorldPosition(out worldPos))
+            return true;
+
         worldPos = default;
+        return false;
+    }
+
+    /// <summary>
+    /// 청사진 유령이 커서를 따라다닐 때 오버레이가 격자 반경을 늘려야 하는 경우 사용.
+    /// 해당 상황이 아니면 false.
+    /// </summary>
+    public bool TryGetOverridePatchRadius(out int radiusCells)
+    {
+        radiusCells = 0;
+        if (blueprintModeManager != null && blueprintModeManager.TryGetBlueprintBoundsRadius(out radiusCells))
+            return true;
         return false;
     }
 
@@ -525,7 +538,23 @@ public class BuildManager : MonoBehaviour
     private IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
         FacilityRow facility = GetCurrentFacilityRow();
-        GameObject prefab = GetCurrentFacilityPrefab();
+        if (facility == null) yield break;
+        yield return PlaceFacilityRoutine(facility.facilityId, position, rotation, footprintCells);
+    }
+
+    /// <summary>
+    /// facilityId를 지정해서 홀로그램 연출을 거쳐 배치한다. Blueprint 붙여넣기에서 호출.
+    /// 호출자가 footprintCells 비점유/물리 미충돌을 이미 검증했다고 가정.
+    /// </summary>
+    public void PlaceFacilityWithHologram(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
+    {
+        StartCoroutine(PlaceFacilityRoutine(facilityId, position, rotation, footprintCells));
+    }
+
+    private IEnumerator PlaceFacilityRoutine(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
+    {
+        FacilityRow facility = DataStore.GetFacility(facilityId);
+        GameObject prefab = prefabDatabase != null ? prefabDatabase.GetPrefab(facilityId) : null;
 
         if (facility == null || prefab == null)
             yield break;
@@ -579,6 +608,9 @@ public class BuildManager : MonoBehaviour
         facilityInstance.Initialize(facility.facilityId);
 
         placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
+
+        if (!IsTopViewMode)
+            placedBuilding.HideLabel();
 
         PlayBuildCompleteSound();
         SpawnBuildCompleteEffect(position, rotation);
@@ -670,6 +702,9 @@ public class BuildManager : MonoBehaviour
         facilityInstance.Initialize(facility.facilityId);
 
         placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
+
+        if (!IsTopViewMode)
+            placedBuilding.HideLabel();
 
         SpawnBuildCompleteEffect(worldPos, rotation);
         return placedBuilding;
