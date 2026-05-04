@@ -30,6 +30,8 @@ public class RailPiece : MonoBehaviour
         bool useStraight = count <= 1 || (up && down) || (left && right);
 
         float appliedYRot;
+        Quaternion flipRotation = Quaternion.identity;
+        Vector3 flipScale = Vector3.one;
 
         if (useStraight)
         {
@@ -41,7 +43,13 @@ public class RailPiece : MonoBehaviour
             else if (up || down) yRot = 0f;
 
             appliedYRot = yRot + straightRotationOffsetY;
-            currentVisual.transform.localRotation = Quaternion.Euler(0f, appliedYRot, 0f);
+
+            if (flowFrom != Vector2Int.zero)
+            {
+                Vector2Int meshForward = YRotToGridDir(appliedYRot);
+                if (meshForward != flowFrom)
+                    flipRotation = Quaternion.Euler(0f, 180f, 0f);
+            }
         }
         else
         {
@@ -55,54 +63,20 @@ public class RailPiece : MonoBehaviour
             else if (left && up) cornerYRot = 270f;
 
             appliedYRot = cornerYRot + cornerRotationOffsetY;
-            currentVisual.transform.localRotation = Quaternion.Euler(0f, appliedYRot, 0f);
+
+            if (flowFrom != Vector2Int.zero)
+            {
+                Vector2Int naturalEntry = YRotToGridDir(appliedYRot);
+                if (flowFrom != naturalEntry)
+                {
+                    flipRotation = Quaternion.Euler(0f, 90f, 0f);
+                    flipScale = new Vector3(1f, 1f, -1f);
+                }
+            }
         }
 
-        ApplyShaderFlowDirection(appliedYRot);
-    }
-
-    private void ApplyShaderFlowDirection(float appliedYRot)
-    {
-        if (currentVisual == null || flowFrom == Vector2Int.zero)
-            return;
-
-        bool needsFlip;
-
-        int count = 0;
-        if (up) count++;
-        if (down) count++;
-        if (left) count++;
-        if (right) count++;
-        bool isCorner = count == 2 && !((up && down) || (left && right));
-
-        if (isCorner)
-        {
-            Vector2Int naturalEntry;
-            if (up && right) naturalEntry = Vector2Int.up;
-            else if (right && down) naturalEntry = Vector2Int.right;
-            else if (down && left) naturalEntry = Vector2Int.down;
-            else naturalEntry = Vector2Int.left;
-
-            needsFlip = (flowFrom != naturalEntry);
-        }
-        else
-        {
-            Vector2Int meshForwardGrid = YRotToGridDir(appliedYRot);
-
-            // 수정된 핵심 로직
-            needsFlip = (meshForwardGrid == -flowFrom);
-        }
-
-        float flowDir = needsFlip ? -1f : 1f;
-
-        Renderer[] renderers = currentVisual.GetComponentsInChildren<Renderer>();
-        foreach (Renderer r in renderers)
-        {
-            Material[] mats = r.materials;
-            foreach (Material m in mats)
-                m.SetFloat("_FlowDir", flowDir);
-            r.materials = mats;
-        }
+        currentVisual.transform.localRotation = Quaternion.Euler(0f, appliedYRot, 0f) * flipRotation;
+        currentVisual.transform.localScale = flipScale;
     }
 
     private Vector2Int YRotToGridDir(float yRot)
