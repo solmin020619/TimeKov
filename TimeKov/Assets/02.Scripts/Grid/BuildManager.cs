@@ -1123,6 +1123,8 @@ public class BuildManager : MonoBehaviour
     {
         if (building == null) return;
 
+        railBuildManager?.RemoveRailsConnectedToBuilding(building);
+
         RemoveOccupiedCells(building.occupiedCells);
         if (currentHoveredBuilding == building) currentHoveredBuilding = null;
 

@@ -9,8 +9,11 @@ public class RailPiece : MonoBehaviour
     public bool right;
 
     [HideInInspector] public Vector2Int flowFrom;
+    [HideInInspector] public int pathIndex;
 
     private GameObject currentVisual;
+
+    private static readonly int PathOffsetId = Shader.PropertyToID("_PathOffset");
 
     [Header("Rotation Offset")]
     [SerializeField] private float straightRotationOffsetY = 0f;
@@ -77,6 +80,25 @@ public class RailPiece : MonoBehaviour
 
         currentVisual.transform.localRotation = Quaternion.Euler(0f, appliedYRot, 0f) * flipRotation;
         currentVisual.transform.localScale = flipScale;
+
+        ApplyPathOffset();
+    }
+
+    private void ApplyPathOffset()
+    {
+        if (currentVisual == null) return;
+
+        Renderer[] renderers = currentVisual.GetComponentsInChildren<Renderer>();
+        foreach (Renderer r in renderers)
+        {
+            Material[] mats = r.materials;
+            foreach (Material m in mats)
+            {
+                if (m.HasProperty(PathOffsetId))
+                    m.SetFloat(PathOffsetId, pathIndex);
+            }
+            r.materials = mats;
+        }
     }
 
     private Vector2Int YRotToGridDir(float yRot)
