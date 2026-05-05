@@ -246,7 +246,8 @@ public class BuildManager : MonoBehaviour
 
     private void SelectRailMode()
     {
-        SetSubMode(BuildSubMode.Rail);
+        // E를 다시 누르면 Rail 모드 토글 OFF → 기본 Facility 모드로 복귀
+        SetSubMode(CurrentSubMode == BuildSubMode.Rail ? BuildSubMode.Facility : BuildSubMode.Rail);
     }
 
     private void SelectFacilitySlot(int index)
@@ -1122,6 +1123,8 @@ public class BuildManager : MonoBehaviour
     private void DemolishBuilding(PlacedBuilding building)
     {
         if (building == null) return;
+
+        railBuildManager?.RemoveRailsConnectedToBuilding(building);
 
         RemoveOccupiedCells(building.occupiedCells);
         if (currentHoveredBuilding == building) currentHoveredBuilding = null;
