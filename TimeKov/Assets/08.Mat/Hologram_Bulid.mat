@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Hologram _real_ghost
+  m_Name: Hologram_Bulid
   m_Shader: {fileID: -6465566751694194690, guid: eb559d15cc0089b469599672d8ba6977, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -40,10 +40,6 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
-    - _arrow:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
     - _fikerttextuer:
         m_Texture: {fileID: 2800000, guid: 1c9373d2e98760949b957788d95bf700, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -73,9 +69,7 @@ Material:
     - _Cull: 2
     - _DstBlend: 10
     - _DstBlendAlpha: 10
-    - _Flicker_time: 1
     - _Fresnel_power: 5.7
-    - _PathOffset: 0
     - _QueueControl: 0
     - _QueueOffset: 0
     - _SrcBlend: 5
@@ -84,13 +78,8 @@ Material:
     - _ZTest: 4
     - _ZWrite: 0
     - _ZWriteControl: 0
-    - _alpha_time: 3
-    - _arrow_speed: 1
-    - _intelsity: 1
     m_Colors:
     - _Fresnel_color: {r: 36.329643, g: 18.265303, b: 0, a: 0}
-    - _arrow_color: {r: 1, g: 1, b: 1, a: 0}
-    - _rail_color: {r: 0.27450982, g: 0.27450982, b: 0.27450982, a: 0}
     - _scelinespeed: {r: 0, g: 0.3, b: 0, a: 0}
     - _scelinetiling: {r: 0, g: 0.5, b: 0, a: 0}
   m_BuildTextureStacks: []
