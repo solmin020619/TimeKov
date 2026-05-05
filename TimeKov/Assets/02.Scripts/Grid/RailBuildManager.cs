@@ -167,10 +167,116 @@ public class RailBuildManager : MonoBehaviour
                 np.ApplyVisual(straightPrefab, cornerPrefab);
         }
 
+        ReleasePortIfFrontCell(cell);
+
         return true;
     }
 
+    private void ReleasePortIfFrontCell(Vector2Int cell)
+    {
+        ValidateAllPortConnections();
+    }
+
+    private void ValidateAllPortConnections()
+    {
+        if (cachedPorts == null || cachedPorts.Length == 0)
+            RefreshPortCache();
+
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        for (int i = 0; i < cachedPorts.Length; i++)
+        {
+            BuildPort port = cachedPorts[i];
+            if (port == null) continue;
+            if (port.connectionCount == 0) continue;
+
+            Vector2Int frontCell = port.GetFrontCell();
+            if (!ChainReachesAnotherPort(frontCell, port, dirs))
+                port.RemoveConnection();
+        }
+
+        if (isRailModeActive)
+            RefreshIndicators();
+    }
+
+    private bool ChainReachesAnotherPort(Vector2Int startCell, BuildPort startPort, Vector2Int[] dirs)
+    {
+        if (!railMap.ContainsKey(startCell)) return false;
+
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        queue.Enqueue(startCell);
+        visited.Add(startCell);
+
+        while (queue.Count > 0)
+        {
+            Vector2Int c = queue.Dequeue();
+            if (!railMap.TryGetValue(c, out RailPiece piece) || piece == null) continue;
+
+            if (c != startCell &&
+                cachedPortByFrontCell.TryGetValue(c, out BuildPort otherPort) &&
+                otherPort != null &&
+                otherPort != startPort)
+                return true;
+
+            foreach (Vector2Int d in dirs)
+            {
+                Vector2Int neighbor = c + d;
+                if (visited.Contains(neighbor)) continue;
+                if (!IsConnectedTo(piece, neighbor)) continue;
+                visited.Add(neighbor);
+                queue.Enqueue(neighbor);
+            }
+        }
+
+        return false;
+    }
+
     public bool HasRailAt(Vector2Int cell) => railMap.ContainsKey(cell);
+
+    public void RemoveRailsConnectedToBuilding(PlacedBuilding building)
+    {
+        if (building == null) return;
+
+        BuildPort[] ports = building.GetComponentsInChildren<BuildPort>();
+        if (ports == null || ports.Length == 0) return;
+
+        HashSet<Vector2Int> toRemove = new HashSet<Vector2Int>();
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        foreach (BuildPort port in ports)
+        {
+            if (port == null) continue;
+
+            Vector2Int frontCell = port.GetFrontCell();
+            if (!railMap.ContainsKey(frontCell)) continue;
+            if (toRemove.Contains(frontCell)) continue;
+
+            Queue<Vector2Int> queue = new Queue<Vector2Int>();
+            queue.Enqueue(frontCell);
+            toRemove.Add(frontCell);
+
+            while (queue.Count > 0)
+            {
+                Vector2Int cell = queue.Dequeue();
+                if (!railMap.TryGetValue(cell, out RailPiece piece) || piece == null) continue;
+
+                foreach (Vector2Int d in dirs)
+                {
+                    Vector2Int neighbor = cell + d;
+                    if (toRemove.Contains(neighbor)) continue;
+                    if (!IsConnectedTo(piece, neighbor)) continue;
+                    if (!railMap.ContainsKey(neighbor)) continue;
+
+                    toRemove.Add(neighbor);
+                    queue.Enqueue(neighbor);
+                }
+            }
+        }
+
+        foreach (Vector2Int cell in toRemove)
+            RemoveRailAt(cell);
+    }
 
     private void OnRailSourceSelected(BuildPort port)
     {
@@ -548,6 +654,8 @@ public class RailBuildManager : MonoBehaviour
         if (nextCell == currentEndCell) return RouteEvalResult.Invalid;
         if (!IsAdjacent(currentEndCell, nextCell)) return RouteEvalResult.Invalid;
 
+        if (currentPathCells.Contains(nextCell)) return RouteEvalResult.Invalid;
+
         if (IsFirstExpansionPending() && nextCell != GetRequiredFirstExpansionCell())
             return RouteEvalResult.Invalid;
 
@@ -643,6 +751,7 @@ public class RailBuildManager : MonoBehaviour
                 : currentPathCells[i - 1] - currentPathCells[i];
 
             piece.flowFrom = flowFrom;
+            piece.pathIndex = i;
             piece.ApplyVisual(straightPrefab, cornerPrefab);
         }
     }
