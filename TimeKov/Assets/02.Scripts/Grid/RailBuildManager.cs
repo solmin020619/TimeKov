@@ -26,6 +26,12 @@ public class RailBuildManager : MonoBehaviour
     [SerializeField] private int maxStepsPerFrame = 200;
 
     [Header("Ghost Preview")]
+    [Tooltip("직선 ghost 전용 머티리얼. 비워두면 rail 머티리얼에 alpha/intensity 조정으로 fallback.")]
+    [SerializeField] private Material ghostStraightMaterial;
+    [Tooltip("코너 ghost 전용 머티리얼. 비워두면 rail 머티리얼에 alpha/intensity 조정으로 fallback.")]
+    [SerializeField] private Material ghostCornerMaterial;
+    [Tooltip("라우팅 중 source/destination 빌딩에 입힐 ghost 머티리얼. 비워두면 BuildManager.hologramMaterial(파란색) 사용.")]
+    [SerializeField] private Material ghostBuildingMaterial;
     [SerializeField, Range(0f, 1f)] private float ghostAlpha = 0.4f;
 
     [Header("Port Indicator")]
@@ -76,6 +82,7 @@ public class RailBuildManager : MonoBehaviour
 
     private PlacedBuilding _railHighlightedBuilding;
     private PlacedBuilding _railTargetHighlightedBuilding;
+    private PlacedBuilding _railHoverPreviewBuilding;
 
     private readonly Dictionary<BuildPort, GameObject> portIndicatorMap = new();
 
@@ -96,6 +103,7 @@ public class RailBuildManager : MonoBehaviour
     public void EndRailMode()
     {
         ClearRailHighlight();
+        ClearHoverSourcePreview();
         isRailModeActive = false;
         isDragRouting = false;
         CancelCurrentRouteStateOnly();
@@ -292,6 +300,13 @@ public class RailBuildManager : MonoBehaviour
             RemoveRailAt(cell);
     }
 
+    private Material GetBuildingGhostMaterial()
+    {
+        if (ghostBuildingMaterial != null) return ghostBuildingMaterial;
+        if (owner != null) return owner.hologramMaterial;
+        return null;
+    }
+
     private void OnRailSourceSelected(BuildPort port)
     {
         ClearRailHighlight();
@@ -299,13 +314,18 @@ public class RailBuildManager : MonoBehaviour
         if (building != null)
         {
             building.SetRailConnectingHighlight(true);
+            building.SetGhostMode(true, GetBuildingGhostMaterial());
             _railHighlightedBuilding = building;
         }
     }
 
     private void ClearRailHighlight()
     {
-        _railHighlightedBuilding?.SetRailConnectingHighlight(false);
+        if (_railHighlightedBuilding != null)
+        {
+            _railHighlightedBuilding.SetRailConnectingHighlight(false);
+            _railHighlightedBuilding.SetGhostMode(false);
+        }
         _railHighlightedBuilding = null;
         ClearDestinationBuildingHighlight();
     }
@@ -316,6 +336,7 @@ public class RailBuildManager : MonoBehaviour
             && _railTargetHighlightedBuilding != _railHighlightedBuilding)
         {
             _railTargetHighlightedBuilding.SetRailConnectingHighlight(false);
+            _railTargetHighlightedBuilding.SetGhostMode(false);
         }
         _railTargetHighlightedBuilding = null;
     }
@@ -343,6 +364,7 @@ public class RailBuildManager : MonoBehaviour
             && _railTargetHighlightedBuilding != _railHighlightedBuilding)
         {
             _railTargetHighlightedBuilding.SetRailConnectingHighlight(false);
+            _railTargetHighlightedBuilding.SetGhostMode(false);
         }
 
         _railTargetHighlightedBuilding = newTarget;
@@ -351,7 +373,59 @@ public class RailBuildManager : MonoBehaviour
             && _railTargetHighlightedBuilding != _railHighlightedBuilding)
         {
             _railTargetHighlightedBuilding.SetRailConnectingHighlight(true);
+            _railTargetHighlightedBuilding.SetGhostMode(true, GetBuildingGhostMaterial());
         }
+    }
+
+    /// <summary>
+    /// Idle 상태에서 시작 가능한 포트 위에 마우스를 올리면 해당 빌딩을 미리 ghost 로 표시.
+    /// 클릭하면 그대로 source highlight 로 전환되고, 마우스 빠지면 해제.
+    /// </summary>
+    private void UpdateHoverSourcePreview()
+    {
+        PlacedBuilding newHover = null;
+
+        if (!isRouting
+            && TryGetPortUnderMouse(out BuildPort port)
+            && port != null
+            && port.CanStartConnection())
+        {
+            newHover = port.OwnerBuilding;
+        }
+
+        if (newHover == _railHoverPreviewBuilding) return;
+
+        // 이전 hover 빌딩이 있으면 해제 (단, 라우팅 중 source/target 으로 승격된 경우엔 그대로 둠)
+        if (_railHoverPreviewBuilding != null
+            && _railHoverPreviewBuilding != _railHighlightedBuilding
+            && _railHoverPreviewBuilding != _railTargetHighlightedBuilding)
+        {
+            _railHoverPreviewBuilding.SetRailConnectingHighlight(false);
+            _railHoverPreviewBuilding.SetGhostMode(false);
+        }
+
+        _railHoverPreviewBuilding = newHover;
+
+        // 새 hover 빌딩에 ghost 적용 (이미 source/target 인 경우 중복 적용 방지)
+        if (_railHoverPreviewBuilding != null
+            && _railHoverPreviewBuilding != _railHighlightedBuilding
+            && _railHoverPreviewBuilding != _railTargetHighlightedBuilding)
+        {
+            _railHoverPreviewBuilding.SetRailConnectingHighlight(true);
+            _railHoverPreviewBuilding.SetGhostMode(true, GetBuildingGhostMaterial());
+        }
+    }
+
+    private void ClearHoverSourcePreview()
+    {
+        if (_railHoverPreviewBuilding != null
+            && _railHoverPreviewBuilding != _railHighlightedBuilding
+            && _railHoverPreviewBuilding != _railTargetHighlightedBuilding)
+        {
+            _railHoverPreviewBuilding.SetRailConnectingHighlight(false);
+            _railHoverPreviewBuilding.SetGhostMode(false);
+        }
+        _railHoverPreviewBuilding = null;
     }
 
     public void RefreshPortCache()
@@ -519,7 +593,14 @@ public class RailBuildManager : MonoBehaviour
         if (!isRouting)
         {
             if (hasPort)
+            {
                 TryStartRoute(hoveredPort);
+            }
+            else if (TryGetMouseCell(out Vector2Int startCell))
+            {
+                // 포트가 아니더라도 기존 레일 셀에서 이어 시작 가능
+                TryStartRouteFromCell(startCell);
+            }
             return;
         }
 
@@ -557,6 +638,11 @@ public class RailBuildManager : MonoBehaviour
         if (firstPiece == null)
             return false;
 
+        // 시작 셀에도 flow direction 미리 부여 → 라우팅 중 코너에서 ghost 와 시각 일치
+        firstPiece.flowFrom = -port.GetWorldDirection();
+        firstPiece.pathIndex = 0;
+        firstPiece.ApplyVisual(straightPrefab, cornerPrefab);
+
         startPort = port;
         endPort = null;
         isRouting = true;
@@ -569,6 +655,49 @@ public class RailBuildManager : MonoBehaviour
         ResetPreviewCache();
         Log($"[Rail] Route started from {startPort.name}");
         return true;
+    }
+
+    /// <summary>
+    /// 포트가 아니라 기존에 깔린 레일 셀에서 라우팅을 이어 시작.
+    /// 셀에 빈 connection 슬롯이 있어야 함(< 2 connections).
+    /// </summary>
+    private bool TryStartRouteFromCell(Vector2Int cell)
+    {
+        if (!railMap.TryGetValue(cell, out RailPiece piece) || piece == null)
+            return false;
+
+        if (GetConnectionCount(piece) >= 2)
+        {
+            Log("[Rail] Cell already at max connections, cannot extend.");
+            return false;
+        }
+
+        startPort = null;
+        endPort = null;
+        isRouting = true;
+        currentEndCell = cell;
+        currentPathCells.Clear();
+        currentPathCells.Add(cell);
+
+        // 기존 셀에 connection 이 1개 있으면 그 방향을 incoming flow 로 둠
+        piece.flowFrom = ComputeStartCellFlowFrom(piece);
+        piece.pathIndex = 0;
+        piece.ApplyVisual(straightPrefab, cornerPrefab);
+
+        RefreshIndicators();
+        ResetPreviewCache();
+        Log($"[Rail] Route started from existing cell {cell}");
+        return true;
+    }
+
+    private Vector2Int ComputeStartCellFlowFrom(RailPiece piece)
+    {
+        if (piece == null) return Vector2Int.zero;
+        if (piece.up) return Vector2Int.up;
+        if (piece.down) return Vector2Int.down;
+        if (piece.left) return Vector2Int.left;
+        if (piece.right) return Vector2Int.right;
+        return Vector2Int.zero;
     }
 
     private void TryPlacePathToward(Vector2Int targetCell)
@@ -606,6 +735,8 @@ public class RailBuildManager : MonoBehaviour
 
     private bool PlaceStep(Vector2Int cell)
     {
+        Vector2Int previousEnd = currentEndCell;
+
         if (!ConnectOrCreateRail(currentEndCell, cell))
             return false;
 
@@ -613,6 +744,16 @@ public class RailBuildManager : MonoBehaviour
             currentPathCells.Add(cell);
 
         currentEndCell = cell;
+
+        // 부분 commit 시점에도 placed 셀이 ghost 와 동일한 flow direction / pathIndex 를 가지게
+        // 해서 시각이 어긋나지 않도록 갱신.
+        if (railMap.TryGetValue(cell, out RailPiece newPiece) && newPiece != null)
+        {
+            newPiece.flowFrom = previousEnd - cell;
+            newPiece.pathIndex = currentPathCells.Count - 1;
+            newPiece.ApplyVisual(straightPrefab, cornerPrefab);
+        }
+
         return true;
     }
 
@@ -676,10 +817,11 @@ public class RailBuildManager : MonoBehaviour
     private bool IsCandidateDestination(BuildPort port)
     {
         if (!isRouting || port == null) return false;
-        if (startPort == null) return false;
-        if (port == startPort) return false;
+        // startPort 가 null 이면 (cell-start) port-비교/동일빌딩 검사 건너뜀
+        if (startPort != null && port == startPort) return false;
         if (!port.CanEndConnection()) return false;
-        if (port.OwnerBuilding != null
+        if (startPort != null
+            && port.OwnerBuilding != null
             && startPort.OwnerBuilding != null
             && port.OwnerBuilding == startPort.OwnerBuilding)
             return false;
@@ -764,8 +906,9 @@ public class RailBuildManager : MonoBehaviour
         if (simVisited.Contains(candidate)) return false;
         if (!IsAdjacent(simEnd, candidate)) return false;
 
+        // first expansion 강제 방향 제약은 startPort 가 있을 때만 (cell-start 케이스는 자유)
         bool isFirstSimExpansion = currentPathCells.Count == 1 && simExpansionsSoFar == 0;
-        if (isFirstSimExpansion && candidate != GetRequiredFirstExpansionCell())
+        if (isFirstSimExpansion && startPort != null && candidate != GetRequiredFirstExpansionCell())
             return false;
 
         if (cachedPortByFrontCell.TryGetValue(candidate, out BuildPort port) && port != null)
@@ -790,17 +933,19 @@ public class RailBuildManager : MonoBehaviour
     private bool IsExactFinishCandidate(BuildPort port, Vector2Int prevCell, Vector2Int nextCell, int extraSimulatedCells = 0)
     {
         if (port == null || !port.CanEndConnection()) return false;
-        if (startPort == null) return false;
-        if (port == startPort) return false;
+        // startPort 가 null 이면 레일 셀에서 시작한 케이스 — port-에서-시작 검사만 스킵
+        if (startPort != null && port == startPort) return false;
 
         // Need at least one forward expansion before finishing. During simulation,
         // currentPathCells has only the start frontCell; the simulated cells
         // beyond that count too.
         if (currentPathCells.Count + extraSimulatedCells < 2) return false;
 
-        if (port.OwnerBuilding != null &&
-            startPort.OwnerBuilding != null &&
-            port.OwnerBuilding == startPort.OwnerBuilding)
+        // 동일 빌딩 검사도 startPort 가 있을 때만
+        if (startPort != null
+            && port.OwnerBuilding != null
+            && startPort.OwnerBuilding != null
+            && port.OwnerBuilding == startPort.OwnerBuilding)
             return false;
 
         Vector2Int frontCell = port.GetFrontCell();
@@ -823,13 +968,13 @@ public class RailBuildManager : MonoBehaviour
     {
         if (!CanFinishNow(port)) return;
 
-        startPort.AddConnection();
+        if (startPort != null) startPort.AddConnection();
         port.AddConnection();
         endPort = port;
 
         AssignFlowDirections();
 
-        Log($"[Rail] Route completed: {startPort.name} -> {endPort.name}");
+        Log($"[Rail] Route completed: {(startPort != null ? startPort.name : "[cell-start]")} -> {endPort.name}");
 
         isDragRouting = false;
         ClearRailHighlight();
@@ -841,15 +986,23 @@ public class RailBuildManager : MonoBehaviour
 
     private void AssignFlowDirections()
     {
-        if (currentPathCells.Count == 0 || startPort == null) return;
+        if (currentPathCells.Count == 0) return;
 
         for (int i = 0; i < currentPathCells.Count; i++)
         {
             if (!railMap.TryGetValue(currentPathCells[i], out RailPiece piece)) continue;
 
-            Vector2Int flowFrom = i == 0
-                ? -startPort.GetWorldDirection()
-                : currentPathCells[i - 1] - currentPathCells[i];
+            Vector2Int flowFrom;
+            if (i == 0)
+            {
+                flowFrom = startPort != null
+                    ? -startPort.GetWorldDirection()
+                    : ComputeStartCellFlowFrom(piece);
+            }
+            else
+            {
+                flowFrom = currentPathCells[i - 1] - currentPathCells[i];
+            }
 
             piece.flowFrom = flowFrom;
             piece.pathIndex = i;
@@ -1116,6 +1269,7 @@ public class RailBuildManager : MonoBehaviour
         UpdateSinglePreview();
 
         UpdateDestinationBuildingHighlight();
+        UpdateHoverSourcePreview();
     }
 
     private void UpdateSinglePreview()
@@ -1137,8 +1291,18 @@ public class RailBuildManager : MonoBehaviour
         }
         else if (TryGetMouseCell(out targetCell))
         {
-            // Empty ground — show red so user sees rail mode is on.
-            valid = false;
+            // 라우팅 안 하는 중에 기존 레일 셀(슬롯 빈) 위에 hover → 거기서 시작 가능 (녹색)
+            if (!isRouting
+                && railMap.TryGetValue(targetCell, out RailPiece existing)
+                && existing != null
+                && GetConnectionCount(existing) < 2)
+            {
+                valid = true;
+            }
+            else
+            {
+                valid = false;
+            }
         }
         else
         {
@@ -1237,6 +1401,11 @@ public class RailBuildManager : MonoBehaviour
             if (hasNext)
                 ApplyConnectionFromNeighbor(cell, nextCell, ref up, ref down, ref left, ref right);
 
+            // straight vs corner — RailPiece.ApplyVisual 와 동일한 판정 로직
+            int connCount = (up ? 1 : 0) + (down ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0);
+            bool useStraight = connCount <= 1 || (up && down) || (left && right);
+            Material ghostOverride = useStraight ? ghostStraightMaterial : ghostCornerMaterial;
+
             GameObject root = new GameObject($"GhostRail_{cell.x}_{cell.y}");
             root.transform.SetParent(railParent);
             root.transform.position = CellToWorld(cell);
@@ -1255,7 +1424,7 @@ public class RailBuildManager : MonoBehaviour
             foreach (Collider col in root.GetComponentsInChildren<Collider>())
                 col.enabled = false;
 
-            ApplyGhostMaterial(root);
+            ApplyGhostMaterial(root, ghostOverride, currentPathCells.Count + i);
 
             pathPreviewInstances.Add(root);
         }
@@ -1280,7 +1449,16 @@ public class RailBuildManager : MonoBehaviour
         "_TintColor"
     };
 
-    private void ApplyGhostMaterial(GameObject ghost)
+    private static readonly string[] GhostIntensityPropertyCandidates =
+    {
+        "_intelsity",   // 프로젝트의 typo'd 이름 그대로
+        "_Intensity",
+        "_Brightness"
+    };
+
+    private static readonly int GhostPathOffsetId = Shader.PropertyToID("_PathOffset");
+
+    private void ApplyGhostMaterial(GameObject ghost, Material ghostOverride, int pathIndex)
     {
         Renderer[] renderers = ghost.GetComponentsInChildren<Renderer>(true);
         foreach (Renderer r in renderers)
@@ -1288,8 +1466,25 @@ public class RailBuildManager : MonoBehaviour
             Material[] mats = r.materials;
             for (int i = 0; i < mats.Length; i++)
             {
+                if (mats[i] == null) continue;
+
+                // 1. override 머티리얼 있으면 통째로 swap
+                if (ghostOverride != null)
+                {
+                    mats[i] = ghostOverride;
+                    continue;
+                }
+
+                // 2. 없으면 기존 머티리얼에 intensity / alpha 조정
                 Material m = mats[i];
-                if (m == null) continue;
+
+                foreach (string prop in GhostIntensityPropertyCandidates)
+                {
+                    if (!m.HasProperty(prop)) continue;
+                    float v = m.GetFloat(prop);
+                    m.SetFloat(prop, v * ghostAlpha);
+                    break;
+                }
 
                 foreach (string prop in GhostColorPropertyCandidates)
                 {
@@ -1301,6 +1496,16 @@ public class RailBuildManager : MonoBehaviour
                 }
             }
             r.materials = mats;
+
+            // 머티리얼 swap 으로 _PathOffset 이 asset default(보통 0)로 리셋되니
+            // 다시 pathIndex 로 덮어써서 ghost 들끼리 흐름이 이어지게.
+            Material[] instanced = r.materials;
+            for (int i = 0; i < instanced.Length; i++)
+            {
+                if (instanced[i] == null) continue;
+                if (!instanced[i].HasProperty(GhostPathOffsetId)) continue;
+                instanced[i].SetFloat(GhostPathOffsetId, pathIndex);
+            }
         }
     }
 

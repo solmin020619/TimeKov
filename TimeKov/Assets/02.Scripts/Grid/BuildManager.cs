@@ -246,8 +246,18 @@ public class BuildManager : MonoBehaviour
 
     private void SelectRailMode()
     {
-        // E를 다시 누르면 Rail 모드 토글 OFF → 기본 Facility 모드로 복귀
-        SetSubMode(CurrentSubMode == BuildSubMode.Rail ? BuildSubMode.Facility : BuildSubMode.Rail);
+        if (CurrentSubMode == BuildSubMode.Rail)
+        {
+            // E 다시 → 토글 OFF: Facility 로 가되 슬롯 선택까지 해제 (이전에 1~9 누른 게 있어도 안 뜨게)
+            SetSubMode(BuildSubMode.Facility);
+            hasSelectedSlot = false;
+            currentIndex = -1;
+            if (previewMarker != null)
+                previewMarker.SetActive(false);
+            return;
+        }
+
+        SetSubMode(BuildSubMode.Rail);
     }
 
     private void SelectFacilitySlot(int index)
