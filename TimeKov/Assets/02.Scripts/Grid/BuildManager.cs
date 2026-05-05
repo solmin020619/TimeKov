@@ -182,6 +182,7 @@ public class BuildManager : MonoBehaviour
 
         HandleSelectionInput();
         HandleDemolishModeInput();
+        UpdateCameraDragGate();
 
         if (isDemolishMode)
         {
@@ -246,6 +247,17 @@ public class BuildManager : MonoBehaviour
 
     private void SelectRailMode()
     {
+        if (CurrentSubMode == BuildSubMode.Rail)
+        {
+            // E 다시 → 토글 OFF: Facility 로 가되 슬롯 선택까지 해제 (이전에 1~9 누른 게 있어도 안 뜨게)
+            SetSubMode(BuildSubMode.Facility);
+            hasSelectedSlot = false;
+            currentIndex = -1;
+            if (previewMarker != null)
+                previewMarker.SetActive(false);
+            return;
+        }
+
         SetSubMode(BuildSubMode.Rail);
     }
 
@@ -826,6 +838,19 @@ public class BuildManager : MonoBehaviour
         return false;
     }
 
+    private bool IsAnyCellOnRail(List<Vector2Int> cells)
+    {
+        if (railBuildManager == null) return false;
+
+        for (int i = 0; i < cells.Count; i++)
+        {
+            if (railBuildManager.HasRailAt(cells[i]))
+                return true;
+        }
+
+        return false;
+    }
+
     private void OccupyCells(List<Vector2Int> cells)
     {
         for (int i = 0; i < cells.Count; i++)
@@ -1046,6 +1071,19 @@ public class BuildManager : MonoBehaviour
         }
     }
 
+    private void UpdateCameraDragGate()
+    {
+        if (topViewPanCamera == null)
+            return;
+
+        // 좌클릭이 본래 동작(시설 배치/라우팅/영역 드래그/해제)에 안 쓰일 때만 카메라 드래그 허용.
+        bool canDrag = !isDemolishMode
+                    && CurrentSubMode == BuildSubMode.Facility
+                    && currentIndex < 0;
+
+        topViewPanCamera.SetMouseDragEnabled(canDrag);
+    }
+
     private void HandleDemolish()
     {
         if (mainCam == null)
@@ -1122,6 +1160,8 @@ public class BuildManager : MonoBehaviour
     private void DemolishBuilding(PlacedBuilding building)
     {
         if (building == null) return;
+
+        railBuildManager?.RemoveRailsConnectedToBuilding(building);
 
         RemoveOccupiedCells(building.occupiedCells);
         if (currentHoveredBuilding == building) currentHoveredBuilding = null;
@@ -1328,11 +1368,12 @@ public class BuildManager : MonoBehaviour
         bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
 
         bool isOccupied = IsAnyCellOccupied(footprintCells);
+        bool isOnRail = IsAnyCellOnRail(footprintCells);
 
         bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
         bool installRuleOk = CheckInstallRule(currentFacility);
 
-        canBuild = isInBuildZone && !isOccupied && !isBlocked && installRuleOk;
+        canBuild = isInBuildZone && !isOccupied && !isOnRail && !isBlocked && installRuleOk;
 
         UpdatePreview(snappedPos, rotation, canBuild);
         return true;

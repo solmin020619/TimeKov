@@ -5,10 +5,12 @@ public class TopViewPanCamera : MonoBehaviour
     [Header("References")]
     [SerializeField] private Camera cam;
 
-    [Header("Drag")]
-    [SerializeField] private int dragMouseButton = 2; // 0=��Ŭ��, 1=��Ŭ��, 2=��Ŭ��
+    [Header("Mouse Drag (Left Click)")]
     [SerializeField] private float dragSensitivity = 1f;
     [SerializeField] private bool invertDrag = false;
+
+    [Header("Keyboard Move (WASD)")]
+    [SerializeField] private float keyboardMoveSpeed = 20f;
 
     [Header("Zoom")]
     [SerializeField] private bool allowZoom = true;
@@ -24,8 +26,10 @@ public class TopViewPanCamera : MonoBehaviour
     [SerializeField] private Vector2 zBounds = new Vector2(-100f, 100f);
 
     private bool isEnabledControl;
+    private bool isMouseDragEnabled = true;
     private Plane dragPlane;
-    private Vector3 lastDragWorld;
+    private Vector3 _leftDragLastWorld;
+    private Vector3 _middleDragLastWorld;
 
     private void Awake()
     {
@@ -40,30 +44,63 @@ public class TopViewPanCamera : MonoBehaviour
         isEnabledControl = value;
     }
 
+    public void SetMouseDragEnabled(bool value)
+    {
+        isMouseDragEnabled = value;
+    }
+
     private void Update()
     {
         if (!isEnabledControl || cam == null)
             return;
 
+        HandleKeyboardMove();
         HandleDrag();
         HandleZoom();
         ClampPosition();
     }
 
+    private void HandleKeyboardMove()
+    {
+        float h = 0f;
+        float v = 0f;
+        if (Input.GetKey(KeyCode.W)) v += 1f;
+        if (Input.GetKey(KeyCode.S)) v -= 1f;
+        if (Input.GetKey(KeyCode.A)) h -= 1f;
+        if (Input.GetKey(KeyCode.D)) h += 1f;
+        if (h == 0f && v == 0f) return;
+
+        Vector3 delta = new Vector3(h, 0f, v);
+        if (delta.sqrMagnitude > 1f) delta.Normalize();
+
+        transform.position += delta * keyboardMoveSpeed * Time.deltaTime;
+    }
+
     private void HandleDrag()
     {
-        if (Input.GetMouseButtonDown(dragMouseButton))
+        // 좌클릭 드래그: BuildManager 가 facility idle 일 때만 활성화
+        if (isMouseDragEnabled)
+            ProcessMouseDrag(0, ref _leftDragLastWorld);
+
+        // 휠 클릭 드래그: 게이트 무시, 어떤 상태에서도 카메라 이동 가능
+        // (슬롯 선택/Rail 라우팅/Blueprint/해제 모드 중에도 사용 가능)
+        ProcessMouseDrag(2, ref _middleDragLastWorld);
+    }
+
+    private void ProcessMouseDrag(int mouseButton, ref Vector3 lastWorld)
+    {
+        if (Input.GetMouseButtonDown(mouseButton))
         {
             if (TryGetMouseWorldPoint(out Vector3 worldPoint))
-                lastDragWorld = worldPoint;
+                lastWorld = worldPoint;
         }
 
-        if (Input.GetMouseButton(dragMouseButton))
+        if (Input.GetMouseButton(mouseButton))
         {
             if (!TryGetMouseWorldPoint(out Vector3 currentWorld))
                 return;
 
-            Vector3 delta = lastDragWorld - currentWorld;
+            Vector3 delta = lastWorld - currentWorld;
 
             if (invertDrag)
                 delta = -delta;
@@ -71,7 +108,7 @@ public class TopViewPanCamera : MonoBehaviour
             delta.y = 0f;
             transform.position += delta * dragSensitivity;
 
-            lastDragWorld = currentWorld;
+            lastWorld = currentWorld;
         }
     }
 

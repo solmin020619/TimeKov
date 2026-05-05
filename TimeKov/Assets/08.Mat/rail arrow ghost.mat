@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: rail arrow
+  m_Name: rail arrow ghost
   m_Shader: {fileID: -6465566751694194690, guid: eb559d15cc0089b469599672d8ba6977, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -73,9 +73,10 @@ Material:
     - _Cull: 2
     - _DstBlend: 10
     - _DstBlendAlpha: 10
-    - _Flicker_time: 0.5
+    - _Flicker_time: 5
     - _FlowDir: 1
     - _Fresnel_power: 5.7
+    - _PathOffset: 0
     - _QueueControl: 0
     - _QueueOffset: 0
     - _SrcBlend: 5
@@ -86,12 +87,12 @@ Material:
     - _ZWriteControl: 0
     - _alpha_time: 3
     - _arrow_speed: 1
-    - _intelsity: 15
+    - _intelsity: 8
     - _noise_scale: 15
     m_Colors:
     - _Fresnel_color: {r: 0, g: 21.947506, b: 27.454489, a: 0}
     - _arrow_color: {r: 1, g: 1, b: 1, a: 0}
-    - _rail_color: {r: 0.13292098, g: 0.21106757, b: 0.2735849, a: 0}
+    - _rail_color: {r: 0.2735849, g: 0.2735849, b: 0.2735849, a: 0}
     - _scelinespeed: {r: 0, g: 0, b: 0, a: 0}
     - _scelinetiling: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
