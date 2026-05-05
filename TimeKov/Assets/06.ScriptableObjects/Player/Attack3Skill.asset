@@ -15,6 +15,11 @@ MonoBehaviour:
   ComboIndex: 2
   ComboWindow: 1.2
   Damage: 10
-  SlashForce: 100
+  HitRadius: 1.5
+  HitDistance: 1.5
+  EnemyLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  SlashForce: 25
   SlashDuration: 0.5
-  AnimDuration: 1
+  AnimDuration: 3

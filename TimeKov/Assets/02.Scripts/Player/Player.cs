@@ -6,6 +6,7 @@ public class Player : MonoBehaviour
     public PlayerMovementComponent Movement { get; private set; }
     public PlayerStatComponent Stat { get; private set; }
     public PlayerSkillComponent Skill { get; private set; }
+    public PlayerAnimatorComponent Anim { get; private set; }   
 
     void Awake()
     {
@@ -13,5 +14,6 @@ public class Player : MonoBehaviour
         Movement = GetComponent<PlayerMovementComponent>();
         Stat = GetComponent<PlayerStatComponent>();
         Skill = GetComponent<PlayerSkillComponent>();
+        Anim = GetComponent<PlayerAnimatorComponent>();
     }
 }

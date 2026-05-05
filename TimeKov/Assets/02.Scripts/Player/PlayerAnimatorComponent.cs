@@ -91,6 +91,13 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
     }
 
+    public void ResetToIdle()
+    {
+        // 모든 트리거 초기화 후 Idle로 복귀
+        _anim.ResetTrigger(DieHash);
+        _anim.Play("Idle");   // Animator State 이름이 "Idle"이어야 해요
+    }
+
     public void PlayEvade() => _anim.SetTrigger(EvadeHash);
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
     public void PlayDie() => _anim.SetTrigger(DieHash);

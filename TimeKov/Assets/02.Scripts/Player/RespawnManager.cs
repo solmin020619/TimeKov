@@ -3,8 +3,8 @@ using UnityEngine;
 
 public class RespawnManager : MonoBehaviour
 {
-    public Transform RespawnPoint;          // 기지 내 리스폰 위치
-    public float RespawnDelay = 2f;     // 죽음 연출 대기 시간
+    public Transform RespawnPoint;
+    public float RespawnDelay = 2f;
 
     private Player _player;
 
@@ -21,16 +21,28 @@ public class RespawnManager : MonoBehaviour
 
     IEnumerator RespawnRoutine()
     {
-        // 죽음 연출 대기 (애니메이션, 페이드 등 추가 예정)
+        // 죽음 애니메이션 재생
+        _player.Anim.PlayDie();
+
+        // 이동 잠금
+        _player.Movement.LockMovement(true);
+
+        // 애니메이션 대기
         yield return new WaitForSeconds(RespawnDelay);
 
-        // 플레이어 기지 위치로 이동
+
+        // 기지로 이동
         var rb = _player.GetComponent<Rigidbody>();
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
         _player.transform.position = RespawnPoint.position;
 
+        // 애니메이션 초기화 -> Idle 상태로 복귀
+        _player.Anim.ResetToIdle();
+
+        // 이동 잠금 해제
+        _player.Movement.LockMovement(false);
         // 스탯 초기화
         _player.Stat.Respawn();
     }
