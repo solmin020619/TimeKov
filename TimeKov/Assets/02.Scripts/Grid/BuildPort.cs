@@ -3,20 +3,19 @@ using UnityEngine;
 public enum PortType
 {
     Input,
-    Output,
-    Bidirectional
+    Output
 }
 
 public class BuildPort : MonoBehaviour
 {
     [Header("Port Type")]
-    public PortType portType = PortType.Bidirectional;
+    public PortType portType = PortType.Input;
 
     [Header("Grid (Prefab Local)")]
-    [Tooltip("ÇÁ¸®ÆÕ Áß½É ±âÁØ Æ÷Æ® ¼¿ ¿ÀÇÁ¼Â. ¿¹: 3x3ÀÌ¸é ÁÂ»ó´Ü(-1,1), °¡¿îµ¥À§(0,1), ¿ì»ó´Ü(1,1)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ® ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½. ï¿½ï¿½: 3x3ï¿½Ì¸ï¿½ ï¿½Â»ï¿½ï¿½(-1,1), ï¿½ï¿½ï¿½îµ¥ï¿½ï¿½(0,1), ï¿½ï¿½ï¿½ï¿½(1,1)")]
     public Vector2Int localCellOffset = Vector2Int.zero;
 
-    [Tooltip("ÇÁ¸®ÆÕ ±âÁØ Æ÷Æ®°¡ ¹Ù¶óº¸´Â ¹æÇâ")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ù¶óº¸´ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     public Vector2Int localDirection = Vector2Int.right;
 
     [Header("Connection")]
@@ -40,14 +39,12 @@ public class BuildPort : MonoBehaviour
 
     public bool CanStartConnection()
     {
-        return HasCapacity &&
-               (portType == PortType.Output || portType == PortType.Bidirectional);
+        return HasCapacity && portType == PortType.Output;
     }
 
     public bool CanEndConnection()
     {
-        return HasCapacity &&
-               (portType == PortType.Input || portType == PortType.Bidirectional);
+        return HasCapacity && portType == PortType.Input;
     }
 
     public void AddConnection()
@@ -71,14 +68,14 @@ public class BuildPort : MonoBehaviour
         switch (rot)
         {
             case 90:
-                // ½Ã°è ¹æÇâ 90µµ
+                // ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½ 90ï¿½ï¿½
                 return new Vector2Int(dir.y, -dir.x);
 
             case 180:
                 return new Vector2Int(-dir.x, -dir.y);
 
             case 270:
-                // ½Ã°è ¹æÇâ 270µµ = ¹Ý½Ã°è 90µµ
+                // ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½ 270ï¿½ï¿½ = ï¿½Ý½Ã°ï¿½ 90ï¿½ï¿½
                 return new Vector2Int(-dir.y, dir.x);
 
             default:
@@ -93,10 +90,10 @@ public class BuildPort : MonoBehaviour
 
         Vector2Int size = GetOwnerSize();
 
-        // Áß½É ±âÁØ(-1~1 °°Àº °ª)À» startCell ±âÁØ(0~2 °°Àº °ª)À¸·Î º¯È¯
+        // ï¿½ß½ï¿½ ï¿½ï¿½ï¿½ï¿½(-1~1 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)ï¿½ï¿½ startCell ï¿½ï¿½ï¿½ï¿½(0~2 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯
         Vector2Int offsetFromStart = CenterToStartOffset(localCellOffset, size);
 
-        // È¸ÀüÀº 0,0 ±âÁØÀÌ ¾Æ´Ï¶ó footprint ³»ºÎ ±âÁØÀ¸·Î µ¹¾Æ¾ß ÇÔ
+        // È¸ï¿½ï¿½ï¿½ï¿½ 0,0 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ´Ï¶ï¿½ footprint ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Æ¾ï¿½ ï¿½ï¿½
         int rot = NormalizeRotation(OwnerBuilding.transform.eulerAngles.y);
         Vector2Int rotatedOffset = RotateOffsetInFootprint(offsetFromStart, size, rot);
 
@@ -142,7 +139,7 @@ public class BuildPort : MonoBehaviour
 
     private Vector2Int CenterToStartOffset(Vector2Int centerOffset, Vector2Int size)
     {
-        // 3x3 ±âÁØ:
+        // 3x3 ï¿½ï¿½ï¿½ï¿½:
         // (-1, -1) -> (0, 0)
         // ( 0,  0) -> (1, 1)
         // ( 1,  1) -> (2, 2)
@@ -157,7 +154,7 @@ public class BuildPort : MonoBehaviour
         switch (rot)
         {
             case 90:
-                // ½Ã°è ¹æÇâ 90µµ
+                // ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½ 90ï¿½ï¿½
                 // (x, y) -> (y, width - 1 - x)
                 return new Vector2Int(offset.y, size.x - 1 - offset.x);
 
@@ -165,7 +162,7 @@ public class BuildPort : MonoBehaviour
                 return new Vector2Int(size.x - 1 - offset.x, size.y - 1 - offset.y);
 
             case 270:
-                // ½Ã°è ¹æÇâ 270µµ = ¹Ý½Ã°è 90µµ
+                // ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½ 270ï¿½ï¿½ = ï¿½Ý½Ã°ï¿½ 90ï¿½ï¿½
                 // (x, y) -> (height - 1 - y, x)
                 return new Vector2Int(size.y - 1 - offset.y, offset.x);
 

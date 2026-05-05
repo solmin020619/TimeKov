@@ -531,6 +531,10 @@ public class RailBuildManager : MonoBehaviour
             if (dir != Vector2Int.zero)
             {
                 float yAngle = Mathf.Atan2(dir.x, dir.y) * Mathf.Rad2Deg;
+                // Arrow prefab 헤드가 시설 안쪽을 향하게 모델링돼 있어
+                // Output 포트(시설 밖으로 흐름)에선 +180° 보정해야 화살표가 시설 밖을 가리킴.
+                if (port.portType == PortType.Output)
+                    yAngle += 180f;
                 rot = Quaternion.Euler(90f, yAngle, 0f);
             }
             else
@@ -555,7 +559,8 @@ public class RailBuildManager : MonoBehaviour
             if (!port.HasCapacity)
                 return PortIndicatorState.X;
 
-            if (port.CanStartConnection() || port.CanEndConnection())
+            // 라우팅 시작은 Output 포트에서만 가능. Input 포트는 X.
+            if (port.CanStartConnection())
                 return PortIndicatorState.Arrow;
 
             return PortIndicatorState.X;

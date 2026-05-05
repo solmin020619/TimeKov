@@ -66,7 +66,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 215a3fe1444ec524494187d5fddb6ab8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portType: 2
+  portType: 0
   localCellOffset: {x: -1, y: 0}
   localDirection: {x: 0, y: 1}
   maxConnections: 1
@@ -137,7 +137,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 215a3fe1444ec524494187d5fddb6ab8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portType: 2
+  portType: 0
   localCellOffset: {x: 1, y: 0}
   localDirection: {x: 0, y: 1}
   maxConnections: 1
@@ -208,7 +208,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 215a3fe1444ec524494187d5fddb6ab8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portType: 2
+  portType: 1
   localCellOffset: {x: 1, y: 0}
   localDirection: {x: 0, y: -1}
   maxConnections: 1
@@ -279,7 +279,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 215a3fe1444ec524494187d5fddb6ab8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portType: 2
+  portType: 0
   localCellOffset: {x: 0, y: 0}
   localDirection: {x: 0, y: 1}
   maxConnections: 1
@@ -350,7 +350,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 215a3fe1444ec524494187d5fddb6ab8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portType: 2
+  portType: 1
   localCellOffset: {x: -1, y: 0}
   localDirection: {x: 0, y: -1}
   maxConnections: 1
@@ -421,7 +421,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 215a3fe1444ec524494187d5fddb6ab8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portType: 2
+  portType: 1
   localCellOffset: {x: 0, y: 0}
   localDirection: {x: 0, y: -1}
   maxConnections: 1
@@ -572,8 +572,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 3, y: 2.5581236, z: 1.8094044}
-  m_Center: {x: 0, y: 1.3023965, z: 0.012002945}
+  m_Size: {x: 3, y: 2.5, z: 2}
+  m_Center: {x: 0, y: 1.7, z: 0}
 --- !u!1001 &4918042602966659921
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -598,6 +598,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4882026572062511271, guid: c7b5a449060806241aa8aa0d6b64fc87, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 0ff2d630392a6324d8aac00d4de2cf15, type: 2}
     - target: {fileID: 5050323159739920632, guid: c7b5a449060806241aa8aa0d6b64fc87, type: 3}
       propertyPath: m_Layer
       value: 17
