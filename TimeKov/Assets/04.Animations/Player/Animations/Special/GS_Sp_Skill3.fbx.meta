@@ -1,14 +1,21 @@
 fileFormatVersion: 2
 guid: 5385fbc8fe149db4fb86433965eb0891
+AssetOrigin:
+  serializedVersion: 1
+  productId: 367930
+  packageName: CombatGirls_GreatSwordCharacterPack
+  packageVersion: 1.1
+  assetPath: Assets/CombatGirlsCharacterPack/CombatGirls_GreatSword/Animations/Special/GS_Sp_Skill3.fbx
+  uploadId: 883068
 ModelImporter:
-  serializedVersion: 21300
+  serializedVersion: 22200
   internalIDToNameTable:
   - first:
       74: 7374304278874573660
     second: GS_Sp_Skill3
   externalObjects: {}
   materials:
-    materialImportMode: 2
+    materialImportMode: 0
     materialName: 0
     materialSearch: 1
     materialLocation: 1
@@ -19,13 +26,8 @@ ModelImporter:
     optimizeGameObjects: 0
     removeConstantScaleCurves: 1
     motionNodeName: root
-    rigImportErrors: 
-    rigImportWarnings: 
     animationImportErrors: 
-    animationImportWarnings: "\nClip 'GS_Sp_Skill3' has import animation warnings
-      that might lower retargeting quality:\nNote: Activate translation DOF on avatar
-      to improve retargeting quality.\n\t'spine_03' has translation animation that
-      will be discarded.\n"
+    animationImportWarnings: 
     animationRetargetingWarnings: 
     animationDoRetargetingWarnings: 0
     importAnimatedCustomProperties: 0
@@ -211,6 +213,7 @@ ModelImporter:
     addColliders: 0
     useSRGBMaterialColor: 1
     sortHierarchyByName: 1
+    importPhysicalCameras: 1
     importVisibility: 1
     importBlendShapes: 1
     importCameras: 0
@@ -238,6 +241,7 @@ ModelImporter:
     secondaryUVMinObjectScale: 1
     secondaryUVPackMargin: 4
     useFileScale: 1
+    strictVertexDataChecks: 0
   tangentSpace:
     normalSmoothAngle: 60
     normalImportMode: 0
@@ -960,8 +964,7 @@ ModelImporter:
     - name: thigh_twist_01_r
       parentName: thigh_r
       position: {x: -0.22478583, y: 2.9802322e-10, z: -0.0000000047683715}
-      rotation: {x: -0.0000000028812783, y: -0.000000005587935, z: 0.00000004586763,
-        w: 1}
+      rotation: {x: -0.0000000028812783, y: -0.000000005587935, z: 0.00000004586763, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: calf_r
       parentName: thigh_r
@@ -1000,22 +1003,15 @@ ModelImporter:
     hasTranslationDoF: 0
     hasExtraRoot: 1
     skeletonHasParents: 1
-  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: 680d8dfea170aec488cf472c8ea259dd,
-    type: 3}
+  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: 680d8dfea170aec488cf472c8ea259dd, type: 3}
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 3
   humanoidOversampling: 1
   avatarSetup: 2
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
+  importBlendShapeDeformPercent: 0
   remapMaterialsIfMaterialImportModeIsNone: 0
   additionalBone: 0
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 367930
-  packageName: CombatGirls_GreatSwordCharacterPack
-  packageVersion: 1.1
-  assetPath: Assets/CombatGirlsCharacterPack/CombatGirls_GreatSword/Animations/Special/GS_Sp_Skill3.fbx
-  uploadId: 883068
