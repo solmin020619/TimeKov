@@ -19,6 +19,10 @@ namespace TIMEKOV.Factory
         [HideInInspector] public BeltSegment outputBelt;
         [HideInInspector] public BeltSegment inputBelt;
 
+        [Header("입출구 포트 (자식 Transform 지정)")]
+        public Transform outputPort;  // 출구 (화살표 위치)
+        public Transform inputPort;   // 입구 (X 표시 위치)
+
         public virtual void Receive(int itemId, int amount)
         {
             InputBuffer.Add(itemId, amount);
@@ -37,10 +41,15 @@ namespace TIMEKOV.Factory
 
         protected void Dispatch(int itemId, int amount)
         {
-            if (outputBelt != null && outputBelt.IsReady)
+            Debug.Log($"[Dispatch] {gameObject.name} outputBelt={outputBelt?.gameObject.name ?? "null"} IsReady={outputBelt?.IsReady}");
+
+            if (outputBelt != null && outputBelt.IsReady && outputBelt.targetM != this)
+            {
                 outputBelt.TryTransport(itemId, amount);
+            }
             else
             {
+                Debug.Log($"[Dispatch] {gameObject.name} 벨트 없음 → OutputBuffer에 저장");
                 OutputBuffer.Add(itemId, amount);
                 SetStatus(MachineStatus.OutputReady);
                 NotifyBufferChanged();

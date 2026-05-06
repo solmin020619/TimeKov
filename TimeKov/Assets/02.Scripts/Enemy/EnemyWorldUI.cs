@@ -8,7 +8,6 @@ public class EnemyWorldUI : MonoBehaviour
     [SerializeField] private CanvasGroup canvasGroup;
     [SerializeField] private Slider hpSlider;
     [SerializeField] private TextMeshProUGUI nameText;
-    [SerializeField] private DamageNumberSpawner damageNumberSpawner;
 
     [Header("Display Settings")]
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 2.2f, 0f);
@@ -29,9 +28,6 @@ public class EnemyWorldUI : MonoBehaviour
 
         if (nameText == null)
             nameText = GetComponentInChildren<TextMeshProUGUI>(true);
-
-        if (damageNumberSpawner == null)
-            damageNumberSpawner = GetComponentInChildren<DamageNumberSpawner>(true);
     }
 
     public void Initialize(EnemyHealth health, string enemyName)
@@ -50,7 +46,6 @@ public class EnemyWorldUI : MonoBehaviour
 
         targetHealth.OnDamage += RefreshHP;
         targetHealth.OnDeath += HandleDeath;
-        targetHealth.OnDamageUI += HandleDamageUI;
     }
 
     private void LateUpdate()
@@ -86,12 +81,6 @@ public class EnemyWorldUI : MonoBehaviour
         canvasGroup.alpha = distance <= showDistance ? 1f : 0f;
     }
 
-    private void HandleDamageUI(float damage, bool isCritical, Vector3 worldPos)
-    {
-        if (damageNumberSpawner != null)
-            damageNumberSpawner.ShowDamage(damage, isCritical, worldPos);
-    }
-
     private void RefreshHP()
     {
         if (targetHealth == null || hpSlider == null)
@@ -114,6 +103,5 @@ public class EnemyWorldUI : MonoBehaviour
 
         targetHealth.OnDamage -= RefreshHP;
         targetHealth.OnDeath -= HandleDeath;
-        targetHealth.OnDamageUI -= HandleDamageUI;
     }
 }
