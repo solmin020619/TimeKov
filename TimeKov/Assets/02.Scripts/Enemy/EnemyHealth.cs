@@ -19,14 +19,20 @@ public class EnemyHealth : MonoBehaviour
 
     public event Action OnDeath;
     public event Action OnDamage;
-    public event Action<float, bool, Vector3> OnDamageUI;
 
     private bool isDead = false;
     public Vector3 LastHitPoint { get; private set; }
+
+    private EnemyFeedback feedback;
+
     private void Awake()
     {
         currentHP = maxHP;
         enemyAI = GetComponent<EnemyAI>();
+
+        feedback = GetComponent<EnemyFeedback>();
+        if (feedback == null)
+            feedback = GetComponentInChildren<EnemyFeedback>();
 
         if (enemyWorldUI == null)
             enemyWorldUI = GetComponentInChildren<EnemyWorldUI>(true);
@@ -62,7 +68,7 @@ public class EnemyHealth : MonoBehaviour
         currentHP = Mathf.Max(currentHP, 0f);
 
         OnDamage?.Invoke();
-        OnDamageUI?.Invoke(amount, isCritical, hitPoint);
+        feedback?.PlayHit(hitPoint);
 
         if (enemyAI != null)
             enemyAI.RevealFromHit();
@@ -77,6 +83,8 @@ public class EnemyHealth : MonoBehaviour
             return;
 
         isDead = true;
+
+        feedback?.PlayDeath();
 
         if (enemyWorldUI != null)
             enemyWorldUI.gameObject.SetActive(false);
@@ -93,7 +101,7 @@ public class EnemyHealth : MonoBehaviour
         }
         else
         {
-            Debug.Log("[EnemyHealth] useDeathAnimation false -> SpawnCorpseLootObject Áï½Ã ½ÇÇà", gameObject);
+            Debug.Log("[EnemyHealth] useDeathAnimation false -> SpawnCorpseLootObject ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½", gameObject);
             SpawnCorpseLootObject();
             Destroy(gameObject);
         }
@@ -122,7 +130,7 @@ public class EnemyHealth : MonoBehaviour
 
     private IEnumerator DeathRoutine()
     {
-        Debug.Log("[EnemyHealth] DeathRoutine ½ÃÀÛ", gameObject);
+        Debug.Log("[EnemyHealth] DeathRoutine ï¿½ï¿½ï¿½ï¿½", gameObject);
 
         NavMeshAgent agent = GetComponent<NavMeshAgent>();
         Animator anim = GetComponentInChildren<Animator>();
@@ -155,7 +163,7 @@ public class EnemyHealth : MonoBehaviour
         if (enemyAI != null && enemyAI.data != null)
             delay = enemyAI.data.deathAnimDuration;
 
-        // Á×´Â ¾Ö´Ï Áß°£Âë, ¹Ù´Ú¿¡ ´êÀ» Å¸ÀÌ¹ÖÂë ÀÌÆåÆ®/»ç¿îµå
+        // ï¿½×´ï¿½ ï¿½Ö´ï¿½ ï¿½ß°ï¿½ï¿½ï¿½, ï¿½Ù´Ú¿ï¿½ ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½Ì¹ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®/ï¿½ï¿½ï¿½ï¿½
         yield return new WaitForSeconds(delay * 0.7f);
 
         PlayDeathEffect();
@@ -167,7 +175,7 @@ public class EnemyHealth : MonoBehaviour
     }
     private void SpawnCorpseLootObject()
     {
-        Debug.Log("[EnemyHealth] SpawnCorpseLootObject È£ÃâµÊ", gameObject);
+        Debug.Log("[EnemyHealth] SpawnCorpseLootObject È£ï¿½ï¿½ï¿½", gameObject);
 
         if (corpsePrefab == null)
             return;
@@ -186,7 +194,7 @@ public class EnemyHealth : MonoBehaviour
 
             if (string.IsNullOrWhiteSpace(dropSourceId))
             {
-                Debug.LogWarning($"[EnemyHealth] dropSourceId°¡ ºñ¾î ÀÖÀ½: {gameObject.name}", gameObject);
+                Debug.LogWarning($"[EnemyHealth] dropSourceIdï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½: {gameObject.name}", gameObject);
             }
         }
     }
