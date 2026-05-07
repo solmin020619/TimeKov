@@ -50,6 +50,13 @@ namespace TIMEKOV.Factory
 
         private IEnumerator ProcessRoutine(FactoryRecipe recipe)
         {
+            if (!InputBuffer.HasAll(recipe.inputs))
+            {
+                _processing = false;
+                SetStatus(MachineStatus.Idle);
+                yield break;
+            }
+
             _processing  = true;
             ActiveRecipe = recipe;
             SetStatus(MachineStatus.Processing);

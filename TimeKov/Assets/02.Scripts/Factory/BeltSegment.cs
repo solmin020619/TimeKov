@@ -88,50 +88,67 @@ namespace TIMEKOV.Factory
             {
                 if (hit.gameObject == gameObject) continue;
 
+                // 설비 감지 — outputPort/inputPort 기준으로 source/target 결정
                 var machine = hit.GetComponentInParent<MachineBase>();
                 if (machine != null)
                 {
-                    if (isFront) targetM = machine;
-                    else sourceM = machine;
 
-                    if (isFront) machine.inputBelt = GetChainHead();
-                    else machine.outputBelt = GetChainHead();
+                    bool nearOutput = false;
+
+                    if (machine.outputPort != null && machine.inputPort != null)
+                    {
+                        nearOutput = Vector3.Distance(pos, machine.outputPort.position)<
+                                     Vector3.Distance(pos, machine.inputPort.position);
+                    }
+                    else if (machine.outputPort != null)
+                    {
+                        nearOutput = true;
+                    }
+                    Debug.Log($"[Belt] {gameObject.name} 설비감지: {machine.name} nearOutput={nearOutput} outputPort={machine.outputPort?.name ?? "null"} inputPort={machine.inputPort?.name ?? "null"}");
+
+                    if (nearOutput)
+                        sourceM = machine;
+                    else
+                        targetM = machine;
+
                     continue;
                 }
 
+                // 세그먼트 연결
                 var seg = hit.GetComponentInParent<BeltSegment>();
                 if (seg != null && seg != this)
                 {
-                    bool neighborBackIsClose = seg.endpointBack != null &&
-                        Vector3.Distance(endpointFront != null ? endpointFront.position : pos, seg.endpointBack.position)<
-                        Vector3.Distance(endpointFront != null ? endpointFront.position : pos, seg.endpointFront != null ? seg.endpointFront.position : seg.transform.position);
-
-                    bool neighborFrontIsClose = seg.endpointFront != null &&
-                        Vector3.Distance(endpointBack != null ? endpointBack.position : pos, seg.endpointFront.position)<
-                        Vector3.Distance(endpointBack != null ? endpointBack.position : pos, seg.endpointBack != null ? seg.endpointBack.position : seg.transform.position);
-
-                    // ↓ 여기가 교체할 부분
-                    if (isFront)
+                    if (isFront) // 내 앞쪽 endpoint
                     {
-                        if (neighborBackIsClose)
+                        bool neighborBackIsClose = seg.endpointBack != null &&
+                            Vector3.Distance(pos, seg.endpointBack.position)<
+                            Vector3.Distance(pos, seg.endpointFront != null
+                ? seg.endpointFront.position : seg.transform.position);
+
+                        if (neighborBackIsClose) // 상대 Back이 가까움 → 내가 앞
                         {
                             if (nextSegment == null) nextSegment = seg;
                             if (seg.prevSegment == null) seg.prevSegment = this;
                         }
-                        else
+                        else // 상대 Front가 가까움 → 내가 뒤
                         {
                             if (prevSegment == null) prevSegment = seg;
                             if (seg.nextSegment == null) seg.nextSegment = this;
                         }
                     }
-                    else
+                    else // 내 뒤쪽 endpoint
                     {
-                        if (neighborFrontIsClose)
+                        bool neighborFrontIsClose = seg.endpointFront != null &&
+                            Vector3.Distance(pos, seg.endpointFront.position)<
+                            Vector3.Distance(pos, seg.endpointBack != null
+                ? seg.endpointBack.position : seg.transform.position);
+
+                        if (neighborFrontIsClose) // 상대 Front가 가까움 → 상대가 앞
                         {
                             if (prevSegment == null) prevSegment = seg;
                             if (seg.nextSegment == null) seg.nextSegment = this;
                         }
-                        else
+                        else // 상대 Back이 가까움 → 내가 앞
                         {
                             if (nextSegment == null) nextSegment = seg;
                             if (seg.prevSegment == null) seg.prevSegment = this;
@@ -161,7 +178,6 @@ namespace TIMEKOV.Factory
 
         private void TraverseAndSet()
         {
-            // 1) 체인 전체 세그먼트 수집
             var chain = new List<BeltSegment>();
             BeltSegment cur = this;
             int safety = 200;
@@ -171,38 +187,29 @@ namespace TIMEKOV.Factory
                 cur = cur.nextSegment;
             }
 
-            Debug.Log($"[Belt] 체인: {string.Join(" → ", chain.ConvertAll(s => s.gameObject.name))}");
-
-            // 2) 양 끝 설비 찾기
+            // chain[0]/chain[last]만 보지 않고 체인 전체에서 찾기
             MachineBase src = null;
             MachineBase tgt = null;
 
-            Debug.Log($"[Belt] src={src?.name ?? "null"}, tgt={tgt?.name ?? "null"}");
+            foreach (var seg in chain)
+            {
+                if (seg.sourceM != null) src = seg.sourceM;
+                if (seg.targetM != null) tgt = seg.targetM;
+            }
 
-            // Back쪽: chain[0].prevSegment 없고 sourceM 있으면 src
-            src = chain[0].sourceM;
-            tgt = chain[chain.Count - 1].targetM;
+            Debug.Log($"[Belt] {gameObject.name} 체인길이={chain.Count} src={src?.name ?? "null"} tgt={tgt?.name ?? "null"}");
 
-            // 3) 체인 전체에 전파
+            if (src == null || tgt == null || src == tgt) return;
+
             foreach (var seg in chain)
             {
                 seg.sourceM = src;
                 seg.targetM = tgt;
             }
 
-            // 4) source 설비의 outputBelt를 chain[0]으로 세팅
-            if (src != null) src.outputBelt = chain[0];
-
-            // 5) 연결 완성되면 헤드가 아이템 수신 준비
-            if (src != null && tgt != null)
-                Debug.Log($"[Belt] 체인 연결 완성: {src.name} → ({chain.Count}칸) → {tgt.name}");
-
-
+            src.outputBelt = chain[0];
+            Debug.Log($"[Belt] 연결완성: {src.name} → {tgt.name}");
         }
-
-        // ============================================================
-        // 아이템 운반 (체인 헤드가 호출 — MachineBase.Dispatch 에서)
-        // ============================================================
 
         public bool TryTransport(int itemId, int amount)
         {
@@ -213,7 +220,6 @@ namespace TIMEKOV.Factory
 
         private IEnumerator ChainTransportRoutine(int itemId, int amount)
         {
-            // 체인 전체 세그먼트 수집
             var chain = new List<BeltSegment>();
             BeltSegment cur = GetChainHead();
             int safety = 200;
@@ -223,7 +229,17 @@ namespace TIMEKOV.Factory
                 cur = cur.nextSegment;
             }
 
-            // 시각 오브젝트 생성
+            // 체인 방향 확인 — chain[0]이 sourceM에 가까워야 함
+            // 반대면 뒤집기
+            if (sourceM != null && chain.Count > 1)
+            {
+                float distFirst = Vector3.Distance(chain[0].transform.position, sourceM.transform.position);
+                float distLast = Vector3.Distance(chain[chain.Count - 1].transform.position, sourceM.transform.position);
+                if (distLast < distFirst)
+                    chain.Reverse();
+            }
+
+            // 이하 기존 코드 동일
             GameObject visual = null;
             if (beltItemPrefab != null && chain[0].endpointBack != null)
             {
@@ -232,14 +248,13 @@ namespace TIMEKOV.Factory
                     vis.Setup(itemId, amount);
             }
 
-            // 세그먼트를 하나씩 통과하며 이동
             for (int i = 0; i < chain.Count; i++)
             {
-                Vector3 from = chain[i].endpointBack  != null
+                Vector3 from = chain[i].endpointBack != null
                     ? chain[i].endpointBack.position
                     : chain[i].transform.position;
 
-                Vector3 to   = chain[i].endpointFront != null
+                Vector3 to = chain[i].endpointFront != null
                     ? chain[i].endpointFront.position
                     : chain[i].transform.position + chain[i].transform.forward;
 
@@ -248,15 +263,12 @@ namespace TIMEKOV.Factory
                 {
                     elapsed += Time.deltaTime;
                     if (visual != null)
-                        visual.transform.position =
-                            Vector3.Lerp(from, to, elapsed / travelTimePerSegment);
+                        visual.transform.position = Vector3.Lerp(from, to, elapsed / travelTimePerSegment);
                     yield return null;
                 }
             }
 
             if (visual != null) Destroy(visual);
-
-            // 목적지 설비에 전달
             targetM?.Receive(itemId, amount);
         }
         private void OnDrawGizmosSelected()
