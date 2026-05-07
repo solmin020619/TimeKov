@@ -78,12 +78,9 @@ public class TopViewPanCamera : MonoBehaviour
 
     private void HandleDrag()
     {
-        // 좌클릭 드래그: BuildManager 가 facility idle 일 때만 활성화
         if (isMouseDragEnabled)
             ProcessMouseDrag(0, ref _leftDragLastWorld);
 
-        // 휠 클릭 드래그: 게이트 무시, 어떤 상태에서도 카메라 이동 가능
-        // (슬롯 선택/Rail 라우팅/Blueprint/해제 모드 중에도 사용 가능)
         ProcessMouseDrag(2, ref _middleDragLastWorld);
     }
 
