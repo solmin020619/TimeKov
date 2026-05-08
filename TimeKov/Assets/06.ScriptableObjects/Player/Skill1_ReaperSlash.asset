@@ -9,17 +9,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d327b5473c1fd54495a0b2e202c452b, type: 3}
-  m_Name: Attack2Skill
+  m_Script: {fileID: 11500000, guid: ee264a6e4c6f7b840ab57fdcdde50956, type: 3}
+  m_Name: Skill1_ReaperSlash
   m_EditorClassIdentifier: 
-  ComboIndex: 1
-  ComboWindow: 1.2
-  Damage: 10
-  HitRadius: 1.5
+  SkillSheetId: 0
+  SkillIcon: {fileID: 0}
+  CoolTime: 1.2
+  Hit1Delay: 0.25
+  Hit1Damage: 80
+  Hit1Radius: 2.5
+  Hit2Delay: 0.6
+  Hit2Damage: 120
+  Hit2Radius: 3
+  TotalDuration: 0.9
   HitHeight: 1
   EnemyLayer:
     serializedVersion: 2
     m_Bits: 64
-  GaugeTarget: 1
-  GaugeAmount: 100
-  AnimDuration: 0.8

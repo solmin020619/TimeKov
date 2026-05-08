@@ -9,17 +9,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d327b5473c1fd54495a0b2e202c452b, type: 3}
-  m_Name: Attack2Skill
+  m_Script: {fileID: 11500000, guid: 476993cc060d7934cbfbb5b3876715f1, type: 3}
+  m_Name: Skill3_ExecutionFall
   m_EditorClassIdentifier: 
-  ComboIndex: 1
-  ComboWindow: 1.2
-  Damage: 10
-  HitRadius: 1.5
+  SkillSheetId: 2
+  SkillIcon: {fileID: 0}
+  CoolTime: 3.5
+  Hit1Delay: 0.7
+  Hit1Damage: 80
+  Hit1Radius: 2.5
+  Hit2Delay: 1.2
+  Hit2Damage: 220
+  Hit2Radius: 3
+  TotalDuration: 1.8
   HitHeight: 1
   EnemyLayer:
     serializedVersion: 2
     m_Bits: 64
-  GaugeTarget: 1
-  GaugeAmount: 100
-  AnimDuration: 0.8
