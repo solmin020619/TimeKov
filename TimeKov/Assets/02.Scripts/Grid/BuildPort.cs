@@ -12,10 +12,8 @@ public class BuildPort : MonoBehaviour
     public PortType portType = PortType.Input;
 
     [Header("Grid (Prefab Local)")]
-    [Tooltip("������ �߽� ���� ��Ʈ �� ������. ��: 3x3�̸� �»��(-1,1), �����(0,1), ����(1,1)")]
     public Vector2Int localCellOffset = Vector2Int.zero;
 
-    [Tooltip("������ ���� ��Ʈ�� �ٶ󺸴� ����")]
     public Vector2Int localDirection = Vector2Int.right;
 
     [Header("Connection")]
@@ -68,14 +66,12 @@ public class BuildPort : MonoBehaviour
         switch (rot)
         {
             case 90:
-                // �ð� ���� 90��
                 return new Vector2Int(dir.y, -dir.x);
 
             case 180:
                 return new Vector2Int(-dir.x, -dir.y);
 
             case 270:
-                // �ð� ���� 270�� = �ݽð� 90��
                 return new Vector2Int(-dir.y, dir.x);
 
             default:
@@ -90,10 +86,8 @@ public class BuildPort : MonoBehaviour
 
         Vector2Int size = GetOwnerSize();
 
-        // �߽� ����(-1~1 ���� ��)�� startCell ����(0~2 ���� ��)���� ��ȯ
         Vector2Int offsetFromStart = CenterToStartOffset(localCellOffset, size);
 
-        // ȸ���� 0,0 ������ �ƴ϶� footprint ���� �������� ���ƾ� ��
         int rot = NormalizeRotation(OwnerBuilding.transform.eulerAngles.y);
         Vector2Int rotatedOffset = RotateOffsetInFootprint(offsetFromStart, size, rot);
 
@@ -139,10 +133,6 @@ public class BuildPort : MonoBehaviour
 
     private Vector2Int CenterToStartOffset(Vector2Int centerOffset, Vector2Int size)
     {
-        // 3x3 ����:
-        // (-1, -1) -> (0, 0)
-        // ( 0,  0) -> (1, 1)
-        // ( 1,  1) -> (2, 2)
         return new Vector2Int(
             centerOffset.x + (size.x / 2),
             centerOffset.y + (size.y / 2)
@@ -154,16 +144,12 @@ public class BuildPort : MonoBehaviour
         switch (rot)
         {
             case 90:
-                // �ð� ���� 90��
-                // (x, y) -> (y, width - 1 - x)
                 return new Vector2Int(offset.y, size.x - 1 - offset.x);
 
             case 180:
                 return new Vector2Int(size.x - 1 - offset.x, size.y - 1 - offset.y);
 
             case 270:
-                // �ð� ���� 270�� = �ݽð� 90��
-                // (x, y) -> (height - 1 - y, x)
                 return new Vector2Int(size.y - 1 - offset.y, offset.x);
 
             default:

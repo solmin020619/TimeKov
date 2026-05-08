@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class PlacedBuilding : MonoBehaviour
 {
-    // ���� �⺻ ������ ����������������������������������������������������������������������������������������������������������������
     [HideInInspector] public int facilityId;
     [HideInInspector] public int currentLevel = 1;
     [HideInInspector] public List<Vector2Int> occupiedCells = new List<Vector2Int>();
@@ -11,38 +10,27 @@ public class PlacedBuilding : MonoBehaviour
 
     public Vector2Int originCell;
 
-    // ���� ���̶���Ʈ ���� ���� ����������������������������������������������������������������������������������������������
     [Header("Highlight Colors")]
     public Color demolishColor = new Color(1f, 0.2f, 0.2f, 1f);
     public Color railConnectingColor = new Color(1f, 1f, 1f, 1f);
     [Range(0f, 1f)]
-    public float railBlendStrength = 0.35f; // ���� ���� ����� �󸶳� ������
+    public float railBlendStrength = 0.35f;
 
-    // ���� ���̶���Ʈ ���� (�뵵�� �и�) ��������������������������������������������������������������������������
     private bool _isDemolishHighlighted = false;
     private bool _isRailHighlighted = false;
 
-    // ���� MaterialPropertyBlock ������������������������������������������������������������������������������������������
-    // ��Ƽ���� ���� ���� �������� �ӽ� ���� ����
     private MaterialPropertyBlock _mpb;
     private static readonly int ColorPropID = Shader.PropertyToID("_Color");
-    private static readonly int BaseColorPropID = Shader.PropertyToID("_BaseColor"); // URP
+    private static readonly int BaseColorPropID = Shader.PropertyToID("_BaseColor");
 
-    // ���� �� ������
     private Color[] _originalColors;
 
-    // ���� ���̺� ��������������������������������������������������������������������������������������������������������������������������
     private BuildingLabelUI _labelUI;
-
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-    // ������ ĳ��
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
 
     public void CacheRenderers()
     {
         var all = GetComponentsInChildren<Renderer>(true);
 
-        // ���̶���Ʈ�� �ǹ� ���� ������ ����
         var filtered = new List<Renderer>(all.Length);
         foreach (var r in all)
         {
@@ -50,7 +38,6 @@ public class PlacedBuilding : MonoBehaviour
             if (r is ParticleSystemRenderer) continue;
             if (r is TrailRenderer) continue;
             if (r is LineRenderer) continue;
-            // _Color �Ǵ� _BaseColor ���� ��Ƽ���� ����
             if (!HasColorProperty(r)) continue;
 
             filtered.Add(r);
@@ -64,11 +51,6 @@ public class PlacedBuilding : MonoBehaviour
             _originalColors[i] = GetRendererColor(cachedRenderers[i]);
     }
 
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-    // ���̶���Ʈ Public API
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-
-    /// <summary>ö�� ��� ���� / ����</summary>
     public void SetDemolishHighlight(bool on)
     {
         if (_isDemolishHighlighted == on) return;
@@ -76,18 +58,12 @@ public class PlacedBuilding : MonoBehaviour
         RefreshHighlight();
     }
 
-    /// <summary>���� ���� �� ��� ƾƮ on / off</summary>
     public void SetRailConnectingHighlight(bool on)
     {
         if (_isRailHighlighted == on) return;
         _isRailHighlighted = on;
         RefreshHighlight();
     }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 고스트 모드 (라우팅 중 빌딩 머티리얼을 hologram 으로 swap)
-    // 끄면 원본 복원
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     private bool _isGhostMode = false;
     private Material[][] _savedSharedMaterials;
@@ -138,7 +114,6 @@ public class PlacedBuilding : MonoBehaviour
         }
     }
 
-    /// <summary>��� ���̶���Ʈ ��� ����</summary>
     public void ClearAllHighlights()
     {
         _isDemolishHighlighted = false;
@@ -146,14 +121,6 @@ public class PlacedBuilding : MonoBehaviour
         RefreshHighlight();
     }
 
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-    // ���̶���Ʈ ���� ����
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-
-    /// <summary>
-    /// ���� Ȱ�� ���̶���Ʈ ���¸� ����ؼ� �������� �ݿ�.
-    /// �켱����: ö�� > ���� > ������
-    /// </summary>
     private void RefreshHighlight()
     {
         if (cachedRenderers == null || cachedRenderers.Length == 0)
@@ -165,8 +132,6 @@ public class PlacedBuilding : MonoBehaviour
         }
         else if (_isRailHighlighted)
         {
-            // ���� ���� ����� blendStrength ������ ���
-            // ������ �Ͼ�� ���ư��� �ʰ� �����ϰ� ������� ȿ��
             ApplyBlendedMPB(railConnectingColor, railBlendStrength);
         }
         else
@@ -175,7 +140,6 @@ public class PlacedBuilding : MonoBehaviour
         }
     }
 
-    /// <summary>�ܻ����� MPB ���� (ö�ſ�)</summary>
     private void ApplyColorMPB(Color color, bool blendWithOriginal)
     {
         for (int i = 0; i < cachedRenderers.Length; i++)
@@ -193,7 +157,6 @@ public class PlacedBuilding : MonoBehaviour
         }
     }
 
-    /// <summary>���� �� + ��ǥ ���� strength�� Lerp�ؼ� MPB ���� (���� ƾƮ��)</summary>
     private void ApplyBlendedMPB(Color targetColor, float strength)
     {
         for (int i = 0; i < cachedRenderers.Length; i++)
@@ -208,25 +171,15 @@ public class PlacedBuilding : MonoBehaviour
         }
     }
 
-    /// <summary>MPB ����� ���� ��Ƽ���� �� ����</summary>
     private void ClearMPB()
     {
         for (int i = 0; i < cachedRenderers.Length; i++)
         {
             if (cachedRenderers[i] == null) continue;
-            // �� MPB�� ������ ��Ƽ���� �⺻������ ���ư�
             cachedRenderers[i].SetPropertyBlock(null);
         }
     }
 
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-    // ���Ž� ȣȯ (BuildManager�� ���� SetHighlight / RestoreColor ȣ�� ����)
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-
-    /// <summary>
-    /// ���� BuildManager�� ö�� ���̶���Ʈ ȣ�� ȣȯ��.
-    /// �� �ڵ�� SetDemolishHighlight(true)�� ������.
-    /// </summary>
     public void SetHighlight(Color color)
     {
         if (color == demolishColor || color.r > 0.8f && color.g < 0.3f)
@@ -235,17 +188,8 @@ public class PlacedBuilding : MonoBehaviour
             SetRailConnectingHighlight(true);
     }
 
-    /// <summary>
-    /// ���� BuildManager�� ö�� ���� ȣ�� ȣȯ��.
-    /// �� �ڵ�� SetDemolishHighlight(false)�� ������.
-    /// </summary>
     public void RestoreColor() => ClearAllHighlights();
 
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-    // ���̺� Public API
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-
-    /// <summary>BuildManager�� PlaceCurrentFacilityRoutine���� ȣ���ϼ���.</summary>
     public void SetupLabel(string facilityName, int gridW = 5, int gridH = 5, float cellSize = 1f)
     {
         _labelUI = GetComponent<BuildingLabelUI>();
@@ -256,16 +200,13 @@ public class PlacedBuilding : MonoBehaviour
             ? FacilityIconDatabase.Instance.GetIcon(facilityId)
             : null;
 
-        // �ǹ� ũ�� ��� �ִ� �ʺ�
         float buildingW = gridW * cellSize;
         float buildingH = gridH * cellSize;
         _labelUI.maxWidth = buildingW;
 
-        // ��Ʈ ���� (Awake���� ���� �ؾ� CreateLabel���� �����)
         if (FacilityIconDatabase.Instance != null && FacilityIconDatabase.Instance.labelFont != null)
             _labelUI.fontAsset = FacilityIconDatabase.Instance.labelFont;
 
-        // �ǹ� ���߾�, ���̴� �˳��ϰ�
         _labelUI.labelOffset = new Vector3(0f, 10.0f, 0f);
 
         _labelUI.Setup(facilityId, facilityName, icon);
@@ -273,10 +214,6 @@ public class PlacedBuilding : MonoBehaviour
 
     public void ShowLabel() => _labelUI?.ShowLabel();
     public void HideLabel() => _labelUI?.HideLabel();
-
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
-    // ����
-    // ��������������������������������������������������������������������������������������������������������������������������������������������
 
     private static bool HasColorProperty(Renderer r)
     {
@@ -297,7 +234,6 @@ public class PlacedBuilding : MonoBehaviour
 
     private static void SetColorOnMPB(MaterialPropertyBlock mpb, Renderer r, Color color)
     {
-        // URP�� _BaseColor, Built-in�� _Color
         if (r.sharedMaterial.HasProperty(BaseColorPropID))
             mpb.SetColor(BaseColorPropID, color);
         else
