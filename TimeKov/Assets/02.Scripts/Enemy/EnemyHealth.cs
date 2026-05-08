@@ -64,6 +64,10 @@ public class EnemyHealth : MonoBehaviour
 
         isDead = true;
 
+        var brain = GetComponent<EnemyBrain>();
+        string monsterId = brain != null && brain.Data != null ? brain.Data.enemyName : "unknown";
+        GameEvents.RaiseEnemyKilled(monsterId);
+
         feedback?.PlayDeath();
 
         if (enemyWorldUI != null)

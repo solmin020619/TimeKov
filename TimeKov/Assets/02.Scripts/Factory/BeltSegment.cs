@@ -187,19 +187,31 @@ namespace TIMEKOV.Factory
                 cur = cur.nextSegment;
             }
 
-            // chain[0]/chain[last]만 보지 않고 체인 전체에서 찾기
             MachineBase src = null;
             MachineBase tgt = null;
-
             foreach (var seg in chain)
             {
                 if (seg.sourceM != null) src = seg.sourceM;
                 if (seg.targetM != null) tgt = seg.targetM;
             }
 
-            Debug.Log($"[Belt] {gameObject.name} 체인길이={chain.Count} src={src?.name ?? "null"} tgt={tgt?.name ?? "null"}");
-
             if (src == null || tgt == null || src == tgt) return;
+
+            // chain[0]이 src보다 tgt에 가까우면 체인이 반대 → 뒤집고 링크도 재설정
+            float distToSrc = Vector3.Distance(chain[0].transform.position, src.transform.position);
+            float distToTgt = Vector3.Distance(chain[0].transform.position, tgt.transform.position);
+
+            if (distToTgt < distToSrc)
+            {
+                chain.Reverse();
+
+                // prevSegment/nextSegment 링크 재설정
+                for (int i = 0; i < chain.Count; i++)
+                {
+                    chain[i].prevSegment = i > 0 ? chain[i - 1] : null;
+                    chain[i].nextSegment = i < chain.Count - 1 ? chain[i + 1] : null;
+                }
+            }
 
             foreach (var seg in chain)
             {
@@ -229,41 +241,47 @@ namespace TIMEKOV.Factory
                 cur = cur.nextSegment;
             }
 
-            // 체인 방향 확인 — chain[0]이 sourceM에 가까워야 함
-            // 반대면 뒤집기
-            if (sourceM != null && chain.Count > 1)
+            // 전체 경유점 수집
+            var waypoints = new List<Vector3>();
+            for (int i = 0; i < chain.Count; i++)
             {
-                float distFirst = Vector3.Distance(chain[0].transform.position, sourceM.transform.position);
-                float distLast = Vector3.Distance(chain[chain.Count - 1].transform.position, sourceM.transform.position);
-                if (distLast < distFirst)
-                    chain.Reverse();
+                Vector3 back = chain[i].endpointBack != null
+                    ? chain[i].endpointBack.position
+                    : chain[i].transform.position;
+
+                Vector3 front = chain[i].endpointFront != null
+                    ? chain[i].endpointFront.position
+                    : chain[i].transform.position + chain[i].transform.forward;
+
+                Vector3 mid = (back + front) * 0.5f;
+
+                if (i == 0) waypoints.Add(back);
+                waypoints.Add(mid);
+                waypoints.Add(front);
             }
 
-            // 이하 기존 코드 동일
+            // 시각 오브젝트 생성
             GameObject visual = null;
-            if (beltItemPrefab != null && chain[0].endpointBack != null)
+            if (beltItemPrefab != null && waypoints.Count > 0)
             {
-                visual = Instantiate(beltItemPrefab, chain[0].endpointBack.position, beltItemPrefab.transform.rotation);
+                visual = Instantiate(beltItemPrefab, waypoints[0], beltItemPrefab.transform.rotation);
                 if (visual.TryGetComponent<BeltItemVisual>(out var vis))
                     vis.Setup(itemId, amount);
             }
 
-            for (int i = 0; i < chain.Count; i++)
+            // 경유점을 순서대로 이동
+            float timePerPoint = travelTimePerSegment / 2f;
+            for (int i = 0; i < waypoints.Count - 1; i++)
             {
-                Vector3 from = chain[i].endpointBack != null
-                    ? chain[i].endpointBack.position
-                    : chain[i].transform.position;
-
-                Vector3 to = chain[i].endpointFront != null
-                    ? chain[i].endpointFront.position
-                    : chain[i].transform.position + chain[i].transform.forward;
+                Vector3 from = waypoints[i];
+                Vector3 to = waypoints[i + 1];
 
                 float elapsed = 0f;
-                while (elapsed < travelTimePerSegment)
+                while (elapsed < timePerPoint)
                 {
                     elapsed += Time.deltaTime;
                     if (visual != null)
-                        visual.transform.position = Vector3.Lerp(from, to, elapsed / travelTimePerSegment);
+                        visual.transform.position = Vector3.Lerp(from, to, elapsed / timePerPoint);
                     yield return null;
                 }
             }
@@ -271,6 +289,7 @@ namespace TIMEKOV.Factory
             if (visual != null) Destroy(visual);
             targetM?.Receive(itemId, amount);
         }
+
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.green;

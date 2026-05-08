@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee264a6e4c6f7b840ab57fdcdde50956, type: 3}
+  m_Name: Skill1_ReaperSlash
+  m_EditorClassIdentifier: 
+  SkillSheetId: 0
+  SkillIcon: {fileID: 0}
+  CoolTime: 1.2
+  Hit1Delay: 0.25
+  Hit1Damage: 80
+  Hit1Radius: 2.5
+  Hit2Delay: 0.6
+  Hit2Damage: 120
+  Hit2Radius: 3
+  TotalDuration: 0.9
+  HitHeight: 1
+  EnemyLayer:
+    serializedVersion: 2
+    m_Bits: 64

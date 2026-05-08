@@ -7,6 +7,7 @@ public class EnemyBrain : MonoBehaviour
 {
     [Header("Data")]
     [SerializeField] private MeleeEnemyData data;
+    public MeleeEnemyData Data => data;
 
     [Header("Sensors")]
     [SerializeField] private VisionSensor visionSensor;

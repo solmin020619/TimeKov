@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,24 +7,32 @@ using UnityEngine;
 public class PlayerSkillComponent : MonoBehaviour
 {
     [Header("Combo Attacks")]
-    public List<ComboAttackBase> ComboAttackAssets;
+    public List<ComboAttackBase> ComboAttackAssets; // 인스펙터에서 Attack1/2/3 SO 등록
+
+    [Header("Skills")]
+    public SkillBase Skill1Asset;   // 인스펙터에서 Skill1_ReaperSlash.asset 연결
+    public SkillBase Skill2Asset;   // 인스펙터에서 Skill2_CycloneBreak.asset 연결
+    public SkillBase Skill3Asset;   // 인스펙터에서 Skill3_ExecutionFall.asset 연결
 
     private Player _player;
 
-    // ── 일반 스킬 ────────────────────────────────────────────
+    // 일반 스킬
     private Dictionary<SkillSheetId, SkillBase> _skillDatabase = new();
     private Dictionary<SkillSheetId, float> _cooldownTimers = new();
 
-    // ── 콤보 공격 ────────────────────────────────────────────
+    // 스킬 게이지 (최대 100)
+    private Dictionary<SkillSheetId, float> _skillGauges = new();
+
+    // 콤보 공격
     private List<ComboAttackBase> _comboAttacks = new();
     private int _comboIndex = 0;
     private float _comboTimer = 0f;
     private bool _comboInputReceived = false;
 
-    // ── 공통 ─────────────────────────────────────────────────
+    // 공통
     private Coroutine _currentRoutine;
-    private SkillBase _currentSkill;        // 일반 스킬용
-    private ComboAttackBase _currentCombo;      // 콤보 공격용
+    private SkillBase _currentSkill;
+    private ComboAttackBase _currentCombo;
 
     public bool IsExecuting => _currentRoutine != null;
 
@@ -31,6 +40,16 @@ public class PlayerSkillComponent : MonoBehaviour
     {
         _player = GetComponent<Player>();
 
+        // 게이지 초기화
+        foreach (SkillSheetId id in Enum.GetValues(typeof(SkillSheetId)))
+            _skillGauges[id] = 0f;
+
+        // 스킬 등록
+        if (Skill1Asset != null) AddSkill(Skill1Asset);
+        if (Skill2Asset != null) AddSkill(Skill2Asset);
+        if (Skill3Asset != null) AddSkill(Skill3Asset);
+
+        // 콤보 등록
         foreach (var attack in ComboAttackAssets)
             RegisterComboAttack(attack);
     }
@@ -46,7 +65,20 @@ public class PlayerSkillComponent : MonoBehaviour
         if (_player.Input.Skill3Pressed) TryExecute(SkillSheetId.Skill3);
     }
 
-    // ── 콤보 ─────────────────────────────────────────────────
+    // 게이지 추가, 적 적중 시 ComboAttackBase에서 호출
+    public void AddGauge(SkillSheetId id, float amount)
+    {
+        if (!_skillGauges.ContainsKey(id)) return;
+        _skillGauges[id] = Mathf.Min(100f, _skillGauges[id] + amount);
+    }
+
+    // 현재 게이지 조회
+    public float GetGauge(SkillSheetId id)
+    {
+        return _skillGauges.TryGetValue(id, out float val) ? val : 0f;
+    }
+
+    // 콤보
     public void RegisterComboAttack(ComboAttackBase attack)
     {
         _comboAttacks.Add(attack);
@@ -96,11 +128,10 @@ public class PlayerSkillComponent : MonoBehaviour
 
         _comboTimer -= Time.deltaTime;
 
-        if (_comboTimer <= 0)
-            _comboIndex = 0;
+        if (_comboTimer <= 0) _comboIndex = 0;
     }
 
-    // ── 일반 스킬 ─────────────────────────────────────────────
+    // 일반 스킬
     public void AddSkill(SkillBase skill)
     {
         if (!_skillDatabase.ContainsKey(skill.SkillSheetId))
@@ -109,9 +140,17 @@ public class PlayerSkillComponent : MonoBehaviour
 
     public void TryExecute(SkillSheetId id)
     {
+        Debug.Log($"TryExecute: {id} | IsExecuting={IsExecuting} | HasSkill={_skillDatabase.ContainsKey(id)} | Gauge={_skillGauges[id]} | Cooldown={(_cooldownTimers.TryGetValue(id, out float r) ? r : 0f)}");
+
         if (IsExecuting) return;
         if (!_skillDatabase.TryGetValue(id, out var skill)) return;
         if (_cooldownTimers.TryGetValue(id, out float remaining) && remaining > 0) return;
+
+        // 게이지 100 미만이면 사용 불가
+        if (_skillGauges[id] < 100f) return;
+
+        // 사용 시 게이지 초기화
+        _skillGauges[id] = 0f;
 
         _cooldownTimers[id] = skill.CoolTime;
         _currentSkill = skill;
