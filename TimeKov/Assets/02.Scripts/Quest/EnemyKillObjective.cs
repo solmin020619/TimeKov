@@ -4,7 +4,7 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Quest/Objective/EnemyKill")]
 public class EnemyKillObjective : ObjectiveSO
 {
-    [Tooltip("빈 값이면 모든 적 카운트 — '아무 적이나 N마리'")]
+    [Tooltip("빈 값이면 모든 적 카운트 ('아무 적이나 N마리')")]
     public string enemyId;
     public int requiredCount = 1;
 
@@ -39,7 +39,7 @@ public class EnemyKillObjective : ObjectiveSO
             Debug.LogError($"[EnemyKill] '{name}' label 필수", this);
         if (requiredCount > 1)
             Debug.LogWarning($"[EnemyKill] '{name}' requiredCount={requiredCount}. " +
-                             "한정 자원이면 영구 미완료 위험 — 디자이너 가이드 참조.", this);
+                             "한정 자원이면 영구 미완료 위험. 디자이너 가이드 참조.", this);
     }
 #endif
 }

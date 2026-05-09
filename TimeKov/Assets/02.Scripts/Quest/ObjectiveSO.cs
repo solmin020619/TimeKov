@@ -3,8 +3,8 @@ using UnityEngine;
 
 public enum ActivationTiming
 {
-    OnUIActivated,   // 슬라이드 인 끝난 시점 (입력형 — 고인물 방어)
-    OnUIPresented,   // 슬라이드 인 시작 시점 (게임 이벤트형 — 백그라운드 카운트)
+    OnUIActivated,   // 슬라이드 인 끝난 시점 (입력형, 고인물 방어)
+    OnUIPresented,   // 슬라이드 인 시작 시점 (게임 이벤트형, 백그라운드 카운트)
 }
 
 public abstract class ObjectiveSO : ScriptableObject
@@ -16,7 +16,7 @@ public abstract class ObjectiveSO : ScriptableObject
     public float startGracePeriod = 0.1f;
 
     /// <summary>
-    /// 활성화 시점. 클래스가 강제 — 인스펙터 노출 X.
+    /// 활성화 시점. 클래스가 강제. 인스펙터 노출 X.
     /// 입력형(PressKey/MoveDistance) = OnUIActivated (고인물 방어)
     /// 게임 이벤트형(EnemyKill/ReachTrigger) = OnUIPresented (백그라운드 카운트)
     /// </summary>
@@ -59,6 +59,4 @@ public abstract class ObjectiveSO : ScriptableObject
     }
 
     protected void ReportProgress(float p) => OnProgressChanged?.Invoke(Mathf.Clamp01(p));
-
-    public void ForceComplete() => Complete();
 }

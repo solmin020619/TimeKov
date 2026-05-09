@@ -10,11 +10,11 @@ public class QuestSO : ScriptableObject
     public ObjectiveSO[] objectives;
 
     [Header("Designer Hooks (optional)")]
-    [Tooltip("UI 슬라이드 인 시작 — 등장 사운드, 카메라 줌 등")]
+    [Tooltip("UI 슬라이드 인 시작. 등장 사운드, 카메라 줌 등")]
     public UnityEvent onShown;
-    [Tooltip("입력 카운트 시작 — 게임플레이 큐, 적 스폰 등")]
+    [Tooltip("입력 카운트 시작. 게임플레이 큐, 적 스폰 등")]
     public UnityEvent onActivated;
-    [Tooltip("완료 — 사운드, 다음 단계 트리거 (보상은 본 게임 갈 때)")]
+    [Tooltip("완료. 사운드, 다음 단계 트리거 (보상은 본 게임 갈 때)")]
     public UnityEvent onCompleted;
 
 #if UNITY_EDITOR

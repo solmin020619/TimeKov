@@ -4,7 +4,7 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Quest/Tutorial")]
 public class TutorialSO : ScriptableObject
 {
-    [Tooltip("PlayerPrefs 키 prefix — 본 게임 메인 퀘스트와 충돌 방지. ⚠️ 변경 시 진행도 리셋")]
+    [Tooltip("PlayerPrefs 키 prefix. 본 게임 메인 퀘스트와 충돌 방지. 변경 시 진행도 리셋")]
     public string savePrefix = "tutorial";
     public CategorySO[] categories;
 

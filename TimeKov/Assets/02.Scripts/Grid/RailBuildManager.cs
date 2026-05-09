@@ -357,7 +357,7 @@ public class RailBuildManager : MonoBehaviour
 
         if (newTarget == _railTargetHighlightedBuilding) return;
 
-        // Remove old target highlight (skip if it's the source — keep that on).
+        // Remove old target highlight (skip if it's the source - keep that on).
         if (_railTargetHighlightedBuilding != null
             && _railTargetHighlightedBuilding != _railHighlightedBuilding)
         {
@@ -641,7 +641,7 @@ public class RailBuildManager : MonoBehaviour
         if (firstPiece == null)
             return false;
 
-        // 시작 셀에도 flow direction 미리 부여 → 라우팅 중 코너에서 ghost 와 시각 일치
+        // 시작 셀에도 flow direction 미리 부여. 라우팅 중 코너에서 ghost 와 시각 일치
         firstPiece.flowFrom = -port.GetWorldDirection();
         firstPiece.pathIndex = 0;
         firstPiece.ApplyVisual(straightPrefab, cornerPrefab);
@@ -936,7 +936,7 @@ public class RailBuildManager : MonoBehaviour
     private bool IsExactFinishCandidate(BuildPort port, Vector2Int prevCell, Vector2Int nextCell, int extraSimulatedCells = 0)
     {
         if (port == null || !port.CanEndConnection()) return false;
-        // startPort 가 null 이면 레일 셀에서 시작한 케이스 — port-에서-시작 검사만 스킵
+        // startPort 가 null 이면 레일 셀에서 시작한 케이스. port-에서-시작 검사만 스킵
         if (startPort != null && port == startPort) return false;
 
         // Need at least one forward expansion before finishing. During simulation,
@@ -1264,7 +1264,7 @@ public class RailBuildManager : MonoBehaviour
         else
             UpdatePathPreview();
 
-        // Always run — keeps a per-cell preview at the mouse position so the
+        // Always run - keeps a per-cell preview at the mouse position so the
         // user can see the rail mode is active even on plain ground, and so
         // BuildGridOverlay has a position to anchor the grid patch to.
         UpdateSinglePreview();
@@ -1292,7 +1292,7 @@ public class RailBuildManager : MonoBehaviour
         }
         else if (TryGetMouseCell(out targetCell))
         {
-            // 라우팅 안 하는 중에 기존 레일 셀(슬롯 빈) 위에 hover → 거기서 시작 가능 (녹색)
+            // 라우팅 안 하는 중에 기존 레일 셀(슬롯 빈) 위에 hover 시 거기서 시작 가능 (녹색)
             if (!isRouting
                 && railMap.TryGetValue(targetCell, out RailPiece existing)
                 && existing != null
@@ -1402,7 +1402,7 @@ public class RailBuildManager : MonoBehaviour
             if (hasNext)
                 ApplyConnectionFromNeighbor(cell, nextCell, ref up, ref down, ref left, ref right);
 
-            // straight vs corner — RailPiece.ApplyVisual 와 동일한 판정 로직
+            // straight vs corner. RailPiece.ApplyVisual 와 동일한 판정 로직
             int connCount = (up ? 1 : 0) + (down ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0);
             bool useStraight = connCount <= 1 || (up && down) || (left && right);
             Material ghostOverride = useStraight ? ghostStraightMaterial : ghostCornerMaterial;
@@ -1545,7 +1545,7 @@ public class RailBuildManager : MonoBehaviour
         bool wantLeft  = delta == Vector2Int.left;
         bool wantRight = delta == Vector2Int.right;
 
-        // Already connected in that direction → nothing to overlay.
+        // Already connected in that direction. nothing to overlay.
         if ((wantUp && piece.up) || (wantDown && piece.down) ||
             (wantLeft && piece.left) || (wantRight && piece.right))
             return;
