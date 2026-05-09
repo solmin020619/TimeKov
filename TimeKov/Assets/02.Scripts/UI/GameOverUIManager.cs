@@ -1,24 +1,23 @@
 ﻿using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 public class GameOverUIManager : MonoBehaviour
 {
-    public PlayerTime playerTime;
     public GameObject gameOverPanel;
     public CanvasGroup gameOverCanvasGroup;
-
     public CanvasGroup screenBlur;
 
     public AudioSource deathAudio;
     public float flatlineStartTime = 6.8f;
 
-    public float effectStartTime = 8f;
+    [Header("HP 기반 블러 시작 비율 (0~1, 예: 0.3 = HP 30% 이하)")]
+    public float blurStartHpRatio = 0.3f;
 
     public float fadeDuration = 1f;
     public float returnDelay = 3f;
 
+    private Player _player;
     private bool isDead = false;
 
     void Start()
@@ -32,37 +31,30 @@ public class GameOverUIManager : MonoBehaviour
             screenBlur.gameObject.SetActive(false);
         }
 
-        if (playerTime != null) playerTime.onTimeDepleted += TriggerGameOver;
+        _player = FindFirstObjectByType<Player>();
+        if (_player != null) _player.Stat.OnDead += TriggerGameOver;
     }
 
     void Update()
     {
-        if (isDead) return;
-        if (playerTime == null) return;
+        if (isDead || _player == null) return;
 
-        float current = playerTime.currentTime;
+        float hpRatio = _player.Stat.CurrentHp / _player.Stat.MaxHp;
         float targetAlpha = 0f;
 
-        if (current <= effectStartTime && current > 0)
+        if (hpRatio <= blurStartHpRatio && hpRatio > 0f)
         {
-            targetAlpha = 1f - (current / effectStartTime);
+            targetAlpha = 1f - (hpRatio / blurStartHpRatio);
 
             if (screenBlur != null && !screenBlur.gameObject.activeSelf)
-            {
                 screenBlur.gameObject.SetActive(true);
-            }
 
             if (deathAudio != null)
             {
-                if (!deathAudio.isPlaying)
-                {
-                    deathAudio.Play();
-                }
+                if (!deathAudio.isPlaying) deathAudio.Play();
 
                 if (deathAudio.time >= flatlineStartTime)
-                {
                     deathAudio.time = 0f;
-                }
 
                 deathAudio.volume = targetAlpha;
             }
@@ -70,9 +62,7 @@ public class GameOverUIManager : MonoBehaviour
         else
         {
             if (deathAudio != null && deathAudio.isPlaying)
-            {
                 deathAudio.Stop();
-            }
         }
 
         if (screenBlur != null && screenBlur.gameObject.activeSelf)
@@ -91,7 +81,6 @@ public class GameOverUIManager : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
-
         StartCoroutine(DeathRoutine());
     }
 
@@ -113,7 +102,6 @@ public class GameOverUIManager : MonoBehaviour
             deathAudio.time = 0f;
             if (!deathAudio.isPlaying) deathAudio.Play();
             deathAudio.volume = 1f;
-
             yield return new WaitForSecondsRealtime(1.5f);
         }
 
@@ -128,9 +116,8 @@ public class GameOverUIManager : MonoBehaviour
         while (t < currentFadeDuration)
         {
             t += Time.unscaledDeltaTime;
-
-            if (screenBlur != null) screenBlur.alpha = Mathf.Lerp(startBlur, 1f, t / currentFadeDuration);
-
+            if (screenBlur != null)
+                screenBlur.alpha = Mathf.Lerp(startBlur, 1f, t / currentFadeDuration);
             yield return null;
         }
 
@@ -145,19 +132,14 @@ public class GameOverUIManager : MonoBehaviour
         {
             fadeT += Time.unscaledDeltaTime;
             if (gameOverCanvasGroup != null)
-            {
                 gameOverCanvasGroup.alpha = Mathf.Lerp(0f, 1f, fadeT / fadeDuration);
-            }
             yield return null;
         }
 
         yield return new WaitForSecondsRealtime(returnDelay);
 
-        // ✅ [추가] 레이드 사망 시 세션 데이터 초기화 (인벤/장비/무기탄창 리셋)
         if (PlayerSessionData.Instance != null)
-        {
             PlayerSessionData.Instance.ClearSnapshot();
-        }
 
         Time.timeScale = 1f;
         SceneManager.LoadScene("Base");
@@ -165,9 +147,7 @@ public class GameOverUIManager : MonoBehaviour
 
     void OnDestroy()
     {
-        if (playerTime != null)
-        {
-            playerTime.onTimeDepleted -= TriggerGameOver;
-        }
+        if (_player != null)
+            _player.Stat.OnDead -= TriggerGameOver;
     }
 }

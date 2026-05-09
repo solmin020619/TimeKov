@@ -10,7 +10,7 @@ public class PauseMenuManager : MonoBehaviour
     [Header("Settings")]
     public string mainMenuSceneName = "MainMenu";
 
-    private PlayerController playerController;
+    private Player _player;
     private bool isPaused = false;
 
     void Start()
@@ -18,7 +18,7 @@ public class PauseMenuManager : MonoBehaviour
         if (pausePanel != null) pausePanel.SetActive(false);
         Time.timeScale = 1f;
 
-        playerController = FindFirstObjectByType<PlayerController>();
+        _player = FindFirstObjectByType<Player>();
     }
 
     void Update() { }
@@ -43,7 +43,7 @@ public class PauseMenuManager : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        if (playerController != null) playerController.enabled = false;
+        if (_player != null) _player.Movement.LockMovement(true);
     }
 
     public void ResumeGame()
@@ -60,11 +60,7 @@ public class PauseMenuManager : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        if (playerController != null)
-        {
-            playerController.enabled = true;
-            playerController.SyncSettings();
-        }
+        if (_player != null) _player.Movement.LockMovement(false);
     }
 
     public void OnClickResume()
