@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 
@@ -12,7 +12,6 @@ public class CategoryWidget : MonoBehaviour
 
     CategoryRuntime _rt;
     QuestEntry _currentEntry;
-    bool _isPlayingComplete;
 
     public void Init(CategoryRuntime rt)
     {
@@ -37,14 +36,12 @@ public class CategoryWidget : MonoBehaviour
     {
         if (_currentEntry == null) { onFinished?.Invoke(); return; }
 
-        _isPlayingComplete = true;
         var entry = _currentEntry;
         _currentEntry = null;
 
         entry.PlayCompleteSequence(() =>
         {
             if (entry != null) Destroy(entry.gameObject);
-            _isPlayingComplete = false;
             onFinished?.Invoke();
         });
     }
@@ -54,21 +51,31 @@ public class CategoryWidget : MonoBehaviour
     {
         StopAllCoroutines();
         if (_currentEntry != null) { Destroy(_currentEntry.gameObject); _currentEntry = null; }
-        _isPlayingComplete = false;
     }
 
-    public void FadeOutCategory() => StartCoroutine(FadeRoutine());
+    [Header("Fade timing")]
+    [Tooltip("카테고리 완료 후 fade 시작까지 대기 시간 (사용자가 완료 인지)")]
+    [SerializeField] float fadeOutHoldTime = 1.5f;
+    [Tooltip("alpha 1→0 fade 길이")]
+    [SerializeField] float fadeOutDuration = 0.5f;
 
-    IEnumerator FadeRoutine()
+    public void FadeOutCategory()
     {
-        yield return new WaitForSecondsRealtime(2f);
+        // hold → fade alpha 0 → SetActive(false). 부모 VLG가 자동 reflow.
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        seq.AppendInterval(fadeOutHoldTime);
+        if (categoryGroup) seq.Append(categoryGroup.DOFade(0f, fadeOutDuration));
+        seq.OnComplete(() => gameObject.SetActive(false));
+    }
 
-        float t = 0f;
-        while (t < 0.5f)
-        {
-            t += Time.unscaledDeltaTime;
-            categoryGroup.alpha = Mathf.Lerp(1f, 0.35f, t / 0.5f);
-            yield return null;
-        }
+    /// <summary>
+    /// 향후 재활성화용 — 특정 영역 진입 시 등 외부 트리거로 호출.
+    /// SetActive 복원 + alpha 1. 단, CategoryRuntime의 activeQuestIndex 등 데이터는
+    /// QuestManager 측에서 별도 리셋 필요 (이 메서드는 UI 표시만 담당).
+    /// </summary>
+    public void ShowCategory()
+    {
+        gameObject.SetActive(true);
+        if (categoryGroup) categoryGroup.alpha = 1f;
     }
 }

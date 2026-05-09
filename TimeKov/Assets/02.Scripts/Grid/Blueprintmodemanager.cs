@@ -8,18 +8,18 @@ public class BlueprintModeManager : MonoBehaviour
     [SerializeField] private KeyCode cancelKey = KeyCode.Escape;
 
     [Header("Selection Box Visual")]
-    [Tooltip("µå·¡±× ¹Ú½º Å×µÎ¸® »ö»ó")]
+    [Tooltip("ï¿½å·¡ï¿½ï¿½ ï¿½Ú½ï¿½ ï¿½×µÎ¸ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Color selectionOutlineColor = new Color(1f, 1f, 1f, 0.9f);
-    [Tooltip("µå·¡±× ¹Ú½º ³»ºÎ Ã¤¿ò »ö»ó (¾ËÆÄ ³·°Ô)")]
+    [Tooltip("ï¿½å·¡ï¿½ï¿½ ï¿½Ú½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã¤ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)")]
     [SerializeField] private Color selectionFillColor = new Color(0.4f, 0.85f, 1f, 0.15f);
-    [Tooltip("Å×µÎ¸® µÎ²² (ÇÈ¼¿)")]
+    [Tooltip("ï¿½×µÎ¸ï¿½ ï¿½Î²ï¿½ (ï¿½È¼ï¿½)")]
     [SerializeField] private float selectionBorderPixels = 1f;
 
     [Header("Ghost Visual")]
-    [Tooltip("½Ã¼³ À¯·É ÇÁ¸®ºä¿¡ Àû¿ëÇÒ ¸ÓÆ¼¸®¾ó. BuildManager.hologramMaterial Àç»ç¿ë °¡´É.")]
+    [Tooltip("ï¿½Ã¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ä¿¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½. BuildManager.hologramMaterial ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.")]
     [SerializeField] private Material ghostFacilityMaterial;
 
-    [Tooltip("·¹ÀÏ À¯·É Ç¥½Ã¿ë ¸ÓÆ¼¸®¾ó(Áö¸é¿¡ ÀÛÀº »ç°¢ÇüÀ¸·Î Ç¥½Ã).")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½Ã¿ï¿½ ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½é¿¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ç°¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½).")]
     [SerializeField] private Material ghostRailMaterial;
 
     [SerializeField] private Color ghostValidTint = new Color(0.4f, 1f, 0.5f, 1f);
@@ -221,7 +221,7 @@ public class BlueprintModeManager : MonoBehaviour
         int bbMinX = int.MaxValue, bbMinZ = int.MaxValue;
         int bbMaxX = int.MinValue, bbMaxZ = int.MinValue;
 
-        PlacedBuilding[] allBuildings = FindObjectsOfType<PlacedBuilding>();
+        PlacedBuilding[] allBuildings = FindObjectsByType<PlacedBuilding>(FindObjectsSortMode.None);
         var captured = new List<(PlacedBuilding pb, Vector2Int size)>();
 
         foreach (var pb in allBuildings)
@@ -608,8 +608,8 @@ public class BlueprintModeManager : MonoBehaviour
         GUI.color = prev;
     }
 
-    private void UpdateSelectionBoxVisual() { /* OnGUI°¡ ¸Å ÇÁ·¹ÀÓ ±×¸² */ }
-    private void HideSelectionBox() { /* OnGUI°¡ isMouseDragging=false¸é ¾È ±×¸² */ }
+    private void UpdateSelectionBoxVisual() { /* OnGUIï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ */ }
+    private void HideSelectionBox() { /* OnGUIï¿½ï¿½ isMouseDragging=falseï¿½ï¿½ ï¿½ï¿½ ï¿½×¸ï¿½ */ }
 
     private bool TryGetCursorCell(out Vector2Int cell)
     {

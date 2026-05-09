@@ -72,7 +72,7 @@ public class UIStateManager : MonoBehaviour
             return;
         }
         Instance = this;
-        buildManager = FindObjectOfType<BuildManager>();
+        buildManager = FindAnyObjectByType<BuildManager>();
     }
 
     void Update()
@@ -105,7 +105,7 @@ public class UIStateManager : MonoBehaviour
     public void HandleEscape()
     {
         if (buildManager == null)
-            buildManager = FindObjectOfType<BuildManager>();
+            buildManager = FindAnyObjectByType<BuildManager>();
 
         // 건축 모드 ESC는 BuildManager가 단독 처리
         if (buildManager != null && buildManager.IsBuildMode)

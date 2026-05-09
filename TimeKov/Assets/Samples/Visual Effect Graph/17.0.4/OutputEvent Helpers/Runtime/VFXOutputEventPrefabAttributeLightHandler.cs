@@ -26,7 +26,9 @@ namespace UnityEngine.VFX.Utility
 #if VFX_OUTPUTEVENT_HDRP_10_0_0_OR_NEWER
             var hdlight = GetComponent<HDAdditionalLightData>();
             hdlight.SetColor(c);
+#pragma warning disable CS0618 // Unity 샘플 — SetIntensity deprecated이지만 단위 변환 로직 따로 작업하기 부담, 경고만 억제
             hdlight.SetIntensity(intensity);
+#pragma warning restore CS0618
 #else
             var light = GetComponent<Light>();
             light.color = c;

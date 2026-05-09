@@ -298,18 +298,29 @@ public static class QuestPrefabBuilder
         var rt = root.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(280f, 40f);
 
-        var le = root.AddComponent<LayoutElement>();
-        le.preferredHeight = 40f;
+        // VLG + CSF — 자식(SingleRow / MultiRow) 한쪽만 활성, 그쪽 preferredSize 따라 자동 fit
+        var rootVLG = root.AddComponent<VerticalLayoutGroup>();
+        rootVLG.padding = new RectOffset(0, 0, 0, 0);
+        rootVLG.spacing = 0f;
+        rootVLG.childControlWidth = true;
+        rootVLG.childControlHeight = true;
+        rootVLG.childForceExpandWidth = true;
+        rootVLG.childForceExpandHeight = false;
+        var rootCSF = root.AddComponent<ContentSizeFitter>();
+        rootCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         root.AddComponent<CanvasGroup>();
         var audio = root.AddComponent<AudioSource>();
         audio.playOnAwake = false;
 
         // ── SingleRow ────────────────────────────────
+        // VLG가 자식 위치 잡으니까 stretch 안 함. LayoutElement로 높이만 선언.
+        // 28px = 텍스트 14px + 위아래 7px 패딩. MultiTitle(22)이랑 시각 균형.
         var singleRow = MakeUI("SingleRow", root.transform);
-        SetStretch(singleRow.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
+        var singleRowLE = singleRow.AddComponent<LayoutElement>();
+        singleRowLE.preferredHeight = 28f;
 
-        // SingleFlash (배경, 가장 먼저 그려져야 함)
+        // SingleFlash (배경, 가장 먼저 그려져야 함) — SingleRow 내부 anchor stretch
         var singleFlashGO = MakeUI("SingleFlash", singleRow.transform);
         SetStretch(singleFlashGO.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
         var singleFlashImg = AddImage(singleFlashGO, GreenAccentTransparent);
@@ -338,49 +349,59 @@ public static class QuestPrefabBuilder
         var singleCheckImg = AddImage(singleCheckGO, GreenAccent);
 
         // ── MultiRow (초기엔 비활성) ──────────────────
+        // VLG + CSF — MultiTitle + MultiObjectiveList 자동 stack, 데코는 ignoreLayout
         var multiRow = MakeUI("MultiRow", root.transform);
-        SetStretch(multiRow.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
+        var multiRowVLG = multiRow.AddComponent<VerticalLayoutGroup>();
+        multiRowVLG.padding = new RectOffset(0, 0, 0, 0);
+        multiRowVLG.spacing = 4f;
+        multiRowVLG.childControlWidth = true;
+        multiRowVLG.childControlHeight = true;
+        multiRowVLG.childForceExpandWidth = true;
+        multiRowVLG.childForceExpandHeight = false;
+        var multiRowCSF = multiRow.AddComponent<ContentSizeFitter>();
+        multiRowCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         multiRow.SetActive(false);
 
-        // MultiFlash (배경)
+        // MultiFlash (배경) — VLG 무시, 풀 stretch 유지
         var multiFlashGO = MakeUI("MultiFlash", multiRow.transform);
+        var multiFlashLE = multiFlashGO.AddComponent<LayoutElement>();
+        multiFlashLE.ignoreLayout = true;
         SetStretch(multiFlashGO.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
         var multiFlashImg = AddImage(multiFlashGO, GreenAccentTransparent);
 
-        // MultiTitle — 상단 22px
+        // MultiTitle — VLG 첫 번째 자식, LE로 높이 22 선언
         var multiTitleGO = MakeUI("MultiTitle", multiRow.transform);
-        var multiTitleRT = multiTitleGO.GetComponent<RectTransform>();
-        SetAnchor(multiTitleRT,
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, 0f), new Vector2(0f, 22f));
+        var multiTitleLE = multiTitleGO.AddComponent<LayoutElement>();
+        multiTitleLE.preferredHeight = 22f;
         var multiTitle = multiTitleGO.AddComponent<TextMeshProUGUI>();
         ConfigureTMP(multiTitle, "Quest Title", 14, FontStyles.Bold, TextAlignmentOptions.Left);
 
-        // MultiObjectiveList — 제목 아래, 좌측 들여쓰기, VLG
+        // MultiObjectiveList — VLG 두 번째 자식. 자체도 VLG + CSF (ObjectiveLine들 stack)
         var multiListGO = MakeUI("MultiObjectiveList", multiRow.transform);
-        var multiListRT = multiListGO.GetComponent<RectTransform>();
-        multiListRT.anchorMin = new Vector2(0f, 0f);
-        multiListRT.anchorMax = new Vector2(1f, 1f);
-        multiListRT.pivot = new Vector2(0.5f, 1f);
-        multiListRT.offsetMin = new Vector2(12f, 0f);    // 좌측 들여쓰기
-        multiListRT.offsetMax = new Vector2(-2f, -22f);  // 상단 제목 자리 비움
-        var multiVLG = multiListGO.AddComponent<VerticalLayoutGroup>();
-        multiVLG.spacing = 2f;
-        multiVLG.childControlWidth = true;
-        multiVLG.childControlHeight = false;
-        multiVLG.childForceExpandWidth = true;
-        multiVLG.childForceExpandHeight = false;
+        var multiListVLG = multiListGO.AddComponent<VerticalLayoutGroup>();
+        multiListVLG.padding = new RectOffset(12, 2, 0, 0);  // 좌측 들여쓰기 12
+        multiListVLG.spacing = 2f;
+        multiListVLG.childControlWidth = true;
+        multiListVLG.childControlHeight = true;   // VLG가 LE.preferredHeight 읽어 height 설정 — vanish 애니에 필요
+        multiListVLG.childForceExpandWidth = true;
+        multiListVLG.childForceExpandHeight = false;
+        var multiListCSF = multiListGO.AddComponent<ContentSizeFitter>();
+        multiListCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        // MultiStrike — 제목 줄 위에 좌측 시작
+        // MultiStrike — 제목 줄 위에 좌측 시작. VLG 무시, 데코.
         var multiStrikeGO = MakeUI("MultiStrike", multiRow.transform);
+        var multiStrikeLE = multiStrikeGO.AddComponent<LayoutElement>();
+        multiStrikeLE.ignoreLayout = true;
         var multiStrikeRT = multiStrikeGO.GetComponent<RectTransform>();
         SetAnchor(multiStrikeRT,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
             new Vector2(4f, -11f), new Vector2(0f, 2f));
         AddImage(multiStrikeGO, Color.white);
 
-        // MultiCheck — 우상단 16x16, scale 0
+        // MultiCheck — 우상단 16x16, scale 0. VLG 무시, 데코.
         var multiCheckGO = MakeUI("MultiCheck", multiRow.transform);
+        var multiCheckLE = multiCheckGO.AddComponent<LayoutElement>();
+        multiCheckLE.ignoreLayout = true;
         var multiCheckRT = multiCheckGO.GetComponent<RectTransform>();
         SetAnchor(multiCheckRT,
             new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),

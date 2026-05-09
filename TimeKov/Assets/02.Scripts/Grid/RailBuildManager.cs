@@ -50,7 +50,6 @@ public class RailBuildManager : MonoBehaviour
     private BuildPort endPort;
 
     private bool isRouting = false;
-    private bool isDragRouting = false;
     private bool isRailModeActive = false;
 
     private Vector2Int currentEndCell;
@@ -105,7 +104,6 @@ public class RailBuildManager : MonoBehaviour
         ClearRailHighlight();
         ClearHoverSourcePreview();
         isRailModeActive = false;
-        isDragRouting = false;
         CancelCurrentRouteStateOnly();
         ResetPreviewCache();
         ClearPathPreviewInstances();
@@ -981,7 +979,6 @@ public class RailBuildManager : MonoBehaviour
 
         Log($"[Rail] Route completed: {(startPort != null ? startPort.name : "[cell-start]")} -> {endPort.name}");
 
-        isDragRouting = false;
         ClearRailHighlight();
         CancelCurrentRouteStateOnly();
         ResetPreviewCache();
@@ -1028,7 +1025,6 @@ public class RailBuildManager : MonoBehaviour
     private void CancelCurrentRouteStateOnly()
     {
         isRouting = false;
-        isDragRouting = false;
         startPort = null;
         endPort = null;
         currentEndCell = default;

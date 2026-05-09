@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 public class QuestPanelUI : MonoBehaviour
@@ -15,7 +16,7 @@ public class QuestPanelUI : MonoBehaviour
     readonly Dictionary<CategoryRuntime, CategoryWidget> _widgets = new();
     bool _setupDone;
     bool _collapsed;
-    Coroutine _toggleCo;
+    Tween _toggleTween;
 
     void Start()
     {
@@ -91,20 +92,13 @@ public class QuestPanelUI : MonoBehaviour
         if (_widgets.TryGetValue(rt, out var w) && w != null) w.FadeOutCategory();
     }
 
-    void HandleAllCompleted() => StartCoroutine(FadePanel());
-
-    IEnumerator FadePanel()
+    void HandleAllCompleted()
     {
-        yield return new WaitForSecondsRealtime(3f);
-
-        float t = 0f;
-        while (t < 1f)
-        {
-            t += Time.unscaledDeltaTime;
-            if (panelGroup) panelGroup.alpha = 1f - t;
-            yield return null;
-        }
-        gameObject.SetActive(false);
+        // 모든 카테고리 완료 → 3초 후 패널 fade out → SetActive false
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        seq.AppendInterval(3f);
+        if (panelGroup) seq.Append(panelGroup.DOFade(0f, 1f));
+        seq.OnComplete(() => gameObject.SetActive(false));
     }
 
     /// <summary>타임아웃 — 위젯 비활성/파괴로 콜백 못 받아도 매니저 안 멈춤</summary>
@@ -137,24 +131,19 @@ public class QuestPanelUI : MonoBehaviour
     public void ToggleCollapse()
     {
         _collapsed = !_collapsed;
-        if (_toggleCo != null) StopCoroutine(_toggleCo);
-        _toggleCo = StartCoroutine(ToggleRoutine());
-    }
+        _toggleTween?.Kill();
 
-    IEnumerator ToggleRoutine()
-    {
-        float startA = panelGroup.alpha;
+        if (panelGroup == null) return;
+
         float endA = _collapsed ? 0f : 1f;
-        float t = 0f;
-        while (t < toggleDuration)
-        {
-            t += Time.unscaledDeltaTime;
-            panelGroup.alpha = Mathf.Lerp(startA, endA, t / toggleDuration);
-            yield return null;
-        }
-        panelGroup.alpha = endA;
-        panelGroup.blocksRaycasts = !_collapsed;
-        panelGroup.interactable = !_collapsed;
-        _toggleCo = null;
+        _toggleTween = panelGroup.DOFade(endA, toggleDuration)
+            .SetUpdate(true)
+            .SetLink(gameObject)
+            .OnComplete(() =>
+            {
+                panelGroup.blocksRaycasts = !_collapsed;
+                panelGroup.interactable = !_collapsed;
+                _toggleTween = null;
+            });
     }
 }

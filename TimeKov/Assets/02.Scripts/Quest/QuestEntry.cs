@@ -1,5 +1,6 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -26,8 +27,15 @@ public class QuestEntry : MonoBehaviour
     [SerializeField] AudioSource audioSource;
     [SerializeField] AudioClip completeSfx;
 
-    [Header("Layout")]
-    [SerializeField] float defaultHeight = 40f;
+    [Header("Animation timing")]
+    [Tooltip("ObjectiveLine 완료 후 vanish 애니 시작까지 hold 시간 (체크 보여주는 시간)")]
+    [SerializeField] float vanishHoldTime = 0.25f;
+    [Tooltip("ObjectiveLine vanish (alpha + height to 0) 애니 길이")]
+    [SerializeField] float vanishDuration = 0.3f;
+    [Tooltip("슬라이드 인 fade 길이")]
+    [SerializeField] float slideInDuration = 0.3f;
+    [Tooltip("완료 시퀀스 시작 전 hold (슬라이드 인 끝나길 기다림)")]
+    [SerializeField] float completeStartDelay = 0.35f;
 
     QuestSO _quest;
     CategoryRuntime _rt;
@@ -38,11 +46,9 @@ public class QuestEntry : MonoBehaviour
     Action<float> _singleProgressHandler;
     Action<ObjectiveSO> _singleCompletedHandler;
 
-    void Awake()
-    {
-        var le = GetComponent<LayoutElement>();
-        if (le != null && le.preferredHeight > 0) defaultHeight = le.preferredHeight;
-    }
+    // Multi 모드: ObjectiveSO 인스턴스 → ObjectiveLine
+    readonly Dictionary<ObjectiveSO, ObjectiveLine> _objLines = new();
+    Action<ObjectiveSO> _multiObjCompletedHandler;
 
     public void PlaySlideIn(QuestSO q, CategoryRuntime rt)
     {
@@ -55,10 +61,13 @@ public class QuestEntry : MonoBehaviour
         if (_isMulti)
         {
             multiTitle.text = q.title;
+            _multiObjCompletedHandler = OnMultiObjectiveCompleted;
             foreach (var o in rt.activeObjectives)
             {
                 var line = Instantiate(objectiveLinePrefab, multiObjectiveList);
                 line.Bind(o);
+                _objLines[o] = line;
+                o.OnCompleted += _multiObjCompletedHandler;
             }
             ResetVisuals(multiStrike, multiCheck, multiFlash);
         }
@@ -73,7 +82,22 @@ public class QuestEntry : MonoBehaviour
             ResetVisuals(singleStrike, singleCheck, singleFlash);
         }
 
-        StartCoroutine(SlideInAndActivate());
+        // Nested CSF chain은 동적으로 추가된 자식에 대해 초기 layout pass 누락 가능
+        // 부모 체인 모두 강제 rebuild — 한 번만, init 시점.
+        RebuildLayoutChainUp();
+
+        SlideInAndActivate();
+    }
+
+    void RebuildLayoutChainUp()
+    {
+        RectTransform cur = transform as RectTransform;
+        int safety = 20;
+        while (cur != null && safety-- > 0)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(cur);
+            cur = cur.parent as RectTransform;
+        }
     }
 
     void OnSingleProgress(float _) => RefreshSingleLabel();
@@ -92,39 +116,48 @@ public class QuestEntry : MonoBehaviour
         if (flash) { var c = flash.color; c.a = 0; flash.color = c; }
     }
 
-    IEnumerator SlideInAndActivate()
+    // 슬라이드 인 — alpha fade. 높이는 CSF chain이 자동 결정.
+    void SlideInAndActivate()
     {
-        var le = GetComponent<LayoutElement>();
+        var cg = GetComponent<CanvasGroup>();
+        if (cg != null) cg.alpha = 0f;
+
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        if (cg != null) seq.Append(cg.DOFade(1f, slideInDuration));
+        seq.OnComplete(() => QuestManager.Instance.ActivateObjectives(_rt));
+    }
+
+    // ─── Multi 모드 라인별 vanish — CSF가 부모 reflow 자동 처리 ──
+    void OnMultiObjectiveCompleted(ObjectiveSO o)
+    {
+        if (_objLines.TryGetValue(o, out var line) && line != null)
+            VanishLine(line);
+    }
+
+    void VanishLine(ObjectiveLine line)
+    {
+        if (line == null) return;
+
+        var cg = line.GetComponent<CanvasGroup>();
+        if (cg == null) cg = line.gameObject.AddComponent<CanvasGroup>();
+
+        var le = line.GetComponent<LayoutElement>();
+        float startH = le != null ? le.preferredHeight : 24f;
+
+        // hold 후 alpha + height 동시에 0으로
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(line.gameObject);
+        seq.AppendInterval(vanishHoldTime);
+        if (cg != null) seq.Append(cg.DOFade(0f, vanishDuration));
         if (le != null)
         {
-            float target = defaultHeight;
-            le.preferredHeight = 0f;
-            float t = 0f;
-            while (t < 0.3f)
-            {
-                t += Time.unscaledDeltaTime;
-                le.preferredHeight = Mathf.Lerp(0f, target, t / 0.3f);
-                yield return null;
-            }
-            le.preferredHeight = target;
+            seq.Join(DOTween.To(
+                () => le.preferredHeight,
+                v => le.preferredHeight = v,
+                0f, vanishDuration));
         }
-
-        // ★ UI 슬라이드 인 끝나는 시점에 Activate 호출 — 입력 카운트 시작
-        QuestManager.Instance.ActivateObjectives(_rt);
     }
 
     public void PlayCompleteSequence(Action onDone)
-    {
-        StartCoroutine(WaitSlideThenComplete(onDone));
-    }
-
-    IEnumerator WaitSlideThenComplete(Action onDone)
-    {
-        yield return new WaitForSecondsRealtime(0.35f);   // 슬라이드 인 0.3 + 여유
-        yield return CompleteRoutine(onDone);
-    }
-
-    IEnumerator CompleteRoutine(Action onDone)
     {
         if (!_isMulti && _singleObj != null)
         {
@@ -137,60 +170,63 @@ public class QuestEntry : MonoBehaviour
         var flash = _isMulti ? multiFlash : singleFlash;
         var labelTextRef = _isMulti ? multiTitle : singleLabel;
 
-        if (labelTextRef == null) { onDone?.Invoke(); yield break; }
-
-        if (audioSource && completeSfx) audioSource.PlayOneShot(completeSfx);
+        if (labelTextRef == null) { onDone?.Invoke(); return; }
 
         labelTextRef.ForceMeshUpdate();
         float fullWidth = labelTextRef.preferredWidth + 4f;
 
-        // 0.0 ~ 0.3s — 취소선 + 플래시
-        float t = 0f;
-        while (t < 0.3f)
-        {
-            t += Time.unscaledDeltaTime;
-            float p = t / 0.3f;
-            if (strike) strike.sizeDelta = new Vector2(Mathf.Lerp(0f, fullWidth, p), strike.sizeDelta.y);
-            if (flash)
-            {
-                float fa = (p < 0.5f) ? Mathf.Lerp(0f, 0.3f, p * 2f) : Mathf.Lerp(0.3f, 0f, (p - 0.5f) * 2f);
-                var c = flash.color; c.a = fa; flash.color = c;
-            }
-            yield return null;
-        }
-
-        // 0.3 ~ 0.5s — 체크 팝
-        t = 0f;
-        while (t < 0.2f)
-        {
-            t += Time.unscaledDeltaTime;
-            float p = t / 0.2f;
-            float scale = p < 0.6f ? Mathf.Lerp(0f, 1.2f, p / 0.6f) : Mathf.Lerp(1.2f, 1.0f, (p - 0.6f) / 0.4f);
-            if (check) check.transform.localScale = Vector3.one * scale;
-            yield return null;
-        }
-
-        yield return new WaitForSecondsRealtime(0.2f);
-
-        // 0.7 ~ 1.1s — 페이드 + 슬라이드 업
         var cg = GetComponent<CanvasGroup>();
-        var le = GetComponent<LayoutElement>();
-        var rect = (RectTransform)transform;
-        Vector2 startPos = rect.anchoredPosition;
-        float startH = le != null ? le.preferredHeight : rect.rect.height;
 
-        t = 0f;
-        while (t < 0.4f)
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+
+        // 슬라이드 인 끝나길 기다림
+        seq.AppendInterval(completeStartDelay);
+        seq.AppendCallback(() =>
         {
-            t += Time.unscaledDeltaTime;
-            float p = t / 0.4f;
-            if (cg) cg.alpha = 1f - p;
-            rect.anchoredPosition = startPos + Vector2.up * Mathf.Lerp(0f, 10f, p);
-            if (le) le.preferredHeight = Mathf.Lerp(startH, 0f, p);
-            yield return null;
+            if (audioSource && completeSfx) audioSource.PlayOneShot(completeSfx);
+        });
+
+        // Phase 1 (0.0~0.3s): 취소선 width 0 → fullWidth, flash 0→0.3→0 (peak at half)
+        if (strike != null)
+        {
+            float strikeY = strike.sizeDelta.y;
+            seq.Append(DOTween.To(
+                () => strike.sizeDelta.x,
+                v => strike.sizeDelta = new Vector2(v, strikeY),
+                fullWidth, 0.3f));
+        }
+        else
+        {
+            seq.AppendInterval(0.3f);
         }
 
-        onDone?.Invoke();
+        if (flash != null)
+        {
+            // flash는 Phase 1과 병렬 (앞 0.15s 페이드 인, 뒤 0.15s 페이드 아웃)
+            // Sequence 내부 경과 = completeStartDelay 후 시작
+            seq.Insert(completeStartDelay, flash.DOFade(0.3f, 0.15f));
+            seq.Insert(completeStartDelay + 0.15f, flash.DOFade(0f, 0.15f));
+        }
+
+        // Phase 2 (0.3~0.5s): 체크 팝 0 → 1.2 → 1.0
+        if (check != null)
+        {
+            var checkTr = check.transform;
+            seq.Append(checkTr.DOScale(1.2f, 0.12f).SetEase(Ease.OutQuad));
+            seq.Append(checkTr.DOScale(1.0f, 0.08f).SetEase(Ease.InQuad));
+        }
+        else
+        {
+            seq.AppendInterval(0.2f);
+        }
+
+        // Phase 3 (0.5~0.7s): pause
+        seq.AppendInterval(0.2f);
+
+        // Phase 4 (0.7~1.1s): alpha fade out
+        if (cg != null) seq.Append(cg.DOFade(0f, 0.4f));
+
+        seq.OnComplete(() => onDone?.Invoke());
     }
 
     void OnDestroy()
@@ -199,6 +235,16 @@ public class QuestEntry : MonoBehaviour
         {
             _singleObj.OnProgressChanged -= _singleProgressHandler;
             _singleObj.OnCompleted -= _singleCompletedHandler;
+        }
+
+        if (_isMulti && _multiObjCompletedHandler != null)
+        {
+            foreach (var kv in _objLines)
+            {
+                if (kv.Key != null)
+                    kv.Key.OnCompleted -= _multiObjCompletedHandler;
+            }
+            _objLines.Clear();
         }
     }
 }

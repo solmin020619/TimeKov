@@ -58,6 +58,9 @@ public class QuestManager : MonoBehaviour
 
     [SerializeField] TutorialSO tutorial;
 
+    [Tooltip("ON: 진행도 저장 안 함 (매 Play마다 초기화 — 개발용). OFF: PlayerPrefs에 저장 (production).")]
+    [SerializeField] bool useNoOpStorage = true;
+
     IQuestSaveStorage _storage;
     readonly List<CategoryRuntime> _runtimes = new();
     readonly Dictionary<ObjectiveSO, CategoryRuntime> _objectiveOwner = new();
@@ -89,7 +92,9 @@ public class QuestManager : MonoBehaviour
         }
 
         Instance = this;
-        _storage = new PlayerPrefsQuestStorage(tutorial.savePrefix);
+        _storage = useNoOpStorage
+            ? (IQuestSaveStorage)new NoOpQuestStorage()
+            : new PlayerPrefsQuestStorage(tutorial.savePrefix);
     }
 
     void Start()

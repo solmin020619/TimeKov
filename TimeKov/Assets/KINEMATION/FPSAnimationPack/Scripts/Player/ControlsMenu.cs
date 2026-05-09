@@ -21,7 +21,7 @@ namespace KINEMATION.FPSAnimationPack.Scripts.Player
         
         private void Start()
         {
-            _player = FindObjectsOfType<FPSPlayer>()[0];
+            _player = FindAnyObjectByType<FPSPlayer>();
             _animator = _player.GetComponent<Animator>();
             controlsMenu.SetActive(false);
         }

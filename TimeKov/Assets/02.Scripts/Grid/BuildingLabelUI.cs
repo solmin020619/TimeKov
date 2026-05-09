@@ -6,50 +6,50 @@ public class BuildingLabelUI : MonoBehaviour
 {
 
 
-    public TMP_FontAsset fontAsset; // ÅØ½ºÆ® ÆùÆ®
+    public TMP_FontAsset fontAsset; // ï¿½Ø½ï¿½Æ® ï¿½ï¿½Æ®
 
-    //  ·¹ÀÌºí ÀüÃ¼ À§Ä¡ (°Ç¹° ±âÁØ À§Ä¡)
+    //  ï¿½ï¿½ï¿½Ìºï¿½ ï¿½ï¿½Ã¼ ï¿½ï¿½Ä¡ (ï¿½Ç¹ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡)
     public Vector3 labelOffset = new Vector3(0f, 10.0f, 10.0f);
-    //  "¾ÆÀÌÄÜ +ÀÌ¸§" ÀüÃ¼¸¦ À§·Î ¶ç¿ì´Â À§Ä¡
-    //  ÀÌ°Å ¹Ù²Ù¸é ·¹ÀÌºí À§Ä¡°¡ ¿òÁ÷ÀÓ
+    //  "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ +ï¿½Ì¸ï¿½" ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡
+    //  ï¿½Ì°ï¿½ ï¿½Ù²Ù¸ï¿½ ï¿½ï¿½ï¿½Ìºï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-    public float fontSize = 5.2f;   // ±ÛÀÚ Å©±â
-    public float iconSize = 1.5f;   // ¾ÆÀÌÄÜ Å©±â
+    public float fontSize = 5.2f;   // ï¿½ï¿½ï¿½ï¿½ Å©ï¿½ï¿½
+    public float iconSize = 1.5f;   // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Å©ï¿½ï¿½
 
-    public float iconTextGap = 0.1f; // ¾ÆÀÌÄÜ°ú ÅØ½ºÆ® »çÀÌ °£°Ý
+    public float iconTextGap = 0.1f; // ï¿½ï¿½ï¿½ï¿½ï¿½Ü°ï¿½ ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    //  ÅØ½ºÆ®¸¸ µû·Î È¸Àü½ÃÅ°°í ½ÍÀ» ¶§ »ç¿ë
+    //  ï¿½Ø½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ï¿½ï¿½Å°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½
     public float textRotX = 0f;
     public float textRotY = 0f;
     public float textRotZ = 0f;
 
-    // ³»ºÎ ·¹ÀÌ¾Æ¿ô °è»ê¿ë (Inspector¿¡¼­´Â ¾È º¸ÀÓ)
-    [HideInInspector] public float maxWidth = 99f;   // ÃÖ´ë °¡·Î ±æÀÌ Á¦ÇÑ
-    [HideInInspector] public float bgHeight = 1.9f;  // ÅØ½ºÆ® ¿µ¿ª ³ôÀÌ
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½ (Inspectorï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+    [HideInInspector] public float maxWidth = 99f;   // ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    [HideInInspector] public float bgHeight = 1.9f;  // ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    //  ·±Å¸ÀÓ¿¡¼­ »ý¼ºµÇ´Â ¿ÀºêÁ§Æ®µé
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    //  ï¿½ï¿½Å¸ï¿½Ó¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-    private GameObject _root;        // ·¹ÀÌºí ÀüÃ¼ ºÎ¸ð
-    private TextMeshPro _nameText;  // ÀÌ¸§ ÅØ½ºÆ®
-    private MeshRenderer _iconRenderer; // ¾ÆÀÌÄÜ (Quad ·»´õ·¯)
+    private GameObject _root;        // ï¿½ï¿½ï¿½Ìºï¿½ ï¿½ï¿½Ã¼ ï¿½Î¸ï¿½
+    private TextMeshPro _nameText;  // ï¿½Ì¸ï¿½ ï¿½Ø½ï¿½Æ®
+    private MeshRenderer _iconRenderer; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (Quad ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
 
   
 
     public void Setup(int facilityId, string facilityName, Sprite icon)
     {
-        if (_root == null) CreateLabel(); // ÃÖÃÊ 1È¸ »ý¼º
+        if (_root == null) CreateLabel(); // ï¿½ï¿½ï¿½ï¿½ 1È¸ ï¿½ï¿½ï¿½ï¿½
 
-        // ¦¡¦¡ ÅØ½ºÆ® ¼³Á¤ ¦¡¦¡
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (_nameText != null)
         {
             if (fontAsset != null) _nameText.font = fontAsset;
             _nameText.text = facilityName;
-            _nameText.ForceMeshUpdate(); // Å©±â °è»ê À§ÇØ °­Á¦ ¾÷µ¥ÀÌÆ®
+            _nameText.ForceMeshUpdate(); // Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®
         }
 
-        // ¦¡¦¡ ¾ÆÀÌÄÜ ¼³Á¤ ¦¡¦¡
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         bool hasIcon = icon != null;
         if (_iconRenderer != null)
         {
@@ -64,7 +64,7 @@ public class BuildingLabelUI : MonoBehaviour
             }
         }
 
-        // ¾ÆÀÌÄÜ + ÅØ½ºÆ® À§Ä¡ Àç¹èÄ¡ (ÇÙ½É)
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ + ï¿½Ø½ï¿½Æ® ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½Ä¡ (ï¿½Ù½ï¿½)
         RepositionElements(hasIcon);
     }
 
@@ -75,32 +75,32 @@ public class BuildingLabelUI : MonoBehaviour
 
     private void LateUpdate()
     {
-        //  Ç×»ó ¹Ù´Ú¿¡ ´¯Çô³õ±â (Å¾ºä °íÁ¤)
+        //  ï¿½×»ï¿½ ï¿½Ù´Ú¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (Å¾ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
         if (_root != null)
             _root.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 
-        // ÅØ½ºÆ® °³º° È¸Àü (ÇÊ¿äÇÒ ¶§¸¸)
+        // ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ (ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
         if (_nameText != null)
             _nameText.transform.localRotation = Quaternion.Euler(textRotX, textRotY, textRotZ);
     }
 
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    // ½ÇÁ¦ UI »ý¼º
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ UI ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
     private void CreateLabel()
     {
         _root = new GameObject("_BuildingLabel");
         _root.transform.SetParent(transform, false);
-        _root.transform.localPosition = labelOffset; //  À§Ä¡ Àû¿ë
+        _root.transform.localPosition = labelOffset; //  ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
         _root.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         _root.layer = gameObject.layer;
 
-        // ¦¡¦¡ ¾ÆÀÌÄÜ »ý¼º (Quad) ¦¡¦¡
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (Quad) ï¿½ï¿½ï¿½ï¿½
         var iconGO = CreateTextureQuad("Icon", Vector3.zero, iconSize, iconSize);
         _iconRenderer = iconGO.GetComponent<MeshRenderer>();
 
-        // ¦¡¦¡ ÅØ½ºÆ® »ý¼º ¦¡¦¡
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         var textGO = new GameObject("Name");
         textGO.layer = gameObject.layer;
         textGO.transform.SetParent(_root.transform, false);
@@ -113,29 +113,29 @@ public class BuildingLabelUI : MonoBehaviour
         _nameText.fontStyle = FontStyles.Bold;
         _nameText.alignment = TextAlignmentOptions.MidlineLeft;
         _nameText.overflowMode = TextOverflowModes.Ellipsis;
-        _nameText.enableWordWrapping = false;
+        _nameText.textWrappingMode = TextWrappingModes.NoWrap;
 
-        // ¿Ü°û¼±
+        // ï¿½Ü°ï¿½ï¿½ï¿½
         _nameText.outlineWidth = 0.25f;
         _nameText.outlineColor = new Color(0f, 0f, 0f, 0.9f);
     }
 
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    //  ·¹ÀÌ¾Æ¿ô ÇÙ½É ·ÎÁ÷ (¾ÆÀÌÄÜ + ÅØ½ºÆ® Á¤·Ä)
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    //  ï¿½ï¿½ï¿½Ì¾Æ¿ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ + ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½)
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
     private void RepositionElements(bool hasIcon)
     {
         if (_nameText == null) return;
 
-        // ¾ÆÀÌÄÜÀÌ ÀÖÀ¸¸é °ø°£ È®º¸
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
         float iconSlot = hasIcon ? (iconSize + iconTextGap) : 0f;
 
-        // ¾ÆÀÌÄÜÀÌ ³Ê¹« Å©¸é Á¦ÇÑ
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¹ï¿½ Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         float clampedIconSize = Mathf.Min(iconSize, maxWidth * 0.4f);
         float clampedIconSlot = hasIcon ? (clampedIconSize + iconTextGap) : 0f;
 
-        // ÅØ½ºÆ® ÃÖ´ë ³Êºñ
+        // ï¿½Ø½ï¿½Æ® ï¿½Ö´ï¿½ ï¿½Êºï¿½
         float maxTextW = Mathf.Max(maxWidth - clampedIconSlot - 0.1f, 0.1f);
 
         var rect = _nameText.GetComponent<RectTransform>();
@@ -146,19 +146,19 @@ public class BuildingLabelUI : MonoBehaviour
         float textW = Mathf.Min(_nameText.preferredWidth, maxTextW);
         float totalW = Mathf.Min(clampedIconSlot + textW, maxWidth);
 
-        //  Áß½É ±âÁØÀ¸·Î ÁÂ¿ì ¹èÄ¡
+        //  ï¿½ß½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Â¿ï¿½ ï¿½ï¿½Ä¡
         float right = totalW * 0.5f;
 
-        // ¦¡¦¡ ¾ÆÀÌÄÜ À§Ä¡ ¦¡¦¡
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
         if (_iconRenderer != null)
         {
             _iconRenderer.transform.localScale = new Vector3(clampedIconSize, clampedIconSize, 1f);
             _iconRenderer.transform.localPosition = hasIcon
                 ? new Vector3(right - clampedIconSize * 0.5f, 0f, -0.001f)
-                : new Vector3(-9999f, 0f, 0f); // ¾ÆÀÌÄÜ ¾øÀ¸¸é È­¸é ¹Û
+                : new Vector3(-9999f, 0f, 0f); // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È­ï¿½ï¿½ ï¿½ï¿½
         }
 
-        // ¦¡¦¡ ÅØ½ºÆ® À§Ä¡ ¦¡¦¡
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Æ® ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
         if (_nameText != null)
         {
             float textX = right - clampedIconSlot - textW * 0.5f + 0.5f;
@@ -170,9 +170,9 @@ public class BuildingLabelUI : MonoBehaviour
         }
     }
 
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    //  ¾ÆÀÌÄÜ¿ë Quad »ý¼º
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    //  ï¿½ï¿½ï¿½ï¿½ï¿½Ü¿ï¿½ Quad ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
     private GameObject CreateTextureQuad(string n, Vector3 pos, float w, float h)
     {
@@ -186,18 +186,18 @@ public class BuildingLabelUI : MonoBehaviour
         go.transform.localPosition = pos;
         go.transform.localScale = new Vector3(w, h, 1f);
 
-        //  ½ºÇÁ¶óÀÌÆ® Ç¥½Ã¿ë ¸ÓÆ¼¸®¾ó
+        //  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® Ç¥ï¿½Ã¿ï¿½ ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½
         var mat = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Transparent"));
         mat.color = Color.white;
 
-        // ÅØ½ºÃ³ µÚÁý±â (Sprite UV º¸Á¤)
+        // ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (Sprite UV ï¿½ï¿½ï¿½ï¿½)
         mat.mainTextureScale = new Vector2(1f, -1f);
         mat.mainTextureOffset = new Vector2(0f, 1f);
 
         var mr = go.GetComponent<MeshRenderer>();
         mr.material = mat;
 
-        // ±×¸²ÀÚ Á¦°Å
+        // ï¿½×¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         mr.receiveShadows = false;
 

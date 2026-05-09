@@ -11,7 +11,6 @@ public class PauseMenuManager : MonoBehaviour
     public string mainMenuSceneName = "MainMenu";
 
     private Player _player;
-    private bool isPaused = false;
 
     void Start()
     {
@@ -31,8 +30,6 @@ public class PauseMenuManager : MonoBehaviour
 
     public void PauseGame()
     {
-        isPaused = true;
-
         if (UIStateManager.Instance != null)
         {
             UIStateManager.Instance.SetState(UIStateManager.UIState.Pause);
@@ -48,8 +45,6 @@ public class PauseMenuManager : MonoBehaviour
 
     public void ResumeGame()
     {
-        isPaused = false;
-
         if (UIStateManager.Instance != null)
         {
             UIStateManager.Instance.CloseAllUI();
