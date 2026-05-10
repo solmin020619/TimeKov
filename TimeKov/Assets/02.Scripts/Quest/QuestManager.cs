@@ -5,58 +5,61 @@ using UnityEngine;
 
 /*
  * Quest System Flow
- * ─────────────────────────────────────────────────────────────
+ * -------------------------------------------------------------
  *
  * [QuestManager.Start]
- *   └─ Initialize() → OnReady → [QuestPanelUI.Setup]
- *                                  └─ 위젯 생성 + 구독
- *                                  └─ QuestManager.BeginAll()  ★ UI가 단독 책임
+ *   \- Initialize() -> OnReady -> [QuestPanelUI.Setup]
+ *                                  \- 위젯 생성 + 구독
+ *                                  \- QuestManager.BeginAll() (UI가 단독 책임)
  *
- * [BeginAll] (멱등) → 각 카테고리에 PresentCurrentQuest()
+ * [BeginAll] (멱등) -> 각 카테고리에 PresentCurrentQuest()
  *
  * [PresentCurrentQuest]
- *   ├─ Objective Instantiate + 구독
- *   ├─ OnQuestShown 발화 (매니저)
- *   │     ↓ 구독자가 받음
- *   │   [QuestPanelUI.HandleQuestShown]
- *   │     ↓
- *   │   [CategoryWidget.ShowQuest] → Instantiate(QuestEntry)
- *   │     ↓
- *   │   [QuestEntry.PlaySlideIn] → SlideInAndActivate 코루틴
- *   │     ├─ 슬라이드 인 0.3초
- *   │     └─ QuestManager.ActivateObjectives() 호출
- *   └─ OnUIPresented Objective는 즉시 ActivateInternal
+ *   |- Objective Instantiate + 구독
+ *   |- OnQuestShown 발화 (매니저)
+ *   |     v 구독자가 받음
+ *   |   [QuestPanelUI.HandleQuestShown]
+ *   |     v
+ *   |   [CategoryWidget.ShowQuest] -> Instantiate(QuestEntry)
+ *   |     v
+ *   |   [QuestEntry.PlaySlideIn] -> SlideInAndActivate 코루틴
+ *   |     |- 슬라이드 인 0.3초
+ *   |     \- QuestManager.ActivateObjectives() 호출
+ *   \- OnUIPresented Objective는 즉시 ActivateInternal
  *
  * [ActivateObjectives] (UI에서 호출)
- *   ├─ quest 캡처 + OnQuestActivated 발화 (즉시충족 대비)
- *   └─ OnUIActivated Objective 활성화 → 입력 카운트 시작
+ *   |- quest 캡처 + OnQuestActivated 발화 (즉시충족 대비)
+ *   \- OnUIActivated Objective 활성화 -> 입력 카운트 시작
  *
- * [Objective.Complete] → OnCompleted → [OnObjectiveCompleted]
- *                                          └─ Dictionary 조회 → CheckQuestComplete
+ * [Objective.Complete] -> OnCompleted -> [OnObjectiveCompleted]
+ *                                          \- Dictionary 조회 -> CheckQuestComplete
  *
  * [CheckQuestComplete] (모든 Objective 완료 확인)
- *   ├─ Objective Deactivate (구독 해제, Destroy는 미룸)
- *   ├─ 인덱스 +1 + Save + Flush
- *   ├─ OnQuestCompleted + onCompleted UnityEvent
- *   └─ AfterCompletion 코루틴
+ *   |- Objective Deactivate (구독 해제, Destroy는 미룸)
+ *   |- 인덱스 +1 + Save + Flush
+ *   |- OnQuestCompleted + onCompleted UnityEvent
+ *   \- AfterCompletion 코루틴
  *
  * [AfterCompletion] (1.2초 시퀀스 대기)
- *   ├─ CompletionAnimation 콜백 → [WaitForUIComplete]
- *   ├─ 옛 Objective Destroy
- *   └─ 카테고리 끝 ? OnCategoryCompleted : PresentCurrentQuest (다음)
+ *   |- CompletionAnimation 콜백 -> [WaitForUIComplete]
+ *   |- 옛 Objective Destroy
+ *   \- 카테고리 끝 ? OnCategoryCompleted : PresentCurrentQuest (다음)
  *
  * [ResetAll] (QA 도구)
- *   ├─ tutorial/storage null 가드
- *   ├─ StopAllCoroutines
- *   ├─ Internal cleanup 먼저
- *   ├─ OnReset → [QuestPanelUI.HandleReset] → 위젯 정리
- *   └─ Initialize → OnReady → Setup 재실행 → BeginAll
+ *   |- tutorial/storage null 가드
+ *   |- StopAllCoroutines
+ *   |- Internal cleanup 먼저
+ *   |- OnReset -> [QuestPanelUI.HandleReset] -> 위젯 정리
+ *   \- Initialize -> OnReady -> Setup 재실행 -> BeginAll
  */
 public class QuestManager : MonoBehaviour
 {
     public static QuestManager Instance { get; private set; }
 
     [SerializeField] TutorialSO tutorial;
+
+    [Tooltip("ON: 진행도 저장 안 함 (매 Play마다 초기화, 개발용). OFF: PlayerPrefs에 저장 (production).")]
+    [SerializeField] bool useNoOpStorage = true;
 
     IQuestSaveStorage _storage;
     readonly List<CategoryRuntime> _runtimes = new();
@@ -80,16 +83,18 @@ public class QuestManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
 
-        // tutorial null이면 Instance 세팅 안 함 — 외부 코드가 명시적 null 체크
+        // tutorial null이면 Instance 세팅 안 함. 외부 코드가 명시적 null 체크
         if (tutorial == null)
         {
-            Debug.LogError("[QuestManager] tutorial 미할당 — 매니저 비활성화");
+            Debug.LogError("[QuestManager] tutorial 미할당. 매니저 비활성화");
             enabled = false;
             return;
         }
 
         Instance = this;
-        _storage = new PlayerPrefsQuestStorage(tutorial.savePrefix);
+        _storage = useNoOpStorage
+            ? (IQuestSaveStorage)new NoOpQuestStorage()
+            : new PlayerPrefsQuestStorage(tutorial.savePrefix);
     }
 
     void Start()
@@ -97,7 +102,7 @@ public class QuestManager : MonoBehaviour
         if (!enabled) return;
         Initialize();
         OnReady?.Invoke();
-        // BeginAll 호출 안 함 — UI Setup이 자기 흐름에서 호출
+        // BeginAll 호출 안 함. UI Setup이 자기 흐름에서 호출
     }
 
     void Initialize()
@@ -116,7 +121,7 @@ public class QuestManager : MonoBehaviour
         IsReady = true;
     }
 
-    /// <summary>UI가 위젯 생성 + 구독 끝낸 후 호출. 멱등성 — 두 번 호출돼도 안전.</summary>
+    /// <summary>UI가 위젯 생성 + 구독 끝낸 후 호출. 멱등성, 두 번 호출돼도 안전.</summary>
     public void BeginAll()
     {
         if (_hasBegun) return;
@@ -163,7 +168,7 @@ public class QuestManager : MonoBehaviour
 
         rt.IsActivated = false;
 
-        // 이벤트 먼저 발화 — 즉시충족 시에도 정확한 quest 참조 보장
+        // 이벤트 먼저 발화. 즉시충족 시에도 정확한 quest 참조 보장
         OnQuestShown?.Invoke(rt, quest);
         quest.onShown?.Invoke();
 
@@ -178,7 +183,7 @@ public class QuestManager : MonoBehaviour
         if (rt == null || rt.IsActivated || rt.activeObjectives == null) return;
         rt.IsActivated = true;
 
-        // ★ quest 먼저 캡처 + 이벤트 먼저 발화 — 즉시충족 시 인덱스 진행돼도 정확
+        // quest 먼저 캡처 + 이벤트 먼저 발화. 즉시충족 시 인덱스 진행돼도 정확
         var quest = rt.data.quests[rt.activeQuestIndex];
         OnQuestActivated?.Invoke(rt, quest);
         quest.onActivated?.Invoke();
@@ -215,7 +220,7 @@ public class QuestManager : MonoBehaviour
             rt.activeObjectives = null;
             rt.IsActivated = false;
 
-            // TODO: 본 게임 보상 시스템 들어오면 보상 지급 → 인덱스 저장 트랜잭션
+            // TODO: 본 게임 보상 시스템 들어오면 보상 지급 -> 인덱스 저장 트랜잭션
             rt.activeQuestIndex++;
             _storage.SetCategoryIndex(rt.data.id, rt.activeQuestIndex);
             _storage.Flush();
@@ -309,7 +314,7 @@ public class QuestManager : MonoBehaviour
 
         Initialize();
         OnReady?.Invoke();
-        // BeginAll 호출 안 함 — Setup이 호출
+        // BeginAll 호출 안 함. Setup이 호출
     }
 
 #if UNITY_EDITOR

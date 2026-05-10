@@ -10,15 +10,14 @@ public class PauseMenuManager : MonoBehaviour
     [Header("Settings")]
     public string mainMenuSceneName = "MainMenu";
 
-    private PlayerController playerController;
-    private bool isPaused = false;
+    private Player _player;
 
     void Start()
     {
         if (pausePanel != null) pausePanel.SetActive(false);
         Time.timeScale = 1f;
 
-        playerController = FindFirstObjectByType<PlayerController>();
+        _player = FindFirstObjectByType<Player>();
     }
 
     void Update() { }
@@ -31,8 +30,6 @@ public class PauseMenuManager : MonoBehaviour
 
     public void PauseGame()
     {
-        isPaused = true;
-
         if (UIStateManager.Instance != null)
         {
             UIStateManager.Instance.SetState(UIStateManager.UIState.Pause);
@@ -43,13 +40,11 @@ public class PauseMenuManager : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        if (playerController != null) playerController.enabled = false;
+        if (_player != null) _player.Movement.LockMovement(true);
     }
 
     public void ResumeGame()
     {
-        isPaused = false;
-
         if (UIStateManager.Instance != null)
         {
             UIStateManager.Instance.CloseAllUI();
@@ -60,11 +55,7 @@ public class PauseMenuManager : MonoBehaviour
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        if (playerController != null)
-        {
-            playerController.enabled = true;
-            playerController.SyncSettings();
-        }
+        if (_player != null) _player.Movement.LockMovement(false);
     }
 
     public void OnClickResume()

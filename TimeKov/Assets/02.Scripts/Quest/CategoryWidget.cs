@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 
@@ -10,14 +10,24 @@ public class CategoryWidget : MonoBehaviour
     [SerializeField] QuestEntry questEntryPrefab;
     [SerializeField] CanvasGroup categoryGroup;
 
+    [Header("Display")]
+    [Tooltip("OFF면 카테고리 제목 GameObject 비활성화. 단일 카테고리 통합 UI(엔드필드 패턴)에 사용.")]
+    [SerializeField] bool showCategoryTitle = true;
+
     CategoryRuntime _rt;
     QuestEntry _currentEntry;
-    bool _isPlayingComplete;
 
     public void Init(CategoryRuntime rt)
     {
         _rt = rt;
-        categoryTitle.text = rt.data.title;
+        if (showCategoryTitle)
+        {
+            if (categoryTitle != null) categoryTitle.text = rt.data.title;
+        }
+        else
+        {
+            if (categoryTitle != null) categoryTitle.gameObject.SetActive(false);
+        }
     }
 
     public void ShowQuest(QuestSO q)
@@ -37,38 +47,35 @@ public class CategoryWidget : MonoBehaviour
     {
         if (_currentEntry == null) { onFinished?.Invoke(); return; }
 
-        _isPlayingComplete = true;
         var entry = _currentEntry;
         _currentEntry = null;
 
         entry.PlayCompleteSequence(() =>
         {
             if (entry != null) Destroy(entry.gameObject);
-            _isPlayingComplete = false;
             onFinished?.Invoke();
         });
     }
 
-    /// <summary>WaitForUIComplete 타임아웃 시 호출 — 진행 중 코루틴/엔트리 강제 정리</summary>
+    /// <summary>WaitForUIComplete 타임아웃 시 호출. 진행 중 코루틴/엔트리 강제 정리</summary>
     public void ForceCleanup()
     {
         StopAllCoroutines();
         if (_currentEntry != null) { Destroy(_currentEntry.gameObject); _currentEntry = null; }
-        _isPlayingComplete = false;
     }
 
-    public void FadeOutCategory() => StartCoroutine(FadeRoutine());
+    [Header("Fade timing")]
+    [Tooltip("카테고리 완료 후 fade 시작까지 대기 시간 (사용자가 완료 인지)")]
+    [SerializeField] float fadeOutHoldTime = 1.5f;
+    [Tooltip("alpha 1->0 fade 길이")]
+    [SerializeField] float fadeOutDuration = 0.5f;
 
-    IEnumerator FadeRoutine()
+    public void FadeOutCategory()
     {
-        yield return new WaitForSecondsRealtime(2f);
-
-        float t = 0f;
-        while (t < 0.5f)
-        {
-            t += Time.unscaledDeltaTime;
-            categoryGroup.alpha = Mathf.Lerp(1f, 0.35f, t / 0.5f);
-            yield return null;
-        }
+        // hold, fade alpha 0, SetActive(false). 부모 VLG가 자동 reflow.
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        seq.AppendInterval(fadeOutHoldTime);
+        if (categoryGroup) seq.Append(categoryGroup.DOFade(0f, fadeOutDuration));
+        seq.OnComplete(() => gameObject.SetActive(false));
     }
 }

@@ -249,7 +249,7 @@ public class BuildManager : MonoBehaviour
     {
         if (CurrentSubMode == BuildSubMode.Rail)
         {
-            // E 다시 → 토글 OFF: Facility 로 가되 슬롯 선택까지 해제 (이전에 1~9 누른 게 있어도 안 뜨게)
+            // E 다시 누르면 토글 OFF: Facility 로 가되 슬롯 선택까지 해제 (이전에 1~9 누른 게 있어도 안 뜨게)
             SetSubMode(BuildSubMode.Facility);
             hasSelectedSlot = false;
             currentIndex = -1;
@@ -364,7 +364,7 @@ public class BuildManager : MonoBehaviour
             }
             else
             {
-                // 건축 모드 진입 — 슬롯은 자동 선택 안 함
+                // 건축 모드 진입. 슬롯은 자동 선택 안 함
                 hasSelectedSlot = false;
                 currentIndex = -1;
                 CurrentSubMode = BuildSubMode.Facility;
@@ -676,7 +676,7 @@ public class BuildManager : MonoBehaviour
         return StartCellToWorldCenter(startCell, size);
     }
 
-    // ───── Blueprint에서 쓰는 Public Helper ─────
+    // ===== Blueprint에서 쓰는 Public Helper =====
 
     public Vector3 GridOriginPos => gridOrigin != null ? gridOrigin.position : Vector3.zero;
 
@@ -751,7 +751,7 @@ public class BuildManager : MonoBehaviour
         return row != null ? new Vector2Int(row.gridW, row.gridH) : Vector2Int.one;
     }
 
-    // ───── end Public Helper ─────
+    // ===== end Public Helper =====
 
     private Vector2Int WorldToStartCell(Vector3 worldPos)
     {
@@ -1201,7 +1201,7 @@ public class BuildManager : MonoBehaviour
         }
     }
 
-    // ───── 레일 호버 하이라이트 (오버레이 쿼드 방식) ─────
+    // ===== 레일 호버 하이라이트 (오버레이 쿼드 방식) =====
     [Header("Demolish Rail Highlight")]
     [Tooltip("레일 호버 시 덮어씌울 머티리얼 (투명한 빨간색 Unlit 추천)")]
     public Material railDemolishOverlayMaterial;

@@ -36,7 +36,7 @@ TutorialSO          — 전체 묶음, categories[]
 - `quests[]`: 퀘스트 순서대로
 
 ### QuestSO
-- `objectives[]`: 1개면 단일 라벨, 2개 이상이면 헤더 + 인덴트
+- `objectives[]`: 모든 퀘스트는 헤더(제목) + ObjectiveLine 인덴트 구조 (1개든 N개든 동일 시각, 엔드필드 패턴)
 - `onShown` / `onActivated` / `onCompleted`: 디자이너 훅 (사운드, 카메라, NPC 스폰 등)
 
 ### ObjectiveSO 공통
@@ -64,10 +64,9 @@ TutorialSO          — 전체 묶음, categories[]
 빈 GameObject 만들고 이름 `PlayerWatcher`.
 - `PlayerMovementWatcher` 컴포넌트 부착
 - `playerTransform` 비워두면 `Player` 태그로 자동 검색. 명시 할당 권장
-- `jumpVelocityThreshold`: 너무 민감하면 1.5~2.0으로 올림
 - `watchedKeys`: 퀘스트에서 쓸 키 목록 (기본값: WASD, Space, B, E, F, 마우스 좌/우)
 
-> **왜 임시?** Player/ 폴더 수정 금지 제약 우회용. 나중에 Player/ 풀리면 `PlayerController`가 직접 `InputBus.RaiseKeyDown` / `GameEvents.RaiseMovedDelta` / `GameEvents.RaiseJumped` 호출하도록 이전 → PlayerWatcher 제거.
+> **왜 임시?** Player/ 폴더 수정 금지 제약 우회용. 나중에 Player/ 풀리면 `PlayerController`가 직접 `InputBus.RaiseKeyDown` / `GameEvents.RaiseMovedDelta` 호출하도록 이전 → PlayerWatcher 제거.
 
 ### ③ Player 태그 확인
 플레이어 GameObject에 `Player` 태그가 붙어 있어야 합니다 (PlayerWatcher 자동 검색용 + QuestTrigger 충돌 판정용).
@@ -143,14 +142,12 @@ UI Canvas에 QuestPanelUI 프리팹 배치 (좌상단 앵커).
 
 ## 6. 빌드 테스트 항목 (코드 리뷰로 못 잡는 것)
 
-- 한국어 라벨 길이로 취소선 정확도 — `preferredWidth + 4f` 마진 부족 시 5~10f로 조정
 - 카테고리 3~4개 동시 표시 시각적 밀도 — 좌상단 빡빡하면 max-height + 스크롤 추가
 - 1.2초 시퀀스가 5분 누적 시 답답한지 — 길면 0.8~1.0초로 단축
 - Tab 토글 반응성 + 다른 UI(인벤토리/메뉴) 충돌
 - "골렘 2마리" 시나리오 실험 — 1마리 잡고 종료 후 재시작 → 진짜 막히는지 확인
 - `startGracePeriod` 0.1초 체감 — 정상 사용자에게 거슬리면 OnUIActivated에선 0으로
 - 카테고리 동시 슬라이드 인 우르륵 — 거슬리면 cascade 0.15초 간격 추가
-- PlayerMovementWatcher 점프 감지가 너무 민감/둔감 — `jumpVelocityThreshold` 조정
 
 ---
 
@@ -162,9 +159,10 @@ UI Canvas에 QuestPanelUI 프리팹 배치 (좌상단 앵커).
 |---|---|---|
 | `InputBus.RaiseKeyDown(key)` | `PlayerMovementWatcher.Update` | ✅ 결선됨 |
 | `GameEvents.RaiseMovedDelta(delta)` | `PlayerMovementWatcher.Update` | ✅ 결선됨 |
-| `GameEvents.RaiseJumped()` | `PlayerMovementWatcher.Update` | ✅ 결선됨 (Y 속도 임계값 기반) |
 | `GameEvents.RaiseEnemyKilled(monsterId)` | `EnemyHealth.Die()` | ✅ 결선됨 (`EnemyBrain.Data.enemyName` ID) |
 | `GameEvents.RaiseTriggerEnter/Exit` | `QuestTrigger.OnTriggerEnter/Exit` | ✅ 결선됨 (Player 태그 필요) |
+
+> 점프 카운트가 필요하면 `PressKeyObjective(KeyCode.Space)`로 사실상 동일 효과. 별도 점프 감지 휴리스틱(Y 속도 임계값)은 false positive 위험 있어 제거됨.
 
 ### 향후 정리
 - **PlayerMovementWatcher 제거 예정**: Player/ 폴더 풀리면 `PlayerController`가 직접 `InputBus`/`GameEvents` 호출. 인터페이스(정적 이벤트 클래스)는 안 바뀌니 코드 한쪽만 옮기면 됨.

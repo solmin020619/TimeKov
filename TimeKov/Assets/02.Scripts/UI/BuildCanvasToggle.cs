@@ -7,19 +7,19 @@ public class BuildCanvasToggle : MonoBehaviour
     [SerializeField] private GameObject buildCanvas;
 
     [Header("Player Visual")]
-    [Tooltip("ºôµå¸ðµåÀÏ ¶§ ¼û±æ ¿ÀºêÁ§Æ® (ÆÈ, ¹«±â µî)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® (ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)")]
     [SerializeField] private GameObject[] playerVisuals;
 
     private bool lastBuildMode = false;
     private bool isAltHeld = false;
 
-    // °¢ ¿ÀºêÁ§Æ®¿¡¼­ ¼öÁýÇÑ Renderer ¸ñ·Ï
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Renderer ï¿½ï¿½ï¿½
     private Renderer[][] cachedRenderers;
 
     private void Awake()
     {
         if (buildManager == null)
-            buildManager = FindObjectOfType<BuildManager>();
+            buildManager = FindAnyObjectByType<BuildManager>();
 
         if (buildCanvas != null)
             buildCanvas.SetActive(false);

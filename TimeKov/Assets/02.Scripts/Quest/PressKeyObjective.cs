@@ -31,7 +31,7 @@ public class PressKeyObjective : ObjectiveSO
     {
         requiredCount = Mathf.Max(1, requiredCount);
         if (key == KeyCode.None)
-            Debug.LogError($"[PressKey] '{name}' key=None — 어떤 키도 안 받음", this);
+            Debug.LogError($"[PressKey] '{name}' key=None. 어떤 키도 안 받음", this);
         if (key == KeyCode.Tab || key == KeyCode.Escape)
             Debug.LogWarning($"[PressKey] '{name}' Tab/Escape는 UI 토글/메뉴와 충돌 가능", this);
     }

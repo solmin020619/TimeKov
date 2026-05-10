@@ -3,10 +3,10 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// ¿£µåÇÊµå ½ºÅ¸ÀÏ °ÝÀÚ ¿À¹ö·¹ÀÌ.
-/// - ²ÀÁþÁ¡: ÀÛÀº »ç°¢Çü(Triangles ¼­ºê¸Þ½Ã)
-/// - ¿§Áö:   ²ÀÁþÁ¡°ú ¿©¹éÀ» µÎ°í ¶³¾îÁø ¼±(Lines ¼­ºê¸Þ½Ã)
-/// - Ä¿¼­/ÇÁ¸®ºä ÁÖº¯ patchRadius ¹üÀ§¿¡¸¸ Ç¥½Ã (½Ã¼³/·¹ÀÏ ¸ðµå ¸ðµÎ Áö¿ø)
+/// ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.
+/// - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ ï¿½ç°¢ï¿½ï¿½(Triangles ï¿½ï¿½ï¿½ï¿½Þ½ï¿½)
+/// - ï¿½ï¿½ï¿½ï¿½:   ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Î°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½(Lines ï¿½ï¿½ï¿½ï¿½Þ½ï¿½)
+/// - Ä¿ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Öºï¿½ patchRadius ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½ (ï¿½Ã¼ï¿½/ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 /// </summary>
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class BuildGridOverlay : MonoBehaviour
@@ -15,23 +15,23 @@ public class BuildGridOverlay : MonoBehaviour
     [SerializeField] private BuildManager buildManager;
 
     [Header("Grid Patch")]
-    [Tooltip("Ä¿¼­¸¦ Áß½ÉÀ¸·Î ¸î ¼¿ ¹Ý°æ±îÁö °ÝÀÚ¸¦ ±×¸±Áö (¿¹: 6ÀÌ¸é 12x12 ÆÐÄ¡)")]
+    [Tooltip("Ä¿ï¿½ï¿½ï¿½ï¿½ ï¿½ß½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Ý°ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ú¸ï¿½ ï¿½×¸ï¿½ï¿½ï¿½ (ï¿½ï¿½: 6ï¿½Ì¸ï¿½ 12x12 ï¿½ï¿½Ä¡)")]
     [SerializeField] private int patchRadius = 6;
 
-    [Tooltip("ÇÁ¸®ºä°¡ ¾øÀ» ¶§µµ Ä¿¼­ À§Ä¡¸¦ µû¶ó Ç¥½ÃÇÒÁö")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ä°¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ä¿ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private bool followCursorWhenNoPreview = false;
 
     [Header("Style")]
-    [Tooltip("²ÀÁþÁ¡¿ë ¸ÓÆ¼¸®¾ó (Unlit/Transparent °è¿­ ÃßÃµ)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½ (Unlit/Transparent ï¿½è¿­ ï¿½ï¿½Ãµ)")]
     [SerializeField] private Material dotMaterial;
 
-    [Tooltip("¿§Áö ¼±¿ë ¸ÓÆ¼¸®¾ó (Unlit/Transparent °è¿­ ÃßÃµ)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½ (Unlit/Transparent ï¿½è¿­ ï¿½ï¿½Ãµ)")]
     [SerializeField] private Material lineMaterial;
 
-    [Tooltip("²ÀÁþÁ¡ Á¡ÀÇ ÇÑ º¯ Å©±â (¿ùµå ´ÜÀ§)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ Å©ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)")]
     [SerializeField, Range(0.01f, 0.5f)] private float dotSize = 0.08f;
 
-    [Tooltip("²ÀÁþÁ¡°ú ¼± »çÀÌÀÇ ¿©¹é (¿ùµå ´ÜÀ§). 0ÀÌ¸é ¼±ÀÌ ²ÀÁþÁ¡±îÁö ÀÌ¾îÁü")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½). 0ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¾ï¿½ï¿½ï¿½")]
     [SerializeField, Range(0f, 0.5f)] private float edgeGap = 0.1f;
 
     [Header("Visual")]
@@ -39,20 +39,20 @@ public class BuildGridOverlay : MonoBehaviour
     [SerializeField] private bool showOnlyInBuildMode = true;
     [SerializeField] private bool showOnlyInTopViewMode = true;
 
-    [Tooltip("µîÀå/¼Ò¸ê ÆäÀÌµå ½Ã°£ (¸ÓÆ¼¸®¾óÀÌ Transparent¿©¾ß È¿°ú º¸ÀÓ)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½/ï¿½Ò¸ï¿½ ï¿½ï¿½ï¿½Ìµï¿½ ï¿½Ã°ï¿½ (ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Transparentï¿½ï¿½ï¿½ï¿½ È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)")]
     [SerializeField] private float fadeDuration = 0.1f;
 
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private Mesh gridMesh;
 
-    // ¸Þ½Ã ¸®ºôµå ÆÇ´Ü¿ë Ä³½Ã
+    // ï¿½Þ½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç´Ü¿ï¿½ Ä³ï¿½ï¿½
     private float cachedCellSize = -1f;
     private int cachedPatchRadius = -1;
     private float cachedDotSize = -1f;
     private float cachedEdgeGap = -1f;
 
-    // ¸ÓÆ¼¸®¾ó Ä³½Ã
+    // ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½ Ä³ï¿½ï¿½
     private Material cachedDotMat;
     private Material cachedLineMat;
 
@@ -66,7 +66,7 @@ public class BuildGridOverlay : MonoBehaviour
         mpb = new MaterialPropertyBlock();
 
         if (buildManager == null)
-            buildManager = FindObjectOfType<BuildManager>();
+            buildManager = FindAnyObjectByType<BuildManager>();
 
         EnsureMaterialsAssigned();
     }
@@ -140,11 +140,11 @@ public class BuildGridOverlay : MonoBehaviour
         if (showOnlyInTopViewMode && !buildManager.IsTopViewMode)
             return false;
 
-        // ½Ã¼³ or ·¹ÀÏ ÇÁ¸®ºä À§Ä¡
+        // ï¿½Ã¼ï¿½ or ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡
         if (buildManager.TryGetActivePreviewPosition(out centerWorld))
             return true;
 
-        // ÇÁ¸®ºä ¾øÀ» ¶§ Ä¿¼­ µû¶ó°¡±â ¿É¼Ç
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Ä¿ï¿½ï¿½ ï¿½ï¿½ï¿½ó°¡±ï¿½ ï¿½É¼ï¿½
         if (followCursorWhenNoPreview && TryGetCursorWorld(out centerWorld))
             return true;
 
@@ -174,13 +174,13 @@ public class BuildGridOverlay : MonoBehaviour
         cachedDotMat = dotMaterial;
         cachedLineMat = lineMaterial;
 
-        // µÑ Áß ÇÏ³ª¸¸ ÇÒ´çµÅ ÀÖÀ¸¸é °°Àº °É·Î Ã¤¿ö³ÖÀ½ (ÆíÀÇ)
+        // ï¿½ï¿½ ï¿½ï¿½ ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½Ò´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½É·ï¿½ Ã¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½)
         Material d = dotMaterial != null ? dotMaterial : lineMaterial;
         Material l = lineMaterial != null ? lineMaterial : dotMaterial;
 
         if (d == null && l == null)
         {
-            // ¾Æ¹«°Íµµ ¾øÀ¸¸é ±âÁ¸ sharedMaterial Àç»ç¿ë
+            // ï¿½Æ¹ï¿½ï¿½Íµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ sharedMaterial ï¿½ï¿½ï¿½ï¿½
             d = l = meshRenderer.sharedMaterial;
         }
 
@@ -198,14 +198,14 @@ public class BuildGridOverlay : MonoBehaviour
 #endif
         }
 
-        int side = Mathf.Max(1, radius) * 2;    // ÇÑ º¯ÀÇ ¼¿ °³¼ö
-        int n = side + 1;                            // ²ÀÁþÁ¡ Çà/¿­ °³¼ö
+        int side = Mathf.Max(1, radius) * 2;    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        int n = side + 1;                            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½/ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         float dot = Mathf.Max(0.001f, dotSize);
         float half = dot * 0.5f;
-        // gapÀÌ ¼¿ Àý¹ÝÀ» ³ÑÀ¸¸é ¼±ÀÌ »ç¶óÁö¹Ç·Î Å¬·¥ÇÁ
+        // gapï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½
         float gap = Mathf.Clamp(edgeGap, 0f, cellSize * 0.5f - 0.001f);
 
-        // --- 1) ²ÀÁþÁ¡ quads (Triangles ¼­ºê¸Þ½Ã) ---
+        // --- 1) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ quads (Triangles ï¿½ï¿½ï¿½ï¿½Þ½ï¿½) ---
         int dotQuadCount = n * n;
         int dotVertCount = dotQuadCount * 4;
         int dotIndexCount = dotQuadCount * 6;
@@ -226,7 +226,7 @@ public class BuildGridOverlay : MonoBehaviour
                 dotVerts[dv++] = new Vector3(cx + half, 0f, cz + half);
                 dotVerts[dv++] = new Vector3(cx - half, 0f, cz + half);
 
-                // À§¿¡¼­ ³»·Á´Ù ºÃÀ» ¶§(+Y) º¸ÀÌµµ·Ï CCW °¨±â
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½(+Y) ï¿½ï¿½ï¿½Ìµï¿½ï¿½ï¿½ CCW ï¿½ï¿½ï¿½ï¿½
                 dotIndices[di++] = baseIdx + 0;
                 dotIndices[di++] = baseIdx + 2;
                 dotIndices[di++] = baseIdx + 1;
@@ -236,9 +236,9 @@ public class BuildGridOverlay : MonoBehaviour
             }
         }
 
-        // --- 2) ¿§Áö ¼± (Lines ¼­ºê¸Þ½Ã) ---
-        // °¡·Î ¼±: n°³ÀÇ zÇà ¡¿ side°³ÀÇ x¼¼±×¸ÕÆ®
-        // ¼¼·Î ¼±: n°³ÀÇ x¿­ ¡¿ side°³ÀÇ z¼¼±×¸ÕÆ®
+        // --- 2) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ (Lines ï¿½ï¿½ï¿½ï¿½Þ½ï¿½) ---
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½: nï¿½ï¿½ï¿½ï¿½ zï¿½ï¿½ ï¿½ï¿½ sideï¿½ï¿½ï¿½ï¿½ xï¿½ï¿½ï¿½×¸ï¿½Æ®
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½: nï¿½ï¿½ï¿½ï¿½ xï¿½ï¿½ ï¿½ï¿½ sideï¿½ï¿½ï¿½ï¿½ zï¿½ï¿½ï¿½×¸ï¿½Æ®
         int lineSegCount = n * side * 2;
         int lineVertCount = lineSegCount * 2;
         Vector3[] lineVerts = new Vector3[lineVertCount];
@@ -270,12 +270,12 @@ public class BuildGridOverlay : MonoBehaviour
         for (int i = 0; i < lineVertCount; i++)
             lineIndices[i] = i;
 
-        // --- 3) ´ÜÀÏ ¸Þ½Ã¿¡ ¼­ºê¸Þ½Ã 2°³·Î ÇÕÄ¡±â ---
+        // --- 3) ï¿½ï¿½ï¿½ï¿½ ï¿½Þ½Ã¿ï¿½ ï¿½ï¿½ï¿½ï¿½Þ½ï¿½ 2ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ---
         Vector3[] allVerts = new Vector3[dotVertCount + lineVertCount];
         Array.Copy(dotVerts, 0, allVerts, 0, dotVertCount);
         Array.Copy(lineVerts, 0, allVerts, dotVertCount, lineVertCount);
 
-        // ¼± ÀÎµ¦½º´Â µÚÂÊÀ¸·Î ¿ÀÇÁ¼Â
+        // ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         int[] offsetLineIndices = new int[lineVertCount];
         for (int i = 0; i < lineVertCount; i++)
             offsetLineIndices[i] = lineIndices[i] + dotVertCount;
@@ -293,7 +293,7 @@ public class BuildGridOverlay : MonoBehaviour
 
     private void ApplyAlpha()
     {
-        // ¼­ºê¸Þ½Ã 0(Á¡), 1(¼±) °¢°¢¿¡ ¾ËÆÄ Àû¿ë
+        // ï¿½ï¿½ï¿½ï¿½Þ½ï¿½ 0(ï¿½ï¿½), 1(ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         ApplyAlphaToSubmesh(0);
         ApplyAlphaToSubmesh(1);
     }

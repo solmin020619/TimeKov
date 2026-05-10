@@ -1,204 +1,165 @@
 using System;
-using System.Collections;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// 모든 퀘스트는 헤더(제목) + ObjectiveLine 인덴트 구조로 표시.
+/// 1 objective든 N objective든 동일 시각 (엔드필드 패턴, 사진 5 기준).
+/// </summary>
 public class QuestEntry : MonoBehaviour
 {
-    [Header("Single layout")]
-    [SerializeField] GameObject singleRow;
-    [SerializeField] TMP_Text singleLabel;
-    [SerializeField] RectTransform singleStrike;
-    [SerializeField] Image singleFlash;
-    [SerializeField] Image singleCheck;
-
-    [Header("Multi layout")]
-    [SerializeField] GameObject multiRow;
-    [SerializeField] TMP_Text multiTitle;
-    [SerializeField] Transform multiObjectiveList;
+    [Header("Layout")]
+    [SerializeField] TMP_Text title;
+    [SerializeField] Transform objectiveList;
     [SerializeField] ObjectiveLine objectiveLinePrefab;
-    [SerializeField] RectTransform multiStrike;
-    [SerializeField] Image multiFlash;
-    [SerializeField] Image multiCheck;
+
+    [Header("Highlight icons")]
+    [Tooltip("평상시 아이콘 (큰 제목 옆, 동그라미 sprite). 인스펙터에서 드래그.")]
+    [SerializeField] GameObject iconNormal;
+    [Tooltip("!!! 새 퀘스트 등장 순간 아이콘 (큰 제목 옆). sprite는 인스펙터에서 드래그.")]
+    [SerializeField] GameObject iconAlert;
+
+    [Header("Highlight timing")]
+    [Tooltip("새 퀘스트 등장 시 !!! 펄스 유지 시간 후 평상시 아이콘으로 전환")]
+    [SerializeField] float alertHoldDuration = 1.5f;
+    [Tooltip("!!! 펄스 1회 반주기. scale 1->1.15->1 한 사이클 절반")]
+    [SerializeField] float alertPulseInterval = 0.25f;
+    [Tooltip("!!! 에서 평상시 아이콘으로 전환 시 fade 길이")]
+    [SerializeField] float alertFadeDuration = 0.2f;
 
     [Header("Audio")]
     [SerializeField] AudioSource audioSource;
     [SerializeField] AudioClip completeSfx;
 
-    [Header("Layout")]
-    [SerializeField] float defaultHeight = 40f;
+    [Header("Animation timing")]
+    [Tooltip("슬라이드 인 fade 길이")]
+    [SerializeField] float slideInDuration = 0.3f;
+    [Tooltip("완료 시퀀스 시작 전 hold (ObjectiveLine collapse 끝나길 기다림)")]
+    [SerializeField] float completeStartDelay = 0.75f;
+    [Tooltip("완료 시 위로 올라가며 사라지는 거리(px)")]
+    [SerializeField] float completeRiseY = 20f;
+    [Tooltip("완료 시 fade + rise 길이")]
+    [SerializeField] float completeFadeDuration = 0.4f;
 
     QuestSO _quest;
     CategoryRuntime _rt;
-    bool _isMulti;
-
-    // Single 모드 핸들러 — 명명 메서드 보관
-    ObjectiveSO _singleObj;
-    Action<float> _singleProgressHandler;
-    Action<ObjectiveSO> _singleCompletedHandler;
-
-    void Awake()
-    {
-        var le = GetComponent<LayoutElement>();
-        if (le != null && le.preferredHeight > 0) defaultHeight = le.preferredHeight;
-    }
 
     public void PlaySlideIn(QuestSO q, CategoryRuntime rt)
     {
         _quest = q; _rt = rt;
-        _isMulti = q.objectives != null && q.objectives.Length >= 2;
 
-        singleRow.SetActive(!_isMulti);
-        multiRow.SetActive(_isMulti);
+        if (title != null) title.text = q.title;
 
-        if (_isMulti)
+        foreach (var o in rt.activeObjectives)
         {
-            multiTitle.text = q.title;
-            foreach (var o in rt.activeObjectives)
-            {
-                var line = Instantiate(objectiveLinePrefab, multiObjectiveList);
-                line.Bind(o);
-            }
-            ResetVisuals(multiStrike, multiCheck, multiFlash);
-        }
-        else
-        {
-            _singleObj = rt.activeObjectives[0];
-            _singleProgressHandler = OnSingleProgress;
-            _singleCompletedHandler = OnSingleCompleted;
-            _singleObj.OnProgressChanged += _singleProgressHandler;
-            _singleObj.OnCompleted += _singleCompletedHandler;
-            RefreshSingleLabel();
-            ResetVisuals(singleStrike, singleCheck, singleFlash);
+            var line = Instantiate(objectiveLinePrefab, objectiveList);
+            line.Bind(o);
+            // ObjectiveLine이 자체적으로 OnDone 처리 (sweep + 체크 + collapse)
         }
 
-        StartCoroutine(SlideInAndActivate());
+        // Nested CSF chain은 동적으로 추가된 자식에 대해 초기 layout pass 누락 가능
+        // 부모 체인 모두 강제 rebuild. 한 번만, init 시점.
+        RebuildLayoutChainUp();
+
+        // 시퀀스 C: 새 퀘스트 등장 시 !!! 펄스, 일정 시간 후 평상시 아이콘으로 전환
+        StartHighlightSequence();
+
+        SlideInAndActivate();
     }
 
-    void OnSingleProgress(float _) => RefreshSingleLabel();
-    void OnSingleCompleted(ObjectiveSO _) => RefreshSingleLabel();
-
-    void RefreshSingleLabel()
+    void StartHighlightSequence()
     {
-        if (_singleObj != null && singleLabel != null)
-            singleLabel.text = _singleObj.GetDisplayLabel();
-    }
-
-    static void ResetVisuals(RectTransform strike, Image check, Image flash)
-    {
-        if (strike) strike.sizeDelta = new Vector2(0, strike.sizeDelta.y);
-        if (check) check.transform.localScale = Vector3.zero;
-        if (flash) { var c = flash.color; c.a = 0; flash.color = c; }
-    }
-
-    IEnumerator SlideInAndActivate()
-    {
-        var le = GetComponent<LayoutElement>();
-        if (le != null)
+        if (iconAlert == null)
         {
-            float target = defaultHeight;
-            le.preferredHeight = 0f;
-            float t = 0f;
-            while (t < 0.3f)
-            {
-                t += Time.unscaledDeltaTime;
-                le.preferredHeight = Mathf.Lerp(0f, target, t / 0.3f);
-                yield return null;
-            }
-            le.preferredHeight = target;
+            if (iconNormal != null) iconNormal.SetActive(true);
+            return;
         }
 
-        // ★ UI 슬라이드 인 끝나는 시점에 Activate 호출 — 입력 카운트 시작
-        QuestManager.Instance.ActivateObjectives(_rt);
+        if (iconNormal != null) iconNormal.SetActive(false);
+        iconAlert.SetActive(true);
+
+        var tr = iconAlert.transform;
+        tr.localScale = Vector3.one;
+        var cg = iconAlert.GetComponent<CanvasGroup>();
+        if (cg != null) cg.alpha = 1f;
+
+        // 펄스: 1 -> 1.15 -> 1 한 사이클 = alertPulseInterval * 2
+        int loops = Mathf.Max(1, Mathf.RoundToInt(alertHoldDuration / Mathf.Max(0.05f, alertPulseInterval * 2f)));
+        var pulse = DOTween.Sequence().SetUpdate(true).SetLink(iconAlert);
+        pulse.Append(tr.DOScale(1.15f, alertPulseInterval).SetEase(Ease.OutQuad));
+        pulse.Append(tr.DOScale(1.0f, alertPulseInterval).SetEase(Ease.InQuad));
+        pulse.SetLoops(loops);
+        pulse.OnComplete(SwitchToNormal);
+    }
+
+    void SwitchToNormal()
+    {
+        if (iconAlert == null)
+        {
+            if (iconNormal != null) iconNormal.SetActive(true);
+            return;
+        }
+
+        var cg = iconAlert.GetComponent<CanvasGroup>();
+        if (cg == null) cg = iconAlert.AddComponent<CanvasGroup>();
+
+        cg.DOFade(0f, alertFadeDuration).SetUpdate(true).SetLink(iconAlert).OnComplete(() =>
+        {
+            iconAlert.SetActive(false);
+            cg.alpha = 1f;
+            if (iconNormal != null) iconNormal.SetActive(true);
+        });
+    }
+
+    void RebuildLayoutChainUp()
+    {
+        RectTransform cur = transform as RectTransform;
+        int safety = 20;
+        while (cur != null && safety-- > 0)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(cur);
+            cur = cur.parent as RectTransform;
+        }
+    }
+
+    // 슬라이드 인. alpha fade. 높이는 CSF chain이 자동 결정.
+    void SlideInAndActivate()
+    {
+        var cg = GetComponent<CanvasGroup>();
+        if (cg != null) cg.alpha = 0f;
+
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        if (cg != null) seq.Append(cg.DOFade(1f, slideInDuration));
+        seq.OnComplete(() => QuestManager.Instance.ActivateObjectives(_rt));
     }
 
     public void PlayCompleteSequence(Action onDone)
     {
-        StartCoroutine(WaitSlideThenComplete(onDone));
-    }
-
-    IEnumerator WaitSlideThenComplete(Action onDone)
-    {
-        yield return new WaitForSecondsRealtime(0.35f);   // 슬라이드 인 0.3 + 여유
-        yield return CompleteRoutine(onDone);
-    }
-
-    IEnumerator CompleteRoutine(Action onDone)
-    {
-        if (!_isMulti && _singleObj != null)
-        {
-            _singleObj.OnProgressChanged -= _singleProgressHandler;
-            _singleObj.OnCompleted -= _singleCompletedHandler;
-        }
-
-        var strike = _isMulti ? multiStrike : singleStrike;
-        var check = _isMulti ? multiCheck : singleCheck;
-        var flash = _isMulti ? multiFlash : singleFlash;
-        var labelTextRef = _isMulti ? multiTitle : singleLabel;
-
-        if (labelTextRef == null) { onDone?.Invoke(); yield break; }
-
-        if (audioSource && completeSfx) audioSource.PlayOneShot(completeSfx);
-
-        labelTextRef.ForceMeshUpdate();
-        float fullWidth = labelTextRef.preferredWidth + 4f;
-
-        // 0.0 ~ 0.3s — 취소선 + 플래시
-        float t = 0f;
-        while (t < 0.3f)
-        {
-            t += Time.unscaledDeltaTime;
-            float p = t / 0.3f;
-            if (strike) strike.sizeDelta = new Vector2(Mathf.Lerp(0f, fullWidth, p), strike.sizeDelta.y);
-            if (flash)
-            {
-                float fa = (p < 0.5f) ? Mathf.Lerp(0f, 0.3f, p * 2f) : Mathf.Lerp(0.3f, 0f, (p - 0.5f) * 2f);
-                var c = flash.color; c.a = fa; flash.color = c;
-            }
-            yield return null;
-        }
-
-        // 0.3 ~ 0.5s — 체크 팝
-        t = 0f;
-        while (t < 0.2f)
-        {
-            t += Time.unscaledDeltaTime;
-            float p = t / 0.2f;
-            float scale = p < 0.6f ? Mathf.Lerp(0f, 1.2f, p / 0.6f) : Mathf.Lerp(1.2f, 1.0f, (p - 0.6f) / 0.4f);
-            if (check) check.transform.localScale = Vector3.one * scale;
-            yield return null;
-        }
-
-        yield return new WaitForSecondsRealtime(0.2f);
-
-        // 0.7 ~ 1.1s — 페이드 + 슬라이드 업
         var cg = GetComponent<CanvasGroup>();
-        var le = GetComponent<LayoutElement>();
-        var rect = (RectTransform)transform;
-        Vector2 startPos = rect.anchoredPosition;
-        float startH = le != null ? le.preferredHeight : rect.rect.height;
+        var rt = transform as RectTransform;
+        Vector2 startPos = rt != null ? rt.anchoredPosition : Vector2.zero;
 
-        t = 0f;
-        while (t < 0.4f)
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+
+        // ObjectiveLine sweep+pop+collapse 끝나길 기다림 (약 0.7~0.9s)
+        seq.AppendInterval(completeStartDelay);
+        seq.AppendCallback(() =>
         {
-            t += Time.unscaledDeltaTime;
-            float p = t / 0.4f;
-            if (cg) cg.alpha = 1f - p;
-            rect.anchoredPosition = startPos + Vector2.up * Mathf.Lerp(0f, 10f, p);
-            if (le) le.preferredHeight = Mathf.Lerp(startH, 0f, p);
-            yield return null;
-        }
+            if (audioSource && completeSfx) audioSource.PlayOneShot(completeSfx);
+        });
 
-        onDone?.Invoke();
-    }
+        // 위로 올라가며 fade. 사진 4 패턴 (내용이 위로 흡수되며 사라짐)
+        if (cg != null)
+            seq.Append(cg.DOFade(0f, completeFadeDuration));
+        else
+            seq.AppendInterval(completeFadeDuration);
 
-    void OnDestroy()
-    {
-        if (!_isMulti && _singleObj != null && _singleProgressHandler != null)
-        {
-            _singleObj.OnProgressChanged -= _singleProgressHandler;
-            _singleObj.OnCompleted -= _singleCompletedHandler;
-        }
+        if (rt != null)
+            seq.Join(rt.DOAnchorPos(startPos + new Vector2(0f, completeRiseY), completeFadeDuration)
+                       .SetEase(Ease.OutQuad));
+
+        seq.OnComplete(() => onDone?.Invoke());
     }
 }
