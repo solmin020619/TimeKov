@@ -120,6 +120,10 @@ public class BuildManager : MonoBehaviour
     [Header("Build Slots (1~9 keys)")]
     public BuildSlot[] buildSlots;
 
+    [Header("UI Effects")]
+    public HotbarSlotEffect[] slotEffects;
+    public HotbarSlotEffect railSlotEffect;
+
     [Header("Preview")]
     public GameObject previewMarker;
 
@@ -1416,5 +1420,32 @@ public class BuildManager : MonoBehaviour
     private bool IsPointerOverUI()
     {
         return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+    }
+
+    // UI
+    private void LateUpdate()
+    {
+        RefreshSlotUI();
+    }
+
+    private void RefreshSlotUI()
+    {
+        if (slotEffects != null)
+        {
+            for (int i = 0; i < slotEffects.Length; i++)
+            {
+                if (slotEffects[i] != null)
+                {
+                    bool isThisSelected = (IsBuildMode && hasSelectedSlot && currentIndex == i && CurrentSubMode == BuildSubMode.Facility);
+                    slotEffects[i].SetSelected(isThisSelected);
+                }
+            }
+        }
+
+        if (railSlotEffect != null)
+        {
+            bool isRailSelected = (IsBuildMode && CurrentSubMode == BuildSubMode.Rail);
+            railSlotEffect.SetSelected(isRailSelected);
+        }
     }
 }
