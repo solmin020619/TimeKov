@@ -12,6 +12,11 @@ public abstract class ObjectiveSO : ScriptableObject
     public event Action<ObjectiveSO> OnCompleted;
     public event Action<float> OnProgressChanged;
 
+    [Tooltip("표시 텍스트. TMP rich text 태그 자유 사용 가능.\n" +
+             "  색 강조: 통제탑으로 <color=#FFCC00>이동</color>하여 대화\n" +
+             "  굵게: <b>중요</b> 단어\n" +
+             "  크기: <size=120%>크게</size>")]
+    [TextArea(2, 4)]
     public string label;
     public float startGracePeriod = 0.1f;
 

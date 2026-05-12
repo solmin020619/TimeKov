@@ -1,3 +1,4 @@
+using System;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -49,9 +50,9 @@ public class ToastNotification : MonoBehaviour
     /// <summary>
     /// 토스트 표시. 연속 호출 시 직전 시퀀스 Kill 후 재시작 (마지막 호출만 보임).
     /// delay > 0: 그 시간만큼 invisible 상태로 대기 후 슬라이드 인 시작.
-    ///   퀘스트 완료, 기존 UI 사라짐, 토스트 + 새 UI 동시 등장 흐름에 사용.
+    /// onHideStart: hold 끝나고 좌측 슬라이드 아웃 시작 시점에 호출. iconAlert 사라짐 동기화용.
     /// </summary>
-    public void Show(string message, float delay = 0f)
+    public void Show(string message, float delay = 0f, Action onHideStart = null)
     {
         if (!_initialized) Initialize();
         if (root == null) return;
@@ -73,8 +74,15 @@ public class ToastNotification : MonoBehaviour
         });
         _activeSeq.Append(root.DOAnchorPos(_restPos, slideInDuration).SetEase(Ease.OutCubic));
         _activeSeq.AppendInterval(holdDuration);
+
+        // 사라짐 시작 시점 콜백 (iconAlert fade out 동시 트리거)
+        _activeSeq.AppendCallback(() => onHideStart?.Invoke());
+
+        // 좌측으로 슬라이드 아웃 + fade. 등장과 같은 방향으로 빠짐.
+        _activeSeq.Append(root.DOAnchorPos(_restPos + new Vector2(slideOffsetX, 0f), fadeOutDuration).SetEase(Ease.InCubic));
         if (canvasGroup != null)
-            _activeSeq.Append(canvasGroup.DOFade(0f, fadeOutDuration));
+            _activeSeq.Join(canvasGroup.DOFade(0f, fadeOutDuration));
+
         _activeSeq.OnComplete(OnSequenceFinished);
     }
 

@@ -25,6 +25,7 @@ public class QuestPanelUI : MonoBehaviour
     bool _setupDone;
     bool _collapsed;
     Tween _toggleTween;
+    CategoryWidget _lastShownWidget;   // 토스트 사라짐 → 다음 QuestEntry iconAlert 전환 동기화용
 
     void Start()
     {
@@ -95,12 +96,22 @@ public class QuestPanelUI : MonoBehaviour
 
     void HandleQuestShown(CategoryRuntime rt, QuestSO q)
     {
-        if (_widgets.TryGetValue(rt, out var w) && w != null) w.ShowQuest(q);
+        if (_widgets.TryGetValue(rt, out var w) && w != null)
+        {
+            w.ShowQuest(q);
+            _lastShownWidget = w;
+        }
     }
 
     void HandleQuestCompleted(CategoryRuntime rt, QuestSO q)
     {
-        if (toast != null) toast.Show(toastMessage, toastDelay);
+        if (toast == null) return;
+
+        // 토스트가 hold 끝나고 좌측으로 사라지기 시작하는 시점 = 다음 QuestEntry의 iconAlert→iconNormal 전환 시점
+        toast.Show(toastMessage, toastDelay, onHideStart: () =>
+        {
+            if (_lastShownWidget != null) _lastShownWidget.TriggerIconSwitchToNormal();
+        });
     }
 
     void HandleCategoryCompleted(CategoryRuntime rt)
