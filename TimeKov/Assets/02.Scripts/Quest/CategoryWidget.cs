@@ -64,6 +64,12 @@ public class CategoryWidget : MonoBehaviour
         if (_currentEntry != null) { Destroy(_currentEntry.gameObject); _currentEntry = null; }
     }
 
+    /// <summary>토스트 사라짐 시점에 호출. 현재 표시 중인 QuestEntry의 iconAlert→iconNormal 전환</summary>
+    public void TriggerIconSwitchToNormal()
+    {
+        if (_currentEntry != null) _currentEntry.TriggerIconSwitchToNormal();
+    }
+
     [Header("Fade timing")]
     [Tooltip("카테고리 완료 후 fade 시작까지 대기 시간 (사용자가 완료 인지)")]
     [SerializeField] float fadeOutHoldTime = 1.5f;

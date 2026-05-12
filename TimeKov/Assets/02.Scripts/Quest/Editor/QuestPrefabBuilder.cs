@@ -158,6 +158,59 @@ public static class QuestPrefabBuilder
         AssetDatabase.Refresh();
     }
 
+    [MenuItem("Tools/Quest/Consolidate BarFlash Assets")]
+    public static void ConsolidateBarFlashAssets()
+    {
+        const string newFolder = "Assets/UI Effect/FX_UI_BarFlashO";
+        const string oldRoot = "Assets/Game VFX - UI & Word Effect Collection";
+
+        if (!AssetDatabase.IsValidFolder(newFolder))
+            AssetDatabase.CreateFolder("Assets/UI Effect", "FX_UI_BarFlashO");
+
+        // BarFlashO prefab + 3 material + 1 shader + 2 texture = 7개 의존성
+        // (grad2b_windowlight는 UI Effect에 이미 있음 - skip)
+        string[] paths = {
+            $"{oldRoot}/Prefabs/FX_UI_BarFlashO.prefab",
+            $"{oldRoot}/Materials/starli.mat",
+            $"{oldRoot}/Materials/gradglow_0.mat",
+            $"{oldRoot}/Materials/glow_2.mat",
+            $"{oldRoot}/Shader/Additive.shader",
+            $"{oldRoot}/Textures/starli.png",
+            $"{oldRoot}/Textures/glow_00000.png",
+        };
+
+        int moved = 0;
+        int skipped = 0;
+        foreach (var src in paths)
+        {
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(src) == null)
+            {
+                skipped++;
+                continue;
+            }
+            var filename = System.IO.Path.GetFileName(src);
+            var dst = $"{newFolder}/{filename}";
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(dst) != null)
+            {
+                skipped++;
+                continue;
+            }
+            var err = AssetDatabase.MoveAsset(src, dst);
+            if (string.IsNullOrEmpty(err)) moved++;
+            else Debug.LogWarning($"[BarFlash] 이동 실패: {src} -> {dst}: {err}");
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        Debug.Log(
+            $"[QuestPrefabBuilder] BarFlashO 의존성 정리 완료.\n" +
+            $"  - 이동: {moved}개 -> {newFolder}\n" +
+            $"  - 건너뜀: {skipped}개 (이미 이동됨 또는 없음)\n" +
+            $"  이제 '{oldRoot}' 폴더 안의 나머지 파일은 안전하게 삭제 가능 (BarGlow 폴더도 있으면 같이).\n" +
+            $"  Project 뷰에서 폴더 우클릭 → Delete.");
+    }
+
     [MenuItem("Tools/Quest/Cleanup VFX Package")]
     public static void CleanupVfxPackage()
     {
@@ -219,14 +272,21 @@ public static class QuestPrefabBuilder
     [MenuItem("Tools/Quest/Apply VFX Sprites")]
     public static void ApplyVfxSprites()
     {
-        // Cleanup 전(원래 패키지 경로) / 후(UI Effect 폴더) 둘 다 호환
-        var shockmark = LoadVfxSprite("shockmark.png");
+        // IconAlert(!!!) 우선순위: quest_marker_1 > quest_marker_256 > shockmark
+        // IconNormal(?) 우선순위: marker_2 > question
+        // EnsureSpriteImport는 textureType이 Default여도 Sprite로 자동 변환 후 로드
+        var marker1 = EnsureSpriteImport("Assets/UI Effect/quest_marker_1.png");
+        var marker256 = marker1 == null ? EnsureSpriteImport("Assets/UI Effect/quest_marker_256.png") : null;
+        var shockmark = (marker1 == null && marker256 == null) ? LoadVfxSprite("shockmark.png") : null;
+        var marker2 = EnsureSpriteImport("Assets/UI Effect/target_marker_256.png");
         var gradWindow = LoadVfxSprite("grad2b_windowlight.png");
         var question = LoadVfxSprite("question.png");
 
-        if (shockmark == null || gradWindow == null)
+        var iconAlertSprite = marker1 ?? marker256 ?? shockmark;
+        var iconNormalSprite = marker2 ?? question;
+        if (iconAlertSprite == null || gradWindow == null)
         {
-            Debug.LogError($"[QuestPrefabBuilder] 필수 VFX 텍스처 못 찾음. shockmark={shockmark}, gradWindow={gradWindow}");
+            Debug.LogError($"[QuestPrefabBuilder] 필수 VFX 텍스처 못 찾음. iconAlert={iconAlertSprite}, gradWindow={gradWindow}");
             return;
         }
         if (question == null)
@@ -234,24 +294,72 @@ public static class QuestPrefabBuilder
 
         int updated = 0;
 
-        // QuestEntry: IconAlert <- shockmark, IconNormal <- question (있으면)
+        // QuestEntry: IconAlert <- marker_1 (등), IconNormal <- marker_2 (또는 question)
         var qePath = $"{PrefabFolder}/QuestEntry.prefab";
         var qe = PrefabUtility.LoadPrefabContents(qePath);
         if (qe != null)
         {
-            updated += SetImageSprite(qe.transform, "IconAlert", shockmark);
-            if (question != null)
-                updated += SetImageSprite(qe.transform, "IconNormal", question);
+            updated += SetImageSprite(qe.transform, "IconAlert", iconAlertSprite);
+            if (iconNormalSprite != null)
+                updated += SetImageSprite(qe.transform, "IconNormal", iconNormalSprite);
             PrefabUtility.SaveAsPrefabAsset(qe, qePath);
             PrefabUtility.UnloadPrefabContents(qe);
         }
 
-        // ObjectiveLine: YellowSweep <- grad2b_windowlight (Image.type=Filled는 빌더가 이미 설정)
+        // ObjectiveLine: YellowSweep + CheckBoxEmpty(square_marker_256) + CheckBoxFilled(check_marker_256)
+        var checkBoxSprite = EnsureSpriteImport("Assets/UI Effect/square_marker_512.png");
+        var checkFilledSprite = EnsureSpriteImport("Assets/UI Effect/check_marker_256 (1).png");
+
         var olPath = $"{PrefabFolder}/ObjectiveLine.prefab";
         var ol = PrefabUtility.LoadPrefabContents(olPath);
         if (ol != null)
         {
-            updated += SetImageSprite(ol.transform, "YellowSweep", gradWindow);
+            // YellowSweep sprite: grad2b는 어두운 픽셀 있어서 노란 tint 안 먹힘.
+            // _SweepGlow (자동 생성, 흰색 + sin alpha 곡선) → 가운데 진하고 양쪽 fade, 노란 tint 잘 받음.
+            var sweepSprite = GetOrCreateSweepGlowSprite();
+            if (sweepSprite != null)
+                updated += SetImageSprite(ol.transform, "YellowSweep", sweepSprite);
+            else
+                updated += SetImageSprite(ol.transform, "YellowSweep", gradWindow);
+            if (checkBoxSprite != null)
+                updated += SetImageSprite(ol.transform, "CheckBoxEmpty", checkBoxSprite);
+            if (checkFilledSprite != null)
+                updated += SetImageSprite(ol.transform, "CheckBoxFilled", checkFilledSprite);
+
+            // 체크박스 크기 키움 + Filled 색을 sprite 원본 그대로 (흰색)
+            SetCheckBoxSize(ol.transform, "CheckBoxEmpty", 32f);
+            SetCheckBoxSize(ol.transform, "CheckBoxFilled", 36f);   // Empty보다 큼
+            SetImageColor(ol.transform, "CheckBoxFilled", Color.white);
+
+            // 체크박스 X = 0 (ObjectiveList VLG padding-left이 QuestIconX로 정렬 처리)
+            SetIconX(ol.transform, "CheckBoxEmpty", 0f);
+            SetIconX(ol.transform, "CheckBoxFilled", 0f);
+
+            // Label leftPad = Title text X와 정렬
+            float labelLeftPad = QuestTitleLeftPad - QuestIconX;
+            SetStretchLeftPad(ol.transform, "Label", labelLeftPad);
+
+            // YellowSweep leftPad = 0 → 체크박스부터 line 전체 덮음 (사용자 요구)
+            SetStretchLeftPad(ol.transform, "YellowSweep", 0f);
+
+            // 기존 prefab의 sweep timing이 빠른 값 (0.25)일 수 있으니 새 디폴트로 덮어쓰기
+            var olComponent = ol.GetComponent<ObjectiveLine>();
+            if (olComponent != null)
+            {
+                var so = new SerializedObject(olComponent);
+                var sd = so.FindProperty("sweepDuration");
+                if (sd != null) sd.floatValue = 0.6f;
+                var sfd = so.FindProperty("sweepFadeDuration");
+                if (sfd != null) sfd.floatValue = 0.4f;
+                var psh = so.FindProperty("postSweepHold");
+                if (psh != null) psh.floatValue = 0.3f;
+                var cd = so.FindProperty("collapseDuration");
+                if (cd != null) cd.floatValue = 0.5f;
+                var spa = so.FindProperty("sweepPeakAlpha");
+                if (spa != null) spa.floatValue = 1.0f;
+                so.ApplyModifiedProperties();
+            }
+
             PrefabUtility.SaveAsPrefabAsset(ol, olPath);
             PrefabUtility.UnloadPrefabContents(ol);
         }
@@ -259,24 +367,69 @@ public static class QuestPrefabBuilder
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
+        string iconSource = marker1 != null ? "quest_marker_1.png (사용자 디자인 최신)"
+                          : marker256 != null ? "quest_marker_256.png (사용자 디자인)"
+                          : "shockmark.png (fallback)";
         Debug.Log(
             $"[QuestPrefabBuilder] VFX sprite 적용 완료. 슬롯 {updated}개 업데이트.\n" +
-            "  - IconAlert <- shockmark.png (!!!)\n" +
-            (question != null ? "  - IconNormal <- question.png (?, 임시 동그라미 대용)\n" : "  - IconNormal: 비움 (사용자 드래그)\n") +
+            $"  - IconAlert <- {iconSource}\n" +
+            (marker2 != null ? "  - IconNormal <- target_marker_256.png (사용자 디자인)\n"
+             : question != null ? "  - IconNormal <- question.png (fallback)\n"
+             : "  - IconNormal: 비움 (사용자 드래그)\n") +
             "  - YellowSweep <- grad2b_windowlight.png (sweep)\n" +
-            "  Toast Icon, CheckBoxEmpty/Filled는 사용자가 직접 인스펙터에서 드래그.");
+            (checkBoxSprite != null ? "  - CheckBoxEmpty <- square_marker_512.png (사용자 디자인)\n" : "  - CheckBoxEmpty: 비움 (사용자 드래그)\n") +
+            (checkFilledSprite != null ? "  - CheckBoxFilled <- check_marker_256 (1).png (사용자 디자인)\n" : "  - CheckBoxFilled: 비움 (사용자 드래그)\n") +
+            "  Toast Icon은 사용자가 직접 인스펙터에서 드래그.");
     }
 
     /// <summary>VFX 텍스처 로드. Cleanup 전/후 경로 둘 다 시도</summary>
     static Sprite LoadVfxSprite(string filename)
     {
-        var sp = AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/UI Effect/{filename}");
-        if (sp == null)
-            sp = AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/Game VFX - UI & Word Effect Collection/Textures/{filename}");
-        return sp;
+        // EnsureSpriteImport로 textureType=Default 자동 변환 후 로드
+        var path1 = $"Assets/UI Effect/{filename}";
+        if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path1) != null)
+            return EnsureSpriteImport(path1);
+
+        var path2 = $"Assets/Game VFX - UI & Word Effect Collection/Textures/{filename}";
+        if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path2) != null)
+            return EnsureSpriteImport(path2);
+
+        return null;
     }
 
     /// <summary>자식 GameObject 이름으로 찾아서 Image.sprite 설정. 못 찾으면 0 반환.</summary>
+    static void SetIconX(Transform root, string childName, float x)
+    {
+        var found = FindRecursive(root, childName);
+        if (found == null) return;
+        var rt = found.GetComponent<RectTransform>();
+        if (rt != null) rt.anchoredPosition = new Vector2(x, rt.anchoredPosition.y);
+    }
+
+    static void SetStretchLeftPad(Transform root, string childName, float leftPad)
+    {
+        var found = FindRecursive(root, childName);
+        if (found == null) return;
+        var rt = found.GetComponent<RectTransform>();
+        if (rt != null) rt.offsetMin = new Vector2(leftPad, rt.offsetMin.y);
+    }
+
+    static void SetCheckBoxSize(Transform root, string childName, float size)
+    {
+        var found = FindRecursive(root, childName);
+        if (found == null) return;
+        var rt = found.GetComponent<RectTransform>();
+        if (rt != null) rt.sizeDelta = new Vector2(size, size);
+    }
+
+    static void SetImageColor(Transform root, string childName, Color color)
+    {
+        var found = FindRecursive(root, childName);
+        if (found == null) return;
+        var img = found.GetComponent<UnityEngine.UI.Image>();
+        if (img != null) img.color = color;
+    }
+
     static int SetImageSprite(Transform root, string childName, Sprite sprite)
     {
         var found = FindRecursive(root, childName);
@@ -304,6 +457,412 @@ public static class QuestPrefabBuilder
             if (hit != null) return hit;
         }
         return null;
+    }
+
+    [MenuItem("Tools/Quest/Apply Yellow Toast Style")]
+    public static void ApplyYellowToastStyle()
+    {
+        string toastPath = $"{PrefabFolder}/ToastNotification.prefab";
+        var prefab = PrefabUtility.LoadPrefabContents(toastPath);
+        if (prefab == null)
+        {
+            Debug.LogError($"[QuestPrefabBuilder] 토스트 prefab 못 찾음: {toastPath}");
+            return;
+        }
+
+        ApplyToastStyleToObject(prefab);
+        PrefabUtility.SaveAsPrefabAsset(prefab, toastPath);
+        PrefabUtility.UnloadPrefabContents(prefab);
+
+        // 씬 인스턴스도 같이 업데이트 (override 덮어쓰기)
+        int sceneInstancesUpdated = 0;
+        var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        foreach (var rootGO in activeScene.GetRootGameObjects())
+        {
+            var instances = rootGO.GetComponentsInChildren<ToastNotification>(true);
+            foreach (var inst in instances)
+            {
+                ApplyToastStyleToObject(inst.gameObject);
+                EditorUtility.SetDirty(inst.gameObject);
+                sceneInstancesUpdated++;
+            }
+        }
+        if (sceneInstancesUpdated > 0)
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(activeScene);
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        Debug.Log(
+            "[QuestPrefabBuilder] 토스트 노란 스타일 적용 완료.\n" +
+            "  - Background: 골든 옐로우 (#F5C842), 불투명\n" +
+            "  - Label: 검정 + Bold, 13pt, 좌측 22px (Icon 자리 확보)\n" +
+            "  - 박스 크기: 200x24 (얇고 길게, 엔드필드 패턴)\n" +
+            "  - Icon: 14x14 좌측 4px\n" +
+            $"  - 씬 인스턴스 {sceneInstancesUpdated}개 업데이트");
+    }
+
+    /// <summary>
+    /// 토스트 prefab/인스턴스 둘 다에 동일 스타일 적용. 이름으로 자식 찾기.
+    /// Icon은 박스 안 좌측 (분리된 GameObject지만 시각적으로 박스 안에 위치).
+    /// Background는 각진 직사각형 (PPU multiplier로 9-slice 모서리 줄임).
+    /// Box는 root 전체 stretch (Icon 자리 분리 X, Icon이 박스 위에 겹쳐 그려짐).
+    /// </summary>
+    static void ApplyToastStyleToObject(GameObject root)
+    {
+        if (root == null) return;
+
+        var rootRT = root.GetComponent<RectTransform>();
+        if (rootRT != null) rootRT.sizeDelta = ToastSize;
+
+        // Box: root 전체 stretch (Icon이 박스 위에 겹쳐 그려지도록)
+        var box = FindRecursive(root.transform, "Box");
+        if (box != null)
+        {
+            var boxRT = box.GetComponent<RectTransform>();
+            if (boxRT != null)
+            {
+                boxRT.anchorMin = new Vector2(0f, 0f);
+                boxRT.anchorMax = new Vector2(1f, 1f);
+                boxRT.pivot = new Vector2(0.5f, 0.5f);
+                boxRT.offsetMin = Vector2.zero;
+                boxRT.offsetMax = Vector2.zero;
+            }
+        }
+
+        // Background: 노란 + 좌→우 알파 그라데이션 sprite (우측 페이드 효과)
+        var bg = FindRecursive(root.transform, "Background");
+        if (bg != null)
+        {
+            var img = bg.GetComponent<UnityEngine.UI.Image>();
+            if (img != null)
+            {
+                img.color = ToastYellow;
+                var fadeSprite = GetOrCreateRightFadeSprite();
+                if (fadeSprite != null)
+                {
+                    img.sprite = fadeSprite;
+                    img.type = UnityEngine.UI.Image.Type.Simple;
+                }
+            }
+        }
+
+        // Icon: 14x14, 박스 안 좌측 (시각적으로 박스 안). 분리 구조 유지.
+        var icon = FindRecursive(root.transform, "Icon");
+        if (icon != null)
+        {
+            var iconRT = icon.GetComponent<RectTransform>();
+            if (iconRT != null)
+            {
+                iconRT.anchorMin = new Vector2(0f, 0.5f);
+                iconRT.anchorMax = new Vector2(0f, 0.5f);
+                iconRT.pivot = new Vector2(0f, 0.5f);
+                iconRT.anchoredPosition = new Vector2(ToastIconX, 0f);
+                iconRT.sizeDelta = new Vector2(14f, 14f);
+            }
+            // 렌더 순서: Icon이 Box보다 위에 그려지도록 sibling 마지막으로
+            icon.SetAsLastSibling();
+        }
+
+        // Label: 검정 Bold 17pt, Box 안 좌측 padding 22 (Icon 자리 확보)
+        var label = FindRecursive(root.transform, "Label");
+        if (label != null)
+        {
+            var tmp = label.GetComponent<TMPro.TextMeshProUGUI>();
+            if (tmp != null)
+            {
+                tmp.color = Color.black;
+                tmp.fontStyle |= TMPro.FontStyles.Bold;
+                tmp.fontSize = 17;
+            }
+
+            var labelRT = label.GetComponent<RectTransform>();
+            if (labelRT != null)
+            {
+                labelRT.anchorMin = new Vector2(0f, 0f);
+                labelRT.anchorMax = new Vector2(1f, 1f);
+                labelRT.pivot = new Vector2(0.5f, 0.5f);
+                labelRT.offsetMin = new Vector2(22f, 0f);
+                labelRT.offsetMax = new Vector2(-8f, 0f);
+            }
+        }
+    }
+
+    const float QuestTitleHeight = 44f;   // 토스트(26)보다 세로 크게, 위아래 공백 생김
+    const float QuestIconSize = 30f;      // IconAlert(!!!) 크기 - 박스 안에 들어가도록
+    const float QuestNormalIconSize = 40f; // IconNormal(?) 크기 - 따로 조정 가능
+    const float QuestTitleFontSize = 24f; // 내용 텍스트(18)보다 큼
+    const float ObjectiveLineHeight = 32f;   // 체크박스 줄 높이
+    const float ObjectiveLineFontSize = 18f; // 체크박스 줄 텍스트
+
+    [MenuItem("Tools/Quest/Apply Quest Title Style")]
+    public static void ApplyQuestTitleStyle()
+    {
+        // 1. QuestEntry prefab 업데이트
+        string qePath = $"{PrefabFolder}/QuestEntry.prefab";
+        var qePrefab = PrefabUtility.LoadPrefabContents(qePath);
+        if (qePrefab == null)
+        {
+            Debug.LogError($"[QuestPrefabBuilder] QuestEntry prefab 못 찾음: {qePath}");
+            return;
+        }
+        ApplyQuestEntryStyle(qePrefab);
+        PrefabUtility.SaveAsPrefabAsset(qePrefab, qePath);
+        PrefabUtility.UnloadPrefabContents(qePrefab);
+
+        // 2a. ObjectiveLine prefab: 줄 높이 + 텍스트 크기 키움
+        string olPath = $"{PrefabFolder}/ObjectiveLine.prefab";
+        var olPrefab = PrefabUtility.LoadPrefabContents(olPath);
+        if (olPrefab != null)
+        {
+            var olRT = olPrefab.GetComponent<RectTransform>();
+            if (olRT != null) olRT.sizeDelta = new Vector2(olRT.sizeDelta.x, ObjectiveLineHeight);
+
+            var olLE = olPrefab.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (olLE == null) olLE = olPrefab.AddComponent<UnityEngine.UI.LayoutElement>();
+            olLE.preferredHeight = ObjectiveLineHeight;
+
+            var olLabel = FindRecursive(olPrefab.transform, "Label");
+            if (olLabel != null)
+            {
+                var tmp = olLabel.GetComponent<TMPro.TextMeshProUGUI>();
+                if (tmp != null) tmp.fontSize = ObjectiveLineFontSize;
+            }
+
+            PrefabUtility.SaveAsPrefabAsset(olPrefab, olPath);
+            PrefabUtility.UnloadPrefabContents(olPrefab);
+        }
+
+        // 2b. QuestPanelUI prefab: 좌측 X=0 + CategoryRoot 좌측 padding 0 (왼쪽 공백 제거)
+        string qpPath = $"{PrefabFolder}/QuestPanelUI.prefab";
+        var qpPrefab = PrefabUtility.LoadPrefabContents(qpPath);
+        if (qpPrefab != null)
+        {
+            var qpRT = qpPrefab.GetComponent<RectTransform>();
+            if (qpRT != null)
+            {
+                var pos = qpRT.anchoredPosition;
+                qpRT.anchoredPosition = new Vector2(0f, pos.y);
+            }
+            ApplyQuestPanelPadding(qpPrefab);
+            PrefabUtility.SaveAsPrefabAsset(qpPrefab, qpPath);
+            PrefabUtility.UnloadPrefabContents(qpPrefab);
+        }
+
+        // 3. 씬 인스턴스: QuestPanelUI 인스턴스의 X 위치 0 + CategoryRoot padding 처리
+        int sceneUpdated = 0;
+        var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        foreach (var rootGO in activeScene.GetRootGameObjects())
+        {
+            var panels = rootGO.GetComponentsInChildren<QuestPanelUI>(true);
+            foreach (var p in panels)
+            {
+                // QuestPanelUI 자체 X 위치 0 (화면 좌측 끝까지)
+                var prt = p.GetComponent<RectTransform>();
+                if (prt != null)
+                {
+                    var pos = prt.anchoredPosition;
+                    prt.anchoredPosition = new Vector2(0f, pos.y);
+                }
+                ApplyQuestPanelPadding(p.gameObject);
+                EditorUtility.SetDirty(p.gameObject);
+                sceneUpdated++;
+            }
+        }
+        if (sceneUpdated > 0)
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(activeScene);
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        Debug.Log(
+            "[QuestPrefabBuilder] 퀘스트 제목 스타일 적용 완료.\n" +
+            $"  - Background: 검정 alpha 0.7 + 좌→우 페이드 sprite, 세로 {QuestTitleHeight}px (토스트보다 큼)\n" +
+            "  - Title: 세로 가운데 정렬, 위아래 공백 자동\n" +
+            $"  - IconAlert: quest_marker_256.png 적용, 박스 가운데 정렬, {QuestIconSize}x{QuestIconSize}\n" +
+            "  - QuestPanelUI.CategoryRoot 좌측 padding 0 (왼쪽 공백 제거)\n" +
+            $"  - 씬 QuestPanelUI 인스턴스 {sceneUpdated}개 업데이트");
+    }
+
+    static void ApplyQuestEntryStyle(GameObject root)
+    {
+        // root: 부모 VLG 무시 (ignoreLayout) + 좌상단 stretch로 절대 위치 고정.
+        // 자식 수에 무관하게 Title 화면 위치 유지.
+        var rootLE = root.GetComponent<UnityEngine.UI.LayoutElement>();
+        if (rootLE == null) rootLE = root.AddComponent<UnityEngine.UI.LayoutElement>();
+        rootLE.ignoreLayout = true;
+
+        var rootRT = root.GetComponent<RectTransform>();
+        if (rootRT != null)
+        {
+            rootRT.anchorMin = new Vector2(0f, 1f);
+            rootRT.anchorMax = new Vector2(1f, 1f);
+            rootRT.pivot = new Vector2(0f, 1f);
+            rootRT.anchoredPosition = Vector2.zero;
+        }
+
+        // Background: 검정 alpha 0.7 + fade sprite + 세로 28px (토스트보다 큰 박스)
+        var bg = FindRecursive(root.transform, "Background");
+        if (bg != null)
+        {
+            var img = bg.GetComponent<UnityEngine.UI.Image>();
+            if (img != null)
+            {
+                img.color = new Color(0f, 0f, 0f, 0.7f);
+                var fadeSprite = GetOrCreateRightFadeSprite();
+                if (fadeSprite != null)
+                {
+                    img.sprite = fadeSprite;
+                    img.type = UnityEngine.UI.Image.Type.Simple;
+                }
+            }
+            var bgRT = bg.GetComponent<RectTransform>();
+            if (bgRT != null)
+            {
+                bgRT.anchorMin = new Vector2(0f, 1f);
+                bgRT.anchorMax = new Vector2(1f, 1f);
+                bgRT.pivot = new Vector2(0f, 1f);
+                bgRT.anchoredPosition = Vector2.zero;
+                bgRT.sizeDelta = new Vector2(0f, QuestTitleHeight);
+            }
+        }
+
+        // Title: 폰트 크게 + ignoreLayout으로 절대 위치 고정 (ObjectiveList 항목 수와 무관)
+        var title = FindRecursive(root.transform, "Title");
+        if (title != null)
+        {
+            var tmp = title.GetComponent<TMPro.TextMeshProUGUI>();
+            if (tmp != null)
+            {
+                tmp.alignment = TMPro.TextAlignmentOptions.MidlineLeft;
+                tmp.fontSize = QuestTitleFontSize;
+                tmp.fontStyle |= TMPro.FontStyles.Bold;
+                tmp.margin = new Vector4(QuestTitleLeftPad, 0f, 4f, 0f);   // Icon 자리 + 여백
+            }
+
+            var titleLE = title.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (titleLE == null) titleLE = title.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+            titleLE.ignoreLayout = true;
+
+            var titleRT = title.GetComponent<RectTransform>();
+            if (titleRT != null)
+            {
+                titleRT.anchorMin = new Vector2(0f, 1f);
+                titleRT.anchorMax = new Vector2(1f, 1f);
+                titleRT.pivot = new Vector2(0f, 1f);
+                titleRT.anchoredPosition = Vector2.zero;
+                titleRT.sizeDelta = new Vector2(0f, QuestTitleHeight);
+            }
+        }
+
+        // TextContent VLG padding-top: Title 자리(ignoreLayout) + 제목↔내용 spacing
+        var textContent = FindRecursive(root.transform, "TextContent");
+        if (textContent != null)
+        {
+            var vlg = textContent.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            if (vlg != null)
+            {
+                var p = vlg.padding;
+                vlg.padding = new RectOffset(p.left, p.right, (int)(QuestTitleHeight + TitleToContentSpacing), p.bottom);
+            }
+        }
+
+        // ObjectiveList padding-left: 체크박스 X를 Title Icon X(QuestIconX)와 정렬
+        var objectiveList = FindRecursive(root.transform, "ObjectiveList");
+        if (objectiveList != null)
+        {
+            var vlg = objectiveList.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            if (vlg != null)
+            {
+                var p = vlg.padding;
+                vlg.padding = new RectOffset((int)QuestIconX, p.right, p.top, p.bottom);
+            }
+        }
+
+        // IconNormal: 박스 위에 sibling 마지막, 박스 세로 가운데 정렬 + marker_2.png 적용
+        var iconNormal = FindRecursive(root.transform, "IconNormal");
+        if (iconNormal != null)
+        {
+            iconNormal.SetAsLastSibling();
+            SetIconToBoxCenter(iconNormal, QuestNormalIconSize);
+
+            var normalSprite = EnsureSpriteImport("Assets/UI Effect/target_marker_256.png");
+            if (normalSprite != null)
+            {
+                var img = iconNormal.GetComponent<UnityEngine.UI.Image>();
+                if (img != null)
+                {
+                    img.sprite = normalSprite;
+                    img.preserveAspect = true;
+                }
+            }
+        }
+
+        // IconAlert: 동일 위치 + quest_marker sprite 적용 (1 우선, 256 fallback)
+        var iconAlert = FindRecursive(root.transform, "IconAlert");
+        if (iconAlert != null)
+        {
+            iconAlert.SetAsLastSibling();
+            SetIconToBoxCenter(iconAlert, QuestIconSize);
+
+            // quest_marker_1 우선 (textureType=Default여도 Sprite로 자동 변환)
+            var marker = EnsureSpriteImport("Assets/UI Effect/quest_marker_1.png");
+            if (marker == null) marker = EnsureSpriteImport("Assets/UI Effect/quest_marker_256.png");
+
+            if (marker != null)
+            {
+                var img = iconAlert.GetComponent<UnityEngine.UI.Image>();
+                if (img != null)
+                {
+                    img.sprite = marker;
+                    img.preserveAspect = true;
+                }
+            }
+        }
+    }
+
+    const float QuestIconX = 50f;       // 박스 좌측 공백 (Icon 시작 X) = 체크박스 X 정렬 기준
+    const float QuestTitleLeftPad = 100f; // Title 텍스트 좌측 padding = label 텍스트 X 정렬 기준
+    const float TitleToContentSpacing = 18f; // 제목 박스 ↔ 퀘스트 내용 사이 간격
+
+    /// <summary>Icon을 박스 세로 가운데에 정렬. pivot (0, 0.5) 좌중앙 + Y = 박스 height/2.</summary>
+    static void SetIconToBoxCenter(Transform icon, float size)
+    {
+        var iconRT = icon.GetComponent<RectTransform>();
+        if (iconRT == null) return;
+        iconRT.anchorMin = new Vector2(0f, 1f);
+        iconRT.anchorMax = new Vector2(0f, 1f);
+        iconRT.pivot = new Vector2(0f, 0.5f);
+        iconRT.anchoredPosition = new Vector2(QuestIconX, -QuestTitleHeight / 2f);
+        iconRT.sizeDelta = new Vector2(size, size);
+    }
+
+    /// <summary>
+    /// 텍스처 파일의 import type을 Sprite로 강제 변경 후 Sprite 로드.
+    /// Unity 디폴트 import가 Default texture이면 Sprite 로드 실패하니까 자동 변환.
+    /// </summary>
+    static Sprite EnsureSpriteImport(string path)
+    {
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null && importer.textureType != TextureImporterType.Sprite)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.SaveAndReimport();
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+        }
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    static void ApplyQuestPanelPadding(GameObject root)
+    {
+        var crRoot = FindRecursive(root.transform, "CategoryRoot");
+        if (crRoot != null)
+        {
+            var vlg = crRoot.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            if (vlg != null) vlg.padding = new RectOffset(0, 8, 8, 8);
+        }
     }
 
     [MenuItem("Tools/Quest/Apply Korean Font To Prefabs")]
@@ -470,13 +1029,24 @@ public static class QuestPrefabBuilder
 
     // ===== 2. QuestEntry =====
 
+    // QuestIconX는 위쪽 ApplyQuestTitleStyle 섹션에서 정의 (값 10f)
+
     static string BuildQuestEntry(string objectiveLinePath)
     {
         GameObject root = MakeUI("QuestEntry");
         var rt = root.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(280f, 40f);
+        // root 자체를 부모 좌상단 stretch로 박음 + ignoreLayout으로 부모 VLG 무시.
+        // ObjectiveList 항목 수에 따라 root height가 변동해도 Title 화면 위치 고정.
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(0f, 40f);
 
-        // VLG + CSF: Title + ObjectiveList 자동 stack, 헤드 아이콘은 ignoreLayout
+        var rootLE = root.AddComponent<LayoutElement>();
+        rootLE.ignoreLayout = true;
+
+        // VLG + CSF: TextContent wrapper만 자식. Background/Icon은 ignoreLayout으로 별도 배치.
         var rootVLG = root.AddComponent<VerticalLayoutGroup>();
         rootVLG.padding = new RectOffset(0, 0, 0, 0);
         rootVLG.spacing = 4f;
@@ -491,44 +1061,90 @@ public static class QuestPrefabBuilder
         var audio = root.AddComponent<AudioSource>();
         audio.playOnAwake = false;
 
-        // Title: 큰 제목. VLG 첫 번째 자식. 좌측 22px 들여쓰기로 헤드 아이콘 자리 확보.
-        var titleGO = MakeUI("Title", root.transform);
-        var titleLE = titleGO.AddComponent<LayoutElement>();
-        titleLE.preferredHeight = 22f;
-        var title = titleGO.AddComponent<TextMeshProUGUI>();
-        ConfigureTMP(title, "Quest Title", 14, FontStyles.Bold, TextAlignmentOptions.Left);
-        title.margin = new Vector4(22f, 0f, 0f, 0f);
+        const float titleLineHeight = 22f;
 
-        // IconNormal (평상시 동그라미): VLG 무시(절대 위치). Title 좌측 14x14.
+        // Background: Title 라인 검정 박스. 좌측 끝부터 우측까지 풀 width. ignoreLayout.
+        // 가장 먼저 추가되어 sibling 최상위 = 가장 뒤에 그려짐. Icon들은 그 위에 겹쳐 그려짐.
+        // 토스트와 동일한 좌→우 페이드 sprite 적용 (검정 색).
+        var bgGO = MakeUI("Background", root.transform);
+        var bgLE = bgGO.AddComponent<LayoutElement>();
+        bgLE.ignoreLayout = true;
+        var bgRT = bgGO.GetComponent<RectTransform>();
+        bgRT.anchorMin = new Vector2(0f, 1f);
+        bgRT.anchorMax = new Vector2(1f, 1f);
+        bgRT.pivot = new Vector2(0f, 1f);
+        bgRT.anchoredPosition = Vector2.zero;
+        bgRT.sizeDelta = new Vector2(0f, titleLineHeight);   // 좌우 stretch, 높이 22
+        var bgImg = AddImage(bgGO, new Color(0f, 0f, 0f, 0.7f));
+        var qeFadeSprite = GetOrCreateRightFadeSprite();
+        if (qeFadeSprite != null)
+        {
+            bgImg.sprite = qeFadeSprite;
+            bgImg.type = Image.Type.Simple;
+        }
+
+        // TextContent: Title + ObjectiveList wrapper. CanvasGroup으로 fade in 단위. VLG 자식.
+        // padding-top = Title height + spacing (Title이 ignoreLayout이라 VLG가 무시하므로 자리 확보용)
+        var textGO = MakeUI("TextContent", root.transform);
+        var textCG = textGO.AddComponent<CanvasGroup>();
+        var textVLG = textGO.AddComponent<VerticalLayoutGroup>();
+        textVLG.padding = new RectOffset(0, 0, (int)(QuestTitleHeight + 4f), 0);  // top = Title 자리
+        textVLG.spacing = 4f;
+        textVLG.childControlWidth = true;
+        textVLG.childControlHeight = true;
+        textVLG.childForceExpandWidth = true;
+        textVLG.childForceExpandHeight = false;
+        var textCSF = textGO.AddComponent<ContentSizeFitter>();
+        textCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // Title (TextContent 자식, **ignoreLayout으로 절대 위치 고정**).
+        // ObjectiveList 항목 수에 무관하게 Title 화면 위치 고정.
+        var titleGO = MakeUI("Title", textGO.transform);
+        var titleLE = titleGO.AddComponent<LayoutElement>();
+        titleLE.ignoreLayout = true;
+        var titleRT = titleGO.GetComponent<RectTransform>();
+        titleRT.anchorMin = new Vector2(0f, 1f);
+        titleRT.anchorMax = new Vector2(1f, 1f);
+        titleRT.pivot = new Vector2(0f, 1f);
+        titleRT.anchoredPosition = Vector2.zero;
+        titleRT.sizeDelta = new Vector2(0f, QuestTitleHeight);
+        var title = titleGO.AddComponent<TextMeshProUGUI>();
+        ConfigureTMP(title, "Quest Title", QuestTitleFontSize, FontStyles.Bold, TextAlignmentOptions.MidlineLeft);
+        title.margin = new Vector4(22f, 0f, 4f, 0f);
+
+        // ObjectiveList (TextContent 자식). 체크박스 들여쓰기.
+        var listGO = MakeUI("ObjectiveList", textGO.transform);
+        var listVLG = listGO.AddComponent<VerticalLayoutGroup>();
+        listVLG.padding = new RectOffset(12, 2, 0, 0);
+        listVLG.spacing = 2f;
+        listVLG.childControlWidth = true;
+        listVLG.childControlHeight = true;
+        listVLG.childForceExpandWidth = true;
+        listVLG.childForceExpandHeight = false;
+        var listCSF = listGO.AddComponent<ContentSizeFitter>();
+        listCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // IconNormal: 박스 안 좌측 (분리된 GameObject지만 시각적으로 박스 안). 14x14.
+        // root 자식, sibling 순서상 Background 뒤에 추가 = Background 위에 겹쳐 그려짐.
         var iconNormalGO = MakeUI("IconNormal", root.transform);
         var iconNormalLE = iconNormalGO.AddComponent<LayoutElement>();
         iconNormalLE.ignoreLayout = true;
         SetAnchor(iconNormalGO.GetComponent<RectTransform>(),
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(2f, -4f), new Vector2(14f, 14f));
+            new Vector2(QuestIconX, -4f), new Vector2(14f, 14f));
         AddImage(iconNormalGO, Color.white);
+        iconNormalGO.AddComponent<CanvasGroup>();
 
-        // IconAlert (!!!): Normal과 동일 위치, 평상시 비활성. 새 퀘스트 등장 순간만 표시.
+        // IconAlert (!!!): Normal과 동일 위치, 평상시 비활성.
         var iconAlertGO = MakeUI("IconAlert", root.transform);
         var iconAlertLE = iconAlertGO.AddComponent<LayoutElement>();
         iconAlertLE.ignoreLayout = true;
         SetAnchor(iconAlertGO.GetComponent<RectTransform>(),
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(2f, -4f), new Vector2(14f, 14f));
+            new Vector2(QuestIconX, -4f), new Vector2(14f, 14f));
         AddImage(iconAlertGO, Color.white);
+        iconAlertGO.AddComponent<CanvasGroup>();
         iconAlertGO.SetActive(false);
-
-        // ObjectiveList: VLG 두 번째 자식. 자체도 VLG + CSF (ObjectiveLine들 stack)
-        var listGO = MakeUI("ObjectiveList", root.transform);
-        var listVLG = listGO.AddComponent<VerticalLayoutGroup>();
-        listVLG.padding = new RectOffset(12, 2, 0, 0);  // 좌측 들여쓰기 12
-        listVLG.spacing = 2f;
-        listVLG.childControlWidth = true;
-        listVLG.childControlHeight = true;   // VLG가 LE.preferredHeight 읽어 height 설정. vanish 애니에 필요
-        listVLG.childForceExpandWidth = true;
-        listVLG.childForceExpandHeight = false;
-        var listCSF = listGO.AddComponent<ContentSizeFitter>();
-        listCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         // ----- 컴포넌트 + 슬롯 -----
         var qe = root.AddComponent<QuestEntry>();
@@ -537,6 +1153,8 @@ public static class QuestPrefabBuilder
         SetField(qe, "iconNormal", iconNormalGO);
         SetField(qe, "iconAlert", iconAlertGO);
         SetField(qe, "audioSource", audio);
+        SetField(qe, "backgroundBox", bgRT);
+        SetField(qe, "textGroup", textCG);
         // completeSfx: 사용자가 직접 할당
 
         // ObjectiveLine prefab 참조
@@ -662,34 +1280,142 @@ public static class QuestPrefabBuilder
 
     // ===== 5. ToastNotification =====
 
+    // 엔드필드 패턴: 노란 골든 배경 + 검정 굵은 텍스트, 얇고 길게.
+    static readonly Color ToastYellow = new Color(245f / 255f, 200f / 255f, 66f / 255f, 1f);
+    static readonly Vector2 ToastSize = new Vector2(260f, 26f);   // 30% 키움
+
+    /// <summary>
+    /// sweep용 글로우 sprite 자동 생성. 양쪽 fade + 가운데 진함 (sin curve).
+    /// windowlight 효과 비슷하지만 흰색 + alpha만 (검정 픽셀 없음 → tint 잘 받음).
+    /// </summary>
+    static Sprite GetOrCreateSweepGlowSprite()
+    {
+        string path = "Assets/05.Prefabs/Quest/_SweepGlow.png";
+
+        const int W = 256;
+        const int H = 16;
+        var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
+        var pixels = new Color[W * H];
+        for (int x = 0; x < W; x++)
+        {
+            float t = x / (float)(W - 1);
+            // sin curve: 0 → 1 → 0 (가운데 진함, 양쪽 fade out)
+            float a = Mathf.Sin(t * Mathf.PI);
+            for (int y = 0; y < H; y++) pixels[y * W + x] = new Color(1f, 1f, 1f, a);
+        }
+        tex.SetPixels(pixels);
+        tex.Apply();
+        System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+        Object.DestroyImmediate(tex);
+
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 100f;
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.alphaIsTransparency = true;
+            importer.SaveAndReimport();
+        }
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    /// <summary>
+    /// 좌→우 알파 그라데이션 sprite 자동 생성. 박스 우측 페이드 효과용.
+    /// 매번 재생성 (곡선 변경 시 자동 반영). 끝쪽만 약하게 페이드 (1 - t^8).
+    /// </summary>
+    static Sprite GetOrCreateRightFadeSprite()
+    {
+        string path = "Assets/05.Prefabs/Quest/_RightFade.png";
+
+        // 텍스처 생성 + PNG 저장 (매번 새로)
+        const int W = 256;
+        const int H = 8;
+        var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
+        var pixels = new Color[W * H];
+        for (int x = 0; x < W; x++)
+        {
+            float t = x / (float)(W - 1);
+            // 끝쪽만 약하게 페이드. t<0.7 거의 1 (균일), t>0.85부터 빠르게 0.
+            float a = 1f - Mathf.Pow(t, 8f);
+            for (int y = 0; y < H; y++) pixels[y * W + x] = new Color(1f, 1f, 1f, a);
+        }
+        tex.SetPixels(pixels);
+        tex.Apply();
+        System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+        Object.DestroyImmediate(tex);
+
+        // 동기 import (안 그러면 LoadAssetAtPath가 null 반환)
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 100f;
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.alphaIsTransparency = true;
+            importer.SaveAndReimport();
+        }
+
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    const float ToastIconX = 4f;   // 박스 안 좌측 Icon 위치
+
     static string BuildToastNotification()
     {
         GameObject root = MakeUI("ToastNotification");
         var rt = root.GetComponent<RectTransform>();
-        // 좌상단 앵커, 패널(8,-120) 위쪽에 위치. 사용자가 씬에서 미세조정.
+        // 좌상단 앵커, 패널(8,-120) 위쪽에 위치. 얇고 길게.
         SetAnchor(rt,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(8f, -90f), new Vector2(220f, 36f));
+            new Vector2(8f, -90f), ToastSize);
 
         var cg = root.AddComponent<CanvasGroup>();
 
-        // Background: 풀 stretch, 어두운 반투명 디폴트
-        var bgGO = MakeUI("Background", root.transform);
-        SetStretch(bgGO.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
-        AddImage(bgGO, new Color(0f, 0f, 0f, 0.7f));
+        // Box: root 전체 stretch. 노란 단색 배경.
+        // (먼저 추가되어 sibling 0 = 가장 뒤에 그려짐 = Icon이 위에 겹쳐 그려짐)
+        var boxGO = MakeUI("Box", root.transform);
+        var boxRT = boxGO.GetComponent<RectTransform>();
+        boxRT.anchorMin = new Vector2(0f, 0f);
+        boxRT.anchorMax = new Vector2(1f, 1f);
+        boxRT.pivot = new Vector2(0.5f, 0.5f);
+        boxRT.offsetMin = Vector2.zero;
+        boxRT.offsetMax = Vector2.zero;
 
-        // Icon: 좌측 24x24, sprite 빈 슬롯 (사용자가 드래그)
+        // Background: Box 안 stretch, 노란 + 우측 페이드 그라데이션 sprite.
+        var bgGO = MakeUI("Background", boxGO.transform);
+        SetStretch(bgGO.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
+        var bgImg = AddImage(bgGO, ToastYellow);
+        var fadeSprite = GetOrCreateRightFadeSprite();
+        if (fadeSprite != null)
+        {
+            bgImg.sprite = fadeSprite;
+            bgImg.type = Image.Type.Simple;
+        }
+
+        // Label: Box 안, 좌측 padding 22 (Icon 자리 확보: 4 + 14 + 4 = 22)
+        var labelGO = MakeUI("Label", boxGO.transform);
+        SetStretch(labelGO.GetComponent<RectTransform>(), 22f, 8f, 0f, 0f);
+        var label = labelGO.AddComponent<TextMeshProUGUI>();
+        ConfigureTMP(label, "업데이트 완료", 13, FontStyles.Bold, TextAlignmentOptions.Left);
+        label.color = Color.black;
+
+        // Icon: 박스 안 좌측 (분리된 GameObject지만 시각적으로 박스 안에 위치).
+        // root 자식으로 sibling 마지막 = Box 위에 그려짐.
         var iconGO = MakeUI("Icon", root.transform);
         SetAnchor(iconGO.GetComponent<RectTransform>(),
             new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-            new Vector2(8f, 0f), new Vector2(24f, 24f));
+            new Vector2(ToastIconX, 0f), new Vector2(14f, 14f));
         var iconImg = AddImage(iconGO, Color.white);
-
-        // Label: 아이콘 우측부터 끝까지 stretch
-        var labelGO = MakeUI("Label", root.transform);
-        SetStretch(labelGO.GetComponent<RectTransform>(), 40f, 8f, 0f, 0f);
-        var label = labelGO.AddComponent<TextMeshProUGUI>();
-        ConfigureTMP(label, "업데이트 완료", 14, FontStyles.Bold, TextAlignmentOptions.Left);
 
         var tn = root.AddComponent<ToastNotification>();
         SetField(tn, "canvasGroup", cg);

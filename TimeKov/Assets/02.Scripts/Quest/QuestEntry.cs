@@ -14,6 +14,10 @@ public class QuestEntry : MonoBehaviour
     [SerializeField] TMP_Text title;
     [SerializeField] Transform objectiveList;
     [SerializeField] ObjectiveLine objectiveLinePrefab;
+    [Tooltip("Title 라인 검정 배경박스. 슬라이드 인 시 좌→우 이동. 인스펙터에서 RectTransform 드래그.")]
+    [SerializeField] RectTransform backgroundBox;
+    [Tooltip("Title + ObjectiveList wrapper의 CanvasGroup. 슬라이드와 분리되어 자리에서 fade in.")]
+    [SerializeField] CanvasGroup textGroup;
 
     [Header("Highlight icons")]
     [Tooltip("평상시 아이콘 (큰 제목 옆, 동그라미 sprite). 인스펙터에서 드래그.")]
@@ -34,8 +38,14 @@ public class QuestEntry : MonoBehaviour
     [SerializeField] AudioClip completeSfx;
 
     [Header("Animation timing")]
-    [Tooltip("슬라이드 인 fade 길이")]
+    [Tooltip("배경박스 좌→우 슬라이드 길이")]
     [SerializeField] float slideInDuration = 0.3f;
+    [Tooltip("배경박스 슬라이드 시작 시 X 오프셋 (음수 = 좌측에서 들어옴)")]
+    [SerializeField] float backgroundSlideOffsetX = -200f;
+    [Tooltip("배경박스 슬라이드 시작 후 텍스트 fade in 시작까지 대기")]
+    [SerializeField] float textFadeDelay = 0.15f;
+    [Tooltip("텍스트 fade in 길이")]
+    [SerializeField] float textFadeDuration = 0.25f;
     [Tooltip("완료 시퀀스 시작 전 hold (ObjectiveLine collapse 끝나길 기다림)")]
     [SerializeField] float completeStartDelay = 0.75f;
     [Tooltip("완료 시 위로 올라가며 사라지는 거리(px)")]
@@ -45,6 +55,7 @@ public class QuestEntry : MonoBehaviour
 
     QuestSO _quest;
     CategoryRuntime _rt;
+    Sequence _alertPulseSeq;
 
     public void PlaySlideIn(QuestSO q, CategoryRuntime rt)
     {
@@ -73,7 +84,12 @@ public class QuestEntry : MonoBehaviour
     {
         if (iconAlert == null)
         {
-            if (iconNormal != null) iconNormal.SetActive(true);
+            if (iconNormal != null)
+            {
+                iconNormal.SetActive(true);
+                var ncg = iconNormal.GetComponent<CanvasGroup>();
+                if (ncg != null) ncg.alpha = 1f;
+            }
             return;
         }
 
@@ -86,31 +102,63 @@ public class QuestEntry : MonoBehaviour
         if (cg != null) cg.alpha = 1f;
 
         // 펄스: 1 -> 1.15 -> 1 한 사이클 = alertPulseInterval * 2
+        // 펄스 자체 완료 후 SwitchToNormal은 안전망 (외부 트리거 없을 때 폴백, 첫 퀘스트용)
         int loops = Mathf.Max(1, Mathf.RoundToInt(alertHoldDuration / Mathf.Max(0.05f, alertPulseInterval * 2f)));
-        var pulse = DOTween.Sequence().SetUpdate(true).SetLink(iconAlert);
-        pulse.Append(tr.DOScale(1.15f, alertPulseInterval).SetEase(Ease.OutQuad));
-        pulse.Append(tr.DOScale(1.0f, alertPulseInterval).SetEase(Ease.InQuad));
-        pulse.SetLoops(loops);
-        pulse.OnComplete(SwitchToNormal);
+        _alertPulseSeq = DOTween.Sequence().SetUpdate(true).SetLink(iconAlert);
+        _alertPulseSeq.Append(tr.DOScale(1.15f, alertPulseInterval).SetEase(Ease.OutQuad));
+        _alertPulseSeq.Append(tr.DOScale(1.0f, alertPulseInterval).SetEase(Ease.InQuad));
+        _alertPulseSeq.SetLoops(loops);
+        _alertPulseSeq.OnComplete(SwitchToNormal);
+    }
+
+    /// <summary>외부 트리거 (QuestPanelUI가 토스트 사라짐 시점에 호출). 펄스 안전망 Kill 후 즉시 전환.</summary>
+    public void TriggerIconSwitchToNormal()
+    {
+        if (_alertPulseSeq != null && _alertPulseSeq.IsActive())
+        {
+            _alertPulseSeq.Kill();
+            _alertPulseSeq = null;
+        }
+        SwitchToNormal();
     }
 
     void SwitchToNormal()
     {
+        // iconAlert 없으면 normal만 즉시 활성
         if (iconAlert == null)
         {
-            if (iconNormal != null) iconNormal.SetActive(true);
+            if (iconNormal != null)
+            {
+                iconNormal.SetActive(true);
+                var ncg = iconNormal.GetComponent<CanvasGroup>();
+                if (ncg != null) ncg.alpha = 1f;
+            }
             return;
         }
 
-        var cg = iconAlert.GetComponent<CanvasGroup>();
-        if (cg == null) cg = iconAlert.AddComponent<CanvasGroup>();
+        var alertCg = iconAlert.GetComponent<CanvasGroup>();
+        if (alertCg == null) alertCg = iconAlert.AddComponent<CanvasGroup>();
 
-        cg.DOFade(0f, alertFadeDuration).SetUpdate(true).SetLink(iconAlert).OnComplete(() =>
+        // iconNormal 준비 (alpha 0으로 미리 활성, fade in 대상)
+        CanvasGroup normalCg = null;
+        if (iconNormal != null)
+        {
+            normalCg = iconNormal.GetComponent<CanvasGroup>();
+            if (normalCg == null) normalCg = iconNormal.AddComponent<CanvasGroup>();
+            normalCg.alpha = 0f;
+            iconNormal.SetActive(true);
+        }
+
+        // alert fade out → normal fade in 순차 (사용자 요구: "그 이후에" 원래 아이콘 Fade In)
+        var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        seq.Append(alertCg.DOFade(0f, alertFadeDuration));
+        seq.AppendCallback(() =>
         {
             iconAlert.SetActive(false);
-            cg.alpha = 1f;
-            if (iconNormal != null) iconNormal.SetActive(true);
+            alertCg.alpha = 1f;   // 다음 등장 위해 리셋
         });
+        if (normalCg != null)
+            seq.Append(normalCg.DOFade(1f, alertFadeDuration));
     }
 
     void RebuildLayoutChainUp()
@@ -124,14 +172,37 @@ public class QuestEntry : MonoBehaviour
         }
     }
 
-    // 슬라이드 인. alpha fade. 높이는 CSF chain이 자동 결정.
+    // 슬라이드 인. 배경박스만 좌→우 슬라이드, 텍스트는 자리에서 fade in (사진 4 패턴).
+    // 높이는 CSF chain이 자동 결정.
     void SlideInAndActivate()
     {
-        var cg = GetComponent<CanvasGroup>();
-        if (cg != null) cg.alpha = 0f;
+        // root는 항상 보임 (페이드 X)
+        var rootCg = GetComponent<CanvasGroup>();
+        if (rootCg != null) rootCg.alpha = 1f;
+
+        // 텍스트는 alpha 0에서 시작
+        if (textGroup != null) textGroup.alpha = 0f;
+
+        // 배경박스를 좌측 오프셋 위치로
+        Vector2 bgRestPos = Vector2.zero;
+        if (backgroundBox != null)
+        {
+            bgRestPos = backgroundBox.anchoredPosition;
+            backgroundBox.anchoredPosition = bgRestPos + new Vector2(backgroundSlideOffsetX, 0f);
+        }
 
         var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
-        if (cg != null) seq.Append(cg.DOFade(1f, slideInDuration));
+
+        // 배경박스: 좌→우 슬라이드
+        if (backgroundBox != null)
+            seq.Append(backgroundBox.DOAnchorPos(bgRestPos, slideInDuration).SetEase(Ease.OutCubic));
+        else
+            seq.AppendInterval(slideInDuration);
+
+        // 텍스트: 슬라이드 시작 후 textFadeDelay 시점부터 fade in (자리에서)
+        if (textGroup != null)
+            seq.Insert(textFadeDelay, textGroup.DOFade(1f, textFadeDuration));
+
         seq.OnComplete(() => QuestManager.Instance.ActivateObjectives(_rt));
     }
 
