@@ -532,13 +532,6 @@ public class PlayerWeaponController : MonoBehaviour
             {
                 enemy.TakeDamage((int)weapon.damage, false, hit.point);
             }
-
-            HomingFruit fruit = hit.collider.GetComponentInParent<HomingFruit>();
-            if (fruit != null)
-            {
-                fruit.DestroySelf();
-                return;
-            }
         }
 
         Vector3 origin = GetVisualOrigin(camOrigin);
