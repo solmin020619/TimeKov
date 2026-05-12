@@ -2,7 +2,7 @@ using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(Collider))]
-public class DroppedItem : MonoBehaviour
+public class DroppedItem : MonoBehaviour, IInteractable
 {
     [Header("Item")]
     [Tooltip("DataStore의 ItemRow id")]
@@ -13,8 +13,8 @@ public class DroppedItem : MonoBehaviour
     [Tooltip("플레이어가 주울 수 있는지")]
     public bool canPickup = true;
 
-    [Tooltip("Player Layer (인스펙터에서 Player 레이어 체크)")]
-    public LayerMask playerMask = ~0;
+    //[Tooltip("Player Layer (인스펙터에서 Player 레이어 체크)")]
+    //public LayerMask playerMask = ~0;
 
     private Rigidbody _rb;
     private float _spawnTime;
@@ -60,31 +60,21 @@ public class DroppedItem : MonoBehaviour
         }
     }
 
-    private void OnTriggerEnter(Collider other)
+    // IInteractable 구현
+    // 픽업 가능 여부 체크 (스폰 후 딜레이 지났는지 포함)
+    public bool CanInteract => canPickup &&
+                               Time.time - _spawnTime >= _pickupDelay;
+
+    // F키로 상호작용 시 호출
+    public void Interact(Player player)
     {
-        TryPickup(other);
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        TryPickup(collision.collider);
-    }
-
-    private void TryPickup(Collider other)
-    {
-        if (!canPickup) return;
-        if (Time.time - _spawnTime < _pickupDelay) return;
-
-        if (((1 << other.gameObject.layer) & playerMask.value) == 0)
-        {
-            if (!other.CompareTag("Player")) return;
-        }
-
-        InventoryManager inv = FindPlayerInventory();
-        if (inv == null) return;
-
-        inv.AddItem(itemId, count);
+        Debug.Log($"아이템 획득: itemId={itemId}, count={count}");
         Destroy(gameObject);
+
+        // InventoryManager 연동은 나중에
+        // InventoryManager inv = FindPlayerInventory();
+        // if (inv == null) return;
+        // inv.AddItem(itemId, count);
     }
 
     private InventoryManager FindPlayerInventory()
@@ -97,4 +87,32 @@ public class DroppedItem : MonoBehaviour
         }
         return null;
     }
+
+    // 자동 획득 비활성화 (F키 방식으로 변경)
+    // private void OnTriggerEnter(Collider other)
+    // {
+    //     TryPickup(other);
+    // }
+
+    // private void OnCollisionEnter(Collision collision)
+    // {
+    //     TryPickup(collision.collider);
+    // }
+
+    // private void TryPickup(Collider other)
+    // {
+    //     if (!canPickup) return;
+    //     if (Time.time - _spawnTime < _pickupDelay) return;
+
+    //     if (((1 << other.gameObject.layer) & playerMask.value) == 0)
+    //     {
+    //         if (!other.CompareTag("Player")) return;
+    //     }
+
+    //     InventoryManager inv = FindPlayerInventory();
+    //     if (inv == null) return;
+
+    //     inv.AddItem(itemId, count);
+    //     Destroy(gameObject);
+    // }
 }

@@ -224,4 +224,10 @@ public class PlayerMovementComponent : MonoBehaviour
         Gizmos.color = _isGrounded ? Color.green : Color.red;
         Gizmos.DrawWireSphere(origin, GroundCheckRadius);
     }
+
+    // 대시 방향 반환, 카메라 기준 현재 이동 방향
+    public Vector3 GetDashDirection()
+    {
+        return _moveDir.magnitude > 0.1f ? _moveDir : transform.forward;
+    }
 }

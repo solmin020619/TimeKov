@@ -13,13 +13,17 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");
     private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");
     private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");
-    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");   
+    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");
     private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2");
     private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3");
     private static readonly int EvadeHash = Animator.StringToHash("EVADE");
     private static readonly int HitLHash = Animator.StringToHash("HIT L");
     private static readonly int HitRHash = Animator.StringToHash("HIT R");
     private static readonly int DieHash = Animator.StringToHash("DIE");
+    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F");  // 앞 대시 애니메이션
+    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B");  // 뒤 대시 애니메이션
+    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R");  // 우 대시 애니메이션
+    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L");  // 좌 대시 애니메이션
 
     private float _prevSpeed;
     private AnimState _prevState;
@@ -41,7 +45,7 @@ public class PlayerAnimatorComponent : MonoBehaviour
     {
         float speed = _player.Movement.CurrentSpeed;
 
-        // float 블렌딩 -> 0.15f 로 부드럽게
+        // float 블렌딩, 0.15f로 부드럽게
         _anim.SetFloat(NormalHash, speed, 0.15f, Time.deltaTime);
 
         // 상태 변화 있을 때만 트리거
@@ -56,7 +60,6 @@ public class PlayerAnimatorComponent : MonoBehaviour
                 case AnimState.Run: _anim.SetTrigger(RunHash); break;
                 case AnimState.Sprint: _anim.SetTrigger(SprintHash); break;
             }
-
             _prevState = current;
         }
 
@@ -91,11 +94,32 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
     }
 
+    // 대시 방향을 캐릭터 로컬 기준으로 판단해서 방향별 애니메이션 재생
+    public void PlayDash(Vector3 dashDir)
+    {
+        // 월드 방향을 캐릭터 로컬 기준으로 변환
+        Vector3 localDir = transform.InverseTransformDirection(dashDir);
+
+        float forward = localDir.z;
+        float right = localDir.x;
+
+        // 수평 수직 중 더 큰 축 기준으로 방향 판별
+        if (Mathf.Abs(forward) >= Mathf.Abs(right))
+        {
+            if (forward >= 0) _anim.SetTrigger(DashFHash);
+            else _anim.SetTrigger(DashBHash);
+        }
+        else
+        {
+            if (right >= 0) _anim.SetTrigger(DashRHash);
+            else _anim.SetTrigger(DashLHash);
+        }
+    }
+
     public void ResetToIdle()
     {
-        // 모든 트리거 초기화 후 Idle로 복귀
         _anim.ResetTrigger(DieHash);
-        _anim.Play("IDLE");   // Animator State 이름이 "Idle"이어야 해요
+        _anim.Play("IDLE");
     }
 
     public void PlayEvade() => _anim.SetTrigger(EvadeHash);

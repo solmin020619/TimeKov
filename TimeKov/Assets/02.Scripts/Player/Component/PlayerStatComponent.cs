@@ -95,6 +95,12 @@ public class PlayerStatComponent : MonoBehaviour
         return true;
     }
 
+    // 스태미나 직접 소모, 대시 등 즉시 소모에 사용
+    public void UseStamina(float amount)
+    {
+        CurrentStamina = Mathf.Max(0, CurrentStamina - amount);
+    }
+
     void HandleStaminaRegen()
     {
         if (CurrentStamina >= MaxStamina) return;
