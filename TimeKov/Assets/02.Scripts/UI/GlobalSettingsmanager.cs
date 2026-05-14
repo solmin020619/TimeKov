@@ -59,7 +59,7 @@ public class GlobalSettingsManager : MonoBehaviour
             PlayClickSound();
             settingsPanel.SetActive(false);
 
-            PlayerController player = FindFirstObjectByType<PlayerController>();
+            Player player = FindFirstObjectByType<Player>(); //수정
 
             if (player != null)
             {

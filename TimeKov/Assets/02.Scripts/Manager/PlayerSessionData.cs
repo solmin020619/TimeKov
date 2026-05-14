@@ -58,16 +58,16 @@ public class PlayerSessionData : MonoBehaviour
         public InventoryManager playerInv;
         public InventoryManager warehouseInv;
         public EquipmentManager equip;
-        public PlayerWeaponController weaponCtrl;
-        public PlayerTime playerTime;
+        //public PlayerWeaponController weaponCtrl; //수정
+        //public PlayerTime playerTime; //수정
 
         public void Clear()
         {
             playerInv = null;
             warehouseInv = null;
             equip = null;
-            weaponCtrl = null;
-            playerTime = null;
+            //weaponCtrl = null; //수정
+            //playerTime = null; //수정
         }
     }
 
@@ -119,10 +119,10 @@ public class PlayerSessionData : MonoBehaviour
         }
 
         _sceneRefs.equip = UnityEngine.Object.FindAnyObjectByType<EquipmentManager>();
-        _sceneRefs.weaponCtrl = UnityEngine.Object.FindAnyObjectByType<PlayerWeaponController>();
+        //_sceneRefs.weaponCtrl = UnityEngine.Object.FindAnyObjectByType<PlayerWeaponController>(); //수정
 
-        if (includePlayerTime)
-            _sceneRefs.playerTime = UnityEngine.Object.FindAnyObjectByType<PlayerTime>();
+        //if (includePlayerTime) //수정
+        //    _sceneRefs.playerTime = UnityEngine.Object.FindAnyObjectByType<PlayerTime>(); //수정
     }
 
  
@@ -135,16 +135,14 @@ public class PlayerSessionData : MonoBehaviour
         playerInventory = (_sceneRefs.playerInv != null) ? _sceneRefs.playerInv.ExportToSessionSnapshot() : null;
         warehouseInventory = (_sceneRefs.warehouseInv != null) ? _sceneRefs.warehouseInv.ExportToSessionSnapshot() : null;
         equipment = (_sceneRefs.equip != null) ? _sceneRefs.equip.ExportToSessionSnapshot() : null;
-        weapon = (_sceneRefs.weaponCtrl != null) ? _sceneRefs.weaponCtrl.ExportToSessionSnapshot() : null;
+        //weapon = (_sceneRefs.weaponCtrl != null) ? _sceneRefs.weaponCtrl.ExportToSessionSnapshot() : null; //수정
 
-    
-        //  Time 저장
-       
-        if (_sceneRefs.playerTime != null)
-        {
-            savedCurrentTime = _sceneRefs.playerTime.currentTime;
-            hasSavedPlayerTime = true;
-        }
+        //  Time 저장 //수정
+        //if (_sceneRefs.playerTime != null) //수정
+        //{ //수정
+        //    savedCurrentTime = _sceneRefs.playerTime.currentTime; //수정
+        //    hasSavedPlayerTime = true; //수정
+        //} //수정
 
         hasSnapshot = true;
     }
@@ -159,15 +157,15 @@ public class PlayerSessionData : MonoBehaviour
         InventoryManager playerInv = _sceneRefs.playerInv;
         InventoryManager warehouseInv = _sceneRefs.warehouseInv;
         EquipmentManager equip = _sceneRefs.equip;
-        PlayerWeaponController weaponCtrl = _sceneRefs.weaponCtrl;
+        //PlayerWeaponController weaponCtrl = _sceneRefs.weaponCtrl; //수정
 
         // 1) 장비 먼저
         if (equip != null && equipment != null)
             equip.ImportFromSessionSnapshot(equipment);
 
-        // 2) 무기 복원
-        if (weaponCtrl != null && weapon != null)
-            weaponCtrl.ImportFromSessionSnapshot(weapon);
+        // 2) 무기 복원 //수정
+        //if (weaponCtrl != null && weapon != null) //수정
+        //    weaponCtrl.ImportFromSessionSnapshot(weapon); //수정
 
         // 3) 플레이어 인벤 복원
         if (playerInv != null && playerInventory != null)
@@ -190,7 +188,7 @@ public class PlayerSessionData : MonoBehaviour
         playerInventory = null;
         warehouseInventory = null;
         equipment = null;
-        weapon = null;
+        //weapon = null; //수정
 
        
         // 사망 시 Time 5초로 설정

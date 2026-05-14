@@ -43,7 +43,7 @@ public class BaseInteractable : MonoBehaviour
     private bool playerInRange = false;
     private Collider interactionTrigger;
 
-    private MonsterLoot cachedMonsterLoot;
+    //private MonsterLoot cachedMonsterLoot; //수정
     private LootContainer cachedLootContainer;
 
     //  동시에 여러 상자 범위에 있을 때 입력을 1개만 처리하기 위한 전역 상태
@@ -102,8 +102,8 @@ public class BaseInteractable : MonoBehaviour
         if (uiStateManager == null)
             uiStateManager = UIStateManager.Instance;
 
-        if (cachedMonsterLoot == null)
-            cachedMonsterLoot = GetComponent<MonsterLoot>();
+        //if (cachedMonsterLoot == null) //수정
+        //    cachedMonsterLoot = GetComponent<MonsterLoot>(); //수정
 
         if (cachedLootContainer == null)
             cachedLootContainer = GetComponent<LootContainer>();
@@ -127,11 +127,11 @@ public class BaseInteractable : MonoBehaviour
                 break;
 
             case ActionType.OpenLootContainer:
-                if (cachedMonsterLoot != null)
-                {
-                    cachedMonsterLoot.Open();
-                    return;
-                }
+                //if (cachedMonsterLoot != null) //수정
+                //{ //수정
+                //    cachedMonsterLoot.Open(); //수정
+                //    return; //수정
+                //} //수정
 
                 if (cachedLootContainer != null)
                 {
@@ -139,7 +139,7 @@ public class BaseInteractable : MonoBehaviour
                     return;
                 }
 
-                Debug.LogWarning("[BaseInteractable] OpenLootContainer인데 MonsterLoot/LootContainer 둘 다 없음", gameObject);
+                Debug.LogWarning("[BaseInteractable] OpenLootContainer인데 LootContainer 없음", gameObject); //수정
                 break;
         }
     }
