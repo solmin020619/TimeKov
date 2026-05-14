@@ -11,7 +11,7 @@ public class EquipmentManager : MonoBehaviour
     public SlotInfo equipBag;
 
     private InventoryManager inven;
-    private PlayerWeaponController playerWeaponController;
+    //private PlayerWeaponController playerWeaponController; //수정
 
     void Awake()
     {
@@ -27,12 +27,12 @@ public class EquipmentManager : MonoBehaviour
             }
         }
 
-        playerWeaponController = FindFirstObjectByType<PlayerWeaponController>();
+        //playerWeaponController = FindFirstObjectByType<PlayerWeaponController>(); //수정
     }
 
     void Start()
     {
-        SyncEquippedWeaponToPlayer();
+        //SyncEquippedWeaponToPlayer(); //수정
 
         if (inven != null && equipBag != null)
         {
@@ -99,20 +99,16 @@ public class EquipmentManager : MonoBehaviour
         return s == equipWeapon || s == equipHelmet || s == equipArmor || s == equipBag;
     }
 
-    private void SyncEquippedWeaponToPlayer()
+    private void SyncEquippedWeaponToPlayer() //수정 무기 시스템 제거로 빈 메서드 (호출처 보존용)
     {
-        if (playerWeaponController == null)
-            playerWeaponController = FindFirstObjectByType<PlayerWeaponController>();
-
-        if (playerWeaponController == null)
-            return;
-
-        int equippedWeaponId = (equipWeapon != null) ? equipWeapon.slotIndex : 0;
-
-        if (equippedWeaponId > 0)
-            playerWeaponController.EquipByItemId(equippedWeaponId);
-        else
-            playerWeaponController.Unequip();
+        //if (playerWeaponController == null) //수정
+        //    playerWeaponController = FindFirstObjectByType<PlayerWeaponController>(); //수정
+        //if (playerWeaponController == null) return; //수정
+        //int equippedWeaponId = (equipWeapon != null) ? equipWeapon.slotIndex : 0; //수정
+        //if (equippedWeaponId > 0) //수정
+        //    playerWeaponController.EquipByItemId(equippedWeaponId); //수정
+        //else //수정
+        //    playerWeaponController.Unequip(); //수정
     }
 
     public void EquipOrSwapFromInventorySlot(SlotInfo invSlot)
@@ -150,10 +146,10 @@ public class EquipmentManager : MonoBehaviour
             inven.ApplyBagById(newId);
         }
 
-        if (type.Value == EquipSlotType.Weapon)
-        {
-            SyncEquippedWeaponToPlayer();
-        }
+        //if (type.Value == EquipSlotType.Weapon) //수정
+        //{ //수정
+        //    SyncEquippedWeaponToPlayer(); //수정
+        //} //수정
     }
 
     public void UnequipToInventory(SlotInfo equipSlot)
@@ -172,10 +168,10 @@ public class EquipmentManager : MonoBehaviour
             inven.ApplyBagById(0);
         }
 
-        if (type != null && type.Value == EquipSlotType.Weapon)
-        {
-            SyncEquippedWeaponToPlayer();
-        }
+        //if (type != null && type.Value == EquipSlotType.Weapon) //수정
+        //{ //수정
+        //    SyncEquippedWeaponToPlayer(); //수정
+        //} //수정
 
         if (inven != null)
             inven.ForceRefreshUI();
@@ -203,7 +199,7 @@ public class EquipmentManager : MonoBehaviour
         if (inven != null)
             inven.ApplyBagById(s.bagId);
 
-        SyncEquippedWeaponToPlayer();
+        //SyncEquippedWeaponToPlayer(); //수정
     }
 
     public int GetEquippedBagId()
