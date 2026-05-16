@@ -11,8 +11,21 @@ public class PlayerInputComponent : MonoBehaviour
     public bool    Skill3Pressed { get; private set; }  // R 스킬 입력
     public bool InteractPressed { get; private set; } // 상호작용 입력 (F키)
 
+    public static bool IsBlocked = false; // UI용 플래그
+
     void Update()
     {
+        if (IsBlocked) // UI 열리면 모든 입력 차단
+        {
+            MoveInput = Vector2.zero;
+            JumpPressed = false;
+            AttackPressed = false;
+            Skill1Pressed = false;
+            Skill2Pressed = false;
+            Skill3Pressed = false;
+            return;
+        }
+
         MoveInput = new Vector2(
             Input.GetAxisRaw("Horizontal"),
             Input.GetAxisRaw("Vertical")
