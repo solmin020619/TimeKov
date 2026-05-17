@@ -5,20 +5,21 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private Player _player;
     private Animator _anim;
 
-    private static readonly int NormalHash = Animator.StringToHash("----normal");  // 이동 속도 (Blend Tree)
-    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");     // 1타 트리거
-    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");     // 2타 트리거
-    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");     // 3타 트리거
-    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1"); // 스킬1 트리거
-    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2"); // 스킬2 트리거
-    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3"); // 스킬3 트리거
-    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F"); // 앞 대시 트리거
-    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B"); // 뒤 대시 트리거
-    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R"); // 우 대시 트리거
-    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L"); // 좌 대시 트리거
-    private static readonly int HitLHash = Animator.StringToHash("Hit L");       // 피격 좌 트리거
-    private static readonly int HitRHash = Animator.StringToHash("Hit R");       // 피격 우 트리거
-    private static readonly int DieHash = Animator.StringToHash("Die");         // 사망 트리거
+    private static readonly int NormalHash = Animator.StringToHash("----normal");     // 이동 속도 (Blend Tree)
+    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");        // 1타 트리거
+    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");        // 2타 트리거
+    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");        // 3타 트리거
+    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");     // 스킬1 트리거
+    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2");     // 스킬2 트리거
+    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3");     // 스킬3 트리거
+    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F");  // 앞 대시 트리거
+    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B");  // 뒤 대시 트리거
+    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R");  // 우 대시 트리거
+    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L");  // 좌 대시 트리거
+    private static readonly int HitLHash = Animator.StringToHash("Hit L");          // 피격 좌 트리거
+    private static readonly int HitRHash = Animator.StringToHash("Hit R");          // 피격 우 트리거
+    private static readonly int DieHash = Animator.StringToHash("Die");            // 사망 트리거
+    private static readonly int JumpHash = Animator.StringToHash("Jump");           // 점프 트리거
 
     void Awake()
     {
@@ -76,7 +77,8 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
     }
 
-    // 리스폰 시 Base Layer Blend Tree로 복귀
+    public void PlayJump() => _anim.SetTrigger(JumpHash);
+
     public void ResetToIdle()
     {
         _anim.ResetTrigger(DieHash);

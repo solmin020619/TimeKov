@@ -5,22 +5,22 @@ using UnityEngine;
 public class PlayerMovementComponent : MonoBehaviour
 {
     [Header("Speed")]
-    public float MoveSpeed = 5f;
-    public float SprintSpeed = 9f;
+    public float MoveSpeed = 5f;      // 기본 이동 속도
+    public float SprintSpeed = 8f;      // 달리기 속도
 
     [Header("Jump")]
-    public float JumpHeight = 2f;
-    public float Gravity = -20f;
-    public float FallMultiplier = 2.5f;
-    public float JumpBufferTime = 0.1f;
+    public float JumpHeight = 2f;   // 점프 높이
+    public float Gravity = -20f; // 중력 값
+    public float FallMultiplier = 2.5f; // 하강 시 중력 배수
+    public float JumpBufferTime = 0.1f; // 점프 입력 유예 시간
 
     [Header("Movement")]
-    public float RotSpeed = 10f;
+    public float RotSpeed = 10f;        // 회전 속도
 
     [Header("Ground Check")]
-    public float GroundCheckRadius = 0.25f;
-    public float GroundCheckOffset = 0.05f;
-    public LayerMask GroundMask;
+    public float GroundCheckRadius = 0.25f; // 지면 감지 구체 반경
+    public float GroundCheckOffset = 0.05f; // 지면 감지 오프셋
+    public LayerMask GroundMask;                 // 지면 레이어 마스크
 
     private Player _player;
     private Rigidbody _rb;
@@ -37,14 +37,15 @@ public class PlayerMovementComponent : MonoBehaviour
     private bool _isJumping;
     private bool _movementLocked;
 
-    // ── Slash ─────────────────────────────────────────────
+    // Slash
     private bool _isSlashing;
     private float _slashTimer;
     private float _slashForce;
 
-    public float CurrentSpeed => _currentSpeed;
-    public bool IsGrounded => _isGrounded;
-    public bool IsJumping => _isJumping;
+    public float CurrentSpeed => _currentSpeed;  // 현재 이동 속도
+    public bool IsGrounded => _isGrounded;     // 지면 여부
+    public bool IsJumping => _isJumping;      // 점프 중 여부
+    public bool IsSlashing => _isSlashing;     // 슬래시 중 여부
 
     void Awake()
     {
@@ -125,13 +126,14 @@ public class PlayerMovementComponent : MonoBehaviour
         _jumpRequested = false;
         _isGrounded = false;
         _isJumping = true;
+
+        // 점프 애니메이션 재생
+        _player.Anim.PlayJump();
     }
 
     void HandleSlash()
     {
         if (!_isSlashing) return;
-
-        //Debug.Log($"Slashing: force={_slashForce}, timer={_slashTimer}");
 
         _rb.linearVelocity = new Vector3(
             transform.forward.x * _slashForce,
@@ -200,7 +202,6 @@ public class PlayerMovementComponent : MonoBehaviour
 
     public void StartSlash(float force, float duration)
     {
-        Debug.Log($"StartSlash 호출: force={force}, duration={duration}");
         _isSlashing = true;
         _slashForce = force;
         _slashTimer = duration;
@@ -211,6 +212,12 @@ public class PlayerMovementComponent : MonoBehaviour
 
     public void AddForce(Vector3 force, ForceMode mode = ForceMode.Impulse)
         => _rb.AddForce(force, mode);
+
+    // 대시 방향 반환, 카메라 기준 현재 이동 방향
+    public Vector3 GetDashDirection()
+    {
+        return _moveDir.magnitude > 0.1f ? _moveDir : transform.forward;
+    }
 
     void OnDrawGizmosSelected()
     {
@@ -223,11 +230,5 @@ public class PlayerMovementComponent : MonoBehaviour
 
         Gizmos.color = _isGrounded ? Color.green : Color.red;
         Gizmos.DrawWireSphere(origin, GroundCheckRadius);
-    }
-
-    // 대시 방향 반환, 카메라 기준 현재 이동 방향
-    public Vector3 GetDashDirection()
-    {
-        return _moveDir.magnitude > 0.1f ? _moveDir : transform.forward;
     }
 }
