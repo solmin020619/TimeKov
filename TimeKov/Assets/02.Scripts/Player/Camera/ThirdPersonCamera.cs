@@ -29,6 +29,8 @@ public class ThirdPersonCamera : MonoBehaviour
     private float _currentDist;
     private float _targetDist;
 
+    public static bool IsUIOpen = false;
+
     void Awake()
     {
         _pivot = transform.GetChild(0);
@@ -57,6 +59,8 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleRotation()
     {
+        if (IsUIOpen) return;
+
         // 마우스 입력 그대로 누적 -> Slerp 없음
         _yaw += Input.GetAxis("Mouse X") * SensitivityX;
         _pitch -= Input.GetAxis("Mouse Y") * SensitivityY;

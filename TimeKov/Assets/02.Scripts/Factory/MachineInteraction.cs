@@ -109,6 +109,13 @@ namespace TIMEKOV.Factory
         {
             if (machineUI == null || _nearMachine == null) return;
 
+            ThirdPersonCamera.IsUIOpen = true;
+            PlayerInputComponent.IsBlocked = true;
+
+            // 플레이어 이동 잠금
+            var player = FindFirstObjectByType<Player>();
+            if (player != null) player.Movement.LockMovement(true);
+
             if (UIStateManager.Instance != null)
                 UIStateManager.Instance.OpenFactoryUI();
             else
@@ -127,6 +134,13 @@ namespace TIMEKOV.Factory
 
         private void CloseUI()
         {
+            ThirdPersonCamera.IsUIOpen = false;
+            PlayerInputComponent.IsBlocked = false;
+
+            // 플레이어 이동 잠금 해제
+            var player = FindFirstObjectByType<Player>();
+            if (player != null) player.Movement.LockMovement(false);
+
             machineUI?.Close();
             _uiOpen = false;
 
@@ -138,11 +152,8 @@ namespace TIMEKOV.Factory
                 Cursor.visible = _prevVisible;
             }
 
-            // 닫은 뒤 힌트 즉시 재갱신 (아직 범위 안에 있으면 "열기" 힌트 복원)
             if (hintText != null)
-                hintText.text = _nearMachine != null
-                    ? $"F  —  {_nearMachineName} 열기"
-                    : "";
+                hintText.text = _nearMachine != null ? $"F  —  {_nearMachineName} 열기" : "";
         }
 
         // ── 인벤토리 슬롯 → 설비 투입 (외부 UI 버튼 연결용) ────────
