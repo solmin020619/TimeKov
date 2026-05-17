@@ -5,30 +5,20 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private Player _player;
     private Animator _anim;
 
-    private static readonly int NormalHash = Animator.StringToHash("----normal");
-    private static readonly int IdleHash = Animator.StringToHash("IDLE");
-    private static readonly int WalkHash = Animator.StringToHash("WALK");
-    private static readonly int RunHash = Animator.StringToHash("RUN");
-    private static readonly int SprintHash = Animator.StringToHash("SPRINT");
-    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");
-    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");
-    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");
-    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");
-    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2");
-    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3");
-    private static readonly int EvadeHash = Animator.StringToHash("EVADE");
-    private static readonly int HitLHash = Animator.StringToHash("HIT L");
-    private static readonly int HitRHash = Animator.StringToHash("HIT R");
-    private static readonly int DieHash = Animator.StringToHash("DIE");
-    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F");  // 앞 대시 애니메이션
-    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B");  // 뒤 대시 애니메이션
-    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R");  // 우 대시 애니메이션
-    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L");  // 좌 대시 애니메이션
-
-    private float _prevSpeed;
-    private AnimState _prevState;
-
-    private enum AnimState { Idle, Walk, Run, Sprint }
+    private static readonly int NormalHash = Animator.StringToHash("----normal");  // 이동 속도 (Blend Tree)
+    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");     // 1타 트리거
+    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");     // 2타 트리거
+    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");     // 3타 트리거
+    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1"); // 스킬1 트리거
+    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2"); // 스킬2 트리거
+    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3"); // 스킬3 트리거
+    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F"); // 앞 대시 트리거
+    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B"); // 뒤 대시 트리거
+    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R"); // 우 대시 트리거
+    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L"); // 좌 대시 트리거
+    private static readonly int HitLHash = Animator.StringToHash("Hit L");       // 피격 좌 트리거
+    private static readonly int HitRHash = Animator.StringToHash("Hit R");       // 피격 우 트리거
+    private static readonly int DieHash = Animator.StringToHash("Die");         // 사망 트리거
 
     void Awake()
     {
@@ -43,35 +33,8 @@ public class PlayerAnimatorComponent : MonoBehaviour
 
     void UpdateMovement()
     {
-        float speed = _player.Movement.CurrentSpeed;
-
-        // float 블렌딩, 0.15f로 부드럽게
-        _anim.SetFloat(NormalHash, speed, 0.15f, Time.deltaTime);
-
-        // 상태 변화 있을 때만 트리거
-        AnimState current = GetAnimState(speed);
-
-        if (current != _prevState)
-        {
-            switch (current)
-            {
-                case AnimState.Idle: _anim.SetTrigger(IdleHash); break;
-                case AnimState.Walk: _anim.SetTrigger(WalkHash); break;
-                case AnimState.Run: _anim.SetTrigger(RunHash); break;
-                case AnimState.Sprint: _anim.SetTrigger(SprintHash); break;
-            }
-            _prevState = current;
-        }
-
-        _prevSpeed = speed;
-    }
-
-    AnimState GetAnimState(float speed)
-    {
-        if (speed <= 0.1f) return AnimState.Idle;
-        if (speed < 5f) return AnimState.Walk;
-        if (speed < 9f) return AnimState.Run;
-        return AnimState.Sprint;
+        // Blend Tree가 Float 하나로 Idle/Walk/Run/Sprint 자동 블렌딩
+        _anim.SetFloat(NormalHash, _player.Movement.CurrentSpeed, 0.15f, Time.deltaTime);
     }
 
     public void PlayAttack(int comboIndex)
@@ -97,13 +60,10 @@ public class PlayerAnimatorComponent : MonoBehaviour
     // 대시 방향을 캐릭터 로컬 기준으로 판단해서 방향별 애니메이션 재생
     public void PlayDash(Vector3 dashDir)
     {
-        // 월드 방향을 캐릭터 로컬 기준으로 변환
         Vector3 localDir = transform.InverseTransformDirection(dashDir);
-
         float forward = localDir.z;
         float right = localDir.x;
 
-        // 수평 수직 중 더 큰 축 기준으로 방향 판별
         if (Mathf.Abs(forward) >= Mathf.Abs(right))
         {
             if (forward >= 0) _anim.SetTrigger(DashFHash);
@@ -116,13 +76,13 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
     }
 
+    // 리스폰 시 Base Layer Blend Tree로 복귀
     public void ResetToIdle()
     {
         _anim.ResetTrigger(DieHash);
-        _anim.Play("IDLE");
+        _anim.Play("Blend Tree", 0);
     }
 
-    public void PlayEvade() => _anim.SetTrigger(EvadeHash);
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
     public void PlayDie() => _anim.SetTrigger(DieHash);
 }
