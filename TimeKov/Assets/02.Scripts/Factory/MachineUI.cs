@@ -207,21 +207,18 @@ public class MachineUI : MonoBehaviour
 
         if (statusText == null) return;
 
-        string outName = "";
-        if (_machine.ActiveRecipe?.outputs?.Length > 0)
+        if (_machine.Status == MachineStatus.Processing)
         {
-            int id = _machine.ActiveRecipe.outputs[0].itemId;
-            var row = DataStore.GetItem(id);
-            outName = row != null ? $"\n→ {row.itemName}" : "";
-        }
+            float remaining = 0f;
+            if (_machine.ActiveRecipe != null)
+                remaining = _machine.ActiveRecipe.processingTime * (1f - _machine.Progress);
 
-        statusText.text = _machine.Status switch
+            statusText.text = $"{remaining:F0}초";
+        }
+        else
         {
-            MachineStatus.Idle => "재료를 투입하세요",
-            MachineStatus.Processing => $"제작 중 {(_machine.Progress * 100f):F0}%{outName}",
-            MachineStatus.OutputReady => "완료 — 더블클릭으로 회수",
-            _ => ""
-        };
+            statusText.text = "";
+        }
     }
 
     private void RefreshDropSlots()
@@ -230,5 +227,31 @@ public class MachineUI : MonoBehaviour
         {
             if (slot != null) slot.PublicRefresh();
         }
+    }
+
+    public void TakeAll()
+    {
+        if (_machine == null || playerInventory == null) return;
+
+        // InputBuffer 전체 회수
+        foreach (var kv in new Dictionary<int, int>(_machine.InputBuffer.Stock))
+        {
+            if (kv.Value <= 0) continue;
+            _machine.InputBuffer.Consume(kv.Key, kv.Value);
+            playerInventory.AddItem(kv.Key, kv.Value);
+        }
+
+        // OutputBuffer 전체 회수
+        foreach (var kv in new Dictionary<int, int>(_machine.OutputBuffer.Stock))
+        {
+            if (kv.Value <= 0) continue;
+            _machine.TryTakeOutput(kv.Key, kv.Value);
+            playerInventory.AddItem(kv.Key, kv.Value);
+        }
+
+        playerInventory.ForceRefreshUI();
+        _machine.PublicNotifyBufferChanged();
+        RefreshInventorySlots();
+        RefreshOutputSlots();
     }
 }
