@@ -1,3 +1,9 @@
+// =====================================================================
+// MachineSlotWidget.cs
+// 설비 출력 슬롯 위젯
+// 구버전 DataStore.GetItem 을 새 스키마로 교체
+// =====================================================================
+
 using System;
 using TMPro;
 using UnityEngine;
@@ -19,7 +25,11 @@ namespace TIMEKOV.Factory
 
         public void Setup(int itemId, int amount)
         {
-            var row = DataStore.GetItem(itemId);
+            // 구버전: DataStore.GetItem(itemId) → 신버전: GameDataHolder.I.ItemData.TryGet
+            string name = itemId.ToString();
+            if (GameDataHolder.I.ItemData.TryGet(itemId.ToString(), out var itemData))
+                name = itemData.itemName;
+
             var sprite = Resources.Load<Sprite>("Icon/" + itemId);
 
             if (iconImage != null)
@@ -29,7 +39,7 @@ namespace TIMEKOV.Factory
             }
 
             if (itemNameText != null)
-                itemNameText.text = row?.itemName ?? itemId.ToString();
+                itemNameText.text = name;
 
             if (amountText != null)
                 amountText.text = amount > 1 ? $"x{amount}" : "";

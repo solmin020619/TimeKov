@@ -1,3 +1,9 @@
+// =====================================================================
+// FactoryOutputReceiver.cs
+// 공장 완성품 자동 인벤토리 수납
+// 구버전 DataStore.IsLoaded / DataStore.GetItem → DataBoot / GameDataUtility 교체
+// =====================================================================
+
 using System.Collections;
 using UnityEngine;
 
@@ -15,17 +21,18 @@ namespace TIMEKOV.Factory
 
         private IEnumerator AddWhenReady(int itemId, int amount)
         {
-            // DataStore 로드 완료 대기
+            // 구버전: DataStore.IsLoaded → DataBoot.IsLoaded
             yield return new WaitUntil(() =>
-                DataStore.IsLoaded && DataStore.GetItem(itemId) != null);
+                DataBoot.IsLoaded && GameDataUtility.GetItem(itemId) != null);
 
             if (playerInventory == null) yield break;
 
             playerInventory.AddItem(itemId, amount);
             playerInventory.ForceRefreshUI();
 
-            var row = DataStore.GetItem(itemId);
-            Debug.Log($"[공장 출력] {row?.itemName ?? itemId.ToString()} x{amount} → 인벤토리 추가 완료");
+            // 구버전: DataStore.GetItem → GameDataUtility.GetItem
+            var itemData = GameDataUtility.GetItem(itemId);
+            Debug.Log($"[공장 출력] {itemData?.itemName ?? itemId.ToString()} x{amount} → 인벤토리 추가 완료");
         }
     }
 }

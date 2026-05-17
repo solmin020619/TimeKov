@@ -1,3 +1,9 @@
+// =====================================================================
+// RecipeDropSlot.cs
+// 설비 UI 재료 드롭 슬롯  인벤토리에서 아이템을 드래그 앤 드롭으로 투입
+// DataStore 참조 없음. InventoryManager 타입 참조만 존재
+// =====================================================================
+
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -33,6 +39,7 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         }
     }
 
+    // 슬롯 초기화 필요한 아이템 ID, 수량, 연결할 설비/인벤토리 설정
     public void Setup(int itemId, int amount, ProcessingMachine machine, InventoryManager inventory)
     {
         RequiredItemId = itemId;
@@ -52,7 +59,6 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
     public void OnPointerEnter(PointerEventData e)
     {
         if (!DraggableSlot.IsDragging) return;
-
         if (labelText != null) labelText.text = "재료 넣기";
         StartGlow();
     }
@@ -73,7 +79,6 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         var slot = e.pointerDrag?.GetComponent<DraggableSlot>();
         if (slot == null || !slot.HasItem) return;
         if (_machine == null || _inventory == null) return;
-
         if (slot.ItemId != RequiredItemId) return;
 
         int amount = _inventory.GetTotalItemCount(slot.ItemId);
@@ -87,6 +92,8 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         CurrentAmount += take;
         RefreshAmount();
     }
+
+    // ── 발광 애니메이션 ────────────────────────────────────────
 
     private void StartGlow()
     {
@@ -108,20 +115,10 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         while (true)
         {
             float t = 0f;
-            while (t < 1f)
-            {
-                t += Time.deltaTime * 3f;
-                SetBorderAlpha(Mathf.Lerp(0f, 1f, t));
-                yield return null;
-            }
+            while (t < 1f) { t += Time.deltaTime * 3f; SetBorderAlpha(Mathf.Lerp(0f, 1f, t)); yield return null; }
 
             t = 0f;
-            while (t < 1f)
-            {
-                t += Time.deltaTime * 3f;
-                SetBorderAlpha(Mathf.Lerp(1f, 0f, t));
-                yield return null;
-            }
+            while (t < 1f) { t += Time.deltaTime * 3f; SetBorderAlpha(Mathf.Lerp(1f, 0f, t)); yield return null; }
         }
     }
 
@@ -133,6 +130,9 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         borderImage.color = c;
     }
 
+    // ── 슬롯 갱신 ──────────────────────────────────────────────
+
+    // 외부(MachineUI 버퍼 변경 콜백)에서 호출해 현재 투입량 동기화
     public void PublicRefresh()
     {
         if (_machine == null) return;
@@ -157,6 +157,7 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
             ? _machine.InputBuffer.GetAmount(RequiredItemId)
             : CurrentAmount;
 
+        // 아이콘이 아직 없으면 Resources 에서 로드
         if (current > 0 && iconImage != null && iconImage.sprite == null)
         {
             var sprite = Resources.Load<Sprite>("Icon/" + RequiredItemId);

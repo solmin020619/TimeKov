@@ -1,3 +1,9 @@
+// =====================================================================
+// BuildManager.cs
+// 건축 모드 전체 관리 — 시설 배치, 레일, 청사진, 해제
+// 구버전 FacilityRow / DataStore 참조를 새 스키마(FacilityDataSheetData / GameDataHolder)로 교체
+// =====================================================================
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -83,10 +89,7 @@ public class BuildManager : MonoBehaviour
     public FacilityPrefabDatabase PrefabDatabase => prefabDatabase;
     public Transform BuildParent => buildParent;
 
-    /// <summary>
-    /// 현재 화면에 활성화되어 있는 프리뷰(시설 or 레일)의 월드 위치를 돌려준다.
-    /// BuildGridOverlay 등 외부 표시용.
-    /// </summary>
+    // 현재 화면에 활성화된 프리뷰 월드 위치 반환 (BuildGridOverlay 등 외부 표시용)
     public bool TryGetActivePreviewPosition(out Vector3 worldPos)
     {
         if (previewMarker != null && previewMarker.activeSelf)
@@ -105,10 +108,7 @@ public class BuildManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// 청사진 유령이 커서를 따라다닐 때 오버레이가 격자 반경을 늘려야 하는 경우 사용.
-    /// 해당 상황이 아니면 false.
-    /// </summary>
+    // 청사진 유령이 커서를 따라다닐 때 오버레이 격자 반경 확장용
     public bool TryGetOverridePatchRadius(out int radiusCells)
     {
         radiusCells = 0;
@@ -149,8 +149,8 @@ public class BuildManager : MonoBehaviour
     public bool IsBuildMode { get; private set; }
     public bool IsTopViewMode { get; private set; }
 
-    private int currentIndex = -1;          // -1 = 미선택 상태
-    private bool hasSelectedSlot = false;   // 슬롯이 선택됐는지 여부
+    private int currentIndex = -1;
+    private bool hasSelectedSlot = false;
     private int currentRotationY = 0;
 
     private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
@@ -160,9 +160,11 @@ public class BuildManager : MonoBehaviour
 
     private void Start()
     {
-        if (!DataStore.IsLoaded)
+        // DataBoot.IsLoaded 로 교체 (구버전: DataStore.IsLoaded)
+        if (!DataBoot.IsLoaded)
         {
-            Debug.LogWarning("[BuildManager] DataStore is not loaded. Make sure DataBoot runs before BuildManager.");
+            DataBoot.OnDataLoaded += OnDataLoaded;
+            Debug.LogWarning("[BuildManager] DataBoot is not loaded. Make sure DataBoot runs before BuildManager.");
         }
 
         if (previewMarker != null)
@@ -209,7 +211,11 @@ public class BuildManager : MonoBehaviour
         HandleRotateInput();
         HandleBuild();
     }
-
+    private void OnDataLoaded()
+    {
+        DataBoot.OnDataLoaded -= OnDataLoaded;
+        // 데이터 로드 후 초기화가 필요하면 여기에 작성
+    }
     private void HandleSelectionInput()
     {
         if (!IsBuildMode)
@@ -253,7 +259,6 @@ public class BuildManager : MonoBehaviour
     {
         if (CurrentSubMode == BuildSubMode.Rail)
         {
-            // E 다시 누르면 토글 OFF: Facility 로 가되 슬롯 선택까지 해제 (이전에 1~9 누른 게 있어도 안 뜨게)
             SetSubMode(BuildSubMode.Facility);
             hasSelectedSlot = false;
             currentIndex = -1;
@@ -267,7 +272,6 @@ public class BuildManager : MonoBehaviour
 
     private void SelectFacilitySlot(int index)
     {
-        // 같은 슬롯 다시 누르면 선택 해제
         if (hasSelectedSlot && currentIndex == index)
         {
             hasSelectedSlot = false;
@@ -282,7 +286,6 @@ public class BuildManager : MonoBehaviour
             return;
         }
 
-        // 레일 모드였으면 종료
         if (CurrentSubMode == BuildSubMode.Rail)
         {
             railBuildManager?.EndRailMode();
@@ -298,7 +301,6 @@ public class BuildManager : MonoBehaviour
         if (CurrentSubMode == mode)
             return;
 
-        // 기존 모드 종료 처리
         if (CurrentSubMode == BuildSubMode.Rail)
             railBuildManager?.EndRailMode();
         if (CurrentSubMode == BuildSubMode.Blueprint)
@@ -332,7 +334,6 @@ public class BuildManager : MonoBehaviour
         {
             currentRotationY = 0;
 
-            // 선택된 슬롯이 있을 때만 프리뷰 갱신
             if (hasSelectedSlot)
                 RefreshPreviewMarker();
             else if (previewMarker != null)
@@ -348,7 +349,6 @@ public class BuildManager : MonoBehaviour
 
             if (!IsBuildMode)
             {
-                // 건축 모드 종료
                 isDemolishMode = false;
                 isDragBuilding = false;
                 dragPlacedStartCells.Clear();
@@ -368,7 +368,6 @@ public class BuildManager : MonoBehaviour
             }
             else
             {
-                // 건축 모드 진입. 슬롯은 자동 선택 안 함
                 hasSelectedSlot = false;
                 currentIndex = -1;
                 CurrentSubMode = BuildSubMode.Facility;
@@ -376,7 +375,6 @@ public class BuildManager : MonoBehaviour
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
 
-                // B키 진입 시 탑뷰 자동 활성화
                 SetTopViewMode(true);
 
                 UIStateManager.Instance?.SetState(UIStateManager.UIState.Build);
@@ -420,9 +418,7 @@ public class BuildManager : MonoBehaviour
         IsTopViewMode = value;
 
         if (value)
-        {
             StopPlayerImmediately();
-        }
 
         if (gameplayCamera != null)
             gameplayCamera.gameObject.SetActive(!value);
@@ -455,9 +451,7 @@ public class BuildManager : MonoBehaviour
                 Vector3 startPos = topViewCamera.transform.position;
 
                 if (topViewStartTarget != null)
-                {
                     startPos = topViewStartTarget.position + topViewStartOffset;
-                }
 
                 topViewCamera.transform.position = startPos;
                 topViewCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
@@ -469,7 +463,6 @@ public class BuildManager : MonoBehaviour
             Cursor.visible = false;
         }
 
-        // 탑뷰 진입/종료 시 건물 레이블 표시/숨김
         var labels = UnityEngine.Object.FindObjectsByType<BuildingLabelUI>(UnityEngine.FindObjectsSortMode.None);
         foreach (var label in labels)
         {
@@ -537,9 +530,7 @@ public class BuildManager : MonoBehaviour
         }
 
         if (Input.GetMouseButton(0) && isDragBuilding)
-        {
             TryDragPlace(startCell, snappedPos, rotation, footprintCells, canBuild);
-        }
 
         if (Input.GetMouseButtonUp(0))
         {
@@ -553,7 +544,8 @@ public class BuildManager : MonoBehaviour
         if (buildSlots == null || index < 0 || index >= buildSlots.Length)
             return;
 
-        if (DataStore.GetFacility(buildSlots[index].facilityId) == null)
+        // 구버전: DataStore.GetFacility() → 신버전: GetFacilityData()
+        if (GetFacilityData(buildSlots[index].facilityId) == null)
         {
             Debug.LogWarning($"[BuildManager] Invalid facilityId in slot index={index}, facilityId={buildSlots[index].facilityId}");
             return;
@@ -572,15 +564,18 @@ public class BuildManager : MonoBehaviour
 
     private IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
-        FacilityRow facility = GetCurrentFacilityRow();
+        // 구버전: FacilityRow facility = GetCurrentFacilityRow(); facility.facilityId
+        // 신버전: facilityId int 를 직접 사용
+        int facilityId = GetCurrentFacilityId();
+        if (facilityId == 0) yield break;
+
+        FacilityDataSheetData facility = GetFacilityData(facilityId);
         if (facility == null) yield break;
-        yield return PlaceFacilityRoutine(facility.facilityId, position, rotation, footprintCells);
+
+        yield return PlaceFacilityRoutine(facilityId, position, rotation, footprintCells);
     }
 
-    /// <summary>
-    /// facilityId를 지정해서 홀로그램 연출을 거쳐 배치한다. Blueprint 붙여넣기에서 호출.
-    /// 호출자가 footprintCells 비점유/물리 미충돌을 이미 검증했다고 가정.
-    /// </summary>
+    // facilityId를 지정해서 홀로그램 연출을 거쳐 배치. Blueprint 붙여넣기에서 호출.
     public void PlaceFacilityWithHologram(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
         StartCoroutine(PlaceFacilityRoutine(facilityId, position, rotation, footprintCells));
@@ -588,14 +583,15 @@ public class BuildManager : MonoBehaviour
 
     private IEnumerator PlaceFacilityRoutine(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
-        FacilityRow facility = DataStore.GetFacility(facilityId);
+        // 구버전: FacilityRow facility = DataStore.GetFacility(facilityId);
+        // 신버전: FacilityDataSheetData
+        FacilityDataSheetData facility = GetFacilityData(facilityId);
         GameObject prefab = prefabDatabase != null ? prefabDatabase.GetPrefab(facilityId) : null;
 
         if (facility == null || prefab == null)
             yield break;
 
         OccupyCells(footprintCells);
-
         PlayBuildStartSound();
 
         GameObject hologramObj = Instantiate(prefab, position, rotation);
@@ -630,7 +626,9 @@ public class BuildManager : MonoBehaviour
         if (placedBuilding == null)
             placedBuilding = obj.AddComponent<PlacedBuilding>();
 
-        placedBuilding.facilityId = facility.facilityId;
+        // 구버전: placedBuilding.facilityId = facility.facilityId
+        // 신버전: facilityId 파라미터 int 직접 사용
+        placedBuilding.facilityId = facilityId;
         placedBuilding.currentLevel = 1;
         placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
         placedBuilding.originCell = footprintCells[0];
@@ -640,14 +638,15 @@ public class BuildManager : MonoBehaviour
         if (facilityInstance == null)
             facilityInstance = obj.AddComponent<FacilityInstance>();
 
-        facilityInstance.Initialize(facility.facilityId);
+        // 구버전: facilityInstance.Initialize(facility.facilityId)
+        facilityInstance.Initialize(facilityId);
 
+        // facility.facilityName, gridW, gridH → 신버전에도 동일 컬럼명
         placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
 
         if (!IsTopViewMode)
             placedBuilding.HideLabel();
 
-        // 레일 모드 활성 중 새 설비가 생겼다면 포트 인디케이터 새로고침
         if (IsRailSubMode)
             railBuildManager?.RefreshPortIndicators();
 
@@ -712,14 +711,13 @@ public class BuildManager : MonoBehaviour
 
     public bool IsInBuildZoneNow => zoneChecker != null && zoneChecker.IsInBuildZone;
 
-    /// <summary>
-    /// 홀로그램 연출 없이 즉시 설비를 배치한다. Blueprint 붙여넣기에서 호출.
-    /// 호출자가 footprintCells 비점유/물리 미충돌을 이미 검증했다고 가정.
-    /// </summary>
+    // 홀로그램 연출 없이 즉시 설비 배치. Blueprint 붙여넣기에서 호출.
     public PlacedBuilding PlaceFacilityImmediate(int facilityId, Vector3 worldPos, Quaternion rotation, List<Vector2Int> footprintCells)
     {
-        FacilityRow facility = DataStore.GetFacility(facilityId);
+        // 구버전: FacilityRow facility = DataStore.GetFacility(facilityId);
+        FacilityDataSheetData facility = GetFacilityData(facilityId);
         GameObject prefab = prefabDatabase != null ? prefabDatabase.GetPrefab(facilityId) : null;
+
         if (facility == null || prefab == null)
         {
             Debug.LogWarning($"[BuildManager] PlaceFacilityImmediate 실패. facilityId={facilityId}");
@@ -731,14 +729,14 @@ public class BuildManager : MonoBehaviour
         GameObject obj = Instantiate(prefab, worldPos, rotation, buildParent);
 
         PlacedBuilding placedBuilding = obj.GetComponent<PlacedBuilding>() ?? obj.AddComponent<PlacedBuilding>();
-        placedBuilding.facilityId = facility.facilityId;
+        placedBuilding.facilityId = facilityId;
         placedBuilding.currentLevel = 1;
         placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
         placedBuilding.originCell = footprintCells[0];
         placedBuilding.CacheRenderers();
 
         FacilityInstance facilityInstance = obj.GetComponent<FacilityInstance>() ?? obj.AddComponent<FacilityInstance>();
-        facilityInstance.Initialize(facility.facilityId);
+        facilityInstance.Initialize(facilityId);
 
         placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
 
@@ -751,8 +749,9 @@ public class BuildManager : MonoBehaviour
 
     public Vector2Int SizeOfFacility(int facilityId)
     {
-        FacilityRow row = DataStore.GetFacility(facilityId);
-        return row != null ? new Vector2Int(row.gridW, row.gridH) : Vector2Int.one;
+        // 구버전: FacilityRow row = DataStore.GetFacility(facilityId);
+        FacilityDataSheetData data = GetFacilityData(facilityId);
+        return data != null ? new Vector2Int(data.gridW, data.gridH) : Vector2Int.one;
     }
 
     // ===== end Public Helper =====
@@ -768,10 +767,6 @@ public class BuildManager : MonoBehaviour
         return new Vector2Int(cellX, cellZ);
     }
 
-    /// <summary>
-    /// 커서(worldPos)가 건물의 '중앙'에 오도록 시작 셀을 계산한다.
-    /// 홀수 크기면 커서가 들어간 셀이 중심 셀, 짝수 크기면 가장 가까운 격자 교차점이 중심이 된다.
-    /// </summary>
     private Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size)
     {
         Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
@@ -958,12 +953,13 @@ public class BuildManager : MonoBehaviour
 
     public string GetCurrentFacilityName()
     {
-        FacilityRow row = GetCurrentFacilityRow();
+        // 구버전: FacilityRow row = GetCurrentFacilityRow();
+        FacilityDataSheetData data = GetCurrentFacilityData();
 
-        if (row == null)
+        if (data == null)
             return "None";
 
-        return row.facilityName;
+        return data.facilityName;
     }
 
     private int GetCurrentFacilityId()
@@ -976,14 +972,16 @@ public class BuildManager : MonoBehaviour
         return buildSlots[currentIndex].facilityId;
     }
 
-    private FacilityRow GetCurrentFacilityRow()
+    // 구버전: private FacilityRow GetCurrentFacilityRow()
+    // 신버전: FacilityDataSheetData 반환
+    private FacilityDataSheetData GetCurrentFacilityData()
     {
         int facilityId = GetCurrentFacilityId();
 
         if (facilityId == 0)
             return null;
 
-        return DataStore.GetFacility(facilityId);
+        return GetFacilityData(facilityId);
     }
 
     private GameObject GetCurrentFacilityPrefab()
@@ -996,49 +994,31 @@ public class BuildManager : MonoBehaviour
 
     private Vector2Int GetCurrentFacilitySize()
     {
-        FacilityRow row = GetCurrentFacilityRow();
+        // 구버전: FacilityRow row = GetCurrentFacilityRow();
+        FacilityDataSheetData data = GetCurrentFacilityData();
 
-        if (row == null)
+        if (data == null)
             return Vector2Int.one;
 
-        return new Vector2Int(row.gridW, row.gridH);
+        return new Vector2Int(data.gridW, data.gridH);
     }
 
     private bool CanCurrentFacilityRotate()
     {
-        FacilityRow row = GetCurrentFacilityRow();
+        // 구버전: row.canRotate == 1 (int)
+        // 신버전: data.canRotate (bool)
+        FacilityDataSheetData data = GetCurrentFacilityData();
 
-        if (row == null)
+        if (data == null)
             return false;
 
-        return row.canRotate == 1;
+        return data.canRotate;
     }
 
-    private bool CheckInstallRule(FacilityRow facility)
+    // installRule 컬럼이 새 스키마에서 삭제됨 → null 체크만 수행
+    private bool CheckInstallRule(FacilityDataSheetData facility)
     {
-        if (facility == null)
-            return false;
-
-        if (string.IsNullOrWhiteSpace(facility.installRule))
-            return true;
-
-        string rule = facility.installRule.Trim().ToLower();
-
-        switch (rule)
-        {
-            case "any":
-            case "default":
-            case "ground":
-            case "buildzone":
-            case "baseonly":
-            case "veinonly":
-            case "gridonly":
-                return true;
-
-            default:
-                Debug.LogWarning($"[BuildManager] Unknown installRule={facility.installRule}, facilityId={facility.facilityId}");
-                return true;
-        }
+        return facility != null;
     }
 
     private void HandleDemolishModeInput()
@@ -1052,7 +1032,6 @@ public class BuildManager : MonoBehaviour
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
 
-                // 해제 모드 진입 시 다른 서브모드(레일/청사진) 정리
                 if (CurrentSubMode == BuildSubMode.Rail)
                 {
                     railBuildManager?.EndRailMode();
@@ -1080,7 +1059,6 @@ public class BuildManager : MonoBehaviour
         if (topViewPanCamera == null)
             return;
 
-        // 좌클릭이 본래 동작(시설 배치/라우팅/영역 드래그/해제)에 안 쓰일 때만 카메라 드래그 허용.
         bool canDrag = !isDemolishMode
                     && CurrentSubMode == BuildSubMode.Facility
                     && currentIndex < 0;
@@ -1095,7 +1073,6 @@ public class BuildManager : MonoBehaviour
 
         bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
-        // Shift 드래그 상태 토글
         if (Input.GetMouseButtonDown(0) && shiftHeld && !IsPointerOverUI())
         {
             isDragDemolishing = true;
@@ -1111,7 +1088,6 @@ public class BuildManager : MonoBehaviour
 
         Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
 
-        // 1) 시설 호버/해제
         if (Physics.Raycast(ray, out RaycastHit bHit, rayDistance, placedBuildingMask))
         {
             PlacedBuilding building = bHit.collider.GetComponentInParent<PlacedBuilding>();
@@ -1133,7 +1109,6 @@ public class BuildManager : MonoBehaviour
             }
         }
 
-        // 2) 레일 호버/해제 (railMask가 설정돼 있어야 동작)
         if (railBuildManager != null && railMask.value != 0 &&
             Physics.Raycast(ray, out RaycastHit rHit, rayDistance, railMask))
         {
@@ -1205,11 +1180,10 @@ public class BuildManager : MonoBehaviour
         }
     }
 
-    // ===== 레일 호버 하이라이트 (오버레이 쿼드 방식) =====
     [Header("Demolish Rail Highlight")]
     [Tooltip("레일 호버 시 덮어씌울 머티리얼 (투명한 빨간색 Unlit 추천)")]
     public Material railDemolishOverlayMaterial;
-    [Tooltip("레일 셀에 덮을 빨간 박스 높이. 0이면 바닥에 얇게 깔림")]
+    [Tooltip("레일 셀에 덮을 빨간 박스 높이")]
     public float railDemolishOverlayHeight = 0.2f;
 
     private GameObject _railOverlayGO;
@@ -1241,11 +1215,10 @@ public class BuildManager : MonoBehaviour
         if (_railOverlayGO == null)
             _railOverlayGO = CreateRailOverlay();
 
-        // 셀 크기에 맞춰 스케일, 레일 셀 중심 월드 좌표
         float cs = railBuildManager != null ? railBuildManager.CellSizeRail : cellSize;
         float y = railBuildManager != null ? railBuildManager.FixedYRail : fixedY;
         Vector3 center = rail.transform.position;
-        center.y = y + 0.02f; // 지면 바로 위
+        center.y = y + 0.02f;
 
         _railOverlayGO.transform.position = center;
         _railOverlayGO.transform.rotation = Quaternion.identity;
@@ -1270,10 +1243,11 @@ public class BuildManager : MonoBehaviour
         if (rend != null)
         {
             if (railDemolishOverlayMaterial != null)
+            {
                 rend.sharedMaterial = railDemolishOverlayMaterial;
+            }
             else
             {
-                // 폴백: Unlit 빨간 반투명 런타임 머티리얼
                 Shader shader = Shader.Find("Unlit/Color");
                 if (shader != null)
                 {
@@ -1291,32 +1265,25 @@ public class BuildManager : MonoBehaviour
 
     private void PlayDemolishSound()
     {
-        if (audioSource == null || demolishClip == null)
-            return;
-
+        if (audioSource == null || demolishClip == null) return;
         audioSource.PlayOneShot(demolishClip, demolishVolume);
     }
 
     private void PlayBuildStartSound()
     {
-        if (audioSource == null || buildStartClip == null)
-            return;
-
+        if (audioSource == null || buildStartClip == null) return;
         audioSource.PlayOneShot(buildStartClip, 0.1f);
     }
 
     private void PlayBuildCompleteSound()
     {
-        if (audioSource == null || buildCompleteClip == null)
-            return;
-
+        if (audioSource == null || buildCompleteClip == null) return;
         audioSource.PlayOneShot(buildCompleteClip);
     }
 
     private void SpawnBuildCompleteEffect(Vector3 position, Quaternion rotation)
     {
-        if (buildCompleteEffectPrefab == null)
-            return;
+        if (buildCompleteEffectPrefab == null) return;
 
         Instantiate(
             buildCompleteEffectPrefab,
@@ -1345,7 +1312,8 @@ public class BuildManager : MonoBehaviour
         if (mainCam == null || buildSlots == null || buildSlots.Length == 0)
             return false;
 
-        FacilityRow currentFacility = GetCurrentFacilityRow();
+        // 구버전: FacilityRow currentFacility = GetCurrentFacilityRow();
+        FacilityDataSheetData currentFacility = GetCurrentFacilityData();
         GameObject currentPrefab = GetCurrentFacilityPrefab();
 
         if (currentFacility == null || currentPrefab == null)
@@ -1370,10 +1338,8 @@ public class BuildManager : MonoBehaviour
         footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
 
         bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
-
         bool isOccupied = IsAnyCellOccupied(footprintCells);
         bool isOnRail = IsAnyCellOnRail(footprintCells);
-
         bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
         bool installRuleOk = CheckInstallRule(currentFacility);
 
@@ -1385,11 +1351,8 @@ public class BuildManager : MonoBehaviour
 
     private void TryDragPlace(Vector2Int startCell, Vector3 snappedPos, Quaternion rotation, List<Vector2Int> footprintCells, bool canBuild)
     {
-        if (!canBuild)
-            return;
-
-        if (dragPlacedStartCells.Contains(startCell))
-            return;
+        if (!canBuild) return;
+        if (dragPlacedStartCells.Contains(startCell)) return;
 
         dragPlacedStartCells.Add(startCell);
         StartCoroutine(PlaceCurrentFacilityRoutine(snappedPos, rotation, footprintCells));
@@ -1422,7 +1385,8 @@ public class BuildManager : MonoBehaviour
         return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
     }
 
-    // UI
+    // ===== UI =====
+
     private void LateUpdate()
     {
         RefreshSlotUI();
@@ -1447,5 +1411,17 @@ public class BuildManager : MonoBehaviour
             bool isRailSelected = (IsBuildMode && CurrentSubMode == BuildSubMode.Rail);
             railSlotEffect.SetSelected(isRailSelected);
         }
+    }
+
+    // =====================================================================
+    // 신규 스키마 헬퍼 메서드
+    // 구버전 DataStore.GetFacility(id) 를 대체한다
+    // GameDataHolder.I.FacilityData 의 키는 facilityId.ToString() (예: "1", "2")
+    // =====================================================================
+    private FacilityDataSheetData GetFacilityData(int facilityId)
+    {
+        if (GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out var data))
+            return data;
+        return null;
     }
 }

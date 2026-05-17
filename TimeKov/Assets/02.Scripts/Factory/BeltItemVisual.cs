@@ -1,3 +1,9 @@
+// =====================================================================
+// BeltItemVisual.cs
+// 컨베이어 벨트 위 아이템 시각화
+// 구버전 DataStore.GetItem → GameDataUtility.GetItem 으로 교체
+// =====================================================================
+
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,16 +17,20 @@ namespace TIMEKOV.Factory
         [SerializeField] private TextMeshProUGUI countText;
 
         private Camera _cam;
+
         private void Awake() => _cam = Camera.main;
 
         private void LateUpdate()
         {
-            //if (_cam != null) transform.rotation = Quaternion.LookRotation(transform.position - _cam.transform.position,Vector3.up);
+            // 카메라 방향 빌보드 (필요 시 주석 해제)
+            // if (_cam != null)
+            //     transform.rotation = Quaternion.LookRotation(transform.position - _cam.transform.position, Vector3.up);
         }
 
         public void Setup(int itemId, int amount)
         {
-            var row = DataStore.GetItem(itemId);
+            // 구버전: DataStore.GetItem → GameDataUtility.GetItem
+            var itemData = GameDataUtility.GetItem(itemId);
             var sprite = Resources.Load<Sprite>("Icon/" + itemId);
 
             if (iconImage != null)
@@ -29,7 +39,7 @@ namespace TIMEKOV.Factory
                 iconImage.enabled = sprite != null;
             }
 
-            if (nameText != null) nameText.text = row?.itemName ?? itemId.ToString();
+            if (nameText != null) nameText.text = itemData?.itemName ?? itemId.ToString();
             if (countText != null) countText.text = amount > 1 ? $"x{amount}" : "";
 
             gameObject.name = $"[Belt] {itemId} x{amount}";

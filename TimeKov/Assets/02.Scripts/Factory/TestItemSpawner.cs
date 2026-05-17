@@ -1,3 +1,9 @@
+// =====================================================================
+// TestItemSpawner.cs
+// 테스트용 아이템 지급기
+// 구버전 DataStore.IsLoaded / DataStore.GetItem 을 새 스키마로 교체
+// =====================================================================
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,7 +13,7 @@ public class TestItemSpawner : MonoBehaviour
     [System.Serializable]
     public struct SpawnInfo
     {
-        [Tooltip("파싱된 아이템 ID (예: 4104)")]
+        [Tooltip("아이템 ID (예: 1101)")]
         public int itemID;
         public int amount;
     }
@@ -50,22 +56,22 @@ public class TestItemSpawner : MonoBehaviour
             yield break;
         }
 
-        // DataStore 로드 완료 대기
-        yield return new WaitUntil(() => DataStore.IsLoaded);
+        // 구버전: DataStore.IsLoaded → 신버전: DataBoot.IsLoaded
+        yield return new WaitUntil(() => DataBoot.IsLoaded);
 
         inventoryManager.CreateSlots();
 
         foreach (var info in startItems)
         {
-            var row = DataStore.GetItem(info.itemID);
-            if (row != null)
+            // 구버전: DataStore.GetItem(info.itemID) → 신버전: GameDataHolder.I.ItemData.TryGet
+            if (GameDataHolder.I.ItemData.TryGet(info.itemID.ToString(), out var itemData))
             {
                 inventoryManager.AddItem(info.itemID, info.amount);
-                Debug.Log($"<color=green>[TestSpawner]</color> {row.itemName}(ID:{info.itemID}) {info.amount}개 지급 완료");
+                Debug.Log($"<color=green>[TestSpawner]</color> {itemData.itemName}(ID:{info.itemID}) {info.amount}개 지급 완료");
             }
             else
             {
-                Debug.LogWarning($"[TestSpawner] ID:{info.itemID} — DataStore에 없는 아이템");
+                Debug.LogWarning($"[TestSpawner] ID:{info.itemID} — ItemDataTable에 없는 아이템");
             }
         }
 

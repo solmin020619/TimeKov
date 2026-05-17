@@ -1,3 +1,9 @@
+// =====================================================================
+// MachineProgressUI.cs
+// 설비 진행 상황 월드 스페이스 UI
+// 구버전 DataStore.GetItem → GameDataUtility.GetItem 으로 교체
+// =====================================================================
+
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,8 +20,8 @@ namespace TIMEKOV.Factory
 
         [Header("월드 스페이스 Canvas 요소")]
         public TextMeshProUGUI statusText;
-        public Slider          progressBar;
-        public GameObject      uiRoot;
+        public Slider progressBar;
+        public GameObject uiRoot;
 
         private Camera _cam;
 
@@ -50,12 +56,12 @@ namespace TIMEKOV.Factory
                 string outName = "";
                 if (machine.ActiveRecipe != null && machine.ActiveRecipe.outputs.Length > 0)
                 {
-                    int id  = machine.ActiveRecipe.outputs[0].itemId;
-                    var row = DataStore.GetItem(id);
-                    outName = row?.itemName ?? id.ToString();
+                    int id = machine.ActiveRecipe.outputs[0].itemId;
+                    // 구버전: DataStore.GetItem(id) → GameDataUtility.GetItem(id)
+                    var itemData = GameDataUtility.GetItem(id);
+                    outName = itemData?.itemName ?? id.ToString();
                 }
-                statusText.text =
-                    $"[{machineName}] 제작 중\n→ {outName} {(machine.Progress * 100f):F0}%";
+                statusText.text = $"[{machineName}] 제작 중\n→ {outName} {(machine.Progress * 100f):F0}%";
             }
             else if (machine.Status == MachineStatus.OutputReady)
             {

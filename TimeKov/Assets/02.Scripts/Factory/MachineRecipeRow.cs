@@ -1,3 +1,9 @@
+// =====================================================================
+// MachineRecipeRow.cs
+// 설비 레시피 행 UI
+// 구버전 DataStore.GetItem 을 새 스키마로 교체
+// =====================================================================
+
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -31,7 +37,8 @@ namespace TIMEKOV.Factory
         {
             if (parent == null || iconSlotPrefab == null || slots == null) return;
 
-            foreach (Transform child in parent) Destroy(child.gameObject);
+            foreach (Transform child in parent)
+                Destroy(child.gameObject);
 
             foreach (var slot in slots)
             {
@@ -39,7 +46,11 @@ namespace TIMEKOV.Factory
                 var icon = go.GetComponentInChildren<Image>();
                 var text = go.GetComponentInChildren<TextMeshProUGUI>();
 
-                var row = DataStore.GetItem(slot.itemId);
+                // 구버전: DataStore.GetItem(slot.itemId) → 신버전: GameDataHolder.I.ItemData.TryGet
+                string itemName = slot.itemId.ToString();
+                if (GameDataHolder.I.ItemData.TryGet(slot.itemId.ToString(), out var itemData))
+                    itemName = itemData.itemName;
+
                 var sprite = Resources.Load<Sprite>("Icon/" + slot.itemId);
 
                 if (icon != null)
@@ -49,10 +60,7 @@ namespace TIMEKOV.Factory
                 }
 
                 if (text != null)
-                {
-                    string nm = row?.itemName ?? slot.itemId.ToString();
-                    text.text = slot.amount > 1 ? $"{nm}\nx{slot.amount}" : nm;
-                }
+                    text.text = slot.amount > 1 ? $"{itemName}\nx{slot.amount}" : itemName;
             }
         }
     }
