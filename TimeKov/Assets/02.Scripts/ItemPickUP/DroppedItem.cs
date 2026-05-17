@@ -68,13 +68,17 @@ public class DroppedItem : MonoBehaviour, IInteractable
     // F키로 상호작용 시 호출
     public void Interact(Player player)
     {
-        Debug.Log($"아이템 획득: itemId={itemId}, count={count}");
-        Destroy(gameObject);
+        InventoryManager inv = FindPlayerInventory();
+        if (inv == null) return;
 
-        // InventoryManager 연동은 나중에
-        // InventoryManager inv = FindPlayerInventory();
-        // if (inv == null) return;
-        // inv.AddItem(itemId, count);
+        int remaining = inv.TryAddItemFromLoot(itemId, count);
+        if (remaining <= 0)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        count = remaining;
     }
 
     private InventoryManager FindPlayerInventory()
