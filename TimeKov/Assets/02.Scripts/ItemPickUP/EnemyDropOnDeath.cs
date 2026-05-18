@@ -12,6 +12,9 @@ public class EnemyDropOnDeath : MonoBehaviour
 
     [SerializeField] private float spawnHeightOffset = 0.5f;
 
+    [Tooltip("박스가 여러 개일 때 죽은 자리 주변에 흩어지는 반경 (m)")]
+    [SerializeField] private float scatterRadius = 1f;
+
     private EnemyHealth _health;
 
     void Awake()
@@ -31,27 +34,46 @@ public class EnemyDropOnDeath : MonoBehaviour
 
     private void HandleDeath()
     {
-        if (boxPrefab == null) return;
+        if (boxPrefab == null)
+        {
+            Debug.LogWarning("[Drop] boxPrefab이 비어 있음");
+            return;
+        }
 
         List<(int itemId, int count)> contents = Roll();
+        Debug.Log($"[Drop] sourceId='{sourceId}' → 굴린 아이템 {contents.Count}개 → 박스 {contents.Count}개 스폰");
         if (contents.Count == 0) return;
 
-        Vector3 pos = transform.position + Vector3.up * spawnHeightOffset;
-        GameObject go = Instantiate(boxPrefab, pos, Quaternion.identity);
+        // 아이템 1개 = 박스 1개. 죽은 자리 주변에 흩어 놓는다.
+        for (int i = 0; i < contents.Count; i++)
+        {
+            Vector2 off = Random.insideUnitCircle * scatterRadius;
+            Vector3 pos = transform.position
+                          + Vector3.up * spawnHeightOffset
+                          + new Vector3(off.x, 0f, off.y);
 
-        LootBox box = go.GetComponent<LootBox>();
-        if (box != null) box.Initialize(contents);
+            GameObject go = Instantiate(boxPrefab, pos, Quaternion.identity);
+
+            LootBox box = go.GetComponentInChildren<LootBox>();
+            if (box != null)
+                box.Initialize(new List<(int itemId, int count)> { contents[i] });
+            else
+                Debug.LogWarning("[Drop] 스폰한 박스에서 LootBox를 못 찾음");
+        }
     }
 
     private List<(int itemId, int count)> Roll()
     {
         var result = new List<(int itemId, int count)>();
-        if (string.IsNullOrEmpty(sourceId)) return result;
+
+        string myId = sourceId != null ? sourceId.Trim() : "";
+        if (myId.Length == 0) return result;
 
         var pool = new List<DropTableSheetData>();
         foreach (var row in GameDataHolder.I.DropTable.All)
         {
-            if (row.sourceType == SourceType.Monster && row.sourceId == sourceId)
+            string rowId = row.sourceId != null ? row.sourceId.Trim() : "";
+            if (row.sourceType == SourceType.Monster && rowId == myId)
                 pool.Add(row);
         }
         if (pool.Count == 0) return result;
