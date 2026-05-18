@@ -22,6 +22,7 @@ public abstract class ComboAttackBase : ScriptableObject
     {
         var anim = caster.GetComponent<PlayerAnimatorComponent>();
         var movement = caster.GetComponent<PlayerMovementComponent>();
+        var rb = caster.GetComponent<Rigidbody>();
 
         // 공격 중 이동 잠금
         movement.LockMovement(true);
@@ -31,6 +32,9 @@ public abstract class ComboAttackBase : ScriptableObject
         yield return new WaitForSeconds(GetAnimDuration());
 
         OnAttackHit(caster);
+
+        // 공격 끝나고 수평 속도 초기화
+        rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
 
         // 공격 끝나면 이동 해제
         movement.LockMovement(false);
@@ -70,8 +74,14 @@ public abstract class ComboAttackBase : ScriptableObject
     // 스킬 중단 시 호출, 하위 클래스에서 cleanup override
     public virtual void OnInterrupt(GameObject caster)
     {
-        // 중단 시 이동 잠금 해제
-        caster.GetComponent<PlayerMovementComponent>()?.LockMovement(false);
+        var rb = caster.GetComponent<Rigidbody>();
+        var movement = caster.GetComponent<PlayerMovementComponent>();
+
+        // 중단 시 수평 속도 초기화 후 이동 잠금 해제
+        if (rb != null)
+            rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+
+        movement?.LockMovement(false);
     }
 
     // 애니메이션 길이, 하위 클래스에서 반드시 구현

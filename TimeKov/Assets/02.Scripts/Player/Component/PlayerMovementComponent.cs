@@ -36,6 +36,8 @@ public class PlayerMovementComponent : MonoBehaviour
     private float _currentSpeed;
     private bool _isJumping;
     private bool _movementLocked;
+    private bool _ignoreMovementInput;  // 잠금 해제 직후 이동 무시 플래그 추가
+
 
     // Slash
     private bool _isSlashing;
@@ -146,7 +148,7 @@ public class PlayerMovementComponent : MonoBehaviour
         if (_slashTimer <= 0)
         {
             _isSlashing = false;
-            LockMovement(false);
+            // LockMovement 해제는 Attack3Skill 코루틴 끝에서 처리
             _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
         }
     }
@@ -154,6 +156,14 @@ public class PlayerMovementComponent : MonoBehaviour
     void HandleMove()
     {
         if (_movementLocked) return;
+
+        // 잠금 해제 직후 한 프레임 이동 무시
+        if (_ignoreMovementInput)
+        {
+            _ignoreMovementInput = false;
+            _currentSpeed = 0f;
+            return;
+        }
 
         bool isSprinting = Input.GetKey(KeyCode.LeftShift)
                         && _player.Stat.TryDrainSprintStamina()
@@ -186,6 +196,8 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void HandleRotation()
     {
+        // 이동 잠금 중엔 회전도 막음
+        if (_movementLocked) return;
         if (_moveDir.magnitude < 0.1f) return;
 
         Quaternion targetRot = Quaternion.LookRotation(_moveDir);
@@ -208,7 +220,18 @@ public class PlayerMovementComponent : MonoBehaviour
         LockMovement(true);
     }
 
-    public void LockMovement(bool isLocked) => _movementLocked = isLocked;
+    public void LockMovement(bool isLocked)
+    {
+        _movementLocked = isLocked;
+
+        // 잠금 해제 시 속도 초기화
+        if (!isLocked)
+        {
+            _currentSpeed = 0f;
+            _ignoreMovementInput = true;   // 해제 직후 한 프레임 이동 무시
+            _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+        }
+    }
 
     public void AddForce(Vector3 force, ForceMode mode = ForceMode.Impulse)
         => _rb.AddForce(force, mode);

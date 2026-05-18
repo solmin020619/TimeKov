@@ -40,6 +40,11 @@ public class PlayerAnimatorComponent : MonoBehaviour
 
     public void PlayAttack(int comboIndex)
     {
+        // 기존 트리거 초기화 후 세팅
+        _anim.ResetTrigger(Attack1Hash);
+        _anim.ResetTrigger(Attack2Hash);
+        _anim.ResetTrigger(Attack3Hash);
+
         switch (comboIndex)
         {
             case 0: _anim.SetTrigger(Attack1Hash); break;

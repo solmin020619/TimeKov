@@ -94,7 +94,6 @@ public class PlayerSkillComponent : MonoBehaviour
             _comboInputReceived = true;
             return;
         }
-
         ExecuteComboAttack();
     }
 
@@ -117,6 +116,13 @@ public class PlayerSkillComponent : MonoBehaviour
         _comboIndex = (_comboIndex + 1) % _comboAttacks.Count;
         _currentRoutine = null;
         _currentCombo = null;
+
+        // 3타 이후 콤보 끝나면 버퍼 초기화
+        if (_comboIndex == 0)
+        {
+            _comboInputReceived = false;
+            yield break;
+        }
 
         if (_comboInputReceived && _comboTimer > 0)
             ExecuteComboAttack();
