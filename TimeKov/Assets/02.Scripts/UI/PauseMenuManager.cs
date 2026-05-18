@@ -12,50 +12,34 @@ public class PauseMenuManager : MonoBehaviour
 
     private Player _player;
 
-    void Start()
+    private void Start()
     {
         if (pausePanel != null) pausePanel.SetActive(false);
         Time.timeScale = 1f;
-
         _player = FindFirstObjectByType<Player>();
     }
 
-    void Update() { }
-
     public void PlayClickSound()
     {
-        if (globalSettings != null)
-            globalSettings.PlayClickSound();
+        globalSettings?.PlayClickSound();
     }
 
     public void PauseGame()
     {
-        if (UIStateManager.Instance != null)
-        {
-            UIStateManager.Instance.SetState(UIStateManager.UIState.Pause);
-            return;
-        }
-
         if (pausePanel != null) pausePanel.SetActive(true);
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        if (_player != null) _player.Movement.LockMovement(true);
+        _player?.Movement.LockMovement(true);
     }
 
     public void ResumeGame()
     {
-        if (UIStateManager.Instance != null)
-        {
-            UIStateManager.Instance.CloseAllUI();
-            return;
-        }
-
         if (pausePanel != null) pausePanel.SetActive(false);
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        if (_player != null) _player.Movement.LockMovement(false);
+        _player?.Movement.LockMovement(false);
     }
 
     public void OnClickResume()
@@ -67,15 +51,7 @@ public class PauseMenuManager : MonoBehaviour
     public void OnClickSettings()
     {
         PlayClickSound();
-
-        if (UIStateManager.Instance != null)
-        {
-            UIStateManager.Instance.OpenPauseSettings();
-            return;
-        }
-
-        if (globalSettings != null)
-            globalSettings.OpenSettings();
+        globalSettings?.OpenSettings();
     }
 
     public void OnClickQuit()
