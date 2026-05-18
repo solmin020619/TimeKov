@@ -37,6 +37,13 @@ public class DropPickupPanel : MonoBehaviour
         panelRoot.SetActive(false);
     }
 
+    // 박스의 화면 좌표로 패널을 옮긴다 (엔드필드식 — 박스 위에 떠다님)
+    public void SetScreenPosition(Vector3 screenPos)
+    {
+        if (panelRoot != null)
+            panelRoot.transform.position = new Vector3(screenPos.x, screenPos.y, 0f);
+    }
+
     private Color GetTierColor(int itemId)
     {
         ItemDataSheetData item = GameDataUtility.GetItem(itemId);
