@@ -66,30 +66,10 @@ public class DroppedItem : MonoBehaviour, IInteractable
                                Time.time - _spawnTime >= _pickupDelay;
 
     // F키로 상호작용 시 호출
+    // 구 InventoryManager 의존 제거됨 — LootBox 로 대체된 레거시 스크립트.
+    // Player_T 씬이 이 컴포넌트를 참조해서 파일만 유지 (아래 주석 블록도 옛 코드).
     public void Interact(Player player)
     {
-        InventoryManager inv = FindPlayerInventory();
-        if (inv == null) return;
-
-        int remaining = inv.TryAddItemFromLoot(itemId, count);
-        if (remaining <= 0)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        count = remaining;
-    }
-
-    private InventoryManager FindPlayerInventory()
-    {
-        InventoryManager[] all = FindObjectsByType<InventoryManager>(FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
-        {
-            if (all[i] != null && all[i].ownerType == InventoryManager.InventoryOwnerType.Player)
-                return all[i];
-        }
-        return null;
     }
 
     // 자동 획득 비활성화 (F키 방식으로 변경)
