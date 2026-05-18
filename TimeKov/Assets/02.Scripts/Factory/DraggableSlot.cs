@@ -16,6 +16,8 @@ public class DraggableSlot : MonoBehaviour,
     private static GameObject _dragVisual;
     private Canvas _canvas;
 
+    public static bool IsDragging = false;
+
     private void Awake()
     {
         _canvas = GetComponentInParent<Canvas>();
@@ -48,6 +50,7 @@ public class DraggableSlot : MonoBehaviour,
     public void OnBeginDrag(PointerEventData e)
     {
         if (!HasItem) { e.pointerDrag = null; return; }
+        IsDragging = true;
 
         // 드래그 중 보여줄 임시 이미지 생성
         _dragVisual = new GameObject("DragVisual");
@@ -82,6 +85,7 @@ public class DraggableSlot : MonoBehaviour,
 
     public void OnEndDrag(PointerEventData e)
     {
+        IsDragging = false;
         if (_dragVisual != null)
         {
             Destroy(_dragVisual);

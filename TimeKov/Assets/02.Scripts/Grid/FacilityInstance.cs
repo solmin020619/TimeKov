@@ -7,148 +7,101 @@ public class FacilityInstance : MonoBehaviour
     [SerializeField] private int facilityId;
     [SerializeField] private int currentLevel = 1;
 
-    private FacilityRow facilityRow;
-    private FacilityLevelRow currentLevelRow;
+    private FacilityDataSheetData facilityData;
+    private FacilityLevelDataSheetData currentLevelData;
 
     public int FacilityId => facilityId;
     public int CurrentLevel => currentLevel;
-    public FacilityRow FacilityData => facilityRow;
-    public FacilityLevelRow CurrentLevelData => currentLevelRow;
+    public FacilityDataSheetData FacilityData => facilityData;
+    public FacilityLevelDataSheetData CurrentLevelData => currentLevelData;
 
+    // facilityId 로 설비 초기화 BuildManager 에서 배치 직후 호출
     public void Initialize(int newFacilityId)
     {
         facilityId = newFacilityId;
         currentLevel = 1;
-
         RefreshCachedData();
     }
 
+    // GameDataHolder 에서 최신 데이터를 다시 읽어 캐시 갱신
     public void RefreshCachedData()
     {
-        facilityRow = DataStore.GetFacility(facilityId);
-        currentLevelRow = GetLevelRow(currentLevel);
-
-        if (facilityRow == null)
+        if (!GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out facilityData))
         {
-            Debug.LogError($"[FacilityInstance] Missing FacilityRow. facilityId={facilityId}");
+            Debug.LogError($"[FacilityInstance] FacilityData 없음. facilityId={facilityId}");
+            facilityData = null;
             return;
         }
 
-        if (facilityRow.maxLevel > 1 && currentLevelRow == null)
-        {
-            Debug.LogWarning($"[FacilityInstance] Missing FacilityLevelRow. facilityId={facilityId}, level={currentLevel}");
-        }
+        currentLevelData = GameDataUtility.GetFacilityLevelRow(facilityId, currentLevel);
+
+        if (facilityData.maxLevel > 1 && currentLevelData == null)
+            Debug.LogWarning($"[FacilityInstance] FacilityLevelData 없음. facilityId={facilityId}, level={currentLevel}");
     }
 
     public bool CanUpgrade()
     {
-        if (facilityRow == null)
-            return false;
-
-        return currentLevel < facilityRow.maxLevel;
+        if (facilityData == null) return false;
+        return currentLevel < facilityData.maxLevel;
     }
 
     public bool TryUpgrade()
     {
-        if (!CanUpgrade())
-            return false;
-
+        if (!CanUpgrade()) return false;
         currentLevel++;
         RefreshCachedData();
         return true;
     }
 
-    public int GetInputCount()
+    public int GetInputSlotCount()
     {
-        if (facilityRow == null)
-            return 0;
-
-        return facilityRow.inputCount;
+        if (facilityData == null) return 0;
+        return facilityData.inputSlotCount;
     }
 
-    public int GetOutputCount()
+    public int GetOutputSlotCount()
     {
-        if (facilityRow == null)
-            return 0;
-
-        return facilityRow.outputCount;
+        if (facilityData == null) return 0;
+        return facilityData.outputSlotCount;
     }
 
+    // 구버전: requiresPower == 1  신버전: bool
     public bool RequiresPower()
     {
-        if (facilityRow == null)
-            return false;
-
-        return facilityRow.requiresPower == 1;
+        if (facilityData == null) return false;
+        return facilityData.requiresPower;
     }
 
+    // 구버전: canRotate == 1  신버전: bool
     public bool CanRotate()
     {
-        if (facilityRow == null)
-            return false;
-
-        return facilityRow.canRotate == 1;
+        if (facilityData == null) return false;
+        return facilityData.canRotate;
     }
 
     public float GetProcessTimeMultiplier()
     {
-        if (currentLevelRow == null)
-            return 1f;
-
-        return currentLevelRow.processTimeMultiplier;
+        if (currentLevelData == null) return 1f;
+        return currentLevelData.processTimeMultiplier;
     }
 
     public float GetPowerEfficiencyMultiplier()
     {
-        if (currentLevelRow == null)
-            return 1f;
-
-        return currentLevelRow.powerEfficiencyMultiplier;
+        if (currentLevelData == null) return 1f;
+        return currentLevelData.powerEfficiencyMultiplier;
     }
 
-    public int GetCapacityBonus()
+    // capacityBonus 컬럼 삭제됨 항상 0
+    public int GetCapacityBonus() => 0;
+
+    public List<RecipeDataSheetData> GetAvailableRecipes()
     {
-        if (currentLevelRow == null)
-            return 0;
-
-        return currentLevelRow.capacityBonus;
-    }
-
-    public List<RecipeRow> GetAvailableRecipes()
-    {
-        List<RecipeRow> result = new List<RecipeRow>();
-
-        foreach (var kv in DataStore.RecipeById)
-        {
-            RecipeRow recipe = kv.Value;
-
-            if (recipe.facilityId == facilityId)
-                result.Add(recipe);
-        }
-
-        return result;
+        return GameDataUtility.GetRecipesByFacilityId(facilityId);
     }
 
     public float GetFinalProcessTime(float baseTime)
-    {
-        return baseTime * GetProcessTimeMultiplier();
-    }
+        => baseTime * GetProcessTimeMultiplier();
 
     public float GetFinalPowerCost(float basePowerCost)
-    {
-        return basePowerCost * GetPowerEfficiencyMultiplier();
-    }
-
-    private FacilityLevelRow GetLevelRow(int level)
-    {
-        List<FacilityLevelRow> levels = DataStore.GetFacilityLevels(facilityId);
-
-        for (int i = 0; i < levels.Count; i++)
-        {
-            if (levels[i].level == level)
-                return levels[i];
-        }
-
-        return null;
-    }
+        => basePowerCost * GetPowerEfficiencyMultiplier();
 }

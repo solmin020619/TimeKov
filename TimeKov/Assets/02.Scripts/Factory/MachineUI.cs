@@ -1,3 +1,9 @@
+// =====================================================================
+// MachineUI.cs
+// 설비 가공 UI — 인벤토리 슬롯, 재료 드롭 슬롯, 출력 슬롯 관리
+// 구버전 DataStore 참조를 새 스키마(GameDataHolder / DataBoot)로 교체
+// =====================================================================
+
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -14,23 +20,21 @@ public class MachineUI : MonoBehaviour
 
     [Header("인벤토리 (왼쪽) — 슬롯 부모 (ScrollView Content)")]
     public Transform inventorySlotParent;
-    public GameObject inventorySlotPrefab;  // DraggableSlot 포함
-    public int inventorySlotCount = 20;     // 항상 표시할 슬롯 수
+    public GameObject inventorySlotPrefab;
+    public int inventorySlotCount = 20;
 
     [Header("재료 슬롯 (오른쪽) — 배경 위치에 고정")]
-    public RecipeDropSlot[] recipeDropSlots; // Inspector에서 2개 직접 연결
+    public RecipeDropSlot[] recipeDropSlots;
 
     [Header("진행 바 / 상태 텍스트")]
     public Slider progressBar;
     public TextMeshProUGUI statusText;
 
     [Header("출력 슬롯 — 고정 위치")]
-    public MachineSlotWidget outputSlot; // 1개 고정
+    public MachineSlotWidget outputSlot;
 
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
-
-
 
     // ── 내부 ─────────────────────────────────────────────────
     private ProcessingMachine _machine;
@@ -92,14 +96,22 @@ public class MachineUI : MonoBehaviour
 
     public void RefreshInventorySlots()
     {
-        if (playerInventory == null || !DataStore.IsLoaded) return;
+        // 구버전: DataStore.IsLoaded, DataStore.ItemById
+        // 신버전: DataBoot.IsLoaded, GameDataHolder.I.ItemData.All
+        if (playerInventory == null || !DataBoot.IsLoaded) return;
 
-        // 인벤에 있는 아이템 목록 수집
         var items = new List<(int id, int amt)>();
-        foreach (var kv in DataStore.ItemById)
+
+        // ItemData 전체를 순회해 보유 중인 아이템만 수집
+        // SheetId 는 itemId 문자열 (예: "1101") → int 변환 필요
+        foreach (var itemData in GameDataHolder.I.ItemData.All)
         {
-            int total = playerInventory.GetTotalItemCount(kv.Key);
-            if (total > 0) items.Add((kv.Key, total));
+            if (!int.TryParse((string)itemData.SheetId, out int itemIdInt))
+                continue;
+
+            int total = playerInventory.GetTotalItemCount(itemIdInt);
+            if (total > 0)
+                items.Add((itemIdInt, total));
         }
 
         // 슬롯에 반영 (아이템 있으면 채우고, 나머지는 빈칸)
@@ -124,11 +136,10 @@ public class MachineUI : MonoBehaviour
         if (recipes == null || recipes.Count == 0) return;
 
         var inputs = recipes[0].inputs;
-        Debug.Log($"[MachineUI] inputs 수={inputs?.Length ?? 0}"); // ← 추가
+        Debug.Log($"[MachineUI] inputs 수={inputs?.Length ?? 0}");
 
         for (int i = 0; i < recipeDropSlots.Length; i++)
         {
-            // ↓ 추가
             Debug.Log($"[MachineUI] 슬롯[{i}] = {(recipeDropSlots[i] == null ? "null" : recipeDropSlots[i].name)}");
 
             if (recipeDropSlots[i] == null) continue;
@@ -156,7 +167,6 @@ public class MachineUI : MonoBehaviour
     {
         if (outputSlot == null || _machine == null) return;
 
-        // 출력 버퍼에 아이템이 있으면 표시
         foreach (var kv in _machine.OutputBuffer.Stock)
         {
             if (kv.Value <= 0) continue;
@@ -169,7 +179,6 @@ public class MachineUI : MonoBehaviour
             return;
         }
 
-        // 없으면 빈 슬롯
         outputSlot.gameObject.SetActive(false);
     }
 
@@ -207,21 +216,18 @@ public class MachineUI : MonoBehaviour
 
         if (statusText == null) return;
 
-        string outName = "";
-        if (_machine.ActiveRecipe?.outputs?.Length > 0)
+        if (_machine.Status == MachineStatus.Processing)
         {
-            int id = _machine.ActiveRecipe.outputs[0].itemId;
-            var row = DataStore.GetItem(id);
-            outName = row != null ? $"\n→ {row.itemName}" : "";
-        }
+            float remaining = 0f;
+            if (_machine.ActiveRecipe != null)
+                remaining = _machine.ActiveRecipe.processingTime * (1f - _machine.Progress);
 
-        statusText.text = _machine.Status switch
+            statusText.text = $"{remaining:F0}초";
+        }
+        else
         {
-            MachineStatus.Idle => "재료를 투입하세요",
-            MachineStatus.Processing => $"제작 중 {(_machine.Progress * 100f):F0}%{outName}",
-            MachineStatus.OutputReady => "완료 — 더블클릭으로 회수",
-            _ => ""
-        };
+            statusText.text = "";
+        }
     }
 
     private void RefreshDropSlots()
@@ -230,5 +236,31 @@ public class MachineUI : MonoBehaviour
         {
             if (slot != null) slot.PublicRefresh();
         }
+    }
+
+    public void TakeAll()
+    {
+        if (_machine == null || playerInventory == null) return;
+
+        // InputBuffer 전체 회수
+        foreach (var kv in new Dictionary<int, int>(_machine.InputBuffer.Stock))
+        {
+            if (kv.Value <= 0) continue;
+            _machine.InputBuffer.Consume(kv.Key, kv.Value);
+            playerInventory.AddItem(kv.Key, kv.Value);
+        }
+
+        // OutputBuffer 전체 회수
+        foreach (var kv in new Dictionary<int, int>(_machine.OutputBuffer.Stock))
+        {
+            if (kv.Value <= 0) continue;
+            _machine.TryTakeOutput(kv.Key, kv.Value);
+            playerInventory.AddItem(kv.Key, kv.Value);
+        }
+
+        playerInventory.ForceRefreshUI();
+        _machine.PublicNotifyBufferChanged();
+        RefreshInventorySlots();
+        RefreshOutputSlots();
     }
 }

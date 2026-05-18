@@ -4,13 +4,13 @@ using UnityEngine;
 [RequireComponent(typeof(EnemyHealth))]
 public class EnemyDropOnDeath : MonoBehaviour
 {
-    [Header("Drop Table")]
-    [Tooltip("이 몬스터가 죽을 때 사용할 드롭 테이블")]
-    public ItemDropTable table;
+    [Tooltip("DropTable의 sourceId — 이 몬스터의 드롭 출처 ID (예: MeleeBot_Ghoul)")]
+    [SerializeField] private string sourceId;
 
-    [Header("Spawn Offset")]
-    [Tooltip("아이템 스폰 시 몬스터 위치에서 위로 띄울 값")]
-    public float spawnHeightOffset = 1.0f;
+    [Tooltip("스폰할 박스 프리팹 (LootBox 컴포넌트 포함)")]
+    [SerializeField] private GameObject boxPrefab;
+
+    [SerializeField] private float spawnHeightOffset = 0.5f;
 
     private EnemyHealth _health;
 
@@ -21,125 +21,82 @@ public class EnemyDropOnDeath : MonoBehaviour
 
     void OnEnable()
     {
-        if (_health != null)
-            _health.OnDeath += HandleDeath;
+        if (_health != null) _health.OnDeath += HandleDeath;
     }
 
     void OnDisable()
     {
-        if (_health != null)
-            _health.OnDeath -= HandleDeath;
+        if (_health != null) _health.OnDeath -= HandleDeath;
     }
 
     private void HandleDeath()
     {
-        if (table == null) return;
-        if (table.defaultDropPrefab == null && !HasAnyOverridePrefab()) return;
+        if (boxPrefab == null) return;
 
-        Vector3 spawnPos = transform.position + Vector3.up * spawnHeightOffset;
+        List<(int itemId, int count)> contents = Roll();
+        if (contents.Count == 0) return;
 
-        if (table.deathVFX != null)
-            Instantiate(table.deathVFX, spawnPos, Quaternion.identity);
+        Vector3 pos = transform.position + Vector3.up * spawnHeightOffset;
+        GameObject go = Instantiate(boxPrefab, pos, Quaternion.identity);
 
-        List<ItemDropTable.DropEntry> rolled = RollEntries();
-        for (int i = 0; i < rolled.Count; i++)
-        {
-            SpawnOne(rolled[i], spawnPos);
-        }
+        LootBox box = go.GetComponent<LootBox>();
+        if (box != null) box.Initialize(contents);
     }
 
-    private bool HasAnyOverridePrefab()
+    private List<(int itemId, int count)> Roll()
     {
-        if (table == null || table.entries == null) return false;
-        for (int i = 0; i < table.entries.Count; i++)
+        var result = new List<(int itemId, int count)>();
+        if (string.IsNullOrEmpty(sourceId)) return result;
+
+        var pool = new List<DropTableSheetData>();
+        foreach (var row in GameDataHolder.I.DropTable.All)
         {
-            if (table.entries[i] != null && table.entries[i].overridePrefab != null)
-                return true;
+            if (row.sourceType == SourceType.Monster && row.sourceId == sourceId)
+                pool.Add(row);
         }
-        return false;
-    }
+        if (pool.Count == 0) return result;
 
-    private List<ItemDropTable.DropEntry> RollEntries()
-    {
-        List<ItemDropTable.DropEntry> result = new List<ItemDropTable.DropEntry>();
-        if (table.entries == null || table.entries.Count == 0) return result;
+        int pickCount = Mathf.Max(1, pool[0].pickCount);
 
-        int rollCount = Random.Range(
-            Mathf.Max(0, table.minRolls),
-            Mathf.Max(0, table.maxRolls) + 1
-        );
-        if (rollCount <= 0) return result;
-
-        List<ItemDropTable.DropEntry> pool = new List<ItemDropTable.DropEntry>(table.entries);
-
-        for (int i = 0; i < rollCount; i++)
+        for (int p = 0; p < pickCount && pool.Count > 0; p++)
         {
-            if (pool.Count == 0) break;
+            DropTableSheetData picked = WeightedPick(pool);
+            pool.Remove(picked);
 
-            ItemDropTable.DropEntry picked = WeightedPick(pool);
-            if (picked == null) break;
+            int itemId = ExtractItemId(picked.SheetId);
+            if (itemId <= 0) continue;
 
-            result.Add(picked);
-
-            if (!table.allowDuplicateRolls)
-                pool.Remove(picked);
+            int count = Random.Range(picked.minCount, picked.maxCount + 1);
+            if (count > 0) result.Add((itemId, count));
         }
 
         return result;
     }
 
-    private ItemDropTable.DropEntry WeightedPick(List<ItemDropTable.DropEntry> pool)
+    private DropTableSheetData WeightedPick(List<DropTableSheetData> pool)
     {
-        float total = 0f;
+        int total = 0;
         for (int i = 0; i < pool.Count; i++)
-        {
-            if (pool[i] != null && pool[i].weight > 0f)
-                total += pool[i].weight;
-        }
-        if (total <= 0f) return null;
+            total += Mathf.Max(0, pool[i].dropWeight);
 
-        float r = Random.value * total;
-        float acc = 0f;
+        if (total <= 0) return pool[0];
+
+        int r = Random.Range(0, total);
+        int acc = 0;
         for (int i = 0; i < pool.Count; i++)
         {
-            if (pool[i] == null || pool[i].weight <= 0f) continue;
-            acc += pool[i].weight;
-            if (r <= acc) return pool[i];
+            acc += Mathf.Max(0, pool[i].dropWeight);
+            if (r < acc) return pool[i];
         }
         return pool[pool.Count - 1];
     }
 
-    private void SpawnOne(ItemDropTable.DropEntry entry, Vector3 spawnPos)
+    // SheetId 복합키 "dropId_itemId" 에서 itemId 추출
+    private int ExtractItemId(DropTableSheetId sheetId)
     {
-        GameObject prefab = entry.overridePrefab != null
-                          ? entry.overridePrefab
-                          : table.defaultDropPrefab;
-        if (prefab == null) return;
-
-        int amount = Random.Range(
-            Mathf.Max(1, entry.minCount),
-            Mathf.Max(1, entry.maxCount) + 1
-        );
-
-        GameObject go = Instantiate(prefab, spawnPos, Quaternion.identity);
-
-        if (table.perItemVFX != null)
-            Instantiate(table.perItemVFX, spawnPos, Quaternion.identity);
-
-        DroppedItem dropped = go.GetComponent<DroppedItem>();
-        if (dropped == null) dropped = go.AddComponent<DroppedItem>();
-
-        dropped.Initialize(entry.itemId, amount, entry.canPickup, table.pickupDelay);
-
-        Vector3 randomDir = new Vector3(
-            Random.Range(-1f, 1f),
-            0f,
-            Random.Range(-1f, 1f)
-        ).normalized;
-
-        Vector3 force = Vector3.up * table.launchUpForce
-                      + randomDir * table.launchSideForce;
-
-        dropped.Launch(force, table.spinTorque, table.gravityScale);
+        string s = sheetId;
+        int u = s.LastIndexOf('_');
+        if (u < 0 || u + 1 >= s.Length) return 0;
+        return int.TryParse(s.Substring(u + 1), out int id) ? id : 0;
     }
 }
