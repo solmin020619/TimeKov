@@ -34,7 +34,13 @@ public class DraggableSlot : MonoBehaviour,
 
         if (iconImage != null)
         {
-            var sprite = has ? Resources.Load<Sprite>("Icon/" + itemId) : null;
+            Sprite sprite = null;
+            if (has)
+            {
+                var itemData = GameDataUtility.GetItem(itemId);
+                if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
+                    sprite = Resources.Load<Sprite>("Icon/" + itemData.iconKey);
+            }
             iconImage.sprite = sprite;
             iconImage.enabled = sprite != null;
         }
@@ -45,14 +51,14 @@ public class DraggableSlot : MonoBehaviour,
 
     public void Clear() => SetItem(0, 0);
 
-    // ¦¡¦¡ µå·¡±× ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
     public void OnBeginDrag(PointerEventData e)
     {
         if (!HasItem) { e.pointerDrag = null; return; }
         IsDragging = true;
 
-        // µå·¡±× Áß º¸¿©ÁÙ ÀÓ½Ã ÀÌ¹ÌÁö »ý¼º
+        // ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ó½ï¿½ ï¿½Ì¹ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         _dragVisual = new GameObject("DragVisual");
         _dragVisual.transform.SetParent(_canvas.transform, false);
         _dragVisual.transform.SetAsLastSibling();
@@ -72,7 +78,7 @@ public class DraggableSlot : MonoBehaviour,
     {
         if (_dragVisual == null) return;
 
-        // Overlay ¹æ½Ä°ú Camera ¹æ½Ä ¸ðµÎ ´ëÀÀ
+        // Overlay ï¿½ï¿½Ä°ï¿½ Camera ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
             _canvas.transform as RectTransform,
             e.position,

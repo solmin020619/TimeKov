@@ -36,8 +36,23 @@ namespace TIMEKOV.Factory
         {
             if (_uiOpen)
             {
+                // GameUIController가 외부에서 상태를 닫은 경우(ESC 등) 감지
+                var uic = GameUIController.Instance;
+                if (uic != null && uic.GetCurrentState() != GameUIController.UIState.Factory)
+                {
+                    ForceClose();
+                    return;
+                }
+
                 if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.Escape))
                     CloseUI();
+                return;
+            }
+
+            // 다른 UI가 열려있으면 설비 열기 차단
+            if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
+            {
+                ScanNearby();
                 return;
             }
 
@@ -82,6 +97,9 @@ namespace TIMEKOV.Factory
         {
             if (machineUI == null || _nearMachine == null) return;
 
+            // GameUIController에 Factory 상태 등록 (다른 UI 열기 차단)
+            GameUIController.Instance?.OpenFactoryUI();
+
             ThirdPersonCamera.IsUIOpen = true;
             PlayerInputComponent.IsBlocked = true;
             _player?.Movement.LockMovement(true);
@@ -98,6 +116,28 @@ namespace TIMEKOV.Factory
         }
 
         private void CloseUI()
+        {
+            // GameUIController 상태 해제
+            GameUIController.Instance?.CloseFactoryUI();
+
+            ThirdPersonCamera.IsUIOpen = false;
+            PlayerInputComponent.IsBlocked = false;
+            _player?.Movement.LockMovement(false);
+
+            machineUI?.Close();
+            _uiOpen = false;
+
+            Cursor.lockState = _prevLockState;
+            Cursor.visible = _prevVisible;
+
+            if (hintText != null)
+                hintText.text = _nearMachine != null
+                    ? $"F  —  {_nearMachineName} 열기"
+                    : "";
+        }
+
+        /// <summary>GameUIController가 외부에서 Factory 상태를 닫았을 때 로컬 정리</summary>
+        private void ForceClose()
         {
             ThirdPersonCamera.IsUIOpen = false;
             PlayerInputComponent.IsBlocked = false;

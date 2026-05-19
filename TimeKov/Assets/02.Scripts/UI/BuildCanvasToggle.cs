@@ -91,6 +91,10 @@ public class BuildCanvasToggle : MonoBehaviour
 
         isAltHeld = altDown;
 
+        // GameUIController가 UI를 제어 중이면 커서를 건드리지 않는다
+        if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
+            return;
+
         if (isAltHeld)
         {
             Cursor.lockState = CursorLockMode.None;

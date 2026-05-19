@@ -29,9 +29,10 @@ namespace TIMEKOV.Factory
 
         public void Setup(int itemId, int amount)
         {
-            // ±¸¹öÀü: DataStore.GetItem ¡æ GameDataUtility.GetItem
             var itemData = GameDataUtility.GetItem(itemId);
-            var sprite = Resources.Load<Sprite>("Icon/" + itemId);
+            Sprite sprite = null;
+            if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
+                sprite = Resources.Load<Sprite>("Icon/" + itemData.iconKey);
 
             if (iconImage != null)
             {

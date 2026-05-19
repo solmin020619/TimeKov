@@ -25,12 +25,12 @@ namespace TIMEKOV.Factory
 
         public void Setup(int itemId, int amount)
         {
-            // 구버전: DataStore.GetItem(itemId) → 신버전: GameDataHolder.I.ItemData.TryGet
-            string name = itemId.ToString();
-            if (GameDataHolder.I.ItemData.TryGet(itemId.ToString(), out var itemData))
-                name = itemData.itemName;
+            var itemData = GameDataUtility.GetItem(itemId);
+            string name = itemData != null ? itemData.itemName : itemId.ToString();
 
-            var sprite = Resources.Load<Sprite>("Icon/" + itemId);
+            Sprite sprite = null;
+            if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
+                sprite = Resources.Load<Sprite>("Icon/" + itemData.iconKey);
 
             if (iconImage != null)
             {

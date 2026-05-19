@@ -364,7 +364,7 @@ public class BuildManager : MonoBehaviour
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
 
-                UIStateManager.Instance?.CloseAllUI();
+                GameUIController.Instance?.CloseAllUI();
             }
             else
             {
@@ -377,7 +377,7 @@ public class BuildManager : MonoBehaviour
 
                 SetTopViewMode(true);
 
-                UIStateManager.Instance?.SetState(UIStateManager.UIState.Build);
+                GameUIController.Instance?.SetState(GameUIController.UIState.Build);
             }
         }
 
@@ -406,7 +406,7 @@ public class BuildManager : MonoBehaviour
             if (previewMarker != null)
                 previewMarker.SetActive(false);
 
-            UIStateManager.Instance?.CloseAllUI();
+            GameUIController.Instance?.CloseAllUI();
         }
     }
 

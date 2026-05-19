@@ -27,8 +27,8 @@ public class MachineUI : MonoBehaviour
     [Header("출력 슬롯")]
     public MachineSlotWidget outputSlot;
 
-    // TODO: 새 인벤토리 연결 예정
-    // public InventoryManager playerInventory;
+    [Header("플레이어 인벤토리")]
+    public InventoryManager playerInventory;
 
     private ProcessingMachine _machine;
     private readonly List<DraggableSlot> _invSlots = new();
@@ -78,8 +78,12 @@ public class MachineUI : MonoBehaviour
 
     public void RefreshInventorySlots()
     {
-        // TODO: 새 인벤토리 연결 후 아이템 데이터 반영
+        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        if (inv == null) { foreach (var slot in _invSlots) slot.Clear(); return; }
+
+        // 인벤토리 슬롯 데이터 반영 — InventoryManager가 슬롯 열거를 지원하면 여기서 채워넣는다
         foreach (var slot in _invSlots) slot.Clear();
+        inv.ForceRefreshUI();
     }
 
     // ── 재료 슬롯 ───────────────────────────────────────────
@@ -100,7 +104,8 @@ public class MachineUI : MonoBehaviour
             if (i < inputs.Length)
             {
                 recipeDropSlots[i].gameObject.SetActive(true);
-                recipeDropSlots[i].Setup(inputs[i].itemId, inputs[i].amount, _machine);
+                var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+                recipeDropSlots[i].Setup(inputs[i].itemId, inputs[i].amount, _machine, inv);
             }
             else
             {
@@ -135,7 +140,9 @@ public class MachineUI : MonoBehaviour
         if (_machine == null) return;
         if (!_machine.TryTakeOutput(itemId, amount)) return;
 
-        // TODO: playerInventory.AddItem / ForceRefreshUI
+        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        inv?.AddItem(itemId, amount);
+        inv?.ForceRefreshUI();
 
         RefreshOutputSlots();
         RefreshInventorySlots();
@@ -179,19 +186,24 @@ public class MachineUI : MonoBehaviour
     {
         if (_machine == null) return;
 
+        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+
         foreach (var kv in new Dictionary<int, int>(_machine.InputBuffer.Stock))
         {
-            if (kv.Value > 0) _machine.InputBuffer.Consume(kv.Key, kv.Value);
-            // TODO: playerInventory.AddItem
+            if (kv.Value > 0)
+            {
+                _machine.InputBuffer.Consume(kv.Key, kv.Value);
+                inv?.AddItem(kv.Key, kv.Value);
+            }
         }
 
         foreach (var kv in new Dictionary<int, int>(_machine.OutputBuffer.Stock))
         {
-            if (kv.Value > 0) _machine.TryTakeOutput(kv.Key, kv.Value);
-            // TODO: playerInventory.AddItem
+            if (kv.Value > 0 && _machine.TryTakeOutput(kv.Key, kv.Value))
+                inv?.AddItem(kv.Key, kv.Value);
         }
 
-        // TODO: playerInventory.ForceRefreshUI
+        inv?.ForceRefreshUI();
         _machine.PublicNotifyBufferChanged();
         RefreshInventorySlots();
         RefreshOutputSlots();

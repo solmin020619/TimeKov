@@ -114,6 +114,10 @@ public class TopViewPanCamera : MonoBehaviour
         if (!allowZoom)
             return;
 
+        // UI가 열려있는 동안 줌 차단
+        //if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
+            //return;
+
         float scroll = Input.mouseScrollDelta.y;
         if (Mathf.Abs(scroll) < 0.01f)
             return;
