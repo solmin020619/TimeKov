@@ -19,6 +19,9 @@ public class DropPickupPanel : MonoBehaviour
 
     public void Show(IReadOnlyList<(int itemId, int count)> items)
     {
+        // 다른 UI가 열려있으면 표시 차단
+        if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking()) return;
+
         ClearRows();
 
         for (int i = 0; i < items.Count; i++)

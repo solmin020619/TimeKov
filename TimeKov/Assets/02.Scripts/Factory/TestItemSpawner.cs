@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// TODO: 새 인벤토리 연결 후 AddItem/ForceRefreshUI 복원
 public class TestItemSpawner : MonoBehaviour
 {
     [System.Serializable]
@@ -33,12 +32,26 @@ public class TestItemSpawner : MonoBehaviour
     {
         yield return new WaitUntil(() => DataBoot.IsLoaded);
 
+        var inv = InventoryManager.Instance;
+        if (inv == null)
+        {
+            Debug.LogWarning("[TestSpawner] InventoryManager 인스턴스 없음 — 아이템 지급 불가");
+            yield break;
+        }
+
         foreach (var info in startItems)
         {
             if (GameDataHolder.I.ItemData.TryGet(info.itemID.ToString(), out var data))
-                Debug.Log($"[TestSpawner] {data.itemName} x{info.amount} 지급 예정 (인벤토리 연결 대기)");
+            {
+                inv.AddItem(info.itemID, info.amount);
+                Debug.Log($"[TestSpawner] {data.itemName} x{info.amount} 지급");
+            }
             else
+            {
                 Debug.LogWarning($"[TestSpawner] ID:{info.itemID} — 없는 아이템");
+            }
         }
+
+        inv.ForceRefreshUI();
     }
 }

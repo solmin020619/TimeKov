@@ -53,7 +53,7 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleFollow()
     {
-        // À§Ä¡´Â ¹Ù·Î µû¶ó°¨ -> Rigidbody Æ¢´Â ¹®Á¦ ¹æÁö
+        // ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ù·ï¿½ ï¿½ï¿½ï¿½ï¿½ -> Rigidbody Æ¢ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         transform.position = FollowTarget.position + FollowOffset;
     }
 
@@ -61,7 +61,7 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         if (IsUIOpen) return;
 
-        // ¸¶¿ì½º ÀÔ·Â ±×´ë·Î ´©Àû -> Slerp ¾øÀ½
+        // ï¿½ï¿½ï¿½ì½º ï¿½Ô·ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ -> Slerp ï¿½ï¿½ï¿½ï¿½
         _yaw += Input.GetAxis("Mouse X") * SensitivityX;
         _pitch -= Input.GetAxis("Mouse Y") * SensitivityY;
         _pitch = Mathf.Clamp(_pitch, MinPitchAngle, MaxPitchAngle);
@@ -72,6 +72,9 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleZoom()
     {
+        // UIê°€ ì—´ë ¤ìˆëŠ” ë™ì•ˆ ì¤Œ ì°¨ë‹¨
+        if (IsUIOpen) return;
+
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         _targetDist = Mathf.Clamp(
             _targetDist - scroll * ScrollSpeed,

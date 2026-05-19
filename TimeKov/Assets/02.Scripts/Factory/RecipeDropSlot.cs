@@ -18,8 +18,7 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
     public int CurrentAmount { get; private set; }
 
     private ProcessingMachine _machine;
-    // TODO: 새 인벤토리 스크립트 연결 예정
-    // private InventoryManager _inventory;
+    private InventoryManager _inventory;
     private Coroutine _glowRoutine;
 
     private void Awake()
@@ -34,14 +33,13 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         }
     }
 
-    // InventoryManager 파라미터 제거  TODO 연결 후 복원
-    public void Setup(int itemId, int amount, ProcessingMachine machine)
+    public void Setup(int itemId, int amount, ProcessingMachine machine, InventoryManager inventory = null)
     {
         RequiredItemId = itemId;
         RequiredAmount = amount;
         CurrentAmount = 0;
         _machine = machine;
-        // TODO: _inventory = inventory;
+        _inventory = inventory != null ? inventory : InventoryManager.Instance;
 
         if (iconImage != null) { iconImage.sprite = null; iconImage.enabled = false; }
         if (amountText != null) amountText.text = "";
@@ -76,14 +74,14 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         if (_machine == null) return;
         if (slot.ItemId != RequiredItemId) return;
 
-        // TODO: 새 인벤토리 연결 후 아래 주석 해제
-        // int amount = _inventory.GetTotalItemCount(slot.ItemId);
-        // if (amount <= 0) return;
-        // int take = Mathf.Min(slot.Amount, amount);
-        // _inventory.TryConsumeItem(slot.ItemId, take);
-        // _inventory.ForceRefreshUI();
-
-        int take = slot.Amount; // 임시: 인벤토리 차감 없이 설비에만 투입
+        int have = _inventory != null ? _inventory.GetTotalItemCount(slot.ItemId) : slot.Amount;
+        if (have <= 0) return;
+        int take = Mathf.Min(slot.Amount, have);
+        if (_inventory != null)
+        {
+            _inventory.TryConsumeItem(slot.ItemId, take);
+            _inventory.ForceRefreshUI();
+        }
         _machine.Receive(slot.ItemId, take);
 
         CurrentAmount += take;
@@ -150,7 +148,10 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
 
         if (current > 0 && iconImage != null && iconImage.sprite == null)
         {
-            var sprite = Resources.Load<Sprite>("Icon/" + RequiredItemId);
+            var itemData = GameDataUtility.GetItem(RequiredItemId);
+            Sprite sprite = null;
+            if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
+                sprite = Resources.Load<Sprite>("Icon/" + itemData.iconKey);
             iconImage.sprite = sprite;
             iconImage.color = Color.white;
             iconImage.enabled = sprite != null;
