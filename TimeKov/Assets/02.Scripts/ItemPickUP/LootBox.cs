@@ -1,3 +1,10 @@
+// =====================================================================
+// LootBox.cs
+// 필드 드롭 박스 — F키 상호작용 시 Player 인벤토리에 아이템 추가
+// EnemyDropOnDeath 가 스폰, LootBoxScanner 가 F키 감지 후 Collect() 호출
+// 기획서 섹션 4.1: 반드시 Player InventoryManager 에만 AddItem
+// =====================================================================
+
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,7 +12,9 @@ public class LootBox : MonoBehaviour, IInteractable
 {
     public static readonly List<LootBox> All = new List<LootBox>();
 
-    private readonly List<(int itemId, int count)> _contents = new List<(int itemId, int count)>();
+    private readonly List<(int itemId, int count)> _contents =
+        new List<(int itemId, int count)>();
+
     public IReadOnlyList<(int itemId, int count)> Contents => _contents;
 
     public void Initialize(List<(int itemId, int count)> contents)
@@ -19,7 +28,7 @@ public class LootBox : MonoBehaviour, IInteractable
 
     public bool CanInteract => true;
 
-    // F를 누르면 근처(showRange) 박스를 전부 한 번에 수집한다
+    // F키 입력 시 LootBoxScanner 가 호출
     public void Interact(Player player)
     {
         LootBoxScanner scanner = FindAnyObjectByType<LootBoxScanner>();
@@ -29,16 +38,43 @@ public class LootBox : MonoBehaviour, IInteractable
             Collect(player);
     }
 
-    // 이 박스를 수집한다 — 수집 VFX를 띄우고 박스를 제거한다.
-    // TODO: 새 인벤토리 시스템 완성되면 여기서 _contents 를 플레이어 인벤에 넣을 것.
-    //       (구 InventoryManager 의존 제거 — 인벤 재작업 위해 분리해 둠)
+    // 이 박스의 아이템을 Player 인벤토리에 추가하고 박스 제거
+    // 완전 실패(공간 부족)한 아이템이 있으면 Debug.Log 출력
+    // 일부 성공은 메시지 없이 UI 수량 변화로 확인 (기획서 섹션 20.1)
     public void Collect(Player player)
     {
+        // VFX 재생
         LootBoxVFX vfx = GetComponentInParent<LootBoxVFX>();
         if (vfx != null && player != null)
             vfx.PlayCollectEffect(transform.position, player.transform);
 
-        // LootBox 는 자식(item)에 있으므로 루트째로 파괴한다
+        // Player 인벤토리에 아이템 추가
+        var inv = InventoryManager.Instance;
+        if (inv != null && player != null)
+        {
+            bool anyCompleteFail = false;
+
+            foreach (var (itemId, count) in _contents)
+            {
+                int remaining = inv.TryAddItemFromLoot(itemId, count);
+
+                // 전량 실패 시 공간 부족
+                if (remaining == count)
+                {
+                    anyCompleteFail = true;
+                    Debug.Log($"[LootBox] 가방 공간 부족: itemId={itemId} count={count}");
+                }
+            }
+
+            if (anyCompleteFail)
+                Debug.Log("[LootBox] 일부 아이템을 넣지 못했습니다 — 가방 공간 부족");
+        }
+        else if (inv == null)
+        {
+            Debug.LogWarning("[LootBox] InventoryManager.Instance 없음 — 아이템 추가 실패");
+        }
+
+        // 루트 오브젝트째 파괴
         Destroy(transform.root.gameObject);
     }
 }

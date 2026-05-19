@@ -1,40 +1,406 @@
-// =====================================================================
-// InventoryManager.cs
-// �ӽ� ����  ���� �κ��丮 ������ ���� �� ���Ͽ� ����
-// DroppedItem / MachineUI / RecipeDropSlot / TestItemSpawner ����
-// �����ϴ� �޼���� Ÿ���� �̸� ������ ������ ������ �����Ѵ�
-// =====================================================================
+﻿// InventoryManager.cs
+// 가방(Player) / 창고(Storage) 인벤토리 데이터 관리
+// 슬롯 생성, 아이템 추가/제거/이동/분할 처리
+// 씬에 두 개 배치: ownerType=Player maxSlots=35 / ownerType=Storage maxSlots=50
 
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class InventoryManager : MonoBehaviour
 {
-    // �κ��丮 ������ ����  DroppedItem ���� �÷��̾� �κ��丮 ���п� ���
-    public enum InventoryOwnerType { Player, Machine, Storage }
+    // 인벤토리 소유자 유형
+    public enum InventoryOwnerType { Player, Storage }
 
-    // �� �κ��丮�� ������ ����
+    [Header("설정")]
     public InventoryOwnerType ownerType = InventoryOwnerType.Player;
 
-    // �̱��� �ν��Ͻ�
+    [Tooltip("가방 35 / 창고 50 권장")]
+    public int maxSlots = 35;
+
+    // 슬롯 목록 (인덱스 == slotIndex)
+    private List<InventorySlot> _slots = new List<InventorySlot>();
+
+    // 슬롯 데이터가 바뀔 때마다 발생하는 이벤트
+    public event Action OnInventoryChanged;
+
+    // Player 인벤토리 싱글톤
     public static InventoryManager Instance { get; private set; }
 
-    private void Awake() { Instance = this; }
+    // Storage 인벤토리 싱글톤
+    public static InventoryManager StorageInstance { get; private set; }
 
-    // �κ��丮 ���� UI ����
-    public void CreateSlots() { }
+    private void Awake()
+    {
+        if (ownerType == InventoryOwnerType.Player)
+            Instance = this;
+        else if (ownerType == InventoryOwnerType.Storage)
+            StorageInstance = this;
 
-    // itemId �� �ش��ϴ� ������ �� ���� ���� ��ȯ
-    public int GetTotalItemCount(int itemId) => 0;
+        CreateSlots();
+    }
 
-    // �κ��丮�� ������ �߰�
-    public void AddItem(int itemId, int amount) { }
+    // 슬롯 초기화
+    public void CreateSlots()
+    {
+        _slots.Clear();
+        for (int i = 0; i < maxSlots; i++)
+        {
+            var slot = new InventorySlot();
+            slot.slotIndex = i;
+            _slots.Add(slot);
+        }
+    }
 
-    // �������� ������ ȹ�� �õ�  �κ��丮 ���� á���� ���� ���� ��ȯ, ���� ���� 0
-    public int TryAddItemFromLoot(int itemId, int count) => 0;
+    // UI 에서 슬롯 목록을 읽기 전용으로 접근
+    public IReadOnlyList<InventorySlot> GetSlots() => _slots.AsReadOnly();
 
-    // ������ �Һ� �õ�. ���� ���� �� false ��ȯ
-    public bool TryConsumeItem(int itemId, int amount) => false;
+    // 현재 아이템이 있는 슬롯 수 반환
+    public int GetUsedSlotCount()
+    {
+        int count = 0;
+        foreach (var slot in _slots)
+            if (!slot.IsEmpty) count++;
+        return count;
+    }
 
-    // �κ��丮 UI ���� ��ü ���� ����
-    public void ForceRefreshUI() { }
+    // 최대 슬롯 수 반환
+    public int GetMaxSlots() => maxSlots;
+
+    // 특정 인덱스의 슬롯 반환
+    public InventorySlot GetSlot(int index)
+    {
+        if (index < 0 || index >= _slots.Count) return null;
+        return _slots[index];
+    }
+
+    // 특정 아이템 총 수량 반환
+    public int GetTotalItemCount(int itemId)
+    {
+        int total = 0;
+        foreach (var slot in _slots)
+            if (slot.itemId == itemId && !slot.IsEmpty)
+                total += slot.amount;
+        return total;
+    }
+
+    // 아이템 추가 (남은 수량 반환)
+    public int AddItem(int itemId, int amount, bool markAsNew = false)
+    {
+        // GameDataHolder 에서 maxStack 조회
+        var data = ItemDatabase.GetItem(itemId);
+        int maxStack = data != null ? data.maxStack : 999;
+        int remaining = amount;
+
+        // 기존 슬롯에 스택 추가
+        foreach (var slot in _slots)
+        {
+            if (remaining <= 0) break;
+            if (slot.itemId == itemId && !slot.IsEmpty && slot.amount < maxStack)
+            {
+                int canAdd = maxStack - slot.amount;
+                int adding = Mathf.Min(canAdd, remaining);
+                slot.amount += adding;
+                remaining -= adding;
+            }
+        }
+
+        // 빈 슬롯에 새로 추가
+        foreach (var slot in _slots)
+        {
+            if (remaining <= 0) break;
+            if (slot.IsEmpty)
+            {
+                int adding = Mathf.Min(maxStack, remaining);
+                slot.Set(itemId, adding, markAsNew);
+                remaining -= adding;
+            }
+        }
+
+        if (remaining < amount)
+            OnInventoryChanged?.Invoke();
+
+        return remaining;
+    }
+
+    // 루팅으로 아이템 획득 (NEW 뱃지 자동 설정)
+    public int TryAddItemFromLoot(int itemId, int count)
+    {
+        return AddItem(itemId, count, markAsNew: true);
+    }
+
+    // 아이템 소비 시도
+    public bool TryConsumeItem(int itemId, int amount)
+    {
+        if (GetTotalItemCount(itemId) < amount) return false;
+
+        int remaining = amount;
+        foreach (var slot in _slots)
+        {
+            if (remaining <= 0) break;
+            if (slot.itemId == itemId && !slot.IsEmpty)
+            {
+                if (slot.amount <= remaining)
+                {
+                    remaining -= slot.amount;
+                    slot.Clear();
+                }
+                else
+                {
+                    slot.amount -= remaining;
+                    remaining = 0;
+                }
+            }
+        }
+
+        OnInventoryChanged?.Invoke();
+        return true;
+    }
+
+    // 특정 슬롯에서 지정 수량 제거 (버리기)
+    public bool RemoveFromSlot(int slotIndex, int amount)
+    {
+        var slot = GetSlot(slotIndex);
+        if (slot == null || slot.IsEmpty) return false;
+        if (slot.amount < amount) return false;
+
+        slot.amount -= amount;
+        if (slot.amount <= 0) slot.Clear();
+
+        OnInventoryChanged?.Invoke();
+        return true;
+    }
+
+    // 슬롯 전체를 다른 인벤토리로 이동
+    public bool MoveSlot(int slotIndex, InventoryManager other)
+    {
+        var slot = GetSlot(slotIndex);
+        if (slot == null || slot.IsEmpty) return false;
+
+        int leftOver = other.AddItem(slot.itemId, slot.amount);
+        int moved = slot.amount - leftOver;
+
+        if (moved > 0)
+        {
+            slot.amount -= moved;
+            if (slot.amount <= 0) slot.Clear();
+            OnInventoryChanged?.Invoke();
+            return true;
+        }
+        return false;
+    }
+
+    // 모든 슬롯을 다른 인벤토리로 이동 (전부 보관)
+    public void MoveAllTo(InventoryManager other)
+    {
+        bool changed = false;
+        foreach (var slot in _slots)
+        {
+            if (slot.IsEmpty) continue;
+            int leftOver = other.AddItem(slot.itemId, slot.amount);
+            int moved = slot.amount - leftOver;
+            if (moved > 0)
+            {
+                slot.amount -= moved;
+                if (slot.amount <= 0) slot.Clear();
+                changed = true;
+            }
+        }
+        if (changed) OnInventoryChanged?.Invoke();
+    }
+
+    // 스택 분할 후 대상 인벤토리에 추가
+    // 스택 분할 후 대상 인벤토리에 추가
+    // 같은 인벤토리로 분할 시 빈 슬롯을 직접 찾아서 추가
+    public bool SplitStack(int slotIndex, int amount, InventoryManager target)
+    {
+        var slot = GetSlot(slotIndex);
+        if (slot == null || slot.IsEmpty) return false;
+        // 분할 후 최소 1개는 남아야 함
+        if (slot.amount <= amount || amount <= 0) return false;
+
+        // 같은 인벤토리 내 분할
+        // AddItem 쓰면 원본 슬롯에 다시 추가되는 버그가 있어서 빈 슬롯 직접 탐색
+        if (target == this)
+        {
+            InventorySlot emptySlot = null;
+            foreach (var s in _slots)
+            {
+                if (s.IsEmpty)
+                {
+                    emptySlot = s;
+                    break;
+                }
+            }
+
+            if (emptySlot == null)
+            {
+                Debug.LogWarning("[InventoryManager] 분할 실패: 빈 슬롯 없음");
+                return false;
+            }
+
+            emptySlot.Set(slot.itemId, amount);
+            slot.amount -= amount;
+            OnInventoryChanged?.Invoke();
+            return true;
+        }
+
+        // 다른 인벤토리로 분할
+        int leftOver = target.AddItem(slot.itemId, amount);
+        int added = amount - leftOver;
+
+        if (added > 0)
+        {
+            slot.amount -= added;
+            if (slot.amount <= 0) slot.Clear();
+            OnInventoryChanged?.Invoke();
+            return true;
+        }
+
+        Debug.LogWarning("[InventoryManager] 분할 실패: 대상 인벤토리 가득 참");
+        return false;
+    }
+
+    // 정렬 기준 열거형
+    public enum SortType
+    {
+        Name = 0,   // 이름순
+        Category = 1,   // 카테고리순
+        Grade = 2,   // 등급순
+        Amount = 3    // 수량순
+    }
+
+    // 정렬 실행 (SortBarUI 에서 호출)
+    public void SortSlots(SortType sortType = SortType.Name, bool ascending = true)
+    {
+        // 아이템 있는 슬롯 데이터만 추출
+        var filled = new System.Collections.Generic.List<(int id, int qty, bool isNew)>();
+        foreach (var slot in _slots)
+            if (!slot.IsEmpty)
+                filled.Add((slot.itemId, slot.amount, slot.isNew));
+
+        // 정렬 기준별 비교 함수
+        filled.Sort((a, b) =>
+        {
+            int result = 0;
+
+            switch (sortType)
+            {
+                case SortType.Name:
+                    var dataA = ItemDatabase.GetItem(a.id);
+                    var dataB = ItemDatabase.GetItem(b.id);
+                    string nameA = dataA != null ? dataA.itemName : "";
+                    string nameB = dataB != null ? dataB.itemName : "";
+                    result = string.Compare(nameA, nameB,
+                        System.StringComparison.CurrentCulture);
+                    break;
+
+                case SortType.Category:
+                    var catA = ItemDatabase.GetItem(a.id);
+                    var catB = ItemDatabase.GetItem(b.id);
+                    int categoryA = catA != null ? (int)catA.itemCategory : 0;
+                    int categoryB = catB != null ? (int)catB.itemCategory : 0;
+                    result = categoryA.CompareTo(categoryB);
+                    break;
+
+                case SortType.Grade:
+                    var gradeDataA = ItemDatabase.GetItem(a.id);
+                    var gradeDataB = ItemDatabase.GetItem(b.id);
+                    int gradeA = gradeDataA != null ? (int)gradeDataA.itemGrade : 0;
+                    int gradeB = gradeDataB != null ? (int)gradeDataB.itemGrade : 0;
+                    result = gradeA.CompareTo(gradeB);
+                    break;
+
+                case SortType.Amount:
+                    result = a.qty.CompareTo(b.qty);
+                    break;
+            }
+
+            // 내림차순이면 결과 반전
+            return ascending ? result : -result;
+        });
+
+        // 슬롯 초기화 후 정렬된 순서로 재배치
+        foreach (var slot in _slots) slot.Clear();
+        for (int i = 0; i < filled.Count; i++)
+            _slots[i].Set(filled[i].id, filled[i].qty, filled[i].isNew);
+
+        OnInventoryChanged?.Invoke();
+    }
+
+    // 같은 인벤토리 내 두 슬롯 교환 (드래그앤드롭)
+    public void SwapSlots(int fromIndex, int toIndex)
+    {
+        if (fromIndex == toIndex) return;
+
+        var from = GetSlot(fromIndex);
+        var to = GetSlot(toIndex);
+        if (from == null || to == null) return;
+
+        // 임시 저장 후 교환
+        int tempId = from.itemId;
+        int tempAmount = from.amount;
+        bool tempNew = from.isNew;
+
+        if (to.IsEmpty)
+        {
+            from.Clear();
+        }
+        else
+        {
+            from.Set(to.itemId, to.amount, to.isNew);
+        }
+
+        to.Set(tempId, tempAmount, tempNew);
+        if (tempId < 0) to.Clear();
+
+        OnInventoryChanged?.Invoke();
+    }
+
+    // 다른 인벤토리의 특정 슬롯으로 이동 (드래그앤드롭)
+    // 대상 슬롯이 비어있으면 이동, 아이템 있으면 교환
+    public void MoveSlotTo(int fromIndex, InventoryManager other, int toIndex)
+    {
+        var from = GetSlot(fromIndex);
+        var to = other.GetSlot(toIndex);
+        if (from == null || to == null) return;
+        if (from.IsEmpty) return;
+
+        if (to.IsEmpty)
+        {
+            // 빈 슬롯으로 이동
+            to.Set(from.itemId, from.amount, from.isNew);
+            from.Clear();
+
+            // 대상 인벤토리도 반드시 갱신
+            other.OnInventoryChanged?.Invoke();
+        }
+        else
+        {
+            // 두 슬롯 교환
+            int tempId = from.itemId;
+            int tempAmount = from.amount;
+            bool tempNew = from.isNew;
+
+            from.Set(to.itemId, to.amount, to.isNew);
+            to.Set(tempId, tempAmount, tempNew);
+
+            other.OnInventoryChanged?.Invoke();
+        }
+
+        OnInventoryChanged?.Invoke();
+    }
+
+    // NEW 뱃지 해제
+    public void ClearNewFlag(int slotIndex)
+    {
+        var slot = GetSlot(slotIndex);
+        if (slot != null) slot.isNew = false;
+    }
+
+    // UI 강제 갱신
+    public void ForceRefreshUI()
+    {
+        OnInventoryChanged?.Invoke();
+    }
 }
