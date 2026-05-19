@@ -29,28 +29,16 @@ public class LootBox : MonoBehaviour, IInteractable
             Collect(player);
     }
 
-    // 이 박스를 수집한다 — 인벤토리에 넣고, 수집 VFX를 띄우고, 박스를 제거
+    // 이 박스를 수집한다 — 수집 VFX를 띄우고 박스를 제거한다.
+    // TODO: 새 인벤토리 시스템 완성되면 여기서 _contents 를 플레이어 인벤에 넣을 것.
+    //       (구 InventoryManager 의존 제거 — 인벤 재작업 위해 분리해 둠)
     public void Collect(Player player)
     {
-        InventoryManager inv = FindPlayerInventory();
-        if (inv != null)
-            for (int i = 0; i < _contents.Count; i++)
-                inv.AddItem(_contents[i].itemId, _contents[i].count);
-
         LootBoxVFX vfx = GetComponentInParent<LootBoxVFX>();
         if (vfx != null && player != null)
             vfx.PlayCollectEffect(transform.position, player.transform);
 
         // LootBox 는 자식(item)에 있으므로 루트째로 파괴한다
         Destroy(transform.root.gameObject);
-    }
-
-    private InventoryManager FindPlayerInventory()
-    {
-        InventoryManager[] all = FindObjectsByType<InventoryManager>(FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
-            if (all[i] != null && all[i].ownerType == InventoryManager.InventoryOwnerType.Player)
-                return all[i];
-        return null;
     }
 }

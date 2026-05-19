@@ -1,9 +1,3 @@
-// =====================================================================
-// RecipeDropSlot.cs
-// 설비 UI 재료 드롭 슬롯  인벤토리에서 아이템을 드래그 앤 드롭으로 투입
-// DataStore 참조 없음. InventoryManager 타입 참조만 존재
-// =====================================================================
-
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -24,7 +18,8 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
     public int CurrentAmount { get; private set; }
 
     private ProcessingMachine _machine;
-    private InventoryManager _inventory;
+    // TODO: 새 인벤토리 스크립트 연결 예정
+    // private InventoryManager _inventory;
     private Coroutine _glowRoutine;
 
     private void Awake()
@@ -39,14 +34,14 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         }
     }
 
-    // 슬롯 초기화 필요한 아이템 ID, 수량, 연결할 설비/인벤토리 설정
-    public void Setup(int itemId, int amount, ProcessingMachine machine, InventoryManager inventory)
+    // InventoryManager 파라미터 제거  TODO 연결 후 복원
+    public void Setup(int itemId, int amount, ProcessingMachine machine)
     {
         RequiredItemId = itemId;
         RequiredAmount = amount;
         CurrentAmount = 0;
         _machine = machine;
-        _inventory = inventory;
+        // TODO: _inventory = inventory;
 
         if (iconImage != null) { iconImage.sprite = null; iconImage.enabled = false; }
         if (amountText != null) amountText.text = "";
@@ -78,22 +73,22 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
 
         var slot = e.pointerDrag?.GetComponent<DraggableSlot>();
         if (slot == null || !slot.HasItem) return;
-        if (_machine == null || _inventory == null) return;
+        if (_machine == null) return;
         if (slot.ItemId != RequiredItemId) return;
 
-        int amount = _inventory.GetTotalItemCount(slot.ItemId);
-        if (amount <= 0) return;
+        // TODO: 새 인벤토리 연결 후 아래 주석 해제
+        // int amount = _inventory.GetTotalItemCount(slot.ItemId);
+        // if (amount <= 0) return;
+        // int take = Mathf.Min(slot.Amount, amount);
+        // _inventory.TryConsumeItem(slot.ItemId, take);
+        // _inventory.ForceRefreshUI();
 
-        int take = Mathf.Min(slot.Amount, amount);
-        _inventory.TryConsumeItem(slot.ItemId, take);
-        _inventory.ForceRefreshUI();
+        int take = slot.Amount; // 임시: 인벤토리 차감 없이 설비에만 투입
         _machine.Receive(slot.ItemId, take);
 
         CurrentAmount += take;
         RefreshAmount();
     }
-
-    // ── 발광 애니메이션 ────────────────────────────────────────
 
     private void StartGlow()
     {
@@ -116,7 +111,6 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         {
             float t = 0f;
             while (t < 1f) { t += Time.deltaTime * 3f; SetBorderAlpha(Mathf.Lerp(0f, 1f, t)); yield return null; }
-
             t = 0f;
             while (t < 1f) { t += Time.deltaTime * 3f; SetBorderAlpha(Mathf.Lerp(1f, 0f, t)); yield return null; }
         }
@@ -130,9 +124,6 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         borderImage.color = c;
     }
 
-    // ── 슬롯 갱신 ──────────────────────────────────────────────
-
-    // 외부(MachineUI 버퍼 변경 콜백)에서 호출해 현재 투입량 동기화
     public void PublicRefresh()
     {
         if (_machine == null) return;
@@ -157,7 +148,6 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
             ? _machine.InputBuffer.GetAmount(RequiredItemId)
             : CurrentAmount;
 
-        // 아이콘이 아직 없으면 Resources 에서 로드
         if (current > 0 && iconImage != null && iconImage.sprite == null)
         {
             var sprite = Resources.Load<Sprite>("Icon/" + RequiredItemId);
