@@ -1,7 +1,7 @@
 // InventoryUIController.cs
-// InventoryRoot ¿ÀºêÁ§Æ®¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// TAB ¿­´İ±â / ÆĞ³Î °ü¸® / ½½·Ô ÀÌº¥Æ® Áß°è / ÀüºÎ º¸°ü ¹öÆ° Ã³¸®
-// IsInBase °¡ true ÀÏ ¶§¸¸ WarehousePanel ÀÌ Ç¥½ÃµÊ
+// InventoryRoot ê²Œì„ì˜¤ë¸Œì íŠ¸ì— ë¶™ì´ëŠ” ìŠ¤í¬ë¦½íŠ¸
+// TAB í‚¤ ë‹«ê¸° / íŒ¨ë„ ê´€ë¦¬ / ìŠ¬ë¡¯ ì´ë²¤íŠ¸ ì¶”ê°€ / ë²„ë¦¬ê¸° ë²„íŠ¼ ì²˜ë¦¬
+// IsInBase ê°€ true ì¼ ê²½ìš°ì—ë§Œ WarehousePanel ì´ í‘œì‹œë¨
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,54 +9,54 @@ using TMPro;
 
 public class InventoryUIController : MonoBehaviour
 {
-    // ½Ì±ÛÅæ ÀÎ½ºÅÏ½º (ContextMenuUI ¿¡¼­ Á¢±Ù)
+    // ì‹±ê¸€í†¤ ì¸ìŠ¤í„´ìŠ¤ (ContextMenuUI ë“±ì—ì„œ ì ‘ê·¼)
     public static InventoryUIController Instance { get; private set; }
 
-    [Header("·çÆ® ¿ÀºêÁ§Æ®")]
+    [Header("ë£¨íŠ¸ ê²Œì„ì˜¤ë¸Œì íŠ¸")]
     [SerializeField] private GameObject inventoryRoot;
 
-    [Header("ÆĞ³Î")]
+    [Header("íŒ¨ë„")]
     [SerializeField] private GameObject warehousePanel;
     [SerializeField] private GameObject bagPanel;
 
-    [Header("±×¸®µå UI")]
+    [Header("ê·¸ë¦¬ë“œ UI")]
     [SerializeField] private InventoryGridUI bagGridUI;
     [SerializeField] private InventoryGridUI warehouseGridUI;
 
-    [Header("Ä«Å×°í¸® ÇÊÅÍ")]
+    [Header("ì¹´í…Œê³ ë¦¬ í•„í„°")]
     [SerializeField] private CategoryFilterUI bagFilterUI;
     [SerializeField] private CategoryFilterUI warehouseFilterUI;
 
-    [Header("°¡¹æ ÆĞ³Î UI ¿ä¼Ò")]
+    [Header("ê°€ë°© íŒ¨ë„ UI ë²„íŠ¼")]
     [SerializeField] private TextMeshProUGUI capacityText;
     [SerializeField] private Button moveAllBtn;
     [SerializeField] private Button bagTrashBtn;
     [SerializeField] private Button bagCloseBtn;
 
-    [Header("Ã¢°í ÆĞ³Î UI ¿ä¼Ò")]
+    [Header("ì°½ê³  íŒ¨ë„ UI ë²„íŠ¼")]
     [SerializeField] private Button takeAllBtn;
 
-    [Header("ÆË¾÷")]
+    [Header("íŒì—…")]
     [SerializeField] private ContextMenuUI contextMenu;
     [SerializeField] private SplitStackPopupUI splitPopup;
     [SerializeField] private ConfirmPopupUI confirmPopup;
 
-    [Header("Ã¢°í Á¤·Ä ¹Ù")]
+    [Header("ì°½ê³  ì •ë ¬ ë°”")]
     [SerializeField] private SortBarUI sortBarUI;
 
-    [Header("¹ö¸®±â µå·Ó")]
+    [Header("ë“œë ì•„ì´í…œ í”„ë¦¬íŒ¹")]
     [SerializeField] private GameObject lootBoxPrefab;
 
-    [Header("ÅøÆÁ")]
+    [Header("íˆ´íŒ")]
     [SerializeField] private ItemTooltipUI tooltip;
 
-    // ÇöÀç ¼±ÅÃµÈ ½½·Ô
+    // í˜„ì¬ ì„ íƒëœ ìŠ¬ë¡¯
     private InventorySlotUI _selectedSlot;
 
-    // ÀÎº¥Åä¸® UI ¿­¸² ¿©ºÎ
+    // ì¸ë²¤í† ë¦¬ UI ì˜¤í”ˆ ìƒíƒœ
     private bool _isOpen = false;
 
-    // ±âÁö ³»ºÎ ¿©ºÎ (WarehouseInteractable ¿¡¼­ ¼³Á¤, ´İÀ» ¶§ ÀÚµ¿ ÃÊ±âÈ­)
+    // ê¸°ì§€ ë‚´ë¶€ ì—¬ë¶€ (WarehouseInteractable ë“±ì—ì„œ ì„¤ì •, ë‹«ì„ ë•Œ ìë™ ì´ˆê¸°í™”)
     public static bool IsInBase { get; set; } = false;
 
     private void Awake()
@@ -68,31 +68,31 @@ public class InventoryUIController : MonoBehaviour
 
     private void Start()
     {
-        // ÀÎº¥Åä¸® ¸Å´ÏÀú ¹ÙÀÎµù
+        // ì¸ë²¤í† ë¦¬ ë§¤ë‹ˆì € ë°”ì¸ë”©
         if (bagGridUI != null && InventoryManager.Instance != null)
             bagGridUI.Bind(InventoryManager.Instance);
 
         if (warehouseGridUI != null && InventoryManager.StorageInstance != null)
             warehouseGridUI.Bind(InventoryManager.StorageInstance);
 
-        // Ä«Å×°í¸® ÇÊÅÍ ÀÌº¥Æ® ¿¬°á
+        // ì¹´í…Œê³ ë¦¬ í•„í„° ì´ë²¤íŠ¸ ì—°ê²°
         if (bagFilterUI != null)
             bagFilterUI.OnFilterChanged += bagGridUI.SetFilter;
 
         if (warehouseFilterUI != null)
             warehouseFilterUI.OnFilterChanged += warehouseGridUI.SetFilter;
 
-        // ¹öÆ° ÀÌº¥Æ® µî·Ï
+        // ë²„íŠ¼ ì´ë²¤íŠ¸ ë“±ë¡
         if (moveAllBtn != null) moveAllBtn.onClick.AddListener(OnClickMoveAll);
         if (takeAllBtn != null) takeAllBtn.onClick.AddListener(OnClickTakeAll);
         if (bagTrashBtn != null) bagTrashBtn.onClick.AddListener(OnClickBagTrash);
         if (bagCloseBtn != null) bagCloseBtn.onClick.AddListener(Close);
 
-        // Ã¢°í Á¤·Ä ¹Ù ¹ÙÀÎµù
+        // ì°½ê³  ì •ë ¬ ë°” ë°”ì¸ë”©
         if (sortBarUI != null && InventoryManager.StorageInstance != null)
             sortBarUI.Bind(InventoryManager.StorageInstance, warehouseFilterUI);
 
-        // ½½·Ô Àü¿ª ÀÌº¥Æ® ±¸µ¶
+        // ìŠ¬ë¡¯ í´ë¦­ ì´ë²¤íŠ¸ ì—°ê²°
         InventorySlotUI.OnAnySlotClicked += OnSlotClicked;
         InventorySlotUI.OnAnySlotDoubleClicked += OnSlotDoubleClicked;
         InventorySlotUI.OnAnySlotRightClicked += OnSlotRightClicked;
@@ -111,48 +111,50 @@ public class InventoryUIController : MonoBehaviour
 
     private void Update()
     {
-        // TAB Å°·Î ÀÎº¥Åä¸® Åä±Û
+        // TAB í‚¤ë¡œ ì¸ë²¤í† ë¦¬ í† ê¸€ (DataBoot ì™„ë£Œ ì—¬ë¶€ì™€ ë¬´ê´€í•˜ê²Œ í•­ìƒ ì—´ ìˆ˜ ìˆìŒ)
         if (Input.GetKeyDown(KeyCode.Tab))
         {
-            if (DataBoot.IsLoaded)
-                Toggle();
+            Toggle();
             return;
         }
+        // ESCëŠ” GameUIController.HandleEscape()ê°€ TryCloseTopPopup() â†’ Close() ìˆœìœ¼ë¡œ ì²˜ë¦¬
 
-        // ESC Å°·Î ÆË¾÷ ¿ì¼± ´İ±â
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            if (splitPopup != null && splitPopup.IsOpen) { splitPopup.Close(); return; }
-            if (confirmPopup != null && confirmPopup.IsOpen) { confirmPopup.Close(); return; }
-            if (_isOpen) { Close(); return; }
-        }
-
-        // ContextMenu ¿ÜºÎ Å¬¸¯ °¨Áö
+        // ContextMenu ì™¸ë¶€ í´ë¦­ ê°ì§€
         if (contextMenu != null)
             contextMenu.TryCloseOnOutsideClick();
     }
 
-    // ÀÎº¥Åä¸® Åä±Û
+    // ì¸ë²¤í† ë¦¬ í† ê¸€
     public void Toggle()
     {
         if (_isOpen) Close();
         else Open();
     }
 
-    // ÀÎº¥Åä¸® ¿­±â
+    // ì¸ë²¤í† ë¦¬ ì—´ê¸°
     public void Open()
     {
-        if (inventoryRoot == null) return;
+        if (inventoryRoot == null)
+        {
+            Debug.LogError("[InventoryUI] inventoryRootê°€ ì¸ìŠ¤í™í„°ì— ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
+            return;
+        }
 
-        // ÇÃ·¹ÀÌ¾î ÀÔ·Â Â÷´Ü ¹× Ä¿¼­ Ç¥½Ã
-        PlayerInputComponent.IsBlocked = true;
-        Cursor.visible = true;
-        Cursor.lockState = CursorLockMode.None;
+        // ë‹¤ë¥¸ UIê°€ ì´ë¯¸ ì—´ë ¤ìˆìœ¼ë©´ ì°¨ë‹¨ (ì„¤ë¹„Â·ì„¤ì •Â·í€˜ìŠ¤íŠ¸Â·ê±´ì„¤ ëª¨ë“œ ë“±)
+        var gui = GameUIController.Instance;
+        if (gui != null && gui.IsUIBlocking())
+        {
+            Debug.Log($"[InventoryUI] Open ì°¨ë‹¨ â€” í˜„ì¬ UI ìƒíƒœ: {gui.GetCurrentState()}");
+            return;
+        }
+
+        // ì»¤ì„œÂ·ì…ë ¥ ì°¨ë‹¨ì€ GameUIControllerì— ìœ„ì„
+        gui?.SetState(GameUIController.UIState.Inventory);
 
         _isOpen = true;
         inventoryRoot.SetActive(true);
 
-        // ±âÁö ¾È¿¡¼­¸¸ Ã¢°í ÆĞ³Î Ç¥½Ã
+        // ì°½ê³  ì•ˆì—ì„œë§Œ ì°½ê³  íŒ¨ë„ í‘œì‹œ
         if (warehousePanel != null)
             warehousePanel.SetActive(IsInBase);
 
@@ -160,28 +162,41 @@ public class InventoryUIController : MonoBehaviour
             bagPanel.SetActive(true);
 
         RefreshCapacityText();
+        Debug.Log("[InventoryUI] ì¸ë²¤í† ë¦¬ ì—´ë¦¼");
+
+        // â”€â”€ ì§„ë‹¨: ë¶€ëª¨ ìº”ë²„ìŠ¤ / CanvasGroup ìƒíƒœ í™•ì¸ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        var parentCanvas = inventoryRoot.GetComponentInParent<Canvas>();
+        if (parentCanvas == null)
+            Debug.LogError("[InventoryUI] InventoryRoot ìœ„ì— Canvasê°€ ì—†ìŠµë‹ˆë‹¤!");
+        else
+            Debug.Log($"[InventoryUI] ë¶€ëª¨ Canvas='{parentCanvas.name}'  activeInHierarchy={parentCanvas.gameObject.activeInHierarchy}  sortOrder={parentCanvas.sortingOrder}  renderMode={parentCanvas.renderMode}");
+
+        var cg = inventoryRoot.GetComponent<CanvasGroup>();
+        if (cg != null)
+            Debug.Log($"[InventoryUI] InventoryRoot CanvasGroup  alpha={cg.alpha}  interactable={cg.interactable}  blocksRaycasts={cg.blocksRaycasts}");
+
+        if (bagPanel != null)
+            Debug.Log($"[InventoryUI] bagPanel active={bagPanel.activeSelf}  activeInHierarchy={bagPanel.activeInHierarchy}");
+        else
+            Debug.LogWarning("[InventoryUI] bagPanelì´ ì¸ìŠ¤í™í„°ì— ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤!");
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     }
 
-    // ÀÎº¥Åä¸® ´İ±â
+    // ì¸ë²¤í† ë¦¬ ë‹«ê¸°
     public void Close()
     {
         if (inventoryRoot == null) return;
 
-        // ÇÃ·¹ÀÌ¾î ÀÔ·Â º¹±¸ ¹× Ä¿¼­ ¼û±è
-        PlayerInputComponent.IsBlocked = false;
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
-
-        // Ã¢°í ¿­±â »óÅÂ ÃÊ±âÈ­ (´ÙÀ½ TAB ½Ã Ã¢°í°¡ ¶ßÁö ¾Êµµ·Ï)
+        // ì°½ê³  ì¬ì§„ì… í”Œë˜ê·¸ ì´ˆê¸°í™” (ë‹¤ìŒ TAB ì‹œ ì°½ê³ ê°€ ì—´ë¦¬ì§€ ì•Šë„ë¡)
         IsInBase = false;
 
         _isOpen = false;
 
-        // ÇÊÅÍ ÃÊ±âÈ­
+        // í•„í„° ì´ˆê¸°í™”
         bagFilterUI?.ResetToAll();
         warehouseFilterUI?.ResetToAll();
 
-        // ÆË¾÷ ´İ±â
+        // íŒì—… ë‹«ê¸°
         contextMenu?.Close();
         splitPopup?.Close();
         confirmPopup?.Close();
@@ -189,9 +204,23 @@ public class InventoryUIController : MonoBehaviour
 
         ClearSelection();
         inventoryRoot.SetActive(false);
+
+        // ì»¤ì„œÂ·ì…ë ¥ ë³µêµ¬ëŠ” GameUIControllerì— ìœ„ì„
+        GameUIController.Instance?.CloseAll();
     }
 
-    // ¿ë·® ÅØ½ºÆ® °»½Å
+    /// <summary>
+    /// ì—´ë ¤ìˆëŠ” íŒì—… ì¤‘ ìµœìƒìœ„ íŒì—… í•˜ë‚˜ë¥¼ ë‹«ìŠµë‹ˆë‹¤.
+    /// GameUIController.HandleEscape()ê°€ ESC ìš°ì„ ìˆœìœ„ ì²˜ë¦¬ì— ì‚¬ìš©í•©ë‹ˆë‹¤.
+    /// </summary>
+    public bool TryCloseTopPopup()
+    {
+        if (splitPopup != null && splitPopup.IsOpen) { splitPopup.Close(); return true; }
+        if (confirmPopup != null && confirmPopup.IsOpen) { confirmPopup.Close(); return true; }
+        return false;
+    }
+
+    // ìš©ëŸ‰ í…ìŠ¤íŠ¸ ê°±ì‹ 
     public void RefreshCapacityText()
     {
         if (capacityText == null || InventoryManager.Instance == null) return;
@@ -200,7 +229,7 @@ public class InventoryUIController : MonoBehaviour
         capacityText.text = used + "/" + max;
     }
 
-    // ½½·Ô ´ÜÀÏ Å¬¸¯ ÇÚµé·¯
+    // ë‹¨ì¼ ìŠ¬ë¡¯ í´ë¦­ í•¸ë“¤ëŸ¬
     private void OnSlotClicked(InventorySlotUI slot)
     {
         if (_selectedSlot != null && _selectedSlot != slot)
@@ -212,7 +241,7 @@ public class InventoryUIController : MonoBehaviour
         RefreshCapacityText();
     }
 
-    // ½½·Ô ´õºíÅ¬¸¯ ÇÚµé·¯ (¹İ´ë ÄÁÅ×ÀÌ³Ê·Î ÀÌµ¿)
+    // ìŠ¬ë¡¯ ë”ë¸”í´ë¦­ í•¸ë“¤ëŸ¬ (ë°˜ëŒ€ ì¸ë²¤í† ë¦¬ë¡œ ì´ë™)
     private void OnSlotDoubleClicked(InventorySlotUI slot)
     {
         if (slot == null || slot.IsEmpty) return;
@@ -223,14 +252,14 @@ public class InventoryUIController : MonoBehaviour
 
         if (owner == player)
         {
-            // °¡¹æ -> Ã¢°í (Ã¢°í ÆĞ³ÎÀÌ ¿­·ÁÀÖÀ» ¶§¸¸)
+            // ê°€ë°© -> ì°½ê³  (ì°½ê³  íŒ¨ë„ì´ ì—´ë ¤ìˆì„ ë•Œë§Œ ì´ë™)
             bool warehouseOpen = warehousePanel != null && warehousePanel.activeSelf;
             if (IsInBase && warehouseOpen && storage != null)
                 owner.MoveSlot(slot.SlotData.slotIndex, storage);
         }
         else if (owner == storage)
         {
-            // Ã¢°í -> °¡¹æ
+            // ì°½ê³  -> ê°€ë°©
             if (player != null)
                 owner.MoveSlot(slot.SlotData.slotIndex, player);
         }
@@ -239,26 +268,26 @@ public class InventoryUIController : MonoBehaviour
         RefreshCapacityText();
     }
 
-    // ½½·Ô ¿ìÅ¬¸¯ ÇÚµé·¯
+    // ìŠ¬ë¡¯ ìš°í´ë¦­ í•¸ë“¤ëŸ¬
     private void OnSlotRightClicked(InventorySlotUI slot)
     {
         OnSlotClicked(slot);
         contextMenu?.Open(slot, Input.mousePosition);
     }
 
-    // ÅøÆÁ Ç¥½Ã
+    // íˆ´íŒ í‘œì‹œ
     private void OnSlotHoverEnter(InventorySlotUI slot)
     {
         tooltip?.Show(slot);
     }
 
-    // ÅøÆÁ ¼û±è
+    // íˆ´íŒ ìˆ¨ê¹€
     private void OnSlotHoverExit(InventorySlotUI slot)
     {
         tooltip?.Hide();
     }
 
-    // ÀüºÎ º¸°ü (°¡¹æ ÇÊÅÍ ±âÁØ -> Ã¢°í)
+    // ì „ì²´ ì´ë™ (ê°€ë°© í•„í„° ì•„ì´í…œ -> ì°½ê³ )
     private void OnClickMoveAll()
     {
         var player = InventoryManager.Instance;
@@ -270,7 +299,7 @@ public class InventoryUIController : MonoBehaviour
         RefreshCapacityText();
     }
 
-    // ÀüºÎ ²¨³»±â (Ã¢°í ÇÊÅÍ ±âÁØ -> °¡¹æ)
+    // ì „ì²´ ê°€ì ¸ì˜¤ê¸° (ì°½ê³  í•„í„° ì•„ì´í…œ -> ê°€ë°©)
     private void OnClickTakeAll()
     {
         var player = InventoryManager.Instance;
@@ -282,14 +311,14 @@ public class InventoryUIController : MonoBehaviour
         RefreshCapacityText();
     }
 
-    // °¡¹æ ÇÏ´Ü ¹ö¸®±â ¹öÆ°
+    // ê°€ë°© í•˜ë‹¨ íœ´ì§€í†µ ë²„íŠ¼
     private void OnClickBagTrash()
     {
         if (_selectedSlot == null || _selectedSlot.IsEmpty) return;
         OpenTrashConfirm(_selectedSlot);
     }
 
-    // ºĞÇÒ ÆË¾÷ ¿­±â
+    // ë¶„í•  íŒì—… ì—´ê¸°
     public void OpenSplitPopup(InventorySlotUI slot)
     {
         if (splitPopup == null) return;
@@ -297,7 +326,7 @@ public class InventoryUIController : MonoBehaviour
         splitPopup.Open(slot);
     }
 
-    // ¹ö¸®±â È®ÀÎ ÆË¾÷ ¿­±â
+    // ë²„ë¦¬ê¸° í™•ì¸ íŒì—… ì—´ê¸°
     public void OpenTrashConfirm(InventorySlotUI slot)
     {
         if (confirmPopup == null || slot == null || slot.IsEmpty) return;
@@ -305,13 +334,13 @@ public class InventoryUIController : MonoBehaviour
         splitPopup?.Close();
 
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
-        string name = data != null ? data.itemName : "¾ÆÀÌÅÛ";
+        string name = data != null ? data.itemName : "ì•„ì´í…œ";
         int amount = slot.SlotData.amount;
         int itemId = slot.SlotData.itemId;
         int slotIdx = slot.SlotData.slotIndex;
         var owner = slot.Owner;
 
-        string message = name + " x" + amount + "°³¸¦ ¹ö¸®½Ã°Ú½À´Ï±î?";
+        string message = name + " x" + amount + "ê°œë¥¼ ë²„ë¦¬ì‹œê² ìŠµë‹ˆê¹Œ?";
 
         confirmPopup.Open(message, () =>
         {
@@ -322,12 +351,12 @@ public class InventoryUIController : MonoBehaviour
         });
     }
 
-    // ÇÃ·¹ÀÌ¾î ¾Õ¿¡ LootBox ½ºÆù (¹ö¸®±â)
+    // í”Œë ˆì´ì–´ ì•ì— LootBox ì†Œí™˜ (ì•„ì´í…œ ë“œë)
     private void SpawnDroppedItem(int itemId, int amount)
     {
         if (lootBoxPrefab == null)
         {
-            Debug.LogWarning("[InventoryUIController] LootBox ÇÁ¸®ÆÕÀÌ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù.");
+            Debug.LogWarning("[InventoryUIController] LootBox í”„ë¦¬íŒ¹ì´ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.");
             return;
         }
 
@@ -342,10 +371,10 @@ public class InventoryUIController : MonoBehaviour
             lootBox.Initialize(
                 new System.Collections.Generic.List<(int, int)> { (itemId, amount) });
         else
-            Debug.LogWarning("[InventoryUIController] ½ºÆùµÈ ÇÁ¸®ÆÕ¿¡ LootBox ÄÄÆ÷³ÍÆ®°¡ ¾ø½À´Ï´Ù.");
+            Debug.LogWarning("[InventoryUIController] ìƒì„±ëœ í”„ë¦¬íŒ¹ì— LootBox ì»´í¬ë„ŒíŠ¸ê°€ ì—†ìŠµë‹ˆë‹¤.");
     }
 
-    // ¼±ÅÃ ÇØÁ¦
+    // ì„ íƒ í•´ì œ
     private void ClearSelection()
     {
         if (_selectedSlot != null)

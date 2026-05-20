@@ -150,10 +150,8 @@ public class QuestPanelUI : MonoBehaviour
         }
     }
 
-    void Update()
-    {
-        if (Input.GetKeyDown(toggleKey)) ToggleCollapse();
-    }
+    // TAB 키 토글 제거 — TAB은 인벤토리(InventoryUIController)가 단독 사용
+    // 퀘스트 HUD 가시성은 GameUIController.ApplyState()가 CanvasGroup으로 관리
 
     public void ToggleCollapse()
     {

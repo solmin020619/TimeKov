@@ -31,7 +31,8 @@ public class MachineUI : MonoBehaviour
     public InventoryManager playerInventory;
 
     private ProcessingMachine _machine;
-    private readonly List<DraggableSlot> _invSlots = new();
+    // DraggableSlot → InventorySlotUI 로 전환 (등급 테두리·아이콘 표시 지원)
+    private readonly List<InventorySlotUI> _invSlots = new();
 
     // ── 공개 API ────────────────────────────────────────────
 
@@ -40,6 +41,10 @@ public class MachineUI : MonoBehaviour
         if (_machine != null) _machine.OnBufferChanged -= OnBufferChanged;
         _machine = machine;
         _machine.OnBufferChanged += OnBufferChanged;
+
+        // 인벤토리 변경 이벤트 구독
+        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        if (inv != null) inv.OnInventoryChanged += RefreshInventorySlots;
 
         uiPanel.SetActive(true);
         if (machineTitleText != null) machineTitleText.text = title;
@@ -52,6 +57,11 @@ public class MachineUI : MonoBehaviour
     public void Close()
     {
         if (_machine != null) _machine.OnBufferChanged -= OnBufferChanged;
+
+        // 인벤토리 변경 이벤트 구독 해제
+        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        if (inv != null) inv.OnInventoryChanged -= RefreshInventorySlots;
+
         _machine = null;
         uiPanel.SetActive(false);
     }
@@ -63,12 +73,22 @@ public class MachineUI : MonoBehaviour
 
     private void BuildInventorySlots()
     {
-        if (_invSlots.Count == 0)
+        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        int slotCount = inv != null ? inv.GetMaxSlots() : inventorySlotCount;
+
+        // 슬롯 수가 다르면 기존 슬롯 제거 후 재생성
+        if (_invSlots.Count != slotCount)
         {
-            for (int i = 0; i < inventorySlotCount; i++)
+            foreach (var s in _invSlots)
+                if (s != null) Destroy(s.gameObject);
+            _invSlots.Clear();
+
+            for (int i = 0; i < slotCount; i++)
             {
                 var go = Instantiate(inventorySlotPrefab, inventorySlotParent);
-                var slot = go.GetComponent<DraggableSlot>();
+                var slot = go.GetComponent<InventorySlotUI>();
+                if (slot == null)
+                    Debug.LogError("[MachineUI] inventorySlotPrefab에 InventorySlotUI 컴포넌트가 없습니다!");
                 _invSlots.Add(slot);
             }
         }
@@ -79,11 +99,22 @@ public class MachineUI : MonoBehaviour
     public void RefreshInventorySlots()
     {
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
-        if (inv == null) { foreach (var slot in _invSlots) slot.Clear(); return; }
+        if (inv == null)
+        {
+            // 인벤토리 없으면 전부 빈 슬롯으로
+            foreach (var slot in _invSlots)
+                slot?.Refresh(null, null);
+            return;
+        }
 
-        // 인벤토리 슬롯 데이터 반영 — InventoryManager가 슬롯 열거를 지원하면 여기서 채워넣는다
-        foreach (var slot in _invSlots) slot.Clear();
-        inv.ForceRefreshUI();
+        var slots = inv.GetSlots();
+        for (int i = 0; i < _invSlots.Count; i++)
+        {
+            if (_invSlots[i] == null) continue;
+            // InventorySlotUI.Refresh()가 아이콘·등급 테두리·수량 모두 처리
+            InventorySlot slotData = i < slots.Count ? slots[i] : null;
+            _invSlots[i].Refresh(slotData, inv);
+        }
     }
 
     // ── 재료 슬롯 ───────────────────────────────────────────
@@ -203,7 +234,6 @@ public class MachineUI : MonoBehaviour
                 inv?.AddItem(kv.Key, kv.Value);
         }
 
-        inv?.ForceRefreshUI();
         _machine.PublicNotifyBufferChanged();
         RefreshInventorySlots();
         RefreshOutputSlots();

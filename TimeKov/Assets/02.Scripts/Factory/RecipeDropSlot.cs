@@ -9,9 +9,20 @@ using TIMEKOV.Factory;
 public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerExitHandler
 {
     [SerializeField] private Image iconImage;
-    [SerializeField] private Image borderImage;
+    [SerializeField] private Image borderImage;   // 드래그 hover glow 전용
+    [SerializeField] private Image rarityBorder;  // 등급 테두리 색상 전용
     [SerializeField] private TextMeshProUGUI amountText;
     [SerializeField] private TextMeshProUGUI labelText;
+
+    // InventorySlotUI 와 동일한 등급 색상 배열
+    private static readonly Color[] GradeColors = new Color[]
+    {
+        new Color(0.60f, 0.60f, 0.60f, 1f),  // Common   - 회색
+        new Color(0.30f, 0.55f, 0.90f, 1f),  // Advanced - 파랑
+        new Color(0.20f, 0.75f, 0.40f, 1f),  // Rare     - 초록
+        new Color(0.65f, 0.30f, 0.90f, 1f),  // Hero     - 보라
+        new Color(0.95f, 0.55f, 0.10f, 1f),  // Legend   - 황금
+    };
 
     public int RequiredItemId { get; private set; }
     public int RequiredAmount { get; private set; }
@@ -41,18 +52,40 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         _machine = machine;
         _inventory = inventory != null ? inventory : InventoryManager.Instance;
 
-        if (iconImage != null) { iconImage.sprite = null; iconImage.enabled = false; }
-        if (amountText != null) amountText.text = "";
         if (labelText != null) labelText.text = "";
         SetBorderAlpha(0f);
+
+        // 필요 아이템 아이콘과 등급 테두리를 항상 표시
+        var itemData = GameDataUtility.GetItem(itemId);
+        if (iconImage != null)
+        {
+            Sprite sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
+            iconImage.sprite = sprite;
+            iconImage.color = sprite != null ? Color.white : new Color(1f, 1f, 1f, 0.3f);
+            iconImage.enabled = true;
+        }
+        if (rarityBorder != null)
+        {
+            if (itemData != null)
+            {
+                int gradeIndex = Mathf.Clamp((int)itemData.itemGrade, 0, GradeColors.Length - 1);
+                rarityBorder.color = GradeColors[gradeIndex];
+            }
+            else
+            {
+                rarityBorder.color = new Color(0f, 0f, 0f, 0f);
+            }
+        }
 
         PublicRefresh();
     }
 
     public void OnPointerEnter(PointerEventData e)
     {
-        if (!DraggableSlot.IsDragging) return;
-        if (labelText != null) labelText.text = "��� �ֱ�";
+        // DraggableSlot → InventoryDragHandler 로 드래그 감지 전환
+        bool isDragging = InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging;
+        if (!isDragging) return;
+        if (labelText != null) labelText.text = "재료 넣기";
         StartGlow();
     }
 
@@ -68,24 +101,34 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         if (labelText != null) labelText.text = "";
         StopGlow();
         SetBorderAlpha(0f);
-
-        var slot = e.pointerDrag?.GetComponent<DraggableSlot>();
-        if (slot == null || !slot.HasItem) return;
         if (_machine == null) return;
-        if (slot.ItemId != RequiredItemId) return;
 
-        int have = _inventory != null ? _inventory.GetTotalItemCount(slot.ItemId) : slot.Amount;
+        // InventoryDragHandler에서 드래그된 InventorySlotUI 슬롯 가져오기
+        var handler = InventoryDragHandler.Instance;
+        if (handler == null || !handler.IsDragging) return;
+
+        var draggedSlot = handler.DraggedSlot;
+        if (draggedSlot == null || draggedSlot.IsEmpty) return;
+
+        int itemId  = draggedSlot.SlotData.itemId;
+        int dragAmt = draggedSlot.SlotData.amount;
+
+        if (itemId != RequiredItemId) return;
+
+        int have = _inventory != null ? _inventory.GetTotalItemCount(itemId) : dragAmt;
         if (have <= 0) return;
-        int take = Mathf.Min(slot.Amount, have);
+
+        int take = Mathf.Min(dragAmt, have);
         if (_inventory != null)
         {
-            _inventory.TryConsumeItem(slot.ItemId, take);
+            _inventory.TryConsumeItem(itemId, take);
             _inventory.ForceRefreshUI();
         }
-        _machine.Receive(slot.ItemId, take);
+        _machine.Receive(itemId, take);
 
         CurrentAmount += take;
         RefreshAmount();
+        // OnEndDrag → InventoryDragHandler.EndDrag() 가 자동 호출되므로 별도 호출 불필요
     }
 
     private void StartGlow()
@@ -127,17 +170,10 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         if (_machine == null) return;
 
         int current = _machine.InputBuffer.GetAmount(RequiredItemId);
-        if (current <= 0)
-        {
-            CurrentAmount = 0;
-            if (iconImage != null) { iconImage.sprite = null; iconImage.enabled = false; }
-            if (amountText != null) amountText.text = "";
-        }
-        else
-        {
-            CurrentAmount = current;
-            RefreshAmount();
-        }
+        CurrentAmount = current;
+        // 아이콘은 Setup()에서 항상 표시되므로 수량 텍스트만 갱신
+        if (amountText != null)
+            amountText.text = $"{current}/{RequiredAmount}";
     }
 
     private void RefreshAmount()
@@ -145,17 +181,6 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         int current = _machine != null
             ? _machine.InputBuffer.GetAmount(RequiredItemId)
             : CurrentAmount;
-
-        if (current > 0 && iconImage != null && iconImage.sprite == null)
-        {
-            var itemData = GameDataUtility.GetItem(RequiredItemId);
-            Sprite sprite = null;
-            if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
-                sprite = Resources.Load<Sprite>("Icon/" + itemData.iconKey);
-            iconImage.sprite = sprite;
-            iconImage.color = Color.white;
-            iconImage.enabled = sprite != null;
-        }
 
         if (amountText != null)
             amountText.text = $"{current}/{RequiredAmount}";

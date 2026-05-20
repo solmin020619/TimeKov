@@ -2,27 +2,29 @@ using UnityEngine;
 
 public class PlayerInputComponent : MonoBehaviour
 {
-    public Vector2 MoveInput     { get; private set; }  // WASD ÀÌµ¿ ÀÔ·Â
-    public bool    JumpPressed   { get; private set; }  // Á¡ÇÁ ÀÔ·Â
-    public bool    AttackPressed { get; private set; }  // ±âº» °ø°İ ÀÔ·Â (ÁÂÅ¬¸¯)
-    public bool    DashPressed   { get; private set; }  // ´ë½Ã ÀÔ·Â (¿ìÅ¬¸¯)
-    public bool    Skill1Pressed { get; private set; }  // Q ½ºÅ³ ÀÔ·Â
-    public bool    Skill2Pressed { get; private set; }  // E ½ºÅ³ ÀÔ·Â
-    public bool    Skill3Pressed { get; private set; }  // R ½ºÅ³ ÀÔ·Â
-    public bool InteractPressed { get; private set; } // »óÈ£ÀÛ¿ë ÀÔ·Â (FÅ°)
+    public Vector2 MoveInput     { get; private set; }  // WASD ï¿½Ìµï¿½ ï¿½Ô·ï¿½
+    public bool    JumpPressed   { get; private set; }  // ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½
+    public bool    AttackPressed { get; private set; }  // ï¿½âº» ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ (ï¿½ï¿½Å¬ï¿½ï¿½)
+    public bool    DashPressed   { get; private set; }  // ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ (ï¿½ï¿½Å¬ï¿½ï¿½)
+    public bool    Skill1Pressed { get; private set; }  // Q ï¿½ï¿½Å³ ï¿½Ô·ï¿½
+    public bool    Skill2Pressed { get; private set; }  // E ï¿½ï¿½Å³ ï¿½Ô·ï¿½
+    public bool    Skill3Pressed { get; private set; }  // R ï¿½ï¿½Å³ ï¿½Ô·ï¿½
+    public bool InteractPressed { get; private set; } // ï¿½ï¿½È£ï¿½Û¿ï¿½ ï¿½Ô·ï¿½ (FÅ°)
 
-    public static bool IsBlocked = false; // UI¿ë ÇÃ·¡±×
+    public static bool IsBlocked = false; // UIï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½
 
     void Update()
     {
-        if (IsBlocked) // UI ¿­¸®¸é ¸ğµç ÀÔ·Â Â÷´Ü
+        if (IsBlocked) // UI ì—´ë¦¼ ì‹œ ëª¨ë“  ì…ë ¥ ì°¨ë‹¨
         {
             MoveInput = Vector2.zero;
             JumpPressed = false;
             AttackPressed = false;
+            DashPressed = false;
             Skill1Pressed = false;
             Skill2Pressed = false;
             Skill3Pressed = false;
+            InteractPressed = false;  // ëˆ„ë½ â€” ë¯¸ì´ˆê¸°í™” ì‹œ true ê³ ì°©ë˜ì–´ ì°½ê³ /ì„¤ë¹„ ìŠ¤íŒ¸ ì—´ë¦¼ ë°œìƒ
             return;
         }
 

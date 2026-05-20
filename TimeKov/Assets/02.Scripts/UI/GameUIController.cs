@@ -21,7 +21,8 @@ public class GameUIController : MonoBehaviour
         Settings,   // ESC로 열리는 설정·일시정지 통합창
         Factory,    // 설비 UI (MachineInteraction이 직접 관리)
         Build,      // 건설 모드 (BuildManager가 직접 관리)
-        Quest       // 퀘스트 수락/조회 팝업 (J키)
+        Quest,      // 퀘스트 수락/조회 팝업 (J키)
+        Inventory   // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
     }
 
     [Header("Settings Panel")]
@@ -87,6 +88,15 @@ public class GameUIController : MonoBehaviour
         // 건설 모드 ESC는 BuildManager가 처리
         if (_buildManager != null && _buildManager.IsBuildMode)
             return;
+
+        // 인벤토리 — 팝업 우선 닫기, 없으면 인벤토리 닫기
+        if (_currentState == UIState.Inventory)
+        {
+            var inv = InventoryUIController.Instance;
+            if (inv != null && inv.TryCloseTopPopup()) return;
+            inv?.Close();   // Close()가 CloseAll()을 호출해 상태를 None으로 복귀
+            return;
+        }
 
         if (_currentState == UIState.None)
         {
@@ -208,6 +218,7 @@ public class GameUIController : MonoBehaviour
     private void SetGameplayInputEnabled(bool enabled)
     {
         GameplayInputEnabled = enabled;
+        PlayerInputComponent.IsBlocked = !enabled;  // 인벤토리 등 UI 오픈 시 플레이어 입력 차단
         Cursor.visible = !enabled;
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
     }

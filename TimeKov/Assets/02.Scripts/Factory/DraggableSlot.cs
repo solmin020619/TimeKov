@@ -39,7 +39,7 @@ public class DraggableSlot : MonoBehaviour,
             {
                 var itemData = GameDataUtility.GetItem(itemId);
                 if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
-                    sprite = Resources.Load<Sprite>("Icon/" + itemData.iconKey);
+                    sprite = ItemDatabase.GetIcon(itemData.iconKey);  // Resources/Items/ 경로 통일
             }
             iconImage.sprite = sprite;
             iconImage.enabled = sprite != null;

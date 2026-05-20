@@ -1,7 +1,7 @@
 // =====================================================================
 // MachineSlotWidget.cs
-// ¼³ºñ Ãâ·Â ½½·Ô À§Á¬
-// ±¸¹öÀü DataStore.GetItem À» »õ ½ºÅ°¸¶·Î ±³Ã¼
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DataStore.GetItem ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Å°ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼
 // =====================================================================
 
 using System;
@@ -15,8 +15,19 @@ namespace TIMEKOV.Factory
     public class MachineSlotWidget : MonoBehaviour, IPointerClickHandler
     {
         [SerializeField] private Image iconImage;
+        [SerializeField] private Image rarityBorder;
         [SerializeField] private TextMeshProUGUI itemNameText;
         [SerializeField] private TextMeshProUGUI amountText;
+
+        // InventorySlotUI ì™€ ë™ì¼í•œ ë“±ê¸‰ ìƒ‰ìƒ ë°°ì—´
+        private static readonly Color[] GradeColors = new Color[]
+        {
+            new Color(0.60f, 0.60f, 0.60f, 1f),  // Common   - íšŒìƒ‰
+            new Color(0.30f, 0.55f, 0.90f, 1f),  // Advanced - íŒŒë‘
+            new Color(0.20f, 0.75f, 0.40f, 1f),  // Rare     - ì´ˆë¡
+            new Color(0.65f, 0.30f, 0.90f, 1f),  // Hero     - ë³´ë¼
+            new Color(0.95f, 0.55f, 0.10f, 1f),  // Legend   - í™©ê¸ˆ
+        };
 
         private Action _onClick;
         private Action _onDoubleClick;
@@ -28,14 +39,24 @@ namespace TIMEKOV.Factory
             var itemData = GameDataUtility.GetItem(itemId);
             string name = itemData != null ? itemData.itemName : itemId.ToString();
 
+            // ì•„ì´ì½˜ ë¡œë“œ (ItemDatabase ê²½ë¡œ í†µì¼)
             Sprite sprite = null;
             if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
-                sprite = Resources.Load<Sprite>("Icon/" + itemData.iconKey);
+                sprite = ItemDatabase.GetIcon(itemData.iconKey);
 
             if (iconImage != null)
             {
                 iconImage.sprite = sprite;
-                iconImage.enabled = sprite != null;
+                iconImage.color = sprite != null ? Color.white : new Color(1f, 1f, 1f, 0.3f);
+                iconImage.enabled = true;
+            }
+
+            // ë“±ê¸‰ í…Œë‘ë¦¬ ìƒ‰ìƒ
+            if (rarityBorder != null)
+            {
+                int gradeIndex = itemData != null ? (int)itemData.itemGrade : 0;
+                gradeIndex = Mathf.Clamp(gradeIndex, 0, GradeColors.Length - 1);
+                rarityBorder.color = GradeColors[gradeIndex];
             }
 
             if (itemNameText != null)
