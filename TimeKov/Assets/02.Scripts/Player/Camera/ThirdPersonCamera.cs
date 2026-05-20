@@ -59,7 +59,8 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleRotation()
     {
-        if (IsUIOpen) return;
+        // IsUIOpen 또는 GameUIController 기준 둘 다 차단
+        if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
 
         // ���콺 �Է� �״�� ���� -> Slerp ����
         _yaw += Input.GetAxis("Mouse X") * SensitivityX;
@@ -73,7 +74,7 @@ public class ThirdPersonCamera : MonoBehaviour
     void HandleZoom()
     {
         // UI가 열려있는 동안 줌 차단
-        if (IsUIOpen) return;
+        if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
 
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         _targetDist = Mathf.Clamp(

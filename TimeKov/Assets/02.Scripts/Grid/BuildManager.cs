@@ -345,6 +345,10 @@ public class BuildManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.B))
         {
+            // 다른 UI가 열려있으면 건설 모드 진입 차단
+            if (!IsBuildMode && GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
+                return;
+
             IsBuildMode = !IsBuildMode;
 
             if (!IsBuildMode)

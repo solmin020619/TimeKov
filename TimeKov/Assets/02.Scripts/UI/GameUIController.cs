@@ -67,7 +67,13 @@ public class GameUIController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.J))
             ToggleQuest();
+    }
 
+    // LateUpdate에서 커서 상태를 강제 적용
+    // — ESC 키를 누르면 Unity 에디터가 Update() 이후 커서를 강제 해제하므로
+    //   LateUpdate에서 덮어써야 ESC로 닫아도 커서가 정상적으로 사라짐
+    protected virtual void LateUpdate()
+    {
         RefreshCursorState();
     }
 
@@ -205,8 +211,8 @@ public class GameUIController : MonoBehaviour
             playerHud.SetActive(_currentState == UIState.None);
 
         // 커서 + 입력 플래그
-        // Build / Quest 모드는 커서가 필요하지만 게임 시간은 유지
-        bool gameplay = _currentState == UIState.None || _currentState == UIState.Build;
+        // None 상태일 때만 게임플레이 입력 활성화 (Build 포함 모든 UI 오픈 시 플레이어 차단)
+        bool gameplay = _currentState == UIState.None;
         SetGameplayInputEnabled(gameplay);
 
         // 설정창이 열릴 때만 시간 정지

@@ -5,22 +5,22 @@ using UnityEngine;
 public class PlayerMovementComponent : MonoBehaviour
 {
     [Header("Speed")]
-    public float MoveSpeed = 5f;      // ±âº» ÀÌµ¿ ¼Óµµ
-    public float SprintSpeed = 8f;      // ´Ş¸®±â ¼Óµµ
+    public float MoveSpeed = 5f;      // ï¿½âº» ï¿½Ìµï¿½ ï¿½Óµï¿½
+    public float SprintSpeed = 8f;      // ï¿½Ş¸ï¿½ï¿½ï¿½ ï¿½Óµï¿½
 
     [Header("Jump")]
-    public float JumpHeight = 2f;   // Á¡ÇÁ ³ôÀÌ
-    public float Gravity = -20f; // Áß·Â °ª
-    public float FallMultiplier = 2.5f; // ÇÏ°­ ½Ã Áß·Â ¹è¼ö
-    public float JumpBufferTime = 0.1f; // Á¡ÇÁ ÀÔ·Â À¯¿¹ ½Ã°£
+    public float JumpHeight = 2f;   // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    public float Gravity = -20f; // ï¿½ß·ï¿½ ï¿½ï¿½
+    public float FallMultiplier = 2.5f; // ï¿½Ï°ï¿½ ï¿½ï¿½ ï¿½ß·ï¿½ ï¿½ï¿½ï¿½
+    public float JumpBufferTime = 0.1f; // ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½
 
     [Header("Movement")]
-    public float RotSpeed = 10f;        // È¸Àü ¼Óµµ
+    public float RotSpeed = 10f;        // È¸ï¿½ï¿½ ï¿½Óµï¿½
 
     [Header("Ground Check")]
-    public float GroundCheckRadius = 0.25f; // Áö¸é °¨Áö ±¸Ã¼ ¹İ°æ
-    public float GroundCheckOffset = 0.05f; // Áö¸é °¨Áö ¿ÀÇÁ¼Â
-    public LayerMask GroundMask;                 // Áö¸é ·¹ÀÌ¾î ¸¶½ºÅ©
+    public float GroundCheckRadius = 0.25f; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ ï¿½İ°ï¿½
+    public float GroundCheckOffset = 0.05f; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    public LayerMask GroundMask;                 // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¾ï¿½ ï¿½ï¿½ï¿½ï¿½Å©
 
     private Player _player;
     private Rigidbody _rb;
@@ -36,7 +36,7 @@ public class PlayerMovementComponent : MonoBehaviour
     private float _currentSpeed;
     private bool _isJumping;
     private bool _movementLocked;
-    private bool _ignoreMovementInput;  // Àá±İ ÇØÁ¦ Á÷ÈÄ ÀÌµ¿ ¹«½Ã ÇÃ·¡±× Ãß°¡
+    private bool _ignoreMovementInput;  // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½ ï¿½ß°ï¿½
 
 
     // Slash
@@ -44,10 +44,10 @@ public class PlayerMovementComponent : MonoBehaviour
     private float _slashTimer;
     private float _slashForce;
 
-    public float CurrentSpeed => _currentSpeed;  // ÇöÀç ÀÌµ¿ ¼Óµµ
-    public bool IsGrounded => _isGrounded;     // Áö¸é ¿©ºÎ
-    public bool IsJumping => _isJumping;      // Á¡ÇÁ Áß ¿©ºÎ
-    public bool IsSlashing => _isSlashing;     // ½½·¡½Ã Áß ¿©ºÎ
+    public float CurrentSpeed => _currentSpeed;  // ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½Óµï¿½
+    public bool IsGrounded => _isGrounded;     // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    public bool IsJumping => _isJumping;      // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    public bool IsSlashing => _isSlashing;     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
     void Awake()
     {
@@ -87,10 +87,12 @@ public class PlayerMovementComponent : MonoBehaviour
 
         _isGrounded = Physics.CheckSphere(origin, GroundCheckRadius, GroundMask);
 
+        bool jumpHeld = !PlayerInputComponent.IsBlocked && Input.GetButton("Jump");
+
         if (!_wasGrounded && _isGrounded)
         {
             _isJumping = false;
-            if (!Input.GetButton("Jump")) _canJump = true;
+            if (!jumpHeld) _canJump = true;
         }
         else if (_wasGrounded && !_isGrounded)
         {
@@ -98,12 +100,20 @@ public class PlayerMovementComponent : MonoBehaviour
         }
         else
         {
-            if (_isGrounded && Input.GetButtonUp("Jump")) _canJump = true;
+            if (_isGrounded && !PlayerInputComponent.IsBlocked && Input.GetButtonUp("Jump"))
+                _canJump = true;
         }
     }
 
     void HandleJumpInput()
     {
+        // UI ì—´ë ¤ìˆìœ¼ë©´ ì í”„ ì…ë ¥ ë¬´ì‹œ, ë²„í¼ë„ ì´ˆê¸°í™”
+        if (PlayerInputComponent.IsBlocked)
+        {
+            _jumpBufferCounter = 0f;
+            return;
+        }
+
         if (Input.GetButtonDown("Jump") && _isGrounded && _canJump)
             _jumpBufferCounter = JumpBufferTime;
         else
@@ -129,7 +139,7 @@ public class PlayerMovementComponent : MonoBehaviour
         _isGrounded = false;
         _isJumping = true;
 
-        // Á¡ÇÁ ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½
         _player.Anim.PlayJump();
     }
 
@@ -148,7 +158,7 @@ public class PlayerMovementComponent : MonoBehaviour
         if (_slashTimer <= 0)
         {
             _isSlashing = false;
-            // LockMovement ÇØÁ¦´Â Attack3Skill ÄÚ·çÆ¾ ³¡¿¡¼­ Ã³¸®
+            // LockMovement ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Attack3Skill ï¿½Ú·ï¿½Æ¾ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½
             _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
         }
     }
@@ -157,7 +167,7 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_movementLocked) return;
 
-        // Àá±İ ÇØÁ¦ Á÷ÈÄ ÇÑ ÇÁ·¹ÀÓ ÀÌµ¿ ¹«½Ã
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
         if (_ignoreMovementInput)
         {
             _ignoreMovementInput = false;
@@ -165,7 +175,8 @@ public class PlayerMovementComponent : MonoBehaviour
             return;
         }
 
-        bool isSprinting = Input.GetKey(KeyCode.LeftShift)
+        bool isSprinting = !PlayerInputComponent.IsBlocked
+                        && Input.GetKey(KeyCode.LeftShift)
                         && _player.Stat.TryDrainSprintStamina()
                         && _moveDir.magnitude > 0.1f;
 
@@ -196,7 +207,7 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void HandleRotation()
     {
-        // ÀÌµ¿ Àá±İ Áß¿£ È¸Àüµµ ¸·À½
+        // ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ ï¿½ß¿ï¿½ È¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (_movementLocked) return;
         if (_moveDir.magnitude < 0.1f) return;
 
@@ -224,11 +235,11 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         _movementLocked = isLocked;
 
-        // Àá±İ ÇØÁ¦ ½Ã ¼Óµµ ÃÊ±âÈ­
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Óµï¿½ ï¿½Ê±ï¿½È­
         if (!isLocked)
         {
             _currentSpeed = 0f;
-            _ignoreMovementInput = true;   // ÇØÁ¦ Á÷ÈÄ ÇÑ ÇÁ·¹ÀÓ ÀÌµ¿ ¹«½Ã
+            _ignoreMovementInput = true;   // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
             _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
         }
     }
@@ -236,7 +247,7 @@ public class PlayerMovementComponent : MonoBehaviour
     public void AddForce(Vector3 force, ForceMode mode = ForceMode.Impulse)
         => _rb.AddForce(force, mode);
 
-    // ´ë½Ã ¹æÇâ ¹İÈ¯, Ä«¸Ş¶ó ±âÁØ ÇöÀç ÀÌµ¿ ¹æÇâ
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯, Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
     public Vector3 GetDashDirection()
     {
         return _moveDir.magnitude > 0.1f ? _moveDir : transform.forward;
