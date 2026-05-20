@@ -1253,9 +1253,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2742453934257963282, guid: fb3aada1dda623541b4ce1dd24456f5b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2676384602787318943}
-    - targetCorrespondingSourceObject: {fileID: 2742453934257963282, guid: fb3aada1dda623541b4ce1dd24456f5b, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1934968835015586848}
   m_SourcePrefab: {fileID: 100100000, guid: fb3aada1dda623541b4ce1dd24456f5b, type: 3}
 --- !u!1 &435106333483884010 stripped
 GameObject:
@@ -1276,6 +1273,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   outputBelt: {fileID: 0}
   inputBelt: {fileID: 0}
+  outputPort: {fileID: 0}
+  inputPort: {fileID: 0}
+  machineName: "\uC124\uBE44"
   recipes:
   - inputs:
     - itemId: 3101
@@ -1301,20 +1301,6 @@ MonoBehaviour:
   statusText: {fileID: 0}
   progressBar: {fileID: 0}
   uiRoot: {fileID: 0}
---- !u!114 &1934968835015586848
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 435106333483884010}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 957edbdf60908af48875029a2e35aeed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  machine: {fileID: -3844649127117331285}
-  machineName: "\uC124\uBE44"
 --- !u!4 &955359379306317648 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3262004701203389352, guid: fb3aada1dda623541b4ce1dd24456f5b, type: 3}

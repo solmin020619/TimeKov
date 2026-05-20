@@ -437,9 +437,8 @@ GameObject:
   - component: {fileID: 2042277041489753729}
   - component: {fileID: -3225636911636722416}
   - component: {fileID: -684623450537630322}
-  - component: {fileID: 7011455665767219567}
   m_Layer: 17
-  m_Name: Ammunition Press
+  m_Name: "\uC0DD\uCCB4 \uCD94\uCD9C\uAE30"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -484,14 +483,26 @@ MonoBehaviour:
   inputBelt: {fileID: 0}
   outputPort: {fileID: 7240074037788742865}
   inputPort: {fileID: 253900162022083829}
+  machineName: "\uC124\uBE44"
   recipes:
   - inputs:
-    - itemId: 3101
+    - itemId: 1101
+      amount: 2
+    - itemId: 1102
       amount: 1
     outputs:
-    - itemId: 3101
+    - itemId: 1201
       amount: 1
-    processingTime: 2
+    processingTime: 8
+  - inputs:
+    - itemId: 1103
+      amount: 3
+    - itemId: 1104
+      amount: 1
+    outputs:
+    - itemId: 1202
+      amount: 1
+    processingTime: 8
 --- !u!114 &-684623450537630322
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -505,24 +516,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   machine: {fileID: -3225636911636722416}
-  machineName: 123
+  machineName: "\uC0DD\uCCB4 \uCD94\uCD9C\uAE30"
   statusText: {fileID: 0}
   progressBar: {fileID: 0}
   uiRoot: {fileID: 0}
---- !u!114 &7011455665767219567
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5633567996315660519}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 957edbdf60908af48875029a2e35aeed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  machine: {fileID: -3225636911636722416}
-  machineName: "\uC124\uBE44"
 --- !u!1 &7065593423420768366
 GameObject:
   m_ObjectHideFlags: 0
