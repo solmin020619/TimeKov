@@ -31,6 +31,9 @@ public class CategoryFilterUI : MonoBehaviour
     // 현재 선택된 카테고리 (null = 전체)
     private ItemCategory? _current = null;
 
+    // 현재 선택된 카테고리 외부 읽기용 프로퍼티
+    public ItemCategory? CurrentFilter => _current;
+
     // 현재 선택된 버튼 인덱스 (0 = 전체)
     private int _selectedIndex = 0;
 

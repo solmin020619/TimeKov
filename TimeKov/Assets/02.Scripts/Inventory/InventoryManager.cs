@@ -329,63 +329,217 @@ public class InventoryManager : MonoBehaviour
     }
 
     // 같은 인벤토리 내 두 슬롯 교환 (드래그앤드롭)
+    // 같은 아이템이면 maxStack 까지 병합, 대상이 maxStack 이면 스왑
     public void SwapSlots(int fromIndex, int toIndex)
     {
         if (fromIndex == toIndex) return;
 
         var from = GetSlot(fromIndex);
         var to = GetSlot(toIndex);
-        if (from == null || to == null) return;
-
-        // 임시 저장 후 교환
-        int tempId = from.itemId;
-        int tempAmount = from.amount;
-        bool tempNew = from.isNew;
-
-        if (to.IsEmpty)
-        {
-            from.Clear();
-        }
-        else
-        {
-            from.Set(to.itemId, to.amount, to.isNew);
-        }
-
-        to.Set(tempId, tempAmount, tempNew);
-        if (tempId < 0) to.Clear();
-
-        OnInventoryChanged?.Invoke();
-    }
-
-    // 다른 인벤토리의 특정 슬롯으로 이동 (드래그앤드롭)
-    // 대상 슬롯이 비어있으면 이동, 아이템 있으면 교환
-    public void MoveSlotTo(int fromIndex, InventoryManager other, int toIndex)
-    {
-        var from = GetSlot(fromIndex);
-        var to = other.GetSlot(toIndex);
-        if (from == null || to == null) return;
-        if (from.IsEmpty) return;
+        if (from == null || to == null || from.IsEmpty) return;
 
         if (to.IsEmpty)
         {
             // 빈 슬롯으로 이동
             to.Set(from.itemId, from.amount, from.isNew);
             from.Clear();
+        }
+        else if (to.itemId == from.itemId)
+        {
+            // 같은 아이템: 병합 시도
+            var data = ItemDatabase.GetItem(from.itemId);
+            int maxStack = data != null ? data.maxStack : 999;
 
-            // 대상 인벤토리도 반드시 갱신
+            if (to.amount >= maxStack)
+            {
+                // 대상이 이미 maxStack: 스왑
+                int tempId = from.itemId;
+                int tempAmount = from.amount;
+                bool tempNew = from.isNew;
+                from.Set(to.itemId, to.amount, to.isNew);
+                to.Set(tempId, tempAmount, tempNew);
+            }
+            else
+            {
+                // maxStack 까지 채우고 초과분은 원본에 유지
+                int canAdd = maxStack - to.amount;
+                int adding = Mathf.Min(canAdd, from.amount);
+                to.amount += adding;
+                from.amount -= adding;
+                if (from.amount <= 0) from.Clear();
+            }
+        }
+        else
+        {
+            // 다른 아이템: 스왑
+            int tempId = from.itemId;
+            int tempAmount = from.amount;
+            bool tempNew = from.isNew;
+            from.Set(to.itemId, to.amount, to.isNew);
+            to.Set(tempId, tempAmount, tempNew);
+            if (from.itemId < 0) from.Clear();
+        }
+
+        OnInventoryChanged?.Invoke();
+    }
+
+    // 다른 인벤토리의 특정 슬롯으로 이동 (드래그앤드롭)
+    // 같은 아이템이면 병합, 다른 아이템이면 스왑
+    public void MoveSlotTo(int fromIndex, InventoryManager other, int toIndex)
+    {
+        var from = GetSlot(fromIndex);
+        var to = other.GetSlot(toIndex);
+        if (from == null || to == null || from.IsEmpty) return;
+
+        if (to.IsEmpty)
+        {
+            // 빈 슬롯으로 이동
+            to.Set(from.itemId, from.amount, from.isNew);
+            from.Clear();
+            other.OnInventoryChanged?.Invoke();
+        }
+        else if (to.itemId == from.itemId)
+        {
+            // 같은 아이템: 병합 시도
+            var data = ItemDatabase.GetItem(from.itemId);
+            int maxStack = data != null ? data.maxStack : 999;
+
+            if (to.amount >= maxStack)
+            {
+                // 대상이 이미 maxStack: 스왑
+                int tempId = from.itemId;
+                int tempAmount = from.amount;
+                bool tempNew = from.isNew;
+                from.Set(to.itemId, to.amount, to.isNew);
+                to.Set(tempId, tempAmount, tempNew);
+            }
+            else
+            {
+                // maxStack 까지 채우고 초과분은 원본에 유지
+                int canAdd = maxStack - to.amount;
+                int adding = Mathf.Min(canAdd, from.amount);
+                to.amount += adding;
+                from.amount -= adding;
+                if (from.amount <= 0) from.Clear();
+            }
+
             other.OnInventoryChanged?.Invoke();
         }
         else
         {
-            // 두 슬롯 교환
+            // 다른 아이템: 스왑
             int tempId = from.itemId;
             int tempAmount = from.amount;
             bool tempNew = from.isNew;
-
             from.Set(to.itemId, to.amount, to.isNew);
             to.Set(tempId, tempAmount, tempNew);
-
             other.OnInventoryChanged?.Invoke();
+        }
+
+        OnInventoryChanged?.Invoke();
+    }
+
+    // 필터에 해당하는 아이템만 다른 인벤토리로 이동
+    // null 이면 전체 이동
+    public void MoveFilteredTo(InventoryManager other, ItemCategory? filter)
+    {
+        bool changed = false;
+        foreach (var slot in _slots)
+        {
+            if (slot.IsEmpty) continue;
+
+            // 필터 체크
+            if (filter != null)
+            {
+                var data = ItemDatabase.GetItem(slot.itemId);
+                if (data == null || data.itemCategory != filter.Value) continue;
+            }
+
+            int leftOver = other.AddItem(slot.itemId, slot.amount);
+            int moved = slot.amount - leftOver;
+            if (moved > 0)
+            {
+                slot.amount -= moved;
+                if (slot.amount <= 0) slot.Clear();
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            OnInventoryChanged?.Invoke();
+            other.OnInventoryChanged?.Invoke();
+        }
+    }
+
+    // 창고 정리: 필터에 해당하는 아이템을 병합 후 등급/ID/수량 순 정렬
+    // null 이면 전체 정리
+    public void OrganizeFiltered(ItemCategory? filter)
+    {
+        // 정리 대상 슬롯 인덱스 수집
+        var targetIndices = new List<int>();
+        var itemTotals = new System.Collections.Generic.Dictionary<int, int>();
+
+        foreach (var slot in _slots)
+        {
+            if (slot.IsEmpty) continue;
+
+            if (filter != null)
+            {
+                var data = ItemDatabase.GetItem(slot.itemId);
+                if (data == null || data.itemCategory != filter.Value) continue;
+            }
+
+            targetIndices.Add(slot.slotIndex);
+
+            // 아이템별 총 수량 집계 (병합용)
+            if (!itemTotals.ContainsKey(slot.itemId))
+                itemTotals[slot.itemId] = 0;
+            itemTotals[slot.itemId] += slot.amount;
+        }
+
+        if (targetIndices.Count == 0) return;
+
+        // maxStack 기준으로 슬롯 목록 생성 (병합 결과)
+        var merged = new List<(int itemId, int amount)>();
+        foreach (var kvp in itemTotals)
+        {
+            int id = kvp.Key;
+            int remaining = kvp.Value;
+            var data = ItemDatabase.GetItem(id);
+            int maxStack = data != null ? data.maxStack : 999;
+
+            while (remaining > 0)
+            {
+                int take = Mathf.Min(maxStack, remaining);
+                merged.Add((id, take));
+                remaining -= take;
+            }
+        }
+
+        // 정렬: itemGrade 오름차순 -> itemId 오름차순 -> amount 내림차순
+        merged.Sort((a, b) =>
+        {
+            var dataA = ItemDatabase.GetItem(a.itemId);
+            var dataB = ItemDatabase.GetItem(b.itemId);
+            int gradeA = dataA != null ? (int)dataA.itemGrade : 99;
+            int gradeB = dataB != null ? (int)dataB.itemGrade : 99;
+
+            if (gradeA != gradeB) return gradeA.CompareTo(gradeB);
+            if (a.itemId != b.itemId) return a.itemId.CompareTo(b.itemId);
+            return b.amount.CompareTo(a.amount);
+        });
+
+        // 대상 슬롯에 정렬된 데이터 기록
+        for (int i = 0; i < targetIndices.Count; i++)
+        {
+            var slot = GetSlot(targetIndices[i]);
+            if (slot == null) continue;
+
+            if (i < merged.Count)
+                slot.Set(merged[i].itemId, merged[i].amount);
+            else
+                slot.Clear();
         }
 
         OnInventoryChanged?.Invoke();

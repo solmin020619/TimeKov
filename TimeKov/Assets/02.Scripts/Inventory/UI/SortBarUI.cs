@@ -1,6 +1,6 @@
 // SortBarUI.cs
-// WarehousePanel/SortBar 에 붙이는 스크립트
-// 정렬 기준 드롭다운과 오름차순/내림차순 버튼 처리
+// WarehouseBottomBar 에 붙이는 스크립트
+// 정렬 기준 드롭다운, 오름/내림 토글, 창고 정리 버튼 처리
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,16 +8,22 @@ using TMPro;
 
 public class SortBarUI : MonoBehaviour
 {
-    [Header("참조")]
-    [SerializeField] private TMP_Dropdown sortDropdown;     // 정렬 기준 드롭다운
-    [SerializeField] private Button orderToggleBtn;   // 오름차순/내림차순 토글 버튼
-    [SerializeField] private TextMeshProUGUI orderBtnText;  // 토글 버튼 텍스트
+    [Header("정렬 참조")]
+    [SerializeField] private TMP_Dropdown sortDropdown;
+    [SerializeField] private Button orderToggleBtn;
+    [SerializeField] private TextMeshProUGUI orderBtnText;
+
+    [Header("정리 버튼")]
+    [SerializeField] private Button organizeBtn;
+
+    // 현재 정렬 방향 (true = 오름차순)
+    private bool _ascending = true;
 
     // 정렬 대상 인벤토리 (InventoryUIController 에서 설정)
     private InventoryManager _targetManager;
 
-    // 현재 정렬 방향 (true = 오름차순)
-    private bool _ascending = true;
+    // 현재 창고 필터 접근용 (InventoryUIController 에서 설정)
+    private CategoryFilterUI _warehouseFilter;
 
     private void Start()
     {
@@ -35,27 +41,27 @@ public class SortBarUI : MonoBehaviour
             sortDropdown.onValueChanged.AddListener(OnDropdownChanged);
         }
 
-        // 토글 버튼 이벤트 등록
         if (orderToggleBtn != null)
             orderToggleBtn.onClick.AddListener(OnToggleOrder);
 
-        // 초기 버튼 텍스트 설정
+        if (organizeBtn != null)
+            organizeBtn.onClick.AddListener(OnClickOrganize);
+
         UpdateOrderBtnText();
     }
 
-    // 정렬 대상 인벤토리 설정 (InventoryUIController 에서 호출)
-    public void Bind(InventoryManager manager)
+    // 정렬 대상 및 필터 바인딩
+    public void Bind(InventoryManager manager, CategoryFilterUI filterUI)
     {
         _targetManager = manager;
+        _warehouseFilter = filterUI;
     }
 
-    // 드롭다운 변경 핸들러
     private void OnDropdownChanged(int index)
     {
         ApplySort();
     }
 
-    // 오름차순/내림차순 토글
     private void OnToggleOrder()
     {
         _ascending = !_ascending;
@@ -63,7 +69,7 @@ public class SortBarUI : MonoBehaviour
         ApplySort();
     }
 
-    // 현재 설정으로 정렬 실행
+    // 드롭다운 기준으로 정렬 실행
     private void ApplySort()
     {
         if (_targetManager == null || sortDropdown == null) return;
@@ -72,7 +78,15 @@ public class SortBarUI : MonoBehaviour
         _targetManager.SortSlots(sortType, _ascending);
     }
 
-    // 토글 버튼 텍스트 갱신
+    // 정리 버튼: 현재 창고 필터 기준으로 병합 + 정렬
+    private void OnClickOrganize()
+    {
+        if (_targetManager == null) return;
+
+        var filter = _warehouseFilter != null ? _warehouseFilter.CurrentFilter : null;
+        _targetManager.OrganizeFiltered(filter);
+    }
+
     private void UpdateOrderBtnText()
     {
         if (orderBtnText != null)
