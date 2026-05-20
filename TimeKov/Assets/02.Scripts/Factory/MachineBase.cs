@@ -22,10 +22,28 @@ namespace TIMEKOV.Factory
         public Transform outputPort;
         public Transform inputPort;
 
+        int _facilityIdCache = -1;
+        protected int FacilityId
+        {
+            get
+            {
+                if (_facilityIdCache < 0)
+                {
+                    var inst = GetComponent<FacilityInstance>();
+                    _facilityIdCache = inst != null ? inst.FacilityId : 0;
+                }
+                return _facilityIdCache;
+            }
+        }
+
         public virtual void Receive(int itemId, int amount)
         {
             InputBuffer.Add(itemId, amount);
             NotifyBufferChanged();
+
+            // 퀘스트 시스템 통지
+            GameEvents.RaiseFacilityInput(FacilityId, itemId, amount);
+
             OnItemReceived(itemId, amount);
         }
 

@@ -657,6 +657,9 @@ public class BuildManager : MonoBehaviour
 
         PlayBuildCompleteSound();
         SpawnBuildCompleteEffect(position, rotation);
+
+        // 퀘스트 시스템에 설치 완료 통지
+        GameEvents.RaiseFacilityPlaced(facilityId);
     }
 
     private void ApplyHologramVisual(GameObject target)
@@ -749,6 +752,10 @@ public class BuildManager : MonoBehaviour
             placedBuilding.HideLabel();
 
         SpawnBuildCompleteEffect(worldPos, rotation);
+
+        // 퀘스트 시스템에 설치 완료 통지 (Blueprint 즉시 배치 경로)
+        GameEvents.RaiseFacilityPlaced(facilityId);
+
         return placedBuilding;
     }
 

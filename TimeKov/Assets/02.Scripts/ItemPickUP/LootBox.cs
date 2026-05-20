@@ -58,6 +58,11 @@ public class LootBox : MonoBehaviour, IInteractable
             {
                 int remaining = inv.TryAddItemFromLoot(itemId, count);
 
+                // 실제 인벤에 들어간 양만큼 퀘스트 이벤트 발화
+                int added = count - remaining;
+                if (added > 0)
+                    GameEvents.RaiseItemAcquired(itemId, added);
+
                 // 전량 실패 시 공간 부족
                 if (remaining == count)
                 {

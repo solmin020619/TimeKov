@@ -68,7 +68,11 @@ namespace TIMEKOV.Factory
             _processing = false;
 
             foreach (var output in recipe.outputs)
+            {
+                // 퀘스트 시스템 통지 (Dispatch 전 = 가공 완료 시점)
+                GameEvents.RaiseFacilityProcessComplete(FacilityId, output.itemId, output.amount);
                 Dispatch(output.itemId, output.amount);
+            }
 
             if (OutputBuffer.Stock.Count == 0)
                 SetStatus(MachineStatus.Idle);

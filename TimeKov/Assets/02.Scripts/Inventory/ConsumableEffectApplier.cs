@@ -1,19 +1,28 @@
 // =====================================================================
 // ConsumableEffectApplier.cs
-// ConsumableEffectTable µ¥ÀÌÅÍ¸¦ ÀĞ¾î ÇÃ·¹ÀÌ¾î¿¡ È¿°ú Àû¿ë
-// InventoryManager.UseItem() ¿¡¼­¸¸ È£Ãâ
-// ¼ö·® Â÷°¨Àº ÀÌ Å¬·¡½º¿¡¼­ ÇÏÁö ¾Ê´Â´Ù
-//   Â÷°¨ ¡æ InventoryManager.UseItem() ¿¡¼­ TryConsumeItem()
-//   º¹±¸ ¡æ Apply ½ÇÆĞ ½Ã UseItem() ¿¡¼­ AddItem() À¸·Î Áï½Ã º¹±¸
+// ConsumableEffectTable ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½Ğ¾ï¿½ ï¿½Ã·ï¿½ï¿½Ì¾î¿¡ È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+// InventoryManager.UseItem() ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê´Â´ï¿½
+//   ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ InventoryManager.UseItem() ï¿½ï¿½ï¿½ï¿½ TryConsumeItem()
+//   ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Apply ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ UseItem() ï¿½ï¿½ï¿½ï¿½ AddItem() ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 // =====================================================================
 
 using UnityEngine;
 
 public static class ConsumableEffectApplier
 {
-    // ¹İÈ¯°ª: true=¼º°ø / false=½ÇÆĞ
-    // ½ÇÆĞÇØµµ ÀÌ Å¬·¡½º ¾È¿¡¼­ ¼ö·®À» °Çµå¸®Áö ¾Ê´Â´Ù
+    // ï¿½ï¿½È¯ï¿½ï¿½: true=ï¿½ï¿½ï¿½ï¿½ / false=ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½ ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½È¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Çµå¸®ï¿½ï¿½ ï¿½Ê´Â´ï¿½
     public static bool Apply(string itemId, Player player)
+    {
+        bool result = ApplyInternal(itemId, player);
+        // í€˜ìŠ¤íŠ¸ ì‹œìŠ¤í…œ í†µì§€ (íš¨ê³¼ ì ìš© ì„±ê³µ ì‹œì  = ì§„ì§œ ì‚¬ìš©)
+        if (result && int.TryParse(itemId, out int parsedId))
+            GameEvents.RaiseItemUsed(parsedId);
+        return result;
+    }
+
+    private static bool ApplyInternal(string itemId, Player player)
     {
         if (player == null)
         {
@@ -23,7 +32,7 @@ public static class ConsumableEffectApplier
 
         if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var effect))
         {
-            Debug.LogWarning($"[ConsumableEffect] µ¥ÀÌÅÍ ¾øÀ½: itemId={itemId}");
+            Debug.LogWarning($"[ConsumableEffect] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½: itemId={itemId}");
             return false;
         }
 
@@ -40,20 +49,20 @@ public static class ConsumableEffectApplier
             case ConsumableType.Buff:
                 return ApplyBuff(itemId, effect, delta, player);
 
-            // ÀÌ¹ø ¹üÀ§ Á¦¿Ü
+            // ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             case ConsumableType.Stamina:
-                Debug.LogWarning("[ConsumableEffect] Stamina Å¸ÀÔ : ÈÄ¼Ó ±¸Çö ´ë»ó");
+                Debug.LogWarning("[ConsumableEffect] Stamina Å¸ï¿½ï¿½ : ï¿½Ä¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½");
                 return false;
 
             default:
-                Debug.LogWarning($"[ConsumableEffect] Ã³¸®µÇÁö ¾ÊÀº consumableType={effect.consumableType}");
+                Debug.LogWarning($"[ConsumableEffect] Ã³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ consumableType={effect.consumableType}");
                 return false;
         }
     }
 
-    // ¦¡¦¡ È¿°úº° Ã³¸® ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ï¿½ï¿½ï¿½ï¿½ È¿ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-    // Áï½Ã HP(Time) È¸º¹
+    // ï¿½ï¿½ï¿½ HP(Time) È¸ï¿½ï¿½
     private static bool ApplyHeal(ConsumableEffectSheetData effect, float delta, Player player)
     {
         if (effect.effectValueType == EffectValueType.MaxPercent)
@@ -64,13 +73,13 @@ public static class ConsumableEffectApplier
         return true;
     }
 
-    // Áö¼Ó È¸º¹ : ActiveBuffManager ÄÚ·çÆ¾À¸·Î À§ÀÓ
+    // ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ : ActiveBuffManager ï¿½Ú·ï¿½Æ¾ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     private static bool ApplySustainHeal(ConsumableEffectSheetData effect, Player player)
     {
         var buffManager = player.GetComponent<ActiveBuffManager>();
         if (buffManager == null)
         {
-            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager ¾øÀ½ : SustainHeal ½ÇÆĞ");
+            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager ï¿½ï¿½ï¿½ï¿½ : SustainHeal ï¿½ï¿½ï¿½ï¿½");
             return false;
         }
 
@@ -79,23 +88,23 @@ public static class ConsumableEffectApplier
         return true;
     }
 
-    // ½ÃÇÑºÎ ½ºÅÈ ¹öÇÁ
+    // ï¿½ï¿½ï¿½Ñºï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     private static bool ApplyBuff(string itemId, ConsumableEffectSheetData effect,
                                    float delta, Player player)
     {
-        // ÀÌ¹ø ¹üÀ§ Á¦¿Ü Ç×¸ñ
+        // ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½
         if (effect.effectTarget == EffectTarget.AllStats ||
             effect.effectTarget == EffectTarget.Stamina ||
             effect.effectTarget == EffectTarget.SkillGauge)
         {
-            Debug.LogWarning($"[ConsumableEffect] {effect.effectTarget} : ÈÄ¼Ó ±¸Çö ´ë»ó");
+            Debug.LogWarning($"[ConsumableEffect] {effect.effectTarget} : ï¿½Ä¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½");
             return false;
         }
 
         var buffManager = player.GetComponent<ActiveBuffManager>();
         if (buffManager == null)
         {
-            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager ¾øÀ½ : Buff ½ÇÆĞ");
+            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager ï¿½ï¿½ï¿½ï¿½ : Buff ï¿½ï¿½ï¿½ï¿½");
             return false;
         }
 
@@ -103,7 +112,7 @@ public static class ConsumableEffectApplier
         return true;
     }
 
-    // ¦¡¦¡ ¼öÄ¡ °è»ê ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
     private static float CalculateDelta(ConsumableEffectSheetData effect, Player player)
     {
@@ -116,7 +125,7 @@ public static class ConsumableEffectApplier
         };
     }
 
-    // Percent ±âÁØ ÇöÀç ½ºÅÈ
+    // Percent ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     private static float GetBaseStat(EffectTarget target, Player player)
     {
         return target switch
@@ -127,7 +136,7 @@ public static class ConsumableEffectApplier
         };
     }
 
-    // MaxPercent ±âÁØ ÃÖ´ë ½ºÅÈ
+    // MaxPercent ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½
     private static float GetMaxStat(EffectTarget target, Player player)
     {
         return target switch
