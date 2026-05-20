@@ -615,6 +615,7 @@ public class BuildManager : MonoBehaviour
         MonoBehaviour[] behaviours = hologramObj.GetComponentsInChildren<MonoBehaviour>();
         for (int i = 0; i < behaviours.Length; i++)
         {
+            if (behaviours[i] == null) continue; // 프리팹의 미싱 스크립트 보호
             if (behaviours[i] != this)
                 behaviours[i].enabled = false;
         }
@@ -937,6 +938,7 @@ public class BuildManager : MonoBehaviour
         MonoBehaviour[] behaviours = previewMarker.GetComponentsInChildren<MonoBehaviour>();
         for (int i = 0; i < behaviours.Length; i++)
         {
+            if (behaviours[i] == null) continue; // 프리팹의 미싱 스크립트 보호
             if (behaviours[i] != this)
                 behaviours[i].enabled = false;
         }
