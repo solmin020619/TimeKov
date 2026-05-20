@@ -18,6 +18,9 @@ public class EnemyBrain : MonoBehaviour
     [SerializeField] private string attackRangeVarName = "AttackRange";
     [SerializeField] private string attackCooldownVarName = "AttackCooldown";
     [SerializeField] private string attackDamageVarName = "AttackDamage";
+    [SerializeField] private string hitDelayVarName = "HitDelay";
+    [SerializeField] private string animLengthVarName = "AnimLength";
+    [SerializeField] private string moveSpeedVarName = "MoveSpeed";
 
     private BehaviorGraphAgent btAgent;
     private EnemyFeedback feedback;
@@ -87,5 +90,8 @@ public class EnemyBrain : MonoBehaviour
         btAgent.SetVariableValue(attackRangeVarName, data.attackRange);
         btAgent.SetVariableValue(attackCooldownVarName, data.attackCooldown);
         btAgent.SetVariableValue(attackDamageVarName, data.attackDamage);
+        btAgent.SetVariableValue(hitDelayVarName, data.hitDelay);
+        btAgent.SetVariableValue(animLengthVarName, data.animLength);
+        btAgent.SetVariableValue(moveSpeedVarName, data.moveSpeed);
     }
 }

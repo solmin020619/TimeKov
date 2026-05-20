@@ -17,10 +17,8 @@ public class DropPickupRow : MonoBehaviour
         countText.text = count.ToString();
         tierBar.color = tierColor;
 
-        // 아이콘 — ItemData 의 iconKey 로 Resources/Icon 에서 로드
-        Sprite icon = null;
-        if (item != null && !string.IsNullOrEmpty(item.iconKey))
-            icon = Resources.Load<Sprite>("Icon/" + item.iconKey);
+        // 아이콘 — 인벤토리와 동일한 ItemDatabase.GetIcon 사용 (Resources/Items/ + 캐시)
+        Sprite icon = item != null ? ItemDatabase.GetIcon(item.iconKey) : null;
         iconImage.sprite = icon;
         iconImage.enabled = icon != null;
     }

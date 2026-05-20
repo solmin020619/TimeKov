@@ -21,6 +21,12 @@ public class MeleeEnemyData : ScriptableObject
     public float attackRange = 2f;
     public float attackCooldown = 1.5f;
 
+    [Header("Attack Timing")]
+    [Tooltip("공격 애니메이션 시작 후 데미지 들어가는 시점(초)")]
+    public float hitDelay = 0.5f;
+    [Tooltip("공격 애니메이션 전체 길이(초). 이 시간 동안 다음 행동 잠금")]
+    public float animLength = 1.5f;
+
     [Header("Feedback - Spawn")]
     public GameObject spawnVFX;
     public AudioClip spawnSound;
