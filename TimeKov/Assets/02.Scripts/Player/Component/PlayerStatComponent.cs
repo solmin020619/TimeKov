@@ -1,9 +1,5 @@
-// =====================================================================
-// PlayerStatComponent.cs
-// 플레이어 스탯 관리 : HP(시간), ATK, DEF, MP, 스태미나
-// =====================================================================
-
 using System;
+using System.Collections;
 using UnityEngine;
 
 public class PlayerStatComponent : MonoBehaviour
@@ -16,30 +12,33 @@ public class PlayerStatComponent : MonoBehaviour
     public float ATK = 0f;
     public float DEF = 0f;
 
-    [Header("MP")]
-    public float MaxMp = 100f;
-
     [Header("Stamina")]
     public float MaxStamina = 100f;
     public float StaminaDrain = 10f;
     public float StaminaRegen = 5f;
     public float ExhaustedThreshold = 0.3f;
 
+    [Header("Hurt")]
+    public float HurtDuration = 0.3f;  // 경직 지속 시간
+    public float InvincibleDuration = 0.5f;  // 무적 총 지속 시간
+
     public float CurrentHp { get; private set; }
-    public float CurrentMp { get; private set; }
     public float CurrentStamina { get; private set; }
     public bool IsExhausted { get; private set; }
     public bool IsInBase { get; private set; }
+    public bool IsHurt { get; private set; }  // 피격 경직 중
+    public bool IsInvincible { get; private set; }  // 무적 중
 
     private Player _player;
+    private Coroutine _hurtRoutine;
 
     public event Action OnDead;
+    public event Action OnHurt;  // UI 피격 피드백용
 
     void Awake()
     {
         _player = GetComponent<Player>();
         CurrentHp = MaxHp;
-        CurrentMp = MaxMp;
         CurrentStamina = MaxStamina;
     }
 
@@ -50,8 +49,7 @@ public class PlayerStatComponent : MonoBehaviour
         UpdateExhaustedState();
     }
 
-    // ── HP(시간) 감소 ─────────────────────────────────────────
-
+    // HP(시간) 자동 감소
     void HandleHpDrain()
     {
         if (IsInBase) return;
@@ -66,26 +64,62 @@ public class PlayerStatComponent : MonoBehaviour
         }
     }
 
-    // 적 공격 등 외부 데미지
-    public void TakeDamage(float amount)
+    // 외부 데미지 (attackerPos: 피격 방향 판별용)
+    public void TakeDamage(float amount, Vector3 attackerPos = default)
     {
         if (IsDead) return;
+        if (IsInvincible) return;  // 무적 중 무시
 
         float finalDamage = Mathf.Max(1f, amount - DEF);
         CurrentHp = Mathf.Max(0, CurrentHp - finalDamage);
 
-        if (CurrentHp <= 0) OnDead?.Invoke();
+        if (CurrentHp <= 0) { OnDead?.Invoke(); return; }
+
+        // Hurt 상태 진입
+        if (_hurtRoutine != null) StopCoroutine(_hurtRoutine);
+        _hurtRoutine = StartCoroutine(HurtRoutine(attackerPos));
     }
 
-    // ── 회복 메서드 (인벤토리 소모품 연동) ───────────────────
+    IEnumerator HurtRoutine(Vector3 attackerPos)
+    {
+        IsHurt = true;
+        IsInvincible = true;
 
-    // Flat HP 회복
+        // Skill3 선딜 중이면 Interrupt 호출
+        var skillComp = GetComponent<PlayerSkillComponent>();
+        if (skillComp != null && skillComp.CurrentSkillIsInterruptible)
+            skillComp.Interrupt();
+
+        // 피격 방향 판별 후 Hit L / Hit R 재생
+        bool isLeft = attackerPos != Vector3.zero && IsAttackerOnLeft(attackerPos);
+        _player.Anim.PlayHit(isLeft);
+
+        OnHurt?.Invoke();  // UI 피드백 이벤트
+
+        // 경직 0.3초
+        yield return new WaitForSeconds(HurtDuration);
+        IsHurt = false;
+
+        // 무적 잔여 시간 (총 0.5초에서 경직 0.3초 제외)
+        yield return new WaitForSeconds(InvincibleDuration - HurtDuration);
+        IsInvincible = false;
+        _hurtRoutine = null;
+    }
+
+    // 피격 방향 판별 (좌측이면 true)
+    bool IsAttackerOnLeft(Vector3 attackerPos)
+    {
+        Vector3 toAttacker = (attackerPos - transform.position).normalized;
+        return Vector3.Dot(transform.right, toAttacker) < 0;
+    }
+
+    // 플랫 HP 회복
     public void Heal(float amount)
     {
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + amount);
     }
 
-    // 최대HP 기준 비율 회복 (percent: 0.0 ~ 1.0)
+    // 최대 HP 비율 회복 (0.0 ~ 1.0)
     public void HealPercent(float percent)
     {
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + MaxHp * percent);
@@ -97,22 +131,27 @@ public class PlayerStatComponent : MonoBehaviour
         CurrentStamina = Mathf.Min(MaxStamina, CurrentStamina + amount);
     }
 
-    // ── 기존 메서드 ───────────────────────────────────────────
-
-    // BaseZone 에서 호출
+    // BaseZone에서 호출
     public void SetInBase(bool inBase) => IsInBase = inBase;
 
     // 리스폰 시 호출
     public void Respawn()
     {
         CurrentHp = MaxHp;
-        CurrentMp = MaxMp;
         CurrentStamina = MaxStamina;
         IsExhausted = false;
         IsInBase = true;
+        IsHurt = false;
+        IsInvincible = false;
+
+        if (_hurtRoutine != null)
+        {
+            StopCoroutine(_hurtRoutine);
+            _hurtRoutine = null;
+        }
     }
 
-    // 달리기 중 매 프레임 호출 : 달릴 수 있으면 true
+    // 달리기 중 매 프레임 호출  달릴 수 있으면 true
     public bool TryDrainSprintStamina()
     {
         if (IsExhausted) return false;
@@ -145,9 +184,6 @@ public class PlayerStatComponent : MonoBehaviour
         if (IsExhausted && CurrentStamina >= MaxStamina)
             IsExhausted = false;
     }
-
-    public void UseMp(float amount) => CurrentMp = Mathf.Max(0, CurrentMp - amount);
-    public void RecoverMp(float amount) => CurrentMp = Mathf.Min(MaxMp, CurrentMp + amount);
 
     // 데미지 공식 (플레이어 -> 적)
     public float CalculateAttackDamage(float baseDamage, float enemyDef)

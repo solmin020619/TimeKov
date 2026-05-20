@@ -8534,8 +8534,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerStat: {fileID: 0}
+  playerSkill: {fileID: 0}
   hpSlider: {fileID: 9013284548713974022}
   staminaSlider: {fileID: 3326590951658089492}
+  exhaustedIndicator: {fileID: 0}
+  skill1GaugeImage: {fileID: 0}
+  skill2GaugeImage: {fileID: 0}
+  skill3GaugeImage: {fileID: 0}
+  skill1CooldownImage: {fileID: 0}
+  skill2CooldownImage: {fileID: 0}
+  skill3CooldownImage: {fileID: 0}
+  baseStateIndicator: {fileID: 0}
+  hurtVignette: {fileID: 0}
+  hurtFadeSpeed: 3
 --- !u!1 &5934931089919147877
 GameObject:
   m_ObjectHideFlags: 0
@@ -14734,7 +14745,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5357485738646169569, guid: 35b886e33e2b35b49b2a64dc0f1fdad9, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -8
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 8581188750959070507, guid: 35b886e33e2b35b49b2a64dc0f1fdad9, type: 3}
       propertyPath: m_Name

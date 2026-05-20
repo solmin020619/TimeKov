@@ -5,22 +5,22 @@ using UnityEngine;
 public class PlayerMovementComponent : MonoBehaviour
 {
     [Header("Speed")]
-    public float MoveSpeed = 5f;      // �⺻ �̵� �ӵ�
-    public float SprintSpeed = 8f;      // �޸��� �ӵ�
+    public float MoveSpeed = 5f;      // 기본 이동 속도
+    public float SprintSpeed = 8f;      // 달리기 속도
 
     [Header("Jump")]
-    public float JumpHeight = 2f;   // ���� ����
-    public float Gravity = -20f; // �߷� ��
-    public float FallMultiplier = 2.5f; // �ϰ� �� �߷� ���
-    public float JumpBufferTime = 0.1f; // ���� �Է� ���� �ð�
+    public float JumpHeight = 2f;   // 점프 높이
+    public float Gravity = -20f; // 중력 값
+    public float FallMultiplier = 2.5f; // 하강 시 중력 배수
+    public float JumpBufferTime = 0.1f; // 점프 입력 유예 시간
 
     [Header("Movement")]
-    public float RotSpeed = 10f;        // ȸ�� �ӵ�
+    public float RotSpeed = 10f;        // 회전 속도
 
     [Header("Ground Check")]
-    public float GroundCheckRadius = 0.25f; // ���� ���� ��ü �ݰ�
-    public float GroundCheckOffset = 0.05f; // ���� ���� ������
-    public LayerMask GroundMask;                 // ���� ���̾� ����ũ
+    public float GroundCheckRadius = 0.25f; // 지면 감지 구체 반경
+    public float GroundCheckOffset = 0.05f; // 지면 감지 오프셋
+    public LayerMask GroundMask;                 // 지면 레이어 마스크
 
     private Player _player;
     private Rigidbody _rb;
@@ -36,18 +36,17 @@ public class PlayerMovementComponent : MonoBehaviour
     private float _currentSpeed;
     private bool _isJumping;
     private bool _movementLocked;
-    private bool _ignoreMovementInput;  // ��� ���� ���� �̵� ���� �÷��� �߰�
-
+    private bool _ignoreMovementInput;   // 잠금 해제 직후 한 프레임 이동 무시
 
     // Slash
     private bool _isSlashing;
     private float _slashTimer;
     private float _slashForce;
 
-    public float CurrentSpeed => _currentSpeed;  // ���� �̵� �ӵ�
-    public bool IsGrounded => _isGrounded;     // ���� ����
-    public bool IsJumping => _isJumping;      // ���� �� ����
-    public bool IsSlashing => _isSlashing;     // ������ �� ����
+    public float CurrentSpeed => _currentSpeed;  // 현재 이동 속도
+    public bool IsGrounded => _isGrounded;     // 지면 여부
+    public bool IsJumping => _isJumping;      // 점프 중 여부
+    public bool IsSlashing => _isSlashing;     // 슬래시 중 여부
 
     void Awake()
     {
@@ -87,6 +86,7 @@ public class PlayerMovementComponent : MonoBehaviour
 
         _isGrounded = Physics.CheckSphere(origin, GroundCheckRadius, GroundMask);
 
+        // UI 열려있을 때 점프 홀드 상태 무시 (팀원 추가)
         bool jumpHeld = !PlayerInputComponent.IsBlocked && Input.GetButton("Jump");
 
         if (!_wasGrounded && _isGrounded)
@@ -107,12 +107,18 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void HandleJumpInput()
     {
-        // UI 열려있으면 점프 입력 무시, 버퍼도 초기화
+        // UI 열려있으면 점프 입력 무시, 버퍼 초기화 (팀원 추가)
         if (PlayerInputComponent.IsBlocked)
         {
             _jumpBufferCounter = 0f;
             return;
         }
+
+        // 공격·스킬 실행 중 점프 차단 (1단계 추가)
+        if (_player.Skill.IsExecuting) return;
+
+        // Dead 상태 점프 차단 (1단계 추가)
+        if (_player.Stat.IsDead) return;
 
         if (Input.GetButtonDown("Jump") && _isGrounded && _canJump)
             _jumpBufferCounter = JumpBufferTime;
@@ -139,7 +145,7 @@ public class PlayerMovementComponent : MonoBehaviour
         _isGrounded = false;
         _isJumping = true;
 
-        // ���� �ִϸ��̼� ���
+        // 점프 애니메이션 재생
         _player.Anim.PlayJump();
     }
 
@@ -158,7 +164,7 @@ public class PlayerMovementComponent : MonoBehaviour
         if (_slashTimer <= 0)
         {
             _isSlashing = false;
-            // LockMovement ������ Attack3Skill �ڷ�ƾ ������ ó��
+            // LockMovement 해제는 Attack3Skill 코루틴 끝에서 처리
             _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
         }
     }
@@ -167,7 +173,7 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_movementLocked) return;
 
-        // ��� ���� ���� �� ������ �̵� ����
+        // 잠금 해제 직후 한 프레임 이동 무시
         if (_ignoreMovementInput)
         {
             _ignoreMovementInput = false;
@@ -175,6 +181,7 @@ public class PlayerMovementComponent : MonoBehaviour
             return;
         }
 
+        // UI 열려있을 때 스프린트 무시 (팀원 추가)
         bool isSprinting = !PlayerInputComponent.IsBlocked
                         && Input.GetKey(KeyCode.LeftShift)
                         && _player.Stat.TryDrainSprintStamina()
@@ -207,7 +214,7 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void HandleRotation()
     {
-        // �̵� ��� �߿� ȸ���� ����
+        // 이동 잠금 중엔 회전도 막음
         if (_movementLocked) return;
         if (_moveDir.magnitude < 0.1f) return;
 
@@ -235,11 +242,11 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         _movementLocked = isLocked;
 
-        // ��� ���� �� �ӵ� �ʱ�ȭ
+        // 잠금 해제 시 속도 초기화 및 한 프레임 이동 무시
         if (!isLocked)
         {
             _currentSpeed = 0f;
-            _ignoreMovementInput = true;   // ���� ���� �� ������ �̵� ����
+            _ignoreMovementInput = true;
             _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
         }
     }
@@ -247,7 +254,7 @@ public class PlayerMovementComponent : MonoBehaviour
     public void AddForce(Vector3 force, ForceMode mode = ForceMode.Impulse)
         => _rb.AddForce(force, mode);
 
-    // ��� ���� ��ȯ, ī�޶� ���� ���� �̵� ����
+    // 대시 방향 반환, 카메라 기준 현재 이동 방향
     public Vector3 GetDashDirection()
     {
         return _moveDir.magnitude > 0.1f ? _moveDir : transform.forward;

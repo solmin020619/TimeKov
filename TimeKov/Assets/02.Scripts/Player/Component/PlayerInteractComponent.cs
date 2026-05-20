@@ -3,7 +3,7 @@ using UnityEngine;
 public class PlayerInteractComponent : MonoBehaviour
 {
     [Header("Settings")]
-    public float InteractRadius = 2f;   // 상호작용 감지 반경 (m)
+    public float InteractRadius = 2f;
 
     private Player _player;
 
@@ -19,7 +19,13 @@ public class PlayerInteractComponent : MonoBehaviour
 
     void TryInteract()
     {
-        // 반경 내 상호작용 가능한 오브젝트 탐색
+        // Idle·Move·Run 상태에서만 허용
+        if (_player.Skill.IsExecuting) return;
+        if (_player.Movement.IsJumping) return;
+        if (_player.Dash.IsDashing) return;
+        if (_player.Stat.IsDead) return;
+        if (_player.Stat.IsHurt) return;
+
         Collider[] hits = Physics.OverlapSphere(
             transform.position, InteractRadius);
 
@@ -40,11 +46,9 @@ public class PlayerInteractComponent : MonoBehaviour
             }
         }
 
-        // 가장 가까운 오브젝트와 상호작용
         closest?.Interact(_player);
     }
 
-    // 상호작용 범위 시각화
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;

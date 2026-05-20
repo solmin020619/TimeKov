@@ -7,32 +7,30 @@ using UnityEngine;
 public class PlayerSkillComponent : MonoBehaviour
 {
     [Header("Combo Attacks")]
-    public List<ComboAttackBase> ComboAttackAssets; // 인스펙터에서 Attack1/2/3 SO 등록
+    public List<ComboAttackBase> ComboAttackAssets;
 
     [Header("Skills")]
-    public SkillBase Skill1Asset;   // 인스펙터에서 Skill1_ReaperSlash.asset 연결
-    public SkillBase Skill2Asset;   // 인스펙터에서 Skill2_CycloneBreak.asset 연결
-    public SkillBase Skill3Asset;   // 인스펙터에서 Skill3_ExecutionFall.asset 연결
+    public SkillBase Skill1Asset;
+    public SkillBase Skill2Asset;
+    public SkillBase Skill3Asset;
 
     private Player _player;
 
-    // 일반 스킬
     private Dictionary<SkillSheetId, SkillBase> _skillDatabase = new();
     private Dictionary<SkillSheetId, float> _cooldownTimers = new();
-
-    // 스킬 게이지 (최대 100)
     private Dictionary<SkillSheetId, float> _skillGauges = new();
-
-    // 콤보 공격
     private List<ComboAttackBase> _comboAttacks = new();
+
     private int _comboIndex = 0;
     private float _comboTimer = 0f;
     private bool _comboInputReceived = false;
 
-    // 공통
     private Coroutine _currentRoutine;
     private SkillBase _currentSkill;
     private ComboAttackBase _currentCombo;
+
+    // Skill3 선딜 중 피격 인터럽트 허용 플래그
+    public bool CurrentSkillIsInterruptible { get; set; }
 
     public bool IsExecuting => _currentRoutine != null;
 
@@ -40,16 +38,13 @@ public class PlayerSkillComponent : MonoBehaviour
     {
         _player = GetComponent<Player>();
 
-        // 게이지 초기화
         foreach (SkillSheetId id in Enum.GetValues(typeof(SkillSheetId)))
             _skillGauges[id] = 0f;
 
-        // 스킬 등록
         if (Skill1Asset != null) AddSkill(Skill1Asset);
         if (Skill2Asset != null) AddSkill(Skill2Asset);
         if (Skill3Asset != null) AddSkill(Skill3Asset);
 
-        // 콤보 등록
         foreach (var attack in ComboAttackAssets)
             RegisterComboAttack(attack);
     }
@@ -65,20 +60,31 @@ public class PlayerSkillComponent : MonoBehaviour
         if (_player.Input.Skill3Pressed) TryExecute(SkillSheetId.Skill3);
     }
 
-    // 게이지 추가, 적 적중 시 ComboAttackBase에서 호출
+    // 게이지 충전 (ComboAttackBase에서 호출)
     public void AddGauge(SkillSheetId id, float amount)
     {
         if (!_skillGauges.ContainsKey(id)) return;
         _skillGauges[id] = Mathf.Min(100f, _skillGauges[id] + amount);
     }
 
-    // 현재 게이지 조회
+    // 게이지 반환 (UI용)
     public float GetGauge(SkillSheetId id)
     {
         return _skillGauges.TryGetValue(id, out float val) ? val : 0f;
     }
 
-    // 콤보
+    // 쿨타임 반환 (UI용)
+    public float GetCooldown(SkillSheetId id)
+    {
+        return _cooldownTimers.TryGetValue(id, out float val) ? Mathf.Max(0f, val) : 0f;
+    }
+
+    // 최대 쿨타임 반환 (UI 비율 계산용)
+    public float GetMaxCooldown(SkillSheetId id)
+    {
+        return _skillDatabase.TryGetValue(id, out var skill) ? skill.CoolTime : 1f;
+    }
+
     public void RegisterComboAttack(ComboAttackBase attack)
     {
         _comboAttacks.Add(attack);
@@ -87,6 +93,11 @@ public class PlayerSkillComponent : MonoBehaviour
 
     void TryComboAttack()
     {
+        // 점프·Dead·Hurt 상태 차단
+        if (_player.Movement.IsJumping) return;
+        if (_player.Stat.IsDead) return;
+        if (_player.Stat.IsHurt) return;
+
         if (_comboAttacks.Count == 0) return;
 
         if (IsExecuting)
@@ -94,6 +105,7 @@ public class PlayerSkillComponent : MonoBehaviour
             _comboInputReceived = true;
             return;
         }
+
         ExecuteComboAttack();
     }
 
@@ -117,7 +129,7 @@ public class PlayerSkillComponent : MonoBehaviour
         _currentRoutine = null;
         _currentCombo = null;
 
-        // 3타 이후 콤보 끝나면 버퍼 초기화
+        // 3타 완료 후 버퍼 초기화
         if (_comboIndex == 0)
         {
             _comboInputReceived = false;
@@ -131,13 +143,10 @@ public class PlayerSkillComponent : MonoBehaviour
     void TickComboTimer()
     {
         if (_comboTimer <= 0 || IsExecuting) return;
-
         _comboTimer -= Time.deltaTime;
-
         if (_comboTimer <= 0) _comboIndex = 0;
     }
 
-    // 일반 스킬
     public void AddSkill(SkillBase skill)
     {
         if (!_skillDatabase.ContainsKey(skill.SkillSheetId))
@@ -146,18 +155,17 @@ public class PlayerSkillComponent : MonoBehaviour
 
     public void TryExecute(SkillSheetId id)
     {
-        Debug.Log($"TryExecute: {id} | IsExecuting={IsExecuting} | HasSkill={_skillDatabase.ContainsKey(id)} | Gauge={_skillGauges[id]} | Cooldown={(_cooldownTimers.TryGetValue(id, out float r) ? r : 0f)}");
+        // 점프·Dead·Hurt 상태 차단
+        if (_player.Movement.IsJumping) return;
+        if (_player.Stat.IsDead) return;
+        if (_player.Stat.IsHurt) return;
 
         if (IsExecuting) return;
         if (!_skillDatabase.TryGetValue(id, out var skill)) return;
         if (_cooldownTimers.TryGetValue(id, out float remaining) && remaining > 0) return;
-
-        // 게이지 100 미만이면 사용 불가
         if (_skillGauges[id] < 100f) return;
 
-        // 사용 시 게이지 초기화
         _skillGauges[id] = 0f;
-
         _cooldownTimers[id] = skill.CoolTime;
         _currentSkill = skill;
         _currentRoutine = StartCoroutine(SkillFlow(skill));
@@ -170,16 +178,19 @@ public class PlayerSkillComponent : MonoBehaviour
         StopCoroutine(_currentRoutine);
         _currentSkill?.OnInterrupt(gameObject);
         _currentCombo?.OnInterrupt(gameObject);
+
         _currentRoutine = null;
         _currentSkill = null;
         _currentCombo = null;
         _comboIndex = 0;
         _comboTimer = 0;
+        CurrentSkillIsInterruptible = false;
     }
 
     private IEnumerator SkillFlow(SkillBase skill)
     {
         yield return skill.ExecuteRoutine(gameObject);
+        CurrentSkillIsInterruptible = false;
         _currentRoutine = null;
         _currentSkill = null;
     }
@@ -187,6 +198,27 @@ public class PlayerSkillComponent : MonoBehaviour
     void TickCooldowns()
     {
         foreach (var key in _cooldownTimers.Keys.ToList())
-            _cooldownTimers[key] -= Time.deltaTime;
+            if (_cooldownTimers[key] > 0)
+                _cooldownTimers[key] -= Time.deltaTime;
+    }
+
+    // 리스폰 시 전체 초기화 (3단계)
+    public void ResetAll()
+    {
+        // 게이지 초기화
+        foreach (var key in _skillGauges.Keys.ToList())
+            _skillGauges[key] = 0f;
+
+        // 쿨타임 초기화
+        foreach (var key in _cooldownTimers.Keys.ToList())
+            _cooldownTimers[key] = 0f;
+
+        // 콤보 상태 초기화
+        _comboIndex = 0;
+        _comboTimer = 0f;
+        _comboInputReceived = false;
+        CurrentSkillIsInterruptible = false;
+
+        if (_currentRoutine != null) Interrupt();
     }
 }
