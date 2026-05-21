@@ -1,17 +1,17 @@
 // ItemTooltipUI.cs
-// Tooltip ������Ʈ�� ���̴� ��ũ��Ʈ
-// ���� ȣ�� �� ������ ���� ǥ��
+// 툴팁 컴포넌트를 관리하는 스크립트
+// 슬롯 호버 시 아이템 정보 표시
 
 using UnityEngine;
 using TMPro;
 
 public class ItemTooltipUI : MonoBehaviour
 {
-    [Header("�ؽ�Ʈ ����")]
+    [Header("텍스트 필드")]
     [SerializeField] private TextMeshProUGUI itemNameText;
     [SerializeField] private TextMeshProUGUI categoryText;
 
-    [Header("��ġ ������")]
+    [Header("위치 오프셋")]
     [SerializeField] private Vector2 offset = new Vector2(15f, -15f);
 
     private RectTransform _rect;
@@ -22,15 +22,15 @@ public class ItemTooltipUI : MonoBehaviour
     // (UI 재오픈 시 SetActive(true)로 인해 OnPointerEnter가 재발동되는 Unity 특성 대응)
     private Vector3 _mousePositionAtHide = new Vector3(-9999f, -9999f, 0f);
 
-    // ī�װ��� �̸� �ѱ��� ���̺� (ItemCategory ������ ��ġ)
+    // 카테고리 이름 한글 테이블 (ItemCategory 열거형 순서와 일치)
     private static readonly string[] CategoryNames = new string[]
     {
-        "���� ���",    // RawMaterial
-        "1�� ����ǰ",   // ProcessedTier1
-        "2�� ����ǰ",   // ProcessedTier2
-        "���� �Ҹ�ǰ",  // TacticalConsumable
-        "�ھ� ��ȭ",    // CoreUpgrade
-        "Ư��"          // Special
+        "원재료",       // RawMaterial
+        "1차 가공품",   // ProcessedTier1
+        "2차 가공품",   // ProcessedTier2
+        "전술 소모품",  // TacticalConsumable
+        "핵심 강화",    // CoreUpgrade
+        "특수"          // Special
     };
 
     private void Awake()
@@ -59,7 +59,7 @@ public class ItemTooltipUI : MonoBehaviour
         UpdatePosition(Input.mousePosition);
     }
 
-    // ���� ǥ��
+    // 툴팁 표시
     public void Show(InventorySlotUI slot)
     {
         if (slot == null || slot.IsEmpty) return;
@@ -71,7 +71,7 @@ public class ItemTooltipUI : MonoBehaviour
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
 
         if (itemNameText != null)
-            itemNameText.text = data != null ? data.itemName : "�� �� ���� ������";
+            itemNameText.text = data != null ? data.itemName : "알 수 없는 아이템";
 
         if (categoryText != null)
         {
@@ -92,7 +92,7 @@ public class ItemTooltipUI : MonoBehaviour
         UpdatePosition(Input.mousePosition);
     }
 
-    // ���� ����
+    // 툴팁 숨김
     public void Hide()
     {
         _isShowing = false;
@@ -101,7 +101,7 @@ public class ItemTooltipUI : MonoBehaviour
         _mousePositionAtHide = Input.mousePosition;
     }
 
-    // ��ġ ���� (��� Ŭ����)
+    // 위치 갱신 (마우스 클램프)
     private void UpdatePosition(Vector2 screenPos)
     {
         if (_rect == null || _canvasRect == null) return;
