@@ -40,6 +40,8 @@ public class MeleeEnemyData : ScriptableObject
     public float targetLostMemory = 1.5f;
     [Tooltip("사망 애니메이션 재생 시간. 이 시간 후 GameObject Destroy.")]
     public float deathAnimDuration = 1.5f;
+    [Tooltip("Detect 애니메이션(Roar/Howl 등) 재생 동안 적이 멈춰있는 시간(초). 끝나면 추격 시작. 0이면 멈추지 않음.")]
+    public float detectStunDuration = 1.5f;
 
     [Header("Feedback - Spawn")]
     public GameObject spawnVFX;
