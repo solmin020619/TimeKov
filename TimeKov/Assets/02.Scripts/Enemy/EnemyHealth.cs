@@ -75,6 +75,26 @@ public class EnemyHealth : MonoBehaviour
 
         OnDeath?.Invoke();
 
-        Destroy(gameObject);
+        // BehaviorGraphAgent + NavMeshAgent + VisionSensor 등 즉시 멈춤 (애니만 재생)
+        DisableActiveSystems();
+
+        float delay = brain != null && brain.Data != null ? brain.Data.deathAnimDuration : 1.5f;
+        Destroy(gameObject, delay);
+    }
+
+    void DisableActiveSystems()
+    {
+        var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (agent != null) agent.isStopped = true;
+
+        var btAgent = GetComponent<Unity.Behavior.BehaviorGraphAgent>();
+        if (btAgent != null) btAgent.enabled = false;
+
+        var vs = GetComponentInChildren<VisionSensor>();
+        if (vs != null) vs.enabled = false;
+
+        // Collider 비활성 (사망 후 추가 데미지 받지 않음 + 플레이어 통과 가능)
+        foreach (var c in GetComponentsInChildren<Collider>())
+            c.enabled = false;
     }
 }
