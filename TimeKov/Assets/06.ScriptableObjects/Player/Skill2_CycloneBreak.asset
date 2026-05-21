@@ -15,6 +15,15 @@ MonoBehaviour:
   SkillSheetId: 1
   SkillIcon: {fileID: 0}
   CoolTime: 2.5
+  CastVfxPrefab: {fileID: 6810844234100877735, guid: 88dd9c4a8854b804186fda4318305ba0, type: 3}
+  CastVfxBone: 18
+  CastVfxOffset: {x: 0, y: 0, z: 0.3}
+  CastVfxRotation: {x: 0, y: 0, z: 0}
+  CastVfxLifeTime: 2
+  CastVfxFollowCaster: 0
+  HitVfxPrefab: {fileID: 1893033738566276, guid: 3e04efdf8ee665d48962b33b06e8e3d3, type: 3}
+  HitVfxOffset: {x: 0, y: 1, z: 0}
+  HitVfxLifeTime: 1.5
   RotationDamage: 35
   RotationRadius: 2.5
   Hit1Time: 0.31

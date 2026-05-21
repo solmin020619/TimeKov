@@ -32,23 +32,23 @@ public class Skill2_CycloneBreak : SkillBase
 
         yield return new WaitForSeconds(Hit1Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(Hit2Time - Hit1Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(Hit3Time - Hit2Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(Hit4Time - Hit3Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(JumpHitTime - Hit4Time);
         AttackUtils.HitSphere(caster, JumpRadius, JumpDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(TotalDuration - JumpHitTime);
     }

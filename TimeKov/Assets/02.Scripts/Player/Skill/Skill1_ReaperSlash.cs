@@ -29,11 +29,11 @@ public class Skill1_ReaperSlash : SkillBase
 
         yield return new WaitForSeconds(Hit1Delay);
         AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(Hit2Delay - Hit1Delay);
         AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(TotalDuration - Hit2Delay);
     }

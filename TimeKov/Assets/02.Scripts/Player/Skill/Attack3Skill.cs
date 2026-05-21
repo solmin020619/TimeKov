@@ -47,13 +47,18 @@ public class Attack3Skill : ComboAttackBase
             AttackVfxBone,
             AttackVfxOffset,
             AttackVfxRotationOffset,
-            AttackVfxLifeTime
+            AttackVfxLifeTime,
+            AttackVfxFollowCaster
         );
 
         float remaining = Mathf.Max(0f, AnimDuration - AttackVfxDelay);
         yield return new WaitForSeconds(remaining);
 
         OnAttackHit(caster);
+
+        // 데미지 후 마무리 시간: 애니 잔여 동안 이동 잠금 유지 (Attack3는 돌진+슬래시라 특히 미끄러짐)
+        if (PostHitLockDuration > 0f)
+            yield return new WaitForSeconds(PostHitLockDuration);
 
         if (rb != null)
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);

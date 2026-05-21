@@ -15,13 +15,13 @@ public static class TutorialAssetBuilder
     const string CategoriesFolder = RootFolder + "/Categories";
     const string TutorialsFolder = RootFolder + "/Tutorials";
 
-    // 기획서의 facility/item ID 매핑. 실제 ID와 다르면 인스펙터에서 조정.
-    const int BioExtractorId = 0;     // TODO: 실제 facilityId 확인 후 입력. 0이면 모든 설비 카운트
-    const int BioInjectorId = 0;      // TODO: 동일
-    const int ItemLeafId = 1101;       // 변이 식물 잎사귀
-    const int ItemSapId = 1102;        // 끈적한 수액
-    const int ItemMedicalGelId = 1201; // 의료용 겔
-    const int ItemHealingAmpouleId = 4101; // 소형 나노 힐링 앰플
+    // FacilityData 시트 확정값 (BioExtractor=1, BioInjector=6). ItemData 시트와도 일치 확인됨.
+    const int BioExtractorId = 1;          // 생체 추출기 (3x3, 입력2/출력1)
+    const int BioInjectorId = 6;           // 생체 주입기 (5x5, 입력2/출력2)
+    const int ItemLeafId = 1101;           // 변이 식물 잎사귀 (Common, RawMaterial)
+    const int ItemSapId = 1102;            // 끈적한 수액 (Common, RawMaterial)
+    const int ItemMedicalGelId = 1201;     // 의료용 겔 (Advanced, ProcessedTier1) — R1201: 1101x2+1102x1 → 1201
+    const int ItemHealingAmpouleId = 4101; // 소형 나노 힐링 앰플 (Advanced, TacticalConsumable) — R4101: 1201x1 → 4101, Heal/Time/Flat/+50
 
     [MenuItem("Tools/Quest/Generate Tutorial Assets")]
     public static void Generate()

@@ -10,7 +10,8 @@ public static class AttackUtils
         float heightOffset,
         LayerMask enemyLayer,
         GameObject hitVfxPrefab = null,
-        Vector3 hitVfxOffset = default)
+        Vector3 hitVfxOffset = default,
+        float hitVfxLifeTime = 1.5f)
     {
         var stat = caster.GetComponent<PlayerStatComponent>();
 
@@ -33,7 +34,7 @@ public static class AttackUtils
 
             // 피격 이펙트
             if (hitVfxPrefab != null)
-                VfxUtils.SpawnAtHit(hitVfxPrefab, hit, hitVfxOffset);
+                VfxUtils.SpawnAtHit(hitVfxPrefab, hit, hitVfxOffset, hitVfxLifeTime);
         }
     }
 }

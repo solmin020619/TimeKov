@@ -44,10 +44,16 @@ public class PlayerMovementComponent : MonoBehaviour
     private float _slashTimer;
     private float _slashForce;
 
+    // Dash (PlayerDashComponent가 SetDashing으로 토글. HandleSlopeStabilize / LockMovement가 velocity 안 건드리도록 가드)
+    private bool _isDashing;
+
     public float CurrentSpeed => _currentSpeed;  // 현재 이동 속도
     public bool IsGrounded => _isGrounded;     // 지면 여부
     public bool IsJumping => _isJumping;      // 점프 중 여부
     public bool IsSlashing => _isSlashing;     // 슬래시 중 여부
+    public bool IsDashing => _isDashing;      // 대시 중 여부
+
+    public void SetDashing(bool dashing) => _isDashing = dashing;
 
     void Awake()
     {
@@ -231,6 +237,8 @@ public class PlayerMovementComponent : MonoBehaviour
     // 물리 시뮬레이션이 경사 법선 계산으로 남긴 X/Z 잔류 속도를 최종 정리
     void HandleSlopeStabilize()
     {
+        // 대시 중에는 dashForce가 X/Z velocity에 살아있어야 하므로 안정화 skip
+        if (_isDashing) return;
         if (_isGrounded && !_isJumping && !_isSlashing && _currentSpeed < 0.01f)
         {
             _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
@@ -263,7 +271,7 @@ public class PlayerMovementComponent : MonoBehaviour
         LockMovement(true);
     }
 
-    public void LockMovement(bool isLocked)
+    public void LockMovement(bool isLocked, bool preserveVelocity = false)
     {
         _movementLocked = isLocked;
 
@@ -272,9 +280,11 @@ public class PlayerMovementComponent : MonoBehaviour
             // 잠금 시작(공격·스킬 등): 현재 X/Z 이동 속도 즉시 제거
             // HandleGravity가 매 프레임 X/Z를 보존하므로, 여기서 초기화하지 않으면
             // 달리던 방향으로 공격 내내 미끄러지는 버그가 발생함
+            // 단, preserveVelocity=true (대시 등)일 땐 velocity 안 건드림 — 호출 직후 dashForce 박을 거라
             _currentSpeed = 0f;
             _postUnlockTimer = 0f;
-            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+            if (!preserveVelocity)
+                _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
         }
         else
         {

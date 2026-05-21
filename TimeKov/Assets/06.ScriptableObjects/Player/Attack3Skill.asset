@@ -15,13 +15,26 @@ MonoBehaviour:
   ComboIndex: 2
   ComboWindow: 1.2
   Damage: 10
-  HitRadius: 1.5
+  HitRadius: 2
   HitHeight: 1
   EnemyLayer:
     serializedVersion: 2
     m_Bits: 64
   GaugeTarget: 2
   GaugeAmount: 100
+  AttackVfxPrefab: {fileID: 1044528419629608, guid: 3be98662c9e7ef5468cb9c4e11010dc7, type: 3}
+  AttackVfxBone: 18
+  AttackVfxOffset: {x: 0, y: 0, z: 0}
+  AttackVfxRotationOffset: {x: 0, y: 0, z: 180}
+  AttackVfxLifeTime: 0.5
+  AttackVfxDelay: 0.7
+  AttackVfxFollowCaster: 1
+  HitVfxPrefab: {fileID: 1893033738566276, guid: 3e04efdf8ee665d48962b33b06e8e3d3, type: 3}
+  HitVfxOffset: {x: 0, y: 1, z: 0}
+  HitVfxLifeTime: 1
   SlashForce: 1
   SlashDuration: 0.38
   AnimDuration: 0.77
+  SlashMoveVfxPrefab: {fileID: 0}
+  SlashMoveVfxOffset: {x: 0, y: 1, z: 0.5}
+  SlashMoveVfxLifeTime: 1

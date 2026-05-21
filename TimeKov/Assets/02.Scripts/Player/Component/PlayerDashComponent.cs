@@ -45,7 +45,7 @@ public class PlayerDashComponent : MonoBehaviour
 
     void TryDash()
     {
-        // Á¡ÇÁ¡¤Dead¡¤Hurt »óÅÂ Â÷´Ü
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Deadï¿½ï¿½Hurt ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (_player.Movement.IsJumping) return;
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
@@ -61,10 +61,12 @@ public class PlayerDashComponent : MonoBehaviour
     IEnumerator DashRoutine()
     {
         IsDashing = true;
+        _player.Movement.SetDashing(true);
 
         _player.Stat.UseStamina(DashCost);
         _cooldownTimer = DashCooldown;
-        _player.Movement.LockMovement(true);
+        // preserveVelocity=true â†’ LockMovementì´ velocity 0ìœ¼ë¡œ ë°•ì§€ ì•ŠìŒ (ì§í›„ dashForce ì ìš© ë³´ì¡´)
+        _player.Movement.LockMovement(true, preserveVelocity: true);
 
         Vector3 dashDir = _player.Movement.GetDashDirection();
 
@@ -76,7 +78,7 @@ public class PlayerDashComponent : MonoBehaviour
 
         _player.Anim.PlayDash(dashDir);
 
-        // ´ë½Ã ÀÌÆåÆ® »ı¼º
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
         VfxUtils.SpawnAtCaster(
             DashVfxPrefab,
             gameObject,
@@ -89,6 +91,7 @@ public class PlayerDashComponent : MonoBehaviour
         yield return new WaitForSeconds(DashDuration);
 
         _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+        _player.Movement.SetDashing(false);
         _player.Movement.LockMovement(false);
         IsDashing = false;
     }

@@ -56,6 +56,10 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 22100000, guid: 09e2f859c9676594185d7a857f9d1f6b, type: 2}
+    - target: {fileID: 13700000, guid: f16ffb3f68d6daa4abdac68548a9e050, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f26947f6e106dac48af7b94144c601bc, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -114,6 +118,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2513331106734601382, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2513331106734601382, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2953558527633378854, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+      propertyPath: data
+      value: 
+      objectReference: {fileID: 11400000, guid: 8d5c68c25cdc7874b858294f483d1d94, type: 2}
     - target: {fileID: 4146926761419704507, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
       propertyPath: sourceId
       value: MeleeBot_FantasyWolf

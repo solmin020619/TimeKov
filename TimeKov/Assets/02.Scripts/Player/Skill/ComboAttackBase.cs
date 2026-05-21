@@ -32,11 +32,17 @@ public abstract class ComboAttackBase : ScriptableObject
     // 애니메이션 시작 후 VFX 스폰까지 딜레이 (스윙 피크 타이밍)
     [Tooltip("0 = 즉시 스폰. 스윙 모션 중간에 맞추려면 0.1~0.25 권장")]
     public float   AttackVfxDelay          = 0.15f;
+    [Tooltip("true = 캐릭터 회전/이동을 따라감. 슬래시는 보통 true 권장 (false면 캐릭터가 움직이는 동안 검 위치와 분리됨)")]
+    public bool    AttackVfxFollowCaster   = true;
 
     [Header("VFX - 피격 이펙트")]
     public GameObject HitVfxPrefab;
     public Vector3    HitVfxOffset   = new Vector3(0f, 1f, 0f);
     public float      HitVfxLifeTime = 1.5f;
+
+    [Header("Post-Hit")]
+    [Tooltip("데미지 들어간 후 이동 잠금 유지 시간(초). 애니 마무리 동안 미끄러짐 방지. 0이면 즉시 해제. 콤보 입력 자체엔 영향 없음.")]
+    public float PostHitLockDuration = 0f;
 
     // ─────────────────────────────────────────────────────────
     public virtual IEnumerator ExecuteRoutine(GameObject caster)
@@ -58,7 +64,8 @@ public abstract class ComboAttackBase : ScriptableObject
             AttackVfxBone,
             AttackVfxOffset,
             AttackVfxRotationOffset,
-            AttackVfxLifeTime
+            AttackVfxLifeTime,
+            AttackVfxFollowCaster
         );
 
         // 남은 시간 대기 (총 AnimDuration - 이미 소비한 딜레이)
@@ -66,6 +73,10 @@ public abstract class ComboAttackBase : ScriptableObject
         yield return new WaitForSeconds(remaining);
 
         OnAttackHit(caster);
+
+        // 데미지 후 마무리 시간: 애니 잔여 동안 이동 잠금 유지 (미끄러짐 방지)
+        if (PostHitLockDuration > 0f)
+            yield return new WaitForSeconds(PostHitLockDuration);
 
         if (rb != null)
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
