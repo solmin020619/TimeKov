@@ -20,6 +20,16 @@ public class MachineUI : MonoBehaviour
     [Header("재료 슬롯 (오른쪽)")]
     public RecipeDropSlot[] recipeDropSlots;
 
+    [Header("레시피 선택 UI (선택 사항)")]
+    [Tooltip("레시피 이전 버튼 (없으면 무시됨)")]
+    public Button recipePrevBtn;
+    [Tooltip("레시피 다음 버튼 (없으면 무시됨)")]
+    public Button recipeNextBtn;
+    [Tooltip("현재 레시피 인덱스 표시 텍스트 (예: 1/5)")]
+    public TextMeshProUGUI recipeIndexText;
+    [Tooltip("현재 레시피 이름 표시 텍스트 (선택 사항)")]
+    public TextMeshProUGUI recipeNameText;
+
     [Header("진행 바 / 상태 텍스트")]
     public Slider progressBar;
     public TextMeshProUGUI statusText;
@@ -31,10 +41,17 @@ public class MachineUI : MonoBehaviour
     public InventoryManager playerInventory;
 
     private ProcessingMachine _machine;
+    private int _selectedRecipeIndex = 0;
     // DraggableSlot → InventorySlotUI 로 전환 (등급 테두리·아이콘 표시 지원)
     private readonly List<InventorySlotUI> _invSlots = new();
 
     // ── 공개 API ────────────────────────────────────────────
+
+    private void Awake()
+    {
+        if (recipePrevBtn != null) recipePrevBtn.onClick.AddListener(PrevRecipe);
+        if (recipeNextBtn != null) recipeNextBtn.onClick.AddListener(NextRecipe);
+    }
 
     public void OpenFor(ProcessingMachine machine, string title)
     {
@@ -46,12 +63,38 @@ public class MachineUI : MonoBehaviour
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
         if (inv != null) inv.OnInventoryChanged += RefreshInventorySlots;
 
+        // 설비를 열 때마다 첫 번째 레시피로 초기화
+        _selectedRecipeIndex = 0;
+
         uiPanel.SetActive(true);
         if (machineTitleText != null) machineTitleText.text = title;
 
         BuildRecipeSlots();
         BuildInventorySlots();
         RefreshOutputSlots();
+    }
+
+    // ── 레시피 선택 ─────────────────────────────────────────
+
+    public void PrevRecipe()
+    {
+        if (_machine == null || _machine.Recipes == null || _machine.Recipes.Count == 0) return;
+        _selectedRecipeIndex = (_selectedRecipeIndex - 1 + _machine.Recipes.Count) % _machine.Recipes.Count;
+        BuildRecipeSlots();
+    }
+
+    public void NextRecipe()
+    {
+        if (_machine == null || _machine.Recipes == null || _machine.Recipes.Count == 0) return;
+        _selectedRecipeIndex = (_selectedRecipeIndex + 1) % _machine.Recipes.Count;
+        BuildRecipeSlots();
+    }
+
+    public void SelectRecipe(int index)
+    {
+        if (_machine == null || _machine.Recipes == null) return;
+        _selectedRecipeIndex = Mathf.Clamp(index, 0, _machine.Recipes.Count - 1);
+        BuildRecipeSlots();
     }
 
     public void Close()
@@ -126,8 +169,15 @@ public class MachineUI : MonoBehaviour
         var recipes = _machine.Recipes;
         if (recipes == null || recipes.Count == 0) return;
 
-        var inputs = recipes[0].inputs;
+        // 선택된 레시피 인덱스 범위 보정
+        _selectedRecipeIndex = Mathf.Clamp(_selectedRecipeIndex, 0, recipes.Count - 1);
+        var selectedRecipe = recipes[_selectedRecipeIndex];
+        var inputs = selectedRecipe.inputs;
 
+        // 레시피 선택 UI 갱신
+        RefreshRecipeSelectionUI(recipes.Count);
+
+        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
         for (int i = 0; i < recipeDropSlots.Length; i++)
         {
             if (recipeDropSlots[i] == null) continue;
@@ -135,13 +185,32 @@ public class MachineUI : MonoBehaviour
             if (i < inputs.Length)
             {
                 recipeDropSlots[i].gameObject.SetActive(true);
-                var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
                 recipeDropSlots[i].Setup(inputs[i].itemId, inputs[i].amount, _machine, inv);
             }
             else
             {
                 recipeDropSlots[i].gameObject.SetActive(false);
             }
+        }
+    }
+
+    private void RefreshRecipeSelectionUI(int totalCount)
+    {
+        // 이전/다음 버튼 표시 여부 (레시피가 1개면 숨김)
+        bool multiRecipe = totalCount > 1;
+        if (recipePrevBtn != null) recipePrevBtn.gameObject.SetActive(multiRecipe);
+        if (recipeNextBtn != null) recipeNextBtn.gameObject.SetActive(multiRecipe);
+
+        // 인덱스 텍스트 갱신 (예: "2 / 5")
+        if (recipeIndexText != null)
+            recipeIndexText.text = multiRecipe ? $"{_selectedRecipeIndex + 1} / {totalCount}" : "";
+
+        // 레시피 이름 텍스트 갱신
+        if (recipeNameText != null && _machine != null && _machine.Recipes != null
+            && _selectedRecipeIndex < _machine.Recipes.Count)
+        {
+            var recipe = _machine.Recipes[_selectedRecipeIndex];
+            recipeNameText.text = !string.IsNullOrEmpty(recipe.recipeName) ? recipe.recipeName : "";
         }
     }
 

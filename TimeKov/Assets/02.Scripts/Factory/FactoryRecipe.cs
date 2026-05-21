@@ -19,6 +19,9 @@ namespace TIMEKOV.Factory
     [System.Serializable]
     public class FactoryRecipe
     {
+        [Tooltip("레시피 이름 (UI 표시용, 비워도 됨)")]
+        public string recipeName = "";
+
         [Tooltip("입력 재료")]
         public FactorySlot[] inputs;
 

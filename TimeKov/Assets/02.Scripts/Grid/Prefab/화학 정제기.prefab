@@ -965,7 +965,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
       propertyPath: m_Name
-      value: Extruder_5x5
+      value: "\uD654\uD559 \uC815\uC81C\uAE30"
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
       propertyPath: m_Layer
@@ -1054,7 +1054,8 @@ MonoBehaviour:
   inputPort: {fileID: 8396130082639913853}
   machineName: "\uC124\uBE44"
   recipes:
-  - inputs:
+  - recipeName: "\uD65C\uC131 \uC0DD\uCCB4 \uBCA0\uC774\uC2A4"
+    inputs:
     - itemId: 1201
       amount: 2
     - itemId: 3201
@@ -1063,7 +1064,8 @@ MonoBehaviour:
     - itemId: 1301
       amount: 1
     processingTime: 5
-  - inputs:
+  - recipeName: "\uACE0\uC21C\uB3C4 \uB2E8\uBC31\uC9C8 \uCD94\uCD9C\uBB3C"
+    inputs:
     - itemId: 1202
       amount: 2
     - itemId: 3201
@@ -1072,7 +1074,8 @@ MonoBehaviour:
     - itemId: 1302
       amount: 1
     processingTime: 5
-  - inputs:
+  - recipeName: "\uACE0\uB18D\uCD95 \uD654\uD559 \uCD09\uB9E4"
+    inputs:
     - itemId: 3101
       amount: 4
     outputs:
