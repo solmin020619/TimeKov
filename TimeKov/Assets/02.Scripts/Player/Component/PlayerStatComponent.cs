@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class PlayerStatComponent : MonoBehaviour
 {
-    [Header("HP (= ½Ã°£)")]
+    [Header("HP (= ï¿½Ã°ï¿½)")]
     public float MaxHp = 300f;
     public float HpDrainRate = 1f;
 
@@ -16,24 +16,30 @@ public class PlayerStatComponent : MonoBehaviour
     public float MaxStamina = 100f;
     public float StaminaDrain = 10f;
     public float StaminaRegen = 5f;
+    [Tooltip("íƒˆì§„ í›„ ë‹¬ë¦¬ê¸° ì¬í—ˆìš© ê¸°ì¤€ ë¹„ìœ¨ (0~1). ìŠ¤í…Œë¯¸ë‚˜ê°€ 0ì´ ë˜ë©´ íƒˆì§„, ì´ ë¹„ìœ¨ ì´ìƒ íšŒë³µë˜ë©´ ì¬í—ˆìš©")]
     public float ExhaustedThreshold = 0.3f;
 
     [Header("Hurt")]
-    public float HurtDuration = 0.3f;  // °æÁ÷ Áö¼Ó ½Ã°£
-    public float InvincibleDuration = 0.5f;  // ¹«Àû ÃÑ Áö¼Ó ½Ã°£
+    public float HurtDuration = 0.3f;  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½
+    public float InvincibleDuration = 0.5f;  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½
+
+    [Header("Hit VFX")]
+    public GameObject HurtVfxPrefab;
+    public Vector3 HurtVfxOffset = new Vector3(0f, 1f, 0f);
+    public float HurtVfxLifeTime = 1.5f;
 
     public float CurrentHp { get; private set; }
     public float CurrentStamina { get; private set; }
     public bool IsExhausted { get; private set; }
     public bool IsInBase { get; private set; }
-    public bool IsHurt { get; private set; }  // ÇÇ°İ °æÁ÷ Áß
-    public bool IsInvincible { get; private set; }  // ¹«Àû Áß
+    public bool IsHurt { get; private set; }  // ï¿½Ç°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
+    public bool IsInvincible { get; private set; }  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
 
     private Player _player;
     private Coroutine _hurtRoutine;
 
     public event Action OnDead;
-    public event Action OnHurt;  // UI ÇÇ°İ ÇÇµå¹é¿ë
+    public event Action OnHurt;  // UI ï¿½Ç°ï¿½ ï¿½Çµï¿½ï¿½ï¿½
 
     void Awake()
     {
@@ -49,7 +55,7 @@ public class PlayerStatComponent : MonoBehaviour
         UpdateExhaustedState();
     }
 
-    // HP(½Ã°£) ÀÚµ¿ °¨¼Ò
+    // HP(ï¿½Ã°ï¿½) ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½
     void HandleHpDrain()
     {
         if (IsInBase) return;
@@ -64,18 +70,18 @@ public class PlayerStatComponent : MonoBehaviour
         }
     }
 
-    // ¿ÜºÎ µ¥¹ÌÁö (attackerPos: ÇÇ°İ ¹æÇâ ÆÇº°¿ë)
+    // ï¿½Üºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (attackerPos: ï¿½Ç°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Çºï¿½ï¿½ï¿½)
     public void TakeDamage(float amount, Vector3 attackerPos = default)
     {
         if (IsDead) return;
-        if (IsInvincible) return;  // ¹«Àû Áß ¹«½Ã
+        if (IsInvincible) return;  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
         float finalDamage = Mathf.Max(1f, amount - DEF);
         CurrentHp = Mathf.Max(0, CurrentHp - finalDamage);
 
         if (CurrentHp <= 0) { OnDead?.Invoke(); return; }
 
-        // Hurt »óÅÂ ÁøÀÔ
+        // Hurt ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (_hurtRoutine != null) StopCoroutine(_hurtRoutine);
         _hurtRoutine = StartCoroutine(HurtRoutine(attackerPos));
     }
@@ -85,56 +91,64 @@ public class PlayerStatComponent : MonoBehaviour
         IsHurt = true;
         IsInvincible = true;
 
-        // Skill3 ¼±µô ÁßÀÌ¸é Interrupt È£Ãâ
+        // Skill3 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ Interrupt È£ï¿½ï¿½
         var skillComp = GetComponent<PlayerSkillComponent>();
         if (skillComp != null && skillComp.CurrentSkillIsInterruptible)
             skillComp.Interrupt();
 
-        // ÇÇ°İ ¹æÇâ ÆÇº° ÈÄ Hit L / Hit R Àç»ı
+        // ï¿½Ç°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Çºï¿½ ï¿½ï¿½ Hit L / Hit R ï¿½ï¿½ï¿½
         bool isLeft = attackerPos != Vector3.zero && IsAttackerOnLeft(attackerPos);
         _player.Anim.PlayHit(isLeft);
 
-        OnHurt?.Invoke();  // UI ÇÇµå¹é ÀÌº¥Æ®
+        VfxUtils.SpawnAtCaster(
+            HurtVfxPrefab,
+            gameObject,
+            HurtVfxOffset,
+            HurtVfxLifeTime,
+            false
+            );
 
-        // °æÁ÷ 0.3ÃÊ
+        OnHurt?.Invoke();  // UI ï¿½Çµï¿½ï¿½ ï¿½Ìºï¿½Æ®
+
+        // ï¿½ï¿½ï¿½ï¿½ 0.3ï¿½ï¿½
         yield return new WaitForSeconds(HurtDuration);
         IsHurt = false;
 
-        // ¹«Àû ÀÜ¿© ½Ã°£ (ÃÑ 0.5ÃÊ¿¡¼­ °æÁ÷ 0.3ÃÊ Á¦¿Ü)
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ü¿ï¿½ ï¿½Ã°ï¿½ (ï¿½ï¿½ 0.5ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 0.3ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
         yield return new WaitForSeconds(InvincibleDuration - HurtDuration);
         IsInvincible = false;
         _hurtRoutine = null;
     }
 
-    // ÇÇ°İ ¹æÇâ ÆÇº° (ÁÂÃøÀÌ¸é true)
+    // ï¿½Ç°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Çºï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½Ì¸ï¿½ true)
     bool IsAttackerOnLeft(Vector3 attackerPos)
     {
         Vector3 toAttacker = (attackerPos - transform.position).normalized;
         return Vector3.Dot(transform.right, toAttacker) < 0;
     }
 
-    // ÇÃ·§ HP È¸º¹
+    // ï¿½Ã·ï¿½ HP È¸ï¿½ï¿½
     public void Heal(float amount)
     {
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + amount);
     }
 
-    // ÃÖ´ë HP ºñÀ² È¸º¹ (0.0 ~ 1.0)
+    // ï¿½Ö´ï¿½ HP ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ (0.0 ~ 1.0)
     public void HealPercent(float percent)
     {
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + MaxHp * percent);
     }
 
-    // ½ºÅÂ¹Ì³ª Áï½Ã È¸º¹
+    // ï¿½ï¿½ï¿½Â¹Ì³ï¿½ ï¿½ï¿½ï¿½ È¸ï¿½ï¿½
     public void RecoverStamina(float amount)
     {
         CurrentStamina = Mathf.Min(MaxStamina, CurrentStamina + amount);
     }
 
-    // BaseZone¿¡¼­ È£Ãâ
+    // BaseZoneï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½
     public void SetInBase(bool inBase) => IsInBase = inBase;
 
-    // ¸®½ºÆù ½Ã È£Ãâ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ È£ï¿½ï¿½
     public void Respawn()
     {
         CurrentHp = MaxHp;
@@ -151,7 +165,7 @@ public class PlayerStatComponent : MonoBehaviour
         }
     }
 
-    // ´Ş¸®±â Áß ¸Å ÇÁ·¹ÀÓ È£Ãâ  ´Ş¸± ¼ö ÀÖÀ¸¸é true
+    // ï¿½Ş¸ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½  ï¿½Ş¸ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ true
     public bool TryDrainSprintStamina()
     {
         if (IsExhausted) return false;
@@ -159,7 +173,7 @@ public class PlayerStatComponent : MonoBehaviour
         return true;
     }
 
-    // ½ºÅÂ¹Ì³ª Áï½Ã ¼Ò¸ğ (´ë½Ã µî)
+    // ï¿½ï¿½ï¿½Â¹Ì³ï¿½ ï¿½ï¿½ï¿½ ï¿½Ò¸ï¿½ (ï¿½ï¿½ï¿½ ï¿½ï¿½)
     public void UseStamina(float amount)
     {
         CurrentStamina = Mathf.Max(0, CurrentStamina - amount);
@@ -178,14 +192,16 @@ public class PlayerStatComponent : MonoBehaviour
 
     void UpdateExhaustedState()
     {
-        if (!IsExhausted && CurrentStamina <= MaxStamina * ExhaustedThreshold)
+        // ìŠ¤í…Œë¯¸ë‚˜ 0 â†’ íƒˆì§„ (ë‹¬ë¦¬ê¸° ì™„ì „íˆ ì†Œì§„ í›„)
+        if (!IsExhausted && CurrentStamina <= 0f)
             IsExhausted = true;
 
-        if (IsExhausted && CurrentStamina >= MaxStamina)
+        // íƒˆì§„ í›„ ExhaustedThreshold(30%) ì´ìƒ íšŒë³µë˜ë©´ ë‹¬ë¦¬ê¸° ì¬í—ˆìš©
+        if (IsExhausted && CurrentStamina >= MaxStamina * ExhaustedThreshold)
             IsExhausted = false;
     }
 
-    // µ¥¹ÌÁö °ø½Ä (ÇÃ·¹ÀÌ¾î -> Àû)
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ -> ï¿½ï¿½)
     public float CalculateAttackDamage(float baseDamage, float enemyDef)
     {
         return Mathf.Max(1f, baseDamage + ATK - enemyDef);

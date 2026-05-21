@@ -4,46 +4,78 @@ using UnityEngine;
 public abstract class ComboAttackBase : ScriptableObject
 {
     [Header("Combo")]
-    public int ComboIndex = 0;       // ÄŞº¸ ¼ø¼­ (0 = 1Å¸, 1 = 2Å¸, 2 = 3Å¸)
-    public float ComboWindow = 1.2f;    // ´ÙÀ½ ÄŞº¸ ÀÔ·Â °¡´É ½Ã°£ (ÃÊ)
+    public int   ComboIndex  = 0;
+    public float ComboWindow = 1.2f;
 
     [Header("Attack")]
-    public float Damage = 10f;     // ±âº» µ¥¹ÌÁö (flat ¼öÄ¡)
-    public float HitRadius = 2.5f;    // °ø°İ ¹üÀ§ ¹İ°æ (m)
-    public float HitHeight = 1.0f;    // ÆÇÁ¤ ³ôÀÌ (Áö¸é ±âÁØ)
-    public LayerMask EnemyLayer;            // Àû ·¹ÀÌ¾î ¸¶½ºÅ©
+    public float    Damage     = 10f;
+    public float    HitRadius  = 2.5f;
+    public float    HitHeight  = 1.0f;
+    public LayerMask EnemyLayer;
 
     [Header("Gauge")]
-    public SkillSheetId GaugeTarget;        // ÀûÁß ½Ã ÃæÀüÇÒ ½ºÅ³ °ÔÀÌÁö
-    public float GaugeAmount = 20f;  // ÀûÁß ½Ã ÃæÀü·®
+    public SkillSheetId GaugeTarget;
+    public float        GaugeAmount = 20f;
 
-    // ½ºÅ³ ½ÇÇà ÁøÀÔÁ¡, PlayerSkillComponent¿¡¼­ È£Ãâ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // VFX ì„¤ì •
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    [Header("VFX - ê³µê²© ì´í™íŠ¸")]
+    public GameObject    AttackVfxPrefab;
+    // ìŠ¤í° ìœ„ì¹˜ ê¸°ì¤€ ë¼ˆ (RightHand = ê²€ì„ ì¥” ì† ìœ„ì¹˜)
+    public HumanBodyBones AttackVfxBone = HumanBodyBones.RightHand;
+    // root(ìºë¦­í„°) ì¶• ê¸°ì¤€ ìœ„ì¹˜ ì˜¤í”„ì…‹
+    public Vector3 AttackVfxOffset         = new Vector3(0f, 0f, 0.3f);
+    // root.rotation ê¸°ì¤€ ì¶”ê°€ íšŒì „ (ìŠ¬ë˜ì‹œ ê°ë„ ì¡°ì • â€” Hovl Studio ê¸°ì¤€)
+    public Vector3 AttackVfxRotationOffset = new Vector3(0f, 0f, 0f);
+    public float   AttackVfxLifeTime       = 0.5f;
+    // ì• ë‹ˆë©”ì´ì…˜ ì‹œì‘ í›„ VFX ìŠ¤í°ê¹Œì§€ ë”œë ˆì´ (ìŠ¤ìœ™ í”¼í¬ íƒ€ì´ë°)
+    [Tooltip("0 = ì¦‰ì‹œ ìŠ¤í°. ìŠ¤ìœ™ ëª¨ì…˜ ì¤‘ê°„ì— ë§ì¶”ë ¤ë©´ 0.1~0.25 ê¶Œì¥")]
+    public float   AttackVfxDelay          = 0.15f;
+
+    [Header("VFX - í”¼ê²© ì´í™íŠ¸")]
+    public GameObject HitVfxPrefab;
+    public Vector3    HitVfxOffset   = new Vector3(0f, 1f, 0f);
+    public float      HitVfxLifeTime = 1.5f;
+
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public virtual IEnumerator ExecuteRoutine(GameObject caster)
     {
-        var anim = caster.GetComponent<PlayerAnimatorComponent>();
+        var anim     = caster.GetComponent<PlayerAnimatorComponent>();
         var movement = caster.GetComponent<PlayerMovementComponent>();
-        var rb = caster.GetComponent<Rigidbody>();
+        var rb       = caster.GetComponent<Rigidbody>();
 
-        // °ø°İ Áß ÀÌµ¿ Àá±İ
         movement.LockMovement(true);
-
         anim?.PlayAttack(ComboIndex);
 
-        yield return new WaitForSeconds(GetAnimDuration());
+        // ìŠ¤ìœ™ í”¼í¬ê¹Œì§€ ë”œë ˆì´ í›„ ì´í™íŠ¸ ìŠ¤í°
+        if (AttackVfxDelay > 0f)
+            yield return new WaitForSeconds(AttackVfxDelay);
+
+        VfxUtils.SpawnAtBone(
+            AttackVfxPrefab,
+            caster,
+            AttackVfxBone,
+            AttackVfxOffset,
+            AttackVfxRotationOffset,
+            AttackVfxLifeTime
+        );
+
+        // ë‚¨ì€ ì‹œê°„ ëŒ€ê¸° (ì´ AnimDuration - ì´ë¯¸ ì†Œë¹„í•œ ë”œë ˆì´)
+        float remaining = Mathf.Max(0f, GetAnimDuration() - AttackVfxDelay);
+        yield return new WaitForSeconds(remaining);
 
         OnAttackHit(caster);
 
-        // °ø°İ ³¡³ª°í ¼öÆò ¼Óµµ ÃÊ±âÈ­
-        rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+        if (rb != null)
+            rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
 
-        // °ø°İ ³¡³ª¸é ÀÌµ¿ ÇØÁ¦
         movement.LockMovement(false);
     }
 
-    // È÷Æ® ÆÇÁ¤ ¹× µ¥¹ÌÁö Àû¿ë, ÇÏÀ§ Å¬·¡½º¿¡¼­ override °¡´É
     protected virtual void OnAttackHit(GameObject caster)
     {
-        var stat = caster.GetComponent<PlayerStatComponent>();
+        var stat  = caster.GetComponent<PlayerStatComponent>();
         var skill = caster.GetComponent<PlayerSkillComponent>();
 
         Collider[] hits = Physics.OverlapSphere(
@@ -58,32 +90,32 @@ public abstract class ComboAttackBase : ScriptableObject
         {
             if (!hit.TryGetComponent<EnemyHealth>(out var enemy)) continue;
 
-            float enemyDef = 0f;
+            float enemyDef   = 0f;
             float finalDamage = stat != null
                               ? stat.CalculateAttackDamage(Damage, enemyDef)
                               : Damage;
 
             enemy.TakeDamage(finalDamage, false, hit.transform.position + Vector3.up * HitHeight);
+
+            VfxUtils.SpawnAtHit(HitVfxPrefab, hit, HitVfxOffset, HitVfxLifeTime);
+
             hitAny = true;
         }
 
-        // Àû ÀûÁß ½Ã¿¡¸¸ °ÔÀÌÁö ÃæÀü
-        if (hitAny) skill?.AddGauge(GaugeTarget, GaugeAmount);
+        if (hitAny)
+            skill?.AddGauge(GaugeTarget, GaugeAmount);
     }
 
-    // ½ºÅ³ Áß´Ü ½Ã È£Ãâ, ÇÏÀ§ Å¬·¡½º¿¡¼­ cleanup override
     public virtual void OnInterrupt(GameObject caster)
     {
-        var rb = caster.GetComponent<Rigidbody>();
+        var rb       = caster.GetComponent<Rigidbody>();
         var movement = caster.GetComponent<PlayerMovementComponent>();
 
-        // Áß´Ü ½Ã ¼öÆò ¼Óµµ ÃÊ±âÈ­ ÈÄ ÀÌµ¿ Àá±İ ÇØÁ¦
         if (rb != null)
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
 
         movement?.LockMovement(false);
     }
 
-    // ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ, ÇÏÀ§ Å¬·¡½º¿¡¼­ ¹İµå½Ã ±¸Çö
     protected abstract float GetAnimDuration();
 }

@@ -2,13 +2,15 @@ using UnityEngine;
 
 public static class AttackUtils
 {
-    // ±¸Ã¼ ¹üÀ§ ³» Àû¿¡°Ô µ¥¹ÌÁö Àû¿ë
+    // êµ¬ì²´ ë²”ìœ„ ê³µê²© + í”¼ê²© ì´í™íŠ¸ (ì˜µì…˜)
     public static void HitSphere(
         GameObject caster,
         float radius,
         float damage,
         float heightOffset,
-        LayerMask enemyLayer)
+        LayerMask enemyLayer,
+        GameObject hitVfxPrefab = null,
+        Vector3 hitVfxOffset = default)
     {
         var stat = caster.GetComponent<PlayerStatComponent>();
 
@@ -22,16 +24,16 @@ public static class AttackUtils
         {
             if (!hit.TryGetComponent<EnemyHealth>(out var enemy)) continue;
 
-            // Àû DEF´Â ÆÀ¿ø ÄÚµå¿¡ Ãß°¡µÇ¸é ¿©±â¼­ °¡Á®¿È
-            // float enemyDef = hit.GetComponent<EnemyAI>()?.data?.def ?? 0f;
             float enemyDef = 0f;
-
-            // ÃÖÁ¾ µ¥¹ÌÁö = ±âº» µ¥¹ÌÁö + ÇÃ·¹ÀÌ¾î ATK - Àû DEF, ÃÖ¼Ú°ª 1
             float finalDamage = stat != null
                               ? stat.CalculateAttackDamage(damage, enemyDef)
                               : damage;
 
             enemy.TakeDamage(finalDamage, false, hit.transform.position + Vector3.up * heightOffset);
+
+            // í”¼ê²© ì´í™íŠ¸
+            if (hitVfxPrefab != null)
+                VfxUtils.SpawnAtHit(hitVfxPrefab, hit, hitVfxOffset);
         }
     }
 }

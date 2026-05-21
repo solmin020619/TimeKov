@@ -9,6 +9,13 @@ public class PlayerDashComponent : MonoBehaviour
     public float DashForce = 15f;
     public float DashDuration = 0.2f;
 
+    [Header("Dash VFX")]
+    public GameObject DashVfxPrefab;
+    public Vector3 DashVfxOffset = new Vector3(0f, 0.2f, 0f);
+    public Vector3 DashVfxRotationOffset = Vector3.zero;
+    public float DashVfxLifeTime = 1f;
+    public bool DashVfxParentToPlayer = true;
+
     private Player _player;
     private Rigidbody _rb;
     private float _cooldownTimer;
@@ -25,7 +32,9 @@ public class PlayerDashComponent : MonoBehaviour
     void Update()
     {
         TickCooldown();
-        if (_player.Input.DashPressed) TryDash();
+
+        if (_player.Input.DashPressed)
+            TryDash();
     }
 
     void TickCooldown()
@@ -58,6 +67,7 @@ public class PlayerDashComponent : MonoBehaviour
         _player.Movement.LockMovement(true);
 
         Vector3 dashDir = _player.Movement.GetDashDirection();
+
         _rb.linearVelocity = new Vector3(
             dashDir.x * DashForce,
             _rb.linearVelocity.y,
@@ -65,6 +75,16 @@ public class PlayerDashComponent : MonoBehaviour
         );
 
         _player.Anim.PlayDash(dashDir);
+
+        // 대시 이펙트 생성
+        VfxUtils.SpawnAtCaster(
+            DashVfxPrefab,
+            gameObject,
+            DashVfxOffset,
+            DashVfxRotationOffset,
+            DashVfxLifeTime,
+            DashVfxParentToPlayer
+        );
 
         yield return new WaitForSeconds(DashDuration);
 

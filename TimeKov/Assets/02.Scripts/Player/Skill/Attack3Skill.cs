@@ -1,16 +1,20 @@
 using System.Collections;
-using Unity.VisualScripting;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "Attack3Skill", menuName = "Skills/Attack3")]
 public class Attack3Skill : ComboAttackBase
 {
     [Header("Slash")]
-    public float SlashForce = 12f;   // ¿¸¡¯ ΩΩ∑°Ω√ »˚
-    public float SlashDuration = 0.3f;  // ΩΩ∑°Ω√ ¡ˆº” Ω√∞£ (√ )
+    public float SlashForce = 12f;
+    public float SlashDuration = 0.3f;
 
     protected override float GetAnimDuration() => AnimDuration;
-    public float AnimDuration = 1.0f;   // ¿¸√º æ÷¥œ∏ﬁ¿Ãº« ±Ê¿Ã (√ )
+    public float AnimDuration = 1.0f;
+
+    [Header("Attack3 Extra VFX")]
+    public GameObject SlashMoveVfxPrefab;
+    public Vector3 SlashMoveVfxOffset = new Vector3(0f, 1f, 0.5f);
+    public float SlashMoveVfxLifeTime = 1f;
 
     public override IEnumerator ExecuteRoutine(GameObject caster)
     {
@@ -18,29 +22,49 @@ public class Attack3Skill : ComboAttackBase
         var movement = caster.GetComponent<PlayerMovementComponent>();
         var rb = caster.GetComponent<Rigidbody>();
 
-        // ∞¯∞› ¡ﬂ ¿Ãµø ¿·±›
         movement.LockMovement(true);
 
         anim?.PlayAttack(ComboIndex);
 
-        // ΩΩ∑°Ω√ Ω√¿€
+        // ÎèåÏßÑ/Ïä¨ÎûòÏãú Ïù¥ÌéôÌä∏: Ï¶âÏãú (ÎèåÏßÑ ÏãúÏûëÍ≥º ÎèôÍ∏∞Ìôî)
+        VfxUtils.SpawnAtCaster(
+            SlashMoveVfxPrefab,
+            caster,
+            SlashMoveVfxOffset,
+            SlashMoveVfxLifeTime,
+            true
+        );
+
         movement.StartSlash(SlashForce, SlashDuration);
 
-        // ¿¸√º æ÷¥œ∏ﬁ¿Ãº« µøæ» ¿Ãµø ¿·±› ¿Ø¡ˆ
-        yield return new WaitForSeconds(AnimDuration);
+        // Ïä§Ïúô ÌîºÌÅ¨ ÎîúÎ†àÏù¥ ÌõÑ Í≥µÍ≤© Ïù¥ÌéôÌä∏ Ïä§Ìè∞
+        if (AttackVfxDelay > 0f)
+            yield return new WaitForSeconds(AttackVfxDelay);
+
+        VfxUtils.SpawnAtBone(
+            AttackVfxPrefab,
+            caster,
+            AttackVfxBone,
+            AttackVfxOffset,
+            AttackVfxRotationOffset,
+            AttackVfxLifeTime
+        );
+
+        float remaining = Mathf.Max(0f, AnimDuration - AttackVfxDelay);
+        yield return new WaitForSeconds(remaining);
 
         OnAttackHit(caster);
 
-        // ∞¯∞› ≥°≥™∞Ì ºˆ∆Ú º”µµ √ ±‚»≠
-        rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+        if (rb != null)
+            rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
 
-        // æ÷¥œ∏ﬁ¿Ãº« øœ¿¸»˜ ≥°≥≠ »ƒ ¿Ãµø «ÿ¡¶
         movement.LockMovement(false);
     }
 
     public override void OnInterrupt(GameObject caster)
     {
-        // ¡ﬂ¥‹ Ω√ ¿Ãµø ¿·±› «ÿ¡¶
-        caster.GetComponent<PlayerMovementComponent>()?.LockMovement(false);
+        var movement = caster.GetComponent<PlayerMovementComponent>();
+        movement?.CancelSlash();
+        movement?.LockMovement(false);
     }
 }

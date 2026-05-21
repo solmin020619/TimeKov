@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d81f5cc58e962b549b569bfa8528110d, type: 3}
   m_Name: Skeltonzombie
   m_EditorClassIdentifier: 
-  enemyName: Melee
-  maxHP: 10
+  enemyName: tutorial_enemy
+  maxHP: 30
   moveSpeed: 3
   visionRange: 12
   visionAngle: 360
@@ -22,6 +22,11 @@ MonoBehaviour:
   attackCooldown: 1.5
   hitDelay: 1.43
   animLength: 2.63
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 1.5
+  deathAnimDuration: 1.5
   spawnVFX: {fileID: 0}
   spawnSound: {fileID: 0}
   detectVFX: {fileID: 0}

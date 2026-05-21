@@ -20,7 +20,12 @@ public class PlayerMovementComponent : MonoBehaviour
     [Header("Ground Check")]
     public float GroundCheckRadius = 0.25f; // 지면 감지 구체 반경
     public float GroundCheckOffset = 0.05f; // 지면 감지 오프셋
-    public LayerMask GroundMask;                 // 지면 레이어 마스크
+    public LayerMask GroundMask;            // 지면 레이어 마스크
+
+    [Header("Slope")]
+    [Tooltip("이 각도(도) 초과 경사면은 올라갈 수 없고 미끄러짐")]
+    public float MaxSlopeAngle   = 45f;   // 최대 등반 가능 경사각
+    public float SlopeSlideSpeed = 4f;    // 가파른 경사에서 미끄러지는 속도
 
     private Player _player;
     private Rigidbody _rb;
@@ -30,13 +35,18 @@ public class PlayerMovementComponent : MonoBehaviour
     private Vector3 _moveDir;
     private bool _isGrounded;
     private bool _wasGrounded;
+    private Vector3 _groundNormal  = Vector3.up; // 현재 지면 법선
+    private bool    _onSteepSlope;               // MaxSlopeAngle 초과 경사면
     private bool _canJump = true;
     private float _jumpBufferCounter;
     private bool _jumpRequested;
     private float _currentSpeed;
     private bool _isJumping;
     private bool _movementLocked;
-    private bool _ignoreMovementInput;   // 잠금 해제 직후 한 프레임 이동 무시
+    private float _postUnlockPhysTimer;   // 물리 dead zone: 이 시간 동안 velocity=0 (공격 후 즉시 이동 차단)
+    private float _postUnlockAnimTimer;   // 애니메이션 sync: IsPostLockTransition 유지 (damping=0)
+    private const float POST_UNLOCK_PHYS = 0.15f; // 물리 dead zone 길이
+    private const float POST_UNLOCK_ANIM = 0.20f; // anim sync 길이 (dead zone + 1프레임 여유)
 
     // Slash
     private bool _isSlashing;
@@ -47,6 +57,11 @@ public class PlayerMovementComponent : MonoBehaviour
     public bool IsGrounded => _isGrounded;     // 지면 여부
     public bool IsJumping => _isJumping;      // 점프 중 여부
     public bool IsSlashing => _isSlashing;     // 슬래시 중 여부
+    /// <summary>
+    /// dead zone 또는 그 직후 애니메이션 sync 중: true
+    /// PlayerAnimatorComponent가 damping=0으로 애니메이션을 물리에 즉시 동기화
+    /// </summary>
+    public bool IsPostLockTransition => _postUnlockAnimTimer > 0f;
 
     void Awake()
     {
@@ -61,7 +76,11 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void Update()
     {
-        _moveDir = GetMoveDirection(_player.Input.MoveInput);
+        // 공격·스킬 잠금 중에는 이동 방향 입력 무시
+        // → 잠금 해제 직후 이전에 눌렸던 키 때문에 즉시 이동하는 슬라이딩 방지
+        _moveDir = _movementLocked
+            ? Vector3.zero
+            : GetMoveDirection(_player.Input.MoveInput);
 
         GroundCheck();
         HandleJumpInput();
@@ -74,6 +93,7 @@ public class PlayerMovementComponent : MonoBehaviour
         HandleMove();
         HandleGravity();
         HandleRotation();
+        HandleSlopeStabilize(); // 경사면 슬라이딩 방지 (마지막 실행)
     }
 
     void GroundCheck()
@@ -85,6 +105,23 @@ public class PlayerMovementComponent : MonoBehaviour
                            + Vector3.down * (halfHeight - _capsule.radius + GroundCheckOffset);
 
         _isGrounded = Physics.CheckSphere(origin, GroundCheckRadius, GroundMask);
+
+        // SphereCast 로 지면 법선 획득 → 경사각 계산
+        Vector3 castStart = transform.position + Vector3.up * 0.1f;
+        float castDist    = halfHeight + GroundCheckOffset + 0.15f;
+
+        if (Physics.SphereCast(castStart, GroundCheckRadius * 0.9f,
+                               Vector3.down, out RaycastHit hit, castDist, GroundMask))
+        {
+            _groundNormal = hit.normal;
+        }
+        else
+        {
+            _groundNormal = Vector3.up;
+        }
+
+        float slopeAngle = Vector3.Angle(Vector3.up, _groundNormal);
+        _onSteepSlope = _isGrounded && slopeAngle > MaxSlopeAngle;
 
         // UI 열려있을 때 점프 홀드 상태 무시 (팀원 추가)
         bool jumpHeld = !PlayerInputComponent.IsBlocked && Input.GetButton("Jump");
@@ -145,6 +182,8 @@ public class PlayerMovementComponent : MonoBehaviour
         _isGrounded = false;
         _isJumping = true;
 
+        Debug.Log($"[Jump] PlayJump 호출됨 / isGrounded={_isGrounded} / canJump={_canJump}");
+
         // 점프 애니메이션 재생
         _player.Anim.PlayJump();
     }
@@ -173,10 +212,15 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_movementLocked) return;
 
-        // 잠금 해제 직후 한 프레임 이동 무시
-        if (_ignoreMovementInput)
+        // 가파른 경사: 이동 차단 + 경사면 표면 방향(3D 전체)으로 미끄러짐
+        // XZ 만 설정하면 HandleGravity 의 y=-2 와 충돌 → 경사면 안으로 밀림 → 떨림
+        // → 경사면에 접선인 전체 벡터로 설정해 충돌 반응 제거
+        if (_onSteepSlope)
         {
-            _ignoreMovementInput = false;
+            Vector3 slideDir    = Vector3.ProjectOnPlane(Vector3.down, _groundNormal).normalized;
+            Vector3 targetSlide = slideDir * SlopeSlideSpeed;
+            // Lerp: 갑작스런 속도 변화 없이 부드럽게 미끄러짐
+            _rb.linearVelocity  = Vector3.Lerp(_rb.linearVelocity, targetSlide, Time.fixedDeltaTime * 12f);
             _currentSpeed = 0f;
             return;
         }
@@ -187,9 +231,26 @@ public class PlayerMovementComponent : MonoBehaviour
                         && _player.Stat.TryDrainSprintStamina()
                         && _moveDir.magnitude > 0.1f;
 
-        _currentSpeed = _moveDir.magnitude > 0.1f
-                      ? (isSprinting ? SprintSpeed : MoveSpeed)
-                      : 0f;
+        float targetSpeed = _moveDir.magnitude > 0.1f
+                          ? (isSprinting ? SprintSpeed : MoveSpeed)
+                          : 0f;
+
+        // 공격 종료 직후 dead zone: 키를 누르고 있어도 이동 완전 차단
+        // → 잠금 해제 후 곧바로 뛰는 현상 제거
+        if (_postUnlockPhysTimer > 0f)
+        {
+            _postUnlockPhysTimer -= Time.fixedDeltaTime;
+            _postUnlockAnimTimer  = Mathf.Max(0f, _postUnlockAnimTimer - Time.fixedDeltaTime);
+            _currentSpeed = 0f;
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+            return;
+        }
+
+        // dead zone 종료 후 anim sync 타이머만 감소 (이동은 즉시 허용)
+        if (_postUnlockAnimTimer > 0f)
+            _postUnlockAnimTimer -= Time.fixedDeltaTime;
+
+        _currentSpeed = targetSpeed;
 
         _rb.linearVelocity = new Vector3(
             _moveDir.x * _currentSpeed,
@@ -202,14 +263,40 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_isGrounded && _rb.linearVelocity.y <= 0)
         {
+            // 가파른 경사: HandleMove 가 경사면 접선 속도(y 포함)를 전담
+            // 여기서 y 를 덮으면 경사면 안으로 밀려 떨림 발생 → 스킵
+            if (_onSteepSlope) return;
+
+            // 일반 지면: 정지 상태면 y=0(경사 슬라이딩 방지), 이동/외부힘이면 y=-2
+            float actualXZ = Mathf.Sqrt(_rb.linearVelocity.x * _rb.linearVelocity.x
+                                      + _rb.linearVelocity.z * _rb.linearVelocity.z);
+            bool isStationary = _currentSpeed < 0.01f && !_isSlashing && actualXZ < 0.5f;
+            float groundY = isStationary ? 0f : -2f;
+
             Vector3 v = _rb.linearVelocity;
-            v.y = -2f;
+            v.y = groundY;
             _rb.linearVelocity = v;
             return;
         }
 
         float multiplier = _rb.linearVelocity.y < 0 ? FallMultiplier : 1f;
         _rb.AddForce(Vector3.up * Gravity * multiplier, ForceMode.Acceleration);
+    }
+
+    // 경사면 슬라이딩 완전 차단 (FixedUpdate 마지막에 실행)
+    // 물리 시뮬레이션이 경사 법선 계산으로 남긴 X/Z 잔류 속도를 최종 정리
+    void HandleSlopeStabilize()
+    {
+        // 가파른 경사: 미끄러짐을 허용 (안정화 스킵)
+        if (_onSteepSlope) return;
+
+        // 실제 XZ 속도가 있으면(대쉬 등 외부 힘) 건드리지 않음
+        float actualXZ = Mathf.Sqrt(_rb.linearVelocity.x * _rb.linearVelocity.x
+                                  + _rb.linearVelocity.z * _rb.linearVelocity.z);
+        if (_isGrounded && !_isJumping && !_isSlashing && _currentSpeed < 0.01f && actualXZ < 0.5f)
+        {
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+        }
     }
 
     void HandleRotation()
@@ -242,17 +329,37 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         _movementLocked = isLocked;
 
-        // 잠금 해제 시 속도 초기화 및 한 프레임 이동 무시
-        if (!isLocked)
+        if (isLocked)
         {
+            // 잠금 시작(공격·스킬 등): 현재 X/Z 이동 속도 즉시 제거
+            // HandleGravity가 매 프레임 X/Z를 보존하므로, 여기서 초기화하지 않으면
+            // 달리던 방향으로 공격 내내 미끄러지는 버그가 발생함
             _currentSpeed = 0f;
-            _ignoreMovementInput = true;
-            _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+            _postUnlockPhysTimer = 0f;
+            _postUnlockAnimTimer = 0f;
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+        }
+        else
+        {
+            // 잠금 해제: dead zone + anim sync 타이머 시작
+            _currentSpeed = 0f;
+            _postUnlockPhysTimer = POST_UNLOCK_PHYS;  // 0.15s 이동 차단
+            _postUnlockAnimTimer = POST_UNLOCK_ANIM;  // 0.20s 애니메이션 damping=0
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
         }
     }
 
     public void AddForce(Vector3 force, ForceMode mode = ForceMode.Impulse)
         => _rb.AddForce(force, mode);
+
+    // Attack3 중단 시 슬래시 강제 취소 (OnInterrupt에서 호출)
+    public void CancelSlash()
+    {
+        if (!_isSlashing) return;
+        _isSlashing = false;
+        _slashTimer = 0f;
+        _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+    }
 
     // 대시 방향 반환, 카메라 기준 현재 이동 방향
     public Vector3 GetDashDirection()
