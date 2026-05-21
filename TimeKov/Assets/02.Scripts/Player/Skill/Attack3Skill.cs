@@ -1,16 +1,20 @@
 using System.Collections;
-using Unity.VisualScripting;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "Attack3Skill", menuName = "Skills/Attack3")]
 public class Attack3Skill : ComboAttackBase
 {
     [Header("Slash")]
-    public float SlashForce = 12f;   // ���� ������ ��
-    public float SlashDuration = 0.3f;  // ������ ���� �ð� (��)
+    public float SlashForce = 12f;
+    public float SlashDuration = 0.3f;
 
     protected override float GetAnimDuration() => AnimDuration;
-    public float AnimDuration = 1.0f;   // ��ü �ִϸ��̼� ���� (��)
+    public float AnimDuration = 1.0f;
+
+    [Header("Attack3 Extra VFX")]
+    public GameObject SlashMoveVfxPrefab;
+    public Vector3 SlashMoveVfxOffset = new Vector3(0f, 1f, 0.5f);
+    public float SlashMoveVfxLifeTime = 1f;
 
     public override IEnumerator ExecuteRoutine(GameObject caster)
     {
@@ -18,31 +22,49 @@ public class Attack3Skill : ComboAttackBase
         var movement = caster.GetComponent<PlayerMovementComponent>();
         var rb = caster.GetComponent<Rigidbody>();
 
-        // ���� �� �̵� ���
         movement.LockMovement(true);
 
         anim?.PlayAttack(ComboIndex);
 
-        // ������ ����
+        // 돌진/슬래시 이펙트: 즉시 (돌진 시작과 동기화)
+        VfxUtils.SpawnAtCaster(
+            SlashMoveVfxPrefab,
+            caster,
+            SlashMoveVfxOffset,
+            SlashMoveVfxLifeTime,
+            true
+        );
+
         movement.StartSlash(SlashForce, SlashDuration);
 
-        // ��ü �ִϸ��̼� ���� �̵� ��� ����
-        yield return new WaitForSeconds(AnimDuration);
+        // 스윙 피크 딜레이 후 공격 이펙트 스폰
+        if (AttackVfxDelay > 0f)
+            yield return new WaitForSeconds(AttackVfxDelay);
+
+        VfxUtils.SpawnAtBone(
+            AttackVfxPrefab,
+            caster,
+            AttackVfxBone,
+            AttackVfxOffset,
+            AttackVfxRotationOffset,
+            AttackVfxLifeTime
+        );
+
+        float remaining = Mathf.Max(0f, AnimDuration - AttackVfxDelay);
+        yield return new WaitForSeconds(remaining);
 
         OnAttackHit(caster);
 
-        // ���� ������ ���� �ӵ� �ʱ�ȭ
-        rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+        if (rb != null)
+            rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
 
-        // �ִϸ��̼� ������ ���� �� �̵� ����
         movement.LockMovement(false);
     }
 
     public override void OnInterrupt(GameObject caster)
     {
-        // 중단 시 슬래시 강제 종료 + 이동 잠금 해제
         var movement = caster.GetComponent<PlayerMovementComponent>();
-        movement?.CancelSlash();        // _isSlashing 강제 초기화 (슬라이딩 방지)
+        movement?.CancelSlash();
         movement?.LockMovement(false);
     }
 }

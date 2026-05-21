@@ -22,6 +22,11 @@ public class PlayerStatComponent : MonoBehaviour
     public float HurtDuration = 0.3f;  // 경직 지속 시간
     public float InvincibleDuration = 0.5f;  // 무적 총 지속 시간
 
+    [Header("Hit VFX")]
+    public GameObject HurtVfxPrefab;
+    public Vector3 HurtVfxOffset = new Vector3(0f, 1f, 0f);
+    public float HurtVfxLifeTime = 1.5f;
+
     public float CurrentHp { get; private set; }
     public float CurrentStamina { get; private set; }
     public bool IsExhausted { get; private set; }
@@ -93,6 +98,14 @@ public class PlayerStatComponent : MonoBehaviour
         // 피격 방향 판별 후 Hit L / Hit R 재생
         bool isLeft = attackerPos != Vector3.zero && IsAttackerOnLeft(attackerPos);
         _player.Anim.PlayHit(isLeft);
+
+        VfxUtils.SpawnAtCaster(
+            HurtVfxPrefab,
+            gameObject,
+            HurtVfxOffset,
+            HurtVfxLifeTime,
+            false
+            );
 
         OnHurt?.Invoke();  // UI 피드백 이벤트
 
