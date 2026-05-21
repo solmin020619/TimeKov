@@ -161,7 +161,7 @@ public static class QuestPrefabBuilder
     [MenuItem("Tools/Quest/Consolidate BarFlash Assets")]
     public static void ConsolidateBarFlashAssets()
     {
-        const string newFolder = "Assets/UI Effect/FX_UI_BarFlashO";
+        const string newFolder = "Assets/12.VFX/UI Effect/FX_UI_BarFlashO";
         const string oldRoot = "Assets/Game VFX - UI & Word Effect Collection";
 
         if (!AssetDatabase.IsValidFolder(newFolder))
@@ -275,10 +275,10 @@ public static class QuestPrefabBuilder
         // IconAlert(!!!) 우선순위: quest_marker_1 > quest_marker_256 > shockmark
         // IconNormal(?) 우선순위: marker_2 > question
         // EnsureSpriteImport는 textureType이 Default여도 Sprite로 자동 변환 후 로드
-        var marker1 = EnsureSpriteImport("Assets/UI Effect/quest_marker_1.png");
-        var marker256 = marker1 == null ? EnsureSpriteImport("Assets/UI Effect/quest_marker_256.png") : null;
+        var marker1 = EnsureSpriteImport("Assets/12.VFX/UI Effect/quest_marker_1.png");
+        var marker256 = marker1 == null ? EnsureSpriteImport("Assets/12.VFX/UI Effect/quest_marker_256.png") : null;
         var shockmark = (marker1 == null && marker256 == null) ? LoadVfxSprite("shockmark.png") : null;
-        var marker2 = EnsureSpriteImport("Assets/UI Effect/target_marker_256.png");
+        var marker2 = EnsureSpriteImport("Assets/12.VFX/UI Effect/target_marker_256.png");
         var gradWindow = LoadVfxSprite("grad2b_windowlight.png");
         var question = LoadVfxSprite("question.png");
 
@@ -307,8 +307,8 @@ public static class QuestPrefabBuilder
         }
 
         // ObjectiveLine: YellowSweep + CheckBoxEmpty(square_marker_256) + CheckBoxFilled(check_marker_256)
-        var checkBoxSprite = EnsureSpriteImport("Assets/UI Effect/square_marker_512.png");
-        var checkFilledSprite = EnsureSpriteImport("Assets/UI Effect/check_marker_256 (1).png");
+        var checkBoxSprite = EnsureSpriteImport("Assets/12.VFX/UI Effect/square_marker_512.png");
+        var checkFilledSprite = EnsureSpriteImport("Assets/12.VFX/UI Effect/check_marker_256 (1).png");
 
         var olPath = $"{PrefabFolder}/ObjectiveLine.prefab";
         var ol = PrefabUtility.LoadPrefabContents(olPath);
@@ -386,7 +386,7 @@ public static class QuestPrefabBuilder
     static Sprite LoadVfxSprite(string filename)
     {
         // EnsureSpriteImport로 textureType=Default 자동 변환 후 로드
-        var path1 = $"Assets/UI Effect/{filename}";
+        var path1 = $"Assets/12.VFX/UI Effect/{filename}";
         if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path1) != null)
             return EnsureSpriteImport(path1);
 
@@ -786,7 +786,7 @@ public static class QuestPrefabBuilder
             iconNormal.SetAsLastSibling();
             SetIconToBoxCenter(iconNormal, QuestNormalIconSize);
 
-            var normalSprite = EnsureSpriteImport("Assets/UI Effect/target_marker_256.png");
+            var normalSprite = EnsureSpriteImport("Assets/12.VFX/UI Effect/target_marker_256.png");
             if (normalSprite != null)
             {
                 var img = iconNormal.GetComponent<UnityEngine.UI.Image>();
@@ -806,8 +806,8 @@ public static class QuestPrefabBuilder
             SetIconToBoxCenter(iconAlert, QuestIconSize);
 
             // quest_marker_1 우선 (textureType=Default여도 Sprite로 자동 변환)
-            var marker = EnsureSpriteImport("Assets/UI Effect/quest_marker_1.png");
-            if (marker == null) marker = EnsureSpriteImport("Assets/UI Effect/quest_marker_256.png");
+            var marker = EnsureSpriteImport("Assets/12.VFX/UI Effect/quest_marker_1.png");
+            if (marker == null) marker = EnsureSpriteImport("Assets/12.VFX/UI Effect/quest_marker_256.png");
 
             if (marker != null)
             {

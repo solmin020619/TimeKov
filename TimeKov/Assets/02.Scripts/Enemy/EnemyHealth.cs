@@ -29,7 +29,16 @@ public class EnemyHealth : MonoBehaviour
             enemyWorldUI = GetComponentInChildren<EnemyWorldUI>(true);
 
         if (enemyWorldUI != null)
-            enemyWorldUI.Initialize(this, gameObject.name);
+            enemyWorldUI.Initialize(this, ResolveDisplayName());
+    }
+
+    private string ResolveDisplayName()
+    {
+        var brain = GetComponent<EnemyBrain>();
+        if (brain != null && brain.Data != null && !string.IsNullOrEmpty(brain.Data.enemyName))
+            return brain.Data.enemyName;
+        // SO 없을 때 fallback: "Enemy_X(Clone)" → "Enemy_X"
+        return gameObject.name.Replace("(Clone)", "").Trim();
     }
 
     public void TakeDamage(float amount)
