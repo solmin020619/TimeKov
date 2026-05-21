@@ -36,7 +36,8 @@ public class PlayerMovementComponent : MonoBehaviour
     private float _currentSpeed;
     private bool _isJumping;
     private bool _movementLocked;
-    private bool _ignoreMovementInput;   // 잠금 해제 직후 한 프레임 이동 무시
+    private float _postUnlockTimer;      // 잠금 해제 직후 이동 복구 타이머 (애니메이션 블렌딩 동기화)
+    private const float POST_UNLOCK_RAMP = 0.15f; // 애니메이션 SetFloat damping(0.15f)과 동일
 
     // Slash
     private bool _isSlashing;
@@ -74,6 +75,7 @@ public class PlayerMovementComponent : MonoBehaviour
         HandleMove();
         HandleGravity();
         HandleRotation();
+        HandleSlopeStabilize(); // 경사면 슬라이딩 방지 (마지막 실행)
     }
 
     void GroundCheck()
@@ -145,6 +147,8 @@ public class PlayerMovementComponent : MonoBehaviour
         _isGrounded = false;
         _isJumping = true;
 
+        Debug.Log($"[Jump] PlayJump 호출됨 / isGrounded={_isGrounded} / canJump={_canJump}");
+
         // 점프 애니메이션 재생
         _player.Anim.PlayJump();
     }
@@ -173,23 +177,28 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_movementLocked) return;
 
-        // 잠금 해제 직후 한 프레임 이동 무시
-        if (_ignoreMovementInput)
-        {
-            _ignoreMovementInput = false;
-            _currentSpeed = 0f;
-            return;
-        }
-
         // UI 열려있을 때 스프린트 무시 (팀원 추가)
         bool isSprinting = !PlayerInputComponent.IsBlocked
                         && Input.GetKey(KeyCode.LeftShift)
                         && _player.Stat.TryDrainSprintStamina()
                         && _moveDir.magnitude > 0.1f;
 
-        _currentSpeed = _moveDir.magnitude > 0.1f
-                      ? (isSprinting ? SprintSpeed : MoveSpeed)
-                      : 0f;
+        float targetSpeed = _moveDir.magnitude > 0.1f
+                          ? (isSprinting ? SprintSpeed : MoveSpeed)
+                          : 0f;
+
+        // 잠금 해제 직후 점진적 속도 복구 (애니메이션 SetFloat damping 0.15f 와 동기화)
+        // → 속도가 갑자기 튀지 않아 공격 후 "살짝 끌리는" 현상 제거
+        if (_postUnlockTimer > 0f)
+        {
+            _postUnlockTimer -= Time.fixedDeltaTime;
+            float ramp = 1f - Mathf.Clamp01(_postUnlockTimer / POST_UNLOCK_RAMP);
+            _currentSpeed = targetSpeed * ramp;
+        }
+        else
+        {
+            _currentSpeed = targetSpeed;
+        }
 
         _rb.linearVelocity = new Vector3(
             _moveDir.x * _currentSpeed,
@@ -202,14 +211,30 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_isGrounded && _rb.linearVelocity.y <= 0)
         {
+            // 정지 상태(공격 중 포함): y를 0으로 고정
+            //   → 경사면에서 -2 하향 속도가 법선 벡터에 의해 X/Z로 분해되는 것을 방지
+            // 이동 중 또는 슬래시 중: -2로 유지하여 지면 밀착 유지
+            bool isStationary = _currentSpeed < 0.01f && !_isSlashing;
+            float groundY = isStationary ? 0f : -2f;
+
             Vector3 v = _rb.linearVelocity;
-            v.y = -2f;
+            v.y = groundY;
             _rb.linearVelocity = v;
             return;
         }
 
         float multiplier = _rb.linearVelocity.y < 0 ? FallMultiplier : 1f;
         _rb.AddForce(Vector3.up * Gravity * multiplier, ForceMode.Acceleration);
+    }
+
+    // 경사면 슬라이딩 완전 차단 (FixedUpdate 마지막에 실행)
+    // 물리 시뮬레이션이 경사 법선 계산으로 남긴 X/Z 잔류 속도를 최종 정리
+    void HandleSlopeStabilize()
+    {
+        if (_isGrounded && !_isJumping && !_isSlashing && _currentSpeed < 0.01f)
+        {
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+        }
     }
 
     void HandleRotation()
@@ -242,17 +267,35 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         _movementLocked = isLocked;
 
-        // 잠금 해제 시 속도 초기화 및 한 프레임 이동 무시
-        if (!isLocked)
+        if (isLocked)
         {
+            // 잠금 시작(공격·스킬 등): 현재 X/Z 이동 속도 즉시 제거
+            // HandleGravity가 매 프레임 X/Z를 보존하므로, 여기서 초기화하지 않으면
+            // 달리던 방향으로 공격 내내 미끄러지는 버그가 발생함
             _currentSpeed = 0f;
-            _ignoreMovementInput = true;
-            _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+            _postUnlockTimer = 0f;
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+        }
+        else
+        {
+            // 잠금 해제 시: 속도 초기화 + 점진적 복구 타이머 시작
+            _currentSpeed = 0f;
+            _postUnlockTimer = POST_UNLOCK_RAMP;  // 0.15s 동안 0→MoveSpeed 선형 램프
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
         }
     }
 
     public void AddForce(Vector3 force, ForceMode mode = ForceMode.Impulse)
         => _rb.AddForce(force, mode);
+
+    // Attack3 중단 시 슬래시 강제 취소 (OnInterrupt에서 호출)
+    public void CancelSlash()
+    {
+        if (!_isSlashing) return;
+        _isSlashing = false;
+        _slashTimer = 0f;
+        _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+    }
 
     // 대시 방향 반환, 카메라 기준 현재 이동 방향
     public Vector3 GetDashDirection()
