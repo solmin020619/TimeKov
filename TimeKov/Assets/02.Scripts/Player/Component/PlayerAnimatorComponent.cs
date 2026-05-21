@@ -5,21 +5,21 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private Player _player;
     private Animator _anim;
 
-    private static readonly int NormalHash = Animator.StringToHash("----normal");     // ÀÌµ¿ ¼Óµµ (Blend Tree)
-    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");        // 1Å¸ Æ®¸®°Å
-    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");        // 2Å¸ Æ®¸®°Å
-    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");        // 3Å¸ Æ®¸®°Å
-    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");     // ½ºÅ³1 Æ®¸®°Å
-    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2");     // ½ºÅ³2 Æ®¸®°Å
-    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3");     // ½ºÅ³3 Æ®¸®°Å
-    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F");  // ¾Õ ´ë½Ã Æ®¸®°Å
-    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B");  // µÚ ´ë½Ã Æ®¸®°Å
-    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R");  // ¿ì ´ë½Ã Æ®¸®°Å
-    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L");  // ÁÂ ´ë½Ã Æ®¸®°Å
-    private static readonly int HitLHash = Animator.StringToHash("Hit L");          // ÇÇ°İ ÁÂ Æ®¸®°Å
-    private static readonly int HitRHash = Animator.StringToHash("Hit R");          // ÇÇ°İ ¿ì Æ®¸®°Å
-    private static readonly int DieHash = Animator.StringToHash("Die");            // »ç¸Á Æ®¸®°Å
-    private static readonly int JumpHash = Animator.StringToHash("Jump");           // Á¡ÇÁ Æ®¸®°Å
+    private static readonly int NormalHash = Animator.StringToHash("----normal");     // ï¿½Ìµï¿½ ï¿½Óµï¿½ (Blend Tree)
+    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");        // 1Å¸ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");        // 2Å¸ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");        // 3Å¸ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");     // ï¿½ï¿½Å³1 Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2");     // ï¿½ï¿½Å³2 Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3");     // ï¿½ï¿½Å³3 Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F");  // ï¿½ï¿½ ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B");  // ï¿½ï¿½ ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R");  // ï¿½ï¿½ ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L");  // ï¿½ï¿½ ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int HitLHash = Animator.StringToHash("Hit L");          // ï¿½Ç°ï¿½ ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int HitRHash = Animator.StringToHash("Hit R");          // ï¿½Ç°ï¿½ ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int DieHash = Animator.StringToHash("Die");            // ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
+    private static readonly int JumpHash = Animator.StringToHash("Jump");           // ï¿½ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½
 
     void Awake()
     {
@@ -34,13 +34,17 @@ public class PlayerAnimatorComponent : MonoBehaviour
 
     void UpdateMovement()
     {
-        // Blend Tree°¡ Float ÇÏ³ª·Î Idle/Walk/Run/Sprint ÀÚµ¿ ºí·»µù
-        _anim.SetFloat(NormalHash, _player.Movement.CurrentSpeed, 0.15f, Time.deltaTime);
+        // ê³µê²©Â·ìŠ¤í‚¬ ì ê¸ˆ í•´ì œ ì§í›„ ramp êµ¬ê°„: damping = 0
+        //   â†’ ë¬¼ë¦¬ ì†ë„(_currentSpeed)ì™€ ì• ë‹ˆë©”ì´ì…˜ íŒŒë¼ë¯¸í„°ê°€ ì¦‰ì‹œ ë™ê¸°í™”
+        //   â†’ "ë¬¼ë¦¬ëŠ” ê±·ëŠ”ë° ì• ë‹ˆë©”ì´ì…˜ì€ idle" ìŠ¬ë¼ì´ë”© í˜„ìƒ ì œê±°
+        // í‰ì‹œ: damping = 0.15f (ë¶€ë“œëŸ¬ìš´ ì „í™˜ ìœ ì§€)
+        float damp = _player.Movement.IsPostLockTransition ? 0f : 0.15f;
+        _anim.SetFloat(NormalHash, _player.Movement.CurrentSpeed, damp, Time.deltaTime);
     }
 
     public void PlayAttack(int comboIndex)
     {
-        // ±âÁ¸ Æ®¸®°Å ÃÊ±âÈ­ ÈÄ ¼¼ÆÃ
+        // ï¿½ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         _anim.ResetTrigger(Attack1Hash);
         _anim.ResetTrigger(Attack2Hash);
         _anim.ResetTrigger(Attack3Hash);
@@ -63,7 +67,7 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
     }
 
-    // ´ë½Ã ¹æÇâÀ» Ä³¸¯ÅÍ ·ÎÄÃ ±âÁØÀ¸·Î ÆÇ´ÜÇØ¼­ ¹æÇâº° ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı
+    // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç´ï¿½ï¿½Ø¼ï¿½ ï¿½ï¿½ï¿½âº° ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½
     public void PlayDash(Vector3 dashDir)
     {
         Vector3 localDir = transform.InverseTransformDirection(dashDir);

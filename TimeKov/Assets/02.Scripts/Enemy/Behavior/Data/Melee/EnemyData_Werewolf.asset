@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d81f5cc58e962b549b569bfa8528110d, type: 3}
+  m_Name: EnemyData_Werewolf
+  m_EditorClassIdentifier: 
+  enemyName: "\uB291\uB300\uC778\uAC04"
+  maxHP: 100
+  moveSpeed: 4
+  visionRange: 12
+  visionAngle: 110
+  attackDamage: 15
+  attackRange: 2
+  attackCooldown: 1.5
+  hitDelay: 0.5
+  animLength: 1.5
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 1.5
+  deathAnimDuration: 1.5
+  detectStunDuration: 1.5
+  spawnVFX: {fileID: 0}
+  spawnSound: {fileID: 0}
+  detectVFX: {fileID: 0}
+  detectSound: {fileID: 0}
+  hitVFX: {fileID: 0}
+  hitSound: {fileID: 0}
+  attackVFX: {fileID: 0}
+  attackSound: {fileID: 0}
+  deathVFX: {fileID: 0}
+  deathSound: {fileID: 0}

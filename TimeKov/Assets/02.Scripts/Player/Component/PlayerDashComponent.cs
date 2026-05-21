@@ -9,6 +9,13 @@ public class PlayerDashComponent : MonoBehaviour
     public float DashForce = 15f;
     public float DashDuration = 0.2f;
 
+    [Header("Dash VFX")]
+    public GameObject DashVfxPrefab;
+    public Vector3 DashVfxOffset = new Vector3(0f, 0.2f, 0f);
+    public Vector3 DashVfxRotationOffset = Vector3.zero;
+    public float DashVfxLifeTime = 1f;
+    public bool DashVfxParentToPlayer = true;
+
     private Player _player;
     private Rigidbody _rb;
     private float _cooldownTimer;
@@ -25,7 +32,9 @@ public class PlayerDashComponent : MonoBehaviour
     void Update()
     {
         TickCooldown();
-        if (_player.Input.DashPressed) TryDash();
+
+        if (_player.Input.DashPressed)
+            TryDash();
     }
 
     void TickCooldown()
@@ -36,7 +45,7 @@ public class PlayerDashComponent : MonoBehaviour
 
     void TryDash()
     {
-        // Á¡ÇÁ¡¤Dead¡¤Hurt »óÅÂ Â÷´Ü
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Deadï¿½ï¿½Hurt ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (_player.Movement.IsJumping) return;
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
@@ -55,9 +64,12 @@ public class PlayerDashComponent : MonoBehaviour
 
         _player.Stat.UseStamina(DashCost);
         _cooldownTimer = DashCooldown;
+        // LockMovementì´ X/Z velocityë¥¼ 0ìœ¼ë¡œ ë°•ì§€ë§Œ, ê°™ì€ frame ì§í›„ dashForce ì ìš© â†’ ì •ìƒ
+        // HandleSlopeStabilizeëŠ” actualXZ < 0.5f ê°€ë“œê°€ ìˆì–´ì„œ dashForce(15)ëŠ” ë³´ì¡´ë¨
         _player.Movement.LockMovement(true);
 
         Vector3 dashDir = _player.Movement.GetDashDirection();
+
         _rb.linearVelocity = new Vector3(
             dashDir.x * DashForce,
             _rb.linearVelocity.y,
@@ -65,6 +77,16 @@ public class PlayerDashComponent : MonoBehaviour
         );
 
         _player.Anim.PlayDash(dashDir);
+
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
+        VfxUtils.SpawnAtCaster(
+            DashVfxPrefab,
+            gameObject,
+            DashVfxOffset,
+            DashVfxRotationOffset,
+            DashVfxLifeTime,
+            DashVfxParentToPlayer
+        );
 
         yield return new WaitForSeconds(DashDuration);
 

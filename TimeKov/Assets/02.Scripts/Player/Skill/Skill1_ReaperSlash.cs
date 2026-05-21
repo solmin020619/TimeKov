@@ -5,30 +5,35 @@ using UnityEngine;
 public class Skill1_ReaperSlash : SkillBase
 {
     [Header("Hit 1")]
-    public float Hit1Delay = 0.25f;     // 1Å¸ È÷Æ® ½ÃÀÛ ½Ã°£ (ÃÊ)
-    public float Hit1Damage = 80f;      // 1Å¸ ±âº» µ¥¹ÌÁö
-    public float Hit1Radius = 2.5f;     // 1Å¸ ¹üÀ§ ¹İ°æ (m)
+    public float Hit1Delay  = 0.25f;
+    public float Hit1Damage = 80f;
+    public float Hit1Radius = 2.5f;
 
     [Header("Hit 2")]
-    public float Hit2Delay = 0.6f;     // 2Å¸ È÷Æ® ½ÃÀÛ ½Ã°£ (ÃÊ)
-    public float Hit2Damage = 120f;     // 2Å¸ ±âº» µ¥¹ÌÁö
-    public float Hit2Radius = 3.0f;     // 2Å¸ ¹üÀ§ ¹İ°æ (m)
+    public float Hit2Delay  = 0.6f;
+    public float Hit2Damage = 120f;
+    public float Hit2Radius = 3.0f;
 
     [Header("Settings")]
-    public float TotalDuration = 0.9f;  // ½ºÅ³ ÀüÃ¼ ±æÀÌ (ÃÊ)
-    public float HitHeight = 1.0f;  // ÆÇÁ¤ ³ôÀÌ
-    public LayerMask EnemyLayer;            // Àû ·¹ÀÌ¾î ¸¶½ºÅ©
+    public float TotalDuration = 0.9f;
+    public float HitHeight     = 1.0f;
+    public LayerMask EnemyLayer;
 
     public override IEnumerator ExecuteRoutine(GameObject caster)
     {
         var anim = caster.GetComponent<PlayerAnimatorComponent>();
         anim?.PlaySkill(0);
 
+        // ì‹œì „ ì´í™íŠ¸: ìŠ¤í‚¬ ì‹œì‘ ì§í›„ RightHand ë¼ˆ ìœ„ì¹˜ì— ìŠ¤í°
+        SpawnCastVfx(caster);
+
         yield return new WaitForSeconds(Hit1Delay);
-        AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer);
+        AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer,
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(Hit2Delay - Hit1Delay);
-        AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer);
+        AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer,
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(TotalDuration - Hit2Delay);
     }

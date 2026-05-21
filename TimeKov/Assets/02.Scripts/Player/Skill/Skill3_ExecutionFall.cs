@@ -5,18 +5,18 @@ using UnityEngine;
 public class Skill3_ExecutionFall : SkillBase
 {
     [Header("Hit 1")]
-    public float Hit1Delay = 0.7f;   // ¼±µô (ÀÌ ±¸°£ ÇÇ°İ ½Ã ½ºÅ³ Áß´Ü)
+    public float Hit1Delay  = 0.7f;
     public float Hit1Damage = 80f;
     public float Hit1Radius = 2.5f;
 
     [Header("Hit 2")]
-    public float Hit2Delay = 1.2f;
+    public float Hit2Delay  = 1.2f;
     public float Hit2Damage = 220f;
     public float Hit2Radius = 3.0f;
 
     [Header("Settings")]
     public float TotalDuration = 1.8f;
-    public float HitHeight = 1.0f;
+    public float HitHeight     = 1.0f;
     public LayerMask EnemyLayer;
 
     private bool _interrupted;
@@ -25,25 +25,28 @@ public class Skill3_ExecutionFall : SkillBase
     {
         _interrupted = false;
 
-        var anim = caster.GetComponent<PlayerAnimatorComponent>();
+        var anim      = caster.GetComponent<PlayerAnimatorComponent>();
         var skillComp = caster.GetComponent<PlayerSkillComponent>();
 
         anim?.PlaySkill(2);
 
-        // ¼±µô ±¸°£ ½ÃÀÛ : ÇÇ°İ ½Ã Interrupt Çã¿ë
+        // ì‹œì „ ì´í™íŠ¸: ì í”„ ì‹œì‘ ì‹œ ìŠ¤í°
+        SpawnCastVfx(caster);
+
+        // ì í”„ ìƒìŠ¹ êµ¬ê°„ = í”¼ê²© íŒì • ì „ê¹Œì§€ ì¸í„°ëŸ½íŠ¸ í—ˆìš©
         if (skillComp != null) skillComp.CurrentSkillIsInterruptible = true;
 
         yield return new WaitForSeconds(Hit1Delay);
 
-        // ¼±µô ±¸°£ Á¾·á : Interrupt ºÒÇã
         if (skillComp != null) skillComp.CurrentSkillIsInterruptible = false;
-
         if (_interrupted) yield break;
 
-        AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer);
+        AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer,
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(Hit2Delay - Hit1Delay);
-        AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer);
+        AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer,
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
 
         yield return new WaitForSeconds(TotalDuration - Hit2Delay);
     }

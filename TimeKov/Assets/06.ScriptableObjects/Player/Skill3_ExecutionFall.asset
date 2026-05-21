@@ -15,13 +15,22 @@ MonoBehaviour:
   SkillSheetId: 2
   SkillIcon: {fileID: 0}
   CoolTime: 3.5
-  Hit1Delay: 0.7
+  CastVfxPrefab: {fileID: 1210069404974878, guid: fbab27c98b168764eb295cfff1e9f61f, type: 3}
+  CastVfxBone: 18
+  CastVfxOffset: {x: 0, y: 0, z: 0.3}
+  CastVfxRotation: {x: 0, y: 0, z: 0}
+  CastVfxLifeTime: 2
+  CastVfxFollowCaster: 0
+  HitVfxPrefab: {fileID: 1893033738566276, guid: 3e04efdf8ee665d48962b33b06e8e3d3, type: 3}
+  HitVfxOffset: {x: 0, y: 1, z: 0}
+  HitVfxLifeTime: 1.5
+  Hit1Delay: 0.54
   Hit1Damage: 80
   Hit1Radius: 2.5
-  Hit2Delay: 1.2
+  Hit2Delay: 0.92
   Hit2Damage: 220
   Hit2Radius: 3
-  TotalDuration: 1.8
+  TotalDuration: 1.38
   HitHeight: 1
   EnemyLayer:
     serializedVersion: 2
