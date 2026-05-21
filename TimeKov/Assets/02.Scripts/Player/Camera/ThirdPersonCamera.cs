@@ -28,6 +28,7 @@ public class ThirdPersonCamera : MonoBehaviour
     private float _pitch;
     private float _currentDist;
     private float _targetDist;
+    private float _sensitivityMult = 1f;  // 설정창 감도 슬라이더 배율
 
     public static bool IsUIOpen = false;
 
@@ -39,6 +40,24 @@ public class ThirdPersonCamera : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
+
+    void Start()
+    {
+        // 저장된 감도 값 불러오기
+        _sensitivityMult = PlayerPrefs.GetFloat("MouseSensitivity", 1f);
+        // 이후 설정창에서 변경 시 실시간 반영
+        GlobalSettingsManager.OnSensitivityChanged += ApplySensitivity;
+    }
+
+    void OnDestroy()
+    {
+        GlobalSettingsManager.OnSensitivityChanged -= ApplySensitivity;
+    }
+
+    void ApplySensitivity(float mult)
+    {
+        _sensitivityMult = mult;
     }
 
     void LateUpdate()
@@ -62,9 +81,9 @@ public class ThirdPersonCamera : MonoBehaviour
         // IsUIOpen 또는 GameUIController 기준 둘 다 차단
         if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
 
-        // ���콺 �Է� �״�� ���� -> Slerp ����
-        _yaw += Input.GetAxis("Mouse X") * SensitivityX;
-        _pitch -= Input.GetAxis("Mouse Y") * SensitivityY;
+        // 마우스 입력에 감도 배율 적용
+        _yaw += Input.GetAxis("Mouse X") * SensitivityX * _sensitivityMult;
+        _pitch -= Input.GetAxis("Mouse Y") * SensitivityY * _sensitivityMult;
         _pitch = Mathf.Clamp(_pitch, MinPitchAngle, MaxPitchAngle);
 
         transform.rotation = Quaternion.Euler(0, _yaw, 0);

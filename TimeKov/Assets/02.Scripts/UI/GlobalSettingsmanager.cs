@@ -14,6 +14,7 @@ public class GlobalSettingsManager : MonoBehaviour
 {
     public static event System.Action<float> OnBGMVolumeChanged;
     public static event System.Action<float> OnSFXVolumeChanged;
+    public static event System.Action<float> OnSensitivityChanged;
 
     [Header("UI Components")]
     public TMP_Dropdown resolutionDropdown;
@@ -96,6 +97,7 @@ public class GlobalSettingsManager : MonoBehaviour
     {
         SetBGMVolume(PlayerPrefs.GetFloat("BGMVolume", 1f));
         SetSFXVolume(PlayerPrefs.GetFloat("SFXVolume", 1f));
+        SetSensitivity(PlayerPrefs.GetFloat("MouseSensitivity", 1f));
     }
 
     void SyncUIValues()
@@ -128,6 +130,7 @@ public class GlobalSettingsManager : MonoBehaviour
     {
         PlayerPrefs.SetFloat("MouseSensitivity", sens);
         PlayerPrefs.Save();
+        OnSensitivityChanged?.Invoke(sens);
     }
 
     public void SetFullscreen(bool isFullscreen)

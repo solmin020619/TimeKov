@@ -29,6 +29,19 @@ public class LootBoxScanner : MonoBehaviour
 
         LootBox nearest = ScanInRange(player.position);
 
+        // 다른 UI가 열려있으면 패널 숨기고 대기
+        bool uiBlocking = GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking();
+        if (uiBlocking)
+        {
+            if (_showing)
+            {
+                panel.Hide();
+                _shownBoxes.Clear();  // 다음에 UI가 닫히면 바로 재표시되도록 초기화
+                _showing = false;
+            }
+            return;
+        }
+
         if (_inRange.Count > 0)
         {
             // 범위 안 박스 구성이 바뀌었을 때만 패널을 다시 그린다
