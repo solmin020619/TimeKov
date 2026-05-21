@@ -14,14 +14,25 @@ public class VisionSensor : MonoBehaviour
     [Header("Tick Rate")]
     [SerializeField] private float scanInterval = 0.1f;
 
+    [Header("Lost Memory")]
+    [Tooltip("시야에서 벗어난 후에도 이 시간 동안 마지막 타깃을 유지. 즉시 정지 방지.")]
+    [SerializeField] private float lostMemory = 1.5f;
+
     public Transform SpottedTarget { get; private set; }
 
     private float scanTimer;
+    private Transform lastSeen;
+    private float lostTimer;
 
     public void ApplyVisionParameters(float range, float angle)
     {
         visionRange = range;
         visionAngle = angle;
+    }
+
+    public void ApplyLostMemory(float seconds)
+    {
+        lostMemory = seconds;
     }
 
     private void Update()
@@ -64,7 +75,31 @@ public class VisionSensor : MonoBehaviour
             }
         }
 
-        SpottedTarget = best;
+        if (best != null)
+        {
+            // 시야 안에 들어옴 → 즉시 갱신 + 메모리 리셋
+            SpottedTarget = best;
+            lastSeen = best;
+            lostTimer = 0f;
+        }
+        else if (lastSeen != null)
+        {
+            // 시야 밖 → 메모리 시간 동안 마지막 타깃 유지
+            lostTimer += scanInterval;
+            if (lostTimer >= lostMemory)
+            {
+                lastSeen = null;
+                SpottedTarget = null;
+            }
+            else
+            {
+                SpottedTarget = lastSeen;
+            }
+        }
+        else
+        {
+            SpottedTarget = null;
+        }
     }
 
     private void OnDrawGizmosSelected()

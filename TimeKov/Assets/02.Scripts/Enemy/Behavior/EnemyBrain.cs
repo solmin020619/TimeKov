@@ -80,7 +80,10 @@ public class EnemyBrain : MonoBehaviour
             agent.speed = data.moveSpeed;
 
         if (visionSensor != null)
+        {
             visionSensor.ApplyVisionParameters(data.visionRange, data.visionAngle);
+            visionSensor.ApplyLostMemory(data.targetLostMemory);
+        }
     }
 
     private void ApplyDataToBlackboard()
