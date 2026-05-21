@@ -1042,25 +1042,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   outputBelt: {fileID: 0}
   inputBelt: {fileID: 0}
-  outputPort: {fileID: 0}
-  inputPort: {fileID: 0}
+  outputPort: {fileID: 312650095221819150}
+  inputPort: {fileID: 4799513397638314947}
   machineName: "TIME \uD68C\uBCF5 \uC544\uC774\uD15C \uC81C\uC791\uC6A9"
   recipes:
-  - inputs:
+  - recipeName: "\uC18C\uD615 \uB098\uB178 \uD790\uB9C1 \uC570\uD50C"
+    inputs:
     - itemId: 1201
       amount: 1
     outputs:
     - itemId: 4101
       amount: 1
     processingTime: 10
-  - inputs:
+  - recipeName: "\uB300\uD615 \uB098\uB178 \uD790\uB9C1 \uC570\uD50C"
+    inputs:
     - itemId: 1301
       amount: 1
     outputs:
     - itemId: 4102
       amount: 1
     processingTime: 10
-  - inputs:
+  - recipeName: "\uBC14\uC774\uC624 \uD384\uC2A4 \uC8FC\uC0AC\uAE30"
+    inputs:
     - itemId: 1301
       amount: 2
     - itemId: 3201
@@ -1069,14 +1072,16 @@ MonoBehaviour:
     - itemId: 4103
       amount: 1
     processingTime: 10
-  - inputs:
+  - recipeName: "\uC7AC\uC0DD\uC131 \uB098\uB178 \uD328\uCE58"
+    inputs:
     - itemId: 1202
       amount: 1
     outputs:
     - itemId: 4104
       amount: 1
     processingTime: 10
-  - inputs:
+  - recipeName: "\uACE0\uB18D\uCD95 \uC138\uD3EC \uC7AC\uC0DD\uC81C"
+    inputs:
     - itemId: 1301
       amount: 1
     - itemId: 1302

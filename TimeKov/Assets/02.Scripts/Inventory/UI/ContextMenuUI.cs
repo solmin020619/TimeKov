@@ -1,13 +1,13 @@
 // ContextMenuUI.cs
-// ContextMenu ¿ÀºêÁ§Æ®¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// ½½·Ô ¿ìÅ¬¸¯ ½Ã ¸¶¿ì½º À§Ä¡¿¡ ³ªÅ¸³ª´Â ÆË¾÷ ¸Ş´º
+// ContextMenu ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Å¬ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ì½º ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ï¿½ï¿½ ï¿½Ë¾ï¿½ ï¿½Ş´ï¿½
 
 using UnityEngine;
 using UnityEngine.UI;
 
 public class ContextMenuUI : MonoBehaviour
 {
-    [Header("¹öÆ° ÂüÁ¶")]
+    [Header("ï¿½ï¿½Æ° ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Button useBtn;
     [SerializeField] private Button splitBtn;
     [SerializeField] private Button trashBtn;
@@ -35,7 +35,7 @@ public class ContextMenuUI : MonoBehaviour
         if (trashBtn != null) trashBtn.onClick.AddListener(OnClickTrash);
     }
 
-    // ¸Ş´º ¿­±â
+    // ï¿½Ş´ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void Open(InventorySlotUI slot, Vector2 screenPos)
     {
         if (slot == null || slot.IsEmpty) return;
@@ -44,25 +44,25 @@ public class ContextMenuUI : MonoBehaviour
 
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
 
-        // Àü¼ú ¼Ò¸ğÇ°¸¸ »ç¿ë ¹öÆ° È°¼ºÈ­
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ò¸ï¿½Ç°ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½Æ° È°ï¿½ï¿½È­
         bool isConsumable = data != null && data.itemCategory == ItemCategory.TacticalConsumable;
         if (useBtn != null) useBtn.interactable = isConsumable;
 
-        // ¼ö·® 2 ÀÌ»óÀÌ¸é ºĞÇÒ °¡´É
+        // ï¿½ï¿½ï¿½ï¿½ 2 ï¿½Ì»ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (splitBtn != null) splitBtn.interactable = slot.SlotData.amount > 1;
 
         gameObject.SetActive(true);
         SetPosition(screenPos);
     }
 
-    // ¸Ş´º ´İ±â
+    // ï¿½Ş´ï¿½ ï¿½İ±ï¿½
     public void Close()
     {
         _currentSlot = null;
         gameObject.SetActive(false);
     }
 
-    // È­¸é °æ°è ³» À§Ä¡ ¼³Á¤
+    // È­ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
     private void SetPosition(Vector2 screenPos)
     {
         if (_rect == null || _canvasRect == null) return;
@@ -87,19 +87,21 @@ public class ContextMenuUI : MonoBehaviour
         if (_currentSlot == null) return;
 
         var owner = _currentSlot.Owner;
-        var slotData = _currentSlot.SlotData;
+        // itemIdë¥¼ ë¯¸ë¦¬ ìº¡ì²˜ â€” TryConsumeItemì´ slot.Clear()ë¥¼ í˜¸ì¶œí•˜ë©´
+        // slotData.itemIdê°€ -1ë¡œ ë°”ë€Œê¸° ë•Œë¬¸ì— ë°˜ë“œì‹œ ì†Œë¹„ ì „ì— ì €ì¥í•´ì•¼ í•¨
+        int itemId = _currentSlot.SlotData.itemId;
 
-        // ¼ö·® ¸ÕÀú Â÷°¨
-        bool consumed = owner != null && owner.TryConsumeItem(slotData.itemId, 1);
+        // ì•„ì´í…œ ì†Œë¹„ ì‹œë„
+        bool consumed = owner != null && owner.TryConsumeItem(itemId, 1);
         if (!consumed) { Close(); return; }
 
-        // È¿°ú Àû¿ë
+        // íš¨ê³¼ ì ìš©
         var player = FindAnyObjectByType<Player>();
-        bool applied = ConsumableEffectApplier.Apply(slotData.itemId.ToString(), player);
+        bool applied = ConsumableEffectApplier.Apply(itemId.ToString(), player);
 
-        // È¿°ú Àû¿ë ½ÇÆĞ ½Ã ¼ö·® º¹±¸
+        // íš¨ê³¼ ì ìš© ì‹¤íŒ¨ ì‹œ ì•„ì´í…œ ë³µêµ¬
         if (!applied)
-            owner.AddItem(slotData.itemId, 1);
+            owner.AddItem(itemId, 1);
 
         Close();
     }
@@ -118,7 +120,7 @@ public class ContextMenuUI : MonoBehaviour
         Close();
     }
 
-    // ¿ÜºÎ Å¬¸¯ °¨Áö (InventoryUIController Update ¿¡¼­ È£Ãâ)
+    // ï¿½Üºï¿½ Å¬ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (InventoryUIController Update ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½)
     public void TryCloseOnOutsideClick()
     {
         if (!IsOpen) return;

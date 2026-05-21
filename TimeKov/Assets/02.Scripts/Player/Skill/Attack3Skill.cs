@@ -6,11 +6,11 @@ using UnityEngine;
 public class Attack3Skill : ComboAttackBase
 {
     [Header("Slash")]
-    public float SlashForce = 12f;   // ÀüÁø ½½·¡½Ã Èû
-    public float SlashDuration = 0.3f;  // ½½·¡½Ã Áö¼Ó ½Ã°£ (ÃÊ)
+    public float SlashForce = 12f;   // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
+    public float SlashDuration = 0.3f;  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ (ï¿½ï¿½)
 
     protected override float GetAnimDuration() => AnimDuration;
-    public float AnimDuration = 1.0f;   // ÀüÃ¼ ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ (ÃÊ)
+    public float AnimDuration = 1.0f;   // ï¿½ï¿½Ã¼ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½)
 
     public override IEnumerator ExecuteRoutine(GameObject caster)
     {
@@ -18,29 +18,31 @@ public class Attack3Skill : ComboAttackBase
         var movement = caster.GetComponent<PlayerMovementComponent>();
         var rb = caster.GetComponent<Rigidbody>();
 
-        // °ø°İ Áß ÀÌµ¿ Àá±İ
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½
         movement.LockMovement(true);
 
         anim?.PlayAttack(ComboIndex);
 
-        // ½½·¡½Ã ½ÃÀÛ
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         movement.StartSlash(SlashForce, SlashDuration);
 
-        // ÀüÃ¼ ¾Ö´Ï¸ŞÀÌ¼Ç µ¿¾È ÀÌµ¿ Àá±İ À¯Áö
+        // ï¿½ï¿½Ã¼ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         yield return new WaitForSeconds(AnimDuration);
 
         OnAttackHit(caster);
 
-        // °ø°İ ³¡³ª°í ¼öÆò ¼Óµµ ÃÊ±âÈ­
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ ï¿½Ê±ï¿½È­
         rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
 
-        // ¾Ö´Ï¸ŞÀÌ¼Ç ¿ÏÀüÈ÷ ³¡³­ ÈÄ ÀÌµ¿ ÇØÁ¦
+        // ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
         movement.LockMovement(false);
     }
 
     public override void OnInterrupt(GameObject caster)
     {
-        // Áß´Ü ½Ã ÀÌµ¿ Àá±İ ÇØÁ¦
-        caster.GetComponent<PlayerMovementComponent>()?.LockMovement(false);
+        // ì¤‘ë‹¨ ì‹œ ìŠ¬ë˜ì‹œ ê°•ì œ ì¢…ë£Œ + ì´ë™ ì ê¸ˆ í•´ì œ
+        var movement = caster.GetComponent<PlayerMovementComponent>();
+        movement?.CancelSlash();        // _isSlashing ê°•ì œ ì´ˆê¸°í™” (ìŠ¬ë¼ì´ë”© ë°©ì§€)
+        movement?.LockMovement(false);
     }
 }

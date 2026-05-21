@@ -1,32 +1,36 @@
 // ItemTooltipUI.cs
-// Tooltip ¿ÀºêÁ§Æ®¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// ½½·Ô È£¹ö ½Ã ¾ÆÀÌÅÛ Á¤º¸ Ç¥½Ã
+// Tooltip ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
+// ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
 
 using UnityEngine;
 using TMPro;
 
 public class ItemTooltipUI : MonoBehaviour
 {
-    [Header("ÅØ½ºÆ® ÂüÁ¶")]
+    [Header("ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private TextMeshProUGUI itemNameText;
     [SerializeField] private TextMeshProUGUI categoryText;
 
-    [Header("À§Ä¡ ¿ÀÇÁ¼Â")]
+    [Header("ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Vector2 offset = new Vector2(15f, -15f);
 
     private RectTransform _rect;
     private RectTransform _canvasRect;
     private bool _isShowing;
 
-    // Ä«Å×°í¸® ÀÌ¸§ ÇÑ±¹¾î Å×ÀÌºí (ItemCategory ¼ø¼­¿Í ÀÏÄ¡)
+    // Hide() ì‹œì ì˜ ë§ˆìš°ìŠ¤ ìœ„ì¹˜ â€” ê°™ì€ ìë¦¬ì—ì„œ Show()ê°€ ì˜¤ë©´ ì–µì œ
+    // (UI ì¬ì˜¤í”ˆ ì‹œ SetActive(true)ë¡œ ì¸í•´ OnPointerEnterê°€ ì¬ë°œë™ë˜ëŠ” Unity íŠ¹ì„± ëŒ€ì‘)
+    private Vector3 _mousePositionAtHide = new Vector3(-9999f, -9999f, 0f);
+
+    // Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½Ì¸ï¿½ ï¿½Ñ±ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ìºï¿½ (ItemCategory ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡)
     private static readonly string[] CategoryNames = new string[]
     {
-        "¿øÃÊ Àç·á",    // RawMaterial
-        "1Â÷ °¡°øÇ°",   // ProcessedTier1
-        "2Â÷ °¡°øÇ°",   // ProcessedTier2
-        "Àü¼ú ¼Ò¸ğÇ°",  // TacticalConsumable
-        "ÄÚ¾î °­È­",    // CoreUpgrade
-        "Æ¯¼ö"          // Special
+        "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½",    // RawMaterial
+        "1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç°",   // ProcessedTier1
+        "2ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç°",   // ProcessedTier2
+        "ï¿½ï¿½ï¿½ï¿½ ï¿½Ò¸ï¿½Ç°",  // TacticalConsumable
+        "ï¿½Ú¾ï¿½ ï¿½ï¿½È­",    // CoreUpgrade
+        "Æ¯ï¿½ï¿½"          // Special
     };
 
     private void Awake()
@@ -41,19 +45,33 @@ public class ItemTooltipUI : MonoBehaviour
 
     private void Update()
     {
-        if (_isShowing)
-            UpdatePosition(Input.mousePosition);
+        if (!_isShowing) return;
+
+        // UIê°€ ëª¨ë‘ ë‹«í˜”ëŠ”ë° íˆ´íŒì´ ë‚¨ì•„ìˆìœ¼ë©´ ìë™ ìˆ¨ê¹€
+        // (SetActive(false)ë¡œ UIê°€ êº¼ì§ˆ ë•Œ OnPointerExitê°€ ë°œë™ë˜ì§€ ì•ŠëŠ” Unity íŠ¹ì„± ëŒ€ì‘)
+        var uic = GameUIController.Instance;
+        if (uic != null && !uic.IsUIBlocking())
+        {
+            Hide();
+            return;
+        }
+
+        UpdatePosition(Input.mousePosition);
     }
 
-    // ÅøÆÁ Ç¥½Ã
+    // ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
     public void Show(InventorySlotUI slot)
     {
         if (slot == null || slot.IsEmpty) return;
 
+        // Hide() ì´í›„ ë§ˆìš°ìŠ¤ê°€ ì›€ì§ì´ì§€ ì•Šì€ ìƒíƒœë©´ ì–µì œ
+        // (íŒ¨ë„ ì¬ì˜¤í”ˆ ì§í›„ OnPointerEnter ì˜¤ë°œë™ ë°©ì§€)
+        if (Input.mousePosition == _mousePositionAtHide) return;
+
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
 
         if (itemNameText != null)
-            itemNameText.text = data != null ? data.itemName : "¾Ë ¼ö ¾ø´Â ¾ÆÀÌÅÛ";
+            itemNameText.text = data != null ? data.itemName : "ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½";
 
         if (categoryText != null)
         {
@@ -74,14 +92,16 @@ public class ItemTooltipUI : MonoBehaviour
         UpdatePosition(Input.mousePosition);
     }
 
-    // ÅøÆÁ ¼û±è
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void Hide()
     {
         _isShowing = false;
         gameObject.SetActive(false);
+        // ì´ ìœ„ì¹˜ì—ì„œ Show()ê°€ ì˜¤ë©´ ì–µì œ (ì¬ì˜¤í”ˆ ì‹œ ì˜¤ë°œë™ ë°©ì§€)
+        _mousePositionAtHide = Input.mousePosition;
     }
 
-    // À§Ä¡ °»½Å (°æ°è Å¬·¥ÇÎ)
+    // ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½)
     private void UpdatePosition(Vector2 screenPos)
     {
         if (_rect == null || _canvasRect == null) return;
