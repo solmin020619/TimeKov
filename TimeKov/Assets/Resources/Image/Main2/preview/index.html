@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>TIMEKOV — Main Screen Preview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" rel="stylesheet">
+
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: #000; color: #e9e9ee;
+    font-family: 'Rajdhani', 'Pretendard Variable', system-ui, sans-serif;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+  }
+
+  /* REQUIRED animations — referenced by main-a.jsx */
+  @keyframes tk-rise {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    10%  { opacity: 0.7; }
+    90%  { opacity: 0.5; }
+    100% { transform: translateY(-460px) translateX(20px); opacity: 0; }
+  }
+  @keyframes tk-pulse {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+  }
+
+  /* 750×416 design canvas, scaled to viewport */
+  #stage {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: #000;
+  }
+  #frame {
+    width: 750px; height: 416px;
+    position: relative; overflow: hidden;
+    transform-origin: center center;
+    background: #000;
+  }
+  #root { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<div id="stage"><div id="frame"><div id="root"></div></div></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="main-a.jsx"></script>
+
+<script>
+(function () {
+  const frame = document.getElementById('frame');
+  const FW = 750, FH = 416;
+  function fit() {
+    const sx = window.innerWidth / FW;
+    const sy = window.innerHeight / FH;
+    frame.style.transform = `scale(${Math.min(sx, sy)})`;
+  }
+  fit();
+  window.addEventListener('resize', fit);
+})();
+</script>
+
+</body>
+</html>
