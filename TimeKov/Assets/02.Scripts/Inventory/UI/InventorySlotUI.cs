@@ -1,6 +1,6 @@
 // InventorySlotUI.cs
-// ½½·Ô ÇÁ¸®ÆÕ¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// Å¬¸¯, ¿ìÅ¬¸¯, È£¹ö, µå·¡±×¾Øµå·Ó ÀÌº¥Æ® Ã³¸®
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ¿ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
+// Å¬ï¿½ï¿½, ï¿½ï¿½Å¬ï¿½ï¿½, È£ï¿½ï¿½, ï¿½å·¡ï¿½×¾Øµï¿½ï¿½ ï¿½Ìºï¿½Æ® Ã³ï¿½ï¿½
 
 using System;
 using UnityEngine;
@@ -12,34 +12,34 @@ public class InventorySlotUI : MonoBehaviour,
     IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler,
     IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
 {
-    [Header("½Ã°¢ ¿ä¼Ò")]
+    [Header("ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½")]
     [SerializeField] private Image bgImage;
     [SerializeField] private Image rarityBorder;
     [SerializeField] private Image itemIcon;
     [SerializeField] private TextMeshProUGUI countText;
     [SerializeField] private GameObject newBadge;
 
-    [Header("»ö»ó ¼³Á¤")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Color normalColor = new Color(0.18f, 0.22f, 0.30f, 1f);
     [SerializeField] private Color selectedColor = new Color(0.30f, 0.55f, 0.80f, 1f);
     [SerializeField] private Color emptyBorderColor = new Color(0.3f, 0.3f, 0.3f, 0f);
     [SerializeField] private Color dragColor = new Color(1f, 1f, 1f, 0.4f);
 
-    // µî±Şº° Å×µÎ¸® »ö»ó (Common / Advanced / Rare / Hero / Legend ¼ø¼­)
+    // ï¿½ï¿½Şºï¿½ ï¿½×µÎ¸ï¿½ ï¿½ï¿½ï¿½ï¿½ (Common / Advanced / Rare / Hero / Legend ï¿½ï¿½ï¿½ï¿½)
     private static readonly Color[] GradeColors = new Color[]
     {
-        new Color(0.60f, 0.60f, 0.60f, 1f),  // Common   - È¸»ö
-        new Color(0.30f, 0.55f, 0.90f, 1f),  // Advanced - ÆÄ¶û
-        new Color(0.20f, 0.75f, 0.40f, 1f),  // Rare     - ÃÊ·Ï
-        new Color(0.65f, 0.30f, 0.90f, 1f),  // Hero     - º¸¶ó
-        new Color(0.95f, 0.55f, 0.10f, 1f),  // Legend   - ÁÖÈ²
+        new Color(0.60f, 0.60f, 0.60f, 0f),    // Common   - íˆ¬ëª…
+        new Color(0.30f, 0.55f, 0.90f, 0.5f),  // Advanced - íŒŒë‘
+        new Color(0.20f, 0.75f, 0.40f, 0.5f),  // Rare     - ì´ˆë¡
+        new Color(0.65f, 0.30f, 0.90f, 0.5f),  // Hero     - ë³´ë¼
+        new Color(0.95f, 0.55f, 0.10f, 0.5f),  // Legend   - í™©ê¸ˆ
     };
 
     private InventorySlot _slot;
     private InventoryManager _owner;
     private bool _isSelected;
 
-    // Àü¿ª ÀÌº¥Æ® (InventoryUIController ¿¡¼­ ±¸µ¶)
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ìºï¿½Æ® (InventoryUIController ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     public static event Action<InventorySlotUI> OnAnySlotClicked;
     public static event Action<InventorySlotUI> OnAnySlotDoubleClicked;
     public static event Action<InventorySlotUI> OnAnySlotRightClicked;
@@ -50,7 +50,7 @@ public class InventorySlotUI : MonoBehaviour,
     public InventoryManager Owner => _owner;
     public bool IsEmpty => _slot == null || _slot.IsEmpty;
 
-    // ½½·Ô µ¥ÀÌÅÍ ¹ÙÀÎµù ¹× ½Ã°¢ °»½Å
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void Refresh(InventorySlot slot, InventoryManager owner)
     {
         _slot = slot;
@@ -59,15 +59,18 @@ public class InventorySlotUI : MonoBehaviour,
         if (slot == null || slot.IsEmpty)
         {
             SetEmpty();
-            // ºó ½½·ÔÀÌ µÇ¸é ¼±ÅÃ »óÅÂµµ ÇØÁ¦
+            // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Âµï¿½ ï¿½ï¿½ï¿½ï¿½
             _isSelected = false;
             if (bgImage != null) bgImage.color = normalColor;
             return;
         }
 
+        // ì•„ì´í…œ ìˆëŠ” ì¹¸ë„ ë¹ˆ ì¹¸ê³¼ ë™ì¼í•œ ë°°ê²½ìƒ‰ ì ìš©
+        if (bgImage != null) bgImage.color = normalColor;
+
         var data = ItemDatabase.GetItem(slot.itemId);
 
-        // ¾ÆÀÌÄÜ ¼³Á¤
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (itemIcon != null)
         {
             itemIcon.enabled = true;
@@ -76,7 +79,7 @@ public class InventorySlotUI : MonoBehaviour,
             itemIcon.color = icon != null ? Color.white : new Color(1, 1, 1, 0.3f);
         }
 
-        // µî±Ş Å×µÎ¸® »ö»ó
+        // ï¿½ï¿½ï¿½ ï¿½×µÎ¸ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (rarityBorder != null)
         {
             int gradeIndex = data != null ? (int)data.itemGrade : 0;
@@ -84,19 +87,19 @@ public class InventorySlotUI : MonoBehaviour,
             rarityBorder.color = GradeColors[gradeIndex];
         }
 
-        // ¼ö·® ÅØ½ºÆ® (1°³¸é ¼û±è)
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Æ® (1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
         if (countText != null)
         {
             countText.gameObject.SetActive(slot.amount > 1);
             countText.text = slot.amount.ToString();
         }
 
-        // NEW ¹îÁö
+        // NEW ï¿½ï¿½ï¿½ï¿½
         if (newBadge != null)
             newBadge.SetActive(slot.isNew);
     }
 
-    // ºó ½½·Ô ½Ã°¢ ÃÊ±âÈ­
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½Ê±ï¿½È­
     private void SetEmpty()
     {
         if (itemIcon != null) itemIcon.enabled = false;
@@ -105,7 +108,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (newBadge != null) newBadge.SetActive(false);
     }
 
-    // ¼±ÅÃ »óÅÂ Åä±Û
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     public void SetSelected(bool selected)
     {
         _isSelected = selected;
@@ -113,7 +116,7 @@ public class InventorySlotUI : MonoBehaviour,
             bgImage.color = selected ? selectedColor : normalColor;
     }
 
-    // Å¬¸¯ ÀÌº¥Æ® (ÁÂÅ¬¸¯ ´ÜÅ¬¸¯ / ´õºíÅ¬¸¯ / ¿ìÅ¬¸¯ ºĞ±â)
+    // Å¬ï¿½ï¿½ ï¿½Ìºï¿½Æ® (ï¿½ï¿½Å¬ï¿½ï¿½ ï¿½ï¿½Å¬ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½Å¬ï¿½ï¿½ / ï¿½ï¿½Å¬ï¿½ï¿½ ï¿½Ğ±ï¿½)
     public void OnPointerClick(PointerEventData eventData)
     {
         if (IsEmpty) return;
@@ -122,12 +125,12 @@ public class InventorySlotUI : MonoBehaviour,
         {
             if (eventData.clickCount >= 2)
             {
-                // ´õºíÅ¬¸¯: ´Ù¸¥ ÀÎº¥Åä¸®·Î ºü¸¥ ÀÌµ¿
+                // ï¿½ï¿½ï¿½ï¿½Å¬ï¿½ï¿½: ï¿½Ù¸ï¿½ ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½
                 OnAnySlotDoubleClicked?.Invoke(this);
             }
             else
             {
-                // ´ÜÀÏ Å¬¸¯: ½½·Ô ¼±ÅÃ
+                // ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 OnAnySlotClicked?.Invoke(this);
                 if (_slot != null && _slot.isNew)
                 {
@@ -142,39 +145,39 @@ public class InventorySlotUI : MonoBehaviour,
         }
     }
 
-    // È£¹ö ÁøÀÔ (ÅøÆÁ Ç¥½Ã)
+    // È£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½)
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (!IsEmpty)
             OnAnySlotHoverEnter?.Invoke(this);
     }
 
-    // È£¹ö ÀÌÅ» (ÅøÆÁ ¼û±è)
+    // È£ï¿½ï¿½ ï¿½ï¿½Å» (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     public void OnPointerExit(PointerEventData eventData)
     {
         OnAnySlotHoverExit?.Invoke(this);
     }
 
-    // µå·¡±× ½ÃÀÛ
+    // ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (IsEmpty) return;
         InventoryDragHandler.Instance?.BeginDrag(this);
     }
 
-    // µå·¡±× Áß °í½ºÆ® À§Ä¡ °»½Å
+    // ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
     public void OnDrag(PointerEventData eventData)
     {
         InventoryDragHandler.Instance?.UpdateDragPosition(eventData.position);
     }
 
-    // µå·¡±× Á¾·á
+    // ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void OnEndDrag(PointerEventData eventData)
     {
         InventoryDragHandler.Instance?.EndDrag();
     }
 
-    // ´Ù¸¥ ½½·Ô¿¡¼­ µå·Ó ¹Ş±â
+    // ï¿½Ù¸ï¿½ ï¿½ï¿½ï¿½Ô¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ş±ï¿½
     public void OnDrop(PointerEventData eventData)
     {
         InventoryDragHandler.Instance?.HandleDrop(this);
