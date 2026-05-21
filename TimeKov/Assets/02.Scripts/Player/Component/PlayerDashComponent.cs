@@ -61,12 +61,12 @@ public class PlayerDashComponent : MonoBehaviour
     IEnumerator DashRoutine()
     {
         IsDashing = true;
-        _player.Movement.SetDashing(true);
 
         _player.Stat.UseStamina(DashCost);
         _cooldownTimer = DashCooldown;
-        // preserveVelocity=true → LockMovement이 velocity 0으로 박지 않음 (직후 dashForce 적용 보존)
-        _player.Movement.LockMovement(true, preserveVelocity: true);
+        // LockMovement이 X/Z velocity를 0으로 박지만, 같은 frame 직후 dashForce 적용 → 정상
+        // HandleSlopeStabilize는 actualXZ < 0.5f 가드가 있어서 dashForce(15)는 보존됨
+        _player.Movement.LockMovement(true);
 
         Vector3 dashDir = _player.Movement.GetDashDirection();
 
@@ -91,7 +91,6 @@ public class PlayerDashComponent : MonoBehaviour
         yield return new WaitForSeconds(DashDuration);
 
         _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
-        _player.Movement.SetDashing(false);
         _player.Movement.LockMovement(false);
         IsDashing = false;
     }
