@@ -23,6 +23,7 @@ MonoBehaviour:
   visionAngle: 280
   attackDamage: 15
   attackRange: 4
+  attackApproachRatio: 0.85
   attackCooldown: 1.5
   hitDelay: 0.5
   animLength: 1.5
@@ -32,7 +33,7 @@ MonoBehaviour:
   targetLostMemory: 1.5
   deathAnimDuration: 1
   detectStunDuration: 0.3
-  spawnVFX: {fileID: 0}
+  spawnVFX: {fileID: 1902839626373450777, guid: 377bd8e4df08cc444b8742609e5ebd73, type: 3}
   spawnSound: {fileID: 0}
   detectVFX: {fileID: 0}
   detectSound: {fileID: 0}

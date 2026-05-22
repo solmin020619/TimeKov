@@ -31,7 +31,8 @@ public class EnemyFeedback : MonoBehaviour
     public void PlaySpawn()
     {
         if (data == null) return;
-        Play(data.spawnVFX, data.spawnSound);
+        // Spawn VFX는 적 자식으로 부착 → 적 따라다님. 3초 후 자동 destroy.
+        Play(data.spawnVFX, data.spawnSound, followCaster: true, vfxLifeTime: 3f);
     }
 
     public void PlayDetect()
@@ -78,12 +79,21 @@ public class EnemyFeedback : MonoBehaviour
         }
     }
 
-    private void Play(GameObject vfxPrefab, AudioClip clip, Vector3? worldPos = null)
+    private void Play(GameObject vfxPrefab, AudioClip clip, Vector3? worldPos = null, bool followCaster = false, float vfxLifeTime = 0f)
     {
         Vector3 pos = worldPos ?? (vfxAnchor != null ? vfxAnchor.position : transform.position);
 
         if (vfxPrefab != null)
-            Instantiate(vfxPrefab, pos, Quaternion.identity);
+        {
+            // followCaster=true면 적 transform 자식으로 부착 (적 움직임 따라옴).
+            // false면 월드 좌표 고정 (피격 지점, 사망 위치 등).
+            GameObject vfx = followCaster
+                ? Instantiate(vfxPrefab, pos, Quaternion.identity, transform)
+                : Instantiate(vfxPrefab, pos, Quaternion.identity);
+
+            // vfxLifeTime > 0이면 그 시간 후 자동 destroy. 0이면 ParticleSystem 자체 설정 따름.
+            if (vfxLifeTime > 0f) Destroy(vfx, vfxLifeTime);
+        }
 
         if (audioSource != null && clip != null)
             audioSource.PlayOneShot(clip);
