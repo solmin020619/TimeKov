@@ -41,6 +41,10 @@ public class MeleeEnemyData : ScriptableObject
     [Tooltip("공격 가능 거리 (m). 이 거리까지 추적 후 공격")]
     public float attackRange = 2f;
 
+    [Tooltip("추적 도달 거리 = attackRange × 이 값. 1.0 미만이면 더 가까이 접근 후 공격 진입. 콜라이더 두께/부동소수점 오차 보정용. 공격 사거리 안에서 안정적으로 공격하려면 0.8~0.9 권장.")]
+    [Range(0.5f, 1.0f)]
+    public float attackApproachRatio = 0.85f;
+
     [Tooltip("공격 간 대기 시간 (초)")]
     public float attackCooldown = 1.5f;
 

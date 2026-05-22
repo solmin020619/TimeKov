@@ -60,6 +60,13 @@ public class ObjectiveLine : MonoBehaviour
 
     void OnDone(ObjectiveSO _)
     {
+        // InfoMessage(안내 전용) Objective는 collapse/sweep 없이 체크박스만 표시.
+        // 다른 Objective가 같은 Quest 안에 있으면 그 줄들 사이 안내 텍스트 계속 유지.
+        if (_o is InfoMessageObjective)
+        {
+            PopFilled();
+            return;
+        }
         PlayCompletionSequence();
     }
 
@@ -135,7 +142,13 @@ public class ObjectiveLine : MonoBehaviour
     void Refresh()
     {
         if (_o == null || labelText == null) return;
-        labelText.text = _o.GetDisplayLabel();
+        string lbl = _o.GetDisplayLabel();
+        labelText.text = lbl;
+
+        // 라벨 비어있는 Objective는 줄 자체를 숨김 (인식만 하고 UI 표시 안 함).
+        // → 한 퀘스트에 여러 Objective 두되 통합 라벨 하나만 표시하고 싶을 때 사용.
+        bool hide = string.IsNullOrWhiteSpace(lbl);
+        if (gameObject.activeSelf == hide) gameObject.SetActive(!hide);
     }
 
     void OnDestroy()

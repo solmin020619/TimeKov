@@ -130,10 +130,19 @@ public class EnemyBrain : MonoBehaviour
         if (data == null || data.detectStunDuration <= 0f) yield break;
         if (navAgent == null) yield break;
 
-        navAgent.isStopped = true;
-        navAgent.velocity = Vector3.zero;
-
-        yield return new WaitForSeconds(data.detectStunDuration);
+        // BehaviorGraph(NavigateToTargetAction)가 매 프레임 SetDestination 호출하므로
+        // isStopped를 매 프레임 강제로 true 유지해야 진짜 멈춤. 안 그러면 Detect 모션 중에 미끄러져 따라감.
+        float endTime = Time.time + data.detectStunDuration;
+        while (Time.time < endTime)
+        {
+            if (navAgent != null && navAgent.enabled)
+            {
+                navAgent.isStopped = true;
+                navAgent.velocity = Vector3.zero;
+                navAgent.ResetPath();
+            }
+            yield return null;
+        }
 
         if (navAgent != null && navAgent.enabled) navAgent.isStopped = false;
     }
@@ -184,8 +193,8 @@ public class EnemyBrain : MonoBehaviour
         btAgent.SetVariableValue(hitDelayVarName, data.hitDelay);
         btAgent.SetVariableValue(animLengthVarName, data.animLength);
         btAgent.SetVariableValue(moveSpeedVarName, data.moveSpeed);
-        // NavigateToTargetAction의 도달 판정 거리 = attackRange (도달 즉시 공격 노드 전이)
-        btAgent.SetVariableValue(distanceThresholdVarName, data.attackRange);
+        // NavigateToTargetAction의 도달 판정 거리 = attackRange × ratio. 약간 가까이 도달해야 MeleeAttack 진입 시 distance < attackRange 보장.
+        btAgent.SetVariableValue(distanceThresholdVarName, data.attackRange * data.attackApproachRatio);
     }
 
     /// <summary>
