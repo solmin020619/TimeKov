@@ -35,6 +35,18 @@ public class VisionSensor : MonoBehaviour
         lostMemory = seconds;
     }
 
+    /// <summary>
+    /// 외부에서 타깃을 강제로 설정 (피격 시 가해자 즉시 인식 등).
+    /// 시야 raycast 우회 — 뒤에서 맞아도 인식 가능.
+    /// </summary>
+    public void ForceSetTarget(Transform target)
+    {
+        if (target == null) return;
+        SpottedTarget = target;
+        lastSeen = target;
+        lostTimer = 0f;
+    }
+
     private void Update()
     {
         scanTimer -= Time.deltaTime;

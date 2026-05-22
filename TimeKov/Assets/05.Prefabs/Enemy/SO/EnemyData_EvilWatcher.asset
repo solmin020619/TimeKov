@@ -15,11 +15,11 @@ MonoBehaviour:
   enemyName: "\uC0AC\uC545\uD55C \uAC10\uC2DC\uC790"
   enemyId: tutorial_enemy
   maxHP: 30
-  moveSpeed: 4
-  visionRange: 12
-  visionAngle: 110
+  moveSpeed: 6
+  visionRange: 24
+  visionAngle: 360
   attackDamage: 15
-  attackRange: 2
+  attackRange: 5
   attackCooldown: 1.5
   hitDelay: 0.5
   animLength: 1.5
@@ -27,8 +27,8 @@ MonoBehaviour:
   detectTrigger: Detect
   dieTrigger: Die
   targetLostMemory: 1.5
-  deathAnimDuration: 1.5
-  detectStunDuration: 1.5
+  deathAnimDuration: 1
+  detectStunDuration: 0.3
   spawnVFX: {fileID: 0}
   spawnSound: {fileID: 0}
   detectVFX: {fileID: 0}

@@ -13,13 +13,16 @@ MonoBehaviour:
   m_Name: EnemyData_FantasyWolf
   m_EditorClassIdentifier: 
   enemyName: "\uB291\uB300"
-  enemyId: fantasy_wolf
-  maxHP: 100
-  moveSpeed: 4
-  visionRange: 12
-  visionAngle: 110
+  enemyId: tutorial_enemy
+  maxHP: 30
+  moveSpeed: 10
+  acceleration: 12
+  angularSpeed: 480
+  stoppingDistance: 0
+  visionRange: 24
+  visionAngle: 360
   attackDamage: 15
-  attackRange: 2
+  attackRange: 8
   attackCooldown: 1.5
   hitDelay: 0.5
   animLength: 1.5
@@ -27,8 +30,8 @@ MonoBehaviour:
   detectTrigger: Detect
   dieTrigger: Die
   targetLostMemory: 1.5
-  deathAnimDuration: 1.5
-  detectStunDuration: 1.5
+  deathAnimDuration: 0.5
+  detectStunDuration: 0.3
   spawnVFX: {fileID: 0}
   spawnSound: {fileID: 0}
   detectVFX: {fileID: 0}
