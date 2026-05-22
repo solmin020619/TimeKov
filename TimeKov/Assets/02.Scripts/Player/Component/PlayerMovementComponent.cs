@@ -104,14 +104,34 @@ public class PlayerMovementComponent : MonoBehaviour
         Vector3 origin = transform.position
                            + Vector3.down * (halfHeight - _capsule.radius + GroundCheckOffset);
 
-        _isGrounded = Physics.CheckSphere(origin, GroundCheckRadius, GroundMask);
+        // QueryTriggerInteraction.Ignore: Trigger 콜라이더를 지면으로 인식하지 않음
+        // (Ground 레이어에 대형 Trigger가 있어도 무한점프 방지)
+        _isGrounded = Physics.CheckSphere(origin, GroundCheckRadius, GroundMask,
+                                          QueryTriggerInteraction.Ignore);
+
+#if UNITY_EDITOR
+        // ── 진단: 공중 오인식 감지 ──────────────────────────────────────
+        // 상승 중(_isJumping && velocity.y > 0)인데 isGrounded=true면 무언가를 잘못 감지한 것
+        if (_isGrounded && _isJumping && _rb.linearVelocity.y > 0.5f)
+        {
+            var overlaps = Physics.OverlapSphere(origin, GroundCheckRadius, GroundMask);
+            foreach (var c in overlaps)
+            {
+                Debug.LogWarning(
+                    $"[GroundCheck] 공중 오인식! " +
+                    $"Hit='{c.name}'  Layer={LayerMask.LayerToName(c.gameObject.layer)}  " +
+                    $"Pos={c.transform.position}  IsTrigger={c.isTrigger}");
+            }
+        }
+#endif
 
         // SphereCast 로 지면 법선 획득 → 경사각 계산
         Vector3 castStart = transform.position + Vector3.up * 0.1f;
         float castDist    = halfHeight + GroundCheckOffset + 0.15f;
 
         if (Physics.SphereCast(castStart, GroundCheckRadius * 0.9f,
-                               Vector3.down, out RaycastHit hit, castDist, GroundMask))
+                               Vector3.down, out RaycastHit hit, castDist, GroundMask,
+                               QueryTriggerInteraction.Ignore))
         {
             _groundNormal = hit.normal;
         }
@@ -128,8 +148,17 @@ public class PlayerMovementComponent : MonoBehaviour
 
         if (!_wasGrounded && _isGrounded)
         {
-            _isJumping = false;
-            if (!jumpHeld) _canJump = true;
+            // ★ 핵심 가드: 상승 중(velocity.y > 0)이면 착지 처리 무시
+            // 공중 콜라이더 오인식 or GroundMask 레이어 설정 오류 시 무한점프 방지
+            if (_rb.linearVelocity.y > 0.5f)
+            {
+                // 착지 처리 스킵 → _canJump 리셋 안 함
+            }
+            else
+            {
+                _isJumping = false;
+                if (!jumpHeld) _canJump = true;
+            }
         }
         else if (_wasGrounded && !_isGrounded)
         {
@@ -267,14 +296,10 @@ public class PlayerMovementComponent : MonoBehaviour
             // 여기서 y 를 덮으면 경사면 안으로 밀려 떨림 발생 → 스킵
             if (_onSteepSlope) return;
 
-            // 일반 지면: 정지 상태면 y=0(경사 슬라이딩 방지), 이동/외부힘이면 y=-2
-            float actualXZ = Mathf.Sqrt(_rb.linearVelocity.x * _rb.linearVelocity.x
-                                      + _rb.linearVelocity.z * _rb.linearVelocity.z);
-            bool isStationary = _currentSpeed < 0.01f && !_isSlashing && actualXZ < 0.5f;
-            float groundY = isStationary ? 0f : -2f;
-
+            // 지면 밀착: y=-2 로 고정 (0f 로 하면 CheckSphere 가 flickering → 무한 점프)
+            // 경사 슬라이딩은 HandleSlopeStabilize 에서 XZ 를 별도 정리
             Vector3 v = _rb.linearVelocity;
-            v.y = groundY;
+            v.y = -2f;
             _rb.linearVelocity = v;
             return;
         }
@@ -293,7 +318,8 @@ public class PlayerMovementComponent : MonoBehaviour
         // 실제 XZ 속도가 있으면(대쉬 등 외부 힘) 건드리지 않음
         float actualXZ = Mathf.Sqrt(_rb.linearVelocity.x * _rb.linearVelocity.x
                                   + _rb.linearVelocity.z * _rb.linearVelocity.z);
-        if (_isGrounded && !_isJumping && !_isSlashing && _currentSpeed < 0.01f && actualXZ < 0.5f)
+        // 임계값 2f: 경사 반사속도 최대 ~1.4(45°) 포함, 대쉬(15 m/s)는 제외
+        if (_isGrounded && !_isJumping && !_isSlashing && _currentSpeed < 0.01f && actualXZ < 2f)
         {
             _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
         }
