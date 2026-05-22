@@ -17,7 +17,7 @@ public static class TutorialAssetBuilder
 
     // FacilityData 시트 확정값 (BioExtractor=1, BioInjector=6). ItemData 시트와도 일치 확인됨.
     const int BioExtractorId = 1;          // 생체 추출기 (3x3, 입력2/출력1)
-    const int BioInjectorId = 6;           // 생체 주입기 (5x5, 입력2/출력2)
+    const int BioInjectorId = 2;           // 생체 주입기 (5x5, 입력2/출력2) — 시트 재배치로 6에서 2로 이동
     const int ItemLeafId = 1101;           // 변이 식물 잎사귀 (Common, RawMaterial)
     const int ItemSapId = 1102;            // 끈적한 수액 (Common, RawMaterial)
     const int ItemMedicalGelId = 1201;     // 의료용 겔 (Advanced, ProcessedTier1) — R1201: 1101x2+1102x1 → 1201
