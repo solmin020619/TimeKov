@@ -296,6 +296,8 @@ public class InventoryUIController : MonoBehaviour
     // 전체 이동 (가방 필터 아이템 -> 창고)
     private void OnClickMoveAll()
     {
+        if (!IsInBase) return;  // BaseZone 밖에서는 창고 이동 불가
+
         var player = InventoryManager.Instance;
         var storage = InventoryManager.StorageInstance;
         if (player == null || storage == null) return;
@@ -308,6 +310,8 @@ public class InventoryUIController : MonoBehaviour
     // 전체 가져오기 (창고 필터 아이템 -> 가방)
     private void OnClickTakeAll()
     {
+        if (!IsInBase) return;  // BaseZone 밖에서는 창고 접근 불가
+
         var player = InventoryManager.Instance;
         var storage = InventoryManager.StorageInstance;
         if (player == null || storage == null) return;
