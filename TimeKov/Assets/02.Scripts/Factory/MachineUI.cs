@@ -20,6 +20,10 @@ public class MachineUI : MonoBehaviour
     [Header("재료 슬롯 (오른쪽)")]
     public RecipeDropSlot[] recipeDropSlots;
 
+    [Header("닫기 버튼")]
+    [Tooltip("설비 UI 닫기 버튼 (없으면 무시됨)")]
+    public Button closeBtn;
+
     [Header("레시피 선택 UI (선택 사항)")]
     [Tooltip("레시피 이전 버튼 (없으면 무시됨)")]
     public Button recipePrevBtn;
@@ -49,6 +53,7 @@ public class MachineUI : MonoBehaviour
 
     private void Awake()
     {
+        if (closeBtn != null)      closeBtn.onClick.AddListener(Close);
         if (recipePrevBtn != null) recipePrevBtn.onClick.AddListener(PrevRecipe);
         if (recipeNextBtn != null) recipeNextBtn.onClick.AddListener(NextRecipe);
     }
@@ -113,6 +118,9 @@ public class MachineUI : MonoBehaviour
             unfold.Close();
         else
             uiPanel.SetActive(false);
+
+        // 커서·입력 복구 및 HUD 복원은 GameUIController에 위임
+        GameUIController.Instance?.CloseFactoryUI();
     }
 
     public void AddItemFromInventory(int itemId, int amount)
