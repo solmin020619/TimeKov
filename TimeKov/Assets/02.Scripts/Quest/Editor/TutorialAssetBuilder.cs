@@ -182,6 +182,139 @@ public static class TutorialAssetBuilder
             $"5. tutorial_enemy ID로 적 Prefab + EnemyDropOnDeath sourceId 매칭");
     }
 
+    // ============================================================
+    // 보조 메뉴 — 결계 안내(11a) + 컴뱃 세럼/공격력 물약(23, 24) 자동 추가
+    // 기존 22개 Quest와 사용자가 다듬은 라벨은 그대로 두고, 새 SO 3개만 생성 후 Category에 삽입/추가.
+    // 한 번만 누르면 됨. 두 번째부터는 중복 방지로 종료.
+    // ============================================================
+    [MenuItem("Tools/Quest/Add Tutorial Extensions (11a + 23 + 24)")]
+    public static void AddTutorialExtensions()
+    {
+        const int AttackPotionItemId = 5101;
+
+        // 중복 방지 — 이미 추가된 경우
+        string sentinelPath = $"{QuestsFolder}/quest_tutorial_11a_base_zone_info.asset";
+        if (AssetDatabase.LoadAssetAtPath<QuestSO>(sentinelPath) != null)
+        {
+            Debug.LogWarning("[AddTutorialExtensions] 이미 추가됨 (quest_tutorial_11a 존재). 종료.");
+            return;
+        }
+
+        EnsureFolder(RootFolder + "/Objectives", "Tutorial");
+        EnsureFolder(RootFolder + "/Quests", "Tutorial");
+
+        // 11a. 결계 안 안내 (PressKey Space — placeholder, 사용자가 라벨 다듬음)
+        var quest11a = BuildQuest("quest_tutorial_11a_base_zone_info", "결계 안 안내",
+            CreatePressKey("obj_press_base_zone_info",
+                "<color=#FFCC00>결계 안</color>에서는 체력이 자동으로 회복됩니다. (Space로 진행)",
+                KeyCode.Space, 1));
+
+        // 23. 컴뱃 세럼 회수 (ItemAcquire 5101)
+        var quest23 = BuildQuest("quest_tutorial_23_output_attack_potion", "컴뱃 세럼 회수하기",
+            CreateItemAcquire("obj_output_attack_potion",
+                "생체 주입기 출력 슬롯에서 <color=#FFCC00>컴뱃 세럼</color>을 회수하세요.",
+                AttackPotionItemId, 1));
+
+        // 24. 컴뱃 세럼 사용 (ItemUse 5101 — 영구 ATK +1)
+        var quest24 = BuildQuest("quest_tutorial_24_use_attack_potion", "컴뱃 세럼 사용하기",
+            CreateItemUse("obj_use_attack_potion",
+                "인벤토리에서 우클릭을 눌러 <color=#FFCC00>컴뱃 세럼</color>을 사용하세요. 공격력이 영구적으로 증가합니다.",
+                AttackPotionItemId, 1));
+
+        // Category에 삽입/추가 — 사용자가 다듬은 22개 순서는 그대로 보존
+        string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
+        var cat = AssetDatabase.LoadAssetAtPath<CategorySO>(catPath);
+        if (cat == null)
+        {
+            Debug.LogError($"[AddTutorialExtensions] {catPath} 못 찾음. Generate Tutorial Assets 먼저 실행 필요.");
+            return;
+        }
+
+        var list = new System.Collections.Generic.List<QuestSO>(cat.quests);
+
+        // 11번 직후에 11a 삽입 (11번이 어디 있든 사용자 순서 그대로 존중)
+        var quest11 = AssetDatabase.LoadAssetAtPath<QuestSO>($"{QuestsFolder}/quest_tutorial_11_return.asset");
+        int idx11 = quest11 != null ? list.IndexOf(quest11) : -1;
+        if (idx11 >= 0)
+            list.Insert(idx11 + 1, quest11a);
+        else
+            list.Add(quest11a);   // 11번 못 찾으면 끝에 추가
+
+        // 23, 24는 끝에 append
+        list.Add(quest23);
+        list.Add(quest24);
+
+        cat.quests = list.ToArray();
+        EditorUtility.SetDirty(cat);
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        Debug.Log(
+            $"[AddTutorialExtensions] 추가 완료. 총 {list.Count}개 Quest.\n" +
+            $"  - 11a (결계 안 안내) — 11번 직후 삽입\n" +
+            $"  - 23 (컴뱃 세럼 회수)\n" +
+            $"  - 24 (컴뱃 세럼 사용)\n" +
+            $"\n라벨은 placeholder. 인스펙터에서 자유롭게 다듬으면 됨.");
+    }
+
+    // ============================================================
+    // 보조 메뉴 — 컴뱃 세럼 제작(FacilityInput) 단계만 추가
+    // 22번(앰플 사용) 직후 + 23번(회수) 직전에 삽입.
+    // 한 번만 누르면 됨.
+    // ============================================================
+    [MenuItem("Tools/Quest/Add Combat Serum Crafting Step (22a)")]
+    public static void AddCombatSerumCraftingStep()
+    {
+        // 중복 방지
+        string sentinelPath = $"{QuestsFolder}/quest_tutorial_22a_input_combat_serum.asset";
+        if (AssetDatabase.LoadAssetAtPath<QuestSO>(sentinelPath) != null)
+        {
+            Debug.LogWarning("[AddCombatSerumCraftingStep] 이미 추가됨 (22a 존재). 종료.");
+            return;
+        }
+
+        EnsureFolder(RootFolder + "/Objectives", "Tutorial");
+        EnsureFolder(RootFolder + "/Quests", "Tutorial");
+
+        // 22a. 컴뱃 세럼 재료 투입 (FacilityInput — BioInjector, placeholder itemId=1201 의료겔)
+        // 실제 컴뱃 세럼 레시피의 입력 재료가 다르면 obj_input_combat_serum_material.asset 인스펙터에서 inputItemId 변경
+        var quest22a = BuildQuest("quest_tutorial_22a_input_combat_serum", "컴뱃 세럼 재료 투입하기",
+            CreateFacilityInput("obj_input_combat_serum_material",
+                "생체 주입기에 <color=#FFCC00>컴뱃 세럼</color> 재료를 투입하세요.",
+                BioInjectorId, 1201, 1));
+
+        // Category 수정 — 22번 직후 삽입
+        string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
+        var cat = AssetDatabase.LoadAssetAtPath<CategorySO>(catPath);
+        if (cat == null)
+        {
+            Debug.LogError($"[AddCombatSerumCraftingStep] {catPath} 못 찾음.");
+            return;
+        }
+
+        var list = new System.Collections.Generic.List<QuestSO>(cat.quests);
+
+        // 22번(앰플 사용) 직후에 22a 삽입
+        var quest22 = AssetDatabase.LoadAssetAtPath<QuestSO>($"{QuestsFolder}/quest_tutorial_22_use_healing_ampoule.asset");
+        int idx22 = quest22 != null ? list.IndexOf(quest22) : -1;
+        if (idx22 >= 0)
+            list.Insert(idx22 + 1, quest22a);
+        else
+            list.Add(quest22a);   // 22번 못 찾으면 끝에 추가
+
+        cat.quests = list.ToArray();
+        EditorUtility.SetDirty(cat);
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        Debug.Log(
+            $"[AddCombatSerumCraftingStep] 22a (컴뱃 세럼 재료 투입) 추가 완료. 총 {list.Count}개 Quest.\n" +
+            $"  ※ inputItemId placeholder = 1201 (의료겔). 실제 레시피와 다르면 " +
+            $"obj_input_combat_serum_material.asset 인스펙터에서 Input Item Id 변경.");
+    }
+
     // ----- QuestSO 빌더 -----
     static QuestSO BuildQuest(string id, string title, params ObjectiveSO[] objectives)
     {
