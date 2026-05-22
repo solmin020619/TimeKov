@@ -21,7 +21,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   GaugeTarget: 2
-  GaugeAmount: 100
+  GaugeAmount: 5
   AttackVfxPrefab: {fileID: 1044528419629608, guid: 3be98662c9e7ef5468cb9c4e11010dc7, type: 3}
   AttackVfxBone: 18
   AttackVfxOffset: {x: 0, y: 0, z: 0}
@@ -32,6 +32,7 @@ MonoBehaviour:
   HitVfxPrefab: {fileID: 1893033738566276, guid: 3e04efdf8ee665d48962b33b06e8e3d3, type: 3}
   HitVfxOffset: {x: 0, y: 1, z: 0}
   HitVfxLifeTime: 1
+  PostHitLockDuration: 0
   SlashForce: 1
   SlashDuration: 0.38
   AnimDuration: 0.77
