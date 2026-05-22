@@ -18,13 +18,13 @@ MonoBehaviour:
   moveSpeed: 5
   acceleration: 12
   angularSpeed: 320
-  stoppingDistance: 2
+  stoppingDistance: 0.5
   visionRange: 15
   visionAngle: 280
   attackDamage: 15
-  attackRange: 6
+  attackRange: 4
   attackApproachRatio: 0.85
-  attackCooldown: 1
+  attackCooldown: 0.5
   hitDelay: 0.5
   animLength: 1.5
   hitTrigger: Hit
@@ -32,7 +32,7 @@ MonoBehaviour:
   dieTrigger: Die
   targetLostMemory: 1.5
   deathAnimDuration: 1
-  detectStunDuration: 2
+  detectStunDuration: 2.5
   spawnVFX: {fileID: 0}
   spawnSound: {fileID: 0}
   detectVFX: {fileID: 0}

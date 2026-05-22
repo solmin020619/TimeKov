@@ -106,7 +106,13 @@ public class MachineUI : MonoBehaviour
         if (inv != null) inv.OnInventoryChanged -= RefreshInventorySlots;
 
         _machine = null;
-        uiPanel.SetActive(false);
+
+        // UIUnfoldEffect가 있으면 닫기 애니메이션 후 SetActive(false), 없으면 즉시 비활성화
+        var unfold = uiPanel.GetComponent<UIUnfoldEffect>();
+        if (unfold != null && uiPanel.activeInHierarchy)
+            unfold.Close();
+        else
+            uiPanel.SetActive(false);
     }
 
     public void AddItemFromInventory(int itemId, int amount)

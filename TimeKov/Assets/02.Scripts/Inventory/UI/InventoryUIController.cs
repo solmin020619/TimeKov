@@ -203,7 +203,13 @@ public class InventoryUIController : MonoBehaviour
         tooltip?.Hide();
 
         ClearSelection();
-        inventoryRoot.SetActive(false);
+
+        // UIUnfoldEffect가 있으면 닫기 애니메이션 후 SetActive(false), 없으면 즉시 비활성화
+        var unfold = inventoryRoot.GetComponent<UIUnfoldEffect>();
+        if (unfold != null && inventoryRoot.activeInHierarchy)
+            unfold.Close();
+        else
+            inventoryRoot.SetActive(false);
 
         // 커서·입력 복구는 GameUIController에 위임
         GameUIController.Instance?.CloseAll();

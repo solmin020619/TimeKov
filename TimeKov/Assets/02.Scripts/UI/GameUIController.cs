@@ -206,16 +206,13 @@ public class GameUIController : MonoBehaviour
     protected virtual void ApplyState()
     {
         // 설정창
-        if (settingsPanel != null)
-            settingsPanel.SetActive(_currentState == UIState.Settings);
+        SetPanelActive(settingsPanel, _currentState == UIState.Settings);
 
         // 퀵슬롯 UI — 건설 모드에서만 표시
-        if (quickSlotUI != null)
-            quickSlotUI.SetActive(_currentState == UIState.Build);
+        SetPanelActive(quickSlotUI, _currentState == UIState.Build);
 
         // 퀘스트 팝업 — Quest 상태에서만 표시
-        if (questPanel != null)
-            questPanel.SetActive(_currentState == UIState.Quest);
+        SetPanelActive(questPanel, _currentState == UIState.Quest);
 
         // 플레이어 스탯창은 _currentState와 독립이라 여기서 안 건드림 (TogglePlayerStat이 직접 관리)
 
@@ -243,6 +240,32 @@ public class GameUIController : MonoBehaviour
 
         // 설정창이 열릴 때만 시간 정지
         Time.timeScale = (_currentState == UIState.Settings) ? 0f : 1f;
+    }
+
+    // ── 패널 활성/비활성 헬퍼 ────────────────────────────────────────
+
+    /// <summary>
+    /// UIUnfoldEffect가 있으면 Close() 애니메이션을 거쳐 비활성화.
+    /// 없으면 바로 SetActive() 처리.
+    /// </summary>
+    protected void SetPanelActive(GameObject panel, bool active)
+    {
+        if (panel == null) return;
+
+        if (active)
+        {
+            // 열기: SetActive(true) → UIUnfoldEffect.OnEnable()이 열기 애니메이션 실행
+            panel.SetActive(true);
+        }
+        else
+        {
+            // 닫기: UIUnfoldEffect가 있으면 애니메이션 후 SetActive(false)
+            var unfold = panel.GetComponent<UIUnfoldEffect>();
+            if (unfold != null && panel.activeInHierarchy)
+                unfold.Close();
+            else
+                panel.SetActive(false);
+        }
     }
 
     // ── 커서 / 입력 관리 ─────────────────────────────────────────────

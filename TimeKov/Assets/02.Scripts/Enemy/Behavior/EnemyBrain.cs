@@ -56,6 +56,10 @@ public class EnemyBrain : MonoBehaviour
         // SO 권위 유지 위해 강제 OFF.
         if (animator != null) animator.applyRootMotion = false;
 
+        // NavMeshAgent의 자동 회전 비활성 — 공격 중(isStopped=true) 회전도 멈추는 문제 방지.
+        // 회전은 LateUpdate에서 EnemyBrain이 직접 처리 (공격 중에도 타깃 향해 돌아감).
+        if (navAgent != null) navAgent.updateRotation = false;
+
         // Health 초기화 (currentHP = maxHP). 이후엔 Update에서 maxHP만 동기화하고 currentHP는 게임 로직이 관리.
         if (healthRef != null && data != null)
         {
@@ -119,6 +123,23 @@ public class EnemyBrain : MonoBehaviour
         }
 
         lastTarget = targetObj;
+    }
+
+    private void LateUpdate()
+    {
+        // 타깃 향해 매 프레임 회전 — NavMeshAgent.isStopped 무관 (공격 중에도 작동).
+        // 사용자가 늑대 옆/뒤로 이동해도 늑대가 항상 사용자 향해 돌아감.
+        if (visionSensor == null) return;
+        var target = visionSensor.SpottedTarget;
+        if (target == null) return;
+
+        Vector3 dir = target.position - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) return;
+
+        Quaternion targetRot = Quaternion.LookRotation(dir);
+        float angularSpeedDeg = data != null ? data.angularSpeed : 480f;
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, angularSpeedDeg * Time.deltaTime);
     }
 
     /// <summary>
