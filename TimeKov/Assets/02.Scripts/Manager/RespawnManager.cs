@@ -9,6 +9,10 @@ public class RespawnManager : MonoBehaviour
 
     public Player _player;
 
+    [Header("Death Overlay UI")]
+    [Tooltip("사망 시 화면 중앙에 표시할 GameOver 오버레이 (선택)")]
+    [SerializeField] private DeathOverlayUI deathOverlay;
+
     [Header("아이템 드롭")]
     [Tooltip("죽으면 인벤토리의 모든 아이템을 필드에 드롭합니다")]
     public bool DropItemsOnDeath = true;
@@ -23,6 +27,12 @@ public class RespawnManager : MonoBehaviour
     void Start()
     {
         _player.Stat.OnDead += HandleDead;
+
+        // deathOverlay 미연결 시 씬에서 자동 탐색
+        if (deathOverlay == null)
+            deathOverlay = Object.FindAnyObjectByType<DeathOverlayUI>(FindObjectsInactive.Include);
+
+        Debug.Log($"[RespawnManager] deathOverlay = {(deathOverlay != null ? deathOverlay.gameObject.name : "NULL")}");
     }
 
     void HandleDead()
@@ -31,9 +41,13 @@ public class RespawnManager : MonoBehaviour
         StartCoroutine(RespawnRoutine());
     }
 
+    // 부활하기 버튼 클릭 신호
+    private bool _respawnRequested = false;
+
     IEnumerator RespawnRoutine()
     {
-        _isRespawning = true;
+        _isRespawning     = true;
+        _respawnRequested = false;
 
         // 1. 죽는 애니메이션 + 이동 잠금
         _player.Anim.PlayDie();
@@ -43,7 +57,19 @@ public class RespawnManager : MonoBehaviour
         if (DropItemsOnDeath)
             DropInventoryItems();
 
-        yield return new WaitForSeconds(RespawnDelay);
+        // 3. DEFEAT 오버레이 표시 + 카운트다운 후 버튼 활성화
+        Debug.Log($"[RespawnManager] HandleDead → deathOverlay={deathOverlay}");
+        if (deathOverlay != null)
+        {
+            Debug.Log("[RespawnManager] Show() 호출");
+            deathOverlay.Show(RespawnDelay, () => _respawnRequested = true);
+            yield return new WaitUntil(() => _respawnRequested);
+        }
+        else
+        {
+            Debug.LogWarning("[RespawnManager] deathOverlay가 null → 딜레이로 대체");
+            yield return new WaitForSeconds(RespawnDelay);
+        }
 
         // 2. 스탯 회복 (IsDead → false)
         _player.Stat.Respawn();
@@ -64,7 +90,10 @@ public class RespawnManager : MonoBehaviour
             rb.position        = RespawnPoint.position;  // 물리 공간 위치 직접 갱신
         }
 
-        // 4. 애니메이션 리셋 (Base Layer → Blend Tree, Action Layer → Empty)
+        // 4. 오버레이 숨김
+        deathOverlay?.Hide();
+
+        // 5. 애니메이션 리셋 (Base Layer → Blend Tree, Action Layer → Empty)
         _player.Anim.ResetToIdle();
 
         // 5. 이동 잠금 해제

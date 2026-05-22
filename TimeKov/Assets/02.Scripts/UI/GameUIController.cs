@@ -280,6 +280,14 @@ public class GameUIController : MonoBehaviour
 
     private void RefreshCursorState()
     {
+        // 사망 오버레이가 열려있으면 커서 강제 표시 (부활 버튼 클릭 필요)
+        if (DeathOverlayUI.IsOpen)
+        {
+            if (!Cursor.visible) Cursor.visible = true;
+            if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
+            return;
+        }
+
         // 탑뷰(건설) 모드는 항상 커서 표시 — TopViewPanCamera 우선
         if (_buildManager != null && _buildManager.IsTopViewMode)
         {

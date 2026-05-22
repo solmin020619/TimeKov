@@ -20,6 +20,10 @@ public class GameOverUIManager : MonoBehaviour
     private Player _player;
     private bool isDead = false;
 
+    // RespawnManager가 씬에 있으면 GameOverUIManager는 동작하지 않음
+    // (RespawnManager가 사망 처리를 담당하는 씬에서 충돌 방지)
+    private bool _disabled = false;
+
     void Start()
     {
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
@@ -31,13 +35,21 @@ public class GameOverUIManager : MonoBehaviour
             screenBlur.gameObject.SetActive(false);
         }
 
+        // RespawnManager가 있으면 이 컴포넌트는 비활성화
+        if (FindAnyObjectByType<RespawnManager>() != null)
+        {
+            _disabled = true;
+            Debug.Log("[GameOverUIManager] RespawnManager 감지 → 게임오버 연출 비활성화 (리스폰 시스템이 사망을 처리합니다)");
+            return;
+        }
+
         _player = FindFirstObjectByType<Player>();
         if (_player != null) _player.Stat.OnDead += TriggerGameOver;
     }
 
     void Update()
     {
-        if (isDead || _player == null) return;
+        if (_disabled || isDead || _player == null) return;
 
         float hpRatio = _player.Stat.CurrentHp / _player.Stat.MaxHp;
         float targetAlpha = 0f;
@@ -82,7 +94,7 @@ public class GameOverUIManager : MonoBehaviour
 
     void TriggerGameOver()
     {
-        if (isDead) return;
+        if (_disabled || isDead) return;
         isDead = true;
         StartCoroutine(DeathRoutine());
     }
@@ -150,7 +162,7 @@ public class GameOverUIManager : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_player != null)
+        if (!_disabled && _player != null)
             _player.Stat.OnDead -= TriggerGameOver;
     }
 }

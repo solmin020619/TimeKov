@@ -177,7 +177,10 @@ public class PlayerHudUI : MonoBehaviour
     void ForceHpSliderEmpty()
     {
         if (hpSlider != null)
-            hpSlider.value = hpSlider.minValue;
+        {
+            hpSlider.maxValue = playerStat != null ? playerStat.MaxHp : hpSlider.maxValue;
+            hpSlider.value    = 0f;
+        }
     }
 
     void Update()
@@ -199,7 +202,13 @@ public class PlayerHudUI : MonoBehaviour
     void UpdateHpStamina()
     {
         if (hpSlider != null)
-            hpSlider.value = playerStat.CurrentHp;
+        {
+            // maxValue를 매 프레임 동기화 — Start() 이후 MaxHp가 바뀌어도 추적 보장
+            // Unity Slider는 value를 [minValue, maxValue]로 클램프하므로
+            // maxValue가 실제 MaxHp보다 작으면 슬라이더가 중간에서 멈춰 보이는 버그 발생
+            hpSlider.maxValue = playerStat.MaxHp;
+            hpSlider.value    = playerStat.CurrentHp;
+        }
 
         if (staminaSlider != null)
             staminaSlider.value = playerStat.CurrentStamina;
