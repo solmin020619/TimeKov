@@ -29,7 +29,7 @@ public class PlayerSkillComponent : MonoBehaviour
     private SkillBase _currentSkill;
     private ComboAttackBase _currentCombo;
 
-    // Skill3 ¼±µô Áß ÇÇ°İ ÀÎÅÍ·´Æ® Çã¿ë ÇÃ·¡±×
+    // Skill3 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ç°ï¿½ ï¿½ï¿½ï¿½Í·ï¿½Æ® ï¿½ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½
     public bool CurrentSkillIsInterruptible { get; set; }
 
     public bool IsExecuting => _currentRoutine != null;
@@ -60,26 +60,26 @@ public class PlayerSkillComponent : MonoBehaviour
         if (_player.Input.Skill3Pressed) TryExecute(SkillSheetId.Skill3);
     }
 
-    // °ÔÀÌÁö ÃæÀü (ComboAttackBase¿¡¼­ È£Ãâ)
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ComboAttackBaseï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½)
     public void AddGauge(SkillSheetId id, float amount)
     {
         if (!_skillGauges.ContainsKey(id)) return;
         _skillGauges[id] = Mathf.Min(100f, _skillGauges[id] + amount);
     }
 
-    // °ÔÀÌÁö ¹İÈ¯ (UI¿ë)
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ (UIï¿½ï¿½)
     public float GetGauge(SkillSheetId id)
     {
         return _skillGauges.TryGetValue(id, out float val) ? val : 0f;
     }
 
-    // ÄğÅ¸ÀÓ ¹İÈ¯ (UI¿ë)
+    // ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½È¯ (UIï¿½ï¿½)
     public float GetCooldown(SkillSheetId id)
     {
         return _cooldownTimers.TryGetValue(id, out float val) ? Mathf.Max(0f, val) : 0f;
     }
 
-    // ÃÖ´ë ÄğÅ¸ÀÓ ¹İÈ¯ (UI ºñÀ² °è»ê¿ë)
+    // ï¿½Ö´ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½È¯ (UI ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     public float GetMaxCooldown(SkillSheetId id)
     {
         return _skillDatabase.TryGetValue(id, out var skill) ? skill.CoolTime : 1f;
@@ -93,7 +93,7 @@ public class PlayerSkillComponent : MonoBehaviour
 
     void TryComboAttack()
     {
-        // Á¡ÇÁ¡¤Dead¡¤Hurt »óÅÂ Â÷´Ü
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Deadï¿½ï¿½Hurt ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (_player.Movement.IsJumping) return;
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
@@ -129,7 +129,7 @@ public class PlayerSkillComponent : MonoBehaviour
         _currentRoutine = null;
         _currentCombo = null;
 
-        // 3Å¸ ¿Ï·á ÈÄ ¹öÆÛ ÃÊ±âÈ­
+        // 3Å¸ ï¿½Ï·ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
         if (_comboIndex == 0)
         {
             _comboInputReceived = false;
@@ -155,19 +155,29 @@ public class PlayerSkillComponent : MonoBehaviour
 
     public void TryExecute(SkillSheetId id)
     {
-        // Á¡ÇÁ¡¤Dead¡¤Hurt »óÅÂ Â÷´Ü
+        // DeadÂ·Hurt ìƒíƒœ ì°¨ë‹¨
         if (_player.Movement.IsJumping) return;
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
-
         if (IsExecuting) return;
         if (!_skillDatabase.TryGetValue(id, out var skill)) return;
-        if (_cooldownTimers.TryGetValue(id, out float remaining) && remaining > 0) return;
-        if (_skillGauges[id] < 100f) return;
+
+        // ê²Œì´ì§€ ë¶€ì¡± ë˜ëŠ” ì¿¨ë‹¤ìš´ ì¤‘ â†’ ì‚¬ìš© ë¶ˆê°€ ì‚¬ìš´ë“œ
+        bool onCooldown = _cooldownTimers.TryGetValue(id, out float remaining) && remaining > 0;
+        bool gaugeFull  = _skillGauges[id] >= 100f;
+        if (onCooldown || !gaugeFull)
+        {
+            _player.Audio?.PlaySkillUnavailable();
+            return;
+        }
 
         _skillGauges[id] = 0f;
         _cooldownTimers[id] = skill.CoolTime;
         _currentSkill = skill;
+
+        // ìŠ¤í‚¬ ë°œë™ ì‚¬ìš´ë“œ
+        _player.Audio?.PlaySkill(id);
+
         _currentRoutine = StartCoroutine(SkillFlow(skill));
     }
 
@@ -202,18 +212,18 @@ public class PlayerSkillComponent : MonoBehaviour
                 _cooldownTimers[key] -= Time.deltaTime;
     }
 
-    // ¸®½ºÆù ½Ã ÀüÃ¼ ÃÊ±âÈ­ (3´Ü°è)
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ã¼ ï¿½Ê±ï¿½È­ (3ï¿½Ü°ï¿½)
     public void ResetAll()
     {
-        // °ÔÀÌÁö ÃÊ±âÈ­
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
         foreach (var key in _skillGauges.Keys.ToList())
             _skillGauges[key] = 0f;
 
-        // ÄğÅ¸ÀÓ ÃÊ±âÈ­
+        // ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½Ê±ï¿½È­
         foreach (var key in _cooldownTimers.Keys.ToList())
             _cooldownTimers[key] = 0f;
 
-        // ÄŞº¸ »óÅÂ ÃÊ±âÈ­
+        // ï¿½Şºï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
         _comboIndex = 0;
         _comboTimer = 0f;
         _comboInputReceived = false;

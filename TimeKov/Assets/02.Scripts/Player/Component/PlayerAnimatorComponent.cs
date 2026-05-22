@@ -55,6 +55,9 @@ public class PlayerAnimatorComponent : MonoBehaviour
             case 1: _anim.SetTrigger(Attack2Hash); break;
             case 2: _anim.SetTrigger(Attack3Hash); break;
         }
+
+        // 기본 공격 스윙 사운드
+        _player.Audio?.PlayAttackSwing(comboIndex);
     }
 
     public void PlaySkill(int skillIndex)
@@ -86,7 +89,11 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
     }
 
-    public void PlayJump() => _anim.SetTrigger(JumpHash);
+    public void PlayJump()
+    {
+        _anim.SetTrigger(JumpHash);
+        _player.Audio?.PlayJump();
+    }
 
     public void ResetToIdle()
     {
@@ -98,5 +105,9 @@ public class PlayerAnimatorComponent : MonoBehaviour
     }
 
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
-    public void PlayDie() => _anim.SetTrigger(DieHash);
+    public void PlayDie()
+    {
+        _anim.SetTrigger(DieHash);
+        _player.Audio?.PlayDie();
+    }
 }

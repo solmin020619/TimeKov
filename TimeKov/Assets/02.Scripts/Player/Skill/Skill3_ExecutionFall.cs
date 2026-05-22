@@ -41,12 +41,16 @@ public class Skill3_ExecutionFall : SkillBase
         if (skillComp != null) skillComp.CurrentSkillIsInterruptible = false;
         if (_interrupted) yield break;
 
+        var audio = caster.GetComponent<Player>()?.Audio;
+
         AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(Hit2Delay - Hit1Delay);
         AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(TotalDuration - Hit2Delay);
     }

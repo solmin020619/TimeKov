@@ -9,6 +9,7 @@ public class Player : MonoBehaviour
     public PlayerAnimatorComponent Anim { get; private set; }
     public PlayerDashComponent Dash { get; private set; }
     public PlayerInteractComponent Interact { get; private set; }
+    public PlayerAudioComponent Audio { get; private set; }
 
     void Awake()
     {
@@ -19,5 +20,6 @@ public class Player : MonoBehaviour
         Anim = GetComponent<PlayerAnimatorComponent>();
         Dash = GetComponent<PlayerDashComponent>();
         Interact = GetComponent<PlayerInteractComponent>();
+        Audio = GetComponent<PlayerAudioComponent>();
     }
 }

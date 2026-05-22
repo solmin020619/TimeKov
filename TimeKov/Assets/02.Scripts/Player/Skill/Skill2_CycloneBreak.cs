@@ -30,25 +30,32 @@ public class Skill2_CycloneBreak : SkillBase
         // 시전 이펙트: 사이클론 시작 시 캐릭터 중심 스폰
         SpawnCastVfx(caster);
 
+        var audio = caster.GetComponent<Player>()?.Audio;
+
         yield return new WaitForSeconds(Hit1Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(Hit2Time - Hit1Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(Hit3Time - Hit2Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(Hit4Time - Hit3Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(JumpHitTime - Hit4Time);
         AttackUtils.HitSphere(caster, JumpRadius, JumpDamage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(TotalDuration - JumpHitTime);
     }

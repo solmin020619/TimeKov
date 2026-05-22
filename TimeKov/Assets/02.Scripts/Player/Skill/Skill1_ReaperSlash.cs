@@ -27,13 +27,17 @@ public class Skill1_ReaperSlash : SkillBase
         // 시전 이펙트: 스킬 시작 직후 RightHand 뼈 위치에 스폰
         SpawnCastVfx(caster);
 
+        var audio = caster.GetComponent<Player>()?.Audio;
+
         yield return new WaitForSeconds(Hit1Delay);
         AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(Hit2Delay - Hit1Delay);
         AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer,
-                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime);
+                               HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
+                               onHitEnemy: () => audio?.PlaySkillHit());
 
         yield return new WaitForSeconds(TotalDuration - Hit2Delay);
     }

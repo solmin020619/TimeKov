@@ -77,6 +77,7 @@ public class PlayerDashComponent : MonoBehaviour
         );
 
         _player.Anim.PlayDash(dashDir);
+        _player.Audio?.PlayDash();
 
         // ��� ����Ʈ ����
         VfxUtils.SpawnAtCaster(

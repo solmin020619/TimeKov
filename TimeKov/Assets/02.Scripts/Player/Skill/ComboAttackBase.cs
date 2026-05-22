@@ -114,7 +114,11 @@ public abstract class ComboAttackBase : ScriptableObject
         }
 
         if (hitAny)
+        {
             skill?.AddGauge(GaugeTarget, GaugeAmount);
+            // 공격 적중 사운드
+            caster.GetComponent<Player>()?.Audio?.PlayAttackHit();
+        }
     }
 
     public virtual void OnInterrupt(GameObject caster)
