@@ -31,8 +31,9 @@ public class MachineLoopSound : MonoBehaviour
 
     private void Awake()
     {
-        if (loopSource == null)
-            loopSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
+        // Unity의 fake null 처리 — ??는 fake null을 못 잡으므로 단계적으로 체크
+        if (loopSource == null) loopSource = GetComponent<AudioSource>();
+        if (loopSource == null) loopSource = gameObject.AddComponent<AudioSource>();
 
         loopSource.loop        = true;
         loopSource.playOnAwake = false;
