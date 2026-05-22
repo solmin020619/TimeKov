@@ -158,14 +158,26 @@ public class PlayerHudUI : MonoBehaviour
         SetImageAlpha(skill2IconImage, skillIconLockedAlpha);
         SetImageAlpha(skill3IconImage, skillIconLockedAlpha);
 
-        // 피격 이벤트 구독
+        // 이벤트 구독
         playerStat.OnHurt += TriggerHurtVignette;
+        playerStat.OnDead += ForceHpSliderEmpty;
     }
 
     void OnDestroy()
     {
         if (playerStat != null)
+        {
             playerStat.OnHurt -= TriggerHurtVignette;
+            playerStat.OnDead -= ForceHpSliderEmpty;
+        }
+    }
+
+    // 사망 즉시 슬라이더를 0으로 강제 설정
+    // screenBlur가 슬라이더를 가리기 전에 확실하게 빈 상태로 만듦
+    void ForceHpSliderEmpty()
+    {
+        if (hpSlider != null)
+            hpSlider.value = hpSlider.minValue;
     }
 
     void Update()

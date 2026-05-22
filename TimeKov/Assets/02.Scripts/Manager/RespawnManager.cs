@@ -8,6 +8,10 @@ public class RespawnManager : MonoBehaviour
 
     public Player _player;
 
+    // 리스폰 중복 실행 방지 플래그
+    // OnDead 이벤트가 짧은 시간에 여러 번 호출돼도 코루틴이 하나만 돌도록 보장
+    private bool _isRespawning = false;
+
     void Start()
     {
         _player.Stat.OnDead += HandleDead;
@@ -15,36 +19,49 @@ public class RespawnManager : MonoBehaviour
 
     void HandleDead()
     {
+        if (_isRespawning) return;   // 이미 리스폰 진행 중이면 무시
         StartCoroutine(RespawnRoutine());
     }
 
     IEnumerator RespawnRoutine()
     {
-        // ��� �ִϸ��̼� ���
-        _player.Anim.PlayDie();
+        _isRespawning = true;
 
-        // �̵� ���
+        // 1. 죽는 애니메이션 + 이동 잠금
+        _player.Anim.PlayDie();
         _player.Movement.LockMovement(true);
 
         yield return new WaitForSeconds(RespawnDelay);
 
-        // ��ġ �ʱ�ȭ
-        var rb = _player.GetComponent<Rigidbody>();
-        rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
-        _player.transform.position = RespawnPoint.position;
-
-        // �ִϸ��̼� Idle ����
-        _player.Anim.ResetToIdle();
-
-        // �̵� ��� ����
-        _player.Movement.LockMovement(false);
-
-        // ���� ȸ��
+        // 2. 스탯 회복 (IsDead → false)
         _player.Stat.Respawn();
 
-        // ��ų ����������Ÿ�� �ʱ�ȭ (3�ܰ�)
+        // 3. 리지드바디 위치 직접 설정
+        //    transform.position 대신 rb.position 사용:
+        //    Unity Physics가 transform 변경을 즉시 동기화하지 않는 경우가 있어
+        //    rb.position은 물리 엔진의 내부 위치를 직접 갱신하므로 신뢰할 수 있음
+        if (RespawnPoint == null)
+        {
+            Debug.LogError("[RespawnManager] RespawnPoint가 null입니다! Inspector에서 연결하세요.");
+        }
+        else
+        {
+            var rb = _player.GetComponent<Rigidbody>();
+            rb.linearVelocity  = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.position        = RespawnPoint.position;  // 물리 공간 위치 직접 갱신
+        }
+
+        // 4. 애니메이션 리셋 (Base Layer → Blend Tree, Action Layer → Empty)
+        _player.Anim.ResetToIdle();
+
+        // 5. 이동 잠금 해제
+        _player.Movement.LockMovement(false);
+
+        // 6. 스킬 쿨다운타이머 초기화
         _player.Skill.ResetAll();
+
+        _isRespawning = false;
     }
 
     void OnDestroy() => _player.Stat.OnDead -= HandleDead;

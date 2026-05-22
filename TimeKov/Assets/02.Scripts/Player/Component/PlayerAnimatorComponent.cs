@@ -90,8 +90,11 @@ public class PlayerAnimatorComponent : MonoBehaviour
 
     public void ResetToIdle()
     {
+        // GS_Die는 Action Layer(레이어 1)에 있음 → 레이어 1도 Empty로 리셋해야 함
+        // 레이어 1이 Override(weight=1)이라 리셋 안 하면 죽는 애니메이션이 계속 재생됨
         _anim.ResetTrigger(DieHash);
-        _anim.Play("Blend Tree", 0);
+        _anim.Play("Blend Tree", 0, 0f);  // Base Layer → Idle/Walk/Run
+        _anim.Play("Empty",      1, 0f);  // Action Layer → Empty (GS_Die 종료)
     }
 
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);

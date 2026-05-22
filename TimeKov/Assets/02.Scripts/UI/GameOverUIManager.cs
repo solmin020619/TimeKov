@@ -42,14 +42,17 @@ public class GameOverUIManager : MonoBehaviour
         float hpRatio = _player.Stat.CurrentHp / _player.Stat.MaxHp;
         float targetAlpha = 0f;
 
-        if (hpRatio <= blurStartHpRatio && hpRatio > 0f)
+        // hpRatio > 0f 조건 제거: HP = 0이 되는 순간에도 블러가 꺼지지 않고 유지
+        // (이전에는 HP = 0 되는 순간 targetAlpha = 0 → 블러가 깜빡이며 꺼지는 버그 존재)
+        if (hpRatio <= blurStartHpRatio)
         {
             targetAlpha = 1f - (hpRatio / blurStartHpRatio);
+            targetAlpha = Mathf.Clamp01(targetAlpha);
 
             if (screenBlur != null && !screenBlur.gameObject.activeSelf)
                 screenBlur.gameObject.SetActive(true);
 
-            if (deathAudio != null)
+            if (deathAudio != null && hpRatio > 0f)
             {
                 if (!deathAudio.isPlaying) deathAudio.Play();
 
