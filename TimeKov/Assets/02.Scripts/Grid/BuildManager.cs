@@ -459,6 +459,10 @@ public class BuildManager : MonoBehaviour
 
                 topViewCamera.transform.position = startPos;
                 topViewCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+
+                // SmoothDamp 잔여 속도 제거 + targetPosition 동기화 (진입 직후 첫 입력이 튀는 것 방지)
+                if (topViewPanCamera != null)
+                    topViewPanCamera.SnapToCurrent();
             }
         }
         else

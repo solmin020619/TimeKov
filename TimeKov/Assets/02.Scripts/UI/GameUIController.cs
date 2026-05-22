@@ -198,9 +198,13 @@ public class GameUIController : MonoBehaviour
             questPanel.SetActive(_currentState == UIState.Quest);
 
         // 퀘스트 HUD — CanvasGroup으로 숨김 (SetActive 금지: QuestPanelUI 구독 해제 방지)
+        // Build 모드에서도 퀘스트는 계속 보여야 함 (튜토리얼 진행 안내용)
         if (_questHudGroup != null)
         {
-            bool showQuest = _currentState == UIState.None;
+            bool showQuest = _currentState == UIState.None
+                          || _currentState == UIState.Build
+                          || _currentState == UIState.Inventory
+                          || _currentState == UIState.Factory;
             _questHudGroup.alpha = showQuest ? 1f : 0f;
             _questHudGroup.interactable = showQuest;
             _questHudGroup.blocksRaycasts = showQuest;

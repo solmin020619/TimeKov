@@ -25,11 +25,18 @@ public class TopViewPanCamera : MonoBehaviour
     [SerializeField] private Vector2 xBounds = new Vector2(-100f, 100f);
     [SerializeField] private Vector2 zBounds = new Vector2(-100f, 100f);
 
+    [Header("Smoothing")]
+    [Tooltip("SmoothDamp 시간(초). 작을수록 즉각 반응, 클수록 부드러움. 0이면 즉시 이동.")]
+    [SerializeField] private float smoothTime = 0.05f;
+
     private bool isEnabledControl;
     private bool isMouseDragEnabled = true;
     private Plane dragPlane;
     private Vector3 _leftDragLastWorld;
     private Vector3 _middleDragLastWorld;
+
+    private Vector3 _targetPosition;
+    private Vector3 _velocity;
 
     private void Awake()
     {
@@ -37,6 +44,14 @@ public class TopViewPanCamera : MonoBehaviour
             cam = GetComponent<Camera>();
 
         dragPlane = new Plane(Vector3.up, Vector3.zero);
+        _targetPosition = transform.position;
+    }
+
+    private void OnEnable()
+    {
+        // 외부에서 transform.position을 직접 바꿔놓고 활성화한 경우 동기화
+        _targetPosition = transform.position;
+        _velocity = Vector3.zero;
     }
 
     public void SetControlEnabled(bool value)
@@ -49,15 +64,40 @@ public class TopViewPanCamera : MonoBehaviour
         isMouseDragEnabled = value;
     }
 
-    private void Update()
+    /// <summary>외부에서 카메라 위치를 점프시킨 직후 호출. 보간 잔여 속도 제거.</summary>
+    public void SnapToCurrent()
     {
-        if (!isEnabledControl || cam == null)
-            return;
+        _targetPosition = transform.position;
+        _velocity = Vector3.zero;
+    }
 
-        HandleKeyboardMove();
-        HandleDrag();
-        HandleZoom();
-        ClampPosition();
+    /// <summary>목표 위치 직접 설정. snap=true면 즉시 점프, false면 SmoothDamp 보간.</summary>
+    public void SetTargetPosition(Vector3 pos, bool snap = false)
+    {
+        _targetPosition = pos;
+        if (snap)
+        {
+            transform.position = pos;
+            _velocity = Vector3.zero;
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (cam == null) return;
+
+        if (isEnabledControl)
+        {
+            HandleKeyboardMove();
+            HandleDrag();
+            HandleZoom();
+            ClampTargetPosition();
+        }
+
+        if (smoothTime > 0f)
+            transform.position = Vector3.SmoothDamp(transform.position, _targetPosition, ref _velocity, smoothTime);
+        else
+            transform.position = _targetPosition;
     }
 
     private void HandleKeyboardMove()
@@ -73,7 +113,7 @@ public class TopViewPanCamera : MonoBehaviour
         Vector3 delta = new Vector3(h, 0f, v);
         if (delta.sqrMagnitude > 1f) delta.Normalize();
 
-        transform.position += delta * keyboardMoveSpeed * Time.deltaTime;
+        _targetPosition += delta * keyboardMoveSpeed * Time.deltaTime;
     }
 
     private void HandleDrag()
@@ -90,6 +130,7 @@ public class TopViewPanCamera : MonoBehaviour
         {
             if (TryGetMouseWorldPoint(out Vector3 worldPoint))
                 lastWorld = worldPoint;
+            return;
         }
 
         if (Input.GetMouseButton(mouseButton))
@@ -103,8 +144,12 @@ public class TopViewPanCamera : MonoBehaviour
                 delta = -delta;
 
             delta.y = 0f;
-            transform.position += delta * dragSensitivity;
+            _targetPosition += delta * dragSensitivity;
 
+            // 카메라 이동 후 lastWorld를 같은 마우스 좌표로 재측정해야 다음 frame과 일관됨.
+            // 단, transform.position은 LateUpdate 끝에서야 갱신되므로 ray는 아직 이전 위치 기준.
+            // 따라서 SmoothDamp 결과를 미리 시뮬레이션해서 ray 시작점만 보정한 worldPoint를 다시 계산하는 대신,
+            // 단순히 currentWorld를 저장 (다음 frame ScreenPointToRay에서 자연스럽게 수렴).
             lastWorld = currentWorld;
         }
     }
@@ -113,10 +158,6 @@ public class TopViewPanCamera : MonoBehaviour
     {
         if (!allowZoom)
             return;
-
-        // UI가 열려있는 동안 줌 차단
-        //if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
-            //return;
 
         float scroll = Input.mouseScrollDelta.y;
         if (Mathf.Abs(scroll) < 0.01f)
@@ -129,10 +170,10 @@ public class TopViewPanCamera : MonoBehaviour
         }
         else
         {
-            Vector3 pos = transform.position;
+            Vector3 pos = _targetPosition;
             pos.y -= scroll * zoomSpeed * Time.deltaTime * 10f;
             pos.y = Mathf.Clamp(pos.y, minHeight, maxHeight);
-            transform.position = pos;
+            _targetPosition = pos;
         }
     }
 
@@ -150,14 +191,14 @@ public class TopViewPanCamera : MonoBehaviour
         return false;
     }
 
-    private void ClampPosition()
+    private void ClampTargetPosition()
     {
         if (!useBounds)
             return;
 
-        Vector3 pos = transform.position;
+        Vector3 pos = _targetPosition;
         pos.x = Mathf.Clamp(pos.x, xBounds.x, xBounds.y);
         pos.z = Mathf.Clamp(pos.z, zBounds.x, zBounds.y);
-        transform.position = pos;
+        _targetPosition = pos;
     }
 }

@@ -74,7 +74,14 @@ public class EnemyHealth : MonoBehaviour
         isDead = true;
 
         var brain = GetComponent<EnemyBrain>();
-        string monsterId = brain != null && brain.Data != null ? brain.Data.enemyName : "unknown";
+        string monsterId = "unknown";
+        if (brain != null && brain.Data != null)
+        {
+            // 표시명(enemyName)과 매칭ID(enemyId) 분리. enemyId 비었으면 enemyName으로 fallback.
+            monsterId = !string.IsNullOrEmpty(brain.Data.enemyId)
+                ? brain.Data.enemyId
+                : brain.Data.enemyName;
+        }
         GameEvents.RaiseEnemyKilled(monsterId);
 
         feedback?.PlayDeath();

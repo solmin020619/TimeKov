@@ -178,6 +178,9 @@ public static class DropPickupUIBuilder
         vlg.childControlHeight = false;
         vlg.childForceExpandWidth = false;
         vlg.childForceExpandHeight = false;
+        // PickupRow를 인스펙터에서 localScale 키울 수 있으니 scale을 정렬 계산에 반영
+        vlg.childScaleWidth = true;
+        vlg.childScaleHeight = true;
         var rcFit = rc.gameObject.AddComponent<ContentSizeFitter>();
         rcFit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
         rcFit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;

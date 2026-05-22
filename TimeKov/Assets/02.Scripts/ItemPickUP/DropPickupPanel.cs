@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class DropPickupPanel : MonoBehaviour
 {
@@ -32,6 +33,10 @@ public class DropPickupPanel : MonoBehaviour
         }
 
         panelRoot.SetActive(true);
+
+        // VerticalLayoutGroup이 다음 frame에 정렬하므로 첫 frame엔 row들이 겹쳐 보임. 즉시 재계산 강제.
+        if (rowContainer is RectTransform rt)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
     }
 
     public void Hide()

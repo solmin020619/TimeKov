@@ -12,24 +12,25 @@ using UnityEngine;
 /// </summary>
 public static class EnemyDataSOBuilder
 {
-    const string DataFolder = "Assets/02.Scripts/Enemy/Behavior/Data/Melee";
+    const string DataFolder = "Assets/05.Prefabs/Enemy/SO";
     const string PrefabFolder = "Assets/05.Prefabs/Enemy";
 
-    // (shortName, displayName) — displayName이 SO.enemyName으로 들어감 = HP 바 표시 이름
-    // 튜토리얼 적인 Undead는 enemyName도 "tutorial_enemy"로 두는 게 EnemyKillObjective.enemyId와 매칭 편함.
-    // 표시 이름 한국어로 바꾸려면 obj_kill_tutorial_enemy.asset의 enemyId도 함께 갈아야 함.
-    static readonly (string shortName, string displayName)[] Enemies =
+    // (shortName, displayName, enemyId)
+    //   displayName → SO.enemyName (HP 바 표시 이름, 한국어)
+    //   enemyId     → SO.enemyId (퀘스트/드롭/시스템 매칭 ID, 영어 snake_case)
+    // Undead의 enemyId="tutorial_enemy"는 obj_kill_tutorial_enemy.asset의 enemyId와 정확히 일치해야 함.
+    static readonly (string shortName, string displayName, string enemyId)[] Enemies =
     {
-        ("EvilWatcher",     "사악한 감시자"),
-        ("SkeletonKnight",  "해골 기사"),
-        ("Undead",          "tutorial_enemy"),  // ← 튜토리얼 적 (Q8 매칭용 ID)
-        ("DarknessSpider",  "어둠 거미"),
-        ("GiantRat",        "거대 쥐"),
-        ("FantasyWolf",     "늑대"),
-        ("OakTreeEnt",      "떡갈나무 엔트"),
-        ("Werewolf",        "늑대인간"),
-        ("Mummy",           "미라"),
-        ("Wyvern",          "와이번"),
+        ("EvilWatcher",     "사악한 감시자",   "evil_watcher"),
+        ("SkeletonKnight",  "해골 기사",       "skeleton_knight"),
+        ("Undead",          "언데드",          "tutorial_enemy"),  // ← Q8 매칭 (TutorialAssetBuilder의 enemyId와 일치)
+        ("DarknessSpider",  "어둠 거미",       "darkness_spider"),
+        ("GiantRat",        "거대 쥐",         "giant_rat"),
+        ("FantasyWolf",     "늑대",            "fantasy_wolf"),
+        ("OakTreeEnt",      "떡갈나무 엔트",   "oak_tree_ent"),
+        ("Werewolf",        "늑대인간",        "werewolf"),
+        ("Mummy",           "미라",            "mummy"),
+        ("Wyvern",          "와이번",          "wyvern"),
     };
 
     [MenuItem("Tools/Enemy/Generate Per-Enemy Data SO (10)")]
@@ -52,7 +53,7 @@ public static class EnemyDataSOBuilder
         int updated = 0;
         var summary = new List<string>();
 
-        foreach (var (shortName, displayName) in Enemies)
+        foreach (var (shortName, displayName, enemyId) in Enemies)
         {
             // 1. SO 생성/갱신
             string soPath = $"{DataFolder}/EnemyData_{shortName}.asset";
@@ -62,13 +63,15 @@ public static class EnemyDataSOBuilder
             {
                 so = ScriptableObject.CreateInstance<MeleeEnemyData>();
                 so.enemyName = displayName;
+                so.enemyId = enemyId;
                 AssetDatabase.CreateAsset(so, soPath);
                 created++;
             }
             else
             {
-                // 기존 SO는 enemyName만 덮어쓰기 (사용자가 수치 조정한 거 보존)
+                // 기존 SO는 enemyName/enemyId만 덮어쓰기 (사용자가 수치 조정한 거 보존)
                 so.enemyName = displayName;
+                so.enemyId = enemyId;
                 EditorUtility.SetDirty(so);
                 updated++;
             }
@@ -96,7 +99,7 @@ public static class EnemyDataSOBuilder
             PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
             PrefabUtility.UnloadPrefabContents(contents);
 
-            summary.Add($"  EnemyData_{shortName}.asset \"{displayName}\" → Enemy_{shortName}.prefab");
+            summary.Add($"  EnemyData_{shortName}.asset name=\"{displayName}\" id=\"{enemyId}\" → Enemy_{shortName}.prefab");
         }
 
         AssetDatabase.SaveAssets();
@@ -107,8 +110,8 @@ public static class EnemyDataSOBuilder
             string.Join("\n", summary) + "\n\n" +
             "다음 단계:\n" +
             "1. 각 EnemyData_*.asset 더블클릭 → HP/공격력/속도/Detect Stun Duration 등 적별 튜닝\n" +
-            "2. 튜토리얼 적 = EnemyData_Undead (enemyName=\"tutorial_enemy\")\n" +
-            "   - obj_kill_tutorial_enemy.asset의 enemyId가 \"tutorial_enemy\"인지 확인\n" +
+            "2. 튜토리얼 적 = EnemyData_Undead (enemyName=\"언데드\", enemyId=\"tutorial_enemy\")\n" +
+            "   - obj_kill_tutorial_enemy.asset의 enemyId가 \"tutorial_enemy\"인지 확인 (TutorialAssetBuilder 디폴트)\n" +
             "   - Enemy_Undead.prefab의 EnemyDropOnDeath.sourceId도 \"tutorial_enemy\"로 박혀있는지 확인\n" +
             "3. 시트(DropTable)에 sourceId=\"tutorial_enemy\" 행 2개 추가 필수 (1101 x2, 1102 x1)");
     }

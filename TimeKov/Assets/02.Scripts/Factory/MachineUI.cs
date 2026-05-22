@@ -244,6 +244,8 @@ public class MachineUI : MonoBehaviour
         inv?.AddItem(itemId, amount);
         inv?.ForceRefreshUI();
 
+        GameEvents.RaiseItemAcquired(itemId, amount);
+
         RefreshOutputSlots();
         RefreshInventorySlots();
     }
@@ -300,7 +302,10 @@ public class MachineUI : MonoBehaviour
         foreach (var kv in new Dictionary<int, int>(_machine.OutputBuffer.Stock))
         {
             if (kv.Value > 0 && _machine.TryTakeOutput(kv.Key, kv.Value))
+            {
                 inv?.AddItem(kv.Key, kv.Value);
+                GameEvents.RaiseItemAcquired(kv.Key, kv.Value);
+            }
         }
 
         _machine.PublicNotifyBufferChanged();

@@ -4,7 +4,11 @@ using UnityEngine;
 public class MeleeEnemyData : ScriptableObject
 {
     [Header("Identity")]
+    [Tooltip("HP 바 등 UI 표시용 이름. 한국어 가능.")]
     public string enemyName = "Melee";
+
+    [Tooltip("퀘스트/드롭/시스템 매칭용 ID. 영어 snake_case 권장. 비어있으면 enemyName으로 fallback (호환).")]
+    public string enemyId = "";
 
     [Header("Health")]
     public float maxHP = 100f;

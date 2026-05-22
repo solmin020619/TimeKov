@@ -13,6 +13,7 @@ public class PlayerMovementWatcher : MonoBehaviour
     {
         KeyCode.W, KeyCode.A, KeyCode.S, KeyCode.D,
         KeyCode.Space, KeyCode.B, KeyCode.E, KeyCode.F,
+        KeyCode.Tab,
         KeyCode.Mouse0, KeyCode.Mouse1
     };
 
