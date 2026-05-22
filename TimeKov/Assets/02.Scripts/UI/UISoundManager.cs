@@ -10,6 +10,7 @@
 
 using UnityEngine;
 
+[RequireComponent(typeof(AudioSource))]
 public class UISoundManager : MonoBehaviour
 {
     public static UISoundManager Instance { get; private set; }
