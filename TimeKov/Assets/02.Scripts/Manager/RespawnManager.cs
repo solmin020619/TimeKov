@@ -6,11 +6,10 @@ public class RespawnManager : MonoBehaviour
     public Transform RespawnPoint;
     public float RespawnDelay = 2f;
 
-    private Player _player;
+    public Player _player;
 
     void Start()
     {
-        _player = FindAnyObjectByType<Player>();
         _player.Stat.OnDead += HandleDead;
     }
 
