@@ -1,36 +1,47 @@
 // VolumeSync.cs
-// BGM 또는 SFX 볼륨을 씬의 모든 AudioSource에 동기화
+// SFX 볼륨을 씬의 모든 AudioSource에 동기화 (BGM 제외)
 //
 // [사용법]
-//   씬에 VolumeSync(BGM) 하나, VolumeSync(SFX) 하나만 있으면 됨
-//   같은 타입이 여러 개 있어도 첫 번째만 살고 나머지는 자동 제거됨
+//   씬에 딱 하나만 배치. 같은 컴포넌트가 여러 개 있어도 하나만 살고 나머지 자동 제거.
 //
-// [동적 오브젝트 처리]
-//   볼륨 변경 이벤트가 발생할 때마다 씬 전체를 재검색하므로
-//   게임 도중 스폰된 오브젝트도 자동 포함됨
-//   단, 스폰 직후 현재 볼륨 적용은 VolumeSyncReceiver를 프리팹에 추가
+// [BGM 제외 방법]
+//   excludeSources 에 BGM AudioSource(예: InGameAudioManager의 gameBGMSpeaker)를 드래그
+//   → 해당 소스는 SFX 볼륨 변경에서 제외됨 (BGM은 InGameAudioManager가 별도 처리)
+//
+// [동적 오브젝트]
+//   볼륨 변경 이벤트 시 씬 전체를 재검색하므로 런타임 스폰 오브젝트도 포함됨
+//   스폰 직후 즉시 적용이 필요하면 프리팹에 VolumeSyncReceiver 추가
 
 using UnityEngine;
+using System.Collections.Generic;
 
 public class VolumeSync : MonoBehaviour
 {
-    public enum SoundType { BGM, SFX }
-    public SoundType soundType = SoundType.SFX;
+    [Header("제외할 AudioSource (BGM 전용 소스 등)")]
+    [Tooltip("SFX 볼륨 적용에서 제외할 AudioSource — InGameAudioManager의 gameBGMSpeaker 등을 드래그")]
+    [SerializeField] private AudioSource[] excludeSources;
 
     private bool _active = false;
+    private HashSet<AudioSource> _excludeSet;
 
     void Awake()
     {
-        // 같은 soundType의 VolumeSync가 이미 씬에 있으면 자신을 제거
+        // 씬에 VolumeSync가 이미 있으면 자신을 제거 (중복 방지)
         var all = FindObjectsByType<VolumeSync>(FindObjectsSortMode.None);
         foreach (var vs in all)
         {
-            if (vs != this && vs.soundType == this.soundType)
+            if (vs != this)
             {
                 Destroy(this);
                 return;
             }
         }
+
+        // 제외 목록을 HashSet으로 변환 (검색 최적화)
+        _excludeSet = new HashSet<AudioSource>();
+        if (excludeSources != null)
+            foreach (var s in excludeSources)
+                if (s != null) _excludeSet.Add(s);
 
         _active = true;
     }
@@ -39,27 +50,16 @@ public class VolumeSync : MonoBehaviour
     {
         if (!_active) return;
 
-        // 씬 시작 시 현재 저장된 볼륨 즉시 적용
-        float savedVol = (soundType == SoundType.BGM)
-            ? PlayerPrefs.GetFloat("BGMVolume", 1.0f)
-            : PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+        // 씬 시작 시 저장된 SFX 볼륨 즉시 적용
+        UpdateVolume(PlayerPrefs.GetFloat("SFXVolume", 1.0f));
 
-        UpdateVolume(savedVol);
-
-        if (soundType == SoundType.BGM)
-            GlobalSettingsManager.OnBGMVolumeChanged += UpdateVolume;
-        else
-            GlobalSettingsManager.OnSFXVolumeChanged += UpdateVolume;
+        GlobalSettingsManager.OnSFXVolumeChanged += UpdateVolume;
     }
 
     void OnDestroy()
     {
         if (!_active) return;
-
-        if (soundType == SoundType.BGM)
-            GlobalSettingsManager.OnBGMVolumeChanged -= UpdateVolume;
-        else
-            GlobalSettingsManager.OnSFXVolumeChanged -= UpdateVolume;
+        GlobalSettingsManager.OnSFXVolumeChanged -= UpdateVolume;
     }
 
     void UpdateVolume(float vol)
@@ -68,8 +68,9 @@ public class VolumeSync : MonoBehaviour
         var sources = FindObjectsByType<AudioSource>(FindObjectsSortMode.None);
         foreach (var audio in sources)
         {
-            if (audio != null)
-                audio.volume = vol;
+            if (audio == null) continue;
+            if (_excludeSet != null && _excludeSet.Contains(audio)) continue; // BGM 등 제외
+            audio.volume = vol;
         }
     }
 }

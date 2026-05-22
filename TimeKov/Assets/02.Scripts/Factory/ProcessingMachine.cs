@@ -18,6 +18,13 @@ namespace TIMEKOV.Factory
         public List<FactoryRecipe> Recipes => recipes;
 
         private bool _processing;
+        private MachineLoopSound _loopSound;
+
+        protected virtual void Start()
+        {
+            // 같은 오브젝트에서 MachineLoopSound 캐싱 (없으면 그냥 null)
+            _loopSound = GetComponent<MachineLoopSound>();
+        }
 
         protected override void OnItemReceived(int itemId, int amount)
         {
@@ -51,6 +58,7 @@ namespace TIMEKOV.Factory
             _processing = true;
             ActiveRecipe = recipe;
             SetStatus(MachineStatus.Processing);
+            _loopSound?.StartProduction();  // 생산 시작 → 루프 사운드 ON
 
             InputBuffer.ConsumeAll(recipe.inputs);
             NotifyBufferChanged();
@@ -66,6 +74,7 @@ namespace TIMEKOV.Factory
             Progress = 0f;
             ActiveRecipe = null;
             _processing = false;
+            _loopSound?.StopProduction(playDoneSound: true);  // 생산 완료 → 루프 OFF + 완료음 1회
 
             foreach (var output in recipe.outputs)
             {

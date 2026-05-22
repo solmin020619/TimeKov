@@ -9372,6 +9372,7 @@ GameObject:
   m_Component:
   - component: {fileID: 299052559633308386}
   - component: {fileID: 4353769341499148399}
+  - component: {fileID: 1924835878732792988}
   m_Layer: 5
   m_Name: Option
   m_TagString: Untagged
@@ -9437,6 +9438,20 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   dimOverlay: {fileID: 3151696122256195702}
+--- !u!114 &1924835878732792988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3548495189278301721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cea0c4113676995479571948c0f88700, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  overrideOpenClip: {fileID: 0}
+  overrideCloseClip: {fileID: 0}
 --- !u!1 &3570560315082326996
 GameObject:
   m_ObjectHideFlags: 0
@@ -14285,6 +14300,7 @@ GameObject:
   - component: {fileID: 4581090894840103445}
   - component: {fileID: 2656636725633621444}
   - component: {fileID: 7890198041376654016}
+  - component: {fileID: 6230972927775255695}
   m_Layer: 5
   m_Name: Machine UI
   m_TagString: Untagged
@@ -14391,6 +14407,20 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   dimOverlay: {fileID: 0}
+--- !u!114 &6230972927775255695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6168786873978208401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cea0c4113676995479571948c0f88700, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  overrideOpenClip: {fileID: 0}
+  overrideCloseClip: {fileID: 0}
 --- !u!1 &6222756021758617477
 GameObject:
   m_ObjectHideFlags: 0
@@ -18824,7 +18854,6 @@ GameObject:
   - component: {fileID: 8436950347599492867}
   - component: {fileID: 6235192518793778596}
   - component: {fileID: 3435822063225979059}
-  - component: {fileID: 8879849155113767858}
   m_Layer: 5
   m_Name: SettingsSystem
   m_TagString: Untagged
@@ -18979,20 +19008,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  soundType: 1
---- !u!114 &8879849155113767858
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8430822769949822455}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f31cf654a3601eb4fa5c7bae0b301843, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  soundType: 0
+  excludeSources:
+  - {fileID: 0}
 --- !u!1 &8454518904417253869
 GameObject:
   m_ObjectHideFlags: 0
