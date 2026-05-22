@@ -140,7 +140,8 @@ public class PlayerHudUI : MonoBehaviour
         }
 
         // 스태미나 UI 시작 상태 초기화
-        _staminaHideTimer = 0f;
+        // staminaHideDelay로 초기화: 게임 시작 직후에도 딜레이 0.4s 적용
+        _staminaHideTimer = staminaHideDelay;
 
         // 시작 시에는 플레이어 옆 스태미나 UI 숨김
         if (staminaWorldUIRoot != null)
@@ -240,10 +241,15 @@ public class PlayerHudUI : MonoBehaviour
     }
 
     // Exhausted 표시 갱신
+    // 스태미나가 ExhaustedThreshold(30%) 이하이면 경고 표시
+    // → IsExhausted(0%~30% 회복 구간)뿐 아니라 "30%로 내려가는 과정"도 포함
     void UpdateExhausted()
     {
-        if (exhaustedIndicator != null)
-            exhaustedIndicator.SetActive(playerStat.IsExhausted);
+        if (exhaustedIndicator == null) return;
+
+        float ratio = playerStat.CurrentStamina / playerStat.MaxStamina;
+        bool isLowOrExhausted = ratio <= playerStat.ExhaustedThreshold;
+        exhaustedIndicator.SetActive(isLowOrExhausted);
     }
 
     // Base 상태 / Time Decay HUD 표시 갱신

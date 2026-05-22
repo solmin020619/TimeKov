@@ -23,10 +23,6 @@ public class GlobalSettingsManager : MonoBehaviour
     public Slider sfxSlider;
     public Slider sensitivitySlider;
 
-    [Header("Sound")]
-    public AudioClip clickSound;
-    public AudioSource uiSFXSpeaker;
-
     [Header("Scene")]
     public string mainMenuSceneName = "MainMenu";
 
@@ -51,14 +47,12 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void OpenSettings()
     {
-        PlayClickSound();
         SyncUIValues();
         GameUIController.Instance?.OpenSettings();
     }
 
     public void CloseSettings()
     {
-        PlayClickSound();
         GameUIController.Instance?.CloseSettings();
     }
 
@@ -78,17 +72,8 @@ public class GlobalSettingsManager : MonoBehaviour
     /// <summary>설정창 내 '게임 종료' 버튼에 연결</summary>
     public void QuitToMainMenu()
     {
-        PlayClickSound();
         Time.timeScale = 1f;
         CoreUtilities.LoadDirect(mainMenuSceneName);
-    }
-
-    // ── 클릭 사운드 ──────────────────────────────────────────────────
-
-    public void PlayClickSound()
-    {
-        if (uiSFXSpeaker != null && clickSound != null)
-            uiSFXSpeaker.PlayOneShot(clickSound);
     }
 
     // ── 설정값 적용 ──────────────────────────────────────────────────
