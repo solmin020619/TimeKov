@@ -29,8 +29,50 @@ public static class MinimapBuilder
     // MilitaryUI 에 있는 화살표 스프라이트 (있으면 플레이어 아이콘으로 우선 사용)
     const string kArrowFallback = "Assets/MilitaryUI/Artworks/Action_icons/Arrow1.png";
 
+    // 커스텀 미니맵 프레임 스프라이트
+    const string kFramePath = "Assets/14.Textures/MiniMap_Frame.png";
+
     const float kPanelSize = 200f;
     const float kPadding   = 10f;
+
+    // ─────────────────────────────────────────────────────────────────
+    [MenuItem("Tools/UI/Apply Minimap Frame")]
+    public static void ApplyFrame()
+    {
+        var frameSprite = LoadAsSprite(kFramePath);
+        if (frameSprite == null)
+        {
+            Debug.LogError($"[MinimapBuilder] 프레임 스프라이트를 찾을 수 없음: {kFramePath}");
+            return;
+        }
+
+        var rimGO = GameObject.Find("Minimap_Rim");
+        if (rimGO == null)
+        {
+            Debug.LogError("[MinimapBuilder] Minimap_Rim 오브젝트가 씬에 없음. 먼저 Setup Minimap을 실행하세요.");
+            return;
+        }
+
+        var img = rimGO.GetComponent<Image>();
+        if (img == null) img = rimGO.AddComponent<Image>();
+
+        Undo.RecordObject(img, "Apply Minimap Frame");
+        img.sprite        = frameSprite;
+        img.color         = Color.white;   // 원본 색상 그대로
+        img.raycastTarget = false;
+        img.maskable      = false;
+
+        // 프레임이 미니맵보다 살짝 크게 (자연스러운 테두리 효과)
+        var rt = rimGO.GetComponent<RectTransform>();
+        Undo.RecordObject(rt, "Apply Minimap Frame Size");
+        rt.sizeDelta = new Vector2(kPanelSize + 20f, kPanelSize + 20f);
+
+        EditorUtility.SetDirty(rimGO);
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
+        EditorGUIUtility.PingObject(rimGO);
+        Debug.Log("[MinimapBuilder] ✓ 미니맵 프레임 적용 완료! (Minimap_Rim)");
+    }
 
     // ─────────────────────────────────────────────────────────────────
     [MenuItem("Tools/UI/Setup Minimap In Scene")]
@@ -196,10 +238,18 @@ public static class MinimapBuilder
         rimRT.sizeDelta        = panelRT.sizeDelta;
 
         var rimImg = rimGO.AddComponent<Image>();
-        rimImg.sprite        = circleSprite;
-        rimImg.color         = new Color(0.35f, 0.6f, 0.85f, 0.55f);  // 반투명 파란 링
+        // 커스텀 프레임이 있으면 사용, 없으면 원형 스프라이트 fallback
+        var frameSprite = LoadAsSprite(kFramePath);
+        rimImg.sprite        = frameSprite != null ? frameSprite : circleSprite;
+        rimImg.color         = frameSprite != null
+                               ? Color.white
+                               : new Color(0.35f, 0.6f, 0.85f, 0.55f);
         rimImg.raycastTarget = false;
         rimImg.maskable      = false;                                    // 마스크 영향 제외
+
+        // 프레임이 있으면 미니맵보다 20px 크게 (테두리가 바깥으로 나오는 효과)
+        if (frameSprite != null)
+            rimRT.sizeDelta = new Vector2(kPanelSize + 20f, kPanelSize + 20f);
 
         // Rim은 panel 뒤에서 border 역할: panel 보다 먼저(아래 계층) 렌더링
         rimGO.transform.SetSiblingIndex(panel.transform.GetSiblingIndex());
