@@ -1,17 +1,15 @@
 // MachineLoopSound.cs
-// 설비 생산 중 루프 사운드 컴포넌트
-// MachineUI 또는 ProcessingMachine에서 StartProduction() / StopProduction() 호출
+// 설비 생산 중 루프 사운드 컴포넌트 (3D 거리 감쇠 지원)
 //
 // [사용법]
-//   1. 설비 게임오브젝트(또는 MachineUI 오브젝트)에 이 컴포넌트 추가
-//   2. loopSource: 이 오브젝트의 AudioSource (없으면 자동 생성)
-//      → loop = true, playOnAwake = false 로 설정됨
-//   3. productionLoopClip: 생산 중 반복 재생할 클립
-//   4. MachineUI.cs의 OpenFor() 또는 생산 시작·완료 처리 부분에서
-//      GetComponent<MachineLoopSound>()?.StartProduction() / StopProduction() 호출
+//   1. 설비 게임오브젝트에 이 컴포넌트 추가
+//   2. productionLoopClip: 생산 중 반복 재생할 클립
+//   3. ProcessingMachine이 StartProduction() / StopProduction() 자동 호출
 //
-// [볼륨 동기화]
-//   SFX 볼륨 변경 시 자동으로 loopSource 볼륨이 조정됩니다.
+// [3D 설정]
+//   Min Distance: 이 거리 안에서는 최대 볼륨
+//   Max Distance: 이 거리 밖에서는 무음
+//   Inspector에서 Spatial Blend = 1 로 설정해도 동일 효과
 
 using UnityEngine;
 
@@ -24,20 +22,33 @@ public class MachineLoopSound : MonoBehaviour
     [SerializeField] private AudioClip productionLoopClip;
 
     [Header("생산 시작 / 완료 1회 사운드 (선택)")]
-    [SerializeField] private AudioClip productionStartClip;  // 생산 시작 시 1회
-    [SerializeField] private AudioClip productionDoneClip;   // 생산 완료 시 1회
+    [SerializeField] private AudioClip productionStartClip;
+    [SerializeField] private AudioClip productionDoneClip;
+
+    [Header("3D 거리 감쇠 설정")]
+    [Tooltip("이 거리 안에서는 최대 볼륨 (미터)")]
+    [SerializeField] private float minDistance = 3f;
+    [Tooltip("이 거리 밖에서는 소리가 거의 안 들림 (미터)")]
+    [SerializeField] private float maxDistance = 20f;
+    [Tooltip("Logarithmic = 자연스러운 감쇠 / Linear = 일정하게 감소")]
+    [SerializeField] private AudioRolloffMode rolloffMode = AudioRolloffMode.Logarithmic;
 
     // ─────────────────────────────────────────────────────────────────────────
 
     private void Awake()
     {
-        // Unity의 fake null 처리 — ??는 fake null을 못 잡으므로 단계적으로 체크
         if (loopSource == null) loopSource = GetComponent<AudioSource>();
         if (loopSource == null) loopSource = gameObject.AddComponent<AudioSource>();
 
         loopSource.loop        = true;
         loopSource.playOnAwake = false;
         loopSource.volume      = PlayerPrefs.GetFloat("SFXVolume", 1f);
+
+        // 3D 공간 설정 적용
+        loopSource.spatialBlend  = 1f;              // 완전 3D
+        loopSource.minDistance   = minDistance;
+        loopSource.maxDistance   = maxDistance;
+        loopSource.rolloffMode   = rolloffMode;
     }
 
     private void OnEnable()
@@ -48,10 +59,11 @@ public class MachineLoopSound : MonoBehaviour
     private void OnDisable()
     {
         GlobalSettingsManager.OnSFXVolumeChanged -= ApplySFXVolume;
-        StopProduction(); // 씬 전환 등으로 비활성화될 때 루프 정지
+        StopProduction();
     }
 
     // ─── 볼륨 동기화 ─────────────────────────────────────────────────────────
+
     private void ApplySFXVolume(float vol)
     {
         if (loopSource != null) loopSource.volume = vol;
@@ -64,11 +76,10 @@ public class MachineLoopSound : MonoBehaviour
     {
         if (loopSource == null) return;
 
-        // 시작 1회 사운드
+        // 시작 1회 사운드 — 설비 위치에서 3D 재생
         if (productionStartClip != null)
-            UISoundManager.Instance?.PlayClip(productionStartClip);
+            loopSource.PlayOneShot(productionStartClip);
 
-        // 루프 사운드
         if (productionLoopClip != null)
             loopSource.clip = productionLoopClip;
 
@@ -82,8 +93,9 @@ public class MachineLoopSound : MonoBehaviour
         if (loopSource != null && loopSource.isPlaying)
             loopSource.Stop();
 
-        if (playDoneSound && productionDoneClip != null)
-            UISoundManager.Instance?.PlayClip(productionDoneClip);
+        // 완료 1회 사운드 — 설비 위치에서 3D 재생
+        if (playDoneSound && productionDoneClip != null && loopSource != null)
+            loopSource.PlayOneShot(productionDoneClip);
     }
 
     /// <summary>현재 생산 루프가 재생 중인지 여부.</summary>
