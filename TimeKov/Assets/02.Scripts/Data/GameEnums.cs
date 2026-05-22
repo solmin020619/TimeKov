@@ -32,11 +32,12 @@ public enum ItemCategory
 // ConsumableEffectTable.consumableType 에서 사용
 public enum ConsumableType
 {
-    Heal,        // 즉시 Time 회복
-    SustainHeal, // 지속 Time 회복 (초당)
-    Buff,        // 스탯 일시 강화
-    Stamina,     // 스태미나 관련 효과
-    Special      // 기타 특수 효과
+    Heal,          // 즉시 Time 회복
+    SustainHeal,   // 지속 Time 회복 (초당)
+    Buff,          // 스탯 일시 강화 (duration 후 자동 원복)
+    PermanentStat, // 스탯 영구 증가 (revert 없음, 누적)
+    Stamina,       // 스태미나 관련 효과
+    Special        // 기타 특수 효과
 }
 
 // 소모품 효과 대상 스탯

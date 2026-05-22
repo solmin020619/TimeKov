@@ -45,6 +45,8 @@ public class InventorySlotUI : MonoBehaviour,
     public static event Action<InventorySlotUI> OnAnySlotRightClicked;
     public static event Action<InventorySlotUI> OnAnySlotHoverEnter;
     public static event Action<InventorySlotUI> OnAnySlotHoverExit;
+    public static event Action<InventorySlotUI> OnAnySlotDragBegin;  // 드래그 시작
+    public static event Action<InventorySlotUI> OnAnySlotDropped;    // 드랍 수신
 
     public InventorySlot SlotData => _slot;
     public InventoryManager Owner => _owner;
@@ -158,10 +160,11 @@ public class InventorySlotUI : MonoBehaviour,
         OnAnySlotHoverExit?.Invoke(this);
     }
 
-    // �巡�� ����
+    // 드래그 시작
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (IsEmpty) return;
+        OnAnySlotDragBegin?.Invoke(this);
         InventoryDragHandler.Instance?.BeginDrag(this);
     }
 
@@ -177,9 +180,10 @@ public class InventorySlotUI : MonoBehaviour,
         InventoryDragHandler.Instance?.EndDrag();
     }
 
-    // �ٸ� ���Կ��� ��� �ޱ�
+    // 다른 슬롯에서 드랍 받기
     public void OnDrop(PointerEventData eventData)
     {
+        OnAnySlotDropped?.Invoke(this);
         InventoryDragHandler.Instance?.HandleDrop(this);
     }
 }

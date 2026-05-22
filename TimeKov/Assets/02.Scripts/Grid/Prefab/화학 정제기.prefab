@@ -1025,6 +1025,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3687692321997835420}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7476846086306948878}
   m_SourcePrefab: {fileID: 100100000, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
 --- !u!4 &6946793152801506389 stripped
 Transform:
@@ -1052,7 +1055,7 @@ MonoBehaviour:
   inputBelt: {fileID: 0}
   outputPort: {fileID: 529118967164497373}
   inputPort: {fileID: 8396130082639913853}
-  machineName: "\uC124\uBE44"
+  machineName: "\uD654\uD559 \uC815\uC81C\uAE30"
   recipes:
   - recipeName: "\uD65C\uC131 \uC0DD\uCCB4 \uBCA0\uC774\uC2A4"
     inputs:
@@ -1099,3 +1102,19 @@ MonoBehaviour:
   statusText: {fileID: 0}
   progressBar: {fileID: 0}
   uiRoot: {fileID: 0}
+--- !u!114 &7476846086306948878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7722590606168022767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a638f80e993fd72439a0df47b986b0c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  loopSource: {fileID: 0}
+  productionLoopClip: {fileID: 0}
+  productionStartClip: {fileID: 0}
+  productionDoneClip: {fileID: 0}

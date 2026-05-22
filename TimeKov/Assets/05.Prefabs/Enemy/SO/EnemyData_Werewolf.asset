@@ -14,8 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemyName: "\uB291\uB300\uC778\uAC04"
   enemyId: tutorial_enemy
-  maxHP: 30
+  maxHP: 100
   moveSpeed: 6
+  acceleration: 12
+  angularSpeed: 480
+  stoppingDistance: 0
   visionRange: 24
   visionAngle: 360
   attackDamage: 15

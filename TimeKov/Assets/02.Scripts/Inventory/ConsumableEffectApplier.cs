@@ -49,6 +49,9 @@ public static class ConsumableEffectApplier
             case ConsumableType.Buff:
                 return ApplyBuff(itemId, effect, delta, player);
 
+            case ConsumableType.PermanentStat:
+                return ApplyPermanentStat(effect, delta, player);
+
             // �̹� ���� ����
             case ConsumableType.Stamina:
                 Debug.LogWarning("[ConsumableEffect] Stamina Ÿ�� : �ļ� ���� ���");
@@ -110,6 +113,24 @@ public static class ConsumableEffectApplier
 
         buffManager.ApplyTimedBuff(effect.effectTarget, delta, effect.duration, itemId);
         return true;
+    }
+
+    // 영구 스탯 증가 (revert 없음, 누적)
+    // 후반에 ATK 200 / 300 식으로 영구히 누적되는 RPG식 강화
+    private static bool ApplyPermanentStat(ConsumableEffectSheetData effect, float delta, Player player)
+    {
+        switch (effect.effectTarget)
+        {
+            case EffectTarget.ATK:
+                player.Stat.ATK += delta;
+                Debug.Log($"[ConsumableEffect] 영구 ATK +{delta} → 현재 ATK={player.Stat.ATK}");
+                return true;
+
+            // 후속 확장 — DEF, MoveSpeed 등 영구 증가 필요해지면 case 추가
+            default:
+                Debug.LogWarning($"[ConsumableEffect] PermanentStat 미지원 effectTarget={effect.effectTarget}");
+                return false;
+        }
     }
 
     // ���� ��ġ ��� ������������������������������������������������������������������������������������������
