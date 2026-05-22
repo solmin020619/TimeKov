@@ -10,6 +10,10 @@ using UnityEngine;
 
 public class LootBox : MonoBehaviour, IInteractable
 {
+    [Header("Pickup Sound (모든 박스 통일)")]
+    [Tooltip("F키 픽업 시 재생할 사운드. 비워두면 무음. LootBox prefab 인스펙터에서 드래그.")]
+    [SerializeField] private AudioClip pickupSound;
+
     public static readonly List<LootBox> All = new List<LootBox>();
 
     private readonly List<(int itemId, int count)> _contents =
@@ -43,6 +47,15 @@ public class LootBox : MonoBehaviour, IInteractable
     // 일부 성공은 메시지 없이 UI 수량 변화로 확인 (기획서 섹션 20.1)
     public void Collect(Player player)
     {
+        // 픽업 사운드 재생 (글로벌 SFX 매니저 있으면 그쪽으로, 없으면 fallback)
+        if (pickupSound != null)
+        {
+            if (UISoundManager.Instance != null)
+                UISoundManager.Instance.PlayClip(pickupSound);
+            else
+                AudioSource.PlayClipAtPoint(pickupSound, transform.position);
+        }
+
         // VFX 재생
         LootBoxVFX vfx = GetComponentInParent<LootBoxVFX>();
         if (vfx != null && player != null)
