@@ -10,6 +10,9 @@ public class EnemyDropOnDeath : MonoBehaviour
     [Tooltip("스폰할 박스 프리팹 (LootBox 컴포넌트 포함)")]
     [SerializeField] private GameObject boxPrefab;
 
+    /// <summary>RespawnManager 등 외부에서 같은 프리팹을 재사용할 때 참조</summary>
+    public GameObject BoxPrefab => boxPrefab;
+
     [SerializeField] private float spawnHeightOffset = 0.5f;
 
     [Tooltip("박스가 여러 개일 때 죽은 자리 주변에 흩어지는 반경 (m)")]

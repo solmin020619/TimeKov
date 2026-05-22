@@ -557,4 +557,24 @@ public class InventoryManager : MonoBehaviour
     {
         OnInventoryChanged?.Invoke();
     }
+
+    /// <summary>
+    /// 모든 아이템을 꺼내고 인벤토리를 비운 뒤 아이템 목록을 반환
+    /// 사망 시 아이템 드롭에 사용
+    /// </summary>
+    public List<(int itemId, int amount)> TakeAll()
+    {
+        var result = new List<(int, int)>();
+        foreach (var slot in _slots)
+        {
+            if (!slot.IsEmpty)
+            {
+                result.Add((slot.itemId, slot.amount));
+                slot.Clear();
+            }
+        }
+        if (result.Count > 0)
+            OnInventoryChanged?.Invoke();
+        return result;
+    }
 }
