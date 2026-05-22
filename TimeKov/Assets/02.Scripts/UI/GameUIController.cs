@@ -18,11 +18,12 @@ public class GameUIController : MonoBehaviour
     public enum UIState
     {
         None,
-        Settings,   // ESC로 열리는 설정·일시정지 통합창
-        Factory,    // 설비 UI (MachineInteraction이 직접 관리)
-        Build,      // 건설 모드 (BuildManager가 직접 관리)
-        Quest,      // 퀘스트 수락/조회 팝업 (J키)
-        Inventory   // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
+        Settings,    // ESC로 열리는 설정·일시정지 통합창
+        Factory,     // 설비 UI (MachineInteraction이 직접 관리)
+        Build,       // 건설 모드 (BuildManager가 직접 관리)
+        Quest,       // 퀘스트 수락/조회 팝업 (J키)
+        Inventory,   // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
+        PlayerStat   // 플레이어 스탯창 (C키)
     }
 
     [Header("Settings Panel")]
@@ -39,6 +40,10 @@ public class GameUIController : MonoBehaviour
 
     [Tooltip("항상 화면에 표시되는 퀘스트 HUD — CanvasGroup 필수 (SetActive 대신 alpha로 숨겨 QuestPanelUI 구독 유지)")]
     public GameObject questHud;
+
+    [Header("Player Stat (C키)")]
+    [Tooltip("C키로 여닫는 플레이어 스탯창 패널")]
+    public GameObject statPanel;
 
     [Header("Player HUD")]
     [Tooltip("HP·스태미나 등 플레이어 상태 HUD — 다른 UI가 열리면 숨겨짐")]
@@ -67,6 +72,9 @@ public class GameUIController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.J))
             ToggleQuest();
+
+        if (Input.GetKeyDown(KeyCode.C))
+            TogglePlayerStat();
     }
 
     // LateUpdate에서 커서 상태를 강제 적용
@@ -118,6 +126,8 @@ public class GameUIController : MonoBehaviour
     public void CloseAll()
     {
         _currentState = UIState.None;
+        // PlayerStat도 ESC로 같이 닫음
+        if (statPanel != null) statPanel.SetActive(false);
         ApplyState();
     }
 
@@ -166,6 +176,16 @@ public class GameUIController : MonoBehaviour
         ApplyState();
     }
 
+    // ── 플레이어 스탯창 ──────────────────────────────────────────────
+    // PlayerStat은 정보 표시용 — _currentState와 독립으로 동작.
+    // 다른 UI(인벤/팩토리/빌드 등) 열려있어도 같이 켜질 수 있음.
+
+    public void TogglePlayerStat()
+    {
+        if (statPanel == null) return;
+        statPanel.SetActive(!statPanel.activeSelf);
+    }
+
     // ── 상태 직접 설정 (BuildManager 연동용) ─────────────────────────
 
     public void SetState(UIState newState)
@@ -197,6 +217,8 @@ public class GameUIController : MonoBehaviour
         if (questPanel != null)
             questPanel.SetActive(_currentState == UIState.Quest);
 
+        // 플레이어 스탯창은 _currentState와 독립이라 여기서 안 건드림 (TogglePlayerStat이 직접 관리)
+
         // 퀘스트 HUD — CanvasGroup으로 숨김 (SetActive 금지: QuestPanelUI 구독 해제 방지)
         // Build 모드에서도 퀘스트는 계속 보여야 함 (튜토리얼 진행 안내용)
         if (_questHudGroup != null)
@@ -210,12 +232,12 @@ public class GameUIController : MonoBehaviour
             _questHudGroup.blocksRaycasts = showQuest;
         }
 
-        // 플레이어 HUD — 다른 UI가 열리면 숨김
+        // 플레이어 HUD — 다른 UI가 열리면 숨김 (PlayerStat은 _currentState와 독립이라 영향 없음)
         if (playerHud != null)
             playerHud.SetActive(_currentState == UIState.None);
 
         // 커서 + 입력 플래그
-        // None 상태일 때만 게임플레이 입력 활성화 (Build 포함 모든 UI 오픈 시 플레이어 차단)
+        // None 상태일 때만 게임플레이 입력 활성화 (PlayerStat은 _currentState와 독립이라 영향 없음)
         bool gameplay = _currentState == UIState.None;
         SetGameplayInputEnabled(gameplay);
 
