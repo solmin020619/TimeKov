@@ -6,7 +6,9 @@ using System.Collections;
 using TIMEKOV.Factory;
 
 [RequireComponent(typeof(Image))]
-public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerExitHandler
+public class RecipeDropSlot : MonoBehaviour,
+    IDropHandler, IPointerEnterHandler, IPointerExitHandler,
+    IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [SerializeField] private Image iconImage;
     [SerializeField] private Image borderImage;   // 드래그 hover glow 전용
@@ -32,15 +34,37 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
     private InventoryManager _inventory;
     private Coroutine _glowRoutine;
 
+    // ── 드래그 아웃 static 상태 ─────────────────────────────
+    // input 슬롯에서 인벤토리로 드래그할 때 InventoryPanelDropZone이 읽어감
+    public static bool IsRecipeDragging { get; private set; }
+    public static int DragItemId { get; private set; }
+    public static int DragAmount { get; private set; }
+    public static ProcessingMachine DragMachine { get; private set; }
+    public static InventoryManager DragInventory { get; private set; }
+
+    private static GameObject _dragVisual;
+    private Canvas _canvas;
+
     private void Awake()
     {
         GetComponent<Image>().raycastTarget = true;
+        _canvas = GetComponentInParent<Canvas>();
 
         if (borderImage != null)
         {
             var le = borderImage.gameObject.GetComponent<LayoutElement>();
             if (le == null) le = borderImage.gameObject.AddComponent<LayoutElement>();
             le.ignoreLayout = true;
+        }
+    }
+
+    private void OnDisable()
+    {
+        IsRecipeDragging = false;
+        if (_dragVisual != null)
+        {
+            Destroy(_dragVisual);
+            _dragVisual = null;
         }
     }
 
@@ -82,7 +106,7 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
 
     public void OnPointerEnter(PointerEventData e)
     {
-        // DraggableSlot → InventoryDragHandler 로 드래그 감지 전환
+        // 인벤토리 → 재료 슬롯 드래그일 때만 "재료 넣기" 표시
         bool isDragging = InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging;
         if (!isDragging) return;
         if (labelText != null) labelText.text = "재료 넣기";
@@ -94,6 +118,70 @@ public class RecipeDropSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler,
         if (labelText != null) labelText.text = "";
         StopGlow();
         SetBorderAlpha(0f);
+    }
+
+    // ── 드래그 아웃 (재료 슬롯 → 인벤토리) ─────────────────
+
+    public void OnBeginDrag(PointerEventData e)
+    {
+        if (_machine == null) return;
+
+        int buffered = _machine.InputBuffer.GetAmount(RequiredItemId);
+        if (buffered <= 0)
+        {
+            // 버퍼에 아이템 없으면 드래그 취소
+            e.pointerDrag = null;
+            return;
+        }
+
+        if (_canvas == null) _canvas = GetComponentInParent<Canvas>();
+
+        IsRecipeDragging = true;
+        DragItemId  = RequiredItemId;
+        DragAmount  = buffered;
+        DragMachine = _machine;
+        DragInventory = _inventory;
+
+        // 드래그 고스트 생성
+        _dragVisual = new GameObject("RecipeDragVisual");
+        _dragVisual.transform.SetParent(_canvas.transform, false);
+        _dragVisual.transform.SetAsLastSibling();
+
+        var rt = _dragVisual.AddComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(64f, 64f);
+
+        var img = _dragVisual.AddComponent<Image>();
+        img.sprite = iconImage != null ? iconImage.sprite : null;
+        img.color  = Color.white;
+        img.raycastTarget = false;
+
+        var cg = _dragVisual.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = false;
+        cg.alpha = 0.85f;
+    }
+
+    public void OnDrag(PointerEventData e)
+    {
+        if (_dragVisual == null || _canvas == null) return;
+
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            _canvas.transform as RectTransform,
+            e.position,
+            _canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _canvas.worldCamera,
+            out Vector2 localPos))
+        {
+            _dragVisual.transform.localPosition = localPos;
+        }
+    }
+
+    public void OnEndDrag(PointerEventData e)
+    {
+        IsRecipeDragging = false;
+        if (_dragVisual != null)
+        {
+            Destroy(_dragVisual);
+            _dragVisual = null;
+        }
     }
 
     public void OnDrop(PointerEventData e)

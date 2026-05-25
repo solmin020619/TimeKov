@@ -44,6 +44,11 @@ public class MachineUI : MonoBehaviour
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
 
+    [Header("드래그&드랍 설정")]
+    [Tooltip("인벤토리 패널에 붙어 있는 InventoryPanelDropZone 오브젝트.\n" +
+             "비워두면 inventorySlotParent 부모에서 자동으로 찾거나 추가합니다.")]
+    public InventoryPanelDropZone inventoryDropZone;
+
     private ProcessingMachine _machine;
     private int _selectedRecipeIndex = 0;
     // DraggableSlot → InventorySlotUI 로 전환 (등급 테두리·아이콘 표시 지원)
@@ -56,6 +61,39 @@ public class MachineUI : MonoBehaviour
         if (closeBtn != null)      closeBtn.onClick.AddListener(Close);
         if (recipePrevBtn != null) recipePrevBtn.onClick.AddListener(PrevRecipe);
         if (recipeNextBtn != null) recipeNextBtn.onClick.AddListener(NextRecipe);
+
+        SetupDropZone();
+    }
+
+    // ── 드롭존 자동 설정 ────────────────────────────────────
+
+    private void SetupDropZone()
+    {
+        // Inspector에서 직접 지정했으면 그대로 사용
+        if (inventoryDropZone != null)
+        {
+            inventoryDropZone.SetDropCallback(TakeOutput);
+            return;
+        }
+
+        // inventorySlotParent 또는 그 부모에서 InventoryPanelDropZone 탐색
+        if (inventorySlotParent == null) return;
+
+        // 1) inventorySlotParent 자신에서 탐색
+        inventoryDropZone = inventorySlotParent.GetComponent<InventoryPanelDropZone>();
+
+        // 2) 없으면 부모 오브젝트에서 탐색
+        if (inventoryDropZone == null && inventorySlotParent.parent != null)
+            inventoryDropZone = inventorySlotParent.parent.GetComponent<InventoryPanelDropZone>();
+
+        // 3) 그래도 없으면 inventorySlotParent 자신에 컴포넌트 추가 (자동 설정)
+        if (inventoryDropZone == null)
+        {
+            inventoryDropZone = inventorySlotParent.gameObject.AddComponent<InventoryPanelDropZone>();
+            Debug.Log("[MachineUI] InventoryPanelDropZone 컴포넌트를 inventorySlotParent에 자동으로 추가했습니다.");
+        }
+
+        inventoryDropZone.SetDropCallback(TakeOutput);
     }
 
     public void OpenFor(ProcessingMachine machine, string title)
@@ -68,8 +106,8 @@ public class MachineUI : MonoBehaviour
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
         if (inv != null) inv.OnInventoryChanged += RefreshInventorySlots;
 
-        // 설비를 열 때마다 첫 번째 레시피로 초기화
-        _selectedRecipeIndex = 0;
+        // 설비에 이미 고정된 레시피가 있으면 그 인덱스로, 없으면 0
+        _selectedRecipeIndex = Mathf.Max(0, machine.LockedRecipeIndex);
 
         uiPanel.SetActive(true);
         if (machineTitleText != null) machineTitleText.text = title;
@@ -85,6 +123,7 @@ public class MachineUI : MonoBehaviour
     {
         if (_machine == null || _machine.Recipes == null || _machine.Recipes.Count == 0) return;
         _selectedRecipeIndex = (_selectedRecipeIndex - 1 + _machine.Recipes.Count) % _machine.Recipes.Count;
+        _machine.SetLockedRecipe(_selectedRecipeIndex);
         BuildRecipeSlots();
     }
 
@@ -92,6 +131,7 @@ public class MachineUI : MonoBehaviour
     {
         if (_machine == null || _machine.Recipes == null || _machine.Recipes.Count == 0) return;
         _selectedRecipeIndex = (_selectedRecipeIndex + 1) % _machine.Recipes.Count;
+        _machine.SetLockedRecipe(_selectedRecipeIndex);
         BuildRecipeSlots();
     }
 
@@ -99,6 +139,7 @@ public class MachineUI : MonoBehaviour
     {
         if (_machine == null || _machine.Recipes == null) return;
         _selectedRecipeIndex = Mathf.Clamp(index, 0, _machine.Recipes.Count - 1);
+        _machine.SetLockedRecipe(_selectedRecipeIndex);
         BuildRecipeSlots();
     }
 
@@ -124,7 +165,12 @@ public class MachineUI : MonoBehaviour
     }
 
     public void AddItemFromInventory(int itemId, int amount)
-        => _machine?.Receive(itemId, amount);
+    {
+        if (_machine == null) return;
+        // 고정 레시피와 무관한 아이템은 설비에 넣지 않음
+        if (!_machine.CanReceive(itemId)) return;
+        _machine.Receive(itemId, amount);
+    }
 
     // ── 인벤토리 슬롯 ───────────────────────────────────────
 
@@ -242,11 +288,21 @@ public class MachineUI : MonoBehaviour
             outputSlot.Setup(kv.Key, kv.Value);
 
             int id = kv.Key, amt = kv.Value;
+
+            // 더블클릭으로 이동 (기존 방식 유지)
             outputSlot.SetDoubleClickAction(() => TakeOutput(id, amt));
+
+            // 드래그&드랍 드롭존 콜백 갱신
+            // (output 아이템이 바뀔 수 있으므로 매번 최신 id/amt로 업데이트)
+            inventoryDropZone?.SetDropCallback(TakeOutput);
+
             return;
         }
 
         outputSlot.gameObject.SetActive(false);
+
+        // 출력 아이템이 없으면 드롭존 콜백 제거
+        inventoryDropZone?.SetDropCallback(null);
     }
 
     private void TakeOutput(int itemId, int amount)
@@ -323,6 +379,8 @@ public class MachineUI : MonoBehaviour
         }
 
         _machine.PublicNotifyBufferChanged();
+        // 버퍼를 모두 꺼낸 후 설비 상태를 Idle로 리셋
+        _machine.ResetStatusIfIdle();
         RefreshInventorySlots();
         RefreshOutputSlots();
     }
