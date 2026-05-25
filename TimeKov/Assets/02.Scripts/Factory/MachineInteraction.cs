@@ -14,8 +14,6 @@ namespace TIMEKOV.Factory
         [Header("BuildPort 감지 반경 (m)")]
         public float detectRadius = 2.5f;
 
-        private CursorLockMode _prevLockState;
-        private bool _prevVisible;
         private ProcessingMachine _nearMachine;
         private string _nearMachineName;
         private bool _uiOpen;
@@ -36,7 +34,7 @@ namespace TIMEKOV.Factory
         {
             if (_uiOpen)
             {
-                // GameUIController가 외부에서 상태를 닫은 경우(ESC 등) 감지
+                // GameUIController가 외부(WindowManager.HandleEscape 등)에서 Factory를 닫은 경우 감지
                 var uic = GameUIController.Instance;
                 if (uic != null && uic.GetCurrentState() != GameUIController.UIState.Factory)
                 {
@@ -44,7 +42,8 @@ namespace TIMEKOV.Factory
                     return;
                 }
 
-                if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.Escape))
+                // F 키만 자체 처리 (ESC는 WindowManager가 디스패치)
+                if (Input.GetKeyDown(KeyCode.F))
                     CloseUI();
                 return;
             }
@@ -97,17 +96,12 @@ namespace TIMEKOV.Factory
         {
             if (machineUI == null || _nearMachine == null) return;
 
-            // GameUIController에 Factory 상태 등록 (다른 UI 열기 차단)
+            // GameUIController에 Factory 상태 등록 → 내부에서 WindowManager.Open("Factory") mirror
+            // PlayerInputComponent.IsBlocked / Cursor.lockState·visible 은 WindowManager.ApplyGlobalState가 처리.
             GameUIController.Instance?.OpenFactoryUI();
 
             ThirdPersonCamera.IsUIOpen = true;
-            PlayerInputComponent.IsBlocked = true;
             _player?.Movement.LockMovement(true);
-
-            _prevLockState = Cursor.lockState;
-            _prevVisible = Cursor.visible;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
 
             machineUI.OpenFor(_nearMachine, _nearMachineName);
             _uiOpen = true;
@@ -117,18 +111,14 @@ namespace TIMEKOV.Factory
 
         private void CloseUI()
         {
-            // GameUIController 상태 해제
+            // GameUIController 상태 해제 → mirror Close("Factory") → ApplyGlobalState가 Cursor·Input 복구
             GameUIController.Instance?.CloseFactoryUI();
 
             ThirdPersonCamera.IsUIOpen = false;
-            PlayerInputComponent.IsBlocked = false;
             _player?.Movement.LockMovement(false);
 
             machineUI?.Close();
             _uiOpen = false;
-
-            Cursor.lockState = _prevLockState;
-            Cursor.visible = _prevVisible;
 
             if (hintText != null)
                 hintText.text = _nearMachine != null
@@ -136,18 +126,16 @@ namespace TIMEKOV.Factory
                     : "";
         }
 
-        /// <summary>GameUIController가 외부에서 Factory 상태를 닫았을 때 로컬 정리</summary>
+        /// <summary>GameUIController가 외부(ESC 등)에서 Factory 상태를 닫았을 때 로컬 정리</summary>
         private void ForceClose()
         {
             ThirdPersonCamera.IsUIOpen = false;
-            PlayerInputComponent.IsBlocked = false;
             _player?.Movement.LockMovement(false);
 
             machineUI?.Close();
             _uiOpen = false;
 
-            Cursor.lockState = _prevLockState;
-            Cursor.visible = _prevVisible;
+            // Cursor·Input 은 이미 WindowManager.ApplyGlobalState가 복구함
 
             if (hintText != null)
                 hintText.text = _nearMachine != null

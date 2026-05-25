@@ -96,19 +96,34 @@ public class GameUIController : MonoBehaviour
 
     public void HandleEscape()
     {
+        // 인벤 내부 팝업이 우선 (인벤 폴더 비침습 약속 — 외부에서 처리)
+        if (_currentState == UIState.Inventory)
+        {
+            var inv = InventoryUIController.Instance;
+            if (inv != null && inv.TryCloseTopPopup()) return;
+        }
+
+        // WindowManager가 부착되어 있으면 통합 디스패치 위임
+        // (Modal top → 최근 Window → defaultEscapeWindowId 순으로 처리)
+        // 처리할 게 있었으면 true 반환 → 폴백 건너뜀
+        var wm = TimeKov.UI.WindowManager.I;
+        if (wm != null && wm.HandleEscape())
+            return;
+
+        // ── 폴백 (WindowManager 미부착 OR 등록된 창이 없을 때 기존 로직) ──
         if (_buildManager == null)
             _buildManager = FindAnyObjectByType<BuildManager>();
 
         // 건설 모드 ESC는 BuildManager가 처리
         if (_buildManager != null && _buildManager.IsBuildMode)
+        {
+            _buildManager.ExitBuildMode();
             return;
+        }
 
-        // 인벤토리 — 팝업 우선 닫기, 없으면 인벤토리 닫기
         if (_currentState == UIState.Inventory)
         {
-            var inv = InventoryUIController.Instance;
-            if (inv != null && inv.TryCloseTopPopup()) return;
-            inv?.Close();   // Close()가 CloseAll()을 호출해 상태를 None으로 복귀
+            InventoryUIController.Instance?.Close();
             return;
         }
 
@@ -125,10 +140,14 @@ public class GameUIController : MonoBehaviour
 
     public void CloseAll()
     {
-        _currentState = UIState.None;
-        // PlayerStat도 ESC로 같이 닫음
+        // PlayerStat도 ESC로 같이 닫음 (단, _currentState와 독립이라 SetState 밖에서 처리)
         if (statPanel != null) statPanel.SetActive(false);
-        ApplyState();
+
+        // SetState가 WindowManager mirror도 함께 처리
+        SetState(UIState.None);
+
+        // PlayerStat은 별도 채널이라 명시적 mirror
+        TimeKov.UI.WindowManager.I?.Close("PlayerStat");
     }
 
     /// <summary>이전 API 호환 — CloseAll()과 동일</summary>
@@ -139,15 +158,13 @@ public class GameUIController : MonoBehaviour
     public void OpenSettings()
     {
         if (_currentState != UIState.None && _currentState != UIState.Settings) return;
-        _currentState = UIState.Settings;
-        ApplyState();
+        SetState(UIState.Settings);
     }
 
     public void CloseSettings()
     {
         if (_currentState != UIState.Settings) return;
-        _currentState = UIState.None;
-        ApplyState();
+        SetState(UIState.None);
     }
 
     // ── 설비 UI ──────────────────────────────────────────────────────
@@ -155,15 +172,13 @@ public class GameUIController : MonoBehaviour
     public void OpenFactoryUI()
     {
         if (_currentState != UIState.None) return;
-        _currentState = UIState.Factory;
-        ApplyState();
+        SetState(UIState.Factory);
     }
 
     public void CloseFactoryUI()
     {
         if (_currentState != UIState.Factory) return;
-        _currentState = UIState.None;
-        ApplyState();
+        SetState(UIState.None);
     }
 
     // ── 퀘스트 팝업 ──────────────────────────────────────────────────
@@ -172,8 +187,7 @@ public class GameUIController : MonoBehaviour
     {
         if (_currentState == UIState.Quest) { CloseAll(); return; }
         if (_currentState != UIState.None) return;
-        _currentState = UIState.Quest;
-        ApplyState();
+        SetState(UIState.Quest);
     }
 
     // ── 플레이어 스탯창 ──────────────────────────────────────────────
@@ -184,14 +198,52 @@ public class GameUIController : MonoBehaviour
     {
         if (statPanel == null) return;
         statPanel.SetActive(!statPanel.activeSelf);
+
+        // WindowManager mirror — PlayerStat은 _currentState와 독립이라 SetState 안 거침
+        var wm = TimeKov.UI.WindowManager.I;
+        if (wm != null)
+        {
+            if (statPanel.activeSelf) wm.Open("PlayerStat");
+            else                       wm.Close("PlayerStat");
+        }
     }
 
     // ── 상태 직접 설정 (BuildManager 연동용) ─────────────────────────
+    // 모든 _currentState 변경의 단일 진입점.
+    // 여기서 WindowManager에 mirror 통보 — 어댑터가 등록되어 있으면 자동 반영, 없으면 no-op.
 
     public void SetState(UIState newState)
     {
+        var oldState = _currentState;
         _currentState = newState;
         ApplyState();
+
+        // WindowManager mirror
+        var wm = TimeKov.UI.WindowManager.I;
+        if (wm != null)
+        {
+            var oldId = MapStateToWindowId(oldState);
+            var newId = MapStateToWindowId(newState);
+            if (oldId != newId)
+            {
+                if (!string.IsNullOrEmpty(oldId)) wm.Close(oldId);
+                if (!string.IsNullOrEmpty(newId)) wm.Open(newId);
+            }
+        }
+    }
+
+    // UIState → WindowManager.WindowId 매핑. None은 등록 안 됨(null 반환).
+    static string MapStateToWindowId(UIState s)
+    {
+        switch (s)
+        {
+            case UIState.Settings:  return "Settings";
+            case UIState.Factory:   return "Factory";
+            case UIState.Build:     return "BuildMode";
+            case UIState.Quest:     return "QuestPopup";
+            case UIState.Inventory: return "Inventory";
+            default:                return null;   // None, PlayerStat은 별도 채널
+        }
     }
 
     // ── 호환 래퍼 (구 Pause 시스템) ──────────────────────────────────
@@ -225,8 +277,12 @@ public class GameUIController : MonoBehaviour
                           || _currentState == UIState.Inventory
                           || _currentState == UIState.Factory;
             _questHudGroup.alpha = showQuest ? 1f : 0f;
-            _questHudGroup.interactable = showQuest;
-            _questHudGroup.blocksRaycasts = showQuest;
+
+            // HUD 정책: 정보 표시 전용, 클릭은 절대 가로채지 않음.
+            // (전시에서 공장 드래그앤드롭이 questHud 뒤로 빠지는 문제 → blocksRaycasts=false 강제)
+            // questHud 내부에 클릭이 필요한 위젯이 있다면 그 위젯만 별도 Canvas+GraphicRaycaster로 분리할 것.
+            _questHudGroup.interactable = false;
+            _questHudGroup.blocksRaycasts = false;
         }
 
         // 플레이어 HUD — 다른 UI가 열리면 숨김 (PlayerStat은 _currentState와 독립이라 영향 없음)

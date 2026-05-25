@@ -343,75 +343,68 @@ public class BuildManager : MonoBehaviour
 
     private void HandleModeInput()
     {
+        // B 키: 빌드 모드 진입/종료 토글
         if (Input.GetKeyDown(KeyCode.B))
         {
-            // 다른 UI가 열려있으면 건설 모드 진입 차단
-            if (!IsBuildMode && GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
-                return;
-
-            IsBuildMode = !IsBuildMode;
-
-            if (!IsBuildMode)
-            {
-                isDemolishMode = false;
-                isDragBuilding = false;
-                dragPlacedStartCells.Clear();
-                hasSelectedSlot = false;
-                currentIndex = -1;
-
-                ClearHoveredBuilding();
-                SetTopViewMode(false);
-
-                railBuildManager?.EndRailMode();
-                CurrentSubMode = BuildSubMode.Facility;
-
-                if (previewMarker != null)
-                    previewMarker.SetActive(false);
-
-                GameUIController.Instance?.CloseAllUI();
-            }
-            else
-            {
-                hasSelectedSlot = false;
-                currentIndex = -1;
-                CurrentSubMode = BuildSubMode.Facility;
-
-                if (previewMarker != null)
-                    previewMarker.SetActive(false);
-
-                SetTopViewMode(true);
-
-                GameUIController.Instance?.SetState(GameUIController.UIState.Build);
-            }
+            if (IsBuildMode) ExitBuildMode();
+            else             EnterBuildMode();
         }
 
-        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
-        {
-            if (!IsBuildMode)
-                return;
+        // 우클릭: 빌드 모드 중에만 종료 (ESC는 WindowManager가 디스패치)
+        if (Input.GetMouseButtonDown(1) && IsBuildMode)
+            ExitBuildMode();
+    }
 
-            IsBuildMode = false;
-            isDemolishMode = false;
-            isDragBuilding = false;
-            dragPlacedStartCells.Clear();
-            isDragDemolishing = false;
-            dragDemolishedBuildings.Clear();
-            dragDemolishedRailCells.Clear();
-            hasSelectedSlot = false;
-            currentIndex = -1;
+    // ── 빌드 모드 진입/종료 ─────────────────────────────────────────
+    // WindowManager의 BuildModeWindowAdapter가 OnOpen/OnClose에서 호출.
+    // 양쪽 모두 idempotent — 이미 그 상태면 즉시 return.
 
-            ClearHoveredBuilding();
-            ClearHoveredRail();
-            SetTopViewMode(false);
+    public void EnterBuildMode()
+    {
+        if (IsBuildMode) return;
 
-            railBuildManager?.EndRailMode();
-            CurrentSubMode = BuildSubMode.Facility;
+        // 다른 UI가 열려있으면 진입 차단
+        if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
+            return;
 
-            if (previewMarker != null)
-                previewMarker.SetActive(false);
+        IsBuildMode = true;
+        hasSelectedSlot = false;
+        currentIndex = -1;
+        CurrentSubMode = BuildSubMode.Facility;
 
-            GameUIController.Instance?.CloseAllUI();
-        }
+        if (previewMarker != null)
+            previewMarker.SetActive(false);
+
+        SetTopViewMode(true);
+
+        GameUIController.Instance?.SetState(GameUIController.UIState.Build);
+    }
+
+    public void ExitBuildMode()
+    {
+        if (!IsBuildMode) return;
+
+        IsBuildMode = false;
+        isDemolishMode = false;
+        isDragBuilding = false;
+        dragPlacedStartCells.Clear();
+        isDragDemolishing = false;
+        dragDemolishedBuildings.Clear();
+        dragDemolishedRailCells.Clear();
+        hasSelectedSlot = false;
+        currentIndex = -1;
+
+        ClearHoveredBuilding();
+        ClearHoveredRail();
+        SetTopViewMode(false);
+
+        railBuildManager?.EndRailMode();
+        CurrentSubMode = BuildSubMode.Facility;
+
+        if (previewMarker != null)
+            previewMarker.SetActive(false);
+
+        GameUIController.Instance?.CloseAllUI();
     }
 
     private void SetTopViewMode(bool value, bool force = false)
@@ -445,11 +438,10 @@ public class BuildManager : MonoBehaviour
         if (topViewPanCamera != null)
             topViewPanCamera.SetControlEnabled(value);
 
+        // Cursor.lockState / visible 은 WindowManager.ApplyGlobalState가 BuildMode Open/Close 시
+        // 어댑터의 LocksGameplayInput 플래그 기반으로 자동 처리 (BuildModeWindowAdapter 부착 필요).
         if (value)
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-
             if (topViewCamera != null)
             {
                 Vector3 startPos = topViewCamera.transform.position;
@@ -464,11 +456,6 @@ public class BuildManager : MonoBehaviour
                 if (topViewPanCamera != null)
                     topViewPanCamera.SnapToCurrent();
             }
-        }
-        else
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
         }
 
         var labels = UnityEngine.Object.FindObjectsByType<BuildingLabelUI>(UnityEngine.FindObjectsSortMode.None);
