@@ -23,7 +23,7 @@ namespace TIMEKOV.Factory
         public Transform inputPort;
 
         int _facilityIdCache = -1;
-        protected int FacilityId
+        public int FacilityId
         {
             get
             {

@@ -378,6 +378,9 @@ public class BuildManager : MonoBehaviour
         SetTopViewMode(true);
 
         GameUIController.Instance?.SetState(GameUIController.UIState.Build);
+
+        // 활성 FacilityPlaceObjective 있으면 BuildZone 위에 화살표
+        ShowBuildHintIfQuestActive();
     }
 
     public void ExitBuildMode()
@@ -405,6 +408,43 @@ public class BuildManager : MonoBehaviour
             previewMarker.SetActive(false);
 
         GameUIController.Instance?.CloseAllUI();
+
+        // 빌드 가이드 화살표 정리
+        TimeKov.UI.HintArrowManager.I?.Hide("build_zone_hint");
+    }
+
+    /// <summary>활성 FacilityPlaceObjective 있으면 BuildZone 위에 화살표.</summary>
+    void ShowBuildHintIfQuestActive()
+    {
+        var mgr = TimeKov.UI.HintArrowManager.I;
+        if (mgr == null) return;
+        if (QuestManager.Instance == null)
+        {
+            mgr.Hide("build_zone_hint");
+            return;
+        }
+
+        bool hasPlace = false;
+        foreach (var rt in QuestManager.Instance.Runtimes)
+        {
+            if (rt?.activeObjectives == null) continue;
+            foreach (var obj in rt.activeObjectives)
+            {
+                if (obj is FacilityPlaceObjective place && !place.IsCompleted)
+                {
+                    hasPlace = true;
+                    break;
+                }
+            }
+            if (hasPlace) break;
+        }
+
+        if (!hasPlace) { mgr.Hide("build_zone_hint"); return; }
+
+        var zone = FindAnyObjectByType<BuildZone>();
+        if (zone == null) { mgr.Hide("build_zone_hint"); return; }
+
+        mgr.Show("build_zone_hint", zone.transform, 0f);
     }
 
     private void SetTopViewMode(bool value, bool force = false)

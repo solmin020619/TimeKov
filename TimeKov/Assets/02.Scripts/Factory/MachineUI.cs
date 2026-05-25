@@ -77,6 +77,9 @@ public class MachineUI : MonoBehaviour
         BuildRecipeSlots();
         BuildInventorySlots();
         RefreshOutputSlots();
+
+        // 첫 머신 UI 열림 1회 인벤 슬롯 강조 (PlayerPrefs)
+        ShowFirstMachineHintIfNeeded();
     }
 
     // ── 레시피 선택 ─────────────────────────────────────────
@@ -109,6 +112,15 @@ public class MachineUI : MonoBehaviour
         // 인벤토리 변경 이벤트 구독 해제
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
         if (inv != null) inv.OnInventoryChanged -= RefreshInventorySlots;
+
+        // 화살표 정리 (출력 강조 + 레시피 슬롯 + 첫 머신 가이드)
+        var hintMgr = TimeKov.UI.HintArrowManager.I;
+        if (hintMgr != null)
+        {
+            hintMgr.Hide("machine_output");
+            hintMgr.Hide("recipe_slot_hint");
+            hintMgr.Hide("first_machine_hint");
+        }
 
         _machine = null;
 
@@ -206,6 +218,9 @@ public class MachineUI : MonoBehaviour
                 recipeDropSlots[i].gameObject.SetActive(false);
             }
         }
+
+        // 활성 FacilityInputObjective와 매칭되는 슬롯 강조 (Quest 16/20)
+        ShowRecipeHintIfQuestActive();
     }
 
     private void RefreshRecipeSelectionUI(int totalCount)
@@ -243,10 +258,19 @@ public class MachineUI : MonoBehaviour
 
             int id = kv.Key, amt = kv.Value;
             outputSlot.SetDoubleClickAction(() => TakeOutput(id, amt));
+
+            // 출력 슬롯 강조 화살표 — 결과물 회수 안내
+            var canvas = outputSlot.GetComponentInParent<Canvas>();
+            var rect = outputSlot.GetComponent<RectTransform>();
+            if (canvas != null && rect != null)
+                TimeKov.UI.HintArrowManager.I?.ShowOnUI("machine_output", rect, canvas, 0f);
             return;
         }
 
         outputSlot.gameObject.SetActive(false);
+
+        // 출력 비면 화살표도 정리
+        TimeKov.UI.HintArrowManager.I?.Hide("machine_output");
     }
 
     private void TakeOutput(int itemId, int amount)
@@ -272,6 +296,90 @@ public class MachineUI : MonoBehaviour
         RefreshInventorySlots();
         foreach (var slot in recipeDropSlots)
             slot?.PublicRefresh();
+
+        // 재료 다 채워졌는지 다시 평가
+        ShowRecipeHintIfQuestActive();
+    }
+
+    // ── HintArrow 가이드 ────────────────────────────────────────
+
+    const string FirstMachineHintKey = "HintArrow_FirstMachineOpen";
+
+    /// <summary>PlayerPrefs 첫 머신 UI 만남에만 인벤 첫 슬롯 위 5초 화살표.</summary>
+    void ShowFirstMachineHintIfNeeded()
+    {
+        if (PlayerPrefs.GetInt(FirstMachineHintKey, 0) == 1) return;
+        if (_invSlots == null || _invSlots.Count == 0) return;
+
+        var firstSlot = _invSlots[0];
+        if (firstSlot == null) return;
+
+        var canvas = firstSlot.GetComponentInParent<Canvas>();
+        var rect = firstSlot.GetComponent<RectTransform>();
+        var mgr = TimeKov.UI.HintArrowManager.I;
+        if (mgr == null || canvas == null || rect == null) return;
+
+        mgr.ShowOnUI("first_machine_hint", rect, canvas, 5f);
+        PlayerPrefs.SetInt(FirstMachineHintKey, 1);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>활성 FacilityInputObjective 있으면 매칭되는 RecipeDropSlot 위 화살표.</summary>
+    void ShowRecipeHintIfQuestActive()
+    {
+        var mgr = TimeKov.UI.HintArrowManager.I;
+        if (mgr == null) return;
+
+        if (QuestManager.Instance == null || _machine == null || recipeDropSlots == null)
+        {
+            mgr.Hide("recipe_slot_hint");
+            return;
+        }
+
+        // 현 머신과 매칭되는 활성 FacilityInputObjective 첫 번째 찾기
+        int targetItemId = 0;
+        foreach (var rt in QuestManager.Instance.Runtimes)
+        {
+            if (rt?.activeObjectives == null) continue;
+            foreach (var obj in rt.activeObjectives)
+            {
+                if (obj is FacilityInputObjective inp && !inp.IsCompleted)
+                {
+                    if (inp.facilityId == 0 || inp.facilityId == _machine.FacilityId)
+                    {
+                        // 이미 다 채워졌으면 다음 obj로
+                        int have = _machine.InputBuffer.GetAmount(inp.inputItemId);
+                        if (have >= inp.requiredCount) continue;
+                        targetItemId = inp.inputItemId;
+                        break;
+                    }
+                }
+            }
+            if (targetItemId != 0) break;
+        }
+
+        if (targetItemId == 0)
+        {
+            mgr.Hide("recipe_slot_hint");
+            return;
+        }
+
+        // 매칭 슬롯 찾기
+        foreach (var slot in recipeDropSlots)
+        {
+            if (slot == null || !slot.gameObject.activeSelf) continue;
+            if (slot.RequiredItemId != targetItemId) continue;
+
+            var canvas = slot.GetComponentInParent<Canvas>();
+            var rect = slot.GetComponent<RectTransform>();
+            if (canvas != null && rect != null)
+            {
+                mgr.ShowOnUI("recipe_slot_hint", rect, canvas, 0f);
+                return;
+            }
+        }
+
+        mgr.Hide("recipe_slot_hint");
     }
 
     // ── 진행 바 ─────────────────────────────────────────────

@@ -187,6 +187,9 @@ public class InventoryUIController : MonoBehaviour
     {
         if (inventoryRoot == null) return;
 
+        // 드래그 중이었으면 강제 종료 (ESC로 닫을 때 Ghost 화면 잔재 방지)
+        InventoryDragHandler.Instance?.EndDrag();
+
         // 창고 재진입 플래그 초기화 (다음 TAB 시 창고가 열리지 않도록)
         IsInBase = false;
 
