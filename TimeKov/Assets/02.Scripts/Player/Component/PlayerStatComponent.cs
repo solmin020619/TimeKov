@@ -23,6 +23,10 @@ public class PlayerStatComponent : MonoBehaviour
     public float HurtDuration = 0.3f;  // ���� ���� �ð�
     public float InvincibleDuration = 0.5f;  // ���� �� ���� �ð�
 
+    [Header("Camera Shake")]
+    public float HurtShakeDuration  = 0.18f;
+    public float HurtShakeMagnitude = 0.10f;
+
     [Header("Hit VFX")]
     public GameObject HurtVfxPrefab;
     public Vector3 HurtVfxOffset = new Vector3(0f, 1f, 0f);
@@ -90,6 +94,9 @@ public class PlayerStatComponent : MonoBehaviour
     {
         IsHurt = true;
         IsInvincible = true;
+
+        // 피격 카메라 셰이크
+        ThirdPersonCamera.Shake(HurtShakeDuration, HurtShakeMagnitude);
 
         // Skill3 ���� ���̸� Interrupt ȣ��
         var skillComp = GetComponent<PlayerSkillComponent>();
