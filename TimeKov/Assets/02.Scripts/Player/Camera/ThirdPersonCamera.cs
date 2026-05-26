@@ -32,8 +32,17 @@ public class ThirdPersonCamera : MonoBehaviour
 
     public static bool IsUIOpen = false;
 
+    // ── Camera Shake ──────────────────────────────────────────────────
+    public static ThirdPersonCamera Instance { get; private set; }
+
+    private float _shakeTimer;
+    private float _shakeDuration;
+    private float _shakeMagnitude;
+
     void Awake()
     {
+        Instance = this;
+
         _pivot = transform.GetChild(0);
         _currentDist = DefaultDistance;
         _targetDist = DefaultDistance;
@@ -68,6 +77,7 @@ public class ThirdPersonCamera : MonoBehaviour
         HandleRotation();
         HandleZoom();
         HandleCollision();
+        ApplyShake();   // HandleCollision 이후: distance 설정 후 셰이크 오프셋 추가
     }
 
     void HandleFollow()
@@ -123,4 +133,46 @@ public class ThirdPersonCamera : MonoBehaviour
     }
 
     public Quaternion GetYawRotation() => Quaternion.Euler(0, _yaw, 0);
+
+    // ── Camera Shake API ─────────────────────────────────────────────
+    /// <summary>
+    /// 카메라 셰이크 요청.
+    /// 현재 진행 중인 셰이크보다 강도가 크거나 남은 시간이 길 때만 덮어씀.
+    /// (여러 히트가 동시에 들어와도 가장 강한 셰이크가 우선)
+    /// </summary>
+    public static void Shake(float duration, float magnitude)
+    {
+        if (Instance == null) return;
+        // 더 강하거나 더 긴 셰이크로만 갱신 (약한 히트가 강한 셰이크를 방해하지 않도록)
+        if (magnitude >= Instance._shakeMagnitude || duration > Instance._shakeTimer)
+        {
+            Instance._shakeDuration  = duration;
+            Instance._shakeMagnitude = magnitude;
+            Instance._shakeTimer     = duration;
+        }
+    }
+
+    void ApplyShake()
+    {
+        if (_shakeTimer <= 0f) return;
+
+        _shakeTimer -= Time.deltaTime;
+
+        // 시간에 따라 선형 감쇠 (시작이 강하고 끝으로 갈수록 약해짐)
+        float t   = Mathf.Clamp01(_shakeTimer / Mathf.Max(0.001f, _shakeDuration));
+        float mag = _shakeMagnitude * t;
+
+        // Camera.main localPosition에 X/Y 랜덤 오프셋 추가
+        // HandleCollision이 Z를 이미 설정했으므로 XY만 건드림
+        var camPos = Camera.main.transform.localPosition;
+        camPos.x += Random.Range(-mag, mag);
+        camPos.y += Random.Range(-mag, mag);
+        Camera.main.transform.localPosition = camPos;
+
+        if (_shakeTimer <= 0f)
+        {
+            _shakeTimer     = 0f;
+            _shakeMagnitude = 0f;
+        }
+    }
 }

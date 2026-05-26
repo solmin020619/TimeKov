@@ -22,6 +22,12 @@ public class Skill2_CycloneBreak : SkillBase
     public float HitHeight     = 1.0f;
     public LayerMask EnemyLayer;
 
+    [Header("Camera Shake")]
+    public float RotationShakeDuration  = 0.08f;
+    public float RotationShakeMagnitude = 0.04f;
+    public float JumpShakeDuration      = 0.18f;
+    public float JumpShakeMagnitude     = 0.10f;
+
     public override IEnumerator ExecuteRoutine(GameObject caster)
     {
         var anim = caster.GetComponent<PlayerAnimatorComponent>();
@@ -35,27 +41,27 @@ public class Skill2_CycloneBreak : SkillBase
         yield return new WaitForSeconds(Hit1Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
-                               onHitEnemy: () => audio?.PlaySkillHit());
+                               onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(Hit2Time - Hit1Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
-                               onHitEnemy: () => audio?.PlaySkillHit());
+                               onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(Hit3Time - Hit2Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
-                               onHitEnemy: () => audio?.PlaySkillHit());
+                               onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(Hit4Time - Hit3Time);
         AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
-                               onHitEnemy: () => audio?.PlaySkillHit());
+                               onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(JumpHitTime - Hit4Time);
         AttackUtils.HitSphere(caster, JumpRadius, JumpDamage, HitHeight, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
-                               onHitEnemy: () => audio?.PlaySkillHit());
+                               onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(JumpShakeDuration, JumpShakeMagnitude); });
 
         yield return new WaitForSeconds(TotalDuration - JumpHitTime);
     }

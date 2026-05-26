@@ -19,6 +19,12 @@ public class Skill1_ReaperSlash : SkillBase
     public float HitHeight     = 1.0f;
     public LayerMask EnemyLayer;
 
+    [Header("Camera Shake")]
+    public float Hit1ShakeDuration  = 0.10f;
+    public float Hit1ShakeMagnitude = 0.05f;
+    public float Hit2ShakeDuration  = 0.15f;
+    public float Hit2ShakeMagnitude = 0.08f;
+
     public override IEnumerator ExecuteRoutine(GameObject caster)
     {
         var anim = caster.GetComponent<PlayerAnimatorComponent>();
@@ -32,12 +38,12 @@ public class Skill1_ReaperSlash : SkillBase
         yield return new WaitForSeconds(Hit1Delay);
         AttackUtils.HitSphere(caster, Hit1Radius, Hit1Damage, HitHeight, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
-                               onHitEnemy: () => audio?.PlaySkillHit());
+                               onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(Hit1ShakeDuration, Hit1ShakeMagnitude); });
 
         yield return new WaitForSeconds(Hit2Delay - Hit1Delay);
         AttackUtils.HitSphere(caster, Hit2Radius, Hit2Damage, HitHeight, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
-                               onHitEnemy: () => audio?.PlaySkillHit());
+                               onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(Hit2ShakeDuration, Hit2ShakeMagnitude); });
 
         yield return new WaitForSeconds(TotalDuration - Hit2Delay);
     }

@@ -44,6 +44,10 @@ public abstract class ComboAttackBase : ScriptableObject
     [Tooltip("데미지 들어간 후 이동 잠금 유지 시간(초). 애니 마무리 동안 미끄러짐 방지. 0이면 즉시 해제. 콤보 입력 자체엔 영향 없음.")]
     public float PostHitLockDuration = 0f;
 
+    [Header("Camera Shake")]
+    public float ShakeDuration  = 0.08f;
+    public float ShakeMagnitude = 0.04f;
+
     // ─────────────────────────────────────────────────────────
     public virtual IEnumerator ExecuteRoutine(GameObject caster)
     {
@@ -118,6 +122,8 @@ public abstract class ComboAttackBase : ScriptableObject
             skill?.AddGauge(GaugeTarget, GaugeAmount);
             // 공격 적중 사운드
             caster.GetComponent<Player>()?.Audio?.PlayAttackHit();
+            // 카메라 셰이크
+            ThirdPersonCamera.Shake(ShakeDuration, ShakeMagnitude);
         }
     }
 

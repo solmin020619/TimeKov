@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 2388448948357318575}
   - component: {fileID: 4400112233445566778}
   - component: {fileID: 5500112233445566779}
-  m_Layer: 0
+  m_Layer: 18
   m_Name: ItemBox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -87,6 +87,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2388448948357318575}
     m_Modifications:
+    - target: {fileID: 41435368956171052, guid: f32599fabc5f16844a00a5d48015cf85, type: 3}
+      propertyPath: m_Layer
+      value: 18
+      objectReference: {fileID: 0}
+    - target: {fileID: 1308756523487369450, guid: f32599fabc5f16844a00a5d48015cf85, type: 3}
+      propertyPath: m_Layer
+      value: 18
+      objectReference: {fileID: 0}
     - target: {fileID: 1360695116260090364, guid: f32599fabc5f16844a00a5d48015cf85, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.76400757
@@ -130,6 +138,10 @@ PrefabInstance:
     - target: {fileID: 1849282158032255814, guid: f32599fabc5f16844a00a5d48015cf85, type: 3}
       propertyPath: m_Name
       value: item
+      objectReference: {fileID: 0}
+    - target: {fileID: 1849282158032255814, guid: f32599fabc5f16844a00a5d48015cf85, type: 3}
+      propertyPath: m_Layer
+      value: 18
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
