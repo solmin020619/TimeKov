@@ -47,6 +47,12 @@ public class MachineUI : MonoBehaviour
     [Header("출력 슬롯")]
     public MachineSlotWidget outputSlot;
 
+    // [Gauge] 가공 진행 게이지 — 기존 가운데 ">>" 화살표 대체용
+    // 비워두면 게이지 동작 안 함 (안전 가드, 기존 동작 유지)
+    [Header("진행 게이지")]
+    [Tooltip("가운데 화살표 자리의 ProcessingGauge. 비워두면 게이지 동작 안 함.")]
+    [SerializeField] private ProcessingGauge processingGauge;
+
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
 
@@ -121,6 +127,9 @@ public class MachineUI : MonoBehaviour
         RefreshOutputSlots();
 
         ShowFirstMachineHintIfNeeded();
+
+        // [Gauge] 게이지 초기화 — 가공 시작 전 0%로 비우고 숨김
+        if (processingGauge != null) processingGauge.StopAndHide();
     }
 
     // ── 레시피 선택 ─────────────────────────────────────────────
@@ -168,6 +177,9 @@ public class MachineUI : MonoBehaviour
             hintMgr.Hide("recipe_slot_hint");
             hintMgr.Hide("first_machine_hint");
         }
+
+        // [Gauge] 게이지 정리 — 패널 닫을 때 0%로 비우고 숨김
+        if (processingGauge != null) processingGauge.StopAndHide();
 
         _machine = null;
 
@@ -406,6 +418,26 @@ public class MachineUI : MonoBehaviour
 
         if (progressBar != null)
             progressBar.value = isSelectedRecipeActive ? _machine.Progress : 0f;
+
+        // [Gauge] 현재 표시된 레시피가 실제 생산 중일 때만 게이지 진행도 동기, 아니면 숨김
+        // progressBar 와 같은 조건 — UI 일관성 유지
+        // [Sync Fix] StartProcessing() 호출 금지 — 자체 타이머(3.5초 사이클)가 켜져서
+        // _machine.Progress(실제 가공 시간) 와 충돌하면 게이지가 "지맘대로" 갔다가 다시 가는 현상 발생.
+        // GO만 활성화하고 SetProgress 로만 외부 동기 모드 운영.
+        if (processingGauge != null)
+        {
+            if (isSelectedRecipeActive && _machine.IsProcessing)
+            {
+                if (!processingGauge.gameObject.activeSelf)
+                    processingGauge.gameObject.SetActive(true);
+                processingGauge.SetProgress(_machine.Progress);
+            }
+            else
+            {
+                if (processingGauge.gameObject.activeSelf)
+                    processingGauge.StopAndHide();
+            }
+        }
 
         if (statusText == null) return;
 
