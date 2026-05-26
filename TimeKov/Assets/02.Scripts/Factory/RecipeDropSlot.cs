@@ -8,7 +8,8 @@ using TIMEKOV.Factory;
 [RequireComponent(typeof(Image))]
 public class RecipeDropSlot : MonoBehaviour,
     IDropHandler, IPointerEnterHandler, IPointerExitHandler,
-    IBeginDragHandler, IDragHandler, IEndDragHandler
+    IBeginDragHandler, IDragHandler, IEndDragHandler,
+    IPointerClickHandler
 {
     [SerializeField] private Image iconImage;
     [SerializeField] private Image borderImage;   // 드래그 hover glow 전용
@@ -33,6 +34,12 @@ public class RecipeDropSlot : MonoBehaviour,
     private ProcessingMachine _machine;
     private InventoryManager _inventory;
     private Coroutine _glowRoutine;
+    /// <summary>이 슬롯이 속한 레시피 인덱스. 재료를 넣을 때 SetLockedRecipe에 사용.</summary>
+    private int _recipeIndex = -1;
+
+    // 더블클릭 감지
+    private float _lastClickTime = -1f;
+    private const float DoubleClickThreshold = 0.3f;
 
     // ── 드래그 아웃 static 상태 ─────────────────────────────
     // input 슬롯에서 인벤토리로 드래그할 때 InventoryPanelDropZone이 읽어감
@@ -68,13 +75,14 @@ public class RecipeDropSlot : MonoBehaviour,
         }
     }
 
-    public void Setup(int itemId, int amount, ProcessingMachine machine, InventoryManager inventory = null)
+    public void Setup(int itemId, int amount, ProcessingMachine machine, InventoryManager inventory = null, int recipeIndex = -1)
     {
         RequiredItemId = itemId;
         RequiredAmount = amount;
         CurrentAmount = 0;
         _machine = machine;
         _inventory = inventory != null ? inventory : InventoryManager.Instance;
+        _recipeIndex = recipeIndex;
 
         if (labelText != null) labelText.text = "";
         SetBorderAlpha(0f);
@@ -184,6 +192,32 @@ public class RecipeDropSlot : MonoBehaviour,
         }
     }
 
+    // ── 더블클릭 (재료 슬롯 → 인벤토리) ────────────────────────
+
+    public void OnPointerClick(PointerEventData e)
+    {
+        if (_machine == null) return;
+
+        float now = Time.unscaledTime;
+        if (now - _lastClickTime < DoubleClickThreshold)
+        {
+            // 더블클릭 확정 — InputBuffer에서 해당 재료를 인벤토리로 이동
+            _lastClickTime = -1f;
+
+            int buffered = _machine.InputBuffer.GetAmount(RequiredItemId);
+            if (buffered <= 0) return;
+
+            _machine.InputBuffer.Consume(RequiredItemId, buffered);
+            (_inventory != null ? _inventory : InventoryManager.Instance)?.AddItem(RequiredItemId, buffered);
+
+            _machine.PublicNotifyBufferChanged();
+        }
+        else
+        {
+            _lastClickTime = now;
+        }
+    }
+
     public void OnDrop(PointerEventData e)
     {
         if (labelText != null) labelText.text = "";
@@ -212,6 +246,11 @@ public class RecipeDropSlot : MonoBehaviour,
             _inventory.TryConsumeItem(itemId, take);
             _inventory.ForceRefreshUI();
         }
+
+        // 재료를 실제로 넣을 때 이 슬롯의 레시피로 생산 레시피를 고정
+        if (_recipeIndex >= 0)
+            _machine.SetLockedRecipe(_recipeIndex);
+
         _machine.Receive(itemId, take);
 
         CurrentAmount += take;

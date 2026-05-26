@@ -160,19 +160,19 @@ namespace TIMEKOV.Factory
             BeltSegment belt = FindAvailableOutputBelt();
             if (belt == null) return;
 
-            int dispatchId = -1, dispatchAmt = 0;
+            int dispatchId = -1;
             foreach (var kv in OutputBuffer.Stock)
             {
                 if (kv.Value <= 0) continue;
                 dispatchId = kv.Key;
-                dispatchAmt = kv.Value;
                 break;
             }
 
             if (dispatchId < 0) return;
-            if (!OutputBuffer.Consume(dispatchId, dispatchAmt)) return;
+            // 스택된 아이템은 1개씩 순차 발송 — 벨트 완료 후 2초 딜레이와 맞물려 하나씩 이동
+            if (!OutputBuffer.Consume(dispatchId, 1)) return;
 
-            belt.TryTransport(dispatchId, dispatchAmt);
+            belt.TryTransport(dispatchId, 1);
             NotifyBufferChanged();
 
             if (OutputBuffer.Stock.Count == 0)
