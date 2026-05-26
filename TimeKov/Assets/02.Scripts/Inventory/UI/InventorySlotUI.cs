@@ -183,6 +183,20 @@ public class InventorySlotUI : MonoBehaviour,
     // 다른 슬롯에서 드랍 받기
     public void OnDrop(PointerEventData eventData)
     {
+        // output 슬롯 드래그 → 부모 계층의 InventoryPanelDropZone에 위임
+        if (TIMEKOV.Factory.MachineSlotWidget.IsOutputDragging)
+        {
+            GetComponentInParent<InventoryPanelDropZone>()?.AcceptOutputDrop();
+            return;
+        }
+
+        // recipe(input) 슬롯 드래그 → 부모 계층의 InventoryPanelDropZone에 위임
+        if (RecipeDropSlot.IsRecipeDragging)
+        {
+            GetComponentInParent<InventoryPanelDropZone>()?.AcceptRecipeDrop();
+            return;
+        }
+
         OnAnySlotDropped?.Invoke(this);
         InventoryDragHandler.Instance?.HandleDrop(this);
     }

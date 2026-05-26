@@ -106,6 +106,9 @@ namespace TIMEKOV.Factory
             machineUI.OpenFor(_nearMachine, _nearMachineName);
             _uiOpen = true;
 
+            // 퀘스트 시스템 통지 — 실제 설비 UI 열린 시점 (빌드 모드에서 F만 눌러도 깨지던 문제 해결)
+            GameEvents.RaiseFacilityInteract(_nearMachine.FacilityId);
+
             if (hintText != null) hintText.text = "F / ESC  —  닫기";
         }
 

@@ -65,7 +65,20 @@ namespace TIMEKOV.Factory
             }
             else if (machine.Status == MachineStatus.OutputReady)
             {
-                statusText.text = $"[{machineName}] 완료!\nF키로 회수";
+                // OutputBuffer에서 첫 번째 아이템명·수량을 표시
+                string outName = "";
+                int outAmt = 0;
+                foreach (var kv in machine.OutputBuffer.Stock)
+                {
+                    if (kv.Value <= 0) continue;
+                    var itemData = GameDataUtility.GetItem(kv.Key);
+                    outName = itemData?.itemName ?? kv.Key.ToString();
+                    outAmt  = kv.Value;
+                    break;
+                }
+                statusText.text = string.IsNullOrEmpty(outName)
+                    ? $"[{machineName}] 완료!\nF키로 회수"
+                    : $"[{machineName}] 완료!\n{outName} x{outAmt}  F키로 회수";
             }
         }
     }

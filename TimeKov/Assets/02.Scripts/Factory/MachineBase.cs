@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TIMEKOV.Factory
@@ -15,15 +16,19 @@ namespace TIMEKOV.Factory
         public event Action OnBufferChanged;
         public event Action<MachineStatus> OnStatusChanged;
 
-        [HideInInspector] public BeltSegment outputBelt;
+        /// <summary>연결된 출력 벨트 목록. 라운드 로빈으로 순서대로 사용.</summary>
+        [HideInInspector] public List<BeltSegment> outputBelts = new();
         [HideInInspector] public BeltSegment inputBelt;
+
+        // 라운드 로빈 인덱스 — 다음에 사용할 outputBelt 순번
+        private int _nextBeltIndex = 0;
 
         [Header("입출구 포트")]
         public Transform outputPort;
         public Transform inputPort;
 
         int _facilityIdCache = -1;
-        protected int FacilityId
+        public int FacilityId
         {
             get
             {
@@ -35,6 +40,13 @@ namespace TIMEKOV.Factory
                 return _facilityIdCache;
             }
         }
+
+        /// <summary>
+        /// 이 설비가 해당 아이템을 받을 수 있는지 확인한다.
+        /// ProcessingMachine 등의 서브클래스에서 레시피 기반으로 오버라이드한다.
+        /// 기본값은 true (무조건 수락).
+        /// </summary>
+        public virtual bool CanReceive(int itemId) => true;
 
         public virtual void Receive(int itemId, int amount)
         {
@@ -53,18 +65,120 @@ namespace TIMEKOV.Factory
         {
             if (!OutputBuffer.Consume(itemId, amount)) return false;
             NotifyBufferChanged();
+            if (OutputBuffer.Stock.Count == 0)
+            {
+                SetStatus(MachineStatus.Idle);
+                OnOutputCleared();
+            }
             return true;
         }
 
+        // ── 벨트 관리 ────────────────────────────────────────────────────
+
+        /// <summary>출력 벨트를 목록에 추가한다. 중복 추가는 무시.</summary>
+        public void AddOutputBelt(BeltSegment belt)
+        {
+            if (belt == null || outputBelts.Contains(belt)) return;
+            outputBelts.Add(belt);
+            // 인덱스가 범위를 벗어나지 않도록 보정
+            if (_nextBeltIndex >= outputBelts.Count)
+                _nextBeltIndex = 0;
+        }
+
+        /// <summary>출력 벨트를 목록에서 제거한다. 라운드 로빈 인덱스 보정 포함.</summary>
+        public void RemoveOutputBelt(BeltSegment belt)
+        {
+            int idx = outputBelts.IndexOf(belt);
+            if (idx < 0) return;
+            outputBelts.RemoveAt(idx);
+            // 제거 후 인덱스 범위 보정
+            if (outputBelts.Count == 0)
+                _nextBeltIndex = 0;
+            else
+                _nextBeltIndex = _nextBeltIndex % outputBelts.Count;
+        }
+
+        // ── 아이템 배출 ──────────────────────────────────────────────────
+
         protected void Dispatch(int itemId, int amount)
         {
-            if (outputBelt != null && outputBelt.IsReady && outputBelt.targetM != this)
-                outputBelt.TryTransport(itemId, amount);
+            // 라운드 로빈: 현재 순번 벨트로 시도, 인덱스는 항상 진행
+            BeltSegment belt = GetCurrentOutputBelt();
+            AdvanceOutputBeltIndex();
+
+            if (belt != null && belt.IsReady && !belt.IsBusy && belt.targetM != this)
+                belt.TryTransport(itemId, amount);
             else
             {
                 OutputBuffer.Add(itemId, amount);
                 SetStatus(MachineStatus.OutputReady);
                 NotifyBufferChanged();
+            }
+        }
+
+        /// <summary>현재 라운드 로빈 순번의 벨트를 반환한다.</summary>
+        private BeltSegment GetCurrentOutputBelt()
+        {
+            if (outputBelts.Count == 0) return null;
+            return outputBelts[_nextBeltIndex % outputBelts.Count];
+        }
+
+        /// <summary>라운드 로빈 인덱스를 다음으로 진행한다.</summary>
+        private void AdvanceOutputBeltIndex()
+        {
+            if (outputBelts.Count == 0) { _nextBeltIndex = 0; return; }
+            _nextBeltIndex = (_nextBeltIndex + 1) % outputBelts.Count;
+        }
+
+        /// <summary>OutputBuffer 대기 아이템을 사용 가능한 벨트로 발송한다.</summary>
+        private BeltSegment FindAvailableOutputBelt()
+        {
+            for (int i = 0; i < outputBelts.Count; i++)
+            {
+                var b = outputBelts[i];
+                if (b != null && b.IsReady && !b.IsBusy && b.targetM != this)
+                    return b;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// OutputBuffer가 완전히 비워졌을 때 호출된다.
+        /// 서브클래스에서 오버라이드해 후속 처리를 수행한다.
+        /// </summary>
+        protected virtual void OnOutputCleared() { }
+
+        /// <summary>
+        /// OutputBuffer에 대기 중인 아이템이 있을 때 사용 가능한 벨트로 내보낸다.
+        /// 벨트가 아이템 전달 완료 후 호출한다.
+        /// </summary>
+        public void TryDispatchPendingOutput()
+        {
+            if (OutputBuffer.Stock.Count == 0) return;
+
+            // 버퍼 드레인은 여유 있는 벨트 아무거나 사용 (라운드 로빈 인덱스 비소모)
+            BeltSegment belt = FindAvailableOutputBelt();
+            if (belt == null) return;
+
+            int dispatchId = -1, dispatchAmt = 0;
+            foreach (var kv in OutputBuffer.Stock)
+            {
+                if (kv.Value <= 0) continue;
+                dispatchId = kv.Key;
+                dispatchAmt = kv.Value;
+                break;
+            }
+
+            if (dispatchId < 0) return;
+            if (!OutputBuffer.Consume(dispatchId, dispatchAmt)) return;
+
+            belt.TryTransport(dispatchId, dispatchAmt);
+            NotifyBufferChanged();
+
+            if (OutputBuffer.Stock.Count == 0)
+            {
+                SetStatus(MachineStatus.Idle);
+                OnOutputCleared();
             }
         }
 

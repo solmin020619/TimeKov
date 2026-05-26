@@ -108,9 +108,10 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tutorial_14_place_bio_extractor", "생체 추출기 설치하기",
             CreateFacilityPlace("obj_place_bio_extractor", "<color=#FFCC00>생체 추출기</color>를 설치하세요.", BioExtractorId, 1)));
 
-        // 15. 생체 추출기와 상호작용하기 (F)
+        // 15. 생체 추출기와 상호작용하기 (FacilityInteract — 실제 MachineUI 열림 시점)
+        // 빌드 모드에서 F만 눌러도 깨지던 PressKey 방식 해결
         quests.Add(BuildQuest("quest_tutorial_15_interact_bio_extractor", "생체 추출기와 상호작용하기",
-            CreatePressKey("obj_interact_bio_extractor", "F키로 생체 추출기와 상호작용하세요.", KeyCode.F, 1)));
+            CreateFacilityInteract("obj_interact_bio_extractor", "F키로 생체 추출기와 상호작용하세요.", BioExtractorId, 1)));
 
         // 16. 재료 투입하기 (FacilityInput 1101 x2, 1102 x1) — 두 Objective
         quests.Add(BuildQuest("quest_tutorial_16_input_raw_materials", "재료 투입하기",
@@ -125,9 +126,9 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tutorial_18_place_bio_injector", "생체 주입기 설치하기",
             CreateFacilityPlace("obj_place_bio_injector", "<color=#FFCC00>생체 주입기</color>를 설치하세요.", BioInjectorId, 1)));
 
-        // 19. 생체 주입기와 상호작용하기 (F)
+        // 19. 생체 주입기와 상호작용하기 (FacilityInteract — 실제 MachineUI 열림 시점)
         quests.Add(BuildQuest("quest_tutorial_19_interact_bio_injector", "생체 주입기와 상호작용하기",
-            CreatePressKey("obj_interact_bio_injector", "F키로 생체 주입기와 상호작용하세요.", KeyCode.F, 1)));
+            CreateFacilityInteract("obj_interact_bio_injector", "F키로 생체 주입기와 상호작용하세요.", BioInjectorId, 1)));
 
         // 20. 의료용 겔 투입하기 (FacilityInput 1201)
         quests.Add(BuildQuest("quest_tutorial_20_input_medical_gel", "의료용 겔 투입하기",
@@ -378,6 +379,16 @@ public static class TutorialAssetBuilder
     static FacilityPlaceObjective CreateFacilityPlace(string name, string label, int facilityId, int count)
     {
         var o = ScriptableObject.CreateInstance<FacilityPlaceObjective>();
+        o.label = label;
+        o.facilityId = facilityId;
+        o.requiredCount = count;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static FacilityInteractObjective CreateFacilityInteract(string name, string label, int facilityId, int count)
+    {
+        var o = ScriptableObject.CreateInstance<FacilityInteractObjective>();
         o.label = label;
         o.facilityId = facilityId;
         o.requiredCount = count;
