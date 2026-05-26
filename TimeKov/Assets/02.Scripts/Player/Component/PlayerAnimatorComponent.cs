@@ -21,6 +21,11 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private static readonly int DieHash = Animator.StringToHash("Die");            // ��� Ʈ����
     private static readonly int JumpHash = Animator.StringToHash("Jump");           // ���� Ʈ����
 
+    // 피격 회복 직후 애니메이션 즉시 동기화용 타이머
+    private bool  _prevIsHurt;
+    private float _hurtRecoveryTimer;
+    private const float HURT_RECOVERY_ANIM = 0.15f;
+
     void Awake()
     {
         _player = GetComponent<Player>();
@@ -34,11 +39,29 @@ public class PlayerAnimatorComponent : MonoBehaviour
 
     void UpdateMovement()
     {
-        // 공격·스킬 잠금 해제 직후 ramp 구간: damping = 0
-        //   → 물리 속도(_currentSpeed)와 애니메이션 파라미터가 즉시 동기화
-        //   → "물리는 걷는데 애니메이션은 idle" 슬라이딩 현상 제거
-        // 평시: damping = 0.15f (부드러운 전환 유지)
-        float damp = _player.Movement.IsPostLockTransition ? 0f : 0.15f;
+        // 피격 상태가 끝난 직후 감지 → 회복 타이머 시작
+        bool nowHurt = _player.Stat.IsHurt;
+        if (_prevIsHurt && !nowHurt)
+        {
+            _hurtRecoveryTimer = HURT_RECOVERY_ANIM;
+            // 피격 종료 순간 이동 입력이 있으면 Blend Tree 즉시 강제 전환 (끌림 방지)
+            if (_player.Input.MoveInput.magnitude > 0.1f)
+                _anim.Play("Blend Tree", 0, 0f);
+        }
+        _prevIsHurt = nowHurt;
+
+        if (_hurtRecoveryTimer > 0f)
+            _hurtRecoveryTimer -= Time.deltaTime;
+
+        // damping = 0 적용 조건:
+        // 1) 공격·스킬 잠금 해제 직후 (IsPostLockTransition)
+        // 2) 피격 중 (IsHurt) — 속도 0 즉시 반영
+        // 3) 피격 회복 직후 0.15s — 이동 시작 시 애니메이션 즉시 전환 (끌림 방지)
+        bool snapSync = _player.Movement.IsPostLockTransition
+                     || _player.Stat.IsHurt
+                     || _hurtRecoveryTimer > 0f;
+
+        float damp = snapSync ? 0f : 0.15f;
         _anim.SetFloat(NormalHash, _player.Movement.CurrentSpeed, damp, Time.deltaTime);
     }
 

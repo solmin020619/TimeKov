@@ -92,7 +92,9 @@ public class PlayerDashComponent : MonoBehaviour
         yield return new WaitForSeconds(DashDuration);
 
         _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
-        _player.Movement.LockMovement(false);
+        // applyPostUnlockDelay: false → 대시 후 dead zone 없이 즉시 이동 허용
+        // (공격과 달리 대시는 velocity를 직접 제어하므로 0.15s 추가 차단 불필요)
+        _player.Movement.LockMovement(false, applyPostUnlockDelay: false);
         IsDashing = false;
     }
 }

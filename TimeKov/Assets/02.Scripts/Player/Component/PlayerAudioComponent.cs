@@ -55,8 +55,11 @@ public class PlayerAudioComponent : MonoBehaviour
 
     // ─── AudioSource ─────────────────────────────────────────────────
     [Header("Audio Sources (비워두면 자동 생성)")]
-    [Tooltip("효과음 전용 AudioSource")]
+    [Tooltip("효과음 전용 AudioSource (피격·스킬·점프 등)")]
     [SerializeField] private AudioSource _sfxSource;
+
+    [Tooltip("공격 스윙 전용 AudioSource — 피격 시 독립적으로 Stop 가능")]
+    [SerializeField] private AudioSource _attackSource;
 
     [Tooltip("발소리 전용 AudioSource")]
     [SerializeField] private AudioSource _footstepSource;
@@ -76,8 +79,15 @@ public class PlayerAudioComponent : MonoBehaviour
         if (_sfxSource == null)
         {
             _sfxSource              = gameObject.AddComponent<AudioSource>();
-            _sfxSource.spatialBlend = 0f; // 2D (플레이어는 항상 화면 중앙)
+            _sfxSource.spatialBlend = 0f;
             _sfxSource.playOnAwake  = false;
+        }
+
+        if (_attackSource == null)
+        {
+            _attackSource              = gameObject.AddComponent<AudioSource>();
+            _attackSource.spatialBlend = 0f;
+            _attackSource.playOnAwake  = false;
         }
 
         if (_footstepSource == null)
@@ -163,7 +173,18 @@ public class PlayerAudioComponent : MonoBehaviour
         var clip = comboIndex == 0 ? Attack1Clip :
                    comboIndex == 1 ? Attack2Clip :
                                      Attack3Clip;
-        PlayOneShot(clip);
+        if (clip == null || _attackSource == null) return;
+        _attackSource.PlayOneShot(clip);
+    }
+
+    /// <summary>
+    /// 공격 스윙음 즉시 중단 — 피격 인터럽트 시 호출
+    /// _attackSource만 Stop → 피격음·스킬음 등 다른 효과음은 영향 없음
+    /// </summary>
+    public void StopAttackSwing()
+    {
+        if (_attackSource == null) return;
+        _attackSource.Stop();
     }
 
     /// <summary>기본 공격 적중음</summary>

@@ -20,8 +20,10 @@ public class PlayerStatComponent : MonoBehaviour
     public float ExhaustedThreshold = 0.3f;
 
     [Header("Hurt")]
-    public float HurtDuration = 0.3f;  // ���� ���� �ð�
-    public float InvincibleDuration = 0.5f;  // ���� �� ���� �ð�
+    public float HurtDuration = 0.3f;  // 피격 경직 시간
+    public float InvincibleDuration = 0.5f;  // 피격 후 무적 시간
+    [Tooltip("피격 시 Hit 애니메이션 재생 여부. 일반 몹=false, 보스=true로 설정")]
+    public bool EnableHitAnimation = false;
 
     [Header("Camera Shake")]
     public float HurtShakeDuration  = 0.18f;
@@ -98,14 +100,20 @@ public class PlayerStatComponent : MonoBehaviour
         // 피격 카메라 셰이크
         ThirdPersonCamera.Shake(HurtShakeDuration, HurtShakeMagnitude);
 
-        // Skill3 ���� ���̸� Interrupt ȣ��
+        // 공격·스킬 실행 중 피격 → 무조건 인터럽트
+        // (기본공격 포함. Skill3처럼 비인터럽트 구간도 피격 시엔 강제 중단)
         var skillComp = GetComponent<PlayerSkillComponent>();
-        if (skillComp != null && skillComp.CurrentSkillIsInterruptible)
+        if (skillComp != null && skillComp.IsExecuting)
             skillComp.Interrupt();
 
-        // �ǰ� ���� �Ǻ� �� Hit L / Hit R ���
-        bool isLeft = attackerPos != Vector3.zero && IsAttackerOnLeft(attackerPos);
-        _player.Anim.PlayHit(isLeft);
+        // 피격 애니메이션 — EnableHitAnimation이 true일 때만 재생
+        // 일반 몹: false (경직만, 애니메이션 없음)
+        // 보스:    Inspector에서 true로 설정
+        if (EnableHitAnimation)
+        {
+            bool isLeft = attackerPos != Vector3.zero && IsAttackerOnLeft(attackerPos);
+            _player.Anim.PlayHit(isLeft);
+        }
 
         VfxUtils.SpawnAtCaster(
             HurtVfxPrefab,
@@ -193,9 +201,10 @@ public class PlayerStatComponent : MonoBehaviour
     {
         if (CurrentStamina >= MaxStamina) return;
 
-        bool isIdle = _player.Input.MoveInput.magnitude < 0.1f
-                   && _player.Movement.IsGrounded;
-        if (!isIdle) return;
+        // 지상에 있고 스프린트 중이 아니면 회복 (idle + 걷기 모두 허용)
+        bool canRegen = _player.Movement.IsGrounded
+                     && !_player.Movement.IsSprinting;
+        if (!canRegen) return;
 
         CurrentStamina = Mathf.Min(MaxStamina, CurrentStamina + StaminaRegen * Time.deltaTime);
     }

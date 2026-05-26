@@ -60,6 +60,7 @@ public class PlayerMovementComponent : MonoBehaviour
     public bool IsGrounded => _isGrounded;     // 지면 여부
     public bool IsJumping => _isJumping;      // 점프 중 여부
     public bool IsSlashing => _isSlashing;     // 슬래시 중 여부
+    public bool IsSprinting { get; private set; } // 스프린트 중 여부 (스태미나 재생 판단용)
     /// <summary>
     /// dead zone 또는 그 직후 애니메이션 sync 중: true
     /// PlayerAnimatorComponent가 damping=0으로 애니메이션을 물리에 즉시 동기화
@@ -82,9 +83,13 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void Update()
     {
-        // 공격·스킬 잠금 중에는 이동 방향 입력 무시
+        // 공격·스킬 잠금 / 피격 경직 / 사망 중에는 이동 방향 입력 무시
         // → 잠금 해제 직후 이전에 눌렸던 키 때문에 즉시 이동하는 슬라이딩 방지
-        _moveDir = _movementLocked
+        bool inputBlocked = _movementLocked
+                         || _player.Stat.IsHurt
+                         || _player.Stat.IsDead;
+
+        _moveDir = inputBlocked
             ? Vector3.zero
             : GetMoveDirection(_player.Input.MoveInput);
 
@@ -261,6 +266,22 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_movementLocked) return;
 
+        // 피격 경직 중: 이동 완전 차단 + velocity 즉시 0
+        if (_player.Stat.IsHurt)
+        {
+            _currentSpeed = 0f;
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+            return;
+        }
+
+        // 사망 중: 이동 완전 차단
+        if (_player.Stat.IsDead)
+        {
+            _currentSpeed = 0f;
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+            return;
+        }
+
         // 가파른 경사: 이동 차단 + 경사면 표면 방향(3D 전체)으로 미끄러짐
         // XZ 만 설정하면 HandleGravity 의 y=-2 와 충돌 → 경사면 안으로 밀림 → 떨림
         // → 경사면에 접선인 전체 벡터로 설정해 충돌 반응 제거
@@ -279,6 +300,8 @@ public class PlayerMovementComponent : MonoBehaviour
                         && Input.GetKey(KeyCode.LeftShift)
                         && _player.Stat.TryDrainSprintStamina()
                         && _moveDir.magnitude > 0.1f;
+
+        IsSprinting = isSprinting; // 외부(PlayerStatComponent 스태미나 재생)에서 참조
 
         float targetSpeed = _moveDir.magnitude > 0.1f
                           ? (isSprinting ? SprintSpeed : MoveSpeed)
@@ -369,8 +392,10 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void HandleRotation()
     {
-        // 이동 잠금 중엔 회전도 막음
+        // 이동 잠금 / 피격 / 사망 중엔 회전도 막음
         if (_movementLocked) return;
+        if (_player.Stat.IsHurt) return;
+        if (_player.Stat.IsDead) return;
         if (_moveDir.magnitude < 0.1f) return;
 
         Quaternion targetRot = Quaternion.LookRotation(_moveDir);
@@ -395,15 +420,18 @@ public class PlayerMovementComponent : MonoBehaviour
         LockMovement(true);
     }
 
-    public void LockMovement(bool isLocked)
+    /// <param name="isLocked">true=잠금, false=해제</param>
+    /// <param name="applyPostUnlockDelay">
+    /// true  = 공격·스킬용: 해제 후 0.15s 물리 dead zone + 0.20s 애니 sync (기본값)
+    /// false = 대시용:      dead zone 없이 즉시 이동 허용 (대시는 velocity를 직접 제어하므로 불필요)
+    /// </param>
+    public void LockMovement(bool isLocked, bool applyPostUnlockDelay = true)
     {
         _movementLocked = isLocked;
 
         if (isLocked)
         {
-            // 잠금 시작(공격·스킬 등): 현재 X/Z 이동 속도 즉시 제거
-            // HandleGravity가 매 프레임 X/Z를 보존하므로, 여기서 초기화하지 않으면
-            // 달리던 방향으로 공격 내내 미끄러지는 버그가 발생함
+            // 잠금 시작(공격·스킬·대시 등): 현재 X/Z 이동 속도 즉시 제거
             _currentSpeed = 0f;
             _postUnlockPhysTimer = 0f;
             _postUnlockAnimTimer = 0f;
@@ -411,11 +439,23 @@ public class PlayerMovementComponent : MonoBehaviour
         }
         else
         {
-            // 잠금 해제: dead zone + anim sync 타이머 시작
             _currentSpeed = 0f;
-            _postUnlockPhysTimer = POST_UNLOCK_PHYS;  // 0.15s 이동 차단
-            _postUnlockAnimTimer = POST_UNLOCK_ANIM;  // 0.20s 애니메이션 damping=0
             _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+
+            if (applyPostUnlockDelay)
+            {
+                // 공격·스킬: dead zone + anim sync 타이머 시작
+                // → 해제 직후 키 입력으로 즉시 이동하는 슬라이딩 방지
+                _postUnlockPhysTimer = POST_UNLOCK_PHYS;  // 0.15s 이동 차단
+                _postUnlockAnimTimer = POST_UNLOCK_ANIM;  // 0.20s 애니메이션 damping=0
+            }
+            else
+            {
+                // 대시: dead zone 없이 즉시 이동 허용
+                // 대시 velocity는 DashRoutine에서 직접 제어하므로 타이머 불필요
+                _postUnlockPhysTimer = 0f;
+                _postUnlockAnimTimer = POST_UNLOCK_ANIM;  // anim sync만 유지 (damping=0)
+            }
         }
     }
 

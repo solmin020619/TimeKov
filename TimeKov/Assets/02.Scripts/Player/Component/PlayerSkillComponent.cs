@@ -193,11 +193,16 @@ public class PlayerSkillComponent : MonoBehaviour
         _currentSkill?.OnInterrupt(gameObject);
         _currentCombo?.OnInterrupt(gameObject);
 
+        // 공격 스윙 사운드 즉시 중단
+        // (PlayOneShot은 코루틴 중단으로 안 멈추므로 직접 Stop)
+        _player.Audio?.StopAttackSwing();
+
         _currentRoutine = null;
         _currentSkill = null;
         _currentCombo = null;
         _comboIndex = 0;
         _comboTimer = 0;
+        _comboInputReceived = false; // 버퍼 초기화: 인터럽트 직후 공격이 즉시 재시작되는 현상 방지
         CurrentSkillIsInterruptible = false;
     }
 
