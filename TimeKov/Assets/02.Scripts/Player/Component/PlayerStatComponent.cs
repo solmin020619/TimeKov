@@ -110,12 +110,13 @@ public class PlayerStatComponent : MonoBehaviour
 
         OnHurt?.Invoke();  // UI �ǵ�� �̺�Ʈ
 
-        // ���� 0.3��
+        // 피격 경직 시간
         yield return new WaitForSeconds(HurtDuration);
         IsHurt = false;
 
-        // ���� �ܿ� �ð� (�� 0.5�ʿ��� ���� 0.3�� ����)
-        yield return new WaitForSeconds(InvincibleDuration - HurtDuration);
+        // 무적 잔여 시간 (InvincibleDuration이 HurtDuration보다 작게 설정되면 0으로 보정)
+        float remainingInvincible = Mathf.Max(0f, InvincibleDuration - HurtDuration);
+        yield return new WaitForSeconds(remainingInvincible);
         IsInvincible = false;
         _hurtRoutine = null;
     }
@@ -127,15 +128,17 @@ public class PlayerStatComponent : MonoBehaviour
         return Vector3.Dot(transform.right, toAttacker) < 0;
     }
 
-    // �÷� HP ȸ��
+    // 플랫 HP 회복
     public void Heal(float amount)
     {
+        if (IsDead) return; // 사망 후 힐로 IsDead=false가 되어 좀비 상태가 되는 버그 방지
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + amount);
     }
 
-    // �ִ� HP ���� ȸ�� (0.0 ~ 1.0)
+    // 최대 HP 비율 회복 (0.0 ~ 1.0)
     public void HealPercent(float percent)
     {
+        if (IsDead) return; // 동일 사유
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + MaxHp * percent);
     }
 

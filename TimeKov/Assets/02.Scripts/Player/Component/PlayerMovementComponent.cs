@@ -35,8 +35,11 @@ public class PlayerMovementComponent : MonoBehaviour
     private Vector3 _moveDir;
     private bool _isGrounded;
     private bool _wasGrounded;
-    private Vector3 _groundNormal  = Vector3.up; // 현재 지면 법선
-    private bool    _onSteepSlope;               // MaxSlopeAngle 초과 경사면
+    private Vector3 _groundNormal         = Vector3.up; // 현재 지면 법선 (SphereCast 원시값)
+    private Vector3 _smoothedGroundNormal = Vector3.up; // 스무딩된 법선 (노이즈 제거)
+    private bool    _onSteepSlope;                       // MaxSlopeAngle 초과 경사면
+    private float   _steepSlopeTimer;                    // 연속 급경사 감지 시간 (오탐 방지 hysteresis)
+    private const float STEEP_SLOPE_ENTER_DELAY = 0.08f; // 이 시간 이상 급경사여야 슬라이딩 시작
     private bool _canJump = true;
     private float _jumpBufferCounter;
     private bool _jumpRequested;
@@ -69,6 +72,9 @@ public class PlayerMovementComponent : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
         _capsule = GetComponent<CapsuleCollider>();
         _camera = FindAnyObjectByType<ThirdPersonCamera>();
+
+        if (_camera == null)
+            Debug.LogError("[PlayerMovementComponent] ThirdPersonCamera를 찾을 수 없습니다. 씬에 카메라가 존재하는지 확인하세요.", this);
 
         _rb.freezeRotation = true;
         _rb.useGravity = false;
@@ -140,11 +146,25 @@ public class PlayerMovementComponent : MonoBehaviour
             _groundNormal = Vector3.up;
         }
 
-        float slopeAngle = Vector3.Angle(Vector3.up, _groundNormal);
-        _onSteepSlope = _isGrounded && slopeAngle > MaxSlopeAngle;
+        // SphereCast 원시 법선을 스무딩: 폴리곤 경계·돌출부에서 1~2프레임 노이즈 제거
+        // Slerp factor 15 × deltaTime ≈ 0.25/frame → 약 4프레임에 걸쳐 부드럽게 수렴
+        _smoothedGroundNormal = Vector3.Slerp(
+            _smoothedGroundNormal, _groundNormal, Time.deltaTime * 15f);
 
-        // UI 열려있을 때 점프 홀드 상태 무시 (팀원 추가)
-        bool jumpHeld = !PlayerInputComponent.IsBlocked && Input.GetButton("Jump");
+        float slopeAngle = Vector3.Angle(Vector3.up, _smoothedGroundNormal);
+
+        // Hysteresis: 급경사(> MaxSlopeAngle)가 STEEP_SLOPE_ENTER_DELAY 초 이상 지속될 때만
+        // _onSteepSlope = true → 폴리곤 경계를 밟는 순간 1~2프레임 오탐으로 인한 불필요한 슬라이딩 방지
+        bool rawSteep = _isGrounded && slopeAngle > MaxSlopeAngle;
+        if (rawSteep)
+            _steepSlopeTimer += Time.deltaTime;
+        else
+            _steepSlopeTimer = 0f;
+
+        _onSteepSlope = _steepSlopeTimer >= STEEP_SLOPE_ENTER_DELAY;
+
+        // UI 열려있을 때 점프 홀드 상태 무시 (PlayerInputComponent를 통해 읽음)
+        bool jumpHeld = _player.Input.JumpHeld;
 
         if (!_wasGrounded && _isGrounded)
         {
@@ -166,7 +186,7 @@ public class PlayerMovementComponent : MonoBehaviour
         }
         else
         {
-            if (_isGrounded && !PlayerInputComponent.IsBlocked && Input.GetButtonUp("Jump"))
+            if (_isGrounded && _player.Input.JumpUp)
                 _canJump = true;
         }
     }
@@ -186,7 +206,7 @@ public class PlayerMovementComponent : MonoBehaviour
         // Dead 상태 점프 차단 (1단계 추가)
         if (_player.Stat.IsDead) return;
 
-        if (Input.GetButtonDown("Jump") && _isGrounded && _canJump)
+        if (_player.Input.JumpPressed && _isGrounded && _canJump)
             _jumpBufferCounter = JumpBufferTime;
         else
             _jumpBufferCounter = Mathf.Max(_jumpBufferCounter - Time.deltaTime, 0);
@@ -292,15 +312,31 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         if (_isGrounded && _rb.linearVelocity.y <= 0)
         {
-            // 가파른 경사: HandleMove 가 경사면 접선 속도(y 포함)를 전담
-            // 여기서 y 를 덮으면 경사면 안으로 밀려 떨림 발생 → 스킵
+            // 가파른 경사: HandleMove 가 경사면 접선 속도(y 포함)를 전담 → 스킵
             if (_onSteepSlope) return;
 
-            // 지면 밀착: y=-2 로 고정 (0f 로 하면 CheckSphere 가 flickering → 무한 점프)
-            // 경사 슬라이딩은 HandleSlopeStabilize 에서 XZ 를 별도 정리
-            Vector3 v = _rb.linearVelocity;
-            v.y = -2f;
-            _rb.linearVelocity = v;
+            float slopeAngle = Vector3.Angle(Vector3.up, _smoothedGroundNormal);
+
+            if (slopeAngle > 1f)
+            {
+                // ── 경사면 지면 밀착 ──────────────────────────────────────
+                // 기존: v.y = -2f (수직 하강) → 경사 법선과 충돌 해결 시 XZ depenetration 발생
+                //       physics가 XZ를 매 프레임 추가 → HandleMove가 XZ=0으로 리셋해도
+                //       position correction이 누적되어 미끄러짐 발생
+                //
+                // 수정: 경사 법선 방향(수직·경사 모두 포함)으로 밀착 속도 설정
+                //       velocity ⊥ 경사면 → physics 충돌해결의 XZ 성분 = 0 → 미끄러짐 없음
+                //       탄젠트 이동 성분은 ProjectOnPlane으로 보존 (걷기·달리기 정상 작동)
+                Vector3 tangential = Vector3.ProjectOnPlane(_rb.linearVelocity, _smoothedGroundNormal);
+                _rb.linearVelocity = tangential + (-_smoothedGroundNormal * 2f);
+            }
+            else
+            {
+                // ── 평지 지면 밀착 (기존 방식 유지) ───────────────────────
+                Vector3 v = _rb.linearVelocity;
+                v.y = -2f;
+                _rb.linearVelocity = v;
+            }
             return;
         }
 
@@ -308,17 +344,23 @@ public class PlayerMovementComponent : MonoBehaviour
         _rb.AddForce(Vector3.up * Gravity * multiplier, ForceMode.Acceleration);
     }
 
-    // 경사면 슬라이딩 완전 차단 (FixedUpdate 마지막에 실행)
-    // 물리 시뮬레이션이 경사 법선 계산으로 남긴 X/Z 잔류 속도를 최종 정리
+    // 평지 XZ 잔류속도 제거 (FixedUpdate 마지막에 실행)
+    // 경사면: HandleGravity의 법선 방향 밀착 속도가 담당 → 여기서 XZ를 건드리면 안 됨
+    // 평지:   HandleGravity의 v.y = -2f는 XZ에 영향 없으므로 잔류 XZ 드리프트만 정리
     void HandleSlopeStabilize()
     {
-        // 가파른 경사: 미끄러짐을 허용 (안정화 스킵)
+        // 가파른 경사: 미끄러짐 허용 (안정화 스킵)
         if (_onSteepSlope) return;
 
-        // 실제 XZ 속도가 있으면(대쉬 등 외부 힘) 건드리지 않음
+        float slopeAngle = Vector3.Angle(Vector3.up, _smoothedGroundNormal);
+        // 경사면: HandleGravity가 법선-방향 밀착으로 이미 XZ 드리프트를 원천 차단
+        //         여기서 XZ를 0으로 만들면 탄젠트 이동 성분까지 지워서 걷기가 멈춤
+        if (slopeAngle > 1f) return;
+
+        // 평지 전용: 아이들 상태에서 물리 시뮬레이션이 남긴 미세 XZ 잔류 속도 제거
         float actualXZ = Mathf.Sqrt(_rb.linearVelocity.x * _rb.linearVelocity.x
                                   + _rb.linearVelocity.z * _rb.linearVelocity.z);
-        // 임계값 2f: 경사 반사속도 최대 ~1.4(45°) 포함, 대쉬(15 m/s)는 제외
+        // 임계값 2f: 대쉬(15 m/s)는 건드리지 않음
         if (_isGrounded && !_isJumping && !_isSlashing && _currentSpeed < 0.01f && actualXZ < 2f)
         {
             _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
@@ -338,6 +380,8 @@ public class PlayerMovementComponent : MonoBehaviour
 
     Vector3 GetMoveDirection(Vector2 input)
     {
+        if (_camera == null) return Vector3.zero;
+
         Quaternion yaw = _camera.GetYawRotation();
         return (yaw * Vector3.forward * input.y
               + yaw * Vector3.right * input.x).normalized;

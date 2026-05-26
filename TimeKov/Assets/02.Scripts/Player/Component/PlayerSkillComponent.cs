@@ -129,10 +129,14 @@ public class PlayerSkillComponent : MonoBehaviour
         _currentRoutine = null;
         _currentCombo = null;
 
-        // 3Ÿ �Ϸ� �� ���� �ʱ�ȭ
+        // 마지막 콤보(index가 0으로 wrap) 완료 후 처리
         if (_comboIndex == 0)
         {
-            _comboInputReceived = false;
+            // 마지막 타격 도중 선입력이 있었으면 콤보창 안에서 1타부터 재시작
+            if (_comboInputReceived && _comboTimer > 0)
+                ExecuteComboAttack();
+            else
+                _comboInputReceived = false;
             yield break;
         }
 
