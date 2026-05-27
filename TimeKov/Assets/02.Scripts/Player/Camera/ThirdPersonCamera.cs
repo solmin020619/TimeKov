@@ -31,6 +31,7 @@ public class ThirdPersonCamera : MonoBehaviour
     private float _sensitivityMult = 1f;  // 설정창 감도 슬라이더 배율
 
     public static bool IsUIOpen = false;
+    public static bool BlockZoom = false;
 
     // ── Camera Shake ──────────────────────────────────────────────────
     public static ThirdPersonCamera Instance { get; private set; }
@@ -103,7 +104,7 @@ public class ThirdPersonCamera : MonoBehaviour
     void HandleZoom()
     {
         // UI가 열려있는 동안 줌 차단
-        if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
+        if (IsUIOpen || BlockZoom || !GameUIController.GameplayInputEnabled) return;
 
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         _targetDist = Mathf.Clamp(

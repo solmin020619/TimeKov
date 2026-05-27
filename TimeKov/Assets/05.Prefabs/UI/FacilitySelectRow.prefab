@@ -12,8 +12,9 @@ GameObject:
   - component: {fileID: 7595690717236668037}
   - component: {fileID: 4856606077218882331}
   - component: {fileID: 5614744470421354735}
+  - component: {fileID: 6108862990508244259}
   m_Layer: 0
-  m_Name: PickupRow
+  m_Name: FacilitySelectRow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -104,6 +105,22 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &6108862990508244259
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 297113489590949018}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 393eecd022261d14ca588f85191e5203, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  nameText: {fileID: 6279742098087814453}
+  background: {fileID: 4856606077218882331}
+  normalColor: {r: 0.08, g: 0.08, b: 0.1, a: 0.75}
+  selectedColor: {r: 0.3, g: 0.3, b: 0.35, a: 0.95}
 --- !u!1 &1804517714516899394
 GameObject:
   m_ObjectHideFlags: 0
@@ -169,7 +186,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: c3eb531f7f4538b4392cb46db94caa72, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
