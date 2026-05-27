@@ -153,9 +153,6 @@ public class GameOverUIManager : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(returnDelay);
 
-        if (PlayerSessionData.Instance != null)
-            PlayerSessionData.Instance.ClearSnapshot();
-
         Time.timeScale = 1f;
         SceneManager.LoadScene("Base");
     }

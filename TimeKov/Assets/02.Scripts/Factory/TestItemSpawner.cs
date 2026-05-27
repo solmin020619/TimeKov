@@ -30,8 +30,7 @@ public class TestItemSpawner : MonoBehaviour
 
     private IEnumerator GiveItemsRoutine()
     {
-        yield return new WaitUntil(() => DataBoot.IsLoaded);
-
+        // 로딩씬을 거쳐 진입하므로 데이터는 항상 로드 완료 상태
         var inv = InventoryManager.Instance;
         if (inv == null)
         {

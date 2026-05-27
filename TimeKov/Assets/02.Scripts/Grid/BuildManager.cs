@@ -160,12 +160,8 @@ public class BuildManager : MonoBehaviour
 
     private void Start()
     {
-        // DataBoot.IsLoaded 로 교체 (구버전: DataStore.IsLoaded)
-        if (!DataBoot.IsLoaded)
-        {
-            DataBoot.OnDataLoaded += OnDataLoaded;
-            Debug.LogWarning("[BuildManager] DataBoot is not loaded. Make sure DataBoot runs before BuildManager.");
-        }
+        // 로딩씬을 거쳐 진입하므로 데이터는 항상 로드 완료 상태
+        // (DataBoot.IsLoaded 체크 불필요)
 
         if (previewMarker != null)
             previewMarker.SetActive(false);
@@ -210,11 +206,6 @@ public class BuildManager : MonoBehaviour
 
         HandleRotateInput();
         HandleBuild();
-    }
-    private void OnDataLoaded()
-    {
-        DataBoot.OnDataLoaded -= OnDataLoaded;
-        // 데이터 로드 후 초기화가 필요하면 여기에 작성
     }
     private void HandleSelectionInput()
     {

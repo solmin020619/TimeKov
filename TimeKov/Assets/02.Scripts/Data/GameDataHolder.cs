@@ -34,6 +34,14 @@ public partial class GameDataHolder
         monoBehaviour.StartCoroutine(LoadAllCoroutine(onComplete));
     }
 
+    // 기존 데이터를 모두 지우고 구글 시트에서 재로드
+    // 데이터 갱신이 필요할 때 DataBoot.ForceReload() 에서 호출
+    public void ReloadAllFromGoogle(MonoBehaviour monoBehaviour, Action<bool> onComplete)
+    {
+        ClearAll();
+        monoBehaviour.StartCoroutine(LoadAllCoroutine(onComplete));
+    }
+
     private IEnumerator LoadAllCoroutine(Action<bool> onComplete)
     {
         var schemas = AllTableSchemas.GetAll();
