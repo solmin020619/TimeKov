@@ -29,5 +29,13 @@ public class CoreLevelDataSchema : SheetSchema
         // 이 단계로 승급하는 데 필요한 코어 승급 키트 아이템 ID (FK → ItemData)
         // 0단계는 초기 상태라 키트가 필요 없으므로 "-" 입력 허용
         AddRef("requiredKitItemId", "ItemData", required: false, isKey: false, allowDash: true);
+
+        // 이 단계로 강화하는 데 필요한 키트 수량
+        // 0단계는 강화 대상 아님 → 0 입력
+        Add("requiredAmount", ColumnType.Int, required: true);
+
+        // 이 단계로 강화할 때의 성공 확률 (0.0 ~ 1.0)
+        // 0단계는 강화 대상 아니므로 1.0 입력
+        Add("successRate", ColumnType.Float, required: true);
     }
 }

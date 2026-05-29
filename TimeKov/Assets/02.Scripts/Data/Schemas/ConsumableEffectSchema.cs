@@ -31,5 +31,10 @@ public class ConsumableEffectSchema : SheetSchema
 
         // 효과 지속 시간(초) — 즉시 효과(Heal 등)는 0 으로 입력
         Add("duration", ColumnType.Float, required: true);
+
+        // 효과 적용 성공 확률 (0.0 ~ 1.0)
+        // Buff / Heal 등 일반 소모품은 1.0 입력 (항상 성공)
+        // PermanentStat 타입은 실제 확률 입력 (예: 0.7 = 70%)
+        Add("successRate", ColumnType.Float, required: true);
     }
 }
