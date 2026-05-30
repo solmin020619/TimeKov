@@ -180,10 +180,10 @@ public class CoreUpgradeUI : MonoBehaviour
         // 현재 스탯
         if (cur != null)
         {
-            SetText(currentTimeText,    $"{cur.maxTime}s");
-            SetText(currentStaminaText, $"{cur.stamina}");
-            SetText(currentAtkText,     $"{cur.atk}");
-            SetText(currentDefText,     $"{cur.def}");
+            SetText(currentTimeText,    $"Time : {cur.maxTime}s");
+            SetText(currentStaminaText, $"Stamina : {cur.stamina}");
+            SetText(currentAtkText,     $"ATK : {cur.atk}");
+            SetText(currentDefText,     $"DEF : {cur.def}");
         }
 
         if (isMax)
@@ -195,10 +195,10 @@ public class CoreUpgradeUI : MonoBehaviour
         // 강화 후 스탯 + 증가량
         if (next != null && cur != null)
         {
-            SetText(nextTimeText,    $"{next.maxTime}s");
-            SetText(nextStaminaText, $"{next.stamina}");
-            SetText(nextAtkText,     $"{next.atk}");
-            SetText(nextDefText,     $"{next.def}");
+            SetText(nextTimeText,    $"Time : {next.maxTime}s");
+            SetText(nextStaminaText, $"Stamina : {next.stamina}");
+            SetText(nextAtkText,     $"ATK : {next.atk}");
+            SetText(nextDefText,     $"DEF : {next.def}");
 
             SetDelta(deltaTimeText,    next.maxTime - cur.maxTime,    "s");
             SetDelta(deltaStaminaText, next.stamina - cur.stamina,    "");
@@ -213,7 +213,7 @@ public class CoreUpgradeUI : MonoBehaviour
         bool canUpgrade = mgr.CanUpgrade();
         if (upgradeButton != null) upgradeButton.interactable = canUpgrade;
         if (upgradeButtonText != null)
-            upgradeButtonText.text = canUpgrade ? "강화" : "강화\n(비활성화)";
+            upgradeButtonText.text = "강화";
     }
 
     private void RefreshKitPanel(CoreUpgradeManager mgr, CoreLevelDataSheetData next)

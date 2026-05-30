@@ -93,15 +93,15 @@ public static class CoreUpgradeUIBuilder
             text: "강화 후 스탯", fontSize: 18,
             color: Hex("7DD4FC"), align: TextAlignmentOptions.Center);
 
-        TextMeshProUGUI nxtTime    = MakeTMP("NextTimeText",    rightPanel.transform, new Vector2(110, 35), new Vector2(-55,  65), "0s",  18, Hex("CCDDFF"));
-        TextMeshProUGUI nxtStamina = MakeTMP("NextStaminaText", rightPanel.transform, new Vector2(110, 35), new Vector2(-55,  18), "0",   18, Hex("CCDDFF"));
-        TextMeshProUGUI nxtAtk     = MakeTMP("NextAtkText",     rightPanel.transform, new Vector2(110, 35), new Vector2(-55, -29), "0",   18, Hex("CCDDFF"));
-        TextMeshProUGUI nxtDef     = MakeTMP("NextDefText",     rightPanel.transform, new Vector2(110, 35), new Vector2(-55, -76), "0",   18, Hex("CCDDFF"));
+        TextMeshProUGUI nxtTime    = MakeTMP("NextTimeText",    rightPanel.transform, new Vector2(155, 35), new Vector2(-45,  65), "Time:  0s",   18, Hex("CCDDFF"));
+        TextMeshProUGUI nxtStamina = MakeTMP("NextStaminaText", rightPanel.transform, new Vector2(155, 35), new Vector2(-45,  18), "Stamina:  0", 18, Hex("CCDDFF"));
+        TextMeshProUGUI nxtAtk     = MakeTMP("NextAtkText",     rightPanel.transform, new Vector2(155, 35), new Vector2(-45, -29), "ATK:  0",     18, Hex("CCDDFF"));
+        TextMeshProUGUI nxtDef     = MakeTMP("NextDefText",     rightPanel.transform, new Vector2(155, 35), new Vector2(-45, -76), "DEF:  0",     18, Hex("CCDDFF"));
 
-        TextMeshProUGUI dltTime    = MakeTMP("DeltaTimeText",    rightPanel.transform, new Vector2(105, 35), new Vector2(80,  65), "+0s ↑", 15, Hex("33CC66"));
-        TextMeshProUGUI dltStamina = MakeTMP("DeltaStaminaText", rightPanel.transform, new Vector2(105, 35), new Vector2(80,  18), "+0 ↑",  15, Hex("33CC66"));
-        TextMeshProUGUI dltAtk     = MakeTMP("DeltaAtkText",     rightPanel.transform, new Vector2(105, 35), new Vector2(80, -29), "+0 ↑",  15, Hex("33CC66"));
-        TextMeshProUGUI dltDef     = MakeTMP("DeltaDefText",     rightPanel.transform, new Vector2(105, 35), new Vector2(80, -76), "+0 ↑",  15, Hex("33CC66"));
+        TextMeshProUGUI dltTime    = MakeTMP("DeltaTimeText",    rightPanel.transform, new Vector2(85, 35), new Vector2(105,  65), "+0s ↑", 15, Hex("33CC66"));
+        TextMeshProUGUI dltStamina = MakeTMP("DeltaStaminaText", rightPanel.transform, new Vector2(85, 35), new Vector2(105,  18), "+0 ↑",  15, Hex("33CC66"));
+        TextMeshProUGUI dltAtk     = MakeTMP("DeltaAtkText",     rightPanel.transform, new Vector2(85, 35), new Vector2(105, -29), "+0 ↑",  15, Hex("33CC66"));
+        TextMeshProUGUI dltDef     = MakeTMP("DeltaDefText",     rightPanel.transform, new Vector2(85, 35), new Vector2(105, -76), "+0 ↑",  15, Hex("33CC66"));
 
         SetRef(so, "nextTimeText",     nxtTime);
         SetRef(so, "nextStaminaText",  nxtStamina);
