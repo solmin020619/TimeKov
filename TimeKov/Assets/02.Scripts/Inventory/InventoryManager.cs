@@ -24,6 +24,12 @@ public class InventoryManager : MonoBehaviour
     // 슬롯 데이터가 바뀔 때마다 발생하는 이벤트
     public event Action OnInventoryChanged;
 
+    // [획득 로그] 아이템이 실제로 Player 인벤토리에 들어왔을 때 발생 (itemId, 실제 추가된 수량).
+    // AddItem 단일 입구에서 발생하므로 모든 획득 경로(필드 드롭/공장 수령/벨트 자동/퀘스트 보상 등)를 커버.
+    // Storage(창고) 인벤토리에는 발생하지 않음 — 필드 획득 로그와 분리.
+    // static — 구독자(AcquireLogUI 등)가 Instance 생성 타이밍에 의존하지 않게.
+    public static event Action<int, int> OnItemAddedToInventory;
+
     // Player 인벤토리 싱글톤
     public static InventoryManager Instance { get; private set; }
 
@@ -117,8 +123,15 @@ public class InventoryManager : MonoBehaviour
             }
         }
 
-        if (remaining < amount)
+        int added = amount - remaining;
+        if (added > 0)
+        {
             OnInventoryChanged?.Invoke();
+
+            // [획득 로그] Player 인벤에 실제로 들어온 분량만 통지. Storage(창고)는 제외.
+            if (ownerType == InventoryOwnerType.Player)
+                OnItemAddedToInventory?.Invoke(itemId, added);
+        }
 
         return remaining;
     }
