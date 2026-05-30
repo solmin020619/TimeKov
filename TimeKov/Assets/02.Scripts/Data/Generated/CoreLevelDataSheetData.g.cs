@@ -14,4 +14,6 @@ public class CoreLevelDataSheetData
     public int def;
     // FK → ItemData
     public ItemDataSheetId requiredKitItemId;
+    public int requiredAmount;
+    public float successRate;
 }

@@ -220,7 +220,21 @@ public class PlayerStatComponent : MonoBehaviour
             IsExhausted = false;
     }
 
-    // ������ ���� (�÷��̾� -> ��)
+    // 코어 강화 스탯 일괄 적용 (CoreUpgradeManager에서 호출)
+    // 강화 성공 또는 게임 로드 시 해당 레벨 데이터로 갱신
+    public void ApplyCoreStats(int maxTime, int stamina, int atk, int def)
+    {
+        MaxHp       = maxTime;
+        MaxStamina  = stamina;
+        ATK         = atk;
+        DEF         = def;
+
+        // 현재값이 새 최대치를 초과하면 클램프 (자동 회복 없음)
+        CurrentHp       = Mathf.Min(CurrentHp, MaxHp);
+        CurrentStamina  = Mathf.Min(CurrentStamina, MaxStamina);
+    }
+
+    // 플레이어 → 적 데미지 계산
     public float CalculateAttackDamage(float baseDamage, float enemyDef)
     {
         return Mathf.Max(1f, baseDamage + ATK - enemyDef);

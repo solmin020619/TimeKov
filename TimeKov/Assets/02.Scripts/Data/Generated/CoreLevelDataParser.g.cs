@@ -15,6 +15,8 @@ public static class CoreLevelDataParser
         int idx_atk = table.GetColumnIndex("atk");
         int idx_def = table.GetColumnIndex("def");
         int idx_requiredKitItemId = table.GetColumnIndex("requiredKitItemId");
+        int idx_requiredAmount = table.GetColumnIndex("requiredAmount");
+        int idx_successRate = table.GetColumnIndex("successRate");
 
         foreach (var row in table.Rows)
         {
@@ -28,6 +30,8 @@ public static class CoreLevelDataParser
             data.atk = int.Parse(row.Get(idx_atk));
             data.def = int.Parse(row.Get(idx_def));
             data.requiredKitItemId = (row.Get(idx_requiredKitItemId) == "-" ? default : (ItemDataSheetId)row.Get(idx_requiredKitItemId));
+            data.requiredAmount = int.Parse(row.Get(idx_requiredAmount));
+            data.successRate = float.Parse(row.Get(idx_successRate), System.Globalization.CultureInfo.InvariantCulture);
 
             result[data.SheetId] = data;
         }
