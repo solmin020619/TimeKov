@@ -39,6 +39,10 @@ public class ItemGetLog : MonoBehaviour
     [Tooltip("아이템 등급(itemGrade)별 색. 배열 인덱스 = 등급 번호. DropPickupPanel 과 동일하게.")]
     [SerializeField] private Color[] tierColors;
 
+    [Tooltip("'획득' 같은 고정 헤더 오브젝트. 로그가 하나라도 떠 있으면 표시, 없으면 자동 숨김.\n" +
+             "rowContainer 위에 두면 목록 맨 위에 보임. 비워두면 헤더 없이 동작.")]
+    [SerializeField] private GameObject headerObject;
+
     [Header("동작")]
     [Tooltip("한 줄이 유지되는 시간(초). 이후 페이드아웃 시작.")]
     [SerializeField] private float displayDuration = 3f;
@@ -75,6 +79,9 @@ public class ItemGetLog : MonoBehaviour
         // InventoryManager.AddItem 단일 입구에서 발생 — 모든 획득 경로
         // (필드 드롭/공장 수령/벨트 자동/퀘스트 보상 등) 빠짐없이 커버.
         InventoryManager.OnItemAddedToInventory += HandleAcquired;
+
+        // 시작 시 헤더 숨김 (로그가 떠야 보임)
+        RefreshHeader();
     }
 
     private void OnDisable()
@@ -136,6 +143,15 @@ public class ItemGetLog : MonoBehaviour
             age = 0f,
             fading = false
         });
+
+        RefreshHeader();
+    }
+
+    // '획득' 헤더는 로그가 하나라도 있을 때만 표시.
+    private void RefreshHeader()
+    {
+        if (headerObject != null)
+            headerObject.SetActive(_entries.Count > 0);
     }
 
     // ── 수명 관리 ─────────────────────────────────────────────────
@@ -146,10 +162,12 @@ public class ItemGetLog : MonoBehaviour
 
         float dt = useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
 
+        bool removed = false;
+
         for (int i = _entries.Count - 1; i >= 0; i--)
         {
             var e = _entries[i];
-            if (e.row == null) { _entries.RemoveAt(i); continue; }
+            if (e.row == null) { _entries.RemoveAt(i); removed = true; continue; }
 
             e.age += dt;
 
@@ -170,9 +188,13 @@ public class ItemGetLog : MonoBehaviour
                 {
                     Destroy(e.row.gameObject);
                     _entries.RemoveAt(i);
+                    removed = true;
                 }
             }
         }
+
+        // 줄이 제거되어 0개가 되면 헤더도 숨김
+        if (removed) RefreshHeader();
     }
 
     // ── 등급 색 ───────────────────────────────────────────────────
