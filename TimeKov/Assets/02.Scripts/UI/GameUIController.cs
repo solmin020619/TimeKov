@@ -50,6 +50,13 @@ public class GameUIController : MonoBehaviour
     [Tooltip("HP·스태미나 등 플레이어 상태 HUD — 다른 UI가 열리면 숨겨짐")]
     public GameObject playerHud;
 
+    [Header("Player Info Set (좌하단 HUD + C키 스탯창)")]
+    [Tooltip("좌하단 플레이어 정보 그룹(PlayerHud). HP/시간/DECAY 창과 C키 스탯창(Character_stat)을\n" +
+             "모두 자식으로 포함하는 부모 오브젝트를 연결.\n" +
+             "설정창·건설(탑뷰) 모드에서만 통째로 숨겨지고, 그 외에는 항상 표시됨.\n" +
+             "둘이 같은 부모라서 항상 같은 레이어에서 같이 뜨고 같이 숨겨짐(세트).")]
+    public GameObject playerInfoRoot;
+
     private UIState _currentState = UIState.None;
     private BuildManager _buildManager;
     private CanvasGroup _questHudGroup;
@@ -212,6 +219,11 @@ public class GameUIController : MonoBehaviour
     public void TogglePlayerStat()
     {
         if (statPanel == null) return;
+
+        // 설정창/건설(탑뷰) 모드에선 플레이어 정보 세트(playerInfoRoot)가 통째로 숨겨지므로
+        // C키 입력을 무시한다. (숨겨진 상태에서 토글하면 복귀 시 의도치 않게 켜져 보이는 문제 방지)
+        if (_currentState == UIState.Settings || _currentState == UIState.Build) return;
+
         statPanel.SetActive(!statPanel.activeSelf);
 
         // WindowManager mirror — PlayerStat은 _currentState와 독립이라 SetState 안 거침
@@ -304,6 +316,17 @@ public class GameUIController : MonoBehaviour
         // 플레이어 HUD — 다른 UI가 열리면 숨김 (PlayerStat은 _currentState와 독립이라 영향 없음)
         if (playerHud != null)
             playerHud.SetActive(_currentState == UIState.None);
+
+        // 플레이어 정보 세트(좌하단 HP/시간 창 + C키 스탯창) — 설정창/건설(탑뷰)에서만 통째로 숨김.
+        // playerInfoRoot(PlayerHud 그룹)가 좌하단 창과 Character_stat(C키)을 모두 자식으로 가지므로
+        // 이 그룹 하나만 켜고 끄면 둘이 항상 같은 레이어에서 같이 뜨고 같이 숨겨짐(세트 보장).
+        // C키 스탯창은 자식이라 부모가 꺼지면 자동으로 함께 숨겨진다.
+        if (playerInfoRoot != null)
+        {
+            bool showPlayerInfo = _currentState != UIState.Settings
+                               && _currentState != UIState.Build;
+            playerInfoRoot.SetActive(showPlayerInfo);
+        }
 
         // 커서 + 입력 플래그
         // None 상태일 때만 게임플레이 입력 활성화 (PlayerStat은 _currentState와 독립이라 영향 없음)

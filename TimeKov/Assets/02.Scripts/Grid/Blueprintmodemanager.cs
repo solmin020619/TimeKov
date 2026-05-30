@@ -356,7 +356,8 @@ public class BlueprintModeManager : MonoBehaviour
             var footprint = owner.FootprintOf(startCell, finalSize);
             bool cellsOk = !owner.AreCellsOccupied(footprint);
             bool physicsOk = !owner.IsPhysicallyBlocked(worldCenter, finalSize, rot);
-            bool zoneOk = owner.IsInBuildZoneNow;
+            // [BuildZone 확장] 플레이어 위치가 아니라 설비 footprint 가 영역 안인지 검사
+            bool zoneOk = owner.AreCellsInBuildZone(footprint);
             bool thisValid = cellsOk && physicsOk && zoneOk;
 
             if (!thisValid) allValid = false;
@@ -375,7 +376,9 @@ public class BlueprintModeManager : MonoBehaviour
 
             bool railCellFree = owner.RailManager == null || !owner.RailManager.RailMap.ContainsKey(targetCell);
             bool notOnFacility = !owner.AreCellsOccupied(new List<Vector2Int> { targetCell });
-            bool thisValid = railCellFree && notOnFacility && owner.IsInBuildZoneNow;
+            // [BuildZone 확장] 레일도 해당 칸이 영역 안인지 footprint 기준으로 검사
+            bool thisValid = railCellFree && notOnFacility
+                             && owner.AreCellsInBuildZone(new List<Vector2Int> { targetCell });
 
             if (!thisValid) allValid = false;
             TintGhostQuad(ghost, thisValid);

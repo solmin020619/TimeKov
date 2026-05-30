@@ -74,11 +74,19 @@ public class DraggableSlot : MonoBehaviour,
         cg.blocksRaycasts = false;
     }
 
+    private void OnDisable()
+    {
+        IsDragging = false;
+        if (_dragVisual != null) { Destroy(_dragVisual); _dragVisual = null; }
+    }
+
     public void OnDrag(PointerEventData e)
     {
+        // 우클릭으로 드래그 취소 시 고스트 강제 정리
+        if (Input.GetMouseButton(1)) { OnEndDrag(e); return; }
+
         if (_dragVisual == null) return;
 
-        // Overlay ��İ� Camera ��� ��� ����
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
             _canvas.transform as RectTransform,
             e.position,

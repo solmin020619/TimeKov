@@ -220,7 +220,9 @@ public class QuestManager : MonoBehaviour
             rt.activeObjectives = null;
             rt.IsActivated = false;
 
-            // TODO: 본 게임 보상 시스템 들어오면 보상 지급 -> 인덱스 저장 트랜잭션
+            // 보상 지급 — 인덱스 저장 직전 (지급 후 진행도 커밋 순서 유지)
+            GrantRewards(done);
+
             rt.activeQuestIndex++;
             _storage.SetCategoryIndex(rt.data.id, rt.activeQuestIndex);
             _storage.Flush();
@@ -275,6 +277,30 @@ public class QuestManager : MonoBehaviour
         foreach (var rt in _runtimes) if (!rt.IsCategoryDone) return;
         OnAllCompleted?.Invoke();
         _storage.Flush();
+    }
+
+    // 퀘스트 완료 보상을 인벤토리로 지급한다. rewards 비어있으면 아무것도 안 함.
+    void GrantRewards(QuestSO quest)
+    {
+        if (quest == null || quest.rewards == null || quest.rewards.Length == 0) return;
+
+        var inv = InventoryManager.Instance;
+        if (inv == null)
+        {
+            Debug.LogWarning($"[QuestManager] 보상 지급 실패 — InventoryManager 없음 (quest: {quest.id})");
+            return;
+        }
+
+        foreach (var reward in quest.rewards)
+        {
+            if (reward == null || reward.itemId <= 0 || reward.amount <= 0) continue;
+
+            // 루팅용 경로 사용 — NEW 뱃지 자동 표시
+            int leftover = inv.TryAddItemFromLoot(reward.itemId, reward.amount);
+            if (leftover > 0)
+                Debug.LogWarning($"[QuestManager] 보상 일부 미지급 — 인벤토리 가득참 " +
+                                 $"(quest: {quest.id}, itemId: {reward.itemId}, 미지급: {leftover})");
+        }
     }
 
     void OnApplicationPause(bool paused) { if (paused) _storage?.Flush(); }

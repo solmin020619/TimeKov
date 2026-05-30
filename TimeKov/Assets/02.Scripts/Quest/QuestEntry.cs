@@ -19,18 +19,22 @@ public class QuestEntry : MonoBehaviour
     [Tooltip("Title + ObjectiveList wrapper의 CanvasGroup. 슬라이드와 분리되어 자리에서 fade in.")]
     [SerializeField] CanvasGroup textGroup;
 
+    [Header("Reward (보상 표시)")]
+    [Tooltip("퀘스트 보상 표시 텍스트. objectiveList 자식으로 두면 목표 줄들 아래에 표시됨.\n" +
+             "보상이 없는 퀘스트면 자동으로 숨겨짐. 비워두면 보상 표시 안 함.")]
+    [SerializeField] TMP_Text rewardText;
+    [Tooltip("보상 줄 앞에 붙는 접두사")]
+    [SerializeField] string rewardPrefix = "퀘스트 보상: ";
+    [Tooltip("아이템 이름 강조 색 (TMP rich text hex). 기존 강조 노란색과 동일하게 #FFCC00 권장.")]
+    [SerializeField] string rewardItemColorHex = "#FFCC00";
+
     [Header("Highlight icons")]
-    [Tooltip("평상시 아이콘 (큰 제목 옆, 동그라미 sprite). 인스펙터에서 드래그.")]
     [SerializeField] GameObject iconNormal;
-    [Tooltip("!!! 새 퀘스트 등장 순간 아이콘 (큰 제목 옆). sprite는 인스펙터에서 드래그.")]
     [SerializeField] GameObject iconAlert;
 
     [Header("Highlight timing")]
-    [Tooltip("새 퀘스트 등장 시 !!! 펄스 유지 시간 후 평상시 아이콘으로 전환")]
     [SerializeField] float alertHoldDuration = 1.5f;
-    [Tooltip("!!! 펄스 1회 반주기. scale 1->1.15->1 한 사이클 절반")]
     [SerializeField] float alertPulseInterval = 0.25f;
-    [Tooltip("!!! 에서 평상시 아이콘으로 전환 시 fade 길이")]
     [SerializeField] float alertFadeDuration = 0.2f;
 
     [Header("Audio")]
@@ -38,19 +42,12 @@ public class QuestEntry : MonoBehaviour
     [SerializeField] AudioClip completeSfx;
 
     [Header("Animation timing")]
-    [Tooltip("배경박스 좌→우 슬라이드 길이")]
     [SerializeField] float slideInDuration = 0.3f;
-    [Tooltip("배경박스 슬라이드 시작 시 X 오프셋 (음수 = 좌측에서 들어옴)")]
     [SerializeField] float backgroundSlideOffsetX = -200f;
-    [Tooltip("배경박스 슬라이드 시작 후 텍스트 fade in 시작까지 대기")]
     [SerializeField] float textFadeDelay = 0.15f;
-    [Tooltip("텍스트 fade in 길이")]
     [SerializeField] float textFadeDuration = 0.25f;
-    [Tooltip("완료 시퀀스 시작 전 hold (ObjectiveLine collapse 끝나길 기다림)")]
     [SerializeField] float completeStartDelay = 0.75f;
-    [Tooltip("완료 시 위로 올라가며 사라지는 거리(px)")]
     [SerializeField] float completeRiseY = 20f;
-    [Tooltip("완료 시 fade + rise 길이")]
     [SerializeField] float completeFadeDuration = 0.4f;
 
     QuestSO _quest;
@@ -70,6 +67,9 @@ public class QuestEntry : MonoBehaviour
             // ObjectiveLine이 자체적으로 OnDone 처리 (sweep + 체크 + collapse)
         }
 
+        // 목표 줄들 다음에 보상 줄 표시 (보상 없으면 숨김)
+        SetupRewardText(q);
+
         // Nested CSF chain은 동적으로 추가된 자식에 대해 초기 layout pass 누락 가능
         // 부모 체인 모두 강제 rebuild. 한 번만, init 시점.
         RebuildLayoutChainUp();
@@ -78,6 +78,46 @@ public class QuestEntry : MonoBehaviour
         StartHighlightSequence();
 
         SlideInAndActivate();
+    }
+
+    // 퀘스트 보상을 목표 줄들 아래에 한 줄로 표시한다.
+    // "퀘스트 보상: <노란색>아이템명</color> (개수)" 형식. 여러 개면 콤마로 연결.
+    // 보상이 없거나 유효한 항목이 없으면 rewardText 를 숨긴다.
+    void SetupRewardText(QuestSO q)
+    {
+        if (rewardText == null) return;
+
+        if (q == null || q.rewards == null || q.rewards.Length == 0)
+        {
+            rewardText.gameObject.SetActive(false);
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        bool any = false;
+        foreach (var r in q.rewards)
+        {
+            if (r == null || r.itemId <= 0 || r.amount <= 0) continue;
+            if (any) sb.Append(", ");
+            // 아이템 이름 조회 — 못 찾으면 ID로 폴백
+            var itemData = ItemDatabase.GetItem(r.itemId);
+            string itemName = itemData != null ? itemData.itemName : r.itemId.ToString();
+            sb.Append($"<color={rewardItemColorHex}>{itemName}</color> ({r.amount})");
+            any = true;
+        }
+
+        if (!any)
+        {
+            rewardText.gameObject.SetActive(false);
+            return;
+        }
+
+        rewardText.text = rewardPrefix + sb.ToString();
+        rewardText.gameObject.SetActive(true);
+
+        // 목표 줄들 다음(맨 아래)에 오도록 강제 — rewardText 가 objectiveList 자식일 때만
+        if (rewardText.transform.parent == objectiveList)
+            rewardText.transform.SetAsLastSibling();
     }
 
     void StartHighlightSequence()

@@ -170,6 +170,9 @@ public class RecipeDropSlot : MonoBehaviour,
 
     public void OnDrag(PointerEventData e)
     {
+        // 우클릭으로 드래그 취소 시 고스트 강제 정리
+        if (Input.GetMouseButton(1)) { OnEndDrag(e); return; }
+
         if (_dragVisual == null || _canvas == null) return;
 
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(

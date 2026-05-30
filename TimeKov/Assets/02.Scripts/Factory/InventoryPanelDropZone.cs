@@ -42,7 +42,7 @@ public class InventoryPanelDropZone : MonoBehaviour, IDropHandler, IPointerEnter
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!MachineSlotWidget.IsOutputDragging && !RecipeDropSlot.IsRecipeDragging) return;
+        if (!MachineSlotWidget.IsOutputDragging && !RecipeDropSlot.IsRecipeDragging && !FuelDropSlot.IsFuelDragging) return;
         if (highlightImage != null)
             highlightImage.color = highlightColor;
     }
@@ -64,6 +64,8 @@ public class InventoryPanelDropZone : MonoBehaviour, IDropHandler, IPointerEnter
             AcceptOutputDrop();
         else if (RecipeDropSlot.IsRecipeDragging)
             AcceptRecipeDrop();
+        else if (FuelDropSlot.IsFuelDragging)
+            AcceptFuelDrop();
     }
 
     /// <summary>
@@ -83,6 +85,30 @@ public class InventoryPanelDropZone : MonoBehaviour, IDropHandler, IPointerEnter
         if (itemId <= 0 || amount <= 0) return;
 
         _onDropCallback?.Invoke(itemId, amount);
+    }
+
+    /// <summary>
+    /// 연료 슬롯 드래그 → 인벤토리로 반환.
+    /// </summary>
+    public void AcceptFuelDrop()
+    {
+        if (highlightImage != null) highlightImage.color = normalColor;
+        if (!FuelDropSlot.IsFuelDragging) return;
+
+        var machine = FuelDropSlot.DragMachine;
+        var inv     = FuelDropSlot.DragInventory != null
+                        ? FuelDropSlot.DragInventory
+                        : InventoryManager.Instance;
+        int itemId  = FuelDropSlot.DragFuelItemId;
+
+        if (machine == null || itemId <= 0) return;
+
+        int count = machine.TakeFuel();
+        if (count <= 0) return;
+
+        inv?.AddItem(itemId, count);
+        inv?.ForceRefreshUI();
+        machine.PublicNotifyBufferChanged();
     }
 
     /// <summary>
