@@ -1,1 +1,13 @@
 *.unity filter=lfs diff=lfs merge=lfs -text
+
+# Unity YAML 에셋 — 줄바꿈(CRLF/LF) 자동 변환 방지
+# core.autocrlf=true 환경에서 .asset(폰트 SDF 등)이 내용 변경 없이
+# 줄바꿈만 바뀌어 git에 계속 "수정됨"으로 뜨는 문제 해결.
+*.asset      -text
+*.prefab     -text
+*.mat        -text
+*.anim       -text
+*.controller -text
+*.physicMaterial -text
+*.meta       -text
+
