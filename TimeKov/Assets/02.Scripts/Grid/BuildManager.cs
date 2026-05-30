@@ -74,6 +74,16 @@ public class BuildManager : MonoBehaviour
     public Transform buildParent;
     public FacilityPrefabDatabase prefabDatabase;
 
+    // [BuildZone 확장] 건축 가능 영역 판정을 "플레이어 위치"가 아니라 "건물이 놓이는 칸"
+    // 기준으로 바꾸기 위한 BuildZone 콜라이더 참조.
+    // BuildZoneProgression 이 부모(Grid_plane) 스케일을 키우면 이 콜라이더의
+    // bounds(월드 AABB)도 자동으로 커지므로, 영역이 넓어질수록 더 멀리 지을 수 있게 됨.
+    // 비워두면 기존 동작(플레이어가 zone 안에 있으면 OK)으로 폴백.
+    [Header("Build Zone (영역 판정)")]
+    [Tooltip("BuildZone 의 BoxCollider. 건물 칸이 이 영역 안에 있어야 건축 허용.\n" +
+             "비워두면 기존 방식(플레이어 위치 기준)으로 동작.")]
+    public BoxCollider buildZoneCollider;
+
     [Header("Rail")]
     [SerializeField] private RailBuildManager railBuildManager;
 
@@ -736,10 +746,41 @@ public class BuildManager : MonoBehaviour
 
     public bool AreCellsOccupied(List<Vector2Int> cells) => IsAnyCellOccupied(cells);
 
+    // [BuildZone 확장] Blueprint 모드 등 외부에서 footprint 기준 영역 검사용 public 래퍼
+    public bool AreCellsInBuildZone(List<Vector2Int> cells) => IsFootprintInBuildZone(cells);
+
     public bool IsPhysicallyBlocked(Vector3 centerPos, Vector2Int size, Quaternion rotation)
         => IsBlockedByPhysics(centerPos, size, rotation);
 
     public bool IsInBuildZoneNow => zoneChecker != null && zoneChecker.IsInBuildZone;
+
+    // [BuildZone 확장] 건물의 footprint(차지하는 모든 칸)가 BuildZone 영역 안에 완전히
+    // 들어오는지 검사한다. buildZoneCollider 미연결 시 기존 플레이어 위치 기준으로 폴백.
+    private bool IsFootprintInBuildZone(List<Vector2Int> footprintCells)
+    {
+        // 폴백: 콜라이더 미연결이면 기존 동작(플레이어가 zone 안에 있으면 허용)
+        if (buildZoneCollider == null)
+            return zoneChecker != null && zoneChecker.IsInBuildZone;
+
+        if (footprintCells == null || footprintCells.Count == 0)
+            return false;
+
+        Bounds zb = buildZoneCollider.bounds; // 월드 AABB (부모 스케일·회전 반영됨)
+        float half = cellSize * 0.5f;
+        const float eps = 0.01f; // 경계 부동소수 오차 허용
+
+        for (int i = 0; i < footprintCells.Count; i++)
+        {
+            // 각 칸의 월드 중심 — StartCellToWorldCenter 에 1x1 크기를 주면 칸 중심이 나옴
+            Vector3 c = StartCellToWorldCenter(footprintCells[i], new Vector2Int(1, 1));
+
+            // 칸의 X/Z 네 모서리가 모두 zone bounds 안에 있어야 함 (Y는 평면이라 무시)
+            if (c.x - half < zb.min.x - eps || c.x + half > zb.max.x + eps ||
+                c.z - half < zb.min.z - eps || c.z + half > zb.max.z + eps)
+                return false;
+        }
+        return true;
+    }
 
     // 홀로그램 연출 없이 즉시 설비 배치. Blueprint 붙여넣기에서 호출.
     public PlacedBuilding PlaceFacilityImmediate(int facilityId, Vector3 worldPos, Quaternion rotation, List<Vector2Int> footprintCells)
@@ -1372,7 +1413,8 @@ public class BuildManager : MonoBehaviour
         snappedPos = StartCellToWorldCenter(startCell, rotatedSize);
         footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
 
-        bool isInBuildZone = zoneChecker != null && zoneChecker.IsInBuildZone;
+        // [BuildZone 확장] 플레이어 위치가 아니라 건물이 놓이는 칸이 영역 안인지 검사
+        bool isInBuildZone = IsFootprintInBuildZone(footprintCells);
         bool isOccupied = IsAnyCellOccupied(footprintCells);
         bool isOnRail = IsAnyCellOnRail(footprintCells);
         bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
