@@ -151,6 +151,9 @@ public class GameUIController : MonoBehaviour
         // PlayerStat도 ESC로 같이 닫음 (단, _currentState와 독립이라 SetState 밖에서 처리)
         if (statPanel != null) statPanel.SetActive(false);
 
+        // 코어 강화 UI — SetState 전에 패널 먼저 숨김 (순환 호출 방지)
+        CoreUpgradeUI.Instance?.HidePanel();
+
         // SetState가 WindowManager mirror도 함께 처리
         SetState(UIState.None);
 

@@ -107,12 +107,27 @@ public class CoreUpgradeUI : MonoBehaviour
         CoreUpgradeManager.OnLevelChanged  -= OnLevelChanged;
     }
 
+    private void Update()
+    {
+        if (!IsPanelOpen()) return;
+
+        // F키 토글 닫기 (IsBlocked 상태에서도 직접 감지)
+        if (Input.GetKeyDown(KeyCode.F))
+            Close();
+    }
+
     // ── 공개 API ──────────────────────────────────────────────────────
 
     public void Open()
     {
         panelRoot?.SetActive(true);
         Refresh();
+    }
+
+    /// <summary>GameUIController.CloseAll() 에서 순환 호출 없이 패널만 숨길 때 사용</summary>
+    public void HidePanel()
+    {
+        panelRoot?.SetActive(false);
     }
 
     public void Close()
@@ -291,6 +306,8 @@ public class CoreUpgradeUI : MonoBehaviour
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────────
+
+    private bool IsPanelOpen() => panelRoot != null && panelRoot.activeSelf;
 
     private void SetText(TextMeshProUGUI tmp, string value)
     {

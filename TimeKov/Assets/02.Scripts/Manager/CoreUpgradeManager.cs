@@ -284,15 +284,16 @@ public class CoreUpgradeManager : MonoBehaviour
 
     private void SaveLevel()
     {
-        PlayerPrefs.SetInt(SAVE_KEY, CurrentCoreLevel);
-        PlayerPrefs.Save();
+        // TODO: Steam + Firebase 저장 시스템 연동 시 여기에 구현
+        // SaveSystem.Save("currentCoreLevel", CurrentCoreLevel);
     }
 
     private void LoadLevel()
     {
-        CurrentCoreLevel = PlayerPrefs.GetInt(SAVE_KEY, 0);
-        CurrentCoreLevel = Mathf.Clamp(CurrentCoreLevel, 0, MAX_LEVEL);
-        Debug.Log($"[CoreUpgrade] 저장된 코어 레벨 로드: {CurrentCoreLevel}");
+        // TODO: Steam + Firebase 저장 시스템 연동 시 여기에 구현
+        // CurrentCoreLevel = SaveSystem.Load<int>("currentCoreLevel", defaultValue: 0);
+        CurrentCoreLevel = 0;  // 저장 시스템 연동 전까지 항상 0단계로 시작
+        Debug.Log("[CoreUpgrade] 코어 레벨 초기화 (저장 미연동 — 0단계 시작)");
     }
 
     private Player _cachedPlayer;
