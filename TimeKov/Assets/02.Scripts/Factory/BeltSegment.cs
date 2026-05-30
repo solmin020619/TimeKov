@@ -30,6 +30,8 @@ namespace TIMEKOV.Factory
 
         private void Start() => StartCoroutine(DetectNextFrame());
 
+        private void OnDisable() => StopAllCoroutines();
+
         private IEnumerator DetectNextFrame()
         {
             yield return null;
@@ -112,6 +114,8 @@ namespace TIMEKOV.Factory
             int safety = 100;
             while (cur.prevSegment != null && safety-- > 0)
                 cur = cur.prevSegment;
+            if (safety <= 0)
+                Debug.LogWarning($"[BeltSegment] GetChainHead: 순환 참조 감지! ({gameObject.name})", this);
             return cur;
         }
 

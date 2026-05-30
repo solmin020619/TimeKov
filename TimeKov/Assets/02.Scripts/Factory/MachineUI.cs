@@ -56,6 +56,10 @@ public class MachineUI : MonoBehaviour
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
 
+    [Header("연료 슬롯")]
+    [Tooltip("FuelDropSlot 컴포넌트가 붙은 연료 슬롯 오브젝트.")]
+    public FuelDropSlot fuelDropSlot;
+
     [Header("드래그&드랍 설정")]
     [Tooltip("인벤토리 패널에 붙어 있는 InventoryPanelDropZone 오브젝트.\n" +
              "비워두면 inventorySlotParent 부모에서 자동으로 찾거나 추가합니다.")]
@@ -126,6 +130,10 @@ public class MachineUI : MonoBehaviour
         BuildInventorySlots();
         RefreshOutputSlots();
 
+        // 연료 슬롯 초기화
+        var inv2 = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        fuelDropSlot?.Setup(machine, inv2);
+
         ShowFirstMachineHintIfNeeded();
 
         // [Gauge] 게이지 초기화 — 가공 시작 전 0%로 비우고 숨김
@@ -180,6 +188,9 @@ public class MachineUI : MonoBehaviour
 
         // [Gauge] 게이지 정리 — 패널 닫을 때 0%로 비우고 숨김
         if (processingGauge != null) processingGauge.StopAndHide();
+
+        // 연료 슬롯 정리
+        fuelDropSlot?.Cleanup();
 
         _machine = null;
 
@@ -441,7 +452,11 @@ public class MachineUI : MonoBehaviour
 
         if (statusText == null) return;
 
-        if (isSelectedRecipeActive)
+        if (_machine.Status == MachineStatus.NoFuel)
+        {
+            statusText.text = "⚠ 연료 부족";
+        }
+        else if (isSelectedRecipeActive)
         {
             float remaining = _machine.ActiveRecipe.processingTime * (1f - _machine.Progress);
             statusText.text = $"{remaining:F0}초";
