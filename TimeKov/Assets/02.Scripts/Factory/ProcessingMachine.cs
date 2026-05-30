@@ -134,7 +134,22 @@ namespace TIMEKOV.Factory
                 yield break;
             }
 
+            // 코루틴 중복 진입 방지 — 연료 대기 전에 먼저 true로 설정
             _processing = true;
+
+            // ── 연료 없으면 연료가 채워질 때까지 대기 ──────────────────
+            if (!HasFuel)
+            {
+                SetStatus(MachineStatus.NoFuel);
+                while (!HasFuel) yield return null;
+                // 연료 대기 중 재료가 사라졌을 경우 중단
+                if (!InputBuffer.HasAll(recipe.inputs))
+                {
+                    _processing = false;
+                    SetStatus(MachineStatus.Idle);
+                    yield break;
+                }
+            }
             ActiveRecipe = recipe;
             SetStatus(MachineStatus.Processing);
             _loopSound?.StartProduction();  // 생산 시작 → 루프 사운드 ON
@@ -145,6 +160,17 @@ namespace TIMEKOV.Factory
             float elapsed = 0f;
             while (elapsed < recipe.processingTime)
             {
+                // ── 가동 중 연료 소진 → 일시정지 ────────────────────────
+                if (!HasFuel)
+                {
+                    SetStatus(MachineStatus.NoFuel);
+                    _loopSound?.StopProduction(playDoneSound: false);
+                    while (!HasFuel) yield return null;
+                    SetStatus(MachineStatus.Processing);
+                    _loopSound?.StartProduction();
+                }
+
+                ConsumeFuelDelta(Time.deltaTime);
                 elapsed += Time.deltaTime;
                 Progress = elapsed / recipe.processingTime;
                 yield return null;

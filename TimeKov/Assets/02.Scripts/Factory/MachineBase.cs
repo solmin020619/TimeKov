@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace TIMEKOV.Factory
 {
-    public enum MachineStatus { Disconnected, Idle, Processing, OutputReady }
+    public enum MachineStatus { Disconnected, Idle, Processing, OutputReady, NoFuel }
 
     public abstract class MachineBase : MonoBehaviour
     {
@@ -15,6 +15,19 @@ namespace TIMEKOV.Factory
 
         public event Action OnBufferChanged;
         public event Action<MachineStatus> OnStatusChanged;
+
+        // ── 연료 ──────────────────────────────────────────────────────────
+        /// <summary>남은 연료 가동 시간 (초). 0 이하면 연료 없음.</summary>
+        public float FuelTimeRemaining { get; private set; }
+
+        /// <summary>투입된 연료 아이템 총 개수 (소수점 포함 — 사용 중인 개수 반영).</summary>
+        public int FuelItemCount { get; private set; }
+
+        /// <summary>연료가 남아있는지 여부.</summary>
+        public bool HasFuel => FuelTimeRemaining > 0f;
+
+        /// <summary>연료가 추가되거나 소진될 때 발생.</summary>
+        public event Action OnFuelChanged;
 
         /// <summary>연결된 출력 벨트 목록. 라운드 로빈으로 순서대로 사용.</summary>
         [HideInInspector] public List<BeltSegment> outputBelts = new();
@@ -180,6 +193,61 @@ namespace TIMEKOV.Factory
                 SetStatus(MachineStatus.Idle);
                 OnOutputCleared();
             }
+        }
+
+        // ── 연료 메서드 ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// 연료 아이템 itemCount개를 투입한다.
+        /// FuelConfig.secondsPerFuel 기준으로 가동 시간이 늘어난다.
+        /// </summary>
+        public void AddFuel(int itemCount)
+        {
+            var cfg = FuelConfig.Instance;
+            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+            FuelTimeRemaining += itemCount * secs;
+            FuelItemCount     += itemCount;
+            OnFuelChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// 남은 연료를 아이템으로 회수한다. 소수점은 버림(부분 소모된 연료는 손실).
+        /// 반환값: 회수된 아이템 개수.
+        /// </summary>
+        public int TakeFuel()
+        {
+            var cfg = FuelConfig.Instance;
+            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+            int count = Mathf.FloorToInt(FuelTimeRemaining / secs);
+            if (count <= 0) return 0;
+
+            FuelTimeRemaining -= count * secs;
+            FuelTimeRemaining  = Mathf.Max(0f, FuelTimeRemaining);
+            FuelItemCount      = Mathf.CeilToInt(FuelTimeRemaining / secs);
+            OnFuelChanged?.Invoke();
+            return count;
+        }
+
+        /// <summary>
+        /// ProcessingMachine의 ProcessRoutine에서 매 프레임 호출.
+        /// 연료가 소진되는 순간에만 OnFuelChanged를 발생시킨다.
+        /// </summary>
+        protected void ConsumeFuelDelta(float delta)
+        {
+            if (FuelTimeRemaining <= 0f) return;
+
+            var cfg = FuelConfig.Instance;
+            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+
+            float before = FuelTimeRemaining;
+            FuelTimeRemaining = Mathf.Max(0f, FuelTimeRemaining - delta);
+
+            // 연료 개수 동기화 (남은 시간 기준으로 역산)
+            FuelItemCount = Mathf.CeilToInt(FuelTimeRemaining / secs);
+
+            // 연료 소진 순간만 이벤트 발생
+            if (before > 0f && FuelTimeRemaining <= 0f)
+                OnFuelChanged?.Invoke();
         }
 
         protected void SetStatus(MachineStatus s)
