@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public enum PortType
@@ -8,6 +9,12 @@ public enum PortType
 
 public class BuildPort : MonoBehaviour
 {
+    /// <summary>씬에 활성화된 BuildPort 전체 목록. BeltSegment의 그리드 연결 감지에 사용.</summary>
+    public static readonly List<BuildPort> All = new();
+
+    private void OnEnable()  => All.Add(this);
+    private void OnDisable() => All.Remove(this);
+
     [Header("Port Type")]
     public PortType portType = PortType.Input;
 
@@ -93,8 +100,6 @@ public class BuildPort : MonoBehaviour
 
         Vector2Int worldCell = OwnerBuilding.originCell + rotatedOffset;
 
-        Debug.Log($"[BuildPort] {name} origin={OwnerBuilding.originCell}, size={size}, local={localCellOffset}, startOffset={offsetFromStart}, rotatedOffset={rotatedOffset}, worldCell={worldCell}");
-
         return worldCell;
     }
 
@@ -104,7 +109,6 @@ public class BuildPort : MonoBehaviour
         Vector2Int worldDir = GetWorldDirection();
         Vector2Int frontCell = worldCell + worldDir;
 
-        Debug.Log($"{name} worldCell={worldCell}, worldDir={worldDir}, frontCell={frontCell}");
         return frontCell;
     }
 
