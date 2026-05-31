@@ -28,9 +28,24 @@ namespace TIMEKOV.Factory
         [Header("감지 레이어")]
         public LayerMask detectMask;
 
+        /// <summary>씬에 활성화된 BeltSegment 전체 목록. 그리드 연결 감지에 사용.</summary>
+        public static readonly List<BeltSegment> All = new();
+
+        // ── 그리드 셀 캐시 ───────────────────────────────────────────────
+        private Vector2Int _beltCell;   // 이 벨트 자신의 셀
+        private Vector2Int _frontCell;  // beltCell + 앞 방향 (다음 연결 대상 셀)
+        private Vector2Int _backCell;   // beltCell + 뒤 방향 (이전 연결 대상 셀)
+        private bool       _cellsInitialized;
+
+        private void OnEnable() => All.Add(this);
+
         private void Start() => StartCoroutine(DetectNextFrame());
 
-        private void OnDisable() => StopAllCoroutines();
+        private void OnDisable()
+        {
+            All.Remove(this);
+            StopAllCoroutines();
+        }
 
         private IEnumerator DetectNextFrame()
         {
@@ -40,13 +55,147 @@ namespace TIMEKOV.Factory
             PropagateChain();
         }
 
-        public void DetectConnections()
+        // ── 그리드 셀 초기화 ─────────────────────────────────────────────
+
+        private void InitCells()
         {
-            if (endpointBack != null) DetectAt(endpointBack.position, false);
-            if (endpointFront != null) DetectAt(endpointFront.position, true);
+            if (endpointFront == null && endpointBack == null)
+            {
+                Debug.LogWarning("[BeltSegment] endpointFront/Back 모두 null → 물리 감지로 대체합니다.", this);
+                return;
+            }
+
+            var bm = FindFirstObjectByType<BuildManager>();
+            if (bm == null)
+            {
+                Debug.LogWarning("[BeltSegment] BuildManager를 찾을 수 없습니다. 물리 감지로 대체합니다.", this);
+                return;
+            }
+
+            Vector3 origin   = bm.GridOriginPos;
+            float   cellSize = 1f;
+
+            // 이 벨트 자신의 셀 (transform 기준, FloorToInt로 확정)
+            _beltCell = new Vector2Int(
+                Mathf.FloorToInt((transform.position.x - origin.x) / cellSize),
+                Mathf.FloorToInt((transform.position.z - origin.z) / cellSize));
+
+            // endpoint가 어느 방향에 있는지로 인접 셀 계산
+            // → 코너 피스처럼 front/back 모두 같은 셀 내에 있어도 정확히 처리
+            if (endpointFront != null)
+                _frontCell = _beltCell + WorldDirToGridDir(endpointFront.position - transform.position);
+
+            if (endpointBack != null)
+                _backCell  = _beltCell + WorldDirToGridDir(endpointBack.position  - transform.position);
+
+            _cellsInitialized = true;
+
+            Debug.Log($"[BeltSegment] {gameObject.name} 셀 초기화 — own:{_beltCell} front:{_frontCell} back:{_backCell}", this);
         }
 
-        private void DetectAt(Vector3 pos, bool isFront)
+        /// <summary>
+        /// 월드 벡터를 가장 가까운 그리드 방향 (±1, 0) 또는 (0, ±1)로 변환한다.
+        /// </summary>
+        private static Vector2Int WorldDirToGridDir(Vector3 dir)
+        {
+            float ax = Mathf.Abs(dir.x);
+            float az = Mathf.Abs(dir.z);
+            if (ax >= az)
+                return new Vector2Int(dir.x >= 0 ? 1 : -1, 0);
+            else
+                return new Vector2Int(0, dir.z >= 0 ? 1 : -1);
+        }
+
+        // ── 수동 재연결 (Inspector 우클릭 또는 인게임 호출) ──────────────
+
+        [ContextMenu("연결 재감지 (Reconnect)")]
+        public void Reconnect()
+        {
+            // 기존 연결 초기화
+            if (prevSegment != null && prevSegment.nextSegment == this) prevSegment.nextSegment = null;
+            if (nextSegment != null && nextSegment.prevSegment == this) nextSegment.prevSegment = null;
+            sourceM?.RemoveOutputBelt(this);
+
+            prevSegment       = null;
+            nextSegment       = null;
+            sourceM           = null;
+            targetM           = null;
+            _cellsInitialized = false;
+
+            // 재감지 → 재전파
+            StartCoroutine(DetectNextFrame());
+            Debug.Log($"[BeltSegment] {gameObject.name} 재연결 요청", this);
+        }
+
+        // ── 연결 감지 (그리드 기반) ──────────────────────────────────────
+
+        public void DetectConnections()
+        {
+            if (!_cellsInitialized) InitCells();
+
+            if (_cellsInitialized)
+                GridDetectConnections();
+            else
+                LegacyDetectConnections(); // BuildManager 없을 때 폴백
+        }
+
+        private void GridDetectConnections()
+        {
+            // ── 설비 감지: 물리 기반 유지 ─────────────────────────────────
+            // 여러 벨트가 같은 설비 출력에 연결되는 라운드 로빈을 지원하려면
+            // 설비 연결은 OverlapSphere 방식을 사용해야 한다.
+            if (endpointBack  != null) DetectMachineAt(endpointBack.position);
+            if (endpointFront != null) DetectMachineAt(endpointFront.position);
+
+            // ── 벨트↔벨트 감지: 그리드 기반 ─────────────────────────────
+            // A.frontCell == B.beltCell → A 다음에 B
+            foreach (var other in All)
+            {
+                if (other == null || other == this || !other._cellsInitialized) continue;
+
+                if (_frontCell == other._beltCell)
+                {
+                    if (nextSegment == null)       nextSegment       = other;
+                    if (other.prevSegment == null) other.prevSegment = this;
+                }
+
+                if (other._frontCell == _beltCell)
+                {
+                    if (prevSegment == null)       prevSegment       = other;
+                    if (other.nextSegment == null) other.nextSegment  = this;
+                }
+            }
+        }
+
+        /// <summary>설비 포트 물리 감지 — 여러 벨트가 같은 설비에 연결되는 라운드 로빈 지원.</summary>
+        private void DetectMachineAt(Vector3 pos)
+        {
+            var hits = Physics.OverlapSphere(pos, detectRadius, detectMask);
+            foreach (var hit in hits)
+            {
+                if (hit.gameObject == gameObject) continue;
+                var machine = hit.GetComponentInParent<MachineBase>();
+                if (machine == null) continue;
+
+                bool nearOutput = machine.outputPort != null && machine.inputPort != null
+                    ? Vector3.Distance(pos, machine.outputPort.position) <
+                      Vector3.Distance(pos, machine.inputPort.position)
+                    : machine.outputPort != null;
+
+                if (nearOutput) sourceM = machine;
+                else            targetM  = machine;
+            }
+        }
+
+        // ── 레거시 물리 감지 (폴백) ──────────────────────────────────────
+
+        private void LegacyDetectConnections()
+        {
+            if (endpointBack  != null) LegacyDetectAt(endpointBack.position,  false);
+            if (endpointFront != null) LegacyDetectAt(endpointFront.position, true);
+        }
+
+        private void LegacyDetectAt(Vector3 pos, bool isFront)
         {
             var hits = Physics.OverlapSphere(pos, detectRadius, detectMask);
             foreach (var hit in hits)
@@ -57,12 +206,12 @@ namespace TIMEKOV.Factory
                 if (machine != null)
                 {
                     bool nearOutput = machine.outputPort != null && machine.inputPort != null
-                        ? Vector3.Distance(pos, machine.outputPort.position)<
+                        ? Vector3.Distance(pos, machine.outputPort.position) <
                           Vector3.Distance(pos, machine.inputPort.position)
                         : machine.outputPort != null;
 
                     if (nearOutput) sourceM = machine;
-                    else targetM = machine;
+                    else            targetM  = machine;
                     continue;
                 }
 
@@ -72,37 +221,37 @@ namespace TIMEKOV.Factory
                 if (isFront)
                 {
                     bool neighborBackIsClose = seg.endpointBack != null &&
-                        Vector3.Distance(pos, seg.endpointBack.position)<
+                        Vector3.Distance(pos, seg.endpointBack.position) <
                         Vector3.Distance(pos, seg.endpointFront != null
                             ? seg.endpointFront.position : seg.transform.position);
 
                     if (neighborBackIsClose)
                     {
-                        if (nextSegment == null) nextSegment = seg;
-                        if (seg.prevSegment == null) seg.prevSegment = this;
+                        if (nextSegment == null)      nextSegment      = seg;
+                        if (seg.prevSegment == null)  seg.prevSegment  = this;
                     }
                     else
                     {
-                        if (prevSegment == null) prevSegment = seg;
-                        if (seg.nextSegment == null) seg.nextSegment = this;
+                        if (prevSegment == null)      prevSegment      = seg;
+                        if (seg.nextSegment == null)  seg.nextSegment  = this;
                     }
                 }
                 else
                 {
                     bool neighborFrontIsClose = seg.endpointFront != null &&
-                        Vector3.Distance(pos, seg.endpointFront.position)<
+                        Vector3.Distance(pos, seg.endpointFront.position) <
                         Vector3.Distance(pos, seg.endpointBack != null
                             ? seg.endpointBack.position : seg.transform.position);
 
                     if (neighborFrontIsClose)
                     {
-                        if (prevSegment == null) prevSegment = seg;
-                        if (seg.nextSegment == null) seg.nextSegment = this;
+                        if (prevSegment == null)      prevSegment      = seg;
+                        if (seg.nextSegment == null)  seg.nextSegment  = this;
                     }
                     else
                     {
-                        if (nextSegment == null) nextSegment = seg;
-                        if (seg.prevSegment == null) seg.prevSegment = this;
+                        if (nextSegment == null)      nextSegment      = seg;
+                        if (seg.prevSegment == null)  seg.prevSegment  = this;
                     }
                 }
             }
@@ -373,10 +522,25 @@ namespace TIMEKOV.Factory
 
         private void OnDrawGizmosSelected()
         {
-            Gizmos.color = Color.green;
-            if (endpointFront != null) Gizmos.DrawWireSphere(endpointFront.position, detectRadius);
-            Gizmos.color = Color.red;
-            if (endpointBack != null) Gizmos.DrawWireSphere(endpointBack.position, detectRadius);
+            if (_cellsInitialized)
+            {
+                // 자신의 셀 (파란색)
+                Gizmos.color = Color.blue;
+                Gizmos.DrawWireCube(transform.position, Vector3.one * 0.4f);
+                // 앞 방향 연결 셀 (초록)
+                Gizmos.color = Color.green;
+                if (endpointFront != null) Gizmos.DrawWireCube(endpointFront.position, Vector3.one * 0.3f);
+                // 뒤 방향 연결 셀 (빨강)
+                Gizmos.color = Color.red;
+                if (endpointBack != null) Gizmos.DrawWireCube(endpointBack.position, Vector3.one * 0.3f);
+            }
+            else
+            {
+                Gizmos.color = Color.green;
+                if (endpointFront != null) Gizmos.DrawWireSphere(endpointFront.position, detectRadius);
+                Gizmos.color = Color.red;
+                if (endpointBack  != null) Gizmos.DrawWireSphere(endpointBack.position,  detectRadius);
+            }
         }
     }
 }

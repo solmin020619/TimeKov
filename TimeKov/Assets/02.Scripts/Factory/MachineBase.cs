@@ -146,14 +146,20 @@ namespace TIMEKOV.Factory
             _nextBeltIndex = (_nextBeltIndex + 1) % outputBelts.Count;
         }
 
-        /// <summary>OutputBuffer 대기 아이템을 사용 가능한 벨트로 발송한다.</summary>
+        /// <summary>라운드 로빈 순서로 사용 가능한 벨트를 탐색한다.</summary>
         private BeltSegment FindAvailableOutputBelt()
         {
+            if (outputBelts.Count == 0) return null;
+            // _nextBeltIndex 기준으로 순환 탐색 (라운드 로빈 일관성 유지)
             for (int i = 0; i < outputBelts.Count; i++)
             {
-                var b = outputBelts[i];
+                int idx = (_nextBeltIndex + i) % outputBelts.Count;
+                var b = outputBelts[idx];
                 if (b != null && b.IsReady && !b.IsBusy && b.targetM != this)
+                {
+                    _nextBeltIndex = (idx + 1) % outputBelts.Count;
                     return b;
+                }
             }
             return null;
         }
