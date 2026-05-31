@@ -96,7 +96,8 @@ public class CoreUpgradeManager : MonoBehaviour
     /// 재검사 → 소모 → 확률 판정 → 스탯 적용 → 저장 순서로 처리.
     /// 성공 여부를 반환하며, OnUpgradeResult 이벤트도 발생.
     /// </summary>
-    public bool TryUpgrade()
+    /// <param name="successRateBonus">타임 캐치 성공 시 추가 확률 (기본 0, 성공 시 0.05)</param>
+    public bool TryUpgrade(float successRateBonus = 0f)
     {
         Player player = GetPlayer();
         if (player == null)
@@ -134,9 +135,10 @@ public class CoreUpgradeManager : MonoBehaviour
             return false;
         }
 
-        // ④ 확률 판정
-        bool success = UnityEngine.Random.value < nextData.successRate;
-        Debug.Log($"[CoreUpgrade] 확률 판정: successRate={nextData.successRate} → {(success ? "성공" : "실패")}");
+        // ④ 확률 판정 (타임 캐치 보너스 포함)
+        float finalRate = Mathf.Clamp01(nextData.successRate + successRateBonus);
+        bool success = UnityEngine.Random.value < finalRate;
+        Debug.Log($"[CoreUpgrade] 확률 판정: successRate={nextData.successRate} + bonus={successRateBonus} = {finalRate} → {(success ? "성공" : "실패")}");
 
         if (success)
         {

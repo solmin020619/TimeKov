@@ -82,6 +82,11 @@ public abstract class ComboAttackBase : ScriptableObject
         if (PostHitLockDuration > 0f)
             yield return new WaitForSeconds(PostHitLockDuration);
 
+        // 공격 애니메이션이 완전히 끝날 때까지 이동 잠금 유지
+        // (GetAnimDuration이 실제 애니보다 짧을 경우 끌림 방지)
+        if (anim != null)
+            yield return new WaitUntil(() => !anim.IsInActionAnim());
+
         if (rb != null)
             rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
 

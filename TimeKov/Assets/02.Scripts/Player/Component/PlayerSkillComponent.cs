@@ -193,6 +193,10 @@ public class PlayerSkillComponent : MonoBehaviour
         _currentSkill?.OnInterrupt(gameObject);
         _currentCombo?.OnInterrupt(gameObject);
 
+        // 스킬 인터럽트 시 이동 잠금 해제 보장
+        // (ComboAttackBase.OnInterrupt 에서도 해제하지만 스킬은 별도 처리 필요)
+        _player.Movement.LockMovement(false);
+
         // 공격 스윙 사운드 즉시 중단
         // (PlayOneShot은 코루틴 중단으로 안 멈추므로 직접 Stop)
         _player.Audio?.StopAttackSwing();
@@ -208,8 +212,16 @@ public class PlayerSkillComponent : MonoBehaviour
 
     private IEnumerator SkillFlow(SkillBase skill)
     {
+        // 스킬 실행 동안 이동 잠금
+        _player.Movement.LockMovement(true);
+
         yield return skill.ExecuteRoutine(gameObject);
+
+        // 스킬 루틴 종료 후에도 애니메이션이 남아있으면 Blend Tree 복귀까지 대기
+        yield return new WaitUntil(() => !_player.Anim.IsInActionAnim());
+
         CurrentSkillIsInterruptible = false;
+        _player.Movement.LockMovement(false);
         _currentRoutine = null;
         _currentSkill = null;
     }

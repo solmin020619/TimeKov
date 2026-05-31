@@ -166,6 +166,9 @@ public static class CoreUpgradeUIBuilder
         feedback.gameObject.SetActive(false);
         SetRef(so, "feedbackText", feedback);
 
+        // ── 타임 캐치 UI ───────────────────────────────
+        BuildTimeCatch(root, so);
+
         // ── 레퍼런스 적용 ─────────────────────────────
         so.ApplyModifiedProperties();
 
@@ -175,6 +178,205 @@ public static class CoreUpgradeUIBuilder
 
         Debug.Log($"[TIMEKOV] ✅ 코어 강화 UI 생성 완료! Canvas: '{canvas.name}' 하위에 CoreUpgradePanel이 추가됐습니다.");
         EditorUtility.DisplayDialog("완료", "코어 강화 UI가 생성됐습니다!\n\n하이어라키에서 CoreUpgradePanel을 확인하세요.\n씬을 저장(Ctrl+S)하는 것을 잊지 마세요.", "확인");
+    }
+
+    // ── 타임 캐치 단독 추가 ───────────────────────────────────────────
+    [MenuItem("Tools/TIMEKOV/코어 강화 타임캐치 UI 추가")]
+    public static void AddTimeCatch()
+    {
+        var panelGo = Selection.activeGameObject;
+        if (panelGo == null || panelGo.name != "CoreUpgradePanel")
+        {
+            EditorUtility.DisplayDialog("오류",
+                "하이어라키에서 CoreUpgradePanel을 선택한 뒤 실행하세요.", "확인");
+            return;
+        }
+        if (panelGo.transform.Find("TimeCatchHost") != null)
+        {
+            bool replace = EditorUtility.DisplayDialog("경고",
+                "TimeCatchHost가 이미 존재합니다. 교체할까요?", "교체", "취소");
+            if (!replace) return;
+            Object.DestroyImmediate(panelGo.transform.Find("TimeCatchHost").gameObject);
+        }
+        var uiComp = panelGo.GetComponent<CoreUpgradeUI>();
+        if (uiComp == null)
+        {
+            EditorUtility.DisplayDialog("오류",
+                "CoreUpgradeUI 컴포넌트가 없습니다.", "확인");
+            return;
+        }
+        var so = new SerializedObject(uiComp);
+        BuildTimeCatch(panelGo, so);
+        so.ApplyModifiedProperties();
+        EditorSceneManager.MarkSceneDirty(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        EditorUtility.DisplayDialog("완료",
+            "TimeCatch UI가 추가됐습니다!\nCtrl+S로 씬을 저장하세요.", "확인");
+    }
+
+    // ── 타임 캐치 UI 빌드 ─────────────────────────────────────────────
+    static void BuildTimeCatch(GameObject root, SerializedObject coreSO)
+    {
+        // ── TimeCatchHost ─────────────────────────────────
+        // 항상 활성. 화면 정중앙 오버레이 팝업
+        var host = new GameObject("TimeCatchHost", typeof(RectTransform));
+        host.transform.SetParent(root.transform, false);
+        var hostRt = host.GetComponent<RectTransform>();
+        hostRt.anchorMin = hostRt.anchorMax = hostRt.pivot = new Vector2(0.5f, 0.5f);
+        hostRt.sizeDelta        = Vector2.zero;
+        hostRt.anchoredPosition = Vector2.zero;
+
+        var tc  = host.AddComponent<TimeCatchUI>();
+        var tso = new SerializedObject(tc);
+
+        // ── 팝업 패널 (처음엔 숨김) ──────────────────────
+        // 전체 화면을 살짝 가리는 반투명 딤 레이어 + 팝업 창
+        var dimGo = new GameObject("Dim", typeof(RectTransform), typeof(Image));
+        dimGo.transform.SetParent(host.transform, false);
+        var dimRt = dimGo.GetComponent<RectTransform>();
+        dimRt.anchorMin = Vector2.zero;
+        dimRt.anchorMax = Vector2.one;
+        dimRt.offsetMin = dimRt.offsetMax = Vector2.zero;
+        dimGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
+
+        var popup = new GameObject("TimeCatchPanel", typeof(RectTransform), typeof(Image));
+        popup.transform.SetParent(host.transform, false);
+        var popupRt = popup.GetComponent<RectTransform>();
+        popupRt.anchorMin = popupRt.anchorMax = popupRt.pivot = new Vector2(0.5f, 0.5f);
+        popupRt.sizeDelta        = new Vector2(380, 500);
+        popupRt.anchoredPosition = Vector2.zero;
+        popup.GetComponent<Image>().color = Hex("07111E", 255);
+        popup.SetActive(false);
+        SetRef(tso, "timeCatchPanel", popup);
+
+        // 파란 외곽 테두리 효과 (살짝 큰 배경)
+        var border = MakeImage("Border", popup.transform,
+            new Vector2(380, 500), Vector2.zero, Hex("1A4060", 180));
+        border.transform.SetAsFirstSibling();
+
+        // ── 타이틀 ────────────────────────────────────────
+        MakeTMP("Title", popup.transform,
+            new Vector2(340, 45), new Vector2(0f, 210f),
+            "TIME  CATCH", 26f, Hex("7DD4FC"),
+            TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+
+        // 타이틀 구분선
+        MakeImage("TitleLine", popup.transform,
+            new Vector2(320, 1), new Vector2(0f, 185f), Hex("1A4060", 200));
+
+        // ── 시계 영역 컨테이너 ────────────────────────────
+        var clock = new GameObject("ClockArea", typeof(RectTransform));
+        clock.transform.SetParent(popup.transform, false);
+        var clockRt = clock.GetComponent<RectTransform>();
+        clockRt.anchorMin = clockRt.anchorMax = clockRt.pivot = new Vector2(0.5f, 0.5f);
+        clockRt.sizeDelta        = new Vector2(260, 260);
+        clockRt.anchoredPosition = new Vector2(0f, 40f);
+
+        // 시계 어두운 배경 원
+        MakeImage("ClockFace", clock.transform,
+            new Vector2(260, 260), Vector2.zero, Hex("030A12", 255));
+
+        // 외곽 링 (Radial360 full, 얇은 청록 링)
+        var outerRingGo = MakeImage("OuterRing", clock.transform,
+            new Vector2(260, 260), Vector2.zero, Hex("7DD4FC", 90));
+        var outerRingImg = outerRingGo.GetComponent<Image>();
+        outerRingImg.type       = Image.Type.Filled;
+        outerRingImg.fillMethod = Image.FillMethod.Radial360;
+        outerRingImg.fillAmount = 1f;
+        SetRef(tso, "trackRingImage", outerRingImg);
+
+        // 성공 구간 아크 (Radial360, 초록, 12시 중앙)
+        var zoneGo  = MakeImage("SuccessZone", clock.transform,
+            new Vector2(260, 260), Vector2.zero, Hex("00E676", 220));
+        var zoneImg = zoneGo.GetComponent<Image>();
+        zoneImg.type       = Image.Type.Filled;
+        zoneImg.fillMethod = Image.FillMethod.Radial360;
+        zoneImg.fillOrigin = 2;           // Top
+        zoneImg.fillAmount = 60f / 360f;  // 기본 60°
+        zoneGo.transform.localRotation = Quaternion.Euler(0f, 0f, 30f);
+        SetRef(tso, "successZoneImage", zoneImg);
+
+        // 내부 마스크 (도넛 효과)
+        MakeImage("InnerMask", clock.transform,
+            new Vector2(210, 210), Vector2.zero, Hex("030A12", 255));
+
+        // 12개 눈금
+        for (int i = 0; i < 12; i++)
+        {
+            float  deg  = i * 30f;
+            float  rad  = deg * Mathf.Deg2Rad;
+            float  r    = 112f;
+            bool   major = (i % 3 == 0);
+            float  tw = major ? 3f : 2f;
+            float  th = major ? 14f : 8f;
+            Color  tc2 = major ? Hex("7DD4FC", 230) : Hex("FFFFFF", 120);
+
+            var tick = MakeImage($"Tick{i}", clock.transform,
+                new Vector2(tw, th),
+                new Vector2(Mathf.Sin(rad) * r, Mathf.Cos(rad) * r),
+                tc2);
+            tick.transform.localRotation = Quaternion.Euler(0f, 0f, -deg);
+        }
+
+        // 12시 성공 구간 강조 마커
+        MakeImage("TopMarker", clock.transform,
+            new Vector2(5f, 18f), new Vector2(0f, 108f), Hex("00E676", 255));
+
+        // 바늘 (pivot 하단 중앙 → 중심에서 위로 뻗음)
+        var needleGo = new GameObject("Needle", typeof(RectTransform), typeof(Image));
+        needleGo.transform.SetParent(clock.transform, false);
+        var needleRt = needleGo.GetComponent<RectTransform>();
+        needleRt.anchorMin = needleRt.anchorMax = new Vector2(0.5f, 0.5f);
+        needleRt.pivot     = new Vector2(0.5f, 0f);  // 하단 = 회전축
+        needleRt.sizeDelta        = new Vector2(3f, 90f);
+        needleRt.anchoredPosition = Vector2.zero;
+        needleGo.GetComponent<Image>().color = Color.white;
+        SetRef(tso, "needle", needleRt);
+
+        // 중심 핀
+        MakeImage("CenterPin", clock.transform,
+            new Vector2(10f, 10f), Vector2.zero, Hex("7DD4FC", 255));
+
+        // ── 확률 표시 ─────────────────────────────────────
+        MakeImage("RateLine", popup.transform,
+            new Vector2(320, 1), new Vector2(0f, -90f), Hex("1A4060", 200));
+
+        var curRate = MakeTMP("CurrentRateText", popup.transform,
+            new Vector2(340, 32), new Vector2(0f, -115f),
+            "성공 확률  85%", 16f, Hex("AACCEE"),
+            TextAlignmentOptions.Center);
+        SetRef(tso, "currentRateText", curRate);
+
+        var bonusRate = MakeTMP("BonusRateText", popup.transform,
+            new Vector2(340, 32), new Vector2(0f, -145f),
+            "캐치 성공  90%  (+5%)", 16f, Hex("33CC66"),
+            TextAlignmentOptions.Center);
+        bonusRate.fontStyle = FontStyles.Bold;
+        SetRef(tso, "bonusRateText", bonusRate);
+
+        // ── 하단 안내 ─────────────────────────────────────
+        MakeImage("GuideLine", popup.transform,
+            new Vector2(320, 1), new Vector2(0f, -175f), Hex("1A4060", 200));
+
+        var guide = MakeTMP("GuideText", popup.transform,
+            new Vector2(340, 36), new Vector2(0f, -205f),
+            "SPACE", 22f, Hex("7DD4FC"),
+            TextAlignmentOptions.Center);
+        guide.fontStyle = FontStyles.Bold;
+        SetRef(tso, "guideText", guide);
+
+        // ── 결과 텍스트 ───────────────────────────────────
+        var result = MakeTMP("ResultText", popup.transform,
+            new Vector2(340, 40), new Vector2(0f, -205f),
+            "", 22f, Hex("33CC66"), TextAlignmentOptions.Center);
+        result.fontStyle = FontStyles.Bold;
+        result.gameObject.SetActive(false);
+        SetRef(tso, "resultText", result);
+
+        tso.ApplyModifiedProperties();
+
+        // CoreUpgradeUI 연결
+        SetRef(coreSO, "timeCatch", tc);
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────────

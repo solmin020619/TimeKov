@@ -127,6 +127,18 @@ public class PlayerAnimatorComponent : MonoBehaviour
         _anim.Play("Empty",      1, 0f);  // Action Layer → Empty (GS_Die 종료)
     }
 
+    /// <summary>
+    /// 대시·공격·스킬 등 액션 애니메이션이 재생 중이면 true.
+    /// 전환(Transition) 중이거나 Blend Tree 상태가 아닐 때 true를 반환.
+    /// DashRoutine / SkillFlow / ComboAttackBase 에서 이동 잠금 해제 타이밍 판단에 사용.
+    /// </summary>
+    public bool IsInActionAnim()
+    {
+        if (_anim == null) return false;
+        if (_anim.IsInTransition(0)) return true;   // 전환 중 = 아직 액션 중
+        return !_anim.GetCurrentAnimatorStateInfo(0).IsName("Blend Tree");
+    }
+
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
     public void PlayDie()
     {

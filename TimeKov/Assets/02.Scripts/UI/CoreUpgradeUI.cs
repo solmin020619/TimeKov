@@ -66,6 +66,12 @@ public class CoreUpgradeUI : MonoBehaviour
     [SerializeField] private GameObject upgradeInfoGroup;   // 일반 강화 정보 (MAX면 숨김)
     [SerializeField] private GameObject maxLevelGroup;      // MAX 표시 (MAX일 때만 보임)
 
+    // ── 타임 캐치 미니게임 ────────────────────────────────────────────
+    [Header("타임 캐치")]
+    [SerializeField] private TimeCatchUI timeCatch;
+    private const float TIME_CATCH_BONUS = 0.05f;  // 타임 캐치 성공 시 +5%
+    private bool _waitingForTimeCatch;              // 타임 캐치 진행 중 여부
+
     // ── 피드백 텍스트 (성공/실패 메시지) ─────────────────────────────
     [Header("피드백")]
     [SerializeField] private TextMeshProUGUI feedbackText;
@@ -99,13 +105,18 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         CoreUpgradeManager.OnUpgradeResult += OnUpgradeResult;
         CoreUpgradeManager.OnLevelChanged  += OnLevelChanged;
+        // 데이터 로드 완료 시 Refresh (World씬 직접 플레이 시 데이터 미로드 상태 대비)
+        DataBoot.OnDataLoaded += OnDataReady;
     }
 
     private void OnDisable()
     {
         CoreUpgradeManager.OnUpgradeResult -= OnUpgradeResult;
         CoreUpgradeManager.OnLevelChanged  -= OnLevelChanged;
+        DataBoot.OnDataLoaded -= OnDataReady;
     }
+
+    private void OnDataReady() => Refresh();
 
     private void Update()
     {
@@ -167,13 +178,16 @@ public class CoreUpgradeUI : MonoBehaviour
 
         var cur  = mgr.GetCurrentLevelData();
         var next = mgr.GetNextLevelData();
-        bool isMax = next == null;
+
+        // 데이터 미로드 상태에서 next==null이면 isMax로 오판 방지
+        // → DataBoot.IsLoaded가 true일 때만 진짜 최대 단계로 처리
+        bool isMax = (next == null) && DataBoot.IsLoaded;
 
         // 레벨 텍스트
         if (levelText != null)
             levelText.text = $"Lv.{mgr.CurrentCoreLevel} / 10";
 
-        // 최대 단계 분기
+        // 최대 단계 분기 (upgradeInfoGroup이 버튼도 포함하므로 여기서만 제어)
         if (upgradeInfoGroup != null) upgradeInfoGroup.SetActive(!isMax);
         if (maxLevelGroup    != null) maxLevelGroup.SetActive(isMax);
 
@@ -186,11 +200,7 @@ public class CoreUpgradeUI : MonoBehaviour
             SetText(currentDefText,     $"DEF : {cur.def}");
         }
 
-        if (isMax)
-        {
-            upgradeButton?.gameObject.SetActive(false);
-            return;
-        }
+        if (isMax) return;
 
         // 강화 후 스탯 + 증가량
         if (next != null && cur != null)
@@ -278,7 +288,33 @@ public class CoreUpgradeUI : MonoBehaviour
 
     private void OnClickUpgrade()
     {
-        CoreUpgradeManager.Instance?.TryUpgrade();
+        if (_waitingForTimeCatch) return;  // 타임 캐치 진행 중 중복 클릭 방지
+
+        var mgr = CoreUpgradeManager.Instance;
+        if (mgr == null) return;
+
+        var nextData = mgr.GetNextLevelData();
+
+        if (timeCatch != null && nextData != null)
+        {
+            // 강화 버튼 클릭 → 타임 캐치 팝업 즉시 표시
+            _waitingForTimeCatch = true;
+            timeCatch.StartCatch(
+                mgr.CurrentCoreLevel,
+                nextData.successRate,
+                onResult: catchSuccess =>
+                {
+                    _waitingForTimeCatch = false;
+                    float bonus = catchSuccess ? TIME_CATCH_BONUS : 0f;
+                    mgr.TryUpgrade(bonus);
+                    Refresh();
+                });
+        }
+        else
+        {
+            // TimeCatchUI 없으면 바로 강화
+            mgr.TryUpgrade(0f);
+        }
     }
 
     private void OnClickClose()

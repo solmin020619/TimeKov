@@ -106,10 +106,9 @@ public class PlayerStatComponent : MonoBehaviour
         if (skillComp != null && skillComp.IsExecuting)
             skillComp.Interrupt();
 
-        // 피격 애니메이션 — EnableHitAnimation이 true일 때만 재생
-        // 일반 몹: false (경직만, 애니메이션 없음)
-        // 보스:    Inspector에서 true로 설정
-        if (EnableHitAnimation)
+        // 피격 애니메이션 — EnableHitAnimation이 true이고 정지 상태일 때만 재생
+        // 이동 중 피격 시엔 경직만 주고 애니메이션은 생략 (어색한 끌림 방지)
+        if (EnableHitAnimation && _player.Movement.CurrentSpeed < 0.1f)
         {
             bool isLeft = attackerPos != Vector3.zero && IsAttackerOnLeft(attackerPos);
             _player.Anim.PlayHit(isLeft);
