@@ -15,10 +15,10 @@ public class FacilitySelectRow : MonoBehaviour
     [SerializeField] private Color normalColor   = new Color(0.08f, 0.08f, 0.10f, 0.75f);
     [SerializeField] private Color selectedColor = new Color(0.30f, 0.30f, 0.35f, 0.95f);
 
-    public ProcessingMachine Machine   { get; private set; }
-    public string             MachineName => nameText != null ? nameText.text : "";
+    public MachineBase Machine     { get; private set; }
+    public string      MachineName => nameText != null ? nameText.text : "";
 
-    public void Set(ProcessingMachine machine, string displayName)
+    public void Set(MachineBase machine, string displayName)
     {
         Machine = machine;
         if (nameText != null) nameText.text = displayName;
