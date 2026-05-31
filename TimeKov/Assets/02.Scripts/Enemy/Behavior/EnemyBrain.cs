@@ -30,6 +30,10 @@ public class EnemyBrain : MonoBehaviour
     [Tooltip("Animator의 Locomotion 전이용 float 파라미터 이름. NavMeshAgent.velocity.magnitude가 매 프레임 들어감.")]
     [SerializeField] private string speedParamName = "Speed";
 
+    [Header("Rotation")]
+    [Tooltip("이동 방향으로 회전하기 시작하는 최소 속도 (m/s). 이보다 빠르면 진행 방향을 바라보고, 느리면(정지/공격) 타깃을 바라봄.")]
+    [SerializeField] private float moveFaceThreshold = 0.1f;
+
     private BehaviorGraphAgent btAgent;
     private EnemyFeedback feedback;
     private GameObject lastTarget;
@@ -127,17 +131,36 @@ public class EnemyBrain : MonoBehaviour
 
     private void LateUpdate()
     {
-        // 타깃 향해 매 프레임 회전 — NavMeshAgent.isStopped 무관 (공격 중에도 작동).
-        // 사용자가 늑대 옆/뒤로 이동해도 늑대가 항상 사용자 향해 돌아감.
-        if (visionSensor == null) return;
-        var target = visionSensor.SpottedTarget;
-        if (target == null) return;
+        // [회전 기준] 이동 중이면 "진행 방향", 거의 멈춰 있으면(공격/대기) "타깃 방향"을 바라본다.
+        // 기존엔 타깃이 있을 때 항상 타깃 방향만 봐서, 순찰 중(타깃 없음)엔 회전을 아예 안 하고
+        // 추격 중엔 측면으로 접근하며 옆걸음·문워크가 발생했음. NavMeshAgent.updateRotation 은
+        // 꺼둔 상태(공격 중에도 직접 회전 제어하려고)라, 회전은 여기서 전적으로 처리한다.
+        Vector3 faceDir = Vector3.zero;
 
-        Vector3 dir = target.position - transform.position;
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.0001f) return;
+        // 1) 이동 중 — NavMeshAgent 속도(진행) 방향 우선
+        if (navAgent != null)
+        {
+            Vector3 vel = navAgent.velocity;
+            vel.y = 0f;
+            if (vel.sqrMagnitude > moveFaceThreshold * moveFaceThreshold)
+                faceDir = vel;
+        }
 
-        Quaternion targetRot = Quaternion.LookRotation(dir);
+        // 2) 거의 멈춤 — 타깃이 있으면 타깃 방향 (공격 중에도 플레이어를 향해 돌아감)
+        if (faceDir.sqrMagnitude < 0.0001f && visionSensor != null)
+        {
+            var target = visionSensor.SpottedTarget;
+            if (target != null)
+            {
+                Vector3 toTarget = target.position - transform.position;
+                toTarget.y = 0f;
+                faceDir = toTarget;
+            }
+        }
+
+        if (faceDir.sqrMagnitude < 0.0001f) return;
+
+        Quaternion targetRot = Quaternion.LookRotation(faceDir);
         float angularSpeedDeg = data != null ? data.angularSpeed : 480f;
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, angularSpeedDeg * Time.deltaTime);
     }

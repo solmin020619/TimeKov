@@ -18,12 +18,13 @@ public class GameUIController : MonoBehaviour
     public enum UIState
     {
         None,
-        Settings,    // ESC로 열리는 설정·일시정지 통합창
-        Factory,     // 설비 UI (MachineInteraction이 직접 관리)
-        Build,       // 건설 모드 (BuildManager가 직접 관리)
-        Quest,       // 퀘스트 수락/조회 팝업 (J키)
-        Inventory,   // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
-        PlayerStat   // 플레이어 스탯창 (C키)
+        Settings,     // ESC로 열리는 설정·일시정지 통합창
+        Factory,      // 설비 UI (MachineInteraction이 직접 관리)
+        Build,        // 건설 모드 (BuildManager가 직접 관리)
+        Quest,        // 퀘스트 수락/조회 팝업 (J키)
+        Inventory,    // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
+        PlayerStat,   // 플레이어 스탯창 (C키)
+        CoreUpgrade   // 코어 강화 UI (터미널 상호작용)
     }
 
     [Header("Settings Panel")]
@@ -150,6 +151,9 @@ public class GameUIController : MonoBehaviour
         // PlayerStat도 ESC로 같이 닫음 (단, _currentState와 독립이라 SetState 밖에서 처리)
         if (statPanel != null) statPanel.SetActive(false);
 
+        // 코어 강화 UI — SetState 전에 패널 먼저 숨김 (순환 호출 방지)
+        CoreUpgradeUI.Instance?.HidePanel();
+
         // SetState가 WindowManager mirror도 함께 처리
         SetState(UIState.None);
 
@@ -171,6 +175,20 @@ public class GameUIController : MonoBehaviour
     public void CloseSettings()
     {
         if (_currentState != UIState.Settings) return;
+        SetState(UIState.None);
+    }
+
+    // ── 코어 강화 UI ─────────────────────────────────────────────────
+
+    public void OpenCoreUpgradeUI()
+    {
+        if (_currentState != UIState.None) return;
+        SetState(UIState.CoreUpgrade);
+    }
+
+    public void CloseCoreUpgradeUI()
+    {
+        if (_currentState != UIState.CoreUpgrade) return;
         SetState(UIState.None);
     }
 
@@ -249,12 +267,13 @@ public class GameUIController : MonoBehaviour
     {
         switch (s)
         {
-            case UIState.Settings:  return "Settings";
-            case UIState.Factory:   return "Factory";
-            case UIState.Build:     return "BuildMode";
-            case UIState.Quest:     return "QuestPopup";
-            case UIState.Inventory: return "Inventory";
-            default:                return null;   // None, PlayerStat은 별도 채널
+            case UIState.Settings:    return "Settings";
+            case UIState.Factory:     return "Factory";
+            case UIState.Build:       return "BuildMode";
+            case UIState.Quest:       return "QuestPopup";
+            case UIState.Inventory:   return "Inventory";
+            case UIState.CoreUpgrade: return "CoreUpgrade";
+            default:                  return null;   // None, PlayerStat은 별도 채널
         }
     }
 

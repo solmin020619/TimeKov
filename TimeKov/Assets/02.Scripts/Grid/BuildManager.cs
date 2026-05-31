@@ -84,6 +84,15 @@ public class BuildManager : MonoBehaviour
              "비워두면 기존 방식(플레이어 위치 기준)으로 동작.")]
     public BoxCollider buildZoneCollider;
 
+    [Tooltip("체크 시 건축존(zoneChecker) 안에 있을 때만 B키 빌드 모드 진입 가능. 기획자 토글.\n" +
+             "zoneChecker 미연결 시에는 이 옵션과 무관하게 게이팅 생략.")]
+    public bool requireZoneToBuild = true;
+    [Tooltip("존 밖에서 빌드 모드 진입 시도 시 띄울 토스트 (선택). 기존 ToastNotification 재사용.\n" +
+             "비워두면 콘솔 로그로 폴백.")]
+    public ToastNotification buildZoneToast;
+    [Tooltip("존 밖 안내 토스트 메시지")]
+    public string buildZoneBlockedMessage = "건축 가능 지역이 아닙니다!";
+
     [Header("Rail")]
     [SerializeField] private RailBuildManager railBuildManager;
 
@@ -360,6 +369,15 @@ public class BuildManager : MonoBehaviour
     // WindowManager의 BuildModeWindowAdapter가 OnOpen/OnClose에서 호출.
     // 양쪽 모두 idempotent — 이미 그 상태면 즉시 return.
 
+    // 존 밖 빌드 시도 안내 토스트. buildZoneToast 미연결 시 콘솔 로그로 폴백.
+    void ShowBuildZoneToast()
+    {
+        if (buildZoneToast != null)
+            buildZoneToast.Show(buildZoneBlockedMessage);
+        else
+            Debug.Log($"[BuildManager] {buildZoneBlockedMessage} (buildZoneToast 미연결)");
+    }
+
     public void EnterBuildMode()
     {
         if (IsBuildMode) return;
@@ -367,6 +385,13 @@ public class BuildManager : MonoBehaviour
         // 다른 UI가 열려있으면 진입 차단
         if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
             return;
+
+        // 건축존 밖이면 진입 차단 + 안내 토스트 (zoneChecker 미연결 시 게이팅 생략)
+        if (requireZoneToBuild && zoneChecker != null && !zoneChecker.IsInBuildZone)
+        {
+            ShowBuildZoneToast();
+            return;
+        }
 
         IsBuildMode = true;
         hasSelectedSlot = false;
