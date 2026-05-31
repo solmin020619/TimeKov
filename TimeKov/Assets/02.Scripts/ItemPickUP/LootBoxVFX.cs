@@ -21,6 +21,13 @@ public class LootBoxVFX : MonoBehaviour
     [Tooltip("등급별 VFX 목록. 박스 내용물 중 최고 등급에 맞는 항목이 쓰인다.")]
     [SerializeField] private GradeVfx[] gradeVfx;
 
+    [Header("연료 전용 VFX")]
+    [Tooltip("박스에 연료(FuelConfig.fuelItemId)가 들어 있으면 등급 VFX 대신 이걸 쓴다.\n" +
+             "비워두면 연료여도 기존 등급 VFX 사용 (폴백). 바닥 오라.")]
+    [SerializeField] private GameObject fuelDropVfx;
+    [Tooltip("연료 박스를 F로 먹을 때 트레일. 비워두면 등급 트레일 폴백.")]
+    [SerializeField] private GameObject fuelCollectVfx;
+
     [Tooltip("수집 VFX가 플레이어에게 빨려가는 시간 (초)")]
     [SerializeField] private float collectFlyTime = 0.35f;
 
@@ -50,12 +57,32 @@ public class LootBoxVFX : MonoBehaviour
                           ? $"gradeVfx 항목 #{idx} (Grade = {gradeVfx[idx].grade} / {(int)gradeVfx[idx].grade}) 사용"
                           : "맞는 Grade 항목이 없음 → VFX 안 뜸"));
 
-        if (idx < 0) return;
+        // 기본값: 등급 VFX (idx 유효할 때만)
+        GameObject dropPrefab = idx >= 0 ? gradeVfx[idx].dropVfx : null;
+        _collectPrefab        = idx >= 0 ? gradeVfx[idx].collectVfx : null;
 
-        _collectPrefab = gradeVfx[idx].collectVfx;
+        // [연료 전용 VFX] 박스에 연료(FuelConfig.fuelItemId)가 있으면 등급 VFX 대신 연료 VFX 사용.
+        // 연료 슬롯/색과 동일하게 FuelConfig 기준 → 시트에서 연료 ID 바뀌어도 자동 동기화.
+        // 연료 VFX 슬롯이 비어 있으면 등급 VFX로 폴백(위에서 정한 값 유지).
+        if (BoxHasFuel(box))
+        {
+            if (fuelDropVfx != null)    dropPrefab    = fuelDropVfx;
+            if (fuelCollectVfx != null) _collectPrefab = fuelCollectVfx;
+        }
 
-        GameObject dropPrefab = gradeVfx[idx].dropVfx;
         if (dropPrefab != null) Instantiate(dropPrefab, box.transform);
+    }
+
+    // 박스 내용물에 연료(FuelConfig.fuelItemId)가 포함됐는지.
+    private bool BoxHasFuel(LootBox box)
+    {
+        var cfg = FuelConfig.Instance;
+        if (cfg == null || box == null) return false;
+
+        var contents = box.Contents;
+        for (int i = 0; i < contents.Count; i++)
+            if (contents[i].itemId == cfg.fuelItemId) return true;
+        return false;
     }
 
     // LootBox.Collect 에서 호출 — 등급 Trail VFX를 박스에서 플레이어 쪽으로 날린다
