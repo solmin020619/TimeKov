@@ -8,6 +8,7 @@ namespace TIMEKOV.Factory
     {
         [Header("설비 이름 (UI 표시용)")]
         public string machineName = "설비";
+        public override string MachineName => !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
 
         [Header("조합식 목록")]
         [SerializeField] private List<FactoryRecipe> recipes = new();

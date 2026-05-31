@@ -13,6 +13,9 @@ namespace TIMEKOV.Factory
 
         public MachineStatus Status { get; protected set; } = MachineStatus.Idle;
 
+        /// <summary>UI에 표시할 설비 이름. 서브클래스에서 override해 사용한다.</summary>
+        public virtual string MachineName => gameObject.name;
+
         public event Action OnBufferChanged;
         public event Action<MachineStatus> OnStatusChanged;
 

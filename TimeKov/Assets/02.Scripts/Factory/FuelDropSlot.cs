@@ -30,10 +30,10 @@ public class FuelDropSlot : MonoBehaviour,
 
     // ── 드래그 아웃 static 상태 (InventoryPanelDropZone이 읽어감) ──────
     public static bool             IsFuelDragging { get; private set; }
-    public static ProcessingMachine DragMachine   { get; private set; }
-    public static InventoryManager  DragInventory { get; private set; }
-    public static int               DragFuelCount { get; private set; }
-    public static int               DragFuelItemId{ get; private set; }
+    public static MachineBase      DragMachine   { get; private set; }
+    public static InventoryManager DragInventory { get; private set; }
+    public static int              DragFuelCount { get; private set; }
+    public static int              DragFuelItemId{ get; private set; }
 
     private static GameObject _dragVisual;
 
@@ -41,7 +41,7 @@ public class FuelDropSlot : MonoBehaviour,
     private float _lastClickTime = -1f;
     private const float DoubleClickThreshold = 0.3f;
 
-    private ProcessingMachine _machine;
+    private MachineBase       _machine;
     private InventoryManager  _inventory;
     private Canvas            _canvas;
 
@@ -63,7 +63,7 @@ public class FuelDropSlot : MonoBehaviour,
 
     // ── 초기화 / 정리 ───────────────────────────────────────────────────
 
-    public void Setup(ProcessingMachine machine, InventoryManager inventory)
+    public void Setup(MachineBase machine, InventoryManager inventory)
     {
         if (_machine != null) _machine.OnFuelChanged -= OnFuelChanged;
 
@@ -241,7 +241,7 @@ public class FuelDropSlot : MonoBehaviour,
         if (cfg == null) { e.pointerDrag = null; return; }
 
         IsFuelDragging = true;
-        DragMachine    = _machine as ProcessingMachine;
+        DragMachine    = _machine;
         DragInventory  = _inventory;
         DragFuelCount  = _machine.FuelItemCount;
         DragFuelItemId = cfg.fuelItemId;

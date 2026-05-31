@@ -17,9 +17,9 @@ public class FacilitySelectPanel : MonoBehaviour
     private readonly List<FacilitySelectRow> _rows = new();
     private int _selectedIndex = 0;
 
-    public bool             IsShowing       => panelRoot != null && panelRoot.activeSelf;
-    public ProcessingMachine SelectedMachine  => InRange(_selectedIndex) ? _rows[_selectedIndex].Machine     : null;
-    public string            SelectedMachineName => InRange(_selectedIndex) ? _rows[_selectedIndex].MachineName : "";
+    public bool        IsShowing           => panelRoot != null && panelRoot.activeSelf;
+    public MachineBase SelectedMachine     => InRange(_selectedIndex) ? _rows[_selectedIndex].Machine     : null;
+    public string      SelectedMachineName => InRange(_selectedIndex) ? _rows[_selectedIndex].MachineName : "";
 
     private bool InRange(int i) => _rows.Count > 0 && i >= 0 && i < _rows.Count;
 
@@ -28,7 +28,7 @@ public class FacilitySelectPanel : MonoBehaviour
     void Awake() => Hide();
 
     /// <summary>패널을 표시한다. 목록이 바뀔 때마다 재호출.</summary>
-    public void Show(List<(ProcessingMachine machine, string name)> machines)
+    public void Show(List<(MachineBase machine, string name)> machines)
     {
         ClearRows();
         _selectedIndex = 0;
