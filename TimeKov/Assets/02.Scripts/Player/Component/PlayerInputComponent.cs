@@ -15,42 +15,58 @@ public class PlayerInputComponent : MonoBehaviour
 
     public static bool IsBlocked = false; // UI가 열림
 
+    private PlayerSkillComponent _skill;
+
     void Awake()
     {
         // static 필드는 씬 리로드 시 초기화되지 않으므로 여기서 명시적으로 리셋
         // (UI 열린 채 사망 → 씬 재로드 시 IsBlocked = true 고착 방지)
         IsBlocked = false;
+        _skill = GetComponent<PlayerSkillComponent>();
     }
 
     void Update()
     {
         if (IsBlocked) // UI 열림 시 모든 입력 차단
         {
-            MoveInput      = Vector2.zero;
-            JumpPressed    = false;
-            JumpHeld       = false;
-            JumpUp         = false;
-            AttackPressed  = false;
-            DashPressed    = false;
-            Skill1Pressed  = false;
-            Skill2Pressed  = false;
-            Skill3Pressed  = false;
+            MoveInput       = Vector2.zero;
+            JumpPressed     = false;
+            JumpHeld        = false;
+            JumpUp          = false;
+            AttackPressed   = false;
+            DashPressed     = false;
+            Skill1Pressed   = false;
+            Skill2Pressed   = false;
+            Skill3Pressed   = false;
             InteractPressed = false;
             return;
         }
 
-        MoveInput = new Vector2(
-            Input.GetAxisRaw("Horizontal"),
-            Input.GetAxisRaw("Vertical")
-        );
-        JumpPressed    = Input.GetKeyDown(KeyCode.Space);
-        JumpHeld       = Input.GetKey(KeyCode.Space);
-        JumpUp         = Input.GetKeyUp(KeyCode.Space);
-        AttackPressed  = Input.GetMouseButtonDown(0);
-        DashPressed    = Input.GetMouseButtonDown(1);
-        Skill1Pressed  = Input.GetKeyDown(KeyCode.Q);
-        Skill2Pressed  = Input.GetKeyDown(KeyCode.E);
-        Skill3Pressed  = Input.GetKeyDown(KeyCode.R);
+        MoveInput       = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        JumpPressed     = Input.GetKeyDown(KeyCode.Space);
+        JumpHeld        = Input.GetKey(KeyCode.Space);
+        JumpUp          = Input.GetKeyUp(KeyCode.Space);
+        Skill1Pressed   = Input.GetKeyDown(KeyCode.Q);
+        Skill2Pressed   = Input.GetKeyDown(KeyCode.E);
+        Skill3Pressed   = Input.GetKeyDown(KeyCode.R);
         InteractPressed = Input.GetKeyDown(KeyCode.F);
+
+        // 스킬/콤보 실행 중 입력 차단
+        // LockMovement 만으로 부족한 경우 입력 레벨에서 이중 차단
+        bool skillExecuting = _skill != null && _skill.IsExecuting;
+        if (skillExecuting)
+        {
+            MoveInput     = Vector2.zero;  // WASD 이동 차단
+            JumpPressed   = false;         // 점프 차단
+            JumpHeld      = false;
+            JumpUp        = false;
+            AttackPressed = false;         // 좌클릭 차단
+            DashPressed   = false;         // 우클릭 차단
+        }
+        else
+        {
+            AttackPressed = Input.GetMouseButtonDown(0);
+            DashPressed   = Input.GetMouseButtonDown(1);
+        }
     }
 }
