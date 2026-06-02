@@ -93,10 +93,13 @@ public class PlayerSkillComponent : MonoBehaviour
 
     void TryComboAttack()
     {
-        // ������Dead��Hurt ���� ����
         if (_player.Movement.IsJumping) return;
         if (_player.Stat.IsDead) return;
-        if (_player.Stat.IsHurt) return;
+
+        // 피격 경직 중 공격 입력 → 경직 캔슬하고 공격 우선 (액션게임 표준).
+        // 정지 상태에서 1타 누르는 순간 직전 피격으로 IsHurt=true 면 입력이 씹혀
+        // 콤보 첫 타가 끊기던 문제 방지. (예전엔 IsHurt 면 무조건 return 했음)
+        if (_player.Stat.IsHurt) _player.Stat.CancelHurtStun();
 
         if (_comboAttacks.Count == 0) return;
 
