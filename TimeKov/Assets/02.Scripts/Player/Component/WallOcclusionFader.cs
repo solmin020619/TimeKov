@@ -3,29 +3,35 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// 카메라와 플레이어 사이에 있는 벽/오브젝트를 반투명하게 페이드
-/// 콜라이더 유무와 관계없이 Renderer의 Bounds로 감지
-/// Player GameObject에 부착
+/// 카메라와 플레이어 사이를 실제로 가로막는 오브젝트(벽/건물/나무)를 반투명 처리.
+/// 엔드필드식 — 시야를 가리는 것만 투과시켜 플레이어가 항상 보이게 한다.
+///
+/// 감지 방식: 카메라 -> 플레이어 광선을 RaycastAll 로 쏴서 "실제로 관통하는 콜라이더"만 투명화.
+/// (기존 Bounds 교차 방식은 옆에 비껴 선 건물도 통째로 투명해지고 내부 메시까지 비쳐서 교체함.)
+///
+/// Player GameObject 에 부착. occlusionMask 에 가릴 수 있는 레이어(Ground/Building/나무 등) 지정.
 /// </summary>
 public class WallOcclusionFader : MonoBehaviour
 {
     [Header("감지 설정")]
-    [Tooltip("감지할 레이어 (Ground 등 씬 오브젝트 레이어)")]
+    [Tooltip("가림 판정할 레이어. 카메라와 플레이어 사이를 막을 수 있는 것(Ground/Building/나무 등).\n" +
+             "콜라이더가 있어야 Raycast 로 잡힌다.")]
     public LayerMask occlusionMask;
 
-    [Tooltip("캐릭터 중심 높이 오프셋")]
+    [Tooltip("플레이어 조준점 높이 오프셋 (가슴 정도). 광선의 도착 지점.")]
     public float heightOffset = 1.0f;
 
-    [Tooltip("Bounds 교차 판정 여유 (값이 클수록 더 넓게 감지)")]
-    public float boundsExpand = 0.1f;
+    [Tooltip("플레이어 주변 이 반경 안의 가림만 처리 (RaycastAll 의 SphereCast 두께).\n" +
+             "0 이면 얇은 광선, 0.3~0.5 면 플레이어 폭만큼 넉넉히 감지.")]
+    public float castRadius = 0.4f;
 
     [Header("페이드 설정")]
     [Tooltip("투명해지는/복원되는 속도")]
-    public float fadeSpeed = 6f;
+    public float fadeSpeed = 8f;
 
-    [Tooltip("가려질 때 최소 알파 (0=완전투명, 0.15=살짝 보임)")]
+    [Tooltip("가려질 때 최소 알파 (0=완전투명, 0.2=살짝 보임). 플레이어 위치 가늠되게 약간 남기는 걸 권장.")]
     [Range(0f, 0.5f)]
-    public float minAlpha = 0.15f;
+    public float minAlpha = 0.2f;
 
     // ── 내부 상태 ────────────────────────────────────────────────────
 
@@ -37,36 +43,43 @@ public class WallOcclusionFader : MonoBehaviour
         public float      alpha = 1f;
     }
 
-    // 씬에서 occlusionMask 레이어에 해당하는 모든 Renderer 캐시
-    private readonly List<Renderer>                _candidates = new();
-    private readonly Dictionary<Renderer, FadeState> _states   = new();
-    private readonly HashSet<Renderer>              _thisFrame  = new();
+    private readonly Dictionary<Renderer, FadeState> _states    = new();
+    private readonly HashSet<Renderer>               _thisFrame = new();
+    // RaycastAll 결과 버퍼 (GC 방지용 재사용)
+    private readonly RaycastHit[]                     _hitBuffer = new RaycastHit[16];
 
-    // ── 초기화 ───────────────────────────────────────────────────────
+    // 콜라이더 없는 occluder(SpeedTree 등) 폴백 감지용 Renderer 캐시
+    private readonly List<Renderer> _colliderlessCandidates = new();
 
     void Start()
     {
-        CacheRenderers();
+        // occlusionMask 미설정 시 안전 폴백: Default/Ground/Building/BuildPort
+        // (나무는 보통 Default 라 자동 포함되게)
+        if (occlusionMask.value == 0)
+            occlusionMask = LayerMask.GetMask("Default", "Ground", "Building", "BuildPort");
+
+        CacheColliderlessCandidates();
     }
 
-    void CacheRenderers()
+    // 씬에서 occlusionMask 레이어이면서 콜라이더가 없는 Renderer 캐시.
+    // 콜라이더가 있는 것은 Raycast 로 잡고, 없는 것(SpeedTree 등)은 Bounds 로 보조 감지.
+    void CacheColliderlessCandidates()
     {
-        _candidates.Clear();
-
-        // 씬의 모든 Renderer 중 occlusionMask 레이어인 것만 캐시
+        _colliderlessCandidates.Clear();
         var all = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
         foreach (var r in all)
         {
             if (r == null) continue;
-            // 자기 자신 하위 오브젝트 제외
             if (r.transform.IsChildOf(transform)) continue;
 
             int layer = r.gameObject.layer;
-            if ((occlusionMask.value & (1 << layer)) != 0)
-                _candidates.Add(r);
-        }
+            if ((occlusionMask.value & (1 << layer)) == 0) continue;
 
-        Debug.Log($"[WallOcclusionFader] 감지 대상 렌더러 {_candidates.Count}개 캐시 완료");
+            // 콜라이더가 있으면 Raycast 로 처리되므로 폴백 후보에서 제외
+            if (r.GetComponentInParent<Collider>() != null) continue;
+
+            _colliderlessCandidates.Add(r);
+        }
     }
 
     // ── 메인 루프 ────────────────────────────────────────────────────
@@ -75,7 +88,31 @@ public class WallOcclusionFader : MonoBehaviour
     {
         _thisFrame.Clear();
         FindOccluders();
+        FindColliderlessOccluders();
         UpdateFade();
+    }
+
+    // 콜라이더 없는 후보(SpeedTree 등)는 카메라~플레이어 선분과 Bounds 교차로 감지
+    void FindColliderlessOccluders()
+    {
+        if (_colliderlessCandidates.Count == 0 || Camera.main == null) return;
+
+        Vector3 camPos    = Camera.main.transform.position;
+        Vector3 playerPos = transform.position + Vector3.up * heightOffset;
+
+        foreach (var r in _colliderlessCandidates)
+        {
+            if (r == null) continue;
+            Bounds b = r.bounds;
+            b.Expand(castRadius);
+
+            Vector3 d = playerPos - camPos;
+            float dist = d.magnitude;
+            if (dist < 0.01f) continue;
+            Ray ray = new Ray(camPos, d / dist);
+            if (b.IntersectRay(ray, out float hitD) && hitD <= dist)
+                _thisFrame.Add(r);
+        }
     }
 
     void FindOccluders()
@@ -85,22 +122,33 @@ public class WallOcclusionFader : MonoBehaviour
         Vector3 camPos    = Camera.main.transform.position;
         Vector3 playerPos = transform.position + Vector3.up * heightOffset;
 
-        // 카메라~플레이어 선분과 Renderer Bounds가 교차하는 오브젝트를 수집
-        foreach (var r in _candidates)
+        Vector3 dir  = playerPos - camPos;
+        float   dist = dir.magnitude;
+        if (dist < 0.01f) return;
+        dir /= dist;
+
+        // 카메라 -> 플레이어 사이를 실제로 막는 콜라이더만 수집 (관통 전부)
+        int count = Physics.SphereCastNonAlloc(
+            camPos, castRadius, dir, _hitBuffer, dist,
+            occlusionMask, QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
         {
-            if (r == null) continue;
+            var col = _hitBuffer[i].collider;
+            if (col == null) continue;
 
-            Bounds b = r.bounds;
-            b.Expand(boundsExpand); // 약간 넉넉하게 확장
+            // 자기 자신(플레이어) 하위는 제외
+            if (col.transform.IsChildOf(transform)) continue;
 
-            if (BoundsIntersectsSegment(b, camPos, playerPos))
-                _thisFrame.Add(r);
+            var r = col.GetComponentInChildren<Renderer>();
+            if (r == null) r = col.GetComponent<Renderer>();
+            if (r != null) _thisFrame.Add(r);
         }
     }
 
     void UpdateFade()
     {
-        // 이번 프레임에 가리는 오브젝트 → 투명 방향으로 페이드
+        // 이번 프레임에 가리는 것 → 투명 방향
         foreach (var r in _thisFrame)
         {
             var state = GetOrCreate(r);
@@ -108,7 +156,7 @@ public class WallOcclusionFader : MonoBehaviour
             ApplyAlpha(state);
         }
 
-        // 더 이상 안 가리는 오브젝트 → 불투명 복원
+        // 더 이상 안 가리는 것 → 불투명 복원 후 제거
         var toRemove = new List<Renderer>();
         foreach (var kvp in _states)
         {
@@ -131,28 +179,14 @@ public class WallOcclusionFader : MonoBehaviour
 
     // ── 헬퍼 ─────────────────────────────────────────────────────────
 
-    // 카메라~플레이어 선분과 Bounds 교차 판정
-    static bool BoundsIntersectsSegment(Bounds bounds, Vector3 a, Vector3 b)
-    {
-        Vector3 dir  = b - a;
-        float   dist = dir.magnitude;
-        if (dist < 0.001f) return false;
-
-        Ray ray = new Ray(a, dir / dist);
-        // IntersectRay: 교차 시 true, out 거리 반환
-        return bounds.IntersectRay(ray, out float d) && d <= dist;
-    }
-
     FadeState GetOrCreate(Renderer r)
     {
         if (_states.TryGetValue(r, out var existing)) return existing;
 
         var state = new FadeState { renderer = r };
-
-        // 원본 sharedMaterials 저장
         state.originalShared = r.sharedMaterials;
 
-        // 투명 처리용 인스턴스 생성
+        // 투명 처리용 인스턴스 생성 (원본 sharedMaterial 은 안 건드림)
         state.instances = new Material[state.originalShared.Length];
         for (int i = 0; i < state.originalShared.Length; i++)
         {
@@ -161,7 +195,7 @@ public class WallOcclusionFader : MonoBehaviour
         }
 
         r.materials = state.instances;
-        state.alpha  = 1f;
+        state.alpha = 1f;
 
         _states[r] = state;
         return state;
@@ -187,7 +221,7 @@ public class WallOcclusionFader : MonoBehaviour
             if (mat != null) Destroy(mat);
     }
 
-    // URP Lit Opaque → Transparent 런타임 전환
+    // URP Lit Opaque -> Transparent 런타임 전환
     static void SwitchToTransparent(Material mat)
     {
         mat.SetFloat("_Surface", 1f);
