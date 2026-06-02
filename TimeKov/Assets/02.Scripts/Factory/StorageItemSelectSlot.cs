@@ -9,12 +9,12 @@ using TIMEKOV.Factory;
 /// 인벤토리에서 아이템을 드래그해 놓으면 해당 아이템 ID가 추출 대상으로 설정된다.
 /// 아이템은 소비하지 않고 ID만 캡처한다.
 /// </summary>
-[RequireComponent(typeof(Image))]
 public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPointerExitHandler
 {
-    [SerializeField] private Image           iconImage;
+    [SerializeField] private Image           iconImage;     // 슬롯 아이콘
+    [SerializeField] private Image           bgIconImage;   // 왼쪽 패널 배경 아이템 이미지
     [SerializeField] private Image           borderImage;
-    [SerializeField] private TextMeshProUGUI countText;   // "창고: 12개"
+    [SerializeField] private TextMeshProUGUI countText;   // 왼쪽 수량 텍스트
     [SerializeField] private TextMeshProUGUI labelText;   // hover 시 "아이템 선택"
 
     [Header("Hover 색상")]
@@ -64,18 +64,25 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
 
         if (itemId <= 0)
         {
-            if (iconImage  != null) iconImage.enabled = false;
-            if (countText  != null) countText.text    = "";
+            if (iconImage   != null) iconImage.enabled   = false;
+            if (bgIconImage != null) bgIconImage.enabled = false;
+            if (countText   != null) countText.text      = "";
             return;
         }
 
-        // 아이콘
         var itemData = GameDataUtility.GetItem(itemId);
+        Sprite sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
+
         if (iconImage != null)
         {
-            Sprite sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
             iconImage.sprite  = sprite;
             iconImage.enabled = sprite != null;
+        }
+
+        if (bgIconImage != null)
+        {
+            bgIconImage.sprite  = sprite;
+            bgIconImage.enabled = sprite != null;
         }
 
         RefreshCount();
