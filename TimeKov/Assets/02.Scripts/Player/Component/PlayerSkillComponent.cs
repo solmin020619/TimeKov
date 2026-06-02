@@ -93,10 +93,13 @@ public class PlayerSkillComponent : MonoBehaviour
 
     void TryComboAttack()
     {
-        // ������Dead��Hurt ���� ����
         if (_player.Movement.IsJumping) return;
         if (_player.Stat.IsDead) return;
-        if (_player.Stat.IsHurt) return;
+
+        // 피격 경직 중 공격 입력 → 경직 캔슬하고 공격 우선 (액션게임 표준).
+        // 정지 상태에서 1타 누르는 순간 직전 피격으로 IsHurt=true 면 입력이 씹혀
+        // 콤보 첫 타가 끊기던 문제 방지. (예전엔 IsHurt 면 무조건 return 했음)
+        if (_player.Stat.IsHurt) _player.Stat.CancelHurtStun();
 
         if (_comboAttacks.Count == 0) return;
 
@@ -215,10 +218,12 @@ public class PlayerSkillComponent : MonoBehaviour
         // 스킬 실행 동안 이동 잠금
         _player.Movement.LockMovement(true);
 
+        // 스킬 동작 시퀀스(딜 판정 포함). TotalDuration(인스펙터)까지 진행.
         yield return skill.ExecuteRoutine(gameObject);
 
-        // 스킬 루틴 종료 후에도 애니메이션이 남아있으면 Blend Tree 복귀까지 대기
-        yield return new WaitUntil(() => !_player.Anim.IsInActionAnim());
+        // [미끄러짐 수정] 딜 시퀀스가 끝나면 긴 잔여 스킬 애니를 즉시 끊고 이동 상태로 스냅.
+        // (스킬 클립이 딜보다 길어 후속 모션이 미끄러지듯 보이던 문제 해결.)
+        _player.Anim.ReturnToLocomotion();
 
         CurrentSkillIsInterruptible = false;
         _player.Movement.LockMovement(false);

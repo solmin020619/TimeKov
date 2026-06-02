@@ -87,9 +87,39 @@ public class PlayerStatComponent : MonoBehaviour
 
         if (CurrentHp <= 0) { OnDead?.Invoke(); return; }
 
+        // [학살 플레이] 공격/스킬/대시 등 행동 중 피격은 데미지만 받고 행동을 끊지 않는다.
+        // 잡몹에 둘러싸여도 콤보가 뚝뚝 끊기지 않도록 — 가만히/이동 중일 때만 경직.
+        if (IsInAction())
+        {
+            // 피드백(셰이크/VFX)만 주고 경직·인터럽트 없음
+            ThirdPersonCamera.Shake(HurtShakeDuration, HurtShakeMagnitude);
+            VfxUtils.SpawnAtCaster(HurtVfxPrefab, gameObject, HurtVfxOffset, HurtVfxLifeTime, false);
+            OnHurt?.Invoke();
+            return;
+        }
+
         // Hurt ���� ����
         if (_hurtRoutine != null) StopCoroutine(_hurtRoutine);
         _hurtRoutine = StartCoroutine(HurtRoutine(attackerPos));
+    }
+
+    // 공격/스킬/대시 등 "행동 중"인지 — 행동 중 피격은 끊지 않기 위한 판정
+    bool IsInAction()
+    {
+        if (_player == null) return false;
+        bool skillExecuting = _player.Skill != null && _player.Skill.IsExecuting;
+        bool dashing        = _player.Dash != null && _player.Dash.IsDashing;
+        return skillExecuting || dashing;
+    }
+
+    // 피격 경직을 즉시 해제한다 (무적은 유지). 공격 입력으로 경직을 캔슬할 때 사용.
+    // 정지 상태에서 1타를 누르는 순간 직전 피격 경직과 겹쳐 콤보 첫 타가 씹히는 문제 방지.
+    public void CancelHurtStun()
+    {
+        if (!IsHurt) return;
+        IsHurt = false;
+        // 무적(IsInvincible)은 그대로 둬서 같은 타격 도배만 막고, 경직만 푼다.
+        // _hurtRoutine 은 무적 해제까지 계속 돌게 두되 IsHurt 만 내려 행동 가능 상태로.
     }
 
     IEnumerator HurtRoutine(Vector3 attackerPos)
@@ -100,11 +130,8 @@ public class PlayerStatComponent : MonoBehaviour
         // 피격 카메라 셰이크
         ThirdPersonCamera.Shake(HurtShakeDuration, HurtShakeMagnitude);
 
-        // 공격·스킬 실행 중 피격 → 무조건 인터럽트
-        // (기본공격 포함. Skill3처럼 비인터럽트 구간도 피격 시엔 강제 중단)
-        var skillComp = GetComponent<PlayerSkillComponent>();
-        if (skillComp != null && skillComp.IsExecuting)
-            skillComp.Interrupt();
+        // 행동 중 피격은 위 TakeDamage 에서 이미 분기 처리(끊지 않음) → 여기 도달 시점은
+        // 가만히/이동 중. 인터럽트는 더 이상 강제하지 않는다. (학살 플레이 — 콤보 유지)
 
         // 피격 애니메이션 — EnableHitAnimation이 true이고 정지 상태일 때만 재생
         // 이동 중 피격 시엔 경직만 주고 애니메이션은 생략 (어색한 끌림 방지)

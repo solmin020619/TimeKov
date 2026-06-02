@@ -19,9 +19,15 @@ public class ThirdPersonCamera : MonoBehaviour
     public float ScrollSpeed = 2f;
     public float DistanceSmoothSpeed = 8f;
 
-    [Header("Collision")]
+    [Header("Collision (오토 줌인/아웃)")]
     public float CollisionRadius = 0.3f;
     public LayerMask CollisionMask;
+    [Tooltip("벽에 닿았을 때 벽보다 이만큼 앞에 카메라를 둠 (m). 벽 뚫림/클리핑 방지 여유.")]
+    public float CollisionBuffer = 0.2f;
+    [Tooltip("벽에 가까워질 때(줌인) 당기는 속도. 빠르게 해야 벽을 안 뚫음.")]
+    public float ZoomInSpeed = 20f;
+    [Tooltip("벽에서 멀어질 때(줌아웃) 되돌아가는 속도. 느리게 해야 출렁임이 적음.")]
+    public float ZoomOutSpeed = 6f;
 
     private Transform _pivot;
     private float _yaw;
@@ -43,6 +49,11 @@ public class ThirdPersonCamera : MonoBehaviour
     void Awake()
     {
         Instance = this;
+
+        // CollisionMask 가 비어있으면(인스펙터 미설정) 안전 폴백: Default/Ground/Building/BuildPort.
+        // 카메라가 벽을 뚫고 들어가는 것만 막는 보조용. 투명화(WallOcclusionFader)가 시야는 담당.
+        if (CollisionMask.value == 0)
+            CollisionMask = LayerMask.GetMask("Default", "Ground", "Building", "BuildPort");
 
         _pivot = transform.GetChild(0);
         _currentDist = DefaultDistance;
@@ -115,6 +126,8 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleCollision()
     {
+        // [오토 줌인/아웃] 카메라~플레이어(pivot) 사이에 벽이 있으면 카메라를 앞으로 당기고(줌인),
+        // 벗어나면 원래 거리로 되돌린다(줌아웃). 투명화(WallOcclusionFader) 대신 이 방식 사용.
         Vector3 pivotPos = _pivot.position;
         Vector3 camDir = _pivot.forward * -1f;
         float desiredDist = _targetDist;
@@ -122,13 +135,15 @@ public class ThirdPersonCamera : MonoBehaviour
         if (Physics.SphereCast(
             pivotPos, CollisionRadius,
             camDir, out RaycastHit hit,
-            _targetDist, CollisionMask))
+            _targetDist, CollisionMask, QueryTriggerInteraction.Ignore))
         {
-            desiredDist = Mathf.Clamp(hit.distance, MinDistance, _targetDist);
+            // 벽보다 CollisionBuffer 만큼 앞에 멈춰 클리핑 방지
+            desiredDist = Mathf.Clamp(hit.distance - CollisionBuffer, MinDistance, _targetDist);
         }
 
-        _currentDist = Mathf.Lerp(
-            _currentDist, desiredDist, DistanceSmoothSpeed * Time.deltaTime);
+        // 줌인(가까워짐)은 빠르게, 줌아웃(멀어짐)은 느리게 — 비대칭 속도로 자연스럽게
+        float speed = desiredDist < _currentDist ? ZoomInSpeed : ZoomOutSpeed;
+        _currentDist = Mathf.Lerp(_currentDist, desiredDist, speed * Time.deltaTime);
 
         Camera.main.transform.localPosition = new Vector3(0, 0, -_currentDist);
     }
