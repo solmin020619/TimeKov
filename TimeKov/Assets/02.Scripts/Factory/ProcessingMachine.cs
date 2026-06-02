@@ -39,6 +39,7 @@ namespace TIMEKOV.Factory
         private Coroutine _autoStorageRoutine;
 
         public bool AutoStorageEnabled => _autoStorageEnabled;
+        protected override bool UseAutoStorage => _autoStorageEnabled;
 
         // ── 초기화 ─────────────────────────────────────────────────────────
 
@@ -98,6 +99,8 @@ namespace TIMEKOV.Factory
                     StopCoroutine(_autoStorageRoutine);
                     _autoStorageRoutine = null;
                 }
+                // OFF 전환 시 OutputBuffer에 남은 아이템을 즉시 벨트로 발송
+                TryDispatchPendingOutput();
             }
         }
 

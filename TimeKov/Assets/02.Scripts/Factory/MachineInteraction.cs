@@ -13,9 +13,6 @@ namespace TIMEKOV.Factory
         [Header("창고 추출 설비 UI")]
         public StorageExtractorUI storageExtractorUI;
 
-        [Header("창고 적재 설비 UI")]
-        public StorageDepositorUI storageDepositorUI;
-
         [Header("설비 선택 패널")]
         public FacilitySelectPanel facilitySelectPanel;
 
@@ -261,10 +258,6 @@ namespace TIMEKOV.Factory
             {
                 storageExtractorUI.OpenFor(se, machineName);
             }
-            else if (machine is StorageDepositor sd && storageDepositorUI != null)
-            {
-                storageDepositorUI.OpenFor(sd, machineName);
-            }
             else
             {
                 // 해당 UI가 없으면 열지 않음
@@ -287,7 +280,7 @@ namespace TIMEKOV.Factory
 
             machineUI?.Close();
             storageExtractorUI?.Close();
-            storageDepositorUI?.Close();
+
 
             _uiOpen = false;
             _prevNearMachines.Clear();
@@ -301,7 +294,7 @@ namespace TIMEKOV.Factory
 
             machineUI?.Close();
             storageExtractorUI?.Close();
-            storageDepositorUI?.Close();
+
 
             _uiOpen = false;
             _prevNearMachines.Clear();

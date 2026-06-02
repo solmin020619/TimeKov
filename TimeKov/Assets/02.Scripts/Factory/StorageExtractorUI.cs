@@ -56,7 +56,7 @@ public class StorageExtractorUI : MonoBehaviour
         itemSelectSlot?.Setup(machine);
         BuildInventorySlots();
 
-        var inv = InventoryManager.Instance;
+        var inv = InventoryManager.StorageInstance;
         if (inv != null) inv.OnInventoryChanged += RefreshInventorySlots;
     }
 
@@ -66,7 +66,7 @@ public class StorageExtractorUI : MonoBehaviour
 
         itemSelectSlot?.Cleanup();
 
-        var inv = InventoryManager.Instance;
+        var inv = InventoryManager.StorageInstance;
         if (inv != null) inv.OnInventoryChanged -= RefreshInventorySlots;
 
         _machine = null;
@@ -100,7 +100,7 @@ public class StorageExtractorUI : MonoBehaviour
 
     private void BuildInventorySlots()
     {
-        var inv = InventoryManager.Instance;
+        var inv = InventoryManager.StorageInstance;
         int slotCount = inv != null ? inv.GetMaxSlots() : inventorySlotCount;
 
         if (_invSlots.Count != slotCount)
@@ -122,7 +122,7 @@ public class StorageExtractorUI : MonoBehaviour
 
     public void RefreshInventorySlots()
     {
-        var inv = InventoryManager.Instance;
+        var inv = InventoryManager.StorageInstance;
         if (inv == null) return;
 
         var slots = inv.GetSlots();
