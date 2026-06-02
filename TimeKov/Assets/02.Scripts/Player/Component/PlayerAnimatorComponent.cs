@@ -139,6 +139,28 @@ public class PlayerAnimatorComponent : MonoBehaviour
         return !_anim.GetCurrentAnimatorStateInfo(0).IsName("Blend Tree");
     }
 
+    /// <summary>
+    /// 액션(스킬/공격) 동작이 끝났을 때 이동(Blend Tree)으로 즉시 복귀.
+    /// 스킬 클립이 딜 모션보다 훨씬 길어(후속 마무리 폼 포함), 딜 끝난 뒤 그 잔여 클립이
+    /// Blend Tree로 천천히 블렌딩되며 미끄러지듯 보이던 문제 해결 — 즉시 컷으로 잘라낸다.
+    /// </summary>
+    public void ReturnToLocomotion()
+    {
+        if (_anim == null) return;
+        _anim.ResetTrigger(Skill1Hash);
+        _anim.ResetTrigger(Skill2Hash);
+        _anim.ResetTrigger(Skill3Hash);
+        _anim.ResetTrigger(Attack1Hash);
+        _anim.ResetTrigger(Attack2Hash);
+        _anim.ResetTrigger(Attack3Hash);
+
+        // 공격/스킬 클립은 Action Layer(레이어 1)에서 재생된다.
+        // 레이어 0 만 Play 하면 스킬 모션이 안 끊기므로 두 레이어 모두 처리:
+        //   레이어 0(Base) -> Blend Tree(이동),  레이어 1(Action) -> Empty(동작 종료)
+        _anim.Play("Blend Tree", 0, 0f);
+        _anim.Play("Empty",      1, 0f);
+    }
+
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
     public void PlayDie()
     {

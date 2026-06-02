@@ -83,9 +83,12 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void Update()
     {
-        // 공격·스킬 잠금 / 피격 경직 / 사망 중에는 이동 방향 입력 무시
-        // → 잠금 해제 직후 이전에 눌렸던 키 때문에 즉시 이동하는 슬라이딩 방지
+        // 공격·스킬 잠금 / 스킬 실행 중 / 피격 경직 / 사망 중에는 이동 방향 입력 무시
+        // → 잠금 해제 직후 이전에 눌렸던 WASD 때문에 즉시 미끄러지는 현상 방지.
+        // _movementLocked 와 IsExecuting 의 해제 순서가 1프레임 어긋나 WASD(축 입력)가
+        // 새던 문제 — IsExecuting 을 직접 봐서 스킬이 완전히 끝날 때까지 이동 방향 0 유지.
         bool inputBlocked = _movementLocked
+                         || (_player.Skill != null && _player.Skill.IsExecuting)
                          || _player.Stat.IsHurt
                          || _player.Stat.IsDead;
 
@@ -207,6 +210,10 @@ public class PlayerMovementComponent : MonoBehaviour
 
         // 공격·스킬 실행 중 점프 차단 (1단계 추가)
         if (_player.Skill.IsExecuting) return;
+
+        // 대시 중 점프 차단 — 대시 수평속도(15)와 점프 수직속도가 합산되어
+        // 앞으로 포물선으로 튕겨 날아가는 버그 방지. (달리기+대시+점프 동시 입력)
+        if (_player.Dash != null && _player.Dash.IsDashing) return;
 
         // Dead 상태 점프 차단 (1단계 추가)
         if (_player.Stat.IsDead) return;

@@ -51,8 +51,9 @@ public class PlayerInputComponent : MonoBehaviour
         Skill3Pressed   = Input.GetKeyDown(KeyCode.R);
         InteractPressed = Input.GetKeyDown(KeyCode.F);
 
-        // 스킬/콤보 실행 중 입력 차단
-        // LockMovement 만으로 부족한 경우 입력 레벨에서 이중 차단
+        // 스킬/콤보 실행 중 모든 행동 입력 차단 (이동/점프/공격/대시/스킬 전부).
+        // 스킬은 끝까지 재생되어야 하며, 끝나는 순간(IsExecuting=false) 다시 입력을 받아
+        // 그 입력의 애니로 즉시 전환되게 한다 → 스킬 후 미끄러짐 방지.
         bool skillExecuting = _skill != null && _skill.IsExecuting;
         if (skillExecuting)
         {
@@ -62,6 +63,9 @@ public class PlayerInputComponent : MonoBehaviour
             JumpUp        = false;
             AttackPressed = false;         // 좌클릭 차단
             DashPressed   = false;         // 우클릭 차단
+            Skill1Pressed = false;         // 스킬 입력도 차단 (기존 누락 — 스킬 중 스킬 재입력 방지)
+            Skill2Pressed = false;
+            Skill3Pressed = false;
         }
         else
         {
