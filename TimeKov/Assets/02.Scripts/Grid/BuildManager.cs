@@ -58,6 +58,7 @@ public class BuildManager : MonoBehaviour
 
     private bool isDemolishMode = false;
     private BuildDemolisher demolisher;
+    private BuildPlacementValidator validator;
 
     [Header("References")]
     public Camera mainCam;
@@ -173,6 +174,7 @@ public class BuildManager : MonoBehaviour
         // (DataBoot.IsLoaded 체크 불필요)
 
         demolisher = new BuildDemolisher(this, occupancy);
+        validator = new BuildPlacementValidator(this);
 
         if (previewMarker != null)
             previewMarker.SetActive(false);
@@ -750,44 +752,10 @@ public class BuildManager : MonoBehaviour
     public bool IsPhysicallyBlocked(Vector3 centerPos, Vector2Int size, Quaternion rotation)
         => IsBlockedByPhysics(centerPos, size, rotation);
 
-    // [BuildZone 확장] 건물의 footprint(차지하는 모든 칸)가 BuildZone 영역 안에 완전히
-    // 들어오는지 검사한다. buildZoneCollider 미연결 시 기존 플레이어 위치 기준으로 폴백.
-    private bool IsFootprintInBuildZone(List<Vector2Int> footprintCells)
-    {
-        // 폴백: 콜라이더 미연결이면 기존 동작(플레이어가 zone 안에 있으면 허용)
-        if (buildZoneCollider == null)
-            return zoneChecker != null && zoneChecker.IsInBuildZone;
+    private bool IsFootprintInBuildZone(List<Vector2Int> footprintCells) => validator.IsFootprintInBuildZone(footprintCells);
 
-        if (footprintCells == null || footprintCells.Count == 0)
-            return false;
-
-        for (int i = 0; i < footprintCells.Count; i++)
-        {
-            if (!IsCellInBuildZone(footprintCells[i]))
-                return false;
-        }
-        return true;
-    }
-
-    // [BuildZone 확장] 단일 칸이 BuildZone 영역 안에 완전히 들어오는지 검사한다.
-    // 레일 등 1칸 단위 판정에서 호출 (시설 footprint 검사와 동일 규칙 재사용).
-    // buildZoneCollider 미연결 시 기존 플레이어 위치 기준으로 폴백.
-    public bool IsCellInBuildZone(Vector2Int cell)
-    {
-        if (buildZoneCollider == null)
-            return zoneChecker != null && zoneChecker.IsInBuildZone;
-
-        Bounds zb = buildZoneCollider.bounds; // 월드 AABB (부모 스케일·회전 반영됨)
-        float half = cellSize * 0.5f;
-        const float eps = 0.01f; // 경계 부동소수 오차 허용
-
-        // 칸의 월드 중심 — StartCellToWorldCenter 에 1x1 크기를 주면 칸 중심이 나옴
-        Vector3 c = StartCellToWorldCenter(cell, new Vector2Int(1, 1));
-
-        // 칸의 X/Z 네 모서리가 모두 zone bounds 안에 있어야 함 (Y는 평면이라 무시)
-        return c.x - half >= zb.min.x - eps && c.x + half <= zb.max.x + eps
-            && c.z - half >= zb.min.z - eps && c.z + half <= zb.max.z + eps;
-    }
+    // 레일(RailBuildManager) 등 외부에서 1칸 단위 존 판정에 쓰는 public 래퍼.
+    public bool IsCellInBuildZone(Vector2Int cell) => validator.IsCellInBuildZone(cell);
 
     // ===== end Public Helper =====
 
@@ -801,48 +769,13 @@ public class BuildManager : MonoBehaviour
 
     private bool IsAnyCellOccupied(List<Vector2Int> cells) => occupancy.IsAnyOccupied(cells);
 
-    private bool IsAnyCellOnRail(List<Vector2Int> cells)
-    {
-        if (railBuildManager == null) return false;
-
-        for (int i = 0; i < cells.Count; i++)
-        {
-            if (railBuildManager.HasRailAt(cells[i]))
-                return true;
-        }
-
-        return false;
-    }
+    private bool IsAnyCellOnRail(List<Vector2Int> cells) => validator.IsAnyCellOnRail(cells);
 
     private void OccupyCells(List<Vector2Int> cells) => occupancy.Occupy(cells);
 
     private void RemoveOccupiedCells(List<Vector2Int> cells) => occupancy.Free(cells);
 
-    private bool IsBlockedByPhysics(Vector3 centerPos, Vector2Int size, Quaternion rotation)
-    {
-        if (blockingMask.value == 0)
-            return false;
-
-        float margin = 0.05f;
-
-        Vector3 halfExtents = new Vector3(
-            (size.x * cellSize * 0.5f) - margin,
-            checkHeight,
-            (size.y * cellSize * 0.5f) - margin
-        );
-
-        Collider[] hits = Physics.OverlapBox(centerPos, halfExtents, rotation, blockingMask);
-
-        for (int i = 0; i < hits.Length; i++)
-        {
-            if (previewMarker != null && hits[i].transform.IsChildOf(previewMarker.transform))
-                continue;
-
-            return true;
-        }
-
-        return false;
-    }
+    private bool IsBlockedByPhysics(Vector3 centerPos, Vector2Int size, Quaternion rotation) => validator.IsBlocked(centerPos, size, rotation);
 
     private void UpdatePreview(Vector3 position, Quaternion rotation, bool canBuild)
     {
