@@ -171,7 +171,7 @@ public class BuildManager : MonoBehaviour
     private bool hasSelectedSlot = false;
     private int currentRotationY = 0;
 
-    private readonly HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
+    private readonly GridOccupancy occupancy = new GridOccupancy();
 
     private bool isDragBuilding = false;
     private readonly HashSet<Vector2Int> dragPlacedStartCells = new HashSet<Vector2Int>();
@@ -747,24 +747,11 @@ public class BuildManager : MonoBehaviour
 
     public Vector3 GridOriginPos => gridOrigin != null ? gridOrigin.position : Vector3.zero;
 
-    public Vector2Int WorldToCellCoord(Vector3 worldPos)
-    {
-        Vector3 origin = GridOriginPos;
-        return new Vector2Int(
-            Mathf.FloorToInt((worldPos.x - origin.x) / cellSize),
-            Mathf.FloorToInt((worldPos.z - origin.z) / cellSize));
-    }
+    public Vector2Int WorldToCellCoord(Vector3 worldPos) => GridMath.WorldToCell(worldPos, GridOriginPos, cellSize);
 
-    public Vector3 CellCenterToWorld(Vector2 cellCoord)
-    {
-        Vector3 origin = GridOriginPos;
-        return new Vector3(
-            origin.x + cellCoord.x * cellSize,
-            fixedY,
-            origin.z + cellCoord.y * cellSize);
-    }
+    public Vector3 CellCenterToWorld(Vector2 cellCoord) => GridMath.CellToWorld(cellCoord, GridOriginPos, cellSize, fixedY);
 
-    public List<Vector2Int> FootprintOf(Vector2Int startCell, Vector2Int size) => GetFootprintCellsFromStartCell(startCell, size);
+    public List<Vector2Int> FootprintOf(Vector2Int startCell, Vector2Int size) => GridMath.Footprint(startCell, size);
 
     public bool AreCellsOccupied(List<Vector2Int> cells) => IsAnyCellOccupied(cells);
 
@@ -815,62 +802,15 @@ public class BuildManager : MonoBehaviour
 
     // ===== end Public Helper =====
 
-    private Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size)
-    {
-        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
-        Vector3 local = worldPos - origin;
+    private Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size) => GridMath.WorldToStartCellCentered(worldPos, size, GridOriginPos, cellSize);
 
-        int startX = Mathf.RoundToInt(local.x / cellSize - size.x * 0.5f);
-        int startZ = Mathf.RoundToInt(local.z / cellSize - size.y * 0.5f);
+    private Vector3 StartCellToWorldCenter(Vector2Int startCell, Vector2Int size) => GridMath.StartCellToWorldCenter(startCell, size, GridOriginPos, cellSize, fixedY);
 
-        return new Vector2Int(startX, startZ);
-    }
+    private List<Vector2Int> GetFootprintCellsFromStartCell(Vector2Int startCell, Vector2Int size) => GridMath.Footprint(startCell, size);
 
-    private Vector3 StartCellToWorldCenter(Vector2Int startCell, Vector2Int size)
-    {
-        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
+    private Vector2Int GetRotatedSize(Vector2Int originalSize, int rotationY) => GridMath.RotatedSize(originalSize, rotationY);
 
-        float centerX = origin.x + (startCell.x + size.x * 0.5f) * cellSize;
-        float centerZ = origin.z + (startCell.y + size.y * 0.5f) * cellSize;
-
-        return new Vector3(centerX, fixedY, centerZ);
-    }
-
-    private List<Vector2Int> GetFootprintCellsFromStartCell(Vector2Int startCell, Vector2Int size)
-    {
-        List<Vector2Int> cells = new List<Vector2Int>();
-
-        for (int x = 0; x < size.x; x++)
-        {
-            for (int z = 0; z < size.y; z++)
-            {
-                cells.Add(new Vector2Int(startCell.x + x, startCell.y + z));
-            }
-        }
-
-        return cells;
-    }
-
-    private Vector2Int GetRotatedSize(Vector2Int originalSize, int rotationY)
-    {
-        rotationY %= 360;
-
-        if (rotationY == 90 || rotationY == 270)
-            return new Vector2Int(originalSize.y, originalSize.x);
-
-        return originalSize;
-    }
-
-    private bool IsAnyCellOccupied(List<Vector2Int> cells)
-    {
-        for (int i = 0; i < cells.Count; i++)
-        {
-            if (occupiedCells.Contains(cells[i]))
-                return true;
-        }
-
-        return false;
-    }
+    private bool IsAnyCellOccupied(List<Vector2Int> cells) => occupancy.IsAnyOccupied(cells);
 
     private bool IsAnyCellOnRail(List<Vector2Int> cells)
     {
@@ -885,17 +825,9 @@ public class BuildManager : MonoBehaviour
         return false;
     }
 
-    private void OccupyCells(List<Vector2Int> cells)
-    {
-        for (int i = 0; i < cells.Count; i++)
-            occupiedCells.Add(cells[i]);
-    }
+    private void OccupyCells(List<Vector2Int> cells) => occupancy.Occupy(cells);
 
-    private void RemoveOccupiedCells(List<Vector2Int> cells)
-    {
-        for (int i = 0; i < cells.Count; i++)
-            occupiedCells.Remove(cells[i]);
-    }
+    private void RemoveOccupiedCells(List<Vector2Int> cells) => occupancy.Free(cells);
 
     private bool IsBlockedByPhysics(Vector3 centerPos, Vector2Int size, Quaternion rotation)
     {
