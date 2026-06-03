@@ -10,6 +10,10 @@ namespace TIMEKOV.Factory
         public string machineName = "설비";
         public override string MachineName => !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
 
+        [Header("제작 시간")]
+        [Tooltip("1회 가공 소요 시간(초). 레벨 배율이 곱해져 실제 시간이 결정됨.")]
+        public float processingTime = 5f;
+
         [Header("조합식 목록")]
         [SerializeField] private List<FactoryRecipe> recipes = new();
 
@@ -256,8 +260,14 @@ namespace TIMEKOV.Factory
             InputBuffer.ConsumeAll(recipe.inputs);
             NotifyBufferChanged();
 
+            // 설비 단위 제작 시간에 레벨 배율 적용
+            var facilityInst = GetComponent<FacilityInstance>();
+            float actualTime = facilityInst != null
+                ? facilityInst.GetFinalProcessTime(processingTime)
+                : processingTime;
+
             float elapsed = 0f;
-            while (elapsed < recipe.processingTime)
+            while (elapsed < actualTime)
             {
                 // ── 가동 중 연료 소진 → 일시정지 ────────────────────────
                 if (!HasFuel)
@@ -271,7 +281,7 @@ namespace TIMEKOV.Factory
 
                 ConsumeFuelDelta(Time.deltaTime);
                 elapsed += Time.deltaTime;
-                Progress = elapsed / recipe.processingTime;
+                Progress = elapsed / actualTime;
                 yield return null;
             }
 

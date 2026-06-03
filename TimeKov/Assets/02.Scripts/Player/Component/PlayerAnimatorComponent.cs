@@ -161,6 +161,23 @@ public class PlayerAnimatorComponent : MonoBehaviour
         _anim.Play("Empty",      1, 0f);
     }
 
+    /// <summary>
+    /// 대시 물리 이동이 끝났을 때 이동(Blend Tree)으로 "부드럽게" 복귀.
+    /// 스킬과 달리 대시는 이동 흐름이라 즉시 컷하면 뚝 끊겨 부자연스럽다.
+    /// 대시 클립(QUICK SHIFT)은 Action Layer(1)에서 재생되므로, 그 레이어를 짧게
+    /// CrossFade 로 빼서 "자세 낮춘 끝부분"이 길게 미끄러지는 것만 잘라낸다.
+    /// </summary>
+    public void EndDash(float fade = 0.2f)
+    {
+        if (_anim == null) return;
+        _anim.ResetTrigger(DashFHash);
+        _anim.ResetTrigger(DashBHash);
+        _anim.ResetTrigger(DashRHash);
+        _anim.ResetTrigger(DashLHash);
+        // 레이어 1(Action)을 Empty 로 짧게 블렌딩 → 대시 끝자세에서 이동으로 매끄럽게 전환
+        _anim.CrossFade("Empty", fade, 1);
+    }
+
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
     public void PlayDie()
     {

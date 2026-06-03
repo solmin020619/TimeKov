@@ -26,13 +26,12 @@ public class RailBuildManager : MonoBehaviour
     [SerializeField] private int maxStepsPerFrame = 200;
 
     [Header("Ghost Preview")]
-    [Tooltip("직선 ghost 전용 머티리얼. 비워두면 rail 머티리얼에 alpha/intensity 조정으로 fallback.")]
+    [Tooltip("직선 ghost 전용 머티리얼 (필수). 비워두면 ghost 가 원본 프리팹 머티리얼로 보임.")]
     [SerializeField] private Material ghostStraightMaterial;
-    [Tooltip("코너 ghost 전용 머티리얼. 비워두면 rail 머티리얼에 alpha/intensity 조정으로 fallback.")]
+    [Tooltip("코너 ghost 전용 머티리얼 (필수). 비워두면 ghost 가 원본 프리팹 머티리얼로 보임.")]
     [SerializeField] private Material ghostCornerMaterial;
     [Tooltip("라우팅 중 source/destination 빌딩에 입힐 ghost 머티리얼. 비워두면 BuildManager.hologramMaterial(파란색) 사용.")]
     [SerializeField] private Material ghostBuildingMaterial;
-    [SerializeField, Range(0f, 1f)] private float ghostAlpha = 0.4f;
 
     [Header("Port Indicator")]
     [SerializeField] private GameObject portArrowPrefab;
@@ -64,7 +63,6 @@ public class RailBuildManager : MonoBehaviour
     private readonly List<Vector2Int> lastPredictedPath = new();
     private Vector2Int? lastPredictedTarget = null;
     private Vector2Int? lastPredictedFromCell = null;
-    private bool lastPredictedReachesPort = false;
 
     // Visual overlay on the last committed cell while a prediction is showing,
     // so its rendered connection visually merges into the prediction's first cell.
@@ -128,7 +126,6 @@ public class RailBuildManager : MonoBehaviour
     }
 
     public IReadOnlyDictionary<Vector2Int, RailPiece> RailMap => railMap;
-    public Transform GridOriginRail => gridOrigin;
     public float CellSizeRail => cellSize;
     public float FixedYRail => fixedY;
 
@@ -187,14 +184,9 @@ public class RailBuildManager : MonoBehaviour
                 np.ApplyVisual(straightPrefab, cornerPrefab);
         }
 
-        ReleasePortIfFrontCell(cell);
+        ValidateAllPortConnections();
 
         return true;
-    }
-
-    private void ReleasePortIfFrontCell(Vector2Int cell)
-    {
-        ValidateAllPortConnections();
     }
 
     private void ValidateAllPortConnections()
@@ -927,9 +919,6 @@ public class RailBuildManager : MonoBehaviour
         return CanUseCellAsRail(candidate, simEnd, allowExisting: true);
     }
 
-    private bool IsFirstExpansionPending()
-        => isRouting && startPort != null && currentPathCells.Count == 1;
-
     private Vector2Int GetRequiredFirstExpansionCell()
         => startPort.GetFrontCell() + startPort.GetWorldDirection();
 
@@ -1033,6 +1022,11 @@ public class RailBuildManager : MonoBehaviour
 
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
     {
+        // [BuildZone] 레일도 시설과 동일하게 건축존 안에서만 배치. 존 밖 셀은 거부.
+        // 프리뷰/라우팅/실제배치 전부 이 메서드를 거치므로 한 곳만 막으면 모두 적용됨.
+        if (owner != null && !owner.IsCellInBuildZone(cell))
+            return false;
+
         if (!railMap.TryGetValue(cell, out RailPiece existingPiece))
             return true;
 
@@ -1369,7 +1363,7 @@ public class RailBuildManager : MonoBehaviour
             && lastPredictedFromCell.Value == currentEndCell)
             return;
 
-        List<Vector2Int> predicted = SimulatePath(targetCell.Value, out bool reachesPort);
+        List<Vector2Int> predicted = SimulatePath(targetCell.Value, out _);
 
         ClearPathPreviewInstances();
         RenderPathPreview(predicted);
@@ -1383,7 +1377,6 @@ public class RailBuildManager : MonoBehaviour
         lastPredictedPath.AddRange(predicted);
         lastPredictedTarget = targetCell.Value;
         lastPredictedFromCell = currentEndCell;
-        lastPredictedReachesPort = reachesPort;
     }
 
     private void RenderPathPreview(List<Vector2Int> predictedPath)
@@ -1440,23 +1433,6 @@ public class RailBuildManager : MonoBehaviour
         else if (delta == Vector2Int.right) right = true;
     }
 
-    private static readonly string[] GhostColorPropertyCandidates =
-    {
-        "_rail_color",
-        "_RailColor",
-        "_BaseColor",
-        "_Color",
-        "_MainColor",
-        "_TintColor"
-    };
-
-    private static readonly string[] GhostIntensityPropertyCandidates =
-    {
-        "_intelsity",   // 프로젝트의 typo'd 이름 그대로
-        "_Intensity",
-        "_Brightness"
-    };
-
     private static readonly int GhostPathOffsetId = Shader.PropertyToID("_PathOffset");
 
     private void ApplyGhostMaterial(GameObject ghost, Material ghostOverride, int pathIndex)
@@ -1464,39 +1440,17 @@ public class RailBuildManager : MonoBehaviour
         Renderer[] renderers = ghost.GetComponentsInChildren<Renderer>(true);
         foreach (Renderer r in renderers)
         {
-            Material[] mats = r.materials;
-            for (int i = 0; i < mats.Length; i++)
+            // ghost 전용 머티리얼(straight/corner)로 통째 swap
+            if (ghostOverride != null)
             {
-                if (mats[i] == null) continue;
-
-                // 1. override 머티리얼 있으면 통째로 swap
-                if (ghostOverride != null)
+                Material[] mats = r.materials;
+                for (int i = 0; i < mats.Length; i++)
                 {
-                    mats[i] = ghostOverride;
-                    continue;
+                    if (mats[i] != null)
+                        mats[i] = ghostOverride;
                 }
-
-                // 2. 없으면 기존 머티리얼에 intensity / alpha 조정
-                Material m = mats[i];
-
-                foreach (string prop in GhostIntensityPropertyCandidates)
-                {
-                    if (!m.HasProperty(prop)) continue;
-                    float v = m.GetFloat(prop);
-                    m.SetFloat(prop, v * ghostAlpha);
-                    break;
-                }
-
-                foreach (string prop in GhostColorPropertyCandidates)
-                {
-                    if (!m.HasProperty(prop)) continue;
-                    Color c = m.GetColor(prop);
-                    c.a *= ghostAlpha;
-                    m.SetColor(prop, c);
-                    break;
-                }
+                r.materials = mats;
             }
-            r.materials = mats;
 
             // 머티리얼 swap 으로 _PathOffset 이 asset default(보통 0)로 리셋되니
             // 다시 pathIndex 로 덮어써서 ghost 들끼리 흐름이 이어지게.
@@ -1528,7 +1482,6 @@ public class RailBuildManager : MonoBehaviour
         lastPredictedPath.Clear();
         lastPredictedTarget = null;
         lastPredictedFromCell = null;
-        lastPredictedReachesPort = false;
     }
 
     private void OverlayCurrentEndConnection(Vector2Int predictionFirstCell)

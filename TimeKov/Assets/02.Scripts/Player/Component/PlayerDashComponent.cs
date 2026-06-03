@@ -91,11 +91,11 @@ public class PlayerDashComponent : MonoBehaviour
 
         yield return new WaitForSeconds(DashDuration);
 
-        // 대시 물리 이동은 끝났지만 애니메이션이 남아있을 수 있음
-        // → Blend Tree로 돌아올 때까지 이동 잠금 유지 (모션 끝 전 이동 방지)
-        yield return new WaitUntil(() => !_player.Anim.IsInActionAnim());
-
+        // [미끄러짐 수정] 대시 물리 이동이 끝나면 대시 끝자세(자세 낮춘) 클립이 길게
+        // 재생되며 미끄러지던 문제 — 클립 끝까지 기다리지 않고 즉시 이동으로 부드럽게 전환.
+        // (기존엔 WaitUntil(!IsInActionAnim) 로 끝자세 클립이 끝날 때까지 잠가서 미끄러짐 발생.)
         _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+        _player.Anim.EndDash();   // 대시 클립 -> 이동(Blend Tree) 짧게 블렌딩 (즉시 컷 아님)
         _player.Movement.LockMovement(false, applyPostUnlockDelay: false);
         IsDashing = false;
     }

@@ -1059,7 +1059,7 @@ MonoBehaviour:
     outputs:
     - itemId: 4101
       amount: 1
-    processingTime: 10
+    processingTime: 5
   - recipeName: "\uB300\uD615 \uB098\uB178 \uD790\uB9C1 \uC570\uD50C"
     inputs:
     - itemId: 1301
@@ -1067,7 +1067,7 @@ MonoBehaviour:
     outputs:
     - itemId: 4102
       amount: 1
-    processingTime: 10
+    processingTime: 5
   - recipeName: "\uBC14\uC774\uC624 \uD384\uC2A4 \uC8FC\uC0AC\uAE30"
     inputs:
     - itemId: 1301
@@ -1077,7 +1077,7 @@ MonoBehaviour:
     outputs:
     - itemId: 4103
       amount: 1
-    processingTime: 10
+    processingTime: 5
   - recipeName: "\uC7AC\uC0DD\uC131 \uB098\uB178 \uD328\uCE58"
     inputs:
     - itemId: 1202
@@ -1085,7 +1085,7 @@ MonoBehaviour:
     outputs:
     - itemId: 4104
       amount: 1
-    processingTime: 10
+    processingTime: 5
   - recipeName: "\uACE0\uB18D\uCD95 \uC138\uD3EC \uC7AC\uC0DD\uC81C"
     inputs:
     - itemId: 1301
@@ -1095,7 +1095,7 @@ MonoBehaviour:
     outputs:
     - itemId: 4105
       amount: 1
-    processingTime: 10
+    processingTime: 5
   - recipeName: "\uCEF4\uBC43  \uC138\uB7FC"
     inputs:
     - itemId: 1101
@@ -1105,8 +1105,9 @@ MonoBehaviour:
     outputs:
     - itemId: 5101
       amount: 1
-    processingTime: 10
+    processingTime: 5
   LockedRecipeIndex: -1
+  autoStorageInterval: 5
 --- !u!114 &6074321623014262541
 MonoBehaviour:
   m_ObjectHideFlags: 0

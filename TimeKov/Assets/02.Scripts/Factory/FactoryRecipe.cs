@@ -27,8 +27,5 @@ namespace TIMEKOV.Factory
 
         [Tooltip("출력 결과물")]
         public FactorySlot[] outputs;
-
-        [Tooltip("1회 가공 소요 시간(초)")]
-        public float processingTime = 5f;
     }
 }
