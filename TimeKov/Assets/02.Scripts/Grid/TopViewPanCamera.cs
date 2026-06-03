@@ -34,6 +34,8 @@ public class TopViewPanCamera : MonoBehaviour
     private Plane dragPlane;
     private Vector3 _leftDragLastWorld;
     private Vector3 _middleDragLastWorld;
+    private bool _leftDragActive;
+    private bool _middleDragActive;
 
     private Vector3 _targetPosition;
     private Vector3 _velocity;
@@ -61,6 +63,11 @@ public class TopViewPanCamera : MonoBehaviour
 
     public void SetMouseDragEnabled(bool value)
     {
+        // 비활성화되는 순간 진행 중이던 좌드래그 추적을 끊는다.
+        // 안 끊으면 재활성화 첫 프레임에 오래된 기준점과의 큰 델타로 카메라가 순간이동함.
+        if (!value)
+            _leftDragActive = false;
+
         isMouseDragEnabled = value;
     }
 
@@ -119,21 +126,32 @@ public class TopViewPanCamera : MonoBehaviour
     private void HandleDrag()
     {
         if (isMouseDragEnabled)
-            ProcessMouseDrag(0, ref _leftDragLastWorld);
+            ProcessMouseDrag(0, ref _leftDragLastWorld, ref _leftDragActive);
 
-        ProcessMouseDrag(2, ref _middleDragLastWorld);
+        ProcessMouseDrag(2, ref _middleDragLastWorld, ref _middleDragActive);
     }
 
-    private void ProcessMouseDrag(int mouseButton, ref Vector3 lastWorld)
+    private void ProcessMouseDrag(int mouseButton, ref Vector3 lastWorld, ref bool dragActive)
     {
         if (Input.GetMouseButtonDown(mouseButton))
         {
             if (TryGetMouseWorldPoint(out Vector3 worldPoint))
+            {
                 lastWorld = worldPoint;
+                dragActive = true;
+            }
             return;
         }
 
-        if (Input.GetMouseButton(mouseButton))
+        if (Input.GetMouseButtonUp(mouseButton))
+        {
+            dragActive = false;
+            return;
+        }
+
+        // 버튼을 "누른 채로" 드래그가 켜진 경우(dragActive=false)는 무시한다.
+        // GetMouseButtonDown 부터 추적해야 기준점이 현재 마우스로 잡혀 순간이동이 안 생김.
+        if (dragActive && Input.GetMouseButton(mouseButton))
         {
             if (!TryGetMouseWorldPoint(out Vector3 currentWorld))
                 return;
@@ -146,10 +164,7 @@ public class TopViewPanCamera : MonoBehaviour
             delta.y = 0f;
             _targetPosition += delta * dragSensitivity;
 
-            // 카메라 이동 후 lastWorld를 같은 마우스 좌표로 재측정해야 다음 frame과 일관됨.
-            // 단, transform.position은 LateUpdate 끝에서야 갱신되므로 ray는 아직 이전 위치 기준.
-            // 따라서 SmoothDamp 결과를 미리 시뮬레이션해서 ray 시작점만 보정한 worldPoint를 다시 계산하는 대신,
-            // 단순히 currentWorld를 저장 (다음 frame ScreenPointToRay에서 자연스럽게 수렴).
+            // 다음 frame ScreenPointToRay 에서 자연스럽게 수렴하도록 현재 지점을 저장.
             lastWorld = currentWorld;
         }
     }

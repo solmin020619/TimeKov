@@ -15,8 +15,7 @@ public class BuildManager : MonoBehaviour
     public enum BuildSubMode
     {
         Facility,
-        Rail,
-        Blueprint
+        Rail
     }
 
     [System.Serializable]
@@ -89,12 +88,9 @@ public class BuildManager : MonoBehaviour
     [Header("Rail")]
     [SerializeField] private RailBuildManager railBuildManager;
 
-    [Header("Blueprint")]
-    [SerializeField] private BlueprintModeManager blueprintModeManager;
-
     public BuildSubMode CurrentSubMode { get; private set; } = BuildSubMode.Facility;
     public bool IsRailSubMode => IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
-    public bool IsBlueprintSubMode => IsBuildMode && CurrentSubMode == BuildSubMode.Blueprint;
+    public bool IsDemolishMode => isDemolishMode;
     public int CurrentSlotIndex => currentIndex;
 
     public RailBuildManager RailManager => railBuildManager;
@@ -113,19 +109,7 @@ public class BuildManager : MonoBehaviour
         if (railBuildManager != null && railBuildManager.TryGetPreviewPosition(out worldPos))
             return true;
 
-        if (blueprintModeManager != null && blueprintModeManager.TryGetPointerWorldPosition(out worldPos))
-            return true;
-
         worldPos = default;
-        return false;
-    }
-
-    // 청사진 유령이 커서를 따라다닐 때 오버레이 격자 반경 확장용
-    public bool TryGetOverridePatchRadius(out int radiusCells)
-    {
-        radiusCells = 0;
-        if (blueprintModeManager != null && blueprintModeManager.TryGetBlueprintBoundsRadius(out radiusCells))
-            return true;
         return false;
     }
 
@@ -213,12 +197,6 @@ public class BuildManager : MonoBehaviour
             return;
         }
 
-        if (IsBlueprintSubMode)
-        {
-            blueprintModeManager?.Tick();
-            return;
-        }
-
         HandleRotateInput();
         HandleBuild();
     }
@@ -233,12 +211,6 @@ public class BuildManager : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.N))
-        {
-            ToggleBlueprintMode();
-            return;
-        }
-
         if (Input.GetKeyDown(KeyCode.Alpha1)) SelectFacilitySlot(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) SelectFacilitySlot(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) SelectFacilitySlot(2);
@@ -248,17 +220,6 @@ public class BuildManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha7)) SelectFacilitySlot(6);
         if (Input.GetKeyDown(KeyCode.Alpha8)) SelectFacilitySlot(7);
         if (Input.GetKeyDown(KeyCode.Alpha9)) SelectFacilitySlot(8);
-    }
-
-    private void ToggleBlueprintMode()
-    {
-        if (blueprintModeManager == null)
-        {
-            Debug.LogWarning("[BuildManager] BlueprintModeManager가 인스펙터에 연결돼 있지 않음.");
-            return;
-        }
-
-        SetSubMode(CurrentSubMode == BuildSubMode.Blueprint ? BuildSubMode.Facility : BuildSubMode.Blueprint);
     }
 
     private void SelectRailMode()
@@ -286,25 +247,22 @@ public class BuildManager : MonoBehaviour
             demolisher?.Cancel();
         }
 
-        // 같은 슬롯 다시 누르면 선택 해제(토글). 단 해제 모드에서 막 나온 경우엔 토글 없이 무조건 선택.
-        if (!fromDemolish && hasSelectedSlot && currentIndex == index)
+        // 레일/청사진 서브모드 중 슬롯 키를 누르면 그 모드를 정리하고 설비 모드로.
+        // SetSubMode 가 EndRailMode/Deactivate(고스트 제거)까지 담당. 이 경우 토글 없이 무조건 선택.
+        bool fromOtherSubMode = CurrentSubMode != BuildSubMode.Facility;
+        if (fromOtherSubMode)
+            SetSubMode(BuildSubMode.Facility);
+
+        // 같은 슬롯 다시 누르면 선택 해제(토글). 단 해제 모드/다른 서브모드에서 막 나온 경우엔 토글 없이 무조건 선택.
+        if (!fromDemolish && !fromOtherSubMode && hasSelectedSlot && currentIndex == index)
         {
             hasSelectedSlot = false;
             currentIndex = -1;
-
-            if (CurrentSubMode != BuildSubMode.Facility)
-                CurrentSubMode = BuildSubMode.Facility;
 
             if (previewMarker != null)
                 previewMarker.SetActive(false);
 
             return;
-        }
-
-        if (CurrentSubMode == BuildSubMode.Rail)
-        {
-            railBuildManager?.EndRailMode();
-            CurrentSubMode = BuildSubMode.Facility;
         }
 
         hasSelectedSlot = true;
@@ -318,8 +276,6 @@ public class BuildManager : MonoBehaviour
 
         if (CurrentSubMode == BuildSubMode.Rail)
             railBuildManager?.EndRailMode();
-        if (CurrentSubMode == BuildSubMode.Blueprint)
-            blueprintModeManager?.Deactivate();
 
         CurrentSubMode = mode;
 
@@ -333,17 +289,6 @@ public class BuildManager : MonoBehaviour
             SetPreviewActive(false);
 
             railBuildManager?.BeginRailMode(this);
-        }
-        else if (mode == BuildSubMode.Blueprint)
-        {
-            isDemolishMode = false;
-            isDragBuilding = false;
-            dragPlacedStartCells.Clear();
-
-            demolisher?.Cancel();
-            SetPreviewActive(false);
-
-            blueprintModeManager?.Activate(this);
         }
         else
         {
@@ -647,29 +592,9 @@ public class BuildManager : MonoBehaviour
         yield return placer.PlaceRoutine(facilityId, position, rotation, footprintCells);
     }
 
-    // facilityId를 지정해서 홀로그램 연출을 거쳐 배치. Blueprint 붙여넣기에서 호출.
-    public void PlaceFacilityWithHologram(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
-    {
-        StartCoroutine(placer.PlaceRoutine(facilityId, position, rotation, footprintCells));
-    }
-
-    // ===== Blueprint에서 쓰는 Public Helper =====
+    // ===== 외부(레일/일반 배치)에서 쓰는 Public Helper =====
 
     public Vector3 GridOriginPos => gridOrigin != null ? gridOrigin.position : Vector3.zero;
-
-    public Vector2Int WorldToCellCoord(Vector3 worldPos) => GridMath.WorldToCell(worldPos, GridOriginPos, cellSize);
-
-    public Vector3 CellCenterToWorld(Vector2 cellCoord) => GridMath.CellToWorld(cellCoord, GridOriginPos, cellSize, fixedY);
-
-    public List<Vector2Int> FootprintOf(Vector2Int startCell, Vector2Int size) => GridMath.Footprint(startCell, size);
-
-    public bool AreCellsOccupied(List<Vector2Int> cells) => IsAnyCellOccupied(cells);
-
-    // [BuildZone 확장] Blueprint 모드 등 외부에서 footprint 기준 영역 검사용 public 래퍼
-    public bool AreCellsInBuildZone(List<Vector2Int> cells) => IsFootprintInBuildZone(cells);
-
-    public bool IsPhysicallyBlocked(Vector3 centerPos, Vector2Int size, Quaternion rotation)
-        => IsBlockedByPhysics(centerPos, size, rotation);
 
     private bool IsFootprintInBuildZone(List<Vector2Int> footprintCells) => validator.IsFootprintInBuildZone(footprintCells);
 
@@ -701,12 +626,15 @@ public class BuildManager : MonoBehaviour
         previewMarker.transform.position = position;
         previewMarker.transform.rotation = rotation;
 
+        Color tint = canBuild ? Color.green : Color.red;
         Renderer[] renderers = previewMarker.GetComponentsInChildren<Renderer>();
 
         for (int i = 0; i < renderers.Length; i++)
         {
-            if (renderers[i].material.HasProperty("_Color"))
-                renderers[i].material.color = canBuild ? Color.green : Color.red;
+            Material mat = renderers[i].material;
+            // URP 는 _BaseColor, 빌트인은 _Color 를 쓴다. 셰이더에 있는 쪽을 칠해야 색이 먹는다.
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", tint);
         }
     }
 
@@ -812,11 +740,6 @@ public class BuildManager : MonoBehaviour
                 if (CurrentSubMode == BuildSubMode.Rail)
                 {
                     railBuildManager?.EndRailMode();
-                    CurrentSubMode = BuildSubMode.Facility;
-                }
-                else if (CurrentSubMode == BuildSubMode.Blueprint)
-                {
-                    blueprintModeManager?.Deactivate();
                     CurrentSubMode = BuildSubMode.Facility;
                 }
             }

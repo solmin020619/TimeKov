@@ -94,11 +94,6 @@ public class BuildGridOverlay : MonoBehaviour
         float cellSize = buildManager.cellSize;
 
         int effectiveRadius = patchRadius;
-        if (buildManager.TryGetOverridePatchRadius(out int overrideRadius))
-        {
-            int margin = Mathf.Max(2, patchRadius / 2);
-            effectiveRadius = Mathf.Max(patchRadius, overrideRadius + margin);
-        }
 
         if (!Mathf.Approximately(cachedCellSize, cellSize) ||
             cachedPatchRadius != effectiveRadius ||
