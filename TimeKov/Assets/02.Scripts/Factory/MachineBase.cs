@@ -134,7 +134,7 @@ namespace TIMEKOV.Factory
             BeltSegment belt = GetCurrentOutputBelt();
             AdvanceOutputBeltIndex();
 
-            if (belt != null && belt.IsReady && !belt.IsBusy && belt.targetM != this)
+            if (belt != null && belt.IsReady && belt.targetM != this)
                 belt.TryTransport(itemId, amount);
             else
             {
@@ -167,7 +167,7 @@ namespace TIMEKOV.Factory
             {
                 int idx = (_nextBeltIndex + i) % outputBelts.Count;
                 var b = outputBelts[idx];
-                if (b != null && b.IsReady && !b.IsBusy && b.targetM != this)
+                if (b != null && b.IsReady && b.targetM != this)
                 {
                     _nextBeltIndex = (idx + 1) % outputBelts.Count;
                     return b;

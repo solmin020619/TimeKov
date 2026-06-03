@@ -10,6 +10,9 @@ namespace TIMEKOV.Factory
         public GameObject beltItemPrefab;
         public float travelTimePerSegment = 0.5f;
 
+        [Tooltip("OutputBuffer에 아이템이 쌓여있을 때 다음 아이템 발송까지 대기 시간(초)")]
+        public float dispatchInterval = 1.5f;
+
         [HideInInspector] public BeltSegment prevSegment;
         [HideInInspector] public BeltSegment nextSegment;
         [HideInInspector] public MachineBase sourceM;
@@ -364,7 +367,15 @@ namespace TIMEKOV.Factory
         {
             if (!IsReady) return false;
             StartCoroutine(ChainTransportRoutine(itemId, amount));
+            // 아이템 출발 시점부터 dispatchInterval 후 다음 아이템 발송
+            StartCoroutine(ScheduleNextDispatch());
             return true;
+        }
+
+        private IEnumerator ScheduleNextDispatch()
+        {
+            yield return new WaitForSeconds(dispatchInterval);
+            sourceM?.TryDispatchPendingOutput();
         }
 
         private IEnumerator ChainTransportRoutine(int itemId, int amount)
@@ -417,8 +428,14 @@ namespace TIMEKOV.Factory
                 // 위치값을 미리 캡처 (삭제 이후에도 Vector3 값은 유지됨)
                 Vector3 back  = seg.endpointBack  != null ? seg.endpointBack.position  : seg.transform.position;
                 Vector3 front = seg.endpointFront != null ? seg.endpointFront.position : seg.transform.position + seg.transform.forward;
-                Vector3 mid   = (back + front) * 0.5f;
-                float   half  = seg.travelTimePerSegment / 2f;
+                // 꺾이는 벨트에서 대각선 이동을 막기 위해 세그먼트 자체 위치를 경유점으로 사용
+                Vector3 mid   = seg.transform.position;
+                float   distBack  = Vector3.Distance(back,  mid);
+                float   distFront = Vector3.Distance(mid,   front);
+                float   totalDist = distBack + distFront;
+                float   ratioBack = totalDist > 0f ? distBack  / totalDist : 0.5f;
+                float   half      = seg.travelTimePerSegment * ratioBack;
+                float   halfFront = seg.travelTimePerSegment * (1f - ratioBack);
 
                 bool isLast = (i == chain.Count - 1);
 
@@ -441,12 +458,12 @@ namespace TIMEKOV.Factory
 
                 // 구간 ②: mid → dest  (거부 시 mid = dest이므로 즉시 완료)
                 elapsed = 0f;
-                while (elapsed < half)
+                while (elapsed < halfFront)
                 {
                     if (seg == null) { pathBroken = true; break; }
                     elapsed += Time.deltaTime;
                     if (visual != null)
-                        visual.transform.position = Vector3.Lerp(mid, dest, elapsed / half);
+                        visual.transform.position = Vector3.Lerp(mid, dest, elapsed / halfFront);
                     yield return null;
                 }
                 if (pathBroken) break;
@@ -502,15 +519,6 @@ namespace TIMEKOV.Factory
 
             CleanupVisual(visual);
             _inFlightItems.Remove(token);
-
-            // 벨트가 비워졌으면 다음 OutputBuffer 아이템 발송
-            // 스택된 아이템이 남아 있을 때만 2초 딜레이 (새로 생산된 아이템은 즉시 발송)
-            if (!IsBusy)
-            {
-                if (sourceM != null && sourceM.OutputBuffer.Stock.Count > 0)
-                    yield return new WaitForSeconds(2f);
-                sourceM?.TryDispatchPendingOutput();
-            }
         }
 
         private void CleanupVisual(GameObject visual)
