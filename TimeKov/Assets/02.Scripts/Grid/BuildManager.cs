@@ -154,7 +154,6 @@ public class BuildManager : MonoBehaviour
     public Transform gridOrigin;
     public float cellSize = 1f;
     public float fixedY = 0f;
-    public float yTolerance = 0.1f;
 
     [Header("Build Check")]
     public LayerMask blockingMask;
@@ -765,8 +764,6 @@ public class BuildManager : MonoBehaviour
             origin.z + cellCoord.y * cellSize);
     }
 
-    public Vector2Int RotatedSizeOf(Vector2Int size, int rotationY) => GetRotatedSize(size, rotationY);
-
     public List<Vector2Int> FootprintOf(Vector2Int startCell, Vector2Int size) => GetFootprintCellsFromStartCell(startCell, size);
 
     public bool AreCellsOccupied(List<Vector2Int> cells) => IsAnyCellOccupied(cells);
@@ -807,65 +804,7 @@ public class BuildManager : MonoBehaviour
         return true;
     }
 
-    // 홀로그램 연출 없이 즉시 설비 배치. Blueprint 붙여넣기에서 호출.
-    public PlacedBuilding PlaceFacilityImmediate(int facilityId, Vector3 worldPos, Quaternion rotation, List<Vector2Int> footprintCells)
-    {
-        // 구버전: FacilityRow facility = DataStore.GetFacility(facilityId);
-        FacilityDataSheetData facility = GetFacilityData(facilityId);
-        GameObject prefab = prefabDatabase != null ? prefabDatabase.GetPrefab(facilityId) : null;
-
-        if (facility == null || prefab == null)
-        {
-            Debug.LogWarning($"[BuildManager] PlaceFacilityImmediate 실패. facilityId={facilityId}");
-            return null;
-        }
-
-        OccupyCells(footprintCells);
-
-        GameObject obj = Instantiate(prefab, worldPos, rotation, buildParent);
-
-        PlacedBuilding placedBuilding = obj.GetComponent<PlacedBuilding>() ?? obj.AddComponent<PlacedBuilding>();
-        placedBuilding.facilityId = facilityId;
-        placedBuilding.currentLevel = 1;
-        placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
-        placedBuilding.originCell = footprintCells[0];
-        placedBuilding.CacheRenderers();
-
-        FacilityInstance facilityInstance = obj.GetComponent<FacilityInstance>() ?? obj.AddComponent<FacilityInstance>();
-        facilityInstance.Initialize(facilityId);
-
-        placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
-
-        if (!IsTopViewMode)
-            placedBuilding.HideLabel();
-
-        SpawnBuildCompleteEffect(worldPos, rotation);
-
-        // 퀘스트 시스템에 설치 완료 통지 (Blueprint 즉시 배치 경로)
-        GameEvents.RaiseFacilityPlaced(facilityId);
-
-        return placedBuilding;
-    }
-
-    public Vector2Int SizeOfFacility(int facilityId)
-    {
-        // 구버전: FacilityRow row = DataStore.GetFacility(facilityId);
-        FacilityDataSheetData data = GetFacilityData(facilityId);
-        return data != null ? new Vector2Int(data.gridW, data.gridH) : Vector2Int.one;
-    }
-
     // ===== end Public Helper =====
-
-    private Vector2Int WorldToStartCell(Vector3 worldPos)
-    {
-        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
-        Vector3 local = worldPos - origin;
-
-        int cellX = Mathf.FloorToInt(local.x / cellSize);
-        int cellZ = Mathf.FloorToInt(local.z / cellSize);
-
-        return new Vector2Int(cellX, cellZ);
-    }
 
     private Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size)
     {
@@ -911,19 +850,6 @@ public class BuildManager : MonoBehaviour
             return new Vector2Int(originalSize.y, originalSize.x);
 
         return originalSize;
-    }
-
-    private List<Vector2Int> GetFootprintCells(Vector3 snappedPos, Vector2Int size)
-    {
-        Vector3 origin = gridOrigin != null ? gridOrigin.position : Vector3.zero;
-
-        float localCenterX = snappedPos.x - origin.x;
-        float localCenterZ = snappedPos.z - origin.z;
-
-        int startX = Mathf.RoundToInt((localCenterX / cellSize) - (size.x * 0.5f));
-        int startZ = Mathf.RoundToInt((localCenterZ / cellSize) - (size.y * 0.5f));
-
-        return GetFootprintCellsFromStartCell(new Vector2Int(startX, startZ), size);
     }
 
     private bool IsAnyCellOccupied(List<Vector2Int> cells)
@@ -1114,12 +1040,6 @@ public class BuildManager : MonoBehaviour
             return false;
 
         return data.canRotate;
-    }
-
-    // installRule 컬럼이 새 스키마에서 삭제됨 → null 체크만 수행
-    private bool CheckInstallRule(FacilityDataSheetData facility)
-    {
-        return facility != null;
     }
 
     private void HandleDemolishModeInput()
@@ -1443,9 +1363,8 @@ public class BuildManager : MonoBehaviour
         bool isOccupied = IsAnyCellOccupied(footprintCells);
         bool isOnRail = IsAnyCellOnRail(footprintCells);
         bool isBlocked = IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
-        bool installRuleOk = CheckInstallRule(currentFacility);
 
-        canBuild = isInBuildZone && !isOccupied && !isOnRail && !isBlocked && installRuleOk;
+        canBuild = isInBuildZone && !isOccupied && !isOnRail && !isBlocked;
 
         UpdatePreview(snappedPos, rotation, canBuild);
         return true;
