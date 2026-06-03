@@ -477,7 +477,7 @@ public class MachineUI : MonoBehaviour
         }
         else if (isSelectedRecipeActive)
         {
-            float remaining = _machine.ActiveRecipe.processingTime * (1f - _machine.Progress);
+            float remaining = _machine.processingTime * (1f - _machine.Progress);
             statusText.text = $"{remaining:F0}초";
         }
         else
