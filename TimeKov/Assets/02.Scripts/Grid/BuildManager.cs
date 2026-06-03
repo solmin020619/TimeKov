@@ -278,7 +278,16 @@ public class BuildManager : MonoBehaviour
 
     private void SelectFacilitySlot(int index)
     {
-        if (hasSelectedSlot && currentIndex == index)
+        // 해제 모드(X) 중 슬롯 키를 누르면 해제에서 빠져나와 바로 건축 모드로 (편의)
+        bool fromDemolish = isDemolishMode;
+        if (fromDemolish)
+        {
+            isDemolishMode = false;
+            demolisher?.Cancel();
+        }
+
+        // 같은 슬롯 다시 누르면 선택 해제(토글). 단 해제 모드에서 막 나온 경우엔 토글 없이 무조건 선택.
+        if (!fromDemolish && hasSelectedSlot && currentIndex == index)
         {
             hasSelectedSlot = false;
             currentIndex = -1;
