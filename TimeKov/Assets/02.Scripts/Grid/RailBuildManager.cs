@@ -64,7 +64,6 @@ public class RailBuildManager : MonoBehaviour
     private readonly List<Vector2Int> lastPredictedPath = new();
     private Vector2Int? lastPredictedTarget = null;
     private Vector2Int? lastPredictedFromCell = null;
-    private bool lastPredictedReachesPort = false;
 
     // Visual overlay on the last committed cell while a prediction is showing,
     // so its rendered connection visually merges into the prediction's first cell.
@@ -128,7 +127,6 @@ public class RailBuildManager : MonoBehaviour
     }
 
     public IReadOnlyDictionary<Vector2Int, RailPiece> RailMap => railMap;
-    public Transform GridOriginRail => gridOrigin;
     public float CellSizeRail => cellSize;
     public float FixedYRail => fixedY;
 
@@ -187,14 +185,9 @@ public class RailBuildManager : MonoBehaviour
                 np.ApplyVisual(straightPrefab, cornerPrefab);
         }
 
-        ReleasePortIfFrontCell(cell);
+        ValidateAllPortConnections();
 
         return true;
-    }
-
-    private void ReleasePortIfFrontCell(Vector2Int cell)
-    {
-        ValidateAllPortConnections();
     }
 
     private void ValidateAllPortConnections()
@@ -927,9 +920,6 @@ public class RailBuildManager : MonoBehaviour
         return CanUseCellAsRail(candidate, simEnd, allowExisting: true);
     }
 
-    private bool IsFirstExpansionPending()
-        => isRouting && startPort != null && currentPathCells.Count == 1;
-
     private Vector2Int GetRequiredFirstExpansionCell()
         => startPort.GetFrontCell() + startPort.GetWorldDirection();
 
@@ -1033,6 +1023,11 @@ public class RailBuildManager : MonoBehaviour
 
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
     {
+        // [BuildZone] 레일도 시설과 동일하게 건축존 안에서만 배치. 존 밖 셀은 거부.
+        // 프리뷰/라우팅/실제배치 전부 이 메서드를 거치므로 한 곳만 막으면 모두 적용됨.
+        if (owner != null && !owner.IsCellInBuildZone(cell))
+            return false;
+
         if (!railMap.TryGetValue(cell, out RailPiece existingPiece))
             return true;
 
@@ -1369,7 +1364,7 @@ public class RailBuildManager : MonoBehaviour
             && lastPredictedFromCell.Value == currentEndCell)
             return;
 
-        List<Vector2Int> predicted = SimulatePath(targetCell.Value, out bool reachesPort);
+        List<Vector2Int> predicted = SimulatePath(targetCell.Value, out _);
 
         ClearPathPreviewInstances();
         RenderPathPreview(predicted);
@@ -1383,7 +1378,6 @@ public class RailBuildManager : MonoBehaviour
         lastPredictedPath.AddRange(predicted);
         lastPredictedTarget = targetCell.Value;
         lastPredictedFromCell = currentEndCell;
-        lastPredictedReachesPort = reachesPort;
     }
 
     private void RenderPathPreview(List<Vector2Int> predictedPath)
@@ -1528,7 +1522,6 @@ public class RailBuildManager : MonoBehaviour
         lastPredictedPath.Clear();
         lastPredictedTarget = null;
         lastPredictedFromCell = null;
-        lastPredictedReachesPort = false;
     }
 
     private void OverlayCurrentEndConnection(Vector2Int predictionFirstCell)

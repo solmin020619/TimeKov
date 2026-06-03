@@ -787,21 +787,32 @@ public class BuildManager : MonoBehaviour
         if (footprintCells == null || footprintCells.Count == 0)
             return false;
 
+        for (int i = 0; i < footprintCells.Count; i++)
+        {
+            if (!IsCellInBuildZone(footprintCells[i]))
+                return false;
+        }
+        return true;
+    }
+
+    // [BuildZone 확장] 단일 칸이 BuildZone 영역 안에 완전히 들어오는지 검사한다.
+    // 레일 등 1칸 단위 판정에서 호출 (시설 footprint 검사와 동일 규칙 재사용).
+    // buildZoneCollider 미연결 시 기존 플레이어 위치 기준으로 폴백.
+    public bool IsCellInBuildZone(Vector2Int cell)
+    {
+        if (buildZoneCollider == null)
+            return zoneChecker != null && zoneChecker.IsInBuildZone;
+
         Bounds zb = buildZoneCollider.bounds; // 월드 AABB (부모 스케일·회전 반영됨)
         float half = cellSize * 0.5f;
         const float eps = 0.01f; // 경계 부동소수 오차 허용
 
-        for (int i = 0; i < footprintCells.Count; i++)
-        {
-            // 각 칸의 월드 중심 — StartCellToWorldCenter 에 1x1 크기를 주면 칸 중심이 나옴
-            Vector3 c = StartCellToWorldCenter(footprintCells[i], new Vector2Int(1, 1));
+        // 칸의 월드 중심 — StartCellToWorldCenter 에 1x1 크기를 주면 칸 중심이 나옴
+        Vector3 c = StartCellToWorldCenter(cell, new Vector2Int(1, 1));
 
-            // 칸의 X/Z 네 모서리가 모두 zone bounds 안에 있어야 함 (Y는 평면이라 무시)
-            if (c.x - half < zb.min.x - eps || c.x + half > zb.max.x + eps ||
-                c.z - half < zb.min.z - eps || c.z + half > zb.max.z + eps)
-                return false;
-        }
-        return true;
+        // 칸의 X/Z 네 모서리가 모두 zone bounds 안에 있어야 함 (Y는 평면이라 무시)
+        return c.x - half >= zb.min.x - eps && c.x + half <= zb.max.x + eps
+            && c.z - half >= zb.min.z - eps && c.z + half <= zb.max.z + eps;
     }
 
     // ===== end Public Helper =====
