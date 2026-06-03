@@ -59,6 +59,7 @@ public class BuildManager : MonoBehaviour
     private bool isDemolishMode = false;
     private BuildDemolisher demolisher;
     private BuildPlacementValidator validator;
+    private FacilityPlacer placer;
 
     [Header("References")]
     public Camera mainCam;
@@ -175,6 +176,7 @@ public class BuildManager : MonoBehaviour
 
         demolisher = new BuildDemolisher(this, occupancy);
         validator = new BuildPlacementValidator(this);
+        placer = new FacilityPlacer(this, occupancy);
 
         if (previewMarker != null)
             previewMarker.SetActive(false);
@@ -615,123 +617,15 @@ public class BuildManager : MonoBehaviour
 
     private IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
-        // 구버전: FacilityRow facility = GetCurrentFacilityRow(); facility.facilityId
-        // 신버전: facilityId int 를 직접 사용
         int facilityId = GetCurrentFacilityId();
         if (facilityId == 0) yield break;
-
-        FacilityDataSheetData facility = GetFacilityData(facilityId);
-        if (facility == null) yield break;
-
-        yield return PlaceFacilityRoutine(facilityId, position, rotation, footprintCells);
+        yield return placer.PlaceRoutine(facilityId, position, rotation, footprintCells);
     }
 
     // facilityId를 지정해서 홀로그램 연출을 거쳐 배치. Blueprint 붙여넣기에서 호출.
     public void PlaceFacilityWithHologram(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
-        StartCoroutine(PlaceFacilityRoutine(facilityId, position, rotation, footprintCells));
-    }
-
-    private IEnumerator PlaceFacilityRoutine(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
-    {
-        // 구버전: FacilityRow facility = DataStore.GetFacility(facilityId);
-        // 신버전: FacilityDataSheetData
-        FacilityDataSheetData facility = GetFacilityData(facilityId);
-        GameObject prefab = prefabDatabase != null ? prefabDatabase.GetPrefab(facilityId) : null;
-
-        if (facility == null || prefab == null)
-            yield break;
-
-        OccupyCells(footprintCells);
-        PlayBuildStartSound();
-
-        GameObject hologramObj = Instantiate(prefab, position, rotation);
-        ApplyHologramVisual(hologramObj);
-
-        DisablePlacedObjectComponents(hologramObj);
-
-        yield return new WaitForSeconds(buildEffectDuration);
-
-        if (hologramObj != null)
-            Destroy(hologramObj);
-
-        GameObject obj = Instantiate(prefab, position, rotation, buildParent);
-
-        PlacedBuilding placedBuilding = obj.GetComponent<PlacedBuilding>();
-        if (placedBuilding == null)
-            placedBuilding = obj.AddComponent<PlacedBuilding>();
-
-        // 구버전: placedBuilding.facilityId = facility.facilityId
-        // 신버전: facilityId 파라미터 int 직접 사용
-        placedBuilding.facilityId = facilityId;
-        placedBuilding.currentLevel = 1;
-        placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
-        placedBuilding.originCell = footprintCells[0];
-        placedBuilding.CacheRenderers();
-
-        FacilityInstance facilityInstance = obj.GetComponent<FacilityInstance>();
-        if (facilityInstance == null)
-            facilityInstance = obj.AddComponent<FacilityInstance>();
-
-        // 구버전: facilityInstance.Initialize(facility.facilityId)
-        facilityInstance.Initialize(facilityId);
-
-        // facility.facilityName, gridW, gridH → 신버전에도 동일 컬럼명
-        placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, cellSize);
-
-        if (!IsTopViewMode)
-            placedBuilding.HideLabel();
-
-        if (IsRailSubMode)
-            railBuildManager?.RefreshPortIndicators();
-
-        PlayBuildCompleteSound();
-        SpawnBuildCompleteEffect(position, rotation);
-
-        // 퀘스트 시스템에 설치 완료 통지
-        GameEvents.RaiseFacilityPlaced(facilityId);
-    }
-
-    // 홀로그램/프리뷰 오브젝트의 물리·스크립트 비활성화 (충돌·동작 없이 보이기만).
-    // PlaceFacilityRoutine(홀로그램)과 RefreshPreviewMarker(프리뷰)가 공유.
-    private void DisablePlacedObjectComponents(GameObject obj)
-    {
-        Collider[] colliders = obj.GetComponentsInChildren<Collider>();
-        for (int i = 0; i < colliders.Length; i++)
-            colliders[i].enabled = false;
-
-        Rigidbody[] rigidbodies = obj.GetComponentsInChildren<Rigidbody>();
-        for (int i = 0; i < rigidbodies.Length; i++)
-        {
-            rigidbodies[i].isKinematic = true;
-            rigidbodies[i].detectCollisions = false;
-        }
-
-        MonoBehaviour[] behaviours = obj.GetComponentsInChildren<MonoBehaviour>();
-        for (int i = 0; i < behaviours.Length; i++)
-        {
-            if (behaviours[i] == null) continue; // 프리팹의 미싱 스크립트 보호
-            if (behaviours[i] != this)
-                behaviours[i].enabled = false;
-        }
-    }
-
-    private void ApplyHologramVisual(GameObject target)
-    {
-        if (target == null || hologramMaterial == null)
-            return;
-
-        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
-
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            Material[] mats = renderers[i].materials;
-
-            for (int j = 0; j < mats.Length; j++)
-                mats[j] = hologramMaterial;
-
-            renderers[i].materials = mats;
-        }
+        StartCoroutine(placer.PlaceRoutine(facilityId, position, rotation, footprintCells));
     }
 
     // ===== Blueprint에서 쓰는 Public Helper =====
@@ -771,10 +665,6 @@ public class BuildManager : MonoBehaviour
 
     private bool IsAnyCellOnRail(List<Vector2Int> cells) => validator.IsAnyCellOnRail(cells);
 
-    private void OccupyCells(List<Vector2Int> cells) => occupancy.Occupy(cells);
-
-    private void RemoveOccupiedCells(List<Vector2Int> cells) => occupancy.Free(cells);
-
     private bool IsBlockedByPhysics(Vector3 centerPos, Vector2Int size, Quaternion rotation) => validator.IsBlocked(centerPos, size, rotation);
 
     private void UpdatePreview(Vector3 position, Quaternion rotation, bool canBuild)
@@ -808,7 +698,7 @@ public class BuildManager : MonoBehaviour
         previewMarker = Instantiate(prefab);
         previewMarker.name = GetCurrentFacilityName() + "_Preview";
 
-        DisablePlacedObjectComponents(previewMarker);
+        FacilityPlacer.DisableGhostComponents(previewMarker, this);
 
         previewMarker.SetActive(false);
     }
@@ -929,29 +819,6 @@ public class BuildManager : MonoBehaviour
     public Material railDemolishOverlayMaterial;
     [Tooltip("레일 셀에 덮을 빨간 박스 높이")]
     public float railDemolishOverlayHeight = 0.2f;
-
-    private void PlayBuildStartSound()
-    {
-        if (audioSource == null || buildStartClip == null) return;
-        audioSource.PlayOneShot(buildStartClip, 0.1f);
-    }
-
-    private void PlayBuildCompleteSound()
-    {
-        if (audioSource == null || buildCompleteClip == null) return;
-        audioSource.PlayOneShot(buildCompleteClip);
-    }
-
-    private void SpawnBuildCompleteEffect(Vector3 position, Quaternion rotation)
-    {
-        if (buildCompleteEffectPrefab == null) return;
-
-        Instantiate(
-            buildCompleteEffectPrefab,
-            position + buildCompleteEffectOffset,
-            rotation
-        );
-    }
 
     private bool TryGetCurrentBuildData(
         out RaycastHit hit,
