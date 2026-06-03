@@ -398,83 +398,71 @@ namespace TIMEKOV.Factory
                 yield break;
             }
 
-            // 시각 오브젝트 생성
-            BeltSegment first = chain[0];
-            Vector3 spawnPos = (first != null && first.endpointBack != null)
-                ? first.endpointBack.position
-                : (first != null ? first.transform.position : Vector3.zero);
+            // ── 경로 웨이포인트 사전 계산 ────────────────────────────────────
+            // back → transform(코너 경유) → front 순으로 각 세그먼트 추가
+            var waypoints = new List<Vector3>();
+            var seg0 = chain[0];
+            waypoints.Add(seg0.endpointBack != null ? seg0.endpointBack.position : seg0.transform.position);
+            foreach (var seg in chain)
+            {
+                waypoints.Add(seg.transform.position);
+                waypoints.Add(seg.endpointFront != null
+                    ? seg.endpointFront.position
+                    : seg.transform.position + seg.transform.forward);
+            }
 
+            // 구간별 거리 사전 계산 (매 프레임 계산 방지)
+            var segLengths = new float[waypoints.Count - 1];
+            float totalLength = 0f;
+            for (int i = 0; i < segLengths.Length; i++)
+            {
+                segLengths[i] = Vector3.Distance(waypoints[i], waypoints[i + 1]);
+                totalLength  += segLengths[i];
+            }
+
+            // 전체 이동 시간
+            float totalTime = 0f;
+            foreach (var seg in chain) totalTime += seg.travelTimePerSegment;
+            if (totalTime <= 0f) totalTime = 1f;
+
+            // 거부 대상이면 마지막 세그먼트 절반 지점에서 정지
+            bool willBeRejected = targetM == null || !targetM.CanReceive(itemId);
+            float moveDuration  = willBeRejected
+                ? Mathf.Max(0f, totalTime - chain[chain.Count - 1].travelTimePerSegment * 0.5f)
+                : totalTime;
+
+            // 시각 오브젝트 생성
             GameObject visual = null;
             if (beltItemPrefab != null)
             {
-                visual = Instantiate(beltItemPrefab, spawnPos, beltItemPrefab.transform.rotation);
+                visual = Instantiate(beltItemPrefab, waypoints[0], beltItemPrefab.transform.rotation);
                 if (visual.TryGetComponent<BeltItemVisual>(out var vis))
                     vis.Setup(itemId, amount);
                 _activeVisuals.Add(visual);
             }
 
-            bool pathBroken = false;
+            // ── 전체 경로를 일정 속도로 부드럽게 이동 ───────────────────────
+            float elapsed    = 0f;
+            bool  pathBroken = false;
 
-            // ── 세그먼트 단위 실시간 이동 ────────────────────────────────────
-            // 매 프레임마다 세그먼트 생존 여부를 확인하여
-            // 삭제된 벨트를 즉시 감지한다.
-            for (int i = 0; i < chain.Count; i++)
+            while (elapsed < moveDuration)
             {
-                BeltSegment seg = chain[i];
+                // 현재 진행률에 해당하는 세그먼트 생존 확인
+                int segIdx = Mathf.Clamp(Mathf.FloorToInt(elapsed / totalTime * chain.Count), 0, chain.Count - 1);
+                if (chain[segIdx] == null) { pathBroken = true; break; }
 
-                // 세그먼트가 이미 삭제됐거나 파괴됨
-                if (seg == null) { pathBroken = true; break; }
+                float t = Mathf.Clamp01(elapsed / totalTime);
+                if (visual != null)
+                    visual.transform.position = GetPositionAlongPath(waypoints, segLengths, totalLength, t);
 
-                // 위치값을 미리 캡처 (삭제 이후에도 Vector3 값은 유지됨)
-                Vector3 back  = seg.endpointBack  != null ? seg.endpointBack.position  : seg.transform.position;
-                Vector3 front = seg.endpointFront != null ? seg.endpointFront.position : seg.transform.position + seg.transform.forward;
-                // 꺾이는 벨트에서 대각선 이동을 막기 위해 세그먼트 자체 위치를 경유점으로 사용
-                Vector3 mid   = seg.transform.position;
-                float   distBack  = Vector3.Distance(back,  mid);
-                float   distFront = Vector3.Distance(mid,   front);
-                float   totalDist = distBack + distFront;
-                float   ratioBack = totalDist > 0f ? distBack  / totalDist : 0.5f;
-                float   half      = seg.travelTimePerSegment * ratioBack;
-                float   halfFront = seg.travelTimePerSegment * (1f - ratioBack);
-
-                bool isLast = (i == chain.Count - 1);
-
-                // 마지막 세그먼트에서 수락 불가 시 → 설비 내부(front)까지 이동 안 함
-                // 거부된 아이템은 mid(벨트 중간)에서 대기
-                bool willBeRejected = isLast && (targetM == null || !targetM.CanReceive(itemId));
-                Vector3 dest = willBeRejected ? mid : front;
-
-                // 구간 ①: back → mid
-                float elapsed = 0f;
-                while (elapsed < half)
-                {
-                    if (seg == null) { pathBroken = true; break; }
-                    elapsed += Time.deltaTime;
-                    if (visual != null)
-                        visual.transform.position = Vector3.Lerp(back, mid, elapsed / half);
-                    yield return null;
-                }
-                if (pathBroken) break;
-
-                // 구간 ②: mid → dest  (거부 시 mid = dest이므로 즉시 완료)
-                elapsed = 0f;
-                while (elapsed < halfFront)
-                {
-                    if (seg == null) { pathBroken = true; break; }
-                    elapsed += Time.deltaTime;
-                    if (visual != null)
-                        visual.transform.position = Vector3.Lerp(mid, dest, elapsed / halfFront);
-                    yield return null;
-                }
-                if (pathBroken) break;
-
-                // 다음 세그먼트가 이미 삭제됐으면 경로 파괴로 처리
-                if (!isLast && chain[i + 1] == null)
-                {
-                    pathBroken = true;
-                    break;
-                }
+                elapsed += Time.deltaTime;
+                yield return null;
             }
+
+            // 마지막 위치 확정
+            if (!pathBroken && visual != null)
+                visual.transform.position = GetPositionAlongPath(
+                    waypoints, segLengths, totalLength, Mathf.Clamp01(moveDuration / totalTime));
 
             // ── OnDestroy가 이미 처리한 경우 (방어 코드) ────────────────────
             if (token.isRescued)
@@ -487,21 +475,18 @@ namespace TIMEKOV.Factory
             // ── 결과 처리 ────────────────────────────────────────────────────
             if (pathBroken)
             {
-                // 경로 파괴(벨트 삭제) → 즉시 창고로
                 token.isRescued = true;
                 InventoryManager.StorageInstance?.AddItem(itemId, amount);
                 Debug.Log($"[Belt] 경로 파괴 → 아이템 {itemId} x{amount} 즉시 창고 이동");
             }
             else if (targetM == null)
             {
-                // 목표 설비 소멸 → 즉시 창고로
                 token.isRescued = true;
                 InventoryManager.StorageInstance?.AddItem(itemId, amount);
                 Debug.Log($"[Belt] 목표 설비 없음 → 아이템 {itemId} x{amount} 창고 이동");
             }
             else if (!targetM.CanReceive(itemId))
             {
-                // 레시피 불일치 → mid(설비 입구 직전)에서 1.5초 대기 후 창고로
                 yield return new WaitForSeconds(1.5f);
                 if (!token.isRescued)
                 {
@@ -512,13 +497,35 @@ namespace TIMEKOV.Factory
             }
             else
             {
-                // 정상 전달
                 token.isDelivered = true;
                 targetM.Receive(itemId, amount);
             }
 
             CleanupVisual(visual);
             _inFlightItems.Remove(token);
+        }
+
+        /// <summary>웨이포인트 목록 위에서 t(0~1) 비율에 해당하는 위치를 반환한다.</summary>
+        private static Vector3 GetPositionAlongPath(List<Vector3> pts, float[] lengths, float totalLength, float t)
+        {
+            if (totalLength <= 0f) return pts[pts.Count - 1];
+
+            float target = t * totalLength;
+            float acc    = 0f;
+
+            for (int i = 0; i < lengths.Length; i++)
+            {
+                if (acc + lengths[i] >= target - 0.0001f)
+                {
+                    float segT = lengths[i] > 0f
+                        ? Mathf.Clamp01((target - acc) / lengths[i])
+                        : 1f;
+                    return Vector3.Lerp(pts[i], pts[i + 1], segT);
+                }
+                acc += lengths[i];
+            }
+
+            return pts[pts.Count - 1];
         }
 
         private void CleanupVisual(GameObject visual)
