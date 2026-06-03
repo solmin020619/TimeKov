@@ -465,6 +465,20 @@ public class BuildManager : MonoBehaviour
         mgr.Show("build_zone_hint", zone.transform, 0f);
     }
 
+    // 탑뷰 진입 시 카메라가 맞출 앵커. topViewStartTarget 지정 시 그쪽(고정) 우선,
+    // 없으면 플레이어 현재 위치(태그로 1회 탐색 후 캐시) 기준.
+    private Transform _topViewPlayerCache;
+    private Transform GetTopViewAnchor()
+    {
+        if (topViewStartTarget != null) return topViewStartTarget;
+        if (_topViewPlayerCache == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) _topViewPlayerCache = p.transform;
+        }
+        return _topViewPlayerCache;
+    }
+
     private void SetTopViewMode(bool value, bool force = false)
     {
         if (!force && IsTopViewMode == value)
@@ -504,8 +518,10 @@ public class BuildManager : MonoBehaviour
             {
                 Vector3 startPos = topViewCamera.transform.position;
 
-                if (topViewStartTarget != null)
-                    startPos = topViewStartTarget.position + topViewStartOffset;
+                // 진입 시 플레이어 현재 위치 위에서 시작 (topViewStartTarget 지정 시 그쪽 우선)
+                Transform anchor = GetTopViewAnchor();
+                if (anchor != null)
+                    startPos = anchor.position + topViewStartOffset;
 
                 topViewCamera.transform.position = startPos;
                 topViewCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
