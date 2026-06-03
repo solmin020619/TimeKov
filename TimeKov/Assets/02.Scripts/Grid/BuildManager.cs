@@ -657,24 +657,7 @@ public class BuildManager : MonoBehaviour
         GameObject hologramObj = Instantiate(prefab, position, rotation);
         ApplyHologramVisual(hologramObj);
 
-        Collider[] hologramColliders = hologramObj.GetComponentsInChildren<Collider>();
-        for (int i = 0; i < hologramColliders.Length; i++)
-            hologramColliders[i].enabled = false;
-
-        Rigidbody[] rigidbodies = hologramObj.GetComponentsInChildren<Rigidbody>();
-        for (int i = 0; i < rigidbodies.Length; i++)
-        {
-            rigidbodies[i].isKinematic = true;
-            rigidbodies[i].detectCollisions = false;
-        }
-
-        MonoBehaviour[] behaviours = hologramObj.GetComponentsInChildren<MonoBehaviour>();
-        for (int i = 0; i < behaviours.Length; i++)
-        {
-            if (behaviours[i] == null) continue; // 프리팹의 미싱 스크립트 보호
-            if (behaviours[i] != this)
-                behaviours[i].enabled = false;
-        }
+        DisablePlacedObjectComponents(hologramObj);
 
         yield return new WaitForSeconds(buildEffectDuration);
 
@@ -718,6 +701,30 @@ public class BuildManager : MonoBehaviour
         GameEvents.RaiseFacilityPlaced(facilityId);
     }
 
+    // 홀로그램/프리뷰 오브젝트의 물리·스크립트 비활성화 (충돌·동작 없이 보이기만).
+    // PlaceFacilityRoutine(홀로그램)과 RefreshPreviewMarker(프리뷰)가 공유.
+    private void DisablePlacedObjectComponents(GameObject obj)
+    {
+        Collider[] colliders = obj.GetComponentsInChildren<Collider>();
+        for (int i = 0; i < colliders.Length; i++)
+            colliders[i].enabled = false;
+
+        Rigidbody[] rigidbodies = obj.GetComponentsInChildren<Rigidbody>();
+        for (int i = 0; i < rigidbodies.Length; i++)
+        {
+            rigidbodies[i].isKinematic = true;
+            rigidbodies[i].detectCollisions = false;
+        }
+
+        MonoBehaviour[] behaviours = obj.GetComponentsInChildren<MonoBehaviour>();
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            if (behaviours[i] == null) continue; // 프리팹의 미싱 스크립트 보호
+            if (behaviours[i] != this)
+                behaviours[i].enabled = false;
+        }
+    }
+
     private void ApplyHologramVisual(GameObject target)
     {
         if (target == null || hologramMaterial == null)
@@ -734,13 +741,6 @@ public class BuildManager : MonoBehaviour
 
             renderers[i].materials = mats;
         }
-    }
-
-    private Vector3 SnapToGrid(Vector3 worldPos)
-    {
-        Vector2Int size = GetRotatedSize(GetCurrentFacilitySize(), currentRotationY);
-        Vector2Int startCell = WorldToStartCellCentered(worldPos, size);
-        return StartCellToWorldCenter(startCell, size);
     }
 
     // ===== Blueprint에서 쓰는 Public Helper =====
@@ -773,8 +773,6 @@ public class BuildManager : MonoBehaviour
 
     public bool IsPhysicallyBlocked(Vector3 centerPos, Vector2Int size, Quaternion rotation)
         => IsBlockedByPhysics(centerPos, size, rotation);
-
-    public bool IsInBuildZoneNow => zoneChecker != null && zoneChecker.IsInBuildZone;
 
     // [BuildZone 확장] 건물의 footprint(차지하는 모든 칸)가 BuildZone 영역 안에 완전히
     // 들어오는지 검사한다. buildZoneCollider 미연결 시 기존 플레이어 위치 기준으로 폴백.
@@ -956,24 +954,7 @@ public class BuildManager : MonoBehaviour
         previewMarker = Instantiate(prefab);
         previewMarker.name = GetCurrentFacilityName() + "_Preview";
 
-        Collider[] colliders = previewMarker.GetComponentsInChildren<Collider>();
-        for (int i = 0; i < colliders.Length; i++)
-            colliders[i].enabled = false;
-
-        Rigidbody[] rigidbodies = previewMarker.GetComponentsInChildren<Rigidbody>();
-        for (int i = 0; i < rigidbodies.Length; i++)
-        {
-            rigidbodies[i].isKinematic = true;
-            rigidbodies[i].detectCollisions = false;
-        }
-
-        MonoBehaviour[] behaviours = previewMarker.GetComponentsInChildren<MonoBehaviour>();
-        for (int i = 0; i < behaviours.Length; i++)
-        {
-            if (behaviours[i] == null) continue; // 프리팹의 미싱 스크립트 보호
-            if (behaviours[i] != this)
-                behaviours[i].enabled = false;
-        }
+        DisablePlacedObjectComponents(previewMarker);
 
         previewMarker.SetActive(false);
     }
@@ -982,11 +963,6 @@ public class BuildManager : MonoBehaviour
     {
         if (previewMarker != null)
             previewMarker.SetActive(value);
-    }
-
-    public string GetCurrentItemName()
-    {
-        return IsRailSubMode ? "Rail" : GetCurrentFacilityName();
     }
 
     public string GetCurrentFacilityName()
