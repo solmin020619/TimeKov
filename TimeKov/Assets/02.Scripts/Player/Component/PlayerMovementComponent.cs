@@ -81,6 +81,36 @@ public class PlayerMovementComponent : MonoBehaviour
         _rb.useGravity = false;
     }
 
+    void OnEnable()
+    {
+        if (_player?.Stat != null)
+        {
+            _player.Stat.OnDead += FreezeOnDeath;
+        }
+    }
+
+    void OnDisable()
+    {
+        if (_player?.Stat != null)
+        {
+            _player.Stat.OnDead -= FreezeOnDeath;
+        }
+    }
+
+    /// <summary>사망 시 Rigidbody를 Kinematic으로 전환 — 경사면 미끄러짐 및 피격 밀림 방지</summary>
+    private void FreezeOnDeath()
+    {
+        _rb.linearVelocity = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
+        _rb.isKinematic = true;
+    }
+
+    /// <summary>부활 시 Rigidbody 복구 (PlayerStatComponent.Respawn에서 호출됨)</summary>
+    public void UnfreezeOnRespawn()
+    {
+        _rb.isKinematic = false;
+    }
+
     void Update()
     {
         // 공격·스킬 잠금 / 스킬 실행 중 / 피격 경직 / 사망 중에는 이동 방향 입력 무시

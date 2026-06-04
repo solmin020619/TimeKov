@@ -207,6 +207,9 @@ public class PlayerStatComponent : MonoBehaviour
             StopCoroutine(_hurtRoutine);
             _hurtRoutine = null;
         }
+
+        // 사망 시 Kinematic 으로 전환했던 Rigidbody 복구
+        _player.Movement.UnfreezeOnRespawn();
     }
 
     // �޸��� �� �� ������ ȣ��  �޸� �� ������ true
