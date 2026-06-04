@@ -18,10 +18,12 @@ public class InventoryUIController : MonoBehaviour
     [Header("패널")]
     [SerializeField] private GameObject warehousePanel;
     [SerializeField] private GameObject bagPanel;
+    [SerializeField] private GameObject chestPanel;       // 상자 파밍 패널
 
     [Header("그리드 UI")]
     [SerializeField] private InventoryGridUI bagGridUI;
     [SerializeField] private InventoryGridUI warehouseGridUI;
+    [SerializeField] private InventoryGridUI chestGridUI; // 상자 파밍 그리드
 
     [Header("카테고리 필터")]
     [SerializeField] private CategoryFilterUI bagFilterUI;
@@ -35,6 +37,9 @@ public class InventoryUIController : MonoBehaviour
 
     [Header("창고 패널 UI 버튼")]
     [SerializeField] private Button takeAllBtn;
+
+    [Header("상자 패널 UI 버튼")]
+    [SerializeField] private Button takeAllFromChestBtn;  // 상자 아이템 전부 가방으로
 
     [Header("팝업")]
     [SerializeField] private ContextMenuUI contextMenu;
@@ -55,9 +60,13 @@ public class InventoryUIController : MonoBehaviour
 
     // 인벤토리 UI 오픈 상태
     private bool _isOpen = false;
+    public bool IsOpen => _isOpen;
 
     // 기지 내부 여부 (WarehouseInteractable 등에서 설정, 닫을 때 자동 초기화)
     public static bool IsInBase { get; set; } = false;
+
+    // 상자 열기 여부 (ChestInteractable에서 설정, 닫을 때 자동 초기화)
+    public static bool IsChestOpen { get; set; } = false;
 
     private void Awake()
     {
@@ -75,6 +84,9 @@ public class InventoryUIController : MonoBehaviour
         if (warehouseGridUI != null && InventoryManager.StorageInstance != null)
             warehouseGridUI.Bind(InventoryManager.StorageInstance);
 
+        if (chestGridUI != null && InventoryManager.ChestInstance != null)
+            chestGridUI.Bind(InventoryManager.ChestInstance);
+
         // 카테고리 필터 이벤트 연결
         if (bagFilterUI != null)
             bagFilterUI.OnFilterChanged += bagGridUI.SetFilter;
@@ -87,6 +99,7 @@ public class InventoryUIController : MonoBehaviour
         if (takeAllBtn != null) takeAllBtn.onClick.AddListener(OnClickTakeAll);
         if (bagTrashBtn != null) bagTrashBtn.onClick.AddListener(OnClickBagTrash);
         if (bagCloseBtn != null) bagCloseBtn.onClick.AddListener(Close);
+        if (takeAllFromChestBtn != null) takeAllFromChestBtn.onClick.AddListener(OnClickTakeAllFromChest);
 
         // 창고 정렬 바 바인딩
         if (sortBarUI != null && InventoryManager.StorageInstance != null)
@@ -156,7 +169,15 @@ public class InventoryUIController : MonoBehaviour
 
         // 창고 안에서만 창고 패널 표시
         if (warehousePanel != null)
-            warehousePanel.SetActive(IsInBase);
+            warehousePanel.SetActive(IsInBase && !IsChestOpen);
+
+        // 상자 열었을 때 상자 패널 표시
+        if (chestPanel != null)
+            chestPanel.SetActive(IsChestOpen);
+
+        // 상자 패널 열릴 때 ChestInstance에 그리드 바인딩 (타이밍 이슈 방지)
+        if (IsChestOpen && chestGridUI != null && InventoryManager.ChestInstance != null)
+            chestGridUI.Bind(InventoryManager.ChestInstance);
 
         if (bagPanel != null)
             bagPanel.SetActive(true);
@@ -192,6 +213,13 @@ public class InventoryUIController : MonoBehaviour
 
         // 창고 재진입 플래그 초기화 (다음 TAB 시 창고가 열리지 않도록)
         IsInBase = false;
+
+        // 상자 닫기 — 남은 아이템 비우기
+        if (IsChestOpen)
+        {
+            IsChestOpen = false;
+            InventoryManager.ChestInstance?.ClearAllItems();
+        }
 
         _isOpen = false;
 
@@ -259,16 +287,29 @@ public class InventoryUIController : MonoBehaviour
         var player = InventoryManager.Instance;
         var storage = InventoryManager.StorageInstance;
 
+        var chest = InventoryManager.ChestInstance;
+
         if (owner == player)
         {
-            // 가방 -> 창고 (창고 패널이 열려있을 때만 이동)
-            bool warehouseOpen = warehousePanel != null && warehousePanel.activeSelf;
-            if (IsInBase && warehouseOpen && storage != null)
-                owner.MoveSlot(slot.SlotData.slotIndex, storage);
+            // 가방 → 상자가 열려있으면 상자로, 아니면 창고로
+            if (IsChestOpen && chest != null)
+                owner.MoveSlot(slot.SlotData.slotIndex, chest);
+            else
+            {
+                bool warehouseOpen = warehousePanel != null && warehousePanel.activeSelf;
+                if (IsInBase && warehouseOpen && storage != null)
+                    owner.MoveSlot(slot.SlotData.slotIndex, storage);
+            }
         }
         else if (owner == storage)
         {
-            // 창고 -> 가방
+            // 창고 → 가방
+            if (player != null)
+                owner.MoveSlot(slot.SlotData.slotIndex, player);
+        }
+        else if (owner == chest)
+        {
+            // 상자 → 가방
             if (player != null)
                 owner.MoveSlot(slot.SlotData.slotIndex, player);
         }
@@ -321,6 +362,16 @@ public class InventoryUIController : MonoBehaviour
 
         var filter = warehouseFilterUI != null ? warehouseFilterUI.CurrentFilter : null;
         storage.MoveFilteredTo(player, filter);
+        RefreshCapacityText();
+    }
+
+    // 상자 아이템 전부 가방으로
+    private void OnClickTakeAllFromChest()
+    {
+        var player = InventoryManager.Instance;
+        var chest  = InventoryManager.ChestInstance;
+        if (player == null || chest == null) return;
+        chest.MoveFilteredTo(player, null);
         RefreshCapacityText();
     }
 

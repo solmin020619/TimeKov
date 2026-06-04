@@ -24,7 +24,8 @@ public class GameUIController : MonoBehaviour
         Quest,        // 퀘스트 수락/조회 팝업 (J키)
         Inventory,    // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
         PlayerStat,   // 플레이어 스탯창 (C키)
-        CoreUpgrade   // 코어 강화 UI (터미널 상호작용)
+        CoreUpgrade,  // 코어 강화 UI (터미널 상호작용)
+        ChestOpen     // 상자 오픈 팝업
     }
 
     [Header("Settings Panel")]
@@ -153,6 +154,8 @@ public class GameUIController : MonoBehaviour
 
         // 코어 강화 UI — SetState 전에 패널 먼저 숨김 (순환 호출 방지)
         CoreUpgradeUI.Instance?.HidePanel();
+        // 상자 오픈 UI
+        ChestOpenUI.Instance?.HidePanel();
 
         // SetState가 WindowManager mirror도 함께 처리
         SetState(UIState.None);
@@ -189,6 +192,20 @@ public class GameUIController : MonoBehaviour
     public void CloseCoreUpgradeUI()
     {
         if (_currentState != UIState.CoreUpgrade) return;
+        SetState(UIState.None);
+    }
+
+    // ── 상자 오픈 UI ──────────────────────────────────────────────────
+
+    public void OpenChestUI()
+    {
+        if (_currentState != UIState.None) return;
+        SetState(UIState.ChestOpen);
+    }
+
+    public void CloseChestUI()
+    {
+        if (_currentState != UIState.ChestOpen) return;
         SetState(UIState.None);
     }
 
@@ -273,6 +290,7 @@ public class GameUIController : MonoBehaviour
             case UIState.Quest:       return "QuestPopup";
             case UIState.Inventory:   return "Inventory";
             case UIState.CoreUpgrade: return "CoreUpgrade";
+            case UIState.ChestOpen:   return "ChestOpen";
             default:                  return null;   // None, PlayerStat은 별도 채널
         }
     }

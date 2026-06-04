@@ -30093,7 +30093,6 @@ GameObject:
   m_Component:
   - component: {fileID: 4504058988548746}
   - component: {fileID: 65190008363391004}
-  - component: {fileID: 54805316957554952}
   m_Layer: 0
   m_Name: P_Crate_Blue_Big_01
   m_TagString: Untagged
@@ -30138,33 +30137,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1.0332332, z: 2.1035295}
   m_Center: {x: -0.0000076293945, y: 0.5148773, z: 0.0019073486}
---- !u!54 &54805316957554952
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1714802312318860}
-  serializedVersion: 4
-  m_Mass: 0.5
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!1 &1714815918348460
 GameObject:
   m_ObjectHideFlags: 0

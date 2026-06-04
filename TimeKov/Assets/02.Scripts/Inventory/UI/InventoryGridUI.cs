@@ -1,14 +1,14 @@
 // InventoryGridUI.cs
-// SlotGrid ¿ÀºêÁ§Æ®¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// ½½·Ô ÇÁ¸®ÆÕ »ý¼º ¹× InventoryManager µ¥ÀÌÅÍ ¹ÙÀÎµù
-// Ä«Å×°í¸® ÇÊÅÍ Àû¿ë
+// SlotGrid ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ InventoryManager ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½
+// Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
 using System.Collections.Generic;
 using UnityEngine;
 
 public class InventoryGridUI : MonoBehaviour
 {
-    [Header("½½·Ô ¼³Á¤")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private GameObject slotPrefab;
     [SerializeField] private Transform slotGrid;
 
@@ -16,7 +16,7 @@ public class InventoryGridUI : MonoBehaviour
     private List<InventorySlotUI> _slotUIs = new List<InventorySlotUI>();
     private ItemCategory? _currentFilter = null;
 
-    // ÀÎº¥Åä¸® ¸Å´ÏÀú ¹ÙÀÎµù
+    // ï¿½Îºï¿½ï¿½ä¸® ï¿½Å´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½
     public void Bind(InventoryManager manager)
     {
         if (_manager != null)
@@ -31,21 +31,28 @@ public class InventoryGridUI : MonoBehaviour
         RefreshAll();
     }
 
-    // Ä«Å×°í¸® ÇÊÅÍ º¯°æ (null ÀÌ¸é ÀüÃ¼ Ç¥½Ã)
+    // Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (null ï¿½Ì¸ï¿½ ï¿½ï¿½Ã¼ Ç¥ï¿½ï¿½)
     public void SetFilter(ItemCategory? category)
     {
         _currentFilter = category;
         RefreshAll();
     }
 
-    // ½½·Ô UI »ý¼º
+    // ï¿½ï¿½ï¿½ï¿½ UI ï¿½ï¿½ï¿½ï¿½
     private void BuildSlots()
     {
         foreach (var ui in _slotUIs)
             if (ui != null) Destroy(ui.gameObject);
         _slotUIs.Clear();
 
-        if (_manager == null || slotPrefab == null || slotGrid == null) return;
+        if (_manager == null || slotPrefab == null || slotGrid == null)
+        {
+            Debug.LogWarning($"[InventoryGridUI:{name}] BuildSlots ì¤‘ë‹¨ â€” " +
+                             $"manager={(_manager == null ? "NULL" : _manager.ownerType.ToString())} " +
+                             $"slotPrefab={slotPrefab != null} " +
+                             $"slotGrid={slotGrid != null}");
+            return;
+        }
 
         int slotCount = _manager.GetMaxSlots();
         for (int i = 0; i < slotCount; i++)
@@ -56,7 +63,7 @@ public class InventoryGridUI : MonoBehaviour
             var slotUI = obj.GetComponent<InventorySlotUI>();
             if (slotUI == null)
             {
-                Debug.LogError("[InventoryGridUI] slotPrefab ¿¡ InventorySlotUI ¾øÀ½: " + obj.name);
+                Debug.LogError("[InventoryGridUI] slotPrefab ï¿½ï¿½ InventorySlotUI ï¿½ï¿½ï¿½ï¿½: " + obj.name);
                 continue;
             }
 
@@ -64,7 +71,7 @@ public class InventoryGridUI : MonoBehaviour
         }
     }
 
-    // ÇÊÅÍ Àû¿ë ÈÄ ÀüÃ¼ ½½·Ô °»½Å
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void RefreshAll()
     {
         if (_manager == null) return;
@@ -85,7 +92,7 @@ public class InventoryGridUI : MonoBehaviour
             var slot = slots[i];
             _slotUIs[i].gameObject.SetActive(true);
 
-            // Ä«Å×°í¸® ÇÊÅÍ Àû¿ë
+            // Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             if (!slot.IsEmpty && _currentFilter != null)
             {
                 var data = ItemDatabase.GetItem(slot.itemId);

@@ -1,7 +1,7 @@
 ﻿// InventoryManager.cs
-// 가방(Player) / 창고(Storage) 인벤토리 데이터 관리
+// 가방(Player) / 창고(Storage) / 상자(Chest) 인벤토리 데이터 관리
 // 슬롯 생성, 아이템 추가/제거/이동/분할 처리
-// 씬에 두 개 배치: ownerType=Player maxSlots=35 / ownerType=Storage maxSlots=50
+// 씬에 세 개 배치: ownerType=Player maxSlots=35 / ownerType=Storage maxSlots=50 / ownerType=Chest maxSlots=20
 
 using System;
 using System.Collections.Generic;
@@ -10,12 +10,12 @@ using UnityEngine;
 public class InventoryManager : MonoBehaviour
 {
     // 인벤토리 소유자 유형
-    public enum InventoryOwnerType { Player, Storage }
+    public enum InventoryOwnerType { Player, Storage, Chest }
 
     [Header("설정")]
     public InventoryOwnerType ownerType = InventoryOwnerType.Player;
 
-    [Tooltip("가방 35 / 창고 50 권장")]
+    [Tooltip("가방 35 / 창고 50 / 상자 20 권장")]
     public int maxSlots = 35;
 
     // 슬롯 목록 (인덱스 == slotIndex)
@@ -36,14 +36,26 @@ public class InventoryManager : MonoBehaviour
     // Storage 인벤토리 싱글톤
     public static InventoryManager StorageInstance { get; private set; }
 
+    // Chest 인벤토리 싱글톤 (상자 파밍 전용, 열 때마다 초기화)
+    public static InventoryManager ChestInstance { get; private set; }
+
     private void Awake()
     {
         if (ownerType == InventoryOwnerType.Player)
             Instance = this;
         else if (ownerType == InventoryOwnerType.Storage)
             StorageInstance = this;
+        else if (ownerType == InventoryOwnerType.Chest)
+            ChestInstance = this;
 
         CreateSlots();
+    }
+
+    /// <summary>모든 슬롯 비우기 (상자 열 때마다 초기화용)</summary>
+    public void ClearAllItems()
+    {
+        foreach (var slot in _slots) slot.Clear();
+        OnInventoryChanged?.Invoke();
     }
 
     // 슬롯 초기화
