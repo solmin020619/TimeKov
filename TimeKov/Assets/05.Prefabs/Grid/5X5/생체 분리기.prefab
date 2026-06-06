@@ -992,7 +992,49 @@ MonoBehaviour:
   inputPort: {fileID: 3644024433147280863}
   machineName: "\uC0DD\uCCB4 \uBD84\uB9AC\uAE30"
   processingTime: 5
-  recipes: []
+  recipes:
+  - recipeName: "\uBCC0\uC774 \uC2DD\uBB3C \uBC30\uC591 \uC0D8\uD50C"
+    inputs:
+    - itemId: 1101
+      amount: 1
+    outputs:
+    - itemId: 4201
+      amount: 2
+  - recipeName: "\uC218\uBAA9 \uCF54\uC5B4 \uBC30\uC591 \uC0D8\uD50C"
+    inputs:
+    - itemId: 1102
+      amount: 1
+    outputs:
+    - itemId: 4202
+      amount: 2
+  - recipeName: "\uC554\uD751 \uAC70\uBBF8 \uBC30\uC591 \uC0D8\uD50C"
+    inputs:
+    - itemId: 1103
+      amount: 1
+    outputs:
+    - itemId: 4203
+      amount: 2
+  - recipeName: "\uC624\uC5FC \uD3EC\uC790 \uBC30\uC591 \uC0D8\uD50C"
+    inputs:
+    - itemId: 1104
+      amount: 1
+    outputs:
+    - itemId: 4204
+      amount: 2
+  - recipeName: "\uBD80\uC2DD\uC131 \uCCB4\uC561 \uBC30\uC591 \uC0D8\uD50C"
+    inputs:
+    - itemId: 3101
+      amount: 1
+    outputs:
+    - itemId: 4205
+      amount: 2
+  - recipeName: "\uBD88\uC548\uC815 \uAC00\uC2A4 \uBC30\uC591 \uC0D8\uD50C"
+    inputs:
+    - itemId: 3102
+      amount: 1
+    outputs:
+    - itemId: 4206
+      amount: 2
   LockedRecipeIndex: -1
 --- !u!114 &785235195106147333
 MonoBehaviour:

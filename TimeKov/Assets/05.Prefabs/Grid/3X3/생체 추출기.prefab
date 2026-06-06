@@ -653,7 +653,34 @@ MonoBehaviour:
   inputPort: {fileID: 2159382848285512016}
   machineName: "\uC0DD\uCCB4 \uCD94\uCD9C\uAE30"
   processingTime: 5
-  recipes: []
+  recipes:
+  - recipeName: "\uC0DD\uCCB4 \uD68C\uBCF5 \uC824"
+    inputs:
+    - itemId: 1101
+      amount: 1
+    - itemId: 1102
+      amount: 1
+    outputs:
+    - itemId: 1201
+      amount: 1
+  - recipeName: "\uC57C\uC218 \uD65C\uC131 \uCD94\uCD9C\uC561"
+    inputs:
+    - itemId: 1106
+      amount: 2
+    - itemId: 1107
+      amount: 1
+    outputs:
+    - itemId: 1204
+      amount: 1
+  - recipeName: "\uB18D\uCD95 \uC0DD\uCCB4 \uC601\uC591\uC561"
+    inputs:
+    - itemId: 1103
+      amount: 2
+    - itemId: 1104
+      amount: 1
+    outputs:
+    - itemId: 1202
+      amount: 1
   LockedRecipeIndex: -1
 --- !u!114 &-2193016134446586921
 MonoBehaviour:
