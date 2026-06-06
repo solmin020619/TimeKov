@@ -9,9 +9,6 @@ public class CoreLevelDataSheetData
     public CoreLevelDataSheetId SheetId;
 
     public int maxTime;
-    public int stamina;
-    public int atk;
-    public int def;
     // FK → ItemData
     public ItemDataSheetId requiredKitItemId;
     public int requiredAmount;

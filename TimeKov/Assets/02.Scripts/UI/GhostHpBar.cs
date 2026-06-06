@@ -1,138 +1,145 @@
-// =====================================================================
-// GhostHpBar.cs
-// HP 바 피격 잔상 효과
-// OnHurt 이벤트로 피격 순간만 감지 → 자연 감소(Decay)에는 반응 안 함
-// =====================================================================
-
 using UnityEngine;
 using UnityEngine.UI;
 
+// HP 바 변화 연출 (피격 데미지 잔상 + 회복 채움).
+// - 피격: 깎이기 직전 위치에 "빨간" 잔상을 남기고, 멈췄다가 현재 HP까지 감소. (파란 바는 즉시 깎임)
+// - 회복: 회복분만큼 "초록"이 먼저 깔리고, 파란 바가 천천히 차오르며 초록을 채워나감.
+//
+// 잔상 Image 하나를 빨강/초록 겸용으로 쓴다 (메인 Fill 복제본, Fill 바로 뒤에 배치).
+// 회복 채움을 위해 메인 Fill 의 fillAmount 를 직접 제어한다 (감소는 즉시, 증가는 천천히).
+// 메인 Fill 미연결 시 회복 연출만 생략되고 나머지는 정상 동작.
 public class GhostHpBar : MonoBehaviour
 {
     [Header("참조")]
-    [SerializeField] private RectTransform ghostRect;  // 빨간 잔상 RectTransform
-    [SerializeField] private Slider         hpSlider;  // 메인 HP 슬라이더
+    [Tooltip("PlayerStatComponent. 비워두면 씬에서 자동 탐색")]
+    [SerializeField] private PlayerStatComponent playerStat;
+    [Tooltip("잔상 Image (Fill 복제본, Fill 뒤). 피격=빨강 / 회복=초록 으로 자동 전환")]
+    [SerializeField] private Image ghostImage;
+    [Tooltip("메인 HP Fill (파란 바). 회복 시 천천히 차오르게 하려고 fillAmount 를 제어함. 비우면 회복 연출 생략")]
+    [SerializeField] private Image mainFillImage;
 
-    [Header("잔상 설정")]
-    [Tooltip("피격 후 잔상이 유지되는 시간 (초)")]
-    [SerializeField] private float holdDuration  = 1.2f;
+    [Header("색")]
+    [SerializeField] private Color damageColor = new Color(0.9f, 0.15f, 0.15f, 1f);  // 피격 잔상 빨강
+    [SerializeField] private Color healColor   = new Color(0.45f, 1f, 0.5f, 1f);     // 회복 연한 초록
 
-    [Tooltip("잔상이 줄어드는 속도 (전체 HP 비율 / 초). 낮을수록 천천히 사라짐")]
-    [SerializeField] private float decreaseSpeed = 0.25f;
+    [Header("피격 잔상")]
+    [Tooltip("피격 후 잔상이 그대로 멈춰있는 시간 (초)")]
+    [SerializeField] private float holdDuration = 0.4f;
+    [Tooltip("멈춤이 끝난 뒤 잔상이 현재 HP까지 줄어드는 속도 (전체 비율 / 초)")]
+    [SerializeField] private float drainSpeed = 0.7f;
 
-    [Header("색상")]
-    [SerializeField] private Color ghostColor = new Color(0.85f, 0.1f, 0.1f, 0.85f);
+    [Header("회복 채움")]
+    [Tooltip("회복 시 파란 바가 차오르는 속도 (전체 비율 / 초). 낮을수록 천천히 채워짐")]
+    [SerializeField] private float healFillSpeed = 0.8f;
 
-    // ── 내부 ──────────────────────────────────────────────────────────
-    private float  _ghostFill;    // 잔상 fillAmount (0~1)
-    private float  _holdTimer;
-    private bool   _isActive;     // 잔상 활성 여부
-    private Player _player;
-
-    // ── 초기화 ────────────────────────────────────────────────────────
-
-    private void Awake()
-    {
-        var img = ghostRect?.GetComponent<Image>();
-        if (img != null) img.color = ghostColor;
-
-        ghostRect?.gameObject.SetActive(false);
-    }
+    private enum Mode { None, Damage, Heal }
+    private Mode _mode;
+    private float _mainDisplay;   // 파란 바 표시값 (감소 즉시 / 증가 천천히)
+    private float _ghostLevel;    // 잔상이 가리키는 값 (피격=직전HP, 회복=회복목표)
+    private float _holdTimer;
+    private float _fillLastFrame;
 
     private void Start()
     {
-        _player = FindAnyObjectByType<Player>();
-        if (_player != null)
-            _player.Stat.OnHurt += OnHurt;
-        else
-            Debug.LogWarning("[GhostHP] Player를 찾을 수 없음");
+        if (playerStat == null)
+        {
+            var p = FindAnyObjectByType<Player>();
+            if (p != null) playerStat = p.GetComponent<PlayerStatComponent>();
+        }
+
+        if (playerStat != null)
+            playerStat.OnHurt += OnHurt;
+
+        if (ghostImage != null)
+        {
+            ghostImage.type = Image.Type.Filled;
+            ghostImage.fillMethod = Image.FillMethod.Horizontal;
+            ghostImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+            ghostImage.enabled = false;
+        }
+
+        _mainDisplay = _ghostLevel = _fillLastFrame = CurrentFill();
     }
 
     private void OnDestroy()
     {
-        if (_player != null)
-            _player.Stat.OnHurt -= OnHurt;
+        if (playerStat != null)
+            playerStat.OnHurt -= OnHurt;
     }
-
-    // ── 피격 이벤트 ───────────────────────────────────────────────────
 
     private void OnHurt()
     {
-        // 피격 순간의 HP를 고스트 시작값으로 저장
-        // (이벤트는 HP 차감 직후 발생하므로, 아직 이 프레임에선 이전 fill 사용)
-        _ghostFill = GetCurrentFill() + GetDamageEstimate();
-        _ghostFill = Mathf.Clamp01(_ghostFill);
+        if (ghostImage == null) return;
 
-        _holdTimer = 0f;
-        _isActive  = true;
-        ghostRect?.gameObject.SetActive(true);
+        // 피격: 직전 프레임 HP 에 빨간 잔상을 세우고 멈춤 시작
+        _mode = Mode.Damage;
+        _ghostLevel = Mathf.Max(_ghostLevel, _fillLastFrame);
+        _holdTimer = holdDuration;
+        ghostImage.color = damageColor;
+        ghostImage.enabled = true;
     }
-
-    // ── 매 프레임 ─────────────────────────────────────────────────────
 
     private void Update()
     {
-        if (!_isActive) return;
-        if (ghostRect == null || hpSlider == null) return;
+        if (playerStat == null) return;
 
-        float currentFill = GetCurrentFill();
+        float cur = CurrentFill();
 
-        _holdTimer += Time.deltaTime;
-
-        if (_holdTimer >= holdDuration)
+        // 회복 감지: HP 가 표시값보다 위로 올라감 (피격 잔상 진행 중이 아닐 때)
+        if (cur > _mainDisplay + 0.0008f && _mode != Mode.Damage && ghostImage != null)
         {
-            // hold 끝 → 서서히 현재 HP까지 감소
-            _ghostFill = Mathf.MoveTowards(
-                _ghostFill, currentFill,
-                decreaseSpeed * Time.deltaTime);
+            _mode = Mode.Heal;
+            ghostImage.color = healColor;
+            ghostImage.enabled = true;
         }
 
-        // 잔상과 현재 HP가 거의 같아지면 숨기기
-        if (_ghostFill <= currentFill + 0.005f)
+        // 파란 바 표시값: 감소는 즉시, 증가(회복)는 천천히 차오름
+        if (cur <= _mainDisplay)
+            _mainDisplay = cur;
+        else
+            _mainDisplay = Mathf.MoveTowards(_mainDisplay, cur, healFillSpeed * Time.deltaTime);
+
+        if (_mode == Mode.Damage)
         {
-            _isActive = false;
-            ghostRect.gameObject.SetActive(false);
-            return;
+            // 빨간 잔상: 멈췄다가 현재(파란 바)까지 감소
+            if (_mainDisplay >= _ghostLevel) EndGhost();
+            else if (_holdTimer > 0f) _holdTimer -= Time.deltaTime;
+            else
+            {
+                _ghostLevel = Mathf.MoveTowards(_ghostLevel, _mainDisplay, drainSpeed * Time.deltaTime);
+                if (_ghostLevel <= _mainDisplay + 0.0005f) EndGhost();
+            }
+        }
+        else if (_mode == Mode.Heal)
+        {
+            // 초록 잔상은 회복 목표(현재 HP), 파란 바가 다 차오르면 종료
+            _ghostLevel = cur;
+            if (_mainDisplay >= _ghostLevel - 0.0005f) EndGhost();
         }
 
-        ApplyGhostFill(currentFill);
+        if (ghostImage != null && ghostImage.enabled)
+            ghostImage.fillAmount = _ghostLevel;
+
+        _fillLastFrame = cur;
     }
 
-    // ── 헬퍼 ──────────────────────────────────────────────────────────
-
-    private void ApplyGhostFill(float currentFill)
+    private void LateUpdate()
     {
-        if (ghostRect == null) return;
-
-        // Fill Area 기준 좌표계로 정확히 위치 설정
-        var fillAreaRect = ghostRect.parent as RectTransform;
-        if (fillAreaRect == null) return;
-
-        float areaWidth = fillAreaRect.rect.width;
-        if (areaWidth <= 0f) return;
-
-        // 앵커는 전체 stretch
-        ghostRect.anchorMin = new Vector2(0f, 0f);
-        ghostRect.anchorMax = new Vector2(1f, 1f);
-
-        // offset으로 currentFill ~ ghostFill 구간만 표시
-        ghostRect.offsetMin = new Vector2(areaWidth * currentFill, 0f);
-        ghostRect.offsetMax = new Vector2(-areaWidth * (1f - _ghostFill), 0f);
+        // 슬라이더가 Update 에서 즉시 채워둔 fillAmount 를 우리 표시값으로 덮어씀
+        // (감소는 즉시라 차이 없고, 회복 때만 천천히 차오르게 됨)
+        if (mainFillImage != null)
+            mainFillImage.fillAmount = _mainDisplay;
     }
 
-    private float GetCurrentFill()
+    private void EndGhost()
     {
-        if (hpSlider == null || hpSlider.maxValue <= 0f) return 1f;
-        return hpSlider.value / hpSlider.maxValue;
+        _mode = Mode.None;
+        if (ghostImage != null) ghostImage.enabled = false;
     }
 
-    // 피격 직후 실제 데미지 추정 (이전 프레임 fill - 현재 fill)
-    private float _prevFill;
-    private float GetDamageEstimate()
+    private float CurrentFill()
     {
-        float cur    = GetCurrentFill();
-        float damage = Mathf.Max(0f, _prevFill - cur);
-        _prevFill    = cur;
-        return damage;
+        if (playerStat == null || playerStat.MaxHp <= 0f) return 1f;
+        return Mathf.Clamp01(playerStat.CurrentHp / playerStat.MaxHp);
     }
 }

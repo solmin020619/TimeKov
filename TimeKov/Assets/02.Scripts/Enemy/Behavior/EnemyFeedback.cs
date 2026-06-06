@@ -60,7 +60,21 @@ public class EnemyFeedback : MonoBehaviour
     {
         if (data == null) return;
         Play(data.deathVFX, data.deathSound);
-        TrySetTrigger(data.dieTrigger);
+        if (animator == null) return;
+
+        // 죽음 애니는 트리거 경쟁에 묻히지 않게 Die 상태를 직접 강제 재생한다.
+        // (TakeDamage 가 매 타격마다 Hit 트리거를 걸어서, 스킬 연속타격 시 Die 트리거가
+        //  Any State 전이 우선순위에서 Hit 에 밀려 죽음 애니가 안 나오던 문제. 평타=단발이라 정상)
+        int dieHash = Animator.StringToHash("Die");
+        if (animator.HasState(0, dieHash))
+        {
+            animator.ResetTrigger(data.hitTrigger);
+            animator.CrossFadeInFixedTime(dieHash, 0.05f, 0);
+        }
+        else
+        {
+            TrySetTrigger(data.dieTrigger);  // "Die" state 명이 다른 경우 fallback
+        }
     }
 
     /// <summary>

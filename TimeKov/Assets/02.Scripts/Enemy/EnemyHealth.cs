@@ -112,5 +112,11 @@ public class EnemyHealth : MonoBehaviour
         // Collider 비활성 (사망 후 추가 데미지 받지 않음 + 플레이어 통과 가능)
         foreach (var c in GetComponentsInChildren<Collider>())
             c.enabled = false;
+
+        // EnemyBrain 정지 — 끄지 않으면 LateUpdate 회전 로직이 계속 돌아
+        // 죽은 적이 플레이어를 향해 계속 돌아서며 "따라오는" 것처럼 보임.
+        // (Die 애니는 Any State 트리거라 EnemyBrain 꺼도 정상 재생됨)
+        var brain = GetComponent<EnemyBrain>();
+        if (brain != null) brain.enabled = false;
     }
 }

@@ -202,8 +202,8 @@ public class CoreUpgradeManager : MonoBehaviour
         Player player = GetPlayer();
         if (player == null) return;
 
-        player.Stat.ApplyCoreStats(data.maxTime, data.stamina, data.atk, data.def);
-        Debug.Log($"[CoreUpgrade] Lv.{level} 스탯 적용: MaxTime={data.maxTime} Stamina={data.stamina} ATK={data.atk} DEF={data.def}");
+        player.Stat.ApplyCoreStats(data.maxTime);
+        Debug.Log($"[CoreUpgrade] Lv.{level} 스탯 적용: MaxTime(HP)={data.maxTime}");
     }
 
     private bool HasRequiredKit(CoreLevelDataSheetData data)

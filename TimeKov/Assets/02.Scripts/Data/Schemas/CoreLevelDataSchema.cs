@@ -1,7 +1,8 @@
 // =====================================================================
 // Schemas/CoreLevelDataSchema.cs
-// 코어 강화 단계별 스탯 테이블 스키마
-// 코어 강화는 0~10단계, 단계가 오를수록 모든 핵심 스탯이 성장한다
+// 코어 강화 단계별 테이블 스키마
+// 코어 강화는 0~10단계, 단계가 오를수록 최대 시간(=HP)만 성장한다
+// (공격력/방어력/스태미나는 공장 앰플이 담당 — 코어에서 분리됨)
 // 0단계는 초기 상태로 requiredKitItemId 가 없어 allowDash 처리한다
 // =====================================================================
 
@@ -14,17 +15,8 @@ public class CoreLevelDataSchema : SheetSchema
         // 코어 강화 단계 (PK, 0~10)
         Add("level", ColumnType.Int, required: true, isKey: true);
 
-        // 해당 단계의 최대 시간(초) — 시간 = HP
+        // 해당 단계의 최대 시간(초) — 시간 = HP. 코어는 이것만 강화한다.
         Add("maxTime", ColumnType.Int, required: true);
-
-        // 해당 단계의 최대 스태미나
-        Add("stamina", ColumnType.Int, required: true);
-
-        // 해당 단계의 공격력 수치
-        Add("atk", ColumnType.Int, required: true);
-
-        // 해당 단계의 방어력 수치
-        Add("def", ColumnType.Int, required: true);
 
         // 이 단계로 승급하는 데 필요한 코어 승급 키트 아이템 ID (FK → ItemData)
         // 0단계는 초기 상태라 키트가 필요 없으므로 "-" 입력 허용
