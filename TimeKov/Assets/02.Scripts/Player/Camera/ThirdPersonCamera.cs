@@ -5,12 +5,26 @@ public class ThirdPersonCamera : MonoBehaviour
     [Header("Follow Target")]
     public Transform FollowTarget;
     public Vector3 FollowOffset = new Vector3(0, 1.5f, 0);
+    [Tooltip("카메라가 캐릭터를 따라가는 지연(초). 0=즉시(딱 붙음), 0.1~0.2=엔드필드처럼 살짝 뒤따라옴.")]
+    public float FollowSmoothTime = 0.12f;
+    [Tooltip("세로(Y) 추적 지연(초). 가로보다 작게 두면 점프/경사에서 둥실거림이 줄어듦. 0이면 Y는 즉시.")]
+    public float FollowVerticalSmoothTime = 0.05f;
+    [Tooltip("이 거리(m) 이상 벌어지면(리스폰/탑뷰 복귀 등 순간이동) 보간 없이 즉시 스냅. 천천히 슬라이드되는 현상 방지. 대쉬에서 스냅 튀면 더 올릴 것.")]
+    public float FollowSnapDistance = 8f;
+
+    [Header("Look-Ahead (이동 방향 미리보기)")]
+    [Tooltip("이동 방향으로 카메라가 미리 빠지는 최대 거리(m). 0=끔. 0.5~1.5 약하게 권장(과하면 멀미).")]
+    public float LookAheadDistance = 0.8f;
+    [Tooltip("look-ahead가 빠지고 돌아오는 부드러움(초). 클수록 천천히 빠지고 천천히 복귀.")]
+    public float LookAheadSmoothTime = 0.25f;
 
     [Header("Rotation")]
     public float SensitivityX = 3f;
     public float SensitivityY = 2f;
     public float MinPitchAngle = -20f;
     public float MaxPitchAngle = 60f;
+    [Tooltip("시점 회전에 살짝 쿠션을 줌(초). 0=마우스에 즉시 1:1(기존). 0.03~0.06=부드럽게. 너무 키우면 조준이 끈적해짐.")]
+    public float RotationSmoothTime = 0.04f;
 
     [Header("Distance")]
     public float DefaultDistance = 5f;
@@ -30,11 +44,21 @@ public class ThirdPersonCamera : MonoBehaviour
     public float ZoomOutSpeed = 6f;
 
     private Transform _pivot;
-    private float _yaw;
+    private float _yaw;                    // 마우스 입력 누적 (회전 목표)
     private float _pitch;
+    private float _yawDisplay;             // 실제 적용되는 yaw (_yaw 를 부드럽게 따라감)
+    private float _pitchDisplay;
+    private float _yawVel;                 // SmoothDampAngle 내부 속도
+    private float _pitchVel;
     private float _currentDist;
     private float _targetDist;
     private float _sensitivityMult = 1f;  // 설정창 감도 슬라이더 배율
+    private Vector3 _followVelocity;       // SmoothDamp 내부 속도 (follow 지연용)
+    private Vector3 _lastTargetPos;        // look-ahead 속도 계산용 직전 타겟 위치
+    private bool _hasLastTargetPos;
+    private Vector3 _lookAheadOffset;      // 현재 적용 중인 look-ahead 오프셋 (부드럽게 변함)
+    private Vector3 _lookAheadVel;         // 위 오프셋 SmoothDamp 속도
+    private const float LOOKAHEAD_FULL_SPEED = 6f;  // 이 속도(m/s)에서 look-ahead 최대치 도달
 
     public static bool IsUIOpen = false;
     public static bool BlockZoom = false;
@@ -94,8 +118,50 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleFollow()
     {
-        // ��ġ�� �ٷ� ���� -> Rigidbody Ƣ�� ���� ����
-        transform.position = FollowTarget.position + FollowOffset;
+        Vector3 cur = transform.position;
+        Vector3 desired = FollowTarget.position + FollowOffset;
+
+        // 순간이동(리스폰/탑뷰 복귀 등) 감지: 너무 멀어지면 보간 없이 즉시 스냅. SmoothTime 0이면 즉시.
+        if (FollowSmoothTime <= 0f ||
+            (desired - cur).sqrMagnitude > FollowSnapDistance * FollowSnapDistance)
+        {
+            transform.position = desired;
+            _followVelocity = Vector3.zero;
+            _lookAheadOffset = Vector3.zero;
+            _lookAheadVel = Vector3.zero;
+            _lastTargetPos = FollowTarget.position;
+            _hasLastTargetPos = true;
+            return;
+        }
+
+        // [Look-Ahead] 이동 방향으로 목표를 살짝 당겨 진행 방향 시야를 미리 확보.
+        // FollowTarget 위치 변화로 속도를 구하고, 오프셋 자체를 SmoothDamp 해서 노이즈/급변 제거.
+        if (LookAheadDistance > 0.0001f && _hasLastTargetPos && Time.deltaTime > 0f)
+        {
+            Vector3 flatVel = (FollowTarget.position - _lastTargetPos) / Time.deltaTime;
+            flatVel.y = 0f;
+            float speed = flatVel.magnitude;
+            Vector3 targetLA = speed > 0.1f
+                ? (flatVel / speed) * LookAheadDistance * Mathf.Clamp01(speed / LOOKAHEAD_FULL_SPEED)
+                : Vector3.zero;
+            _lookAheadOffset = Vector3.SmoothDamp(_lookAheadOffset, targetLA, ref _lookAheadVel, LookAheadSmoothTime);
+        }
+        else
+        {
+            // look-ahead 꺼짐/첫 프레임: 남은 오프셋을 0으로 부드럽게 복귀.
+            _lookAheadOffset = Vector3.SmoothDamp(_lookAheadOffset, Vector3.zero, ref _lookAheadVel, LookAheadSmoothTime);
+        }
+        desired += _lookAheadOffset;
+
+        // [Follow lag] 가로(XZ)는 지연시켜 뒤따라오게, 세로(Y)는 더 빠르게 -> 점프/경사 둥실거림 방지.
+        // LateUpdate 보간이라 Rigidbody Interpolate(렌더 위치) 기준 -> 떨림 없이 부드러움.
+        float nx = Mathf.SmoothDamp(cur.x, desired.x, ref _followVelocity.x, FollowSmoothTime);
+        float nz = Mathf.SmoothDamp(cur.z, desired.z, ref _followVelocity.z, FollowSmoothTime);
+        float ny = Mathf.SmoothDamp(cur.y, desired.y, ref _followVelocity.y, FollowVerticalSmoothTime);
+        transform.position = new Vector3(nx, ny, nz);
+
+        _lastTargetPos = FollowTarget.position;
+        _hasLastTargetPos = true;
     }
 
     void HandleRotation()
@@ -103,13 +169,26 @@ public class ThirdPersonCamera : MonoBehaviour
         // IsUIOpen 또는 GameUIController 기준 둘 다 차단
         if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
 
-        // 마우스 입력에 감도 배율 적용
+        // 마우스 입력에 감도 배율 적용 (목표 각도 누적)
         _yaw += Input.GetAxis("Mouse X") * SensitivityX * _sensitivityMult;
         _pitch -= Input.GetAxis("Mouse Y") * SensitivityY * _sensitivityMult;
         _pitch = Mathf.Clamp(_pitch, MinPitchAngle, MaxPitchAngle);
 
-        transform.rotation = Quaternion.Euler(0, _yaw, 0);
-        _pivot.localRotation = Quaternion.Euler(_pitch, 0, 0);
+        // 목표 각도(_yaw/_pitch)를 display 각도가 부드럽게 따라감 -> 마우스 휙 돌릴 때 쿠션.
+        // 0이면 즉시 1:1 (기존 동작).
+        if (RotationSmoothTime <= 0f)
+        {
+            _yawDisplay = _yaw;
+            _pitchDisplay = _pitch;
+        }
+        else
+        {
+            _yawDisplay   = Mathf.SmoothDampAngle(_yawDisplay, _yaw, ref _yawVel, RotationSmoothTime);
+            _pitchDisplay = Mathf.SmoothDampAngle(_pitchDisplay, _pitch, ref _pitchVel, RotationSmoothTime);
+        }
+
+        transform.rotation = Quaternion.Euler(0, _yawDisplay, 0);
+        _pivot.localRotation = Quaternion.Euler(_pitchDisplay, 0, 0);
     }
 
     void HandleZoom()
@@ -148,7 +227,8 @@ public class ThirdPersonCamera : MonoBehaviour
         Camera.main.transform.localPosition = new Vector3(0, 0, -_currentDist);
     }
 
-    public Quaternion GetYawRotation() => Quaternion.Euler(0, _yaw, 0);
+    // 이동 방향 기준축은 "보이는 카메라 방향"(display yaw)으로 맞춤 -> 시점과 이동이 한 덩어리로 움직임.
+    public Quaternion GetYawRotation() => Quaternion.Euler(0, _yawDisplay, 0);
 
     // ── Camera Shake API ─────────────────────────────────────────────
     /// <summary>
