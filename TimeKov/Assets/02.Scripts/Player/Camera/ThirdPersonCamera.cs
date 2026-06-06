@@ -13,8 +13,8 @@ public class ThirdPersonCamera : MonoBehaviour
     public float FollowSnapDistance = 8f;
 
     [Header("Look-Ahead (이동 방향 미리보기)")]
-    [Tooltip("이동 방향으로 카메라가 미리 빠지는 최대 거리(m). 0=끔. 0.5~1.5 약하게 권장(과하면 멀미).")]
-    public float LookAheadDistance = 0.8f;
+    [Tooltip("이동 방향으로 카메라가 미리 빠지는 최대 거리(m). 0=끔(기본). 켜면 카메라가 캐릭터가 아닌 이동방향을 따라가는 느낌이 됨 - QA 피드백으로 기본 끔.")]
+    public float LookAheadDistance = 0f;
     [Tooltip("look-ahead가 빠지고 돌아오는 부드러움(초). 클수록 천천히 빠지고 천천히 복귀.")]
     public float LookAheadSmoothTime = 0.25f;
 
