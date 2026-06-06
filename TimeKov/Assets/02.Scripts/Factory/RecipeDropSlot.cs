@@ -57,12 +57,25 @@ public class RecipeDropSlot : MonoBehaviour,
         GetComponent<Image>().raycastTarget = true;
         _canvas = GetComponentInParent<Canvas>();
 
+        // 첫 활성화 시 기본 상태 숨김 — "재료 넣기" 텍스트·흰 박스 깜빡임 방지
+        if (labelText != null) labelText.text = "";
+        SetBorderAlpha(0f);
+
         if (borderImage != null)
         {
             var le = borderImage.gameObject.GetComponent<LayoutElement>();
             if (le == null) le = borderImage.gameObject.AddComponent<LayoutElement>();
             le.ignoreLayout = true;
         }
+    }
+
+    private void OnEnable()
+    {
+        // 활성화될 때마다 기본 상태 초기화
+        // (패널 닫기 전 OnPointerEnter로 "재료 넣기" 텍스트가 남아있는 경우도 처리)
+        if (labelText != null) labelText.text = "";
+        StopGlow();
+        SetBorderAlpha(0f);
     }
 
     private void OnDisable()

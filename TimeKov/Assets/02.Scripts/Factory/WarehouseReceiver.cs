@@ -8,6 +8,9 @@ namespace TIMEKOV.Factory
     /// </summary>
     public class WarehouseReceiver : MachineBase
     {
+        // 선택 패널·외곽선·F키 힌트 표시 안 함
+        public override bool ShowInteraction => false;
+
         public override void Receive(int itemId, int amount)
         {
             var storage = InventoryManager.StorageInstance;
