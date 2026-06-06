@@ -132,6 +132,10 @@ public class PlayerHudUI : MonoBehaviour
             hpSlider.maxValue = playerStat.MaxHp;
         }
 
+        // HP 숫자 텍스트를 바보다 위 레이어로 올림 (불투명 Fill 에 가려지지 않도록)
+        if (timeValueText != null)
+            timeValueText.transform.SetAsLastSibling();
+
         if (staminaSlider != null)
         {
             staminaSlider.minValue = 0f;

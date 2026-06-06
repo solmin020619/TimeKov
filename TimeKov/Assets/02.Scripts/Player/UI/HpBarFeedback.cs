@@ -102,7 +102,7 @@ public class HpBarFeedback : MonoBehaviour
 
         Color cur = hpFillImage.color;
         Color lerped = Color.Lerp(cur, target, Time.deltaTime * colorLerpSpeed);
-        lerped.a = cur.a; // 원래 Fill 알파 유지 (텍스트 가림 방지)
+        lerped.a = 1f; // Fill 불투명 - 뒤 잔상이 비치지 않게. (숫자 텍스트는 바보다 위 레이어에 둘 것)
         hpFillImage.color = lerped;
     }
 

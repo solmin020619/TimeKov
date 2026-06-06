@@ -1,138 +1,119 @@
-// =====================================================================
-// GhostHpBar.cs
-// HP 바 피격 잔상 효과
-// OnHurt 이벤트로 피격 순간만 감지 → 자연 감소(Decay)에는 반응 안 함
-// =====================================================================
-
 using UnityEngine;
 using UnityEngine.UI;
 
+// HP 바 피격 잔상(데미지 칩) 효과.
+// 피격으로 HP가 갑자기 깎이면 깎이기 직전 위치에 잔상을 남기고, 잠시 멈췄다가 현재 HP까지 천천히 줄어든다.
+// 평소엔 잔상 Image 를 꺼두고, 피격(OnHurt) 순간에만 켠다. 시간 자연 감소(decay)에는 반응하지 않음.
+//
+// 정렬: 잔상 Image 를 메인 Fill 과 "똑같은 방식(Filled / fillAmount)" 으로 두고 Fill 바로 뒤에 깐다.
+//       같은 스프라이트 기하를 쓰므로 fillAmount 가 메인 Fill 과 정확히 일치한다(틈/넘침 없음).
+//       단, Fill 이 불투명해야 [0~현재] 구간의 잔상이 비치지 않고 칩([현재~잔상])만 보인다.
+//       -> Fill 복제본을 잔상으로 쓰고, 메인 Fill 은 불투명, 숫자 텍스트는 바보다 위에 둘 것.
 public class GhostHpBar : MonoBehaviour
 {
     [Header("참조")]
-    [SerializeField] private RectTransform ghostRect;  // 빨간 잔상 RectTransform
-    [SerializeField] private Slider         hpSlider;  // 메인 HP 슬라이더
+    [Tooltip("PlayerStatComponent. 비워두면 씬에서 자동 탐색")]
+    [SerializeField] private PlayerStatComponent playerStat;
+    [Tooltip("잔상 Image (메인 Fill 복제본, Fill 바로 뒤에 배치)")]
+    [SerializeField] private Image ghostImage;
 
     [Header("잔상 설정")]
-    [Tooltip("피격 후 잔상이 유지되는 시간 (초)")]
-    [SerializeField] private float holdDuration  = 1.2f;
+    [SerializeField] private Color ghostColor = new Color(0.9f, 0.15f, 0.15f, 1f);
+    [Tooltip("피격 후 잔상이 그대로 멈춰있는 시간 (초)")]
+    [SerializeField] private float holdDuration = 0.4f;
+    [Tooltip("멈춤이 끝난 뒤 잔상이 현재 HP까지 줄어드는 속도 (전체 비율 / 초)")]
+    [SerializeField] private float drainSpeed = 0.7f;
 
-    [Tooltip("잔상이 줄어드는 속도 (전체 HP 비율 / 초). 낮을수록 천천히 사라짐")]
-    [SerializeField] private float decreaseSpeed = 0.25f;
-
-    [Header("색상")]
-    [SerializeField] private Color ghostColor = new Color(0.85f, 0.1f, 0.1f, 0.85f);
-
-    // ── 내부 ──────────────────────────────────────────────────────────
-    private float  _ghostFill;    // 잔상 fillAmount (0~1)
-    private float  _holdTimer;
-    private bool   _isActive;     // 잔상 활성 여부
-    private Player _player;
-
-    // ── 초기화 ────────────────────────────────────────────────────────
-
-    private void Awake()
-    {
-        var img = ghostRect?.GetComponent<Image>();
-        if (img != null) img.color = ghostColor;
-
-        ghostRect?.gameObject.SetActive(false);
-    }
+    private float _ghostFill;
+    private float _fillLastFrame;
+    private float _holdTimer;
+    private bool _ghosting;
 
     private void Start()
     {
-        _player = FindAnyObjectByType<Player>();
-        if (_player != null)
-            _player.Stat.OnHurt += OnHurt;
-        else
-            Debug.LogWarning("[GhostHP] Player를 찾을 수 없음");
+        if (playerStat == null)
+        {
+            var p = FindAnyObjectByType<Player>();
+            if (p != null) playerStat = p.GetComponent<PlayerStatComponent>();
+        }
+
+        if (playerStat != null)
+            playerStat.OnHurt += OnHurt;
+
+        if (ghostImage != null)
+        {
+            ghostImage.color = ghostColor;
+            // 메인 Fill 과 동일한 채움 방식 -> fillAmount 가 정확히 정렬됨
+            ghostImage.type = Image.Type.Filled;
+            ghostImage.fillMethod = Image.FillMethod.Horizontal;
+            ghostImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+            ghostImage.enabled = false;   // 평소엔 숨김 (맞을 때만)
+        }
+
+        _ghostFill = _fillLastFrame = CurrentFill();
     }
 
     private void OnDestroy()
     {
-        if (_player != null)
-            _player.Stat.OnHurt -= OnHurt;
+        if (playerStat != null)
+            playerStat.OnHurt -= OnHurt;
     }
-
-    // ── 피격 이벤트 ───────────────────────────────────────────────────
 
     private void OnHurt()
     {
-        // 피격 순간의 HP를 고스트 시작값으로 저장
-        // (이벤트는 HP 차감 직후 발생하므로, 아직 이 프레임에선 이전 fill 사용)
-        _ghostFill = GetCurrentFill() + GetDamageEstimate();
-        _ghostFill = Mathf.Clamp01(_ghostFill);
+        if (ghostImage == null) return;
 
-        _holdTimer = 0f;
-        _isActive  = true;
-        ghostRect?.gameObject.SetActive(true);
+        _ghostFill = Mathf.Max(_ghostFill, _fillLastFrame);
+        _holdTimer = holdDuration;
+        _ghosting = true;
+        ghostImage.enabled = true;
+        ghostImage.fillAmount = _ghostFill;
     }
-
-    // ── 매 프레임 ─────────────────────────────────────────────────────
 
     private void Update()
     {
-        if (!_isActive) return;
-        if (ghostRect == null || hpSlider == null) return;
+        if (playerStat == null) return;
 
-        float currentFill = GetCurrentFill();
+        float cur = CurrentFill();
 
-        _holdTimer += Time.deltaTime;
-
-        if (_holdTimer >= holdDuration)
+        if (!_ghosting)
         {
-            // hold 끝 → 서서히 현재 HP까지 감소
-            _ghostFill = Mathf.MoveTowards(
-                _ghostFill, currentFill,
-                decreaseSpeed * Time.deltaTime);
-        }
-
-        // 잔상과 현재 HP가 거의 같아지면 숨기기
-        if (_ghostFill <= currentFill + 0.005f)
-        {
-            _isActive = false;
-            ghostRect.gameObject.SetActive(false);
+            _ghostFill = cur;
+            _fillLastFrame = cur;
             return;
         }
 
-        ApplyGhostFill(currentFill);
+        _fillLastFrame = cur;
+
+        if (cur >= _ghostFill)
+        {
+            EndGhost();
+            return;
+        }
+
+        if (_holdTimer > 0f)
+        {
+            _holdTimer -= Time.deltaTime;
+        }
+        else
+        {
+            _ghostFill = Mathf.MoveTowards(_ghostFill, cur, drainSpeed * Time.deltaTime);
+            if (_ghostFill <= cur + 0.0005f) { EndGhost(); return; }
+        }
+
+        ghostImage.fillAmount = _ghostFill;
     }
 
-    // ── 헬퍼 ──────────────────────────────────────────────────────────
-
-    private void ApplyGhostFill(float currentFill)
+    private void EndGhost()
     {
-        if (ghostRect == null) return;
-
-        // Fill Area 기준 좌표계로 정확히 위치 설정
-        var fillAreaRect = ghostRect.parent as RectTransform;
-        if (fillAreaRect == null) return;
-
-        float areaWidth = fillAreaRect.rect.width;
-        if (areaWidth <= 0f) return;
-
-        // 앵커는 전체 stretch
-        ghostRect.anchorMin = new Vector2(0f, 0f);
-        ghostRect.anchorMax = new Vector2(1f, 1f);
-
-        // offset으로 currentFill ~ ghostFill 구간만 표시
-        ghostRect.offsetMin = new Vector2(areaWidth * currentFill, 0f);
-        ghostRect.offsetMax = new Vector2(-areaWidth * (1f - _ghostFill), 0f);
+        _ghosting = false;
+        _ghostFill = CurrentFill();
+        if (ghostImage != null) ghostImage.enabled = false;
     }
 
-    private float GetCurrentFill()
+    private float CurrentFill()
     {
-        if (hpSlider == null || hpSlider.maxValue <= 0f) return 1f;
-        return hpSlider.value / hpSlider.maxValue;
-    }
-
-    // 피격 직후 실제 데미지 추정 (이전 프레임 fill - 현재 fill)
-    private float _prevFill;
-    private float GetDamageEstimate()
-    {
-        float cur    = GetCurrentFill();
-        float damage = Mathf.Max(0f, _prevFill - cur);
-        _prevFill    = cur;
-        return damage;
+        if (playerStat == null || playerStat.MaxHp <= 0f) return 1f;
+        return Mathf.Clamp01(playerStat.CurrentHp / playerStat.MaxHp);
     }
 }
