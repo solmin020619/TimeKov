@@ -64,9 +64,6 @@ namespace TIMEKOV.Factory
         /// </summary>
         public virtual bool CanReceive(int itemId) => true;
 
-        /// <summary>자동 창고 전송이 활성화되어 있으면 true. ProcessingMachine에서 override.</summary>
-        protected virtual bool UseAutoStorage => false;
-
         public virtual void Receive(int itemId, int amount)
         {
             InputBuffer.Add(itemId, amount);
@@ -121,16 +118,7 @@ namespace TIMEKOV.Factory
 
         protected void Dispatch(int itemId, int amount)
         {
-            // 자동 창고 전송 ON: 벨트를 사용하지 않고 OutputBuffer에 쌓는다
-            if (UseAutoStorage)
-            {
-                OutputBuffer.Add(itemId, amount);
-                SetStatus(MachineStatus.OutputReady);
-                NotifyBufferChanged();
-                return;
-            }
-
-            // 자동 창고 전송 OFF: 라운드 로빈으로 벨트 우선 발송
+            // 라운드 로빈으로 벨트 우선 발송
             BeltSegment belt = GetCurrentOutputBelt();
             AdvanceOutputBeltIndex();
 

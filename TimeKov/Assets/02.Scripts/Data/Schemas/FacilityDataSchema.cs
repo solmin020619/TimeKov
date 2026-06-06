@@ -16,9 +16,9 @@ public class FacilityDataSchema : SheetSchema
         // 설비 이름 (UI 표시용)
         Add("facilityName", ColumnType.String, required: true);
 
-        // 설비 유형 — 코드에서 동작 방식을 결정하는 데 사용
-        // BioExtractor / MineralCrusher / ChemRefinery / MatterFuser
-        // TacticalMfg / BioInjector / CoreFusion / VoidAssembler
+        // 설비 유형 — FacilityType enum 멤버명과 1:1 (시트 값이 enum 이름과 정확히 같아야 파싱됨)
+        // BioExtractor / BioCultivator / ChemRefinery / Smelter
+        // BioSeparator / CoreSynthesizer / EnergyConverter / Storage
         AddEnum<FacilityType>("facilityType", required: true);
 
         // 그리드 가로 칸 수
