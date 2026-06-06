@@ -51,7 +51,8 @@ public enum EffectTarget
     SkillGauge,   // 스킬 게이지 충전량
     TimeDecay,    // 필드 시간 감소율
     AllStats,     // 전체 스탯
-    DashStamina   // 대시 스태미나 소모량
+    DashStamina,  // 대시 스태미나 소모량
+    DEF           // 방어력 (영구 앰플용. enum 끝에 추가해 기존 멤버 int 값 보존)
 }
 
 // 소모품 수치 적용 방식

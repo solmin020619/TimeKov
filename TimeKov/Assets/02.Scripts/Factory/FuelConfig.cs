@@ -11,7 +11,7 @@ public class FuelConfig : ScriptableObject
     [Tooltip("연료로 사용할 아이템 ID.\n" +
              "아직 연료 아이템이 없으면 임시 아이템 ID를 입력하세요.\n" +
              "정식 연료 아이템 추가 후 이 값만 바꾸면 됩니다.")]
-    public int fuelItemId = 9001;
+    public int fuelItemId = 4101;
 
     [Tooltip("연료 1개당 설비 가동 시간 (초)")]
     public float secondsPerFuel = 40f;

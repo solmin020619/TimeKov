@@ -106,17 +106,29 @@ public class FuelDropSlot : MonoBehaviour,
     {
         if (_machine == null) return;
 
-        float t     = _machine.FuelTimeRemaining;
-        int   count = _machine.FuelItemCount;
+        float t    = _machine.FuelTimeRemaining;
+        var   cfg  = FuelConfig.Instance;
+        float secs = cfg != null ? cfg.secondsPerFuel : 40f;
 
+        // 현재 연소 중인 1개를 제외한 대기 중 아이템 수
+        // CeilToInt(t/secs) = 전체 아이템 수 → -1 = 대기 중인 것만
+        int queued = t > 0f ? Mathf.Max(0, Mathf.CeilToInt(t / secs) - 1) : 0;
+
+        // 현재 아이템의 남은 연소 시간 (0 ~ secondsPerFuel 범위)
+        // t가 정확히 secs의 배수일 때 % 결과가 0이 되므로 secs로 보정
+        float currentTime = t % secs;
+        if (currentTime < 0.01f && t > 0f) currentTime = secs;
+
+        // 대기 중인 아이템만 개수 표시 (현재 연소 중인 1개는 표시 안 함)
         if (amountText != null)
-            amountText.text = count > 0 ? $"x{count}" : "";
+            amountText.text = queued > 0 ? $"x{queued}" : "";
 
         if (timeText != null)
         {
             if (t > 0f)
             {
-                timeText.text  = $"{t:F0}초";
+                // 현재 아이템 1개분의 남은 시간만 표시
+                timeText.text  = $"{currentTime:F0}초";
                 timeText.color = normalTextColor;
             }
             else
