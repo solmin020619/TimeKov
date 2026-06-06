@@ -123,9 +123,11 @@ public class MachineUI : MonoBehaviour
 
         _selectedRecipeIndex = Mathf.Max(0, machine.LockedRecipeIndex);
 
-        uiPanel.SetActive(true);
         if (machineTitleText != null) machineTitleText.text = title;
 
+        // 모든 슬롯을 먼저 구성한 뒤 패널을 활성화 —
+        // SetActive 이전에 Setup을 완료해야 RecipeDropSlot의 Start/OnEnable
+        // 기본 상태("재료 넣기" + 흰 박스)가 한 프레임 깜빡이는 현상을 방지한다.
         BuildRecipeSlots();
         BuildInventorySlots();
         RefreshOutputSlots();
@@ -133,6 +135,8 @@ public class MachineUI : MonoBehaviour
         // 연료 슬롯 초기화
         var inv2 = playerInventory != null ? playerInventory : InventoryManager.Instance;
         fuelDropSlot?.Setup(machine, inv2);
+
+        uiPanel.SetActive(true);
 
         ShowFirstMachineHintIfNeeded();
 

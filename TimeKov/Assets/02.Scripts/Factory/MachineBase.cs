@@ -64,6 +64,12 @@ namespace TIMEKOV.Factory
         /// </summary>
         public virtual bool CanReceive(int itemId) => true;
 
+        /// <summary>
+        /// false이면 MachineInteraction이 이 설비를 감지해도
+        /// 선택 패널·외곽선·F키 힌트를 표시하지 않는다.
+        /// </summary>
+        public virtual bool ShowInteraction => true;
+
         public virtual void Receive(int itemId, int amount)
         {
             InputBuffer.Add(itemId, amount);

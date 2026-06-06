@@ -131,6 +131,7 @@ namespace TIMEKOV.Factory
             {
                 var machine = hit.GetComponentInParent<MachineBase>();
                 if (machine == null) continue;
+                if (!machine.ShowInteraction) continue;
 
                 bool dup = false;
                 foreach (var (m, _) in _nearMachines)
