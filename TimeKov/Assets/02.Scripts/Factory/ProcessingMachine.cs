@@ -31,108 +31,15 @@ namespace TIMEKOV.Factory
         private bool _processing;
         private MachineLoopSound _loopSound;
 
-        // ── 자동 창고 전송 ─────────────────────────────────────────────────
-        [Header("자동 창고 전송 설정")]
-        [Tooltip("자동 전송 주기 (초)")]
-        public float autoStorageInterval = 5f;
-
-        /// <summary>모든 튜토리얼 완료 시 true. 모든 설비 공유. (테스트 중: 상시 개방)</summary>
-        public static bool AutoStorageUnlocked { get; private set; } = true;
-
-        private bool      _autoStorageEnabled;
-        private Coroutine _autoStorageRoutine;
-
-        public bool AutoStorageEnabled => _autoStorageEnabled;
-        protected override bool UseAutoStorage => _autoStorageEnabled;
-
         // ── 초기화 ─────────────────────────────────────────────────────────
 
         protected virtual void Start()
         {
             _loopSound = GetComponent<MachineLoopSound>();
-
-            // 이미 모든 튜토리얼을 마친 상태면 즉시 잠금 해제
-            CheckAutoStorageUnlock();
-
-            // 이후 완료 시 이벤트로 감지
-            var qm = QuestManager.Instance;
-            if (qm != null) qm.OnAllCompleted += OnAllTutorialsCompleted;
         }
 
         private void OnDestroy()
         {
-            var qm = QuestManager.Instance;
-            if (qm != null) qm.OnAllCompleted -= OnAllTutorialsCompleted;
-
-            if (_autoStorageRoutine != null)
-            {
-                StopCoroutine(_autoStorageRoutine);
-                _autoStorageRoutine = null;
-            }
-        }
-
-        private void OnAllTutorialsCompleted() => AutoStorageUnlocked = true;
-
-        private static void CheckAutoStorageUnlock()
-        {
-            if (AutoStorageUnlocked) return;
-            var qm = QuestManager.Instance;
-            if (qm == null) return;
-            foreach (var rt in qm.Runtimes)
-                if (!rt.IsCategoryDone) return;
-            AutoStorageUnlocked = true;
-        }
-
-        // ── 자동 창고 전송 제어 ───────────────────────────────────────────
-
-        /// <summary>자동 창고 전송을 켜거나 끈다. 잠금 해제 전에는 무시.</summary>
-        public void SetAutoStorage(bool enabled)
-        {
-            if (!AutoStorageUnlocked) return;
-            _autoStorageEnabled = enabled;
-
-            if (_autoStorageEnabled)
-            {
-                if (_autoStorageRoutine == null)
-                    _autoStorageRoutine = StartCoroutine(AutoStorageRoutine());
-            }
-            else
-            {
-                if (_autoStorageRoutine != null)
-                {
-                    StopCoroutine(_autoStorageRoutine);
-                    _autoStorageRoutine = null;
-                }
-                // OFF 전환 시 OutputBuffer에 남은 아이템을 즉시 벨트로 발송
-                TryDispatchPendingOutput();
-            }
-        }
-
-        private IEnumerator AutoStorageRoutine()
-        {
-            while (_autoStorageEnabled)
-            {
-                yield return new WaitForSeconds(autoStorageInterval);
-                if (!_autoStorageEnabled) break;
-
-                var storage = InventoryManager.StorageInstance;
-                if (storage == null || OutputBuffer.Stock.Count == 0) continue;
-
-                var snapshot = new Dictionary<int, int>(OutputBuffer.Stock);
-                foreach (var kv in snapshot)
-                {
-                    if (kv.Value <= 0) continue;
-                    if (!OutputBuffer.Consume(kv.Key, kv.Value)) continue;
-                    storage.AddItem(kv.Key, kv.Value);
-                    GameEvents.RaiseFacilityProcessComplete(FacilityId, kv.Key, kv.Value);
-                }
-
-                storage.ForceRefreshUI();
-                if (OutputBuffer.Stock.Count == 0) SetStatus(MachineStatus.Idle);
-                NotifyBufferChanged();
-            }
-
-            _autoStorageRoutine = null;
         }
 
         /// <summary>

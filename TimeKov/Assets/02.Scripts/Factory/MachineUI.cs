@@ -60,12 +60,6 @@ public class MachineUI : MonoBehaviour
     [Tooltip("FuelDropSlot 컴포넌트가 붙은 연료 슬롯 오브젝트.")]
     public FuelDropSlot fuelDropSlot;
 
-    [Header("자동 창고 전송")]
-    [Tooltip("자동 창고 전송 ON/OFF 버튼. 모든 튜토리얼 완료 전에는 숨김.")]
-    public Button           autoStorageBtn;
-    [Tooltip("버튼 위 상태 텍스트 (ON / OFF)")]
-    public TextMeshProUGUI  autoStorageBtnText;
-
     [Header("드래그&드랍 설정")]
     [Tooltip("인벤토리 패널에 붙어 있는 InventoryPanelDropZone 오브젝트.\n" +
              "비워두면 inventorySlotParent 부모에서 자동으로 찾거나 추가합니다.")]
@@ -86,7 +80,6 @@ public class MachineUI : MonoBehaviour
         if (recipeNextBtn != null)  recipeNextBtn.onClick.AddListener(NextRecipe);
         if (takeInputsBtn != null)  takeInputsBtn.onClick.AddListener(TakeAllInputs);
         if (takeOutputBtn != null)  takeOutputBtn.onClick.AddListener(TakeAll);
-        if (autoStorageBtn != null) autoStorageBtn.onClick.AddListener(ToggleAutoStorage);
 
         SetupDropZone();
     }
@@ -140,9 +133,6 @@ public class MachineUI : MonoBehaviour
         // 연료 슬롯 초기화
         var inv2 = playerInventory != null ? playerInventory : InventoryManager.Instance;
         fuelDropSlot?.Setup(machine, inv2);
-
-        // 자동 창고 전송 버튼 — 모든 튜토리얼 완료 전에는 숨김
-        RefreshAutoStorageBtn();
 
         ShowFirstMachineHintIfNeeded();
 
@@ -460,15 +450,6 @@ public class MachineUI : MonoBehaviour
             }
         }
 
-        // 자동 창고 버튼 가시성 — 튜토리얼 완료 시 즉시 표시
-        if (autoStorageBtn != null)
-        {
-            bool unlocked = ProcessingMachine.AutoStorageUnlocked;
-            if (autoStorageBtn.gameObject.activeSelf != unlocked)
-                autoStorageBtn.gameObject.SetActive(unlocked);
-            if (unlocked) RefreshAutoStorageBtn();
-        }
-
         if (statusText == null) return;
 
         if (_machine.Status == MachineStatus.NoFuel)
@@ -548,28 +529,6 @@ public class MachineUI : MonoBehaviour
         _machine.ResetStatusIfIdle();
         RefreshInventorySlots();
         RefreshOutputSlots();
-    }
-
-    // ── 자동 창고 전송 ──────────────────────────────────────────────
-
-    private void RefreshAutoStorageBtn()
-    {
-        if (autoStorageBtn == null) return;
-        bool unlocked = ProcessingMachine.AutoStorageUnlocked;
-        autoStorageBtn.gameObject.SetActive(unlocked);
-        if (!unlocked || _machine == null) return;
-
-        if (autoStorageBtnText != null)
-            autoStorageBtnText.text = _machine.AutoStorageEnabled
-                ? "자동 창고 전송 ON"
-                : "자동 창고 전송 OFF";
-    }
-
-    private void ToggleAutoStorage()
-    {
-        if (_machine == null) return;
-        _machine.SetAutoStorage(!_machine.AutoStorageEnabled);
-        RefreshAutoStorageBtn();
     }
 
     // ── HintArrow 가이드 ─────────────────────────────────────────

@@ -152,6 +152,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7243875154174640121}
   - component: {fileID: 6632510767209009695}
+  - component: {fileID: 1664603016151816649}
   m_Layer: 17
   m_Name: '[Build] BodyCollider'
   m_TagString: Untagged
@@ -190,6 +191,27 @@ BoxCollider:
     m_Bits: 0
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 3, y: 2.5, z: 2}
+  m_Center: {x: 0, y: 1.7, z: 0}
+--- !u!65 &1664603016151816649
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5050071310335563141}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -594,8 +616,99 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7243875154174640121}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8597186984568359758}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -2193016134446586921}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3081252477094427137}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2090709050952800232}
   m_SourcePrefab: {fileID: 100100000, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+--- !u!1 &6106767698628495457 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+  m_PrefabInstance: {fileID: 6376799156490073392}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8597186984568359758
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6106767698628495457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 300a2b02169a5ea46922426a84128454, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outputBelts: []
+  inputBelt: {fileID: 0}
+  outputPort: {fileID: 1210337391028933925}
+  inputPort: {fileID: 2159382848285512016}
+  machineName: "\uC0DD\uCCB4 \uCD94\uCD9C\uAE30"
+  processingTime: 5
+  recipes: []
+  LockedRecipeIndex: -1
+--- !u!114 &-2193016134446586921
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6106767698628495457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e89c0a6e640e4de418d3c6f99569336e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  machine: {fileID: 8597186984568359758}
+  machineName: "\uC0DD\uCCB4 \uCD94\uCD9C\uAE30"
+  statusText: {fileID: 0}
+  progressBar: {fileID: 0}
+  uiRoot: {fileID: 0}
+--- !u!114 &3081252477094427137
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6106767698628495457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a638f80e993fd72439a0df47b986b0c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  loopSource: {fileID: 0}
+  productionLoopClip: {fileID: 8300000, guid: d97710e68b82aae47b9055a9287fd843, type: 3}
+  productionStartClip: {fileID: 0}
+  productionDoneClip: {fileID: 0}
+  minDistance: 3
+  maxDistance: 20
+  rolloffMode: 0
+--- !u!114 &2090709050952800232
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6106767698628495457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fea29bb7c508c244a1f805a5fd3fc4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineMode: 0
+  outlineColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineWidth: 2
+  precomputeOutline: 0
+  bakeKeys: []
+  bakeValues: []
 --- !u!4 &6914230979970503387 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}

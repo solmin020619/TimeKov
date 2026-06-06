@@ -152,6 +152,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7461775894257601138}
   - component: {fileID: 979621608384308283}
+  - component: {fileID: 1964400532423673021}
   m_Layer: 17
   m_Name: '[Build] BodyCollider'
   m_TagString: Untagged
@@ -195,6 +196,27 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 3, y: 2.5, z: 2}
   m_Center: {x: 0, y: 1.7, z: 0}
+--- !u!65 &1964400532423673021
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4832803628159780292}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5890970656841114291
 GameObject:
   m_ObjectHideFlags: 0
@@ -632,8 +654,32 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7461775894257601138}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5086754870531064526}
   m_SourcePrefab: {fileID: 100100000, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
+--- !u!1 &4923407626932235549 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
+  m_PrefabInstance: {fileID: 5229273966051561548}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5086754870531064526
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4923407626932235549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05c6ac1a71afb63488fa19cfec3b6c16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outputBelts: []
+  inputBelt: {fileID: 0}
+  outputPort: {fileID: 0}
+  inputPort: {fileID: 8530809078581993906}
 --- !u!4 &5699487341183170471 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
