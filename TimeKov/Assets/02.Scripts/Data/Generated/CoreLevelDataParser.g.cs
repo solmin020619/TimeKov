@@ -11,9 +11,6 @@ public static class CoreLevelDataParser
 
         int idx_level = table.GetColumnIndex("level");
         int idx_maxTime = table.GetColumnIndex("maxTime");
-        int idx_stamina = table.GetColumnIndex("stamina");
-        int idx_atk = table.GetColumnIndex("atk");
-        int idx_def = table.GetColumnIndex("def");
         int idx_requiredKitItemId = table.GetColumnIndex("requiredKitItemId");
         int idx_requiredAmount = table.GetColumnIndex("requiredAmount");
         int idx_successRate = table.GetColumnIndex("successRate");
@@ -26,9 +23,6 @@ public static class CoreLevelDataParser
             data.SheetId = new CoreLevelDataSheetId(key_level);
 
             data.maxTime = int.Parse(row.Get(idx_maxTime));
-            data.stamina = int.Parse(row.Get(idx_stamina));
-            data.atk = int.Parse(row.Get(idx_atk));
-            data.def = int.Parse(row.Get(idx_def));
             data.requiredKitItemId = (row.Get(idx_requiredKitItemId) == "-" ? default : (ItemDataSheetId)row.Get(idx_requiredKitItemId));
             data.requiredAmount = int.Parse(row.Get(idx_requiredAmount));
             data.successRate = float.Parse(row.Get(idx_successRate), System.Globalization.CultureInfo.InvariantCulture);

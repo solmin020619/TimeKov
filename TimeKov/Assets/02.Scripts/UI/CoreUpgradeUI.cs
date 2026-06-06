@@ -29,23 +29,14 @@ public class CoreUpgradeUI : MonoBehaviour
     // ── 현재 스탯 패널 ────────────────────────────────────────────────
     [Header("현재 스탯")]
     [SerializeField] private TextMeshProUGUI currentTimeText;
-    [SerializeField] private TextMeshProUGUI currentStaminaText;
-    [SerializeField] private TextMeshProUGUI currentAtkText;
-    [SerializeField] private TextMeshProUGUI currentDefText;
 
     // ── 강화 후 스탯 패널 ─────────────────────────────────────────────
     [Header("강화 후 스탯")]
     [SerializeField] private TextMeshProUGUI nextTimeText;
-    [SerializeField] private TextMeshProUGUI nextStaminaText;
-    [SerializeField] private TextMeshProUGUI nextAtkText;
-    [SerializeField] private TextMeshProUGUI nextDefText;
 
     // ── 증가량 텍스트 (+60s ↑) ────────────────────────────────────────
     [Header("증가량 (+N ↑)")]
     [SerializeField] private TextMeshProUGUI deltaTimeText;
-    [SerializeField] private TextMeshProUGUI deltaStaminaText;
-    [SerializeField] private TextMeshProUGUI deltaAtkText;
-    [SerializeField] private TextMeshProUGUI deltaDefText;
 
     // ── 재료 패널 ─────────────────────────────────────────────────────
     [Header("재료 패널")]
@@ -194,10 +185,7 @@ public class CoreUpgradeUI : MonoBehaviour
         // 현재 스탯
         if (cur != null)
         {
-            SetText(currentTimeText,    $"Time : {cur.maxTime}s");
-            SetText(currentStaminaText, $"Stamina : {cur.stamina}");
-            SetText(currentAtkText,     $"ATK : {cur.atk}");
-            SetText(currentDefText,     $"DEF : {cur.def}");
+            SetText(currentTimeText, $"Time : {cur.maxTime}s");
         }
 
         if (isMax) return;
@@ -205,15 +193,8 @@ public class CoreUpgradeUI : MonoBehaviour
         // 강화 후 스탯 + 증가량
         if (next != null && cur != null)
         {
-            SetText(nextTimeText,    $"Time : {next.maxTime}s");
-            SetText(nextStaminaText, $"Stamina : {next.stamina}");
-            SetText(nextAtkText,     $"ATK : {next.atk}");
-            SetText(nextDefText,     $"DEF : {next.def}");
-
-            SetDelta(deltaTimeText,    next.maxTime - cur.maxTime,    "s");
-            SetDelta(deltaStaminaText, next.stamina - cur.stamina,    "");
-            SetDelta(deltaAtkText,     next.atk     - cur.atk,        "");
-            SetDelta(deltaDefText,     next.def      - cur.def,       "");
+            SetText(nextTimeText, $"Time : {next.maxTime}s");
+            SetDelta(deltaTimeText, next.maxTime - cur.maxTime, "s");
         }
 
         // 재료 패널
