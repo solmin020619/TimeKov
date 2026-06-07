@@ -81,6 +81,10 @@ public class RailPiece : MonoBehaviour
         currentVisual.transform.localRotation = Quaternion.Euler(0f, appliedYRot, 0f) * flipRotation;
         currentVisual.transform.localScale = flipScale;
 
+        // 플레이어가 레일을 통과하도록 콜라이더는 Trigger 로 (철거 레이캐스트는 Trigger 도 맞음).
+        foreach (Collider col in currentVisual.GetComponentsInChildren<Collider>())
+            col.isTrigger = true;
+
         ApplyPathOffset();
     }
 
