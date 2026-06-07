@@ -45,6 +45,10 @@ public class FacilityPlacer
 
         GameObject obj = Object.Instantiate(prefab, position, rotation, owner.BuildParent);
 
+        // 배치 직후 아웃라인 OFF — 플레이어가 가까이 가야만 MachineInteraction이 켜줌
+        foreach (var outline in obj.GetComponentsInChildren<Outline>(true))
+            outline.enabled = false;
+
         PlacedBuilding placedBuilding = obj.GetComponent<PlacedBuilding>();
         if (placedBuilding == null)
             placedBuilding = obj.AddComponent<PlacedBuilding>();

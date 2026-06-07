@@ -120,6 +120,10 @@ public class BuildManager : MonoBehaviour
     public HotbarSlotEffect[] slotEffects;
     public HotbarSlotEffect railSlotEffect;
 
+    [Header("퀵슬롯 아이콘 UI")]
+    [Tooltip("각 슬롯의 QuickSlotIconUI. 배열 순서 = 슬롯 1~9번.")]
+    public QuickSlotIconUI[] slotIconUIs;
+
     [Header("Preview")]
     public GameObject previewMarker;
 
@@ -172,6 +176,15 @@ public class BuildManager : MonoBehaviour
 
         if (railBuildManager != null)
             railBuildManager.EndRailMode();
+
+        // 동적 해금 슬롯 초기화
+        InitDynamicUnlockSlots();
+    }
+
+    private void OnDestroy()
+    {
+        if (FacilityUnlockManager.Instance != null)
+            FacilityUnlockManager.Instance.OnFacilityUnlocked -= HandleFacilityUnlocked;
     }
 
     private void Update()
@@ -902,5 +915,44 @@ public class BuildManager : MonoBehaviour
         if (GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out var data))
             return data;
         return null;
+    }
+
+    // =====================================================================
+    // 동적 해금 슬롯 시스템
+    // FacilityUnlockPickup 획득 시 FacilityUnlockManager가 이벤트를 발생시키고
+    // 해당 슬롯에 facilityId를 등록 + 아이콘 UI를 갱신한다.
+    // =====================================================================
+
+    private void InitDynamicUnlockSlots()
+    {
+        // 슬롯 배열을 MaxSlots(9)개로 초기화 — 모두 facilityId=0(비어있음)
+        int slotCount = FacilityUnlockManager.MaxSlots;
+        buildSlots = new BuildSlot[slotCount];
+        for (int i = 0; i < slotCount; i++)
+            buildSlots[i] = new BuildSlot { facilityId = 0 };
+
+        // 아이콘 UI 초기화
+        if (slotIconUIs != null)
+        {
+            for (int i = 0; i < slotIconUIs.Length; i++)
+                slotIconUIs[i]?.Clear();
+        }
+
+        // 해금 이벤트 구독
+        if (FacilityUnlockManager.Instance != null)
+            FacilityUnlockManager.Instance.OnFacilityUnlocked += HandleFacilityUnlocked;
+        else
+            Debug.LogWarning("[BuildManager] FacilityUnlockManager가 씬에 없음. 설비 해금 기능 비활성화.");
+    }
+
+    // 설비 해금 시 콜백 — 해당 슬롯에 facilityId 등록 + 아이콘 표시
+    private void HandleFacilityUnlocked(int facilityId, int slotIndex)
+    {
+        if (buildSlots == null || slotIndex < 0 || slotIndex >= buildSlots.Length) return;
+
+        buildSlots[slotIndex].facilityId = facilityId;
+
+        if (slotIconUIs != null && slotIndex < slotIconUIs.Length)
+            slotIconUIs[slotIndex]?.SetFacility(facilityId);
     }
 }
