@@ -601,6 +601,9 @@ public class BuildManager : MonoBehaviour
     // 레일(RailBuildManager) 등 외부에서 1칸 단위 존 판정에 쓰는 public 래퍼.
     public bool IsCellInBuildZone(Vector2Int cell) => validator.IsCellInBuildZone(cell);
 
+    // 설비 점유 셀 판정 (RailBuildManager 가 레일의 설비 관통 방지에 사용)
+    public bool IsCellOccupied(Vector2Int cell) => occupancy.IsOccupied(cell);
+
     // ===== end Public Helper =====
 
     private Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size) => GridMath.WorldToStartCellCentered(worldPos, size, GridOriginPos, cellSize);

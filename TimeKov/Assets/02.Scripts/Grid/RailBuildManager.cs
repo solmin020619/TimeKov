@@ -1027,6 +1027,11 @@ public class RailBuildManager : MonoBehaviour
         if (owner != null && !owner.IsCellInBuildZone(cell))
             return false;
 
+        // [점유] 설비가 점유한 셀은 레일이 못 지나가게 거부 (설비 중앙 관통 방지).
+        // 단 포트 연결셀(front cell)은 예외 - 그래야 포트에서 레일 시작/연결이 됨.
+        if (owner != null && owner.IsCellOccupied(cell) && !cachedPortByFrontCell.ContainsKey(cell))
+            return false;
+
         if (!railMap.TryGetValue(cell, out RailPiece existingPiece))
             return true;
 
