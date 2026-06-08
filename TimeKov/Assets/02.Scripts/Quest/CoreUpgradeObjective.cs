@@ -13,6 +13,15 @@ public class CoreUpgradeObjective : ObjectiveSO
     public override void Deactivate() => GameEvents.OnCoreUpgraded -= OnUpgraded;
     public override float Progress => IsCompleted ? 1f : 0f;
 
+    // 퀘스트 뜨기 전에 이미 목표 레벨이면 즉시 완료.
+    protected override bool IsAlreadySatisfied()
+    {
+        var m = CoreUpgradeManager.Instance;
+        if (m == null) return false;
+        int need = targetLevel > 0 ? targetLevel : 1;
+        return m.CurrentCoreLevel >= need;
+    }
+
     void OnUpgraded(int newLevel)
     {
         if (IsInGracePeriod) return;
