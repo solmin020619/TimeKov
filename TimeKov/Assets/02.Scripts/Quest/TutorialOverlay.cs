@@ -30,18 +30,24 @@ public class TutorialOverlay : MonoBehaviour
     }
 
     // ── 타깃 레지스트리 (UI 요소가 id로 등록) ─────────────────────────
-    private static readonly Dictionary<string, RectTransform> _targets = new();
+    // 같은 id에 여러 rect 등록 가능 (예: 재료 슬롯 2칸 → 합집합 영역으로 한 번에 강조).
+    private static readonly Dictionary<string, List<RectTransform>> _targets = new();
 
     public static void RegisterTarget(string id, RectTransform rect)
     {
         if (string.IsNullOrEmpty(id) || rect == null) return;
-        _targets[id] = rect;
+        if (!_targets.TryGetValue(id, out var list)) { list = new List<RectTransform>(); _targets[id] = list; }
+        if (!list.Contains(rect)) list.Add(rect);
     }
 
     public static void UnregisterTarget(string id, RectTransform rect)
     {
         if (string.IsNullOrEmpty(id)) return;
-        if (_targets.TryGetValue(id, out var r) && r == rect) _targets.Remove(id);
+        if (_targets.TryGetValue(id, out var list))
+        {
+            list.Remove(rect);
+            if (list.Count == 0) _targets.Remove(id);
+        }
     }
 
     // ── UI 요소 ───────────────────────────────────────────────────────
@@ -50,6 +56,7 @@ public class TutorialOverlay : MonoBehaviour
     private Image _top, _bottom, _left, _right;
     private Image _borderTop, _borderBottom, _borderLeft, _borderRight;
     private Button _clickCatcher;
+    private RectTransform _bannerBg;
     private TMP_Text _banner;
     private TMP_Text _continueLabel;
 
@@ -58,7 +65,7 @@ public class TutorialOverlay : MonoBehaviour
     private KeyCode _advanceKey;
     private bool _active;
 
-    private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.72f);
+    private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.88f);
     private static readonly Color BorderColor = new Color(1f, 0.85f, 0.2f, 1f);   // 계속 라벨과 동일 금색
     private const float SpotlightPadPx = 8f;
     private const float BorderThicknessPx = 3f;
@@ -97,7 +104,7 @@ public class TutorialOverlay : MonoBehaviour
         {
             _continueLabel.gameObject.SetActive(true);
             _continueLabel.text = advanceKey == KeyCode.None
-                ? "▶  아무 곳이나 눌러 계속하기  ◀"
+                ? "▶  아무 곳이나 클릭하여 계속  ◀"
                 : $"▶  {advanceKey} 키를 눌러 계속  ◀";
         }
 
@@ -135,42 +142,51 @@ public class TutorialOverlay : MonoBehaviour
         if (Time.unscaledTime - _shownTime <= ContinueCooldown) return;
 
         bool advance = _advanceKey != KeyCode.None
-            ? Input.GetKeyDown(_advanceKey)                                              // 특정 키로만
-            : (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.anyKeyDown);  // 아무 입력
+            ? Input.GetKeyDown(_advanceKey)         // 특정 키로만 (예: C)
+            : Input.GetMouseButtonDown(0);          // 좌클릭에만 (아무 키로 넘어가는 것 방지)
 
         if (advance) _onContinue.Invoke();
     }
 
     private void UpdateSpotlight()
     {
-        RectTransform target = null;
-        if (!string.IsNullOrEmpty(_spotlightId))
-            _targets.TryGetValue(_spotlightId, out target);
+        // 같은 id에 등록된 모든 활성 rect의 합집합(union)으로 구멍 영역 계산 (재료 슬롯 2칸 등).
+        bool hasTarget = false;
+        float xMin = 1f, xMax = 0f, yMin = 1f, yMax = 0f;
 
-        bool hasTarget = target != null && target.gameObject.activeInHierarchy;
+        if (!string.IsNullOrEmpty(_spotlightId) && _targets.TryGetValue(_spotlightId, out var list))
+        {
+            Vector3[] c = new Vector3[4];
+            float w = Mathf.Max(1, Screen.width);
+            float h = Mathf.Max(1, Screen.height);
+
+            foreach (var target in list)
+            {
+                if (target == null || !target.gameObject.activeInHierarchy) continue;
+
+                target.GetWorldCorners(c);   // 0=BL 1=TL 2=TR 3=BR (world)
+                Canvas tc = target.GetComponentInParent<Canvas>();
+                Camera cam = (tc != null && tc.renderMode != RenderMode.ScreenSpaceOverlay) ? tc.worldCamera : null;
+
+                Vector2 bl = RectTransformUtility.WorldToScreenPoint(cam, c[0]);
+                Vector2 tr = RectTransformUtility.WorldToScreenPoint(cam, c[2]);
+
+                float nxMin = Mathf.Clamp01((Mathf.Min(bl.x, tr.x) - SpotlightPadPx) / w);
+                float nxMax = Mathf.Clamp01((Mathf.Max(bl.x, tr.x) + SpotlightPadPx) / w);
+                float nyMin = Mathf.Clamp01((Mathf.Min(bl.y, tr.y) - SpotlightPadPx) / h);
+                float nyMax = Mathf.Clamp01((Mathf.Max(bl.y, tr.y) + SpotlightPadPx) / h);
+
+                if (!hasTarget) { xMin = nxMin; xMax = nxMax; yMin = nyMin; yMax = nyMax; hasTarget = true; }
+                else { xMin = Mathf.Min(xMin, nxMin); xMax = Mathf.Max(xMax, nxMax); yMin = Mathf.Min(yMin, nyMin); yMax = Mathf.Max(yMax, nyMax); }
+            }
+        }
 
         // 타깃 없으면 전체 딤(스트립 숨김), 있으면 4스트립으로 구멍 + 금색 테두리
         _fullDim.enabled = !hasTarget;
         _top.enabled = _bottom.enabled = _left.enabled = _right.enabled = hasTarget;
         _borderTop.enabled = _borderBottom.enabled = _borderLeft.enabled = _borderRight.enabled = hasTarget;
 
-        if (!hasTarget) return;
-
-        Vector3[] c = new Vector3[4];
-        target.GetWorldCorners(c);   // 0=BL 1=TL 2=TR 3=BR (world)
-
-        Canvas tc = target.GetComponentInParent<Canvas>();
-        Camera cam = (tc != null && tc.renderMode != RenderMode.ScreenSpaceOverlay) ? tc.worldCamera : null;
-
-        Vector2 bl = RectTransformUtility.WorldToScreenPoint(cam, c[0]);
-        Vector2 tr = RectTransformUtility.WorldToScreenPoint(cam, c[2]);
-
-        float w = Mathf.Max(1, Screen.width);
-        float h = Mathf.Max(1, Screen.height);
-        float xMin = Mathf.Clamp01((Mathf.Min(bl.x, tr.x) - SpotlightPadPx) / w);
-        float xMax = Mathf.Clamp01((Mathf.Max(bl.x, tr.x) + SpotlightPadPx) / w);
-        float yMin = Mathf.Clamp01((Mathf.Min(bl.y, tr.y) - SpotlightPadPx) / h);
-        float yMax = Mathf.Clamp01((Mathf.Max(bl.y, tr.y) + SpotlightPadPx) / h);
+        if (!hasTarget) { PositionBanner(true); return; }   // 타깃 없으면 배너 상단(기본)
 
         SetAnchors(_top.rectTransform, 0f, yMax, 1f, 1f);
         SetAnchors(_bottom.rectTransform, 0f, 0f, 1f, yMin);
@@ -183,12 +199,17 @@ public class TutorialOverlay : MonoBehaviour
         SetEdge(_borderBottom.rectTransform, xMin, yMin, xMax, yMin, 0f, -t, 0f, 0f);
         SetEdge(_borderLeft.rectTransform,   xMin, yMin, xMin, yMax, -t, 0f, 0f, 0f);
         SetEdge(_borderRight.rectTransform,  xMax, yMin, xMax, yMax, 0f, 0f, t, 0f);
+
+        // 배너가 타깃을 가리지 않게 — 타깃이 화면 위쪽이면 배너를 아래로.
+        PositionBanner(yMax <= 0.7f);
     }
 
-    private void OnClickCatcher()
+    // 배너 위치: top=true 상단, false 하단(계속 라벨 위). 타깃을 가리지 않도록.
+    private void PositionBanner(bool top)
     {
-        if (_advanceKey != KeyCode.None) return;   // 특정 키 전용 단계는 클릭으로 진행 안 함 (EventSystem 우회 방지)
-        _onContinue?.Invoke();
+        if (_bannerBg == null) return;
+        if (top) SetAnchors(_bannerBg, 0.12f, 0.84f, 0.88f, 0.93f);
+        else     SetAnchors(_bannerBg, 0.12f, 0.16f, 0.88f, 0.27f);
     }
 
     // ── UI 생성 ───────────────────────────────────────────────────────
@@ -222,14 +243,14 @@ public class TutorialOverlay : MonoBehaviour
         _borderLeft = NewImage("BorderLeft", _root, BorderColor);
         _borderRight = NewImage("BorderRight", _root, BorderColor);
 
-        // 클릭 캐처 (투명, 전체 화면 — 클릭하여 계속)
+        // 클릭 캐처 (투명, 전체 화면 — 뒤 UI 클릭 차단용. 진행은 LateUpdate 폴링이 담당)
         _clickCatcher = NewButton("ClickCatcher", _root);
         Stretch((RectTransform)_clickCatcher.transform, 0f, 0f, 1f, 1f);
-        _clickCatcher.onClick.AddListener(OnClickCatcher);
 
         // 상단 배너 (배경 박스 + 텍스트)
         var bannerBg = NewImage("BannerBg", _root, new Color(0f, 0f, 0f, 0.85f));
-        SetAnchors(bannerBg.rectTransform, 0.12f, 0.85f, 0.88f, 0.94f);
+        SetAnchors(bannerBg.rectTransform, 0.12f, 0.84f, 0.88f, 0.93f);
+        _bannerBg = bannerBg.rectTransform;
         _banner = NewText("BannerText", bannerBg.transform);
         Stretch(_banner.rectTransform, 0f, 0f, 1f, 1f);
         _banner.alignment = TextAlignmentOptions.Center;
@@ -245,7 +266,7 @@ public class TutorialOverlay : MonoBehaviour
         _continueLabel.alignment = TextAlignmentOptions.Center;
         _continueLabel.fontSize = 24f;
         _continueLabel.color = new Color(1f, 0.85f, 0.2f, 1f);
-        _continueLabel.text = "▶  아무 곳이나 눌러 계속하기  ◀";
+        _continueLabel.text = "▶  아무 곳이나 클릭하여 계속  ◀";
     }
 
     private static Image NewImage(string name, Transform parent, Color col)

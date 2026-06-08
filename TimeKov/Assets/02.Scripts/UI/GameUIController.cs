@@ -78,10 +78,13 @@ public class GameUIController : MonoBehaviour
         if (questHud != null)
             _questHudGroup = questHud.GetComponent<CanvasGroup>();
 
-        // 튜토리얼 스포트라이트 "status_panel" 타깃 = C 스탯창(statPanel). 이미 연결된 참조 재사용(수동 부착 불필요).
+        // 튜토리얼 스포트라이트 "status_panel" 타깃 = C 스탯창의 보이는 배경(StatBG).
+        // statPanel(Character_stat)은 100x100 앵커 노드라 그대로 쓰면 박스가 작게 잡힌다.
+        // 실제 창 크기인 StatBG(600x350)를 우선 등록하고, 못 찾으면 statPanel로 폴백.
         if (statPanel != null)
         {
-            var statRect = statPanel.GetComponent<RectTransform>();
+            var statRect = statPanel.transform.Find("StatBG") as RectTransform
+                        ?? statPanel.GetComponent<RectTransform>();
             if (statRect != null) TutorialOverlay.RegisterTarget("status_panel", statRect);
         }
     }
