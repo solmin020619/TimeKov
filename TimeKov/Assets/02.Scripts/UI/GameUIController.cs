@@ -102,8 +102,20 @@ public class GameUIController : MonoBehaviour
 
     protected virtual void Update()
     {
+        // ESC는 어떤 상황에서도 최우선 — 게임 일시정지/설정. 코치마크 중에도 항상 작동.
         if (Input.GetKeyDown(KeyCode.Escape))
             HandleEscape();
+
+        // 튜토리얼 코치마크(오버레이) 중에는 ESC 외 키보드 전부 차단.
+        // 단, 오버레이가 현재 진행에 요구하는 키(예: C 스탯창 스텝)는 그 동작만 허용.
+        if (_tutorialCoachActive)
+        {
+            if (Input.GetKeyDown(KeyCode.C)
+                && TutorialOverlay.HasInstance
+                && TutorialOverlay.I.ActiveAdvanceKey == KeyCode.C)
+                TogglePlayerStat();   // 스탯창 열기(다음 스텝이 강조) — 오버레이 진행은 자체 폴링이 담당
+            return;
+        }
 
         if (Input.GetKeyDown(KeyCode.J))
             ToggleQuest();

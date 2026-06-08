@@ -52,6 +52,8 @@ public class TutorialOverlay : MonoBehaviour
 
     // ── UI 요소 ───────────────────────────────────────────────────────
     private RectTransform _root;
+    private Canvas _canvas;
+    private GraphicRaycaster _raycaster;
     private Image _fullDim;
     private Image _top, _bottom, _left, _right;
     private Image _borderTop, _borderBottom, _borderLeft, _borderRight;
@@ -64,6 +66,10 @@ public class TutorialOverlay : MonoBehaviour
     private Action _onContinue;
     private KeyCode _advanceKey;
     private bool _active;
+    private bool _suppressed;   // 설정창(ESC 일시정지)이 위에 떠서 잠시 숨김 — 닫히면 복귀
+
+    /// <summary>현재 단계가 진행을 위해 요구하는 키 (없으면 None). GameUIController가 코치 중 그 키만 통과시키는 데 사용.</summary>
+    public KeyCode ActiveAdvanceKey => _active ? _advanceKey : KeyCode.None;
 
     private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.88f);
     private static readonly Color BorderColor = new Color(1f, 0.85f, 0.2f, 1f);   // 계속 라벨과 동일 금색
@@ -118,6 +124,7 @@ public class TutorialOverlay : MonoBehaviour
     public void Hide()
     {
         _active = false;
+        _suppressed = false;
         _spotlightId = null;
         _onContinue = null;
         _advanceKey = KeyCode.None;
@@ -127,14 +134,32 @@ public class TutorialOverlay : MonoBehaviour
 
     // ── 내부 ──────────────────────────────────────────────────────────
 
+    // 표시/숨김은 Canvas·Raycaster 토글로 처리한다(GameObject는 항상 활성 → LateUpdate가 계속 돌아
+    // 설정창 열고닫힘을 self-poll로 감지해 복귀할 수 있음). GameObject를 끄면 LateUpdate가 멈춰 복귀 불가.
     private void SetVisible(bool v)
     {
-        if (_root != null) _root.gameObject.SetActive(v);
+        if (_canvas != null) _canvas.enabled = v;
+        if (_raycaster != null) _raycaster.enabled = v;
     }
 
     private void LateUpdate()
     {
         if (!_active) return;
+
+        // 설정창(ESC 일시정지)은 WindowManager가 직접 열어 _currentState를 안 거치므로 여기서 직접 감지.
+        // 떠 있는 동안 오버레이를 숨겨(진행도 멈춤) 설정창이 가장 앞에 보이게 하고, 닫히면 자동 복귀.
+        // WM 경로(IsOpen)와 폴백 경로(_currentState) 둘 다 커버.
+        bool settingsOpen =
+            (TimeKov.UI.WindowManager.I != null && TimeKov.UI.WindowManager.I.IsOpen("Settings"))
+            || (GameUIController.Instance != null
+                && GameUIController.Instance.GetCurrentState() == GameUIController.UIState.Settings);
+        if (settingsOpen != _suppressed)
+        {
+            _suppressed = settingsOpen;
+            SetVisible(!_suppressed);
+        }
+        if (_suppressed) return;
+
         UpdateSpotlight();
 
         // 계속 처리 — uGUI Button(EventSystem) 대신 Input 폴링 (나머지 튜토와 동일 경로, 확실히 작동).
@@ -186,6 +211,9 @@ public class TutorialOverlay : MonoBehaviour
         _top.enabled = _bottom.enabled = _left.enabled = _right.enabled = hasTarget;
         _borderTop.enabled = _borderBottom.enabled = _borderLeft.enabled = _borderRight.enabled = hasTarget;
 
+        // 계속 라벨 위치 — 타깃이 화면 하단(퀵슬롯/시간막대 등)이면 가리지 않게 구멍 위로.
+        PositionContinue(hasTarget, yMin, yMax);
+
         if (!hasTarget) { PositionBanner(true); return; }   // 타깃 없으면 배너 상단(기본)
 
         SetAnchors(_top.rectTransform, 0f, yMax, 1f, 1f);
@@ -212,20 +240,37 @@ public class TutorialOverlay : MonoBehaviour
         else     SetAnchors(_bannerBg, 0.12f, 0.16f, 0.88f, 0.27f);
     }
 
+    // 계속 라벨 위치: 타깃이 화면 하단에 닿으면(퀵슬롯 등) 구멍 바로 위 어두운 영역으로 올려 가리지 않게.
+    private void PositionContinue(bool hasTarget, float holeBottomY, float holeTopY)
+    {
+        if (_continueLabel == null) return;
+        var rt = _continueLabel.rectTransform;
+        if (hasTarget && holeBottomY < 0.22f)
+        {
+            float y0 = Mathf.Clamp(holeTopY + 0.03f, 0.14f, 0.74f);
+            float y1 = Mathf.Min(y0 + 0.05f, 0.79f);
+            SetAnchors(rt, 0.25f, y0, 0.75f, y1);
+        }
+        else
+        {
+            SetAnchors(rt, 0.25f, 0.06f, 0.75f, 0.12f);   // 기본 하단
+        }
+    }
+
     // ── UI 생성 ───────────────────────────────────────────────────────
 
     private void BuildUI()
     {
-        var canvas = gameObject.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 5000;   // 거의 최상단 (다른 UI 위)
+        _canvas = gameObject.AddComponent<Canvas>();
+        _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _canvas.sortingOrder = 5000;   // 거의 최상단 (다른 UI 위)
 
         var scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 0.5f;
 
-        gameObject.AddComponent<GraphicRaycaster>();
+        _raycaster = gameObject.AddComponent<GraphicRaycaster>();
 
         _root = (RectTransform)transform;
 

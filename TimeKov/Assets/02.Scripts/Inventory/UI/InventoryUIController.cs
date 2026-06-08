@@ -124,6 +124,10 @@ public class InventoryUIController : MonoBehaviour
 
     private void Update()
     {
+        // 튜토리얼 코치마크(오버레이) 중에는 키보드 차단 — TAB 인벤 토글 무시.
+        if (GameUIController.Instance != null && GameUIController.Instance.IsTutorialCoachActive)
+            return;
+
         // TAB 키로 인벤토리 토글 (DataBoot 완료 여부와 무관하게 항상 열 수 있음)
         if (Input.GetKeyDown(KeyCode.Tab))
         {

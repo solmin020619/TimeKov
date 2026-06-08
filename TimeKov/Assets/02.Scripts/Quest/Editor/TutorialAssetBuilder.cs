@@ -85,7 +85,7 @@ public static class TutorialAssetBuilder
                 TourStep($"{Y}B{E} - {Y}건설 모드{E}로 들어갑니다.", TargetBIcon),
                 TourStep($"{Y}ESC{E} - {Y}설정{E}을 엽니다.", TargetEscIcon),
                 TourStep($"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.", TargetStatButton, KeyCode.C),
-                TourStep($"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다.", TargetStatPanel))));
+                TourStep($"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다. {Y}C{E} 키로 {Y}언제든 여닫을 수 있어요{E}.", TargetStatPanel))));
 
         // Q1. 기본 조작 [병렬]
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
@@ -111,7 +111,7 @@ public static class TutorialAssetBuilder
 
         // Q4b. 추출기 위치로 이동 (트리거 도착) — 도착해야 해금 픽업과 만남
         quests.Add(BuildQuest("quest_tut_04b_reach_extractor", "추출기 위치로 이동",
-            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "unlock_extractor")));
+            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1")));
 
         // Q5. 설비 해금 (F로 줍기)
         quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "설비 해금",
@@ -171,7 +171,7 @@ public static class TutorialAssetBuilder
 
         // Q10b. 배양기 위치로 이동 (트리거 도착)
         quests.Add(BuildQuest("quest_tut_10b_reach_cultivator", "배양기 위치로 이동",
-            CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "unlock_cultivator")));
+            CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2")));
 
         // Q11. 배양기 해금 + 설치 [병렬]
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
@@ -258,7 +258,7 @@ public static class TutorialAssetBuilder
             $"3. 튜토 스폰 몹 드롭(EnemyDropOnDeath.sourceId): 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive}, OakTreeEnt가 연료 나뭇가지{ItemTwig} → 스폰풀에 OakTreeEnt 꼭 포함\n" +
             $"4. 스포트라이트: 시간막대('{TargetTimeBar}')/스탯창('{TargetStatPanel}')=코드 자동등록. 수동 TutorialHighlightTarget 부착 필요: C아이콘(C_Icon) id='{TargetStatButton}', 재료슬롯 id='{TargetMachineInput}', 연료슬롯 id='{TargetFuelSlot}', 코어강화 id='{TargetCoreUpgrade}'\n" +
             $"5. PlayerMovementWatcher.watchedKeys 에 Space/Mouse0/Mouse1/Tab/B 포함 확인 (C는 GameUIController에서 자동 발화 → 설정 불필요)\n" +
-            $"6. QuestTrigger 콜라이더(IsTrigger, 플레이어Tag='Player'): 사냥터='enemy', 건설구역='build'(BuildZone위치), 추출기위치='unlock_extractor', 배양기위치='unlock_cultivator'. 각 설비위치 트리거 안에 해당 FacilityUnlockPickup 배치(추출기#1/배양기#2)\n" +
+            $"6. QuestTrigger 콜라이더(IsTrigger, 플레이어Tag='Player'): 사냥터='enemy', 건설구역='build'(BuildZone위치), 추출기위치='1', 배양기위치='2'. 각 설비위치 트리거 안에 해당 FacilityUnlockPickup 배치(추출기#1/배양기#2)\n" +
             $"7. 건설투어 스포트라이트는 QuickSlotPanel 자식 이름(Quick Slot/Quick (5)/X_IMG)으로 코드 자동등록 — 이름 다르면 전체딤 폴백(에러X), 플레이로 확인");
     }
 

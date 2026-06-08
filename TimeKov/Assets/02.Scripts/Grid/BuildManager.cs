@@ -318,6 +318,11 @@ public class BuildManager : MonoBehaviour
 
     private void HandleModeInput()
     {
+        // 튜토리얼 코치마크(오버레이) 중에는 키보드 차단 — B 진입/종료, 우클릭 종료 무시.
+        // (ESC는 GameUIController.HandleEscape가 별도 처리하므로 일시정지는 항상 가능)
+        if (GameUIController.Instance != null && GameUIController.Instance.IsTutorialCoachActive)
+            return;
+
         // B 키: 빌드 모드 진입/종료 토글
         if (Input.GetKeyDown(KeyCode.B))
         {
