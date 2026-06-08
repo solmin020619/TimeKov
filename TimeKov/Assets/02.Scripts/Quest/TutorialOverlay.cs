@@ -211,8 +211,8 @@ public class TutorialOverlay : MonoBehaviour
         _top.enabled = _bottom.enabled = _left.enabled = _right.enabled = hasTarget;
         _borderTop.enabled = _borderBottom.enabled = _borderLeft.enabled = _borderRight.enabled = hasTarget;
 
-        // 계속 라벨 위치 — 타깃이 화면 하단(퀵슬롯/시간막대 등)이면 가리지 않게 구멍 위로.
-        PositionContinue(hasTarget, yMin, yMax);
+        // 계속 라벨 위치 — 타깃이 화면 하단 + 가로 중앙을 덮을 때(퀵슬롯 바)만 구멍 위로.
+        PositionContinue(hasTarget, xMin, xMax, yMin, yMax);
 
         if (!hasTarget) { PositionBanner(true); return; }   // 타깃 없으면 배너 상단(기본)
 
@@ -240,12 +240,14 @@ public class TutorialOverlay : MonoBehaviour
         else     SetAnchors(_bannerBg, 0.12f, 0.16f, 0.88f, 0.27f);
     }
 
-    // 계속 라벨 위치: 타깃이 화면 하단에 닿으면(퀵슬롯 등) 구멍 바로 위 어두운 영역으로 올려 가리지 않게.
-    private void PositionContinue(bool hasTarget, float holeBottomY, float holeTopY)
+    // 계속 라벨 위치: 타깃이 화면 하단(yMin<0.22)이면서 가로 중앙(0.5)을 덮을 때만(퀵슬롯 바)
+    // 구멍 위로 올린다. 하단-구석 패널(Status/시간막대)은 중앙 라벨과 안 겹치므로 기본 하단 유지.
+    private void PositionContinue(bool hasTarget, float holeLeftX, float holeRightX, float holeBottomY, float holeTopY)
     {
         if (_continueLabel == null) return;
         var rt = _continueLabel.rectTransform;
-        if (hasTarget && holeBottomY < 0.22f)
+        bool coversCenterBottom = hasTarget && holeBottomY < 0.22f && holeLeftX < 0.5f && holeRightX > 0.5f;
+        if (coversCenterBottom)
         {
             float y0 = Mathf.Clamp(holeTopY + 0.03f, 0.14f, 0.74f);
             float y1 = Mathf.Min(y0 + 0.05f, 0.79f);
@@ -253,7 +255,7 @@ public class TutorialOverlay : MonoBehaviour
         }
         else
         {
-            SetAnchors(rt, 0.25f, 0.06f, 0.75f, 0.12f);   // 기본 하단
+            SetAnchors(rt, 0.25f, 0.06f, 0.75f, 0.12f);   // 기본 하단(중앙)
         }
     }
 
