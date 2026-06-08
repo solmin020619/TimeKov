@@ -30861,6 +30861,7 @@ MonoBehaviour:
   baseStateIndicator: {fileID: 0}
   hurtVignette: {fileID: 0}
   hurtFadeSpeed: 3
+  timeBarPanelRoot: {fileID: 0}
 --- !u!114 &7850726382711502650
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -45723,6 +45724,7 @@ GameObject:
   - component: {fileID: 7479551009396999727}
   - component: {fileID: 140914074116581991}
   - component: {fileID: 1260085109007364100}
+  - component: {fileID: 2519872070835063808}
   m_Layer: 5
   m_Name: C_Text
   m_TagString: Untagged
@@ -45788,6 +45790,19 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &2519872070835063808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8869563115768366701}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5536ac666e32a7f488ab5aea1f6310cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  id: stat_button
 --- !u!1 &8883468458509785439
 GameObject:
   m_ObjectHideFlags: 0
@@ -48075,7 +48090,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5357485738646169569, guid: 35b886e33e2b35b49b2a64dc0f1fdad9, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -8
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 8581188750959070507, guid: 35b886e33e2b35b49b2a64dc0f1fdad9, type: 3}
       propertyPath: m_Name

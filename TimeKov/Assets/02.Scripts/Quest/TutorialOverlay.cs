@@ -48,16 +48,20 @@ public class TutorialOverlay : MonoBehaviour
     private RectTransform _root;
     private Image _fullDim;
     private Image _top, _bottom, _left, _right;
+    private Image _borderTop, _borderBottom, _borderLeft, _borderRight;
     private Button _clickCatcher;
     private TMP_Text _banner;
     private TMP_Text _continueLabel;
 
     private string _spotlightId;
     private Action _onContinue;
+    private KeyCode _advanceKey;
     private bool _active;
 
     private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.72f);
+    private static readonly Color BorderColor = new Color(1f, 0.85f, 0.2f, 1f);   // 계속 라벨과 동일 금색
     private const float SpotlightPadPx = 8f;
+    private const float BorderThicknessPx = 3f;
     private const float ContinueCooldown = 0.2f;   // 표시 직후 잔여 입력으로 즉시 넘어가는 것 방지
     private float _shownTime;
 
@@ -73,11 +77,12 @@ public class TutorialOverlay : MonoBehaviour
 
     // ── 외부 API ──────────────────────────────────────────────────────
 
-    /// <summary>안내 단계 표시: 배너 + 스포트라이트 + 클릭하여 계속.</summary>
-    public void ShowContinueStep(string banner, string spotlightTargetId, Action onContinue)
+    /// <summary>안내 단계 표시: 배너 + 스포트라이트 + 계속(클릭 또는 지정 키).</summary>
+    public void ShowContinueStep(string banner, string spotlightTargetId, Action onContinue, KeyCode advanceKey = KeyCode.None)
     {
         _spotlightId = spotlightTargetId;
         _onContinue = onContinue;
+        _advanceKey = advanceKey;
         _active = true;
         _shownTime = Time.unscaledTime;
 
@@ -88,7 +93,16 @@ public class TutorialOverlay : MonoBehaviour
         }
 
         _clickCatcher.gameObject.SetActive(true);
-        if (_continueLabel != null) _continueLabel.gameObject.SetActive(true);
+        if (_continueLabel != null)
+        {
+            _continueLabel.gameObject.SetActive(true);
+            _continueLabel.text = advanceKey == KeyCode.None
+                ? "▶  아무 곳이나 눌러 계속하기  ◀"
+                : $"▶  {advanceKey} 키를 눌러 계속  ◀";
+        }
+
+        // 코치마크 표시 중 좌측 퀘스트 트래커 숨김 (배너와 중복 방지, 토스트 느낌)
+        GameUIController.Instance?.SetTutorialCoachActive(true);
 
         SetVisible(true);
         UpdateSpotlight();   // 첫 프레임부터 정확한 위치
@@ -99,6 +113,8 @@ public class TutorialOverlay : MonoBehaviour
         _active = false;
         _spotlightId = null;
         _onContinue = null;
+        _advanceKey = KeyCode.None;
+        GameUIController.Instance?.SetTutorialCoachActive(false);   // 트래커 복귀
         SetVisible(false);
     }
 
@@ -114,14 +130,15 @@ public class TutorialOverlay : MonoBehaviour
         if (!_active) return;
         UpdateSpotlight();
 
-        // 클릭하여 계속 — uGUI Button(EventSystem) 대신 Input 폴링.
-        // 나머지 튜토리얼(WASD/공격/Tab)과 동일 경로라 EventSystem 의존 없이 확실히 작동.
-        if (_onContinue != null
-            && Time.unscaledTime - _shownTime > ContinueCooldown
-            && (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.anyKeyDown))
-        {
-            _onContinue.Invoke();
-        }
+        // 계속 처리 — uGUI Button(EventSystem) 대신 Input 폴링 (나머지 튜토와 동일 경로, 확실히 작동).
+        if (_onContinue == null) return;
+        if (Time.unscaledTime - _shownTime <= ContinueCooldown) return;
+
+        bool advance = _advanceKey != KeyCode.None
+            ? Input.GetKeyDown(_advanceKey)                                              // 특정 키로만
+            : (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.anyKeyDown);  // 아무 입력
+
+        if (advance) _onContinue.Invoke();
     }
 
     private void UpdateSpotlight()
@@ -132,9 +149,10 @@ public class TutorialOverlay : MonoBehaviour
 
         bool hasTarget = target != null && target.gameObject.activeInHierarchy;
 
-        // 타깃 없으면 전체 딤(스트립 숨김), 있으면 4스트립으로 구멍
+        // 타깃 없으면 전체 딤(스트립 숨김), 있으면 4스트립으로 구멍 + 금색 테두리
         _fullDim.enabled = !hasTarget;
         _top.enabled = _bottom.enabled = _left.enabled = _right.enabled = hasTarget;
+        _borderTop.enabled = _borderBottom.enabled = _borderLeft.enabled = _borderRight.enabled = hasTarget;
 
         if (!hasTarget) return;
 
@@ -158,10 +176,18 @@ public class TutorialOverlay : MonoBehaviour
         SetAnchors(_bottom.rectTransform, 0f, 0f, 1f, yMin);
         SetAnchors(_left.rectTransform, 0f, yMin, xMin, yMax);
         SetAnchors(_right.rectTransform, xMax, yMin, 1f, yMax);
+
+        // 구멍 둘레 금색 테두리 — 구멍 경계선에 px 두께로 붙임 (바깥쪽)
+        float t = BorderThicknessPx;
+        SetEdge(_borderTop.rectTransform,    xMin, yMax, xMax, yMax, 0f, 0f, 0f, t);
+        SetEdge(_borderBottom.rectTransform, xMin, yMin, xMax, yMin, 0f, -t, 0f, 0f);
+        SetEdge(_borderLeft.rectTransform,   xMin, yMin, xMin, yMax, -t, 0f, 0f, 0f);
+        SetEdge(_borderRight.rectTransform,  xMax, yMin, xMax, yMax, 0f, 0f, t, 0f);
     }
 
     private void OnClickCatcher()
     {
+        if (_advanceKey != KeyCode.None) return;   // 특정 키 전용 단계는 클릭으로 진행 안 함 (EventSystem 우회 방지)
         _onContinue?.Invoke();
     }
 
@@ -189,6 +215,12 @@ public class TutorialOverlay : MonoBehaviour
         _bottom = NewImage("DimBottom", _root, DimColor);
         _left = NewImage("DimLeft", _root, DimColor);
         _right = NewImage("DimRight", _root, DimColor);
+
+        // 스포트라이트 구멍 테두리 — 딤 스트립 위에 그려지도록 이후 생성
+        _borderTop = NewImage("BorderTop", _root, BorderColor);
+        _borderBottom = NewImage("BorderBottom", _root, BorderColor);
+        _borderLeft = NewImage("BorderLeft", _root, BorderColor);
+        _borderRight = NewImage("BorderRight", _root, BorderColor);
 
         // 클릭 캐처 (투명, 전체 화면 — 클릭하여 계속)
         _clickCatcher = NewButton("ClickCatcher", _root);
@@ -256,5 +288,15 @@ public class TutorialOverlay : MonoBehaviour
         rt.anchorMax = new Vector2(xMax, yMax);
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
+    }
+
+    // 앵커는 구멍 경계선(0폭/0높이)에 두고 offset(px)으로 두께를 줘 얇은 테두리 바를 만든다.
+    private static void SetEdge(RectTransform rt, float axMin, float ayMin, float axMax, float ayMax,
+                               float ox0, float oy0, float ox1, float oy1)
+    {
+        rt.anchorMin = new Vector2(axMin, ayMin);
+        rt.anchorMax = new Vector2(axMax, ayMax);
+        rt.offsetMin = new Vector2(ox0, oy0);
+        rt.offsetMax = new Vector2(ox1, oy1);
     }
 }

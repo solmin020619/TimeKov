@@ -101,6 +101,13 @@ public class PlayerHudUI : MonoBehaviour
     [SerializeField] private CanvasGroup hurtVignette;
     [SerializeField] private float hurtFadeSpeed = 3f;
 
+    [Header("Tutorial")]
+    [Tooltip("튜토리얼 스포트라이트가 강조할 시간/DECAY 패널(PlayerTime). 비우면 자동 탐색.")]
+    [SerializeField] private RectTransform timeBarPanelRoot;
+
+    private RectTransform _timeBarRoot;
+    private RectTransform _statButtonRoot;
+
     private float _hurtAlpha = 0f;
 
     // 플레이어 옆 스태미나 UI 표시/숨김 제어용
@@ -108,6 +115,8 @@ public class PlayerHudUI : MonoBehaviour
 
     void Start()
     {
+        RegisterTutorialTargets();   // 튜토리얼 스포트라이트 타깃(time_bar/stat_button) 자동 등록 (playerStat 유무와 무관)
+
         // 자동 탐색
         if (playerStat == null || playerSkill == null)
         {
@@ -174,6 +183,47 @@ public class PlayerHudUI : MonoBehaviour
             playerStat.OnHurt -= TriggerHurtVignette;
             playerStat.OnDead -= ForceHpSliderEmpty;
         }
+
+        if (_timeBarRoot != null)
+            TutorialOverlay.UnregisterTarget("time_bar", _timeBarRoot);
+        if (_statButtonRoot != null)
+            TutorialOverlay.UnregisterTarget("stat_button", _statButtonRoot);
+    }
+
+    // 튜토리얼 스포트라이트 타깃 자동 등록 (씬 수동 부착 불필요).
+    void RegisterTutorialTargets()
+    {
+        // time_bar = 좌하단 시간/DECAY 패널(PlayerTime). hpSlider/timeValueText에서 부모로 올라가 탐색.
+        _timeBarRoot = timeBarPanelRoot != null ? timeBarPanelRoot : FindTimeBarRoot();
+        if (_timeBarRoot != null)
+            TutorialOverlay.RegisterTarget("time_bar", _timeBarRoot);
+
+        // stat_button = 우측 상단 C 스탯 아이콘(C_Icon). 같은 Canvas 하위에서 이름으로 탐색.
+        _statButtonRoot = FindDescendant(transform, "C_Icon") as RectTransform;
+        if (_statButtonRoot != null)
+            TutorialOverlay.RegisterTarget("stat_button", _statButtonRoot);
+    }
+
+    RectTransform FindTimeBarRoot()
+    {
+        Transform t = hpSlider != null ? hpSlider.transform
+                    : timeValueText != null ? timeValueText.transform
+                    : null;
+        for (; t != null; t = t.parent)
+            if (t.name == "PlayerTime") return t as RectTransform;
+        return null;
+    }
+
+    static Transform FindDescendant(Transform root, string targetName)
+    {
+        for (int i = 0; i < root.childCount; i++)
+        {
+            var c = root.GetChild(i);
+            if (c.name == targetName) return c;
+            var found = FindDescendant(c, targetName);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     // 사망 즉시 슬라이더를 0으로 강제 설정

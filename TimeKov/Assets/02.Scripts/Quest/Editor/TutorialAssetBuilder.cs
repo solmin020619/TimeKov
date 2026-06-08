@@ -37,6 +37,9 @@ public static class TutorialAssetBuilder
     const string TargetMachineInput = "machine_input";   // 머신 재료 슬롯
     const string TargetCoreUpgrade  = "core_upgrade";    // 코어 강화 버튼/패널
     const string TargetFuelSlot     = "fuel_slot";       // 설비 연료 슬롯
+    const string TargetTimeBar      = "time_bar";        // 좌하단 시간/DECAY 막대
+    const string TargetStatPanel    = "status_panel";    // C 스탯 창
+    const string TargetStatButton   = "stat_button";     // 우측 상단 C 스탯 아이콘(C_Icon)
 
     const string Y = "<color=#FFCC00>";  // 강조 색 열기
     const string E = "</color>";          // 닫기
@@ -67,6 +70,24 @@ public static class TutorialAssetBuilder
 
         var quests = new List<QuestSO>();
 
+        // Q0a. [시작 안내] 시간 시스템 — 시간막대 스포트라이트 (Continue는 단독 퀘여야 함: 한 퀘 내 objective는 병렬)
+        quests.Add(BuildQuest("quest_tut_00a_intro_time", "시간 시스템",
+            CreateContinue("obj_intro_time",
+                $"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. {Y}결계(기지) 안{E}에서는 시간이 줄지 않지만({Y}DECAY OFF{E}), {Y}결계 밖{E}에선 시간이 계속 {Y}줄어들어{E} 0이 되면 쓰러집니다. 시간은 {Y}회복 앰플{E}로 채우고 {Y}코어 강화{E}로 최대치를 늘려요.",
+                TargetTimeBar)));
+
+        // Q0b. [시작 안내] C로 스탯창 열기 — 우측 상단 C 아이콘 강조 + C 키로만 진행(누르면 스탯창 열림)
+        quests.Add(BuildQuest("quest_tut_00b_intro_openstat", "스탯 창 열기",
+            CreateContinue("obj_intro_openstat",
+                $"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.",
+                TargetStatButton, KeyCode.C)));
+
+        // Q0c. [시작 안내] 스탯 설명 — 스탯창 스포트라이트
+        quests.Add(BuildQuest("quest_tut_00c_intro_stat", "스탯 보기",
+            CreateContinue("obj_intro_stat",
+                $"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다.",
+                TargetStatPanel)));
+
         // Q1. 기본 조작 [병렬]
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
             CreateMoveDistance("obj_move", $"{Y}WASD{E}로 {Y}이동{E}하세요.", 3f),
@@ -84,11 +105,6 @@ public static class TutorialAssetBuilder
             CreateItemAcquire("obj_loot_corrosive", $"{Y}부식액{E}을 {Y}획득{E}하세요.", ItemCorrosive, 1),
             CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}획득{E}하세요.", ItemTwig, 1),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
-
-        // Q4. [안내] 시간 시스템
-        quests.Add(BuildQuest("quest_tut_04_time_info", "시간 시스템",
-            CreateContinue("obj_time_info",
-                $"{Y}결계 안{E}에서는 체력(시간)이 {Y}회복{E}되고, {Y}결계 밖{E}에서는 시간이 점점 {Y}줄어듭니다{E}.")));
 
         // Q5. 설비 해금 (F로 줍기)
         quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "설비 해금",
@@ -222,8 +238,8 @@ public static class TutorialAssetBuilder
             $"1. QuestManager.tutorial = Tutorial_Main.asset\n" +
             $"2. FacilityUnlockPickup 배치: facilityId {BioExtractorId}(추출기)/{BioCultivatorId}(배양기)/{StorageId}(저장고)\n" +
             $"3. 튜토 스폰 몹 드롭(EnemyDropOnDeath.sourceId): 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive}, OakTreeEnt가 연료 나뭇가지{ItemTwig} → 스폰풀에 OakTreeEnt 꼭 포함\n" +
-            $"4. 스포트라이트 TutorialHighlightTarget: 재료슬롯 id='{TargetMachineInput}', 연료슬롯 id='{TargetFuelSlot}', 코어강화 id='{TargetCoreUpgrade}'\n" +
-            $"5. PlayerMovementWatcher.watchedKeys 에 Space/Mouse0/Mouse1/Tab/B 포함 확인");
+            $"4. 스포트라이트: 시간막대('{TargetTimeBar}')/스탯창('{TargetStatPanel}')=코드 자동등록. 수동 TutorialHighlightTarget 부착 필요: C아이콘(C_Icon) id='{TargetStatButton}', 재료슬롯 id='{TargetMachineInput}', 연료슬롯 id='{TargetFuelSlot}', 코어강화 id='{TargetCoreUpgrade}'\n" +
+            $"5. PlayerMovementWatcher.watchedKeys 에 Space/Mouse0/Mouse1/Tab/B 포함 확인 (C는 GameUIController에서 자동 발화 → 설정 불필요)");
     }
 
     // ── QuestSO 빌더 ──────────────────────────────────────────────────
@@ -311,10 +327,10 @@ public static class TutorialAssetBuilder
     }
 
     // ── 신규 Objective 빌더 ───────────────────────────────────────────
-    static ContinueObjective CreateContinue(string name, string label, string spotlightTargetId = "")
+    static ContinueObjective CreateContinue(string name, string label, string spotlightTargetId = "", KeyCode advanceKey = KeyCode.None)
     {
         var o = ScriptableObject.CreateInstance<ContinueObjective>();
-        o.label = label; o.spotlightTargetId = spotlightTargetId;
+        o.label = label; o.spotlightTargetId = spotlightTargetId; o.advanceKey = advanceKey;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
