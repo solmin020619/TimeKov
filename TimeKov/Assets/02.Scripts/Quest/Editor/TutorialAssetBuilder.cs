@@ -67,96 +67,96 @@ public static class TutorialAssetBuilder
 
         // Q1. 기본 조작 [병렬]
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
-            CreateMoveDistance("obj_move", $"{Y}WASD{E}로 이동하세요.", 3f),
-            CreatePressKey("obj_jump", $"{Y}Space{E}로 점프하세요.", KeyCode.Space, 1),
-            CreatePressKey("obj_dash", $"{Y}우클릭{E}으로 대시하세요.", KeyCode.Mouse1, 1)));
+            CreateMoveDistance("obj_move", $"{Y}WASD{E}로 {Y}이동{E}하세요.", 3f),
+            CreatePressKey("obj_jump", $"{Y}Space{E}로 {Y}점프{E}하세요.", KeyCode.Space, 1),
+            CreatePressKey("obj_dash", $"{Y}우클릭{E}으로 {Y}대시{E}하세요.", KeyCode.Mouse1, 1)));
 
         // Q2. 전투 [병렬]
         quests.Add(BuildQuest("quest_tut_02_combat", "전투",
-            CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 공격하세요.", KeyCode.Mouse0, 1),
-            CreateEnemyKill("obj_kill", "외부의 적을 처치하세요.", "tutorial_enemy", 1)));
+            CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
+            CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "tutorial_enemy", 1)));
 
         // Q3. 드랍 획득 + 인벤 [병렬]
         quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
-            CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 획득하세요.", ItemSpiderVenom, 1),
-            CreateItemAcquire("obj_loot_corrosive", $"{Y}부식액{E}을 획득하세요.", ItemCorrosive, 1),
-            CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 인벤토리를 확인하세요.", KeyCode.Tab, 1)));
+            CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 {Y}획득{E}하세요.", ItemSpiderVenom, 1),
+            CreateItemAcquire("obj_loot_corrosive", $"{Y}부식액{E}을 {Y}획득{E}하세요.", ItemCorrosive, 1),
+            CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
         // Q4. [안내] 시간 시스템
         quests.Add(BuildQuest("quest_tut_04_time_info", "시간 시스템",
             CreateContinue("obj_time_info",
-                $"{Y}결계 안{E}에서는 체력(시간)이 회복되고, {Y}결계 밖{E}에서는 시간이 점점 줄어듭니다.")));
+                $"{Y}결계 안{E}에서는 체력(시간)이 {Y}회복{E}되고, {Y}결계 밖{E}에서는 시간이 점점 {Y}줄어듭니다{E}.")));
 
         // Q5. 설비 해금 (F로 줍기)
         quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "설비 해금",
-            CreateFacilityUnlock("obj_unlock_extractor", $"바닥의 {Y}생체 추출기{E}를 {Y}F{E}로 주워 해금하세요.", BioExtractorId)));
+            CreateFacilityUnlock("obj_unlock_extractor", $"바닥의 {Y}생체 추출기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioExtractorId)));
 
         // Q6. 건설 모드 + 설치 [병렬]
         quests.Add(BuildQuest("quest_tut_06_build_extractor", "생체 추출기 설치",
-            CreatePressKey("obj_build_mode", $"{Y}B{E}로 건설 모드에 진입하세요.", KeyCode.B, 1),
-            CreateFacilityPlace("obj_place_extractor", $"{Y}생체 추출기{E}를 설치하세요.", BioExtractorId, 1)));
+            CreatePressKey("obj_build_mode", $"{Y}B{E}로 {Y}건설 모드{E}에 진입하세요.", KeyCode.B, 1),
+            CreateFacilityPlace("obj_place_extractor", $"{Y}생체 추출기{E}를 {Y}설치{E}하세요.", BioExtractorId, 1)));
 
         // Q7. 상호작용
         quests.Add(BuildQuest("quest_tut_07_interact_extractor", "설비 열기",
-            CreateFacilityInteract("obj_interact_extractor", $"{Y}F{E}로 생체 추출기를 여세요.", BioExtractorId, 1)));
+            CreateFacilityInteract("obj_interact_extractor", $"{Y}F{E}로 {Y}생체 추출기{E}를 여세요.", BioExtractorId, 1)));
 
         // Q8. [안내 + 스포트라이트] 재료 슬롯 강조
         quests.Add(BuildQuest("quest_tut_08_input_info", "재료 투입 안내",
             CreateContinue("obj_input_info",
-                $"이곳에 {Y}재료{E}를 넣으면 설비가 가공을 시작합니다.", TargetMachineInput)));
+                $"이곳에 {Y}재료{E}를 넣으면 설비가 {Y}가공{E}을 시작합니다.", TargetMachineInput)));
 
         // Q9. 재료 투입 [병렬] (R1201: 거미독액 + 부식액 -> 회복젤)
         quests.Add(BuildQuest("quest_tut_09_input_materials", "재료 투입",
-            CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 투입하세요.", BioExtractorId, ItemSpiderVenom, 1),
-            CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 투입하세요.", BioExtractorId, ItemCorrosive, 1)));
+            CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 {Y}투입{E}하세요.", BioExtractorId, ItemSpiderVenom, 1),
+            CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 {Y}투입{E}하세요.", BioExtractorId, ItemCorrosive, 1)));
 
         // Q10. 회복젤 회수
         quests.Add(BuildQuest("quest_tut_10_collect_gel", "결과물 회수",
-            CreateItemAcquire("obj_collect_gel", $"출력 슬롯에서 {Y}회복 젤{E}을 회수하세요.", ItemHealGel, 1)));
+            CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}회복 젤{E}을 {Y}회수{E}하세요.", ItemHealGel, 1)));
 
         // Q11. 배양기 해금 + 설치 [병렬]
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
-            CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}생체 배양기{E}를 {Y}F{E}로 주워 해금하세요.", BioCultivatorId),
-            CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 설치하세요.", BioCultivatorId, 1)));
+            CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}생체 배양기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioCultivatorId),
+            CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 {Y}설치{E}하세요.", BioCultivatorId, 1)));
 
         // Q12. 배양기 가공 [병렬]
         quests.Add(BuildQuest("quest_tut_12_cultivate", "회복 젤 가공",
-            CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 생체 배양기를 여세요.", BioCultivatorId, 1),
-            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
+            CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 {Y}생체 배양기{E}를 여세요.", BioCultivatorId, 1),
+            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 {Y}투입{E}하세요.", BioCultivatorId, ItemHealGel, 1)));
 
         // Q13. 앰플 회수 + 사용 [병렬]
         quests.Add(BuildQuest("quest_tut_13_ampoule", "회복 앰플 완성",
-            CreateItemAcquire("obj_collect_ampoule", $"{Y}초급 회복 앰플{E}을 회수하세요.", ItemHealAmpoule, 1),
-            CreateItemUse("obj_use_ampoule", $"{Y}초급 회복 앰플{E}을 사용하세요.", ItemHealAmpoule, 1)));
+            CreateItemAcquire("obj_collect_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}회수{E}하세요.", ItemHealAmpoule, 1),
+            CreateItemUse("obj_use_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}사용{E}하세요.", ItemHealAmpoule, 1)));
 
         // Q14. [안내] 앰플 일반화
         quests.Add(BuildQuest("quest_tut_14_ampoule_info", "다른 앰플",
             CreateContinue("obj_ampoule_info",
-                $"{Y}공격 / 방어 / 스태미나{E} 앰플도 같은 방식으로 다른 설비에서 만들 수 있습니다.")));
+                $"{Y}공격 / 방어 / 스태미나{E} 앰플도 {Y}같은 방식{E}으로 다른 설비에서 만들 수 있습니다.")));
 
         // Q15. [안내] 레일 자동화
         quests.Add(BuildQuest("quest_tut_15_rail_info", "자동화 안내",
             CreateContinue("obj_rail_info",
-                $"{Y}레일{E}로 설비를 이으면 아이템이 자동으로 다음 설비로 이동합니다.")));
+                $"{Y}레일{E}로 설비를 이으면 아이템이 {Y}자동{E}으로 다음 설비로 이동합니다.")));
 
         // Q16. 레일 연결 (액션)
         quests.Add(BuildQuest("quest_tut_16_rail_connect", "레일 연결",
-            CreateRailConnect("obj_rail_connect", $"두 설비를 {Y}레일{E}로 연결하세요.", 1)));
+            CreateRailConnect("obj_rail_connect", $"두 설비를 {Y}레일{E}로 {Y}연결{E}하세요.", 1)));
 
         // Q17. 저장고 해금 + 설치 [병렬]
         quests.Add(BuildQuest("quest_tut_17_build_storage", "저장고 설치",
-            CreateFacilityUnlock("obj_unlock_storage", $"{Y}저장고{E}를 {Y}F{E}로 주워 해금하세요.", StorageId),
-            CreateFacilityPlace("obj_place_storage", $"{Y}저장고{E}를 설치하세요.", StorageId, 1)));
+            CreateFacilityUnlock("obj_unlock_storage", $"{Y}저장고{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", StorageId),
+            CreateFacilityPlace("obj_place_storage", $"{Y}저장고{E}를 {Y}설치{E}하세요.", StorageId, 1)));
 
         // Q18. [안내] 창고
         quests.Add(BuildQuest("quest_tut_18_storage_info", "창고 안내",
             CreateContinue("obj_storage_info",
-                $"{Y}저장고{E}를 설치하면 거점 {Y}창고{E} 용량이 늘어납니다. 창고에 아이템을 보관해 두세요.")));
+                $"{Y}저장고{E}를 설치하면 거점 {Y}창고{E} 용량이 늘어납니다. {Y}창고{E}에 아이템을 보관해 두세요.")));
 
         // Q19. [안내 + 보상] 코어 키트 지급
         var qCoreIntro = BuildQuest("quest_tut_19_core_intro", "코어 강화 안내",
             CreateContinue("obj_core_info",
-                $"{Y}코어{E}를 강화하면 최대 체력이 늘어납니다. 체험용 {Y}코어 키트 I{E}를 지급합니다.",
+                $"{Y}코어{E}를 {Y}강화{E}하면 {Y}최대 체력{E}이 늘어납니다. 체험용 {Y}코어 키트 I{E}를 지급합니다.",
                 TargetCoreUpgrade));
         qCoreIntro.rewards = new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } };
         EditorUtility.SetDirty(qCoreIntro);
@@ -164,12 +164,12 @@ public static class TutorialAssetBuilder
 
         // Q20. 코어 강화 (액션)
         quests.Add(BuildQuest("quest_tut_20_core_upgrade", "코어 강화",
-            CreateCoreUpgrade("obj_core_upgrade", $"받은 키트로 {Y}코어를 강화{E}하세요.", 0)));
+            CreateCoreUpgrade("obj_core_upgrade", $"받은 키트로 {Y}코어{E}를 {Y}강화{E}하세요.", 0)));
 
         // Q21. [안내] 마무리
         quests.Add(BuildQuest("quest_tut_21_finish", "튜토리얼 완료",
             CreateContinue("obj_finish",
-                $"이후 {Y}코어 키트{E}는 코어 합성기에서 직접 제작하세요. 튜토리얼 완료! 자유롭게 기지를 키워보세요.")));
+                $"이후 {Y}코어 키트{E}는 {Y}코어 합성기{E}에서 직접 제작하세요. {Y}튜토리얼 완료!{E} 자유롭게 기지를 키워보세요.")));
 
         // CategorySO (GUID 유지)
         string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";

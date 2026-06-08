@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1224ec39bccb81a488d87a468a79c137, type: 3}
+  m_Name: quest_tut_01_basics
+  m_EditorClassIdentifier: 
+  id: quest_tut_01_basics
+  title: "\uAE30\uBCF8 \uC870\uC791 \uC775\uD788\uAE30"
+  description: 
+  objectives:
+  - {fileID: 11400000, guid: 1e852f5254170c94598decee2f3167c6, type: 2}
+  - {fileID: 11400000, guid: 38384c291a1cb8a4aa77615d308547ac, type: 2}
+  - {fileID: 11400000, guid: 9020d0ecfac4cbd46a5d483b24691d29, type: 2}
+  rewards: []
+  onShown:
+    m_PersistentCalls:
+      m_Calls: []
+  onActivated:
+    m_PersistentCalls:
+      m_Calls: []
+  onCompleted:
+    m_PersistentCalls:
+      m_Calls: []
