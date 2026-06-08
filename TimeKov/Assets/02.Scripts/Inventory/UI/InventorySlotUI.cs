@@ -164,6 +164,19 @@ public class InventorySlotUI : MonoBehaviour,
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (IsEmpty) return;
+
+        // ALT + 좌클릭 드래그 → 절반 수량만 분할해서 들기
+        // (1개짜리는 ALT 눌러도 그냥 1개 드래그)
+        bool altHeld = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+        if (altHeld && eventData.button == PointerEventData.InputButton.Left
+                    && _slot != null && _slot.amount >= 2)
+        {
+            int half = _slot.amount / 2;
+            OnAnySlotDragBegin?.Invoke(this);
+            InventoryDragHandler.Instance?.BeginDrag(this, half);
+            return;
+        }
+
         OnAnySlotDragBegin?.Invoke(this);
         InventoryDragHandler.Instance?.BeginDrag(this);
     }

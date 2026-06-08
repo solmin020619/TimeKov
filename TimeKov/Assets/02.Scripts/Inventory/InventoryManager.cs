@@ -464,6 +464,46 @@ public class InventoryManager : MonoBehaviour
         OnInventoryChanged?.Invoke();
     }
 
+    /// <summary>
+    /// ALT+드래그용: fromIndex 슬롯에서 amount개만 other의 toIndex 슬롯으로 이동.
+    /// 빈 슬롯 → 이동, 같은 아이템 → 병합, 다른 아이템 → 분할 이동 불가(취소).
+    /// </summary>
+    public bool MoveAmountToSlot(int fromIndex, int amount, InventoryManager other, int toIndex)
+    {
+        var from = GetSlot(fromIndex);
+        var to   = other.GetSlot(toIndex);
+        if (from == null || to == null || from.IsEmpty) return false;
+        if (amount <= 0 || amount > from.amount) return false;
+
+        if (to.IsEmpty)
+        {
+            to.Set(from.itemId, amount, from.isNew);
+            from.amount -= amount;
+            if (from.amount <= 0) from.Clear();
+        }
+        else if (to.itemId == from.itemId)
+        {
+            var data     = ItemDatabase.GetItem(from.itemId);
+            int maxStack = data != null ? data.maxStack : 999;
+            int canAdd   = maxStack - to.amount;
+            int adding   = Mathf.Min(canAdd, amount);
+            if (adding <= 0) return false;
+
+            to.amount   += adding;
+            from.amount -= adding;
+            if (from.amount <= 0) from.Clear();
+        }
+        else
+        {
+            // 다른 아이템 슬롯에는 분할 이동 불가
+            return false;
+        }
+
+        OnInventoryChanged?.Invoke();
+        if (other != this) other.OnInventoryChanged?.Invoke();
+        return true;
+    }
+
     // 필터에 해당하는 아이템만 다른 인벤토리로 이동
     // null 이면 전체 이동
     public void MoveFilteredTo(InventoryManager other, ItemCategory? filter)
