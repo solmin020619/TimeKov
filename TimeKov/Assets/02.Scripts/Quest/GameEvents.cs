@@ -16,6 +16,9 @@ public static class GameEvents
     public static event Action<int, int, int> OnFacilityProcessComplete; // facilityId, outputItemId, count
     public static event Action<int> OnFacilityInteract;               // facilityId — 설비 UI 실제 열림 (F 키 누름이 아니라 MachineUI.OpenFor 시점)
     public static event Action<int> OnItemUsed;                       // itemId
+    public static event Action<int> OnFacilityUnlocked;               // facilityId — F로 설비 해금
+    public static event Action<int> OnCoreUpgraded;                   // 강화 성공 후의 새 코어 레벨
+    public static event Action OnRailConnected;                       // 레일 포트-포트 연결 완료
 
     public static void RaiseMovedDelta(float d) => OnPlayerMovedDelta?.Invoke(d);
     public static void RaiseTriggerEnter(string id) => OnTriggerEntered?.Invoke(id);
@@ -28,6 +31,9 @@ public static class GameEvents
     public static void RaiseFacilityProcessComplete(int facilityId, int outputItemId, int count) => OnFacilityProcessComplete?.Invoke(facilityId, outputItemId, count);
     public static void RaiseFacilityInteract(int facilityId) => OnFacilityInteract?.Invoke(facilityId);
     public static void RaiseItemUsed(int itemId) => OnItemUsed?.Invoke(itemId);
+    public static void RaiseFacilityUnlocked(int facilityId) => OnFacilityUnlocked?.Invoke(facilityId);
+    public static void RaiseCoreUpgraded(int newLevel) => OnCoreUpgraded?.Invoke(newLevel);
+    public static void RaiseRailConnected() => OnRailConnected?.Invoke();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset()
@@ -42,5 +48,8 @@ public static class GameEvents
         OnFacilityProcessComplete = null;
         OnFacilityInteract = null;
         OnItemUsed = null;
+        OnFacilityUnlocked = null;
+        OnCoreUpgraded = null;
+        OnRailConnected = null;
     }
 }

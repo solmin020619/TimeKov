@@ -3,9 +3,13 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// 튜토리얼 기획서 기준 SO 자산 21 QuestSO + 24 ObjectiveSO + 1 CategorySO + 1 TutorialSO 자동 생성.
-/// 기획서 21번 (Time 회복 확인)은 Q1=(a) 결정에 따라 생략 → 총 20 Quest.
+/// 튜토리얼 SO 자산 일괄 생성 (최종 시트 데이터 기준 전면 재작성).
+/// 핵심 체인(추출기->배양기->회복앰플) + F해금/레일자동화/저장고-창고/코어강화 체험을
+/// 엔드필드식 단계(병렬 묶음 + ContinueObjective 스포트라이트)로 구성.
+///
 /// 메뉴: Tools > Quest > Generate Tutorial Assets
+/// 주의: Objective/Quest 폴더는 통째 삭제 후 재생성 → 인스펙터에서 다듬은 라벨은 사라짐.
+///       Category/Tutorial 은 GUID 유지(씬 슬롯 안 끊김).
 /// </summary>
 public static class TutorialAssetBuilder
 {
@@ -15,27 +19,37 @@ public static class TutorialAssetBuilder
     const string CategoriesFolder = RootFolder + "/Categories";
     const string TutorialsFolder = RootFolder + "/Tutorials";
 
-    // FacilityData 시트 확정값 (BioExtractor=1, BioInjector=6). ItemData 시트와도 일치 확인됨.
-    const int BioExtractorId = 1;          // 생체 추출기 (3x3, 입력2/출력1)
-    const int BioInjectorId = 2;           // 생체 주입기 (5x5, 입력2/출력2) — 시트 재배치로 6에서 2로 이동
-    const int ItemLeafId = 1101;           // 변이 식물 잎사귀 (Common, RawMaterial)
-    const int ItemSapId = 1102;            // 끈적한 수액 (Common, RawMaterial)
-    const int ItemMedicalGelId = 1201;     // 의료용 겔 (Advanced, ProcessedTier1) — R1201: 1101x2+1102x1 → 1201
-    const int ItemHealingAmpouleId = 4101; // 소형 나노 힐링 앰플 (Advanced, TacticalConsumable) — R4101: 1201x1 → 4101, Heal/Time/Flat/+50
+    // ── 최종 FacilityData 시트 기준 ──────────────────────────────────────
+    const int BioExtractorId = 1;   // 생체 추출기 (3x3)
+    const int BioCultivatorId = 2;  // 생체 배양기 (5x5) — 옛 "생체 주입기" 대체
+    const int StorageId = 8;        // 저장고 (창고 용량 제공)
+
+    // ── 최종 ItemData 시트 기준 ──────────────────────────────────────────
+    const int ItemSpiderVenom = 1102;  // 거미 독액 (드롭, 원료)
+    const int ItemCorrosive   = 3101;  // 부식액 (드롭, 원료)
+    const int ItemHealGel     = 1201;  // 회복 젤 (R1201 @추출기1: 1102+3101)
+    const int ItemHealAmpoule = 5101;  // 초급 회복 앰플 (R5101 @배양기2: 1201)
+    const int CoreKitId       = 6101;  // 코어 키트 I (코어 1단계 강화 재료)
+    const int CoreKitAmount   = 3;     // CoreLevelData lv1 requiredAmount
+
+    // ── 스포트라이트 타깃 id (씬 UI 요소의 TutorialHighlightTarget 와 매칭) ──
+    const string TargetMachineInput = "machine_input";   // 머신 재료 슬롯
+    const string TargetCoreUpgrade  = "core_upgrade";    // 코어 강화 버튼/패널
+
+    const string Y = "<color=#FFCC00>";  // 강조 색 열기
+    const string E = "</color>";          // 닫기
 
     [MenuItem("Tools/Quest/Generate Tutorial Assets")]
     public static void Generate()
     {
         bool ok = EditorUtility.DisplayDialog(
-            "튜토리얼 자산 생성",
-            $"기획서 기준 SO 자산 일괄 생성 (총 22 Quest):\n" +
-            $"  - Objective/Quest 폴더는 통째 삭제 후 재생성\n" +
-            $"  - Category/Tutorial 은 GUID 유지 (씬 슬롯 연결 안 끊김)\n\n" +
-            $"{ObjectivesFolder}\n{QuestsFolder}\n{CategoriesFolder}\n{TutorialsFolder}",
+            "튜토리얼 자산 생성 (전면 재작성)",
+            "최종 시트 기준으로 SO 일괄 생성.\n" +
+            "  - Objective/Quest 폴더 통째 삭제 후 재생성 (다듬은 라벨 사라짐)\n" +
+            "  - Category/Tutorial 은 GUID 유지 (씬 슬롯 유지)",
             "생성", "취소");
         if (!ok) return;
 
-        // 재실행 시 _1 suffix 중복 방지를 위해 Objective/Quest 폴더 통째 삭제
         if (AssetDatabase.IsValidFolder(ObjectivesFolder))
             AssetDatabase.DeleteAsset(ObjectivesFolder);
         if (AssetDatabase.IsValidFolder(QuestsFolder))
@@ -51,98 +65,113 @@ public static class TutorialAssetBuilder
 
         var quests = new List<QuestSO>();
 
-        // 01. 몸을 움직여보기 (MoveDistance 3f)
-        quests.Add(BuildQuest("quest_tutorial_01_move", "몸을 움직여보기",
-            CreateMoveDistance("obj_move_distance", "WASD로 이동해보세요.", 3f)));
+        // Q1. 기본 조작 [병렬]
+        quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
+            CreateMoveDistance("obj_move", $"{Y}WASD{E}로 이동하세요.", 3f),
+            CreatePressKey("obj_jump", $"{Y}Space{E}로 점프하세요.", KeyCode.Space, 1),
+            CreatePressKey("obj_dash", $"{Y}우클릭{E}으로 대시하세요.", KeyCode.Mouse1, 1)));
 
-        // 02. 점프해보기 (Space)
-        quests.Add(BuildQuest("quest_tutorial_02_jump", "점프해보기",
-            CreatePressKey("obj_press_jump", "Space로 점프하세요.", KeyCode.Space, 1)));
+        // Q2. 전투 [병렬]
+        quests.Add(BuildQuest("quest_tut_02_combat", "전투",
+            CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 공격하세요.", KeyCode.Mouse0, 1),
+            CreateEnemyKill("obj_kill", "외부의 적을 처치하세요.", "tutorial_enemy", 1)));
 
-        // 03. 빠르게 움직여보기 (Mouse1 = 우클릭 대시) — 라벨에 WASD 안내 추가 (QA 피드백)
-        quests.Add(BuildQuest("quest_tutorial_03_dash", "빠르게 움직여보기",
-            CreatePressKey("obj_press_dash", "WASD로 이동하며 <color=#FFCC00>우클릭</color>으로 대시하세요.", KeyCode.Mouse1, 1)));
+        // Q3. 드랍 획득 + 인벤 [병렬]
+        quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
+            CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 획득하세요.", ItemSpiderVenom, 1),
+            CreateItemAcquire("obj_loot_corrosive", $"{Y}부식액{E}을 획득하세요.", ItemCorrosive, 1),
+            CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 인벤토리를 확인하세요.", KeyCode.Tab, 1)));
 
-        // 04. 코어 확인하기 (Trigger)
-        quests.Add(BuildQuest("quest_tutorial_04_core", "코어 확인하기",
-            CreateReachTrigger("obj_reach_core", "중앙 코어를 확인하세요.", "core_trigger")));
+        // Q4. [안내] 시간 시스템
+        quests.Add(BuildQuest("quest_tut_04_time_info", "시간 시스템",
+            CreateContinue("obj_time_info",
+                $"{Y}결계 안{E}에서는 체력(시간)이 회복되고, {Y}결계 밖{E}에서는 시간이 점점 줄어듭니다.")));
 
-        // 05. 기지 출구로 이동하기 (Trigger)
-        quests.Add(BuildQuest("quest_tutorial_05_exit", "기지 출구로 이동하기",
-            CreateReachTrigger("obj_reach_base_exit", "기지 출구로 이동하세요.", "base_exit_trigger")));
+        // Q5. 설비 해금 (F로 줍기)
+        quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "설비 해금",
+            CreateFacilityUnlock("obj_unlock_extractor", $"바닥의 {Y}생체 추출기{E}를 {Y}F{E}로 주워 해금하세요.", BioExtractorId)));
 
-        // 06. 외부 구역 진입하기 (Trigger)
-        quests.Add(BuildQuest("quest_tutorial_06_outside", "외부 구역 진입하기",
-            CreateReachTrigger("obj_enter_outside_area", "외부 구역으로 진입하세요.", "outside_area_trigger")));
+        // Q6. 건설 모드 + 설치 [병렬]
+        quests.Add(BuildQuest("quest_tut_06_build_extractor", "생체 추출기 설치",
+            CreatePressKey("obj_build_mode", $"{Y}B{E}로 건설 모드에 진입하세요.", KeyCode.B, 1),
+            CreateFacilityPlace("obj_place_extractor", $"{Y}생체 추출기{E}를 설치하세요.", BioExtractorId, 1)));
 
-        // 07. 공격해보기 (Mouse0)
-        quests.Add(BuildQuest("quest_tutorial_07_attack", "공격해보기",
-            CreatePressKey("obj_press_attack", "좌클릭으로 공격하세요.", KeyCode.Mouse0, 1)));
+        // Q7. 상호작용
+        quests.Add(BuildQuest("quest_tut_07_interact_extractor", "설비 열기",
+            CreateFacilityInteract("obj_interact_extractor", $"{Y}F{E}로 생체 추출기를 여세요.", BioExtractorId, 1)));
 
-        // 08. 첫 전투 (EnemyKill tutorial_enemy)
-        quests.Add(BuildQuest("quest_tutorial_08_kill_enemy", "첫 전투",
-            CreateEnemyKill("obj_kill_tutorial_enemy", "외부 구역의 적을 처치하세요.", "tutorial_enemy", 1)));
+        // Q8. [안내 + 스포트라이트] 재료 슬롯 강조
+        quests.Add(BuildQuest("quest_tut_08_input_info", "재료 투입 안내",
+            CreateContinue("obj_input_info",
+                $"이곳에 {Y}재료{E}를 넣으면 설비가 가공을 시작합니다.", TargetMachineInput)));
 
-        // 09. 드랍 아이템 획득하기 (1101 x2, 1102 x1) — 두 Objective
-        quests.Add(BuildQuest("quest_tutorial_09_pickup_drop", "드랍 아이템 획득하기",
-            CreateItemAcquire("obj_pickup_tutorial_drop_leaf", "<color=#FFCC00>변이 식물 잎사귀</color>를 획득하세요.", ItemLeafId, 2),
-            CreateItemAcquire("obj_pickup_tutorial_drop_sap", "<color=#FFCC00>끈적한 수액</color>을 획득하세요.", ItemSapId, 1)));
+        // Q9. 재료 투입 [병렬] (R1201: 거미독액 + 부식액 -> 회복젤)
+        quests.Add(BuildQuest("quest_tut_09_input_materials", "재료 투입",
+            CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 투입하세요.", BioExtractorId, ItemSpiderVenom, 1),
+            CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 투입하세요.", BioExtractorId, ItemCorrosive, 1)));
 
-        // 10. 인벤토리 확인하기 (NEW: Tab)
-        quests.Add(BuildQuest("quest_tutorial_10_open_inventory", "인벤토리 확인하기",
-            CreatePressKey("obj_press_inventory", "<color=#FFCC00>Tab</color>으로 인벤토리를 열어 획득한 아이템을 확인하세요.", KeyCode.Tab, 1)));
+        // Q10. 회복젤 회수
+        quests.Add(BuildQuest("quest_tut_10_collect_gel", "결과물 회수",
+            CreateItemAcquire("obj_collect_gel", $"출력 슬롯에서 {Y}회복 젤{E}을 회수하세요.", ItemHealGel, 1)));
 
-        // 11. 기지로 복귀하기 (Trigger)
-        quests.Add(BuildQuest("quest_tutorial_11_return", "기지로 복귀하기",
-            CreateReachTrigger("obj_return_base", "기지로 복귀하세요.", "base_return_trigger")));
+        // Q11. 배양기 해금 + 설치 [병렬]
+        quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
+            CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}생체 배양기{E}를 {Y}F{E}로 주워 해금하세요.", BioCultivatorId),
+            CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 설치하세요.", BioCultivatorId, 1)));
 
-        // 12. 설비 설치 구역으로 이동하기 (Trigger)
-        quests.Add(BuildQuest("quest_tutorial_12_build_area", "설비 설치 구역으로 이동하기",
-            CreateReachTrigger("obj_reach_facility_build_area", "설비 설치 구역으로 이동하세요.", "facility_build_area_trigger")));
+        // Q12. 배양기 가공 [병렬]
+        quests.Add(BuildQuest("quest_tut_12_cultivate", "회복 젤 가공",
+            CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 생체 배양기를 여세요.", BioCultivatorId, 1),
+            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
 
-        // 13. 건설 모드 진입하기 (NEW: B키)
-        quests.Add(BuildQuest("quest_tutorial_13_enter_build_mode", "건설 모드 진입하기",
-            CreatePressKey("obj_press_build_mode", "<color=#FFCC00>B</color>키로 건설 모드에 진입하세요.", KeyCode.B, 1)));
+        // Q13. 앰플 회수 + 사용 [병렬]
+        quests.Add(BuildQuest("quest_tut_13_ampoule", "회복 앰플 완성",
+            CreateItemAcquire("obj_collect_ampoule", $"{Y}초급 회복 앰플{E}을 회수하세요.", ItemHealAmpoule, 1),
+            CreateItemUse("obj_use_ampoule", $"{Y}초급 회복 앰플{E}을 사용하세요.", ItemHealAmpoule, 1)));
 
-        // 14. 생체 추출기 설치하기 (FacilityPlace BioExtractor)
-        quests.Add(BuildQuest("quest_tutorial_14_place_bio_extractor", "생체 추출기 설치하기",
-            CreateFacilityPlace("obj_place_bio_extractor", "<color=#FFCC00>생체 추출기</color>를 설치하세요.", BioExtractorId, 1)));
+        // Q14. [안내] 앰플 일반화
+        quests.Add(BuildQuest("quest_tut_14_ampoule_info", "다른 앰플",
+            CreateContinue("obj_ampoule_info",
+                $"{Y}공격 / 방어 / 스태미나{E} 앰플도 같은 방식으로 다른 설비에서 만들 수 있습니다.")));
 
-        // 15. 생체 추출기와 상호작용하기 (FacilityInteract — 실제 MachineUI 열림 시점)
-        // 빌드 모드에서 F만 눌러도 깨지던 PressKey 방식 해결
-        quests.Add(BuildQuest("quest_tutorial_15_interact_bio_extractor", "생체 추출기와 상호작용하기",
-            CreateFacilityInteract("obj_interact_bio_extractor", "F키로 생체 추출기와 상호작용하세요.", BioExtractorId, 1)));
+        // Q15. [안내] 레일 자동화
+        quests.Add(BuildQuest("quest_tut_15_rail_info", "자동화 안내",
+            CreateContinue("obj_rail_info",
+                $"{Y}레일{E}로 설비를 이으면 아이템이 자동으로 다음 설비로 이동합니다.")));
 
-        // 16. 재료 투입하기 (FacilityInput 1101 x2, 1102 x1) — 두 Objective
-        quests.Add(BuildQuest("quest_tutorial_16_input_raw_materials", "재료 투입하기",
-            CreateFacilityInput("obj_input_bio_extractor_leaf", "<color=#FFCC00>변이 식물 잎사귀</color>를 생체 추출기에 투입하세요.", BioExtractorId, ItemLeafId, 2),
-            CreateFacilityInput("obj_input_bio_extractor_sap", "<color=#FFCC00>끈적한 수액</color>을 생체 추출기에 투입하세요.", BioExtractorId, ItemSapId, 1)));
+        // Q16. 레일 연결 (액션)
+        quests.Add(BuildQuest("quest_tut_16_rail_connect", "레일 연결",
+            CreateRailConnect("obj_rail_connect", $"두 설비를 {Y}레일{E}로 연결하세요.", 1)));
 
-        // 17. 의료용 겔 회수하기 (ItemAcquire 1201) — 출력 슬롯 회수 시 발화 (MachineUI.TakeOutput에서 Raise)
-        quests.Add(BuildQuest("quest_tutorial_17_output_medical_gel", "의료용 겔 회수하기",
-            CreateItemAcquire("obj_output_medical_gel", "생체 추출기 출력 슬롯에서 <color=#FFCC00>의료용 겔</color>을 회수하세요.", ItemMedicalGelId, 1)));
+        // Q17. 저장고 해금 + 설치 [병렬]
+        quests.Add(BuildQuest("quest_tut_17_build_storage", "저장고 설치",
+            CreateFacilityUnlock("obj_unlock_storage", $"{Y}저장고{E}를 {Y}F{E}로 주워 해금하세요.", StorageId),
+            CreateFacilityPlace("obj_place_storage", $"{Y}저장고{E}를 설치하세요.", StorageId, 1)));
 
-        // 18. 생체 주입기 설치하기 (FacilityPlace BioInjector)
-        quests.Add(BuildQuest("quest_tutorial_18_place_bio_injector", "생체 주입기 설치하기",
-            CreateFacilityPlace("obj_place_bio_injector", "<color=#FFCC00>생체 주입기</color>를 설치하세요.", BioInjectorId, 1)));
+        // Q18. [안내] 창고
+        quests.Add(BuildQuest("quest_tut_18_storage_info", "창고 안내",
+            CreateContinue("obj_storage_info",
+                $"{Y}저장고{E}를 설치하면 거점 {Y}창고{E} 용량이 늘어납니다. 창고에 아이템을 보관해 두세요.")));
 
-        // 19. 생체 주입기와 상호작용하기 (FacilityInteract — 실제 MachineUI 열림 시점)
-        quests.Add(BuildQuest("quest_tutorial_19_interact_bio_injector", "생체 주입기와 상호작용하기",
-            CreateFacilityInteract("obj_interact_bio_injector", "F키로 생체 주입기와 상호작용하세요.", BioInjectorId, 1)));
+        // Q19. [안내 + 보상] 코어 키트 지급
+        var qCoreIntro = BuildQuest("quest_tut_19_core_intro", "코어 강화 안내",
+            CreateContinue("obj_core_info",
+                $"{Y}코어{E}를 강화하면 최대 체력이 늘어납니다. 체험용 {Y}코어 키트 I{E}를 지급합니다.",
+                TargetCoreUpgrade));
+        qCoreIntro.rewards = new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } };
+        EditorUtility.SetDirty(qCoreIntro);
+        quests.Add(qCoreIntro);
 
-        // 20. 의료용 겔 투입하기 (FacilityInput 1201)
-        quests.Add(BuildQuest("quest_tutorial_20_input_medical_gel", "의료용 겔 투입하기",
-            CreateFacilityInput("obj_input_medical_gel", "<color=#FFCC00>의료용 겔</color>을 생체 주입기에 투입하세요.", BioInjectorId, ItemMedicalGelId, 1)));
+        // Q20. 코어 강화 (액션)
+        quests.Add(BuildQuest("quest_tut_20_core_upgrade", "코어 강화",
+            CreateCoreUpgrade("obj_core_upgrade", $"받은 키트로 {Y}코어를 강화{E}하세요.", 0)));
 
-        // 21. 소형 나노 힐링 앰플 회수하기 (ItemAcquire 4101) — 출력 슬롯 회수 시 발화
-        quests.Add(BuildQuest("quest_tutorial_21_output_healing_ampoule", "소형 나노 힐링 앰플 회수하기",
-            CreateItemAcquire("obj_output_healing_ampoule", "생체 주입기 출력 슬롯에서 <color=#FFCC00>소형 나노 힐링 앰플</color>을 회수하세요.", ItemHealingAmpouleId, 1)));
+        // Q21. [안내] 마무리
+        quests.Add(BuildQuest("quest_tut_21_finish", "튜토리얼 완료",
+            CreateContinue("obj_finish",
+                $"이후 {Y}코어 키트{E}는 코어 합성기에서 직접 제작하세요. 튜토리얼 완료! 자유롭게 기지를 키워보세요.")));
 
-        // 22. 소형 나노 힐링 앰플 사용하기 (ItemUse 4101)
-        quests.Add(BuildQuest("quest_tutorial_22_use_healing_ampoule", "소형 나노 힐링 앰플 사용하기",
-            CreateItemUse("obj_use_healing_ampoule", "<color=#FFCC00>소형 나노 힐링 앰플</color>을 사용하세요.", ItemHealingAmpouleId, 1)));
-
-        // CategorySO 갱신 패턴 (GUID 유지하여 씬 슬롯 안 끊김)
+        // CategorySO (GUID 유지)
         string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
         var cat = AssetDatabase.LoadAssetAtPath<CategorySO>(catPath);
         if (cat == null)
@@ -155,7 +184,7 @@ public static class TutorialAssetBuilder
         cat.quests = quests.ToArray();
         EditorUtility.SetDirty(cat);
 
-        // TutorialSO 갱신 패턴 (GUID 유지)
+        // TutorialSO (GUID 유지)
         string tutPath = $"{TutorialsFolder}/Tutorial_Main.asset";
         var tut = AssetDatabase.LoadAssetAtPath<TutorialSO>(tutPath);
         if (tut == null)
@@ -171,152 +200,17 @@ public static class TutorialAssetBuilder
         AssetDatabase.Refresh();
 
         Debug.Log(
-            $"[TutorialAssetBuilder] 자산 생성 완료.\n" +
-            $"  - Quest: {quests.Count}개 (재번호 적용: 10번 인벤토리, 13번 건설모드 신규 / 17, 21번 ItemAcquire 교체)\n" +
-            $"  - Category/Tutorial: GUID 유지 → 씬 슬롯 자동 연결\n" +
-            $"\n" +
-            $"확인 사항 (최초 1회 또는 신규 키 사용 시):\n" +
-            $"1. World 씬 PlayerMovementWatcher.watchedKeys 에 Tab 포함됐는지 인스펙터에서 확인 (10번 퀘용)\n" +
-            $"2. QuestManager.tutorial 슬롯이 Tutorial_Main.asset 가리키는지 확인\n" +
-            $"3. 씬 Trigger 5개 배치 (core/base_exit/outside_area/base_return/facility_build_area)\n" +
-            $"4. BioExtractor=1, BioInjector=2 facilityId 데이터와 일치 확인\n" +
-            $"5. tutorial_enemy ID로 적 Prefab + EnemyDropOnDeath sourceId 매칭");
+            $"[TutorialAssetBuilder] 생성 완료 — Quest {quests.Count}개.\n" +
+            $"씬 세팅 체크:\n" +
+            $"1. QuestManager.tutorial = Tutorial_Main.asset\n" +
+            $"2. FacilityUnlockPickup 배치: facilityId {BioExtractorId}(추출기)/{BioCultivatorId}(배양기)/{StorageId}(저장고)\n" +
+            $"3. tutorial_enemy 적 + 드롭(EnemyDropOnDeath)에 {ItemSpiderVenom}/{ItemCorrosive} 포함\n" +
+            $"4. 스포트라이트: 머신 재료슬롯에 TutorialHighlightTarget id='{TargetMachineInput}', " +
+            $"코어 강화 버튼에 id='{TargetCoreUpgrade}'\n" +
+            $"5. PlayerMovementWatcher.watchedKeys 에 Space/Mouse0/Mouse1/Tab/B 포함 확인");
     }
 
-    // ============================================================
-    // 보조 메뉴 — 결계 안내(11a) + 컴뱃 세럼/공격력 물약(23, 24) 자동 추가
-    // 기존 22개 Quest와 사용자가 다듬은 라벨은 그대로 두고, 새 SO 3개만 생성 후 Category에 삽입/추가.
-    // 한 번만 누르면 됨. 두 번째부터는 중복 방지로 종료.
-    // ============================================================
-    [MenuItem("Tools/Quest/Add Tutorial Extensions (11a + 23 + 24)")]
-    public static void AddTutorialExtensions()
-    {
-        const int AttackPotionItemId = 5101;
-
-        // 중복 방지 — 이미 추가된 경우
-        string sentinelPath = $"{QuestsFolder}/quest_tutorial_11a_base_zone_info.asset";
-        if (AssetDatabase.LoadAssetAtPath<QuestSO>(sentinelPath) != null)
-        {
-            Debug.LogWarning("[AddTutorialExtensions] 이미 추가됨 (quest_tutorial_11a 존재). 종료.");
-            return;
-        }
-
-        EnsureFolder(RootFolder + "/Objectives", "Tutorial");
-        EnsureFolder(RootFolder + "/Quests", "Tutorial");
-
-        // 11a. 결계 안 안내 (PressKey Space — placeholder, 사용자가 라벨 다듬음)
-        var quest11a = BuildQuest("quest_tutorial_11a_base_zone_info", "결계 안 안내",
-            CreatePressKey("obj_press_base_zone_info",
-                "<color=#FFCC00>결계 안</color>에서는 체력이 자동으로 회복됩니다. (Space로 진행)",
-                KeyCode.Space, 1));
-
-        // 23. 컴뱃 세럼 회수 (ItemAcquire 5101)
-        var quest23 = BuildQuest("quest_tutorial_23_output_attack_potion", "컴뱃 세럼 회수하기",
-            CreateItemAcquire("obj_output_attack_potion",
-                "생체 주입기 출력 슬롯에서 <color=#FFCC00>컴뱃 세럼</color>을 회수하세요.",
-                AttackPotionItemId, 1));
-
-        // 24. 컴뱃 세럼 사용 (ItemUse 5101 — 영구 ATK +1)
-        var quest24 = BuildQuest("quest_tutorial_24_use_attack_potion", "컴뱃 세럼 사용하기",
-            CreateItemUse("obj_use_attack_potion",
-                "인벤토리에서 우클릭을 눌러 <color=#FFCC00>컴뱃 세럼</color>을 사용하세요. 공격력이 영구적으로 증가합니다.",
-                AttackPotionItemId, 1));
-
-        // Category에 삽입/추가 — 사용자가 다듬은 22개 순서는 그대로 보존
-        string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
-        var cat = AssetDatabase.LoadAssetAtPath<CategorySO>(catPath);
-        if (cat == null)
-        {
-            Debug.LogError($"[AddTutorialExtensions] {catPath} 못 찾음. Generate Tutorial Assets 먼저 실행 필요.");
-            return;
-        }
-
-        var list = new System.Collections.Generic.List<QuestSO>(cat.quests);
-
-        // 11번 직후에 11a 삽입 (11번이 어디 있든 사용자 순서 그대로 존중)
-        var quest11 = AssetDatabase.LoadAssetAtPath<QuestSO>($"{QuestsFolder}/quest_tutorial_11_return.asset");
-        int idx11 = quest11 != null ? list.IndexOf(quest11) : -1;
-        if (idx11 >= 0)
-            list.Insert(idx11 + 1, quest11a);
-        else
-            list.Add(quest11a);   // 11번 못 찾으면 끝에 추가
-
-        // 23, 24는 끝에 append
-        list.Add(quest23);
-        list.Add(quest24);
-
-        cat.quests = list.ToArray();
-        EditorUtility.SetDirty(cat);
-
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-
-        Debug.Log(
-            $"[AddTutorialExtensions] 추가 완료. 총 {list.Count}개 Quest.\n" +
-            $"  - 11a (결계 안 안내) — 11번 직후 삽입\n" +
-            $"  - 23 (컴뱃 세럼 회수)\n" +
-            $"  - 24 (컴뱃 세럼 사용)\n" +
-            $"\n라벨은 placeholder. 인스펙터에서 자유롭게 다듬으면 됨.");
-    }
-
-    // ============================================================
-    // 보조 메뉴 — 컴뱃 세럼 제작(FacilityInput) 단계만 추가
-    // 22번(앰플 사용) 직후 + 23번(회수) 직전에 삽입.
-    // 한 번만 누르면 됨.
-    // ============================================================
-    [MenuItem("Tools/Quest/Add Combat Serum Crafting Step (22a)")]
-    public static void AddCombatSerumCraftingStep()
-    {
-        // 중복 방지
-        string sentinelPath = $"{QuestsFolder}/quest_tutorial_22a_input_combat_serum.asset";
-        if (AssetDatabase.LoadAssetAtPath<QuestSO>(sentinelPath) != null)
-        {
-            Debug.LogWarning("[AddCombatSerumCraftingStep] 이미 추가됨 (22a 존재). 종료.");
-            return;
-        }
-
-        EnsureFolder(RootFolder + "/Objectives", "Tutorial");
-        EnsureFolder(RootFolder + "/Quests", "Tutorial");
-
-        // 22a. 컴뱃 세럼 재료 투입 (FacilityInput — BioInjector, placeholder itemId=1201 의료겔)
-        // 실제 컴뱃 세럼 레시피의 입력 재료가 다르면 obj_input_combat_serum_material.asset 인스펙터에서 inputItemId 변경
-        var quest22a = BuildQuest("quest_tutorial_22a_input_combat_serum", "컴뱃 세럼 재료 투입하기",
-            CreateFacilityInput("obj_input_combat_serum_material",
-                "생체 주입기에 <color=#FFCC00>컴뱃 세럼</color> 재료를 투입하세요.",
-                BioInjectorId, 1201, 1));
-
-        // Category 수정 — 22번 직후 삽입
-        string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
-        var cat = AssetDatabase.LoadAssetAtPath<CategorySO>(catPath);
-        if (cat == null)
-        {
-            Debug.LogError($"[AddCombatSerumCraftingStep] {catPath} 못 찾음.");
-            return;
-        }
-
-        var list = new System.Collections.Generic.List<QuestSO>(cat.quests);
-
-        // 22번(앰플 사용) 직후에 22a 삽입
-        var quest22 = AssetDatabase.LoadAssetAtPath<QuestSO>($"{QuestsFolder}/quest_tutorial_22_use_healing_ampoule.asset");
-        int idx22 = quest22 != null ? list.IndexOf(quest22) : -1;
-        if (idx22 >= 0)
-            list.Insert(idx22 + 1, quest22a);
-        else
-            list.Add(quest22a);   // 22번 못 찾으면 끝에 추가
-
-        cat.quests = list.ToArray();
-        EditorUtility.SetDirty(cat);
-
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-
-        Debug.Log(
-            $"[AddCombatSerumCraftingStep] 22a (컴뱃 세럼 재료 투입) 추가 완료. 총 {list.Count}개 Quest.\n" +
-            $"  ※ inputItemId placeholder = 1201 (의료겔). 실제 레시피와 다르면 " +
-            $"obj_input_combat_serum_material.asset 인스펙터에서 Input Item Id 변경.");
-    }
-
-    // ----- QuestSO 빌더 -----
+    // ── QuestSO 빌더 ──────────────────────────────────────────────────
     static QuestSO BuildQuest(string id, string title, params ObjectiveSO[] objectives)
     {
         var q = ScriptableObject.CreateInstance<QuestSO>();
@@ -327,12 +221,11 @@ public static class TutorialAssetBuilder
         return q;
     }
 
-    // ----- Objective 빌더 -----
+    // ── Objective 빌더 ────────────────────────────────────────────────
     static MoveDistanceObjective CreateMoveDistance(string name, string label, float distance)
     {
         var o = ScriptableObject.CreateInstance<MoveDistanceObjective>();
-        o.label = label;
-        o.requiredDistance = distance;
+        o.label = label; o.requiredDistance = distance;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -340,9 +233,7 @@ public static class TutorialAssetBuilder
     static PressKeyObjective CreatePressKey(string name, string label, KeyCode key, int count)
     {
         var o = ScriptableObject.CreateInstance<PressKeyObjective>();
-        o.label = label;
-        o.key = key;
-        o.requiredCount = count;
+        o.label = label; o.key = key; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -350,8 +241,7 @@ public static class TutorialAssetBuilder
     static ReachTriggerObjective CreateReachTrigger(string name, string label, string triggerId)
     {
         var o = ScriptableObject.CreateInstance<ReachTriggerObjective>();
-        o.label = label;
-        o.targetTriggerId = triggerId;
+        o.label = label; o.targetTriggerId = triggerId;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -359,9 +249,7 @@ public static class TutorialAssetBuilder
     static EnemyKillObjective CreateEnemyKill(string name, string label, string enemyId, int count)
     {
         var o = ScriptableObject.CreateInstance<EnemyKillObjective>();
-        o.label = label;
-        o.enemyId = enemyId;
-        o.requiredCount = count;
+        o.label = label; o.enemyId = enemyId; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -369,9 +257,7 @@ public static class TutorialAssetBuilder
     static ItemAcquireObjective CreateItemAcquire(string name, string label, int itemId, int count)
     {
         var o = ScriptableObject.CreateInstance<ItemAcquireObjective>();
-        o.label = label;
-        o.itemId = itemId;
-        o.requiredCount = count;
+        o.label = label; o.itemId = itemId; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -379,9 +265,7 @@ public static class TutorialAssetBuilder
     static FacilityPlaceObjective CreateFacilityPlace(string name, string label, int facilityId, int count)
     {
         var o = ScriptableObject.CreateInstance<FacilityPlaceObjective>();
-        o.label = label;
-        o.facilityId = facilityId;
-        o.requiredCount = count;
+        o.label = label; o.facilityId = facilityId; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -389,9 +273,7 @@ public static class TutorialAssetBuilder
     static FacilityInteractObjective CreateFacilityInteract(string name, string label, int facilityId, int count)
     {
         var o = ScriptableObject.CreateInstance<FacilityInteractObjective>();
-        o.label = label;
-        o.facilityId = facilityId;
-        o.requiredCount = count;
+        o.label = label; o.facilityId = facilityId; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -399,21 +281,7 @@ public static class TutorialAssetBuilder
     static FacilityInputObjective CreateFacilityInput(string name, string label, int facilityId, int itemId, int count)
     {
         var o = ScriptableObject.CreateInstance<FacilityInputObjective>();
-        o.label = label;
-        o.facilityId = facilityId;
-        o.inputItemId = itemId;
-        o.requiredCount = count;
-        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
-        return o;
-    }
-
-    static FacilityProcessCompleteObjective CreateFacilityProcessComplete(string name, string label, int facilityId, int outputItemId, int count)
-    {
-        var o = ScriptableObject.CreateInstance<FacilityProcessCompleteObjective>();
-        o.label = label;
-        o.facilityId = facilityId;
-        o.outputItemId = outputItemId;
-        o.requiredCount = count;
+        o.label = label; o.facilityId = facilityId; o.inputItemId = itemId; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
@@ -421,9 +289,40 @@ public static class TutorialAssetBuilder
     static ItemUseObjective CreateItemUse(string name, string label, int itemId, int count)
     {
         var o = ScriptableObject.CreateInstance<ItemUseObjective>();
-        o.label = label;
-        o.itemId = itemId;
-        o.requiredCount = count;
+        o.label = label; o.itemId = itemId; o.requiredCount = count;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    // ── 신규 Objective 빌더 ───────────────────────────────────────────
+    static ContinueObjective CreateContinue(string name, string label, string spotlightTargetId = "")
+    {
+        var o = ScriptableObject.CreateInstance<ContinueObjective>();
+        o.label = label; o.spotlightTargetId = spotlightTargetId;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static FacilityUnlockObjective CreateFacilityUnlock(string name, string label, int facilityId, int count = 1)
+    {
+        var o = ScriptableObject.CreateInstance<FacilityUnlockObjective>();
+        o.label = label; o.facilityId = facilityId; o.requiredCount = count;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static CoreUpgradeObjective CreateCoreUpgrade(string name, string label, int targetLevel = 0)
+    {
+        var o = ScriptableObject.CreateInstance<CoreUpgradeObjective>();
+        o.label = label; o.targetLevel = targetLevel;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static RailConnectObjective CreateRailConnect(string name, string label, int count = 1)
+    {
+        var o = ScriptableObject.CreateInstance<RailConnectObjective>();
+        o.label = label; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }

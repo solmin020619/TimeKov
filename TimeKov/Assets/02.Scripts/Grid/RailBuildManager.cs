@@ -1145,6 +1145,7 @@ public class RailBuildManager : MonoBehaviour
         endPort = port;
 
         AssignFlowDirections();
+        GameEvents.RaiseRailConnected();   // 튜토리얼 등 통지 (포트-포트 연결 완료)
 
         Log($"[Rail] Route completed: {(startPort != null ? startPort.name : "[cell-start]")} -> {endPort.name}");
 
