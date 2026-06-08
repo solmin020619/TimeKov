@@ -217,6 +217,8 @@ public class BuildManager : MonoBehaviour
     {
         if (!IsBuildMode)
             return;
+        if (GameUIController.Instance != null && GameUIController.Instance.IsTutorialCoachActive)
+            return;   // 튜토리얼 코치(투어) 중엔 E/1~9 무시
 
         if (Input.GetKeyDown(KeyCode.E))
         {
@@ -370,6 +372,9 @@ public class BuildManager : MonoBehaviour
 
         // 활성 FacilityPlaceObjective 있으면 BuildZone 위에 화살표
         ShowBuildHintIfQuestActive();
+
+        // 튜토리얼 등 전역 구독자 통지 — 존 게이트 통과 후 실제 진입 시에만 (B키만 누른 게 아님)
+        GameEvents.RaiseBuildModeEntered();
     }
 
     public void ExitBuildMode()
@@ -538,6 +543,8 @@ public class BuildManager : MonoBehaviour
     {
         if (IsRailSubMode)
             return;
+        if (GameUIController.Instance != null && GameUIController.Instance.IsTutorialCoachActive)
+            return;   // 튜토리얼 코치(투어) 중엔 설치 클릭 무시
 
         if (!TryGetCurrentBuildData(
             out RaycastHit hit,
@@ -744,6 +751,8 @@ public class BuildManager : MonoBehaviour
 
     private void HandleDemolishModeInput()
     {
+        if (GameUIController.Instance != null && GameUIController.Instance.IsTutorialCoachActive)
+            return;   // 튜토리얼 코치(투어) 중엔 X 해제토글 무시
         if (Input.GetKeyDown(KeyCode.X))
         {
             isDemolishMode = !isDemolishMode;

@@ -20,6 +20,7 @@ public static class GameEvents
     public static event Action<int> OnCoreUpgraded;                   // 강화 성공 후의 새 코어 레벨
     public static event Action OnRailConnected;                       // 레일 포트-포트 연결 완료
     public static event Action<int> OnFuelAdded;                      // facilityId — 설비 연료 슬롯에 연료 투입
+    public static event Action OnBuildModeEntered;                    // 건설 모드 실제 진입 성공 (존 게이트 통과 후)
 
     public static void RaiseMovedDelta(float d) => OnPlayerMovedDelta?.Invoke(d);
     public static void RaiseTriggerEnter(string id) => OnTriggerEntered?.Invoke(id);
@@ -36,6 +37,7 @@ public static class GameEvents
     public static void RaiseCoreUpgraded(int newLevel) => OnCoreUpgraded?.Invoke(newLevel);
     public static void RaiseRailConnected() => OnRailConnected?.Invoke();
     public static void RaiseFuelAdded(int facilityId) => OnFuelAdded?.Invoke(facilityId);
+    public static void RaiseBuildModeEntered() => OnBuildModeEntered?.Invoke();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset()
@@ -54,5 +56,6 @@ public static class GameEvents
         OnCoreUpgraded = null;
         OnRailConnected = null;
         OnFuelAdded = null;
+        OnBuildModeEntered = null;
     }
 }

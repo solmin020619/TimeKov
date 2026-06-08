@@ -66,6 +66,8 @@ public class GameUIController : MonoBehaviour
     private BuildManager _buildManager;
     private CanvasGroup _questHudGroup;
     private bool _tutorialCoachActive;   // 튜토리얼 코치마크(오버레이) 표시 중 — 퀘스트 트래커 숨김
+    /// <summary>튜토리얼 코치마크 표시 중인지 — BuildManager 입력 게이트가 조회.</summary>
+    public bool IsTutorialCoachActive => _tutorialCoachActive;
 
     // ── 초기화 ───────────────────────────────────────────────────────
 
@@ -86,6 +88,15 @@ public class GameUIController : MonoBehaviour
             var statRect = statPanel.transform.Find("StatBG") as RectTransform
                         ?? statPanel.GetComponent<RectTransform>();
             if (statRect != null) TutorialOverlay.RegisterTarget("status_panel", statRect);
+        }
+
+        // 튜토리얼 스포트라이트 — 건설 퀵슬롯 UI 요소 (Build 상태에서 활성). 자식 이름으로 탐색해 등록(없으면 no-op).
+        if (quickSlotUI != null)
+        {
+            var qsT = quickSlotUI.transform;
+            RegisterDescendantTargets(qsT, "Quick Slot", "quick_slots");  // 슬롯 바 전부(합집합)
+            RegisterDescendantTargets(qsT, "Quick (5)", "rail_slot");     // E 레일 슬롯
+            RegisterDescendantTargets(qsT, "X_IMG", "build_demolish");    // X 일괄조작 힌트
         }
     }
 
@@ -346,6 +357,18 @@ public class GameUIController : MonoBehaviour
         // HUD는 정보 표시 전용 — 클릭 절대 가로채지 않음 (공장 드래그가 뒤로 빠지는 문제 방지)
         _questHudGroup.interactable = false;
         _questHudGroup.blocksRaycasts = false;
+    }
+
+    // 이름이 일치하는 모든 자손 RectTransform을 스포트라이트 타깃으로 등록 (없으면 no-op).
+    static void RegisterDescendantTargets(Transform root, string targetName, string spotlightId)
+    {
+        for (int i = 0; i < root.childCount; i++)
+        {
+            var c = root.GetChild(i);
+            if (c.name == targetName && c is RectTransform rt)
+                TutorialOverlay.RegisterTarget(spotlightId, rt);
+            RegisterDescendantTargets(c, targetName, spotlightId);
+        }
     }
 
     // ── 내부 상태 적용 ───────────────────────────────────────────────
