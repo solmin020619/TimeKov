@@ -40,6 +40,10 @@ public static class TutorialAssetBuilder
     const string TargetTimeBar      = "time_bar";        // 좌하단 시간/DECAY 막대
     const string TargetStatPanel    = "status_panel";    // C 스탯 창
     const string TargetStatButton   = "stat_button";     // 우측 상단 C 스탯 아이콘(C_Icon)
+    const string TargetMachineOutput = "machine_output"; // 머신 출력/모두받기 버튼
+    const string TargetTabIcon      = "tab_icon";        // 우측 상단 TAB(인벤) 아이콘
+    const string TargetBIcon        = "b_icon";          // 우측 상단 B(건설) 아이콘
+    const string TargetEscIcon      = "esc_icon";        // 우측 상단 ESC(설정) 아이콘
 
     const string Y = "<color=#FFCC00>";  // 강조 색 열기
     const string E = "</color>";          // 닫기
@@ -70,23 +74,15 @@ public static class TutorialAssetBuilder
 
         var quests = new List<QuestSO>();
 
-        // Q0a. [시작 안내] 시간 시스템 — 시간막대 스포트라이트 (Continue는 단독 퀘여야 함: 한 퀘 내 objective는 병렬)
-        quests.Add(BuildQuest("quest_tut_00a_intro_time", "시간 시스템",
-            CreateContinue("obj_intro_time",
-                $"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. {Y}결계(기지) 안{E}에서는 시간이 줄지 않지만({Y}DECAY OFF{E}), {Y}결계 밖{E}에선 시간이 계속 {Y}줄어들어{E} 0이 되면 쓰러집니다. 시간은 {Y}회복 앰플{E}로 채우고 {Y}코어 강화{E}로 최대치를 늘려요.",
-                TargetTimeBar)));
-
-        // Q0b. [시작 안내] C로 스탯창 열기 — 우측 상단 C 아이콘 강조 + C 키로만 진행(누르면 스탯창 열림)
-        quests.Add(BuildQuest("quest_tut_00b_intro_openstat", "스탯 창 열기",
-            CreateContinue("obj_intro_openstat",
-                $"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.",
-                TargetStatButton, KeyCode.C)));
-
-        // Q0c. [시작 안내] 스탯 설명 — 스탯창 스포트라이트
-        quests.Add(BuildQuest("quest_tut_00c_intro_stat", "스탯 보기",
-            CreateContinue("obj_intro_stat",
-                $"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다.",
-                TargetStatPanel)));
+        // Q0. [시작 안내] 가이드 투어 — 한 오버레이에서 클릭으로 연속 진행(끊김 없음). 시간/메뉴아이콘/스탯.
+        quests.Add(BuildQuest("quest_tut_00_intro", "시작 안내",
+            CreateGuidedTour("obj_intro_tour",
+                TourStep($"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. {Y}결계(기지) 안{E}에서는 시간이 줄지 않지만({Y}DECAY OFF{E}), {Y}결계 밖{E}에선 시간이 계속 {Y}줄어들어{E} 0이 되면 쓰러집니다. 시간은 {Y}회복 앰플{E}로 채우고 {Y}코어 강화{E}로 최대치를 늘려요.", TargetTimeBar),
+                TourStep($"{Y}TAB{E} - {Y}인벤토리{E}를 여닫습니다.", TargetTabIcon),
+                TourStep($"{Y}B{E} - {Y}건설 모드{E}로 들어갑니다.", TargetBIcon),
+                TourStep($"{Y}ESC{E} - {Y}설정{E}을 엽니다.", TargetEscIcon),
+                TourStep($"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.", TargetStatButton, KeyCode.C),
+                TourStep($"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다.", TargetStatPanel))));
 
         // Q1. 기본 조작 [병렬]
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
@@ -142,6 +138,12 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_09_input_materials", "재료 투입",
             CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 {Y}투입{E}하세요.", BioExtractorId, ItemSpiderVenom, 1),
             CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 {Y}투입{E}하세요.", BioExtractorId, ItemCorrosive, 1)));
+
+        // Q9b. [안내 + 스포트라이트] 출력/받기 강조
+        quests.Add(BuildQuest("quest_tut_09b_output_info", "결과물 받기 안내",
+            CreateContinue("obj_output_info",
+                $"{Y}가공{E}이 끝나면 결과물이 나옵니다. {Y}모두 받기{E}로 결과물을 {Y}회수{E}하세요.",
+                TargetMachineOutput)));
 
         // Q10. 회복젤 회수
         quests.Add(BuildQuest("quest_tut_10_collect_gel", "결과물 회수",
@@ -334,6 +336,17 @@ public static class TutorialAssetBuilder
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
+
+    static GuidedTourObjective CreateGuidedTour(string name, params GuidedTourObjective.Step[] steps)
+    {
+        var o = ScriptableObject.CreateInstance<GuidedTourObjective>();
+        o.steps = steps;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static GuidedTourObjective.Step TourStep(string label, string spotlightId = "", KeyCode advanceKey = KeyCode.None)
+        => new GuidedTourObjective.Step { stepLabel = label, spotlightTargetId = spotlightId, advanceKey = advanceKey };
 
     static FacilityUnlockObjective CreateFacilityUnlock(string name, string label, int facilityId, int count = 1)
     {
