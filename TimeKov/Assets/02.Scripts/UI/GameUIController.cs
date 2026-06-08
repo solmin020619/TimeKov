@@ -43,6 +43,10 @@ public class GameUIController : MonoBehaviour
     [Tooltip("항상 화면에 표시되는 퀘스트 HUD — CanvasGroup 필수 (SetActive 대신 alpha로 숨겨 QuestPanelUI 구독 유지)")]
     public GameObject questHud;
 
+    [Tooltip("머신/인벤 등 큰 패널이 열렸을 때 퀘스트 HUD 알파 (덜 거슬리게). 0~1, 보이되 흐리게.")]
+    [Range(0f, 1f)]
+    public float questHudDimmedAlpha = 0.4f;
+
     [Header("Player Stat (C키)")]
     [Tooltip("C키로 여닫는 플레이어 스탯창 패널")]
     public GameObject statPanel;
@@ -321,11 +325,13 @@ public class GameUIController : MonoBehaviour
         // Build 모드에서도 퀘스트는 계속 보여야 함 (튜토리얼 진행 안내용)
         if (_questHudGroup != null)
         {
-            bool showQuest = _currentState == UIState.None
-                          || _currentState == UIState.Build
-                          || _currentState == UIState.Inventory
-                          || _currentState == UIState.Factory;
-            _questHudGroup.alpha = showQuest ? 1f : 0f;
+            // None/Build = 완전 표시(게임플레이·건설 안내), Inventory/Factory = 흐리게(큰 패널 겹쳐 거슬림 완화), 그 외 = 숨김
+            if (_currentState == UIState.None || _currentState == UIState.Build)
+                _questHudGroup.alpha = 1f;
+            else if (_currentState == UIState.Inventory || _currentState == UIState.Factory)
+                _questHudGroup.alpha = questHudDimmedAlpha;
+            else
+                _questHudGroup.alpha = 0f;
 
             // HUD 정책: 정보 표시 전용, 클릭은 절대 가로채지 않음.
             // (전시에서 공장 드래그앤드롭이 questHud 뒤로 빠지는 문제 → blocksRaycasts=false 강제)

@@ -31,10 +31,12 @@ public static class TutorialAssetBuilder
     const int ItemHealAmpoule = 5101;  // 초급 회복 앰플 (R5101 @배양기2: 1201)
     const int CoreKitId       = 6101;  // 코어 키트 I (코어 1단계 강화 재료)
     const int CoreKitAmount   = 3;     // CoreLevelData lv1 requiredAmount
+    const int ItemTwig        = 4101;  // 나뭇가지 = 설비 연료 (FuelConfig.fuelItemId). OakTreeEnt 단독 드롭.
 
     // ── 스포트라이트 타깃 id (씬 UI 요소의 TutorialHighlightTarget 와 매칭) ──
     const string TargetMachineInput = "machine_input";   // 머신 재료 슬롯
     const string TargetCoreUpgrade  = "core_upgrade";    // 코어 강화 버튼/패널
+    const string TargetFuelSlot     = "fuel_slot";       // 설비 연료 슬롯
 
     const string Y = "<color=#FFCC00>";  // 강조 색 열기
     const string E = "</color>";          // 닫기
@@ -76,10 +78,11 @@ public static class TutorialAssetBuilder
             CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
             CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "tutorial_enemy", 1)));
 
-        // Q3. 드랍 획득 + 인벤 [병렬]
+        // Q3. 드랍 획득 + 인벤 [병렬] (나뭇가지=설비 연료, OakTreeEnt 드롭)
         quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
             CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 {Y}획득{E}하세요.", ItemSpiderVenom, 1),
             CreateItemAcquire("obj_loot_corrosive", $"{Y}부식액{E}을 {Y}획득{E}하세요.", ItemCorrosive, 1),
+            CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}획득{E}하세요.", ItemTwig, 1),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
         // Q4. [안내] 시간 시스템
@@ -96,9 +99,23 @@ public static class TutorialAssetBuilder
             CreatePressKey("obj_build_mode", $"{Y}B{E}로 {Y}건설 모드{E}에 진입하세요.", KeyCode.B, 1),
             CreateFacilityPlace("obj_place_extractor", $"{Y}생체 추출기{E}를 {Y}설치{E}하세요.", BioExtractorId, 1)));
 
+        // Q6b. [안내] 해제 모드 (B 건설모드 -> X 해제, Shift 드래그 연속 해제)
+        quests.Add(BuildQuest("quest_tut_06b_demolish_info", "해제 모드",
+            CreateContinue("obj_demolish_info",
+                $"잘못 지었다면 건설 모드에서 {Y}X{E}로 {Y}해제 모드{E}. {Y}클릭{E}으로 제거, {Y}Shift 드래그{E}로 여러 개를 {Y}한 번에 해제{E}할 수 있어요.")));
+
         // Q7. 상호작용
         quests.Add(BuildQuest("quest_tut_07_interact_extractor", "설비 열기",
             CreateFacilityInteract("obj_interact_extractor", $"{Y}F{E}로 {Y}생체 추출기{E}를 여세요.", BioExtractorId, 1)));
+
+        // Q7b. [안내 + 스포트라이트] 연료 설명
+        quests.Add(BuildQuest("quest_tut_07b_fuel_info", "연료 안내",
+            CreateContinue("obj_fuel_info",
+                $"설비는 {Y}연료{E}가 있어야 가동됩니다. {Y}연료 슬롯{E}에 {Y}나뭇가지{E}를 넣으세요. (연료는 {Y}오크 트리{E} 처치로 보충)", TargetFuelSlot)));
+
+        // Q7c. 연료 투입 (게이트)
+        quests.Add(BuildQuest("quest_tut_07c_fuel_add", "연료 투입",
+            CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}에 {Y}투입{E}하세요.", BioExtractorId)));
 
         // Q8. [안내 + 스포트라이트] 재료 슬롯 강조
         quests.Add(BuildQuest("quest_tut_08_input_info", "재료 투입 안내",
@@ -204,9 +221,8 @@ public static class TutorialAssetBuilder
             $"씬 세팅 체크:\n" +
             $"1. QuestManager.tutorial = Tutorial_Main.asset\n" +
             $"2. FacilityUnlockPickup 배치: facilityId {BioExtractorId}(추출기)/{BioCultivatorId}(배양기)/{StorageId}(저장고)\n" +
-            $"3. tutorial_enemy 적 + 드롭(EnemyDropOnDeath)에 {ItemSpiderVenom}/{ItemCorrosive} 포함\n" +
-            $"4. 스포트라이트: 머신 재료슬롯에 TutorialHighlightTarget id='{TargetMachineInput}', " +
-            $"코어 강화 버튼에 id='{TargetCoreUpgrade}'\n" +
+            $"3. 튜토 스폰 몹 드롭(EnemyDropOnDeath.sourceId): 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive}, OakTreeEnt가 연료 나뭇가지{ItemTwig} → 스폰풀에 OakTreeEnt 꼭 포함\n" +
+            $"4. 스포트라이트 TutorialHighlightTarget: 재료슬롯 id='{TargetMachineInput}', 연료슬롯 id='{TargetFuelSlot}', 코어강화 id='{TargetCoreUpgrade}'\n" +
             $"5. PlayerMovementWatcher.watchedKeys 에 Space/Mouse0/Mouse1/Tab/B 포함 확인");
     }
 
@@ -323,6 +339,14 @@ public static class TutorialAssetBuilder
     {
         var o = ScriptableObject.CreateInstance<RailConnectObjective>();
         o.label = label; o.requiredCount = count;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static FuelAddObjective CreateFuelAdd(string name, string label, int facilityId, int count = 1)
+    {
+        var o = ScriptableObject.CreateInstance<FuelAddObjective>();
+        o.label = label; o.facilityId = facilityId; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }

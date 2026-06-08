@@ -58,6 +58,8 @@ public class TutorialOverlay : MonoBehaviour
 
     private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.72f);
     private const float SpotlightPadPx = 8f;
+    private const float ContinueCooldown = 0.2f;   // 표시 직후 잔여 입력으로 즉시 넘어가는 것 방지
+    private float _shownTime;
 
     private void Awake()
     {
@@ -77,6 +79,7 @@ public class TutorialOverlay : MonoBehaviour
         _spotlightId = spotlightTargetId;
         _onContinue = onContinue;
         _active = true;
+        _shownTime = Time.unscaledTime;
 
         if (_banner != null)
         {
@@ -108,7 +111,17 @@ public class TutorialOverlay : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (_active) UpdateSpotlight();
+        if (!_active) return;
+        UpdateSpotlight();
+
+        // 클릭하여 계속 — uGUI Button(EventSystem) 대신 Input 폴링.
+        // 나머지 튜토리얼(WASD/공격/Tab)과 동일 경로라 EventSystem 의존 없이 확실히 작동.
+        if (_onContinue != null
+            && Time.unscaledTime - _shownTime > ContinueCooldown
+            && (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.anyKeyDown))
+        {
+            _onContinue.Invoke();
+        }
     }
 
     private void UpdateSpotlight()
