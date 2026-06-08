@@ -148,6 +148,7 @@ public class CoreUpgradeManager : MonoBehaviour
             SaveLevel();
 
             OnLevelChanged?.Invoke(CurrentCoreLevel);
+            GameEvents.RaiseCoreUpgraded(CurrentCoreLevel);   // 튜토리얼 등 전역 구독자 통지
             Debug.Log($"[CoreUpgrade] 강화 성공! 현재 레벨: {CurrentCoreLevel}");
         }
         else

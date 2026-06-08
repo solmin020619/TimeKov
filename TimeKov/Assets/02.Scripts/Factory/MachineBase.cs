@@ -223,6 +223,7 @@ namespace TIMEKOV.Factory
             FuelTimeRemaining += itemCount * secs;
             FuelItemCount     += itemCount;
             OnFuelChanged?.Invoke();
+            GameEvents.RaiseFuelAdded(FacilityId);   // 튜토리얼 등 통지
         }
 
         /// <summary>

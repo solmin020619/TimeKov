@@ -15,7 +15,7 @@ public class FacilityInstance : MonoBehaviour
     public FacilityDataSheetData FacilityData => facilityData;
     public FacilityLevelDataSheetData CurrentLevelData => currentLevelData;
 
-    // facilityId ·Î ¼³ºñ ÃÊ±âÈ­ BuildManager ¿¡¼­ ¹èÄ¡ Á÷ÈÄ È£Ãâ
+    // facilityId ë¡œ ì´ˆê¸°í™”. BuildManager ê°€ ì„¤ì¹˜ ì§í›„ í˜¸ì¶œ.
     public void Initialize(int newFacilityId)
     {
         facilityId = newFacilityId;
@@ -23,12 +23,12 @@ public class FacilityInstance : MonoBehaviour
         RefreshCachedData();
     }
 
-    // GameDataHolder ¿¡¼­ ÃÖ½Å µ¥ÀÌÅÍ¸¦ ´Ù½Ã ÀÐ¾î Ä³½Ã °»½Å
+    // GameDataHolder ì—ì„œ ìµœì‹  ë°ì´í„°ë¥¼ ë‹¤ì‹œ ì½ì–´ ìºì‹œ ê°±ì‹ .
     public void RefreshCachedData()
     {
         if (!GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out facilityData))
         {
-            Debug.LogError($"[FacilityInstance] FacilityData ¾øÀ½. facilityId={facilityId}");
+            Debug.LogError($"[FacilityInstance] FacilityData ì—†ìŒ. facilityId={facilityId}");
             facilityData = null;
             return;
         }
@@ -36,7 +36,7 @@ public class FacilityInstance : MonoBehaviour
         currentLevelData = GameDataUtility.GetFacilityLevelRow(facilityId, currentLevel);
 
         if (facilityData.maxLevel > 1 && currentLevelData == null)
-            Debug.LogWarning($"[FacilityInstance] FacilityLevelData ¾øÀ½. facilityId={facilityId}, level={currentLevel}");
+            Debug.LogWarning($"[FacilityInstance] FacilityLevelData ì—†ìŒ. facilityId={facilityId}, level={currentLevel}");
     }
 
     public bool CanUpgrade()
@@ -53,26 +53,14 @@ public class FacilityInstance : MonoBehaviour
         return true;
     }
 
-    public int GetInputSlotCount()
-    {
-        if (facilityData == null) return 0;
-        return facilityData.inputSlotCount;
-    }
-
-    public int GetOutputSlotCount()
-    {
-        if (facilityData == null) return 0;
-        return facilityData.outputSlotCount;
-    }
-
-    // ±¸¹öÀü: requiresPower == 1  ½Å¹öÀü: bool
+    // ì „ë ¥ í•„ìš” ì—¬ë¶€ (requiresPower)
     public bool RequiresPower()
     {
         if (facilityData == null) return false;
         return facilityData.requiresPower;
     }
 
-    // ±¸¹öÀü: canRotate == 1  ½Å¹öÀü: bool
+    // íšŒì „ ê°€ëŠ¥ ì—¬ë¶€ (canRotate)
     public bool CanRotate()
     {
         if (facilityData == null) return false;
@@ -91,7 +79,7 @@ public class FacilityInstance : MonoBehaviour
         return currentLevelData.powerEfficiencyMultiplier;
     }
 
-    // capacityBonus ÄÃ·³ »èÁ¦µÊ Ç×»ó 0
+    // capacityBonus ì»¬ëŸ¼ ì œê±°ë¨ - í•­ìƒ 0
     public int GetCapacityBonus() => 0;
 
     public List<RecipeDataSheetData> GetAvailableRecipes()

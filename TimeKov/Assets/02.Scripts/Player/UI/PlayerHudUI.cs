@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -101,6 +102,13 @@ public class PlayerHudUI : MonoBehaviour
     [SerializeField] private CanvasGroup hurtVignette;
     [SerializeField] private float hurtFadeSpeed = 3f;
 
+    [Header("Tutorial")]
+    [Tooltip("튜토리얼 스포트라이트가 강조할 시간/DECAY 패널(PlayerTime). 비우면 자동 탐색.")]
+    [SerializeField] private RectTransform timeBarPanelRoot;
+
+    private RectTransform _timeBarRoot;
+    private readonly List<(string id, RectTransform rt)> _iconTargets = new();
+
     private float _hurtAlpha = 0f;
 
     // 플레이어 옆 스태미나 UI 표시/숨김 제어용
@@ -108,6 +116,8 @@ public class PlayerHudUI : MonoBehaviour
 
     void Start()
     {
+        RegisterTutorialTargets();   // 튜토리얼 스포트라이트 타깃(time_bar/stat_button) 자동 등록 (playerStat 유무와 무관)
+
         // 자동 탐색
         if (playerStat == null || playerSkill == null)
         {
@@ -174,6 +184,67 @@ public class PlayerHudUI : MonoBehaviour
             playerStat.OnHurt -= TriggerHurtVignette;
             playerStat.OnDead -= ForceHpSliderEmpty;
         }
+
+        if (_timeBarRoot != null)
+            TutorialOverlay.UnregisterTarget("time_bar", _timeBarRoot);
+        foreach (var it in _iconTargets)
+            TutorialOverlay.UnregisterTarget(it.id, it.rt);
+        _iconTargets.Clear();
+    }
+
+    // 튜토리얼 스포트라이트 타깃 자동 등록 (씬 수동 부착 불필요).
+    void RegisterTutorialTargets()
+    {
+        // time_bar = 좌하단 시간/DECAY 패널(PlayerTime). hpSlider/timeValueText에서 부모로 올라가 탐색.
+        _timeBarRoot = timeBarPanelRoot != null ? timeBarPanelRoot : FindTimeBarRoot();
+        if (_timeBarRoot != null)
+            TutorialOverlay.RegisterTarget("time_bar", _timeBarRoot);
+
+        // 우측 상단 키 안내 박스 4개 → 스포트라이트 타깃.
+        // 각 키는 라벨(*_Text)+아이콘(*_Icon)이 KeyGuide 바로 아래 평면 구조로 흩어져 있으므로
+        // 같은 id에 둘 다 등록한다. TutorialOverlay가 같은 id의 rect들을 합집합으로 묶어
+        // 라벨+아이콘을 한 박스로 감싼다 (별도 컨테이너 오브젝트 불필요, 4개 일관성 보장).
+        RegisterKeyBox("stat_button", "C_Text", "C_Icon");
+        RegisterKeyBox("tab_icon", "TAB_Text", "TAB_Icon");
+        RegisterKeyBox("b_icon", "B_Text", "B_Icon");
+        RegisterKeyBox("esc_icon", "ESC_Text", "Esc_Icon");
+    }
+
+    // 한 키의 라벨+아이콘을 같은 스포트라이트 id로 등록 (합집합 박스).
+    void RegisterKeyBox(string spotlightId, params string[] objectNames)
+    {
+        foreach (var objectName in objectNames)
+            RegisterIcon(objectName, spotlightId);
+    }
+
+    void RegisterIcon(string objectName, string spotlightId)
+    {
+        var rt = FindDescendant(transform, objectName) as RectTransform;
+        if (rt == null) return;
+        _iconTargets.Add((spotlightId, rt));
+        TutorialOverlay.RegisterTarget(spotlightId, rt);
+    }
+
+    RectTransform FindTimeBarRoot()
+    {
+        Transform t = hpSlider != null ? hpSlider.transform
+                    : timeValueText != null ? timeValueText.transform
+                    : null;
+        for (; t != null; t = t.parent)
+            if (t.name == "PlayerTime") return t as RectTransform;
+        return null;
+    }
+
+    static Transform FindDescendant(Transform root, string targetName)
+    {
+        for (int i = 0; i < root.childCount; i++)
+        {
+            var c = root.GetChild(i);
+            if (c.name == targetName) return c;
+            var found = FindDescendant(c, targetName);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     // 사망 즉시 슬라이더를 0으로 강제 설정

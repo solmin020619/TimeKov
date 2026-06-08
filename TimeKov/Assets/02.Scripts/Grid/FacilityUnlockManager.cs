@@ -62,6 +62,7 @@ public class FacilityUnlockManager : MonoBehaviour
 
         Debug.Log($"[FacilityUnlockManager] facilityId={facilityId} 해금 → 슬롯 {slotIndex + 1}번 (고정)");
         OnFacilityUnlocked?.Invoke(facilityId, slotIndex);
+        GameEvents.RaiseFacilityUnlocked(facilityId);   // 튜토리얼 등 전역 구독자 통지
         return true;
     }
 }

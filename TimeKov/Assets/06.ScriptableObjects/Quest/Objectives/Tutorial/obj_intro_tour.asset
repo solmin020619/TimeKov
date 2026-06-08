@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d96e3ea4e26a8c408aa456a04ea543c, type: 3}
+  m_Name: obj_intro_tour
+  m_EditorClassIdentifier: 
+  label: 
+  startGracePeriod: 0.1
+  steps:
+  - stepLabel: "\uC774 \uAC8C\uC784\uC740 <color=#FFCC00>\uCCB4\uB825</color>\uC774
+      \uACE7 <color=#FFCC00>\uC2DC\uAC04</color>\uC785\uB2C8\uB2E4. <color=#FFCC00>\uACB0\uACC4(\uAE30\uC9C0)
+      \uC548</color>\uC5D0\uC11C\uB294 \uC2DC\uAC04\uC774 \uC904\uC9C0 \uC54A\uC9C0\uB9CC(<color=#FFCC00>DECAY
+      OFF</color>), <color=#FFCC00>\uACB0\uACC4 \uBC16</color>\uC5D0\uC120 \uC2DC\uAC04\uC774
+      \uACC4\uC18D <color=#FFCC00>\uC904\uC5B4\uB4E4\uC5B4</color> 0\uC774 \uB418\uBA74
+      \uC4F0\uB7EC\uC9D1\uB2C8\uB2E4. \uC2DC\uAC04\uC740 <color=#FFCC00>\uD68C\uBCF5
+      \uC570\uD50C</color>\uB85C \uCC44\uC6B0\uACE0 <color=#FFCC00>\uCF54\uC5B4 \uAC15\uD654</color>\uB85C
+      \uCD5C\uB300\uCE58\uB97C \uB298\uB824\uC694."
+    spotlightTargetId: time_bar
+    advanceKey: 0
+  - stepLabel: "<color=#FFCC00>TAB</color> - <color=#FFCC00>\uC778\uBCA4\uD1A0\uB9AC</color>\uB97C
+      \uC5EC\uB2EB\uC2B5\uB2C8\uB2E4."
+    spotlightTargetId: tab_icon
+    advanceKey: 0
+  - stepLabel: "<color=#FFCC00>B</color> - <color=#FFCC00>\uAC74\uC124 \uBAA8\uB4DC</color>\uB85C
+      \uB4E4\uC5B4\uAC11\uB2C8\uB2E4."
+    spotlightTargetId: b_icon
+    advanceKey: 0
+  - stepLabel: "<color=#FFCC00>ESC</color> - <color=#FFCC00>\uC124\uC815</color>\uC744
+      \uC5FD\uB2C8\uB2E4."
+    spotlightTargetId: esc_icon
+    advanceKey: 0
+  - stepLabel: "<color=#FFCC00>C</color> \uD0A4\uB97C \uB20C\uB7EC <color=#FFCC00>\uC2A4\uD0EF
+      \uCC3D</color>\uC744 \uC5F4\uC5B4\uBCF4\uC138\uC694."
+    spotlightTargetId: stat_button
+    advanceKey: 99
+  - stepLabel: "\uC5EC\uAE30\uC11C <color=#FFCC00>\uCD5C\uB300 \uC2DC\uAC04</color>
+      \xB7 <color=#FFCC00>\uC2A4\uD0DC\uBBF8\uB098</color> \xB7 <color=#FFCC00>\uACF5\uACA9\uB825</color>
+      \xB7 <color=#FFCC00>\uBC29\uC5B4\uB825</color>\uC744 \uD655\uC778\uD560 \uC218
+      \uC788\uC5B4\uC694. <color=#FFCC00>\uCF54\uC5B4 \uAC15\uD654</color>\uB85C
+      <color=#FFCC00>\uCD5C\uB300 \uC2DC\uAC04</color>\uC744, <color=#FFCC00>\uC570\uD50C
+      \uC81C\uC791</color>\uC73C\uB85C \uB098\uBA38\uC9C0 \uC2A4\uD0EF\uC744 \uC62C\uB9B4
+      \uC218 \uC788\uC2B5\uB2C8\uB2E4. <color=#FFCC00>C</color> \uD0A4\uB85C <color=#FFCC00>\uC5B8\uC81C\uB4E0
+      \uC5EC\uB2EB\uC744 \uC218 \uC788\uC5B4\uC694</color>."
+    spotlightTargetId: status_panel
+    advanceKey: 0

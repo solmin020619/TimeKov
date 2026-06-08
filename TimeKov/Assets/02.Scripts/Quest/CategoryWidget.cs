@@ -24,9 +24,11 @@ public class CategoryWidget : MonoBehaviour
         {
             if (categoryTitle != null) categoryTitle.text = rt.data.title;
         }
-        else
+        else if (categoryTitle != null)
         {
-            if (categoryTitle != null) categoryTitle.gameObject.SetActive(false);
+            // 글자만 숨기고 GameObject는 활성 유지 — LayoutElement 공간이 보존돼 아래 퀘스트가
+            // 위로 밀리지 않음(토스트와 겹침 방지). SetActive(false)는 VLG에서 빠져 레이아웃이 올라감.
+            categoryTitle.enabled = false;
         }
     }
 

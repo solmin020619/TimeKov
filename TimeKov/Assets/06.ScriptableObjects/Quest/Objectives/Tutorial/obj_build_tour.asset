@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d96e3ea4e26a8c408aa456a04ea543c, type: 3}
+  m_Name: obj_build_tour
+  m_EditorClassIdentifier: 
+  label: 
+  startGracePeriod: 0.1
+  steps:
+  - stepLabel: "<color=#FFCC00>\uD035 \uC2AC\uB86F</color>\uC5D0\uC11C \uC9C0\uC744
+      \uC124\uBE44\uB97C \uACE0\uB985\uB2C8\uB2E4. \uBC29\uAE08 <color=#FFCC00>\uD574\uAE08\uD55C
+      \uC124\uBE44</color>\uAC00 \uC5EC\uAE30 \uC788\uACE0, \uBE48 \uCE78\uC740 \uB2E4\uB978
+      \uC124\uBE44\uAC00 \uB9F5\uC5D0 <color=#FFCC00>\uC228\uACA8\uC838</color> \uC788\uC5B4\uC11C\uC608\uC694
+      - <color=#FFCC00>\uCC3E\uC544 F\uB85C \uD574\uAE08</color>\uD558\uBA74 \uCC44\uC6CC\uC9D1\uB2C8\uB2E4."
+    spotlightTargetId: quick_slots
+    advanceKey: 0
+  - stepLabel: "<color=#FFCC00>X</color> - \uC124\uCE58\uD55C \uC124\uBE44\uB97C
+      <color=#FFCC00>\uD574\uC81C</color> (\uD074\uB9AD \uC81C\uAC70 / <color=#FFCC00>Shift
+      \uB4DC\uB798\uADF8</color>\uB85C \uC5EC\uB7EC \uAC1C \uD55C \uBC88\uC5D0)."
+    spotlightTargetId: build_demolish
+    advanceKey: 0
+  - stepLabel: "<color=#FFCC00>E</color> - <color=#FFCC00>\uB808\uC77C</color>\uC744
+      \uAE54\uC544 \uC124\uBE44\uB97C \uC774\uC73C\uBA74 \uC544\uC774\uD15C\uC774
+      <color=#FFCC00>\uC790\uB3D9</color>\uC73C\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4."
+    spotlightTargetId: rail_slot
+    advanceKey: 0

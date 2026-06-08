@@ -27,6 +27,10 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
     [SerializeField] private float vanishDuration = 0.7f;
     [SerializeField] private AnimationCurve vanishCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
+    [Header("시야 체크")]
+    [Tooltip("플레이어 눈높이 오프셋 (m)")]
+    [SerializeField] private float playerEyeHeight = 1.4f;
+
     // ─────────────────────────────────────────────────────────────
 
     private bool              _collected    = false;
@@ -94,7 +98,8 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
                        && GameUIController.Instance.IsUIBlocking();
 
         bool nearby = !uiBlocking
-                   && Vector3.Distance(transform.position, _playerTransform.position) <= hintRadius;
+                   && Vector3.Distance(transform.position, _playerTransform.position) <= hintRadius
+                   && HasLineOfSight();
 
         if (nearby == _playerNearby) return;
         _playerNearby = nearby;
@@ -182,6 +187,33 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
         }
 
         Destroy(gameObject);
+    }
+
+    // ── 시야 체크 ────────────────────────────────────────────────
+
+    /// <summary>
+    /// 플레이어 눈높이 → 픽업 중심까지 레이캐스트.
+    /// 이 오브젝트(또는 자식) 외에 뭔가 맞으면 시야 차단 → false.
+    /// </summary>
+    private bool HasLineOfSight()
+    {
+        Vector3 origin = _playerTransform.position + Vector3.up * playerEyeHeight;
+        Vector3 target = transform.position + Vector3.up * 0.5f;
+        Vector3 dir    = target - origin;
+        float   dist   = dir.magnitude;
+
+        if (dist < 0.01f) return true;
+
+        // 트리거 제외, 전체 레이어 대상으로 레이캐스트
+        // (SerializeField 기본값 직렬화 문제를 피하기 위해 코드에서 직접 지정)
+        if (Physics.Raycast(origin, dir / dist, out RaycastHit hit, dist,
+                            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+        {
+            // 맞은 콜라이더가 이 오브젝트(또는 자식)이면 시야 확보
+            return hit.collider.transform.IsChildOf(transform)
+                || hit.collider.transform == transform;
+        }
+        return true; // 아무것도 안 맞음 = 시야 확보
     }
 
     // ── 아웃라인 ─────────────────────────────────────────────────
