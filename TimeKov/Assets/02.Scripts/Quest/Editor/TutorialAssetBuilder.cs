@@ -178,15 +178,7 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_16_rail_connect", "레일 연결",
             CreateRailConnect("obj_rail_connect", $"두 설비를 {Y}레일{E}로 {Y}연결{E}하세요.", 1)));
 
-        // Q17. 저장고 해금 + 설치 [병렬]
-        quests.Add(BuildQuest("quest_tut_17_build_storage", "저장고 설치",
-            CreateFacilityUnlock("obj_unlock_storage", $"{Y}저장고{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", StorageId),
-            CreateFacilityPlace("obj_place_storage", $"{Y}저장고{E}를 {Y}설치{E}하세요.", StorageId, 1)));
-
-        // Q18. [안내] 창고
-        quests.Add(BuildQuest("quest_tut_18_storage_info", "창고 안내",
-            CreateContinue("obj_storage_info",
-                $"{Y}저장고{E}를 설치하면 거점 {Y}창고{E} 용량이 늘어납니다. {Y}창고{E}에 아이템을 보관해 두세요.")));
+        // (저장고 #8 = 있으면 좋고 없으면 말고 → 튜토리얼 필수에서 제외. 마무리(Q21)에서 "숨겨진 설비 찾기"로 안내.)
 
         // Q19. [안내 + 보상] 코어 키트 지급
         var qCoreIntro = BuildQuest("quest_tut_19_core_intro", "코어 강화 안내",
@@ -201,10 +193,10 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_20_core_upgrade", "코어 강화",
             CreateCoreUpgrade("obj_core_upgrade", $"받은 키트로 {Y}코어{E}를 {Y}강화{E}하세요.", 0)));
 
-        // Q21. [안내] 마무리
+        // Q21. [안내] 마무리 + 숨겨진 설비 찾기 안내
         quests.Add(BuildQuest("quest_tut_21_finish", "튜토리얼 완료",
             CreateContinue("obj_finish",
-                $"이후 {Y}코어 키트{E}는 {Y}코어 합성기{E}에서 직접 제작하세요. {Y}튜토리얼 완료!{E} 자유롭게 기지를 키워보세요.")));
+                $"{Y}튜토리얼 완료!{E} {Y}저장고{E} 등 다른 설비는 맵에 {Y}숨겨져{E} 있어요 - 찾아서 {Y}F{E}로 {Y}해금{E}하면 {Y}창고{E} 등 기능이 늘어납니다. {Y}코어 키트{E}는 {Y}코어 합성기{E}에서 제작하세요. 자유롭게 기지를 키워보세요!")));
 
         // CategorySO (GUID 유지)
         string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
@@ -238,7 +230,7 @@ public static class TutorialAssetBuilder
             $"[TutorialAssetBuilder] 생성 완료 — Quest {quests.Count}개.\n" +
             $"씬 세팅 체크:\n" +
             $"1. QuestManager.tutorial = Tutorial_Main.asset\n" +
-            $"2. FacilityUnlockPickup 배치: facilityId {BioExtractorId}(추출기)/{BioCultivatorId}(배양기)/{StorageId}(저장고)\n" +
+            $"2. FacilityUnlockPickup 배치(+위치 마커): 필수 {BioExtractorId}(추출기)/{BioCultivatorId}(배양기)만 튜토 동선에. {StorageId}(저장고) 등 나머지는 튜토 밖 숨김(마무리에서 안내)\n" +
             $"3. 튜토 스폰 몹 드롭(EnemyDropOnDeath.sourceId): 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive}, OakTreeEnt가 연료 나뭇가지{ItemTwig} → 스폰풀에 OakTreeEnt 꼭 포함\n" +
             $"4. 스포트라이트: 시간막대('{TargetTimeBar}')/스탯창('{TargetStatPanel}')=코드 자동등록. 수동 TutorialHighlightTarget 부착 필요: C아이콘(C_Icon) id='{TargetStatButton}', 재료슬롯 id='{TargetMachineInput}', 연료슬롯 id='{TargetFuelSlot}', 코어강화 id='{TargetCoreUpgrade}'\n" +
             $"5. PlayerMovementWatcher.watchedKeys 에 Space/Mouse0/Mouse1/Tab/B 포함 확인 (C는 GameUIController에서 자동 발화 → 설정 불필요)");

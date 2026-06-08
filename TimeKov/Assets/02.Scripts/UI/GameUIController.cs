@@ -336,8 +336,8 @@ public class GameUIController : MonoBehaviour
 
         if (_tutorialCoachActive)
             _questHudGroup.alpha = 0f;   // 코치마크 중 — 트래커 숨김(배너와 중복 방지)
-        else if (_currentState == UIState.None || _currentState == UIState.Build)
-            _questHudGroup.alpha = 1f;   // 게임플레이·건설 안내
+        else if (_currentState == UIState.None || _currentState == UIState.Build || _currentState == UIState.CoreUpgrade)
+            _questHudGroup.alpha = 1f;   // 게임플레이·건설·코어강화(좌상단 안 가림) 안내
         else if (_currentState == UIState.Inventory || _currentState == UIState.Factory)
             _questHudGroup.alpha = questHudDimmedAlpha;   // 큰 패널 겹침 — 흐리게
         else

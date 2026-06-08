@@ -76,6 +76,18 @@ public class ItemGetLog : MonoBehaviour
 
     private readonly List<Entry> _entries = new List<Entry>();
 
+    // ── 초기화 ──────────────────────────────────────────────────────
+
+    private void Awake()
+    {
+        // 표시 전용 로그 — 절대 클릭을 가로채지 않게 (머신 UI 화살표 등 뒤쪽 UI 클릭이 먼저 먹도록).
+        // 루트 CanvasGroup.blocksRaycasts=false 면 자식 행들까지 전부 비차단(자식이 ignoreParentGroups 안 켜는 한).
+        var cg = GetComponent<CanvasGroup>();
+        if (cg == null) cg = gameObject.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = false;
+        cg.interactable = false;
+    }
+
     // ── 구독 ──────────────────────────────────────────────────────
 
     private void OnEnable()
