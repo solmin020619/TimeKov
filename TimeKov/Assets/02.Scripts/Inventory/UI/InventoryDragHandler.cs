@@ -1,7 +1,7 @@
 // InventoryDragHandler.cs
-// Canvas ¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// µå·¡±× ÁßÀÎ ½½·Ô Á¤º¸ °ü¸® ¹× °í½ºÆ® ÀÌ¹ÌÁö Ã³¸®
-// °°Àº ÀÎº¥Åä¸® ³» ÀÌµ¿, Ã¢°í¿Í °¡¹æ °£ ÀÌµ¿ ¸ğµÎ Ã³¸®
+// Canvas ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
+// ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½Ì¹ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½
+// ï¿½ï¿½ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ ï¿½Ìµï¿½, Ã¢ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,12 +10,16 @@ public class InventoryDragHandler : MonoBehaviour
 {
     public static InventoryDragHandler Instance { get; private set; }
 
-    [Header("µå·¡±× °í½ºÆ® ÀÌ¹ÌÁö (DragGhost ¿ÀºêÁ§Æ® ¿¬°á)")]
+    [Header("ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½Ì¹ï¿½ï¿½ï¿½ (DragGhost ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½)")]
     [SerializeField] private Image ghostImage;
 
-    // ÇöÀç µå·¡±× ÁßÀÎ ½½·Ô
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     public InventorySlotUI DraggedSlot { get; private set; }
     public bool IsDragging => DraggedSlot != null;
+
+    /// <summary>ALT ë¶„í•  ë“œë˜ê·¸ ì‹œ ì´ë™í•  ìˆ˜ëŸ‰. 0 = ì „ì²´ ìŠ¤íƒ.</summary>
+    public int  DragAmount  { get; private set; }
+    public bool IsSplitDrag => DragAmount > 0;
 
     private RectTransform _ghostRect;
     private RectTransform _canvasRect;
@@ -26,19 +30,21 @@ public class InventoryDragHandler : MonoBehaviour
         _ghostRect = ghostImage != null ? ghostImage.GetComponent<RectTransform>() : null;
         _canvasRect = GetComponent<RectTransform>();
 
-        // ½ÃÀÛ ½Ã °í½ºÆ® ¼û±â±â
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½
         if (ghostImage != null)
             ghostImage.gameObject.SetActive(false);
     }
 
-    // µå·¡±× ½ÃÀÛ (InventorySlotUI.OnBeginDrag ¿¡¼­ È£Ãâ)
-    public void BeginDrag(InventorySlotUI slot)
+    // ë“œë˜ê·¸ ì‹œì‘ (InventorySlotUI.OnBeginDrag ì—ì„œ í˜¸ì¶œ)
+    // amount = 0 : ì „ì²´ ìŠ¤íƒ / amount > 0 : ALT ë¶„í•  ë“œë˜ê·¸
+    public void BeginDrag(InventorySlotUI slot, int amount = 0)
     {
         if (slot == null || slot.IsEmpty) return;
 
         DraggedSlot = slot;
+        DragAmount  = amount;
 
-        // °í½ºÆ® ÀÌ¹ÌÁö¿¡ ¾ÆÀÌÄÜ ¼³Á¤
+        // ï¿½ï¿½ï¿½ï¿½Æ® ï¿½Ì¹ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (ghostImage != null)
         {
             var data = ItemDatabase.GetItem(slot.SlotData.itemId);
@@ -48,7 +54,7 @@ public class InventoryDragHandler : MonoBehaviour
         }
     }
 
-    // µå·¡±× Áß °í½ºÆ® À§Ä¡ °»½Å (InventorySlotUI.OnDrag ¿¡¼­ È£Ãâ)
+    // ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ (InventorySlotUI.OnDrag ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½)
     public void UpdateDragPosition(Vector2 screenPos)
     {
         if (!IsDragging || _ghostRect == null || _canvasRect == null) return;
@@ -60,37 +66,41 @@ public class InventoryDragHandler : MonoBehaviour
         _ghostRect.anchoredPosition = localPos;
     }
 
-    // µå·¡±× Á¾·á (µå·Ó ¼º°ø ¿©ºÎ¿Í ¹«°üÇÏ°Ô Ç×»ó È£Ãâ)
+    // ë“œë˜ê·¸ ì¢…ë£Œ (ì„±ê³µÂ·ì‹¤íŒ¨ ë¬´ê´€í•˜ê²Œ í•­ìƒ í˜¸ì¶œ)
     public void EndDrag()
     {
         DraggedSlot = null;
+        DragAmount  = 0;
         if (ghostImage != null)
             ghostImage.gameObject.SetActive(false);
     }
 
-    // ½½·Ô¿¡ µå·Ó Ã³¸® (InventorySlotUI.OnDrop ¿¡¼­ È£Ãâ)
+    // ë“œë ìˆ˜ì‹  ì²˜ë¦¬ (InventorySlotUI.OnDrop ì—ì„œ í˜¸ì¶œ)
     public void HandleDrop(InventorySlotUI targetSlot)
     {
         if (!IsDragging || targetSlot == null) { EndDrag(); return; }
 
-        // °°Àº ½½·Ô¿¡ µå·ÓÇÏ¸é Ãë¼Ò
+        // ê°™ì€ ìŠ¬ë¡¯ì— ë“œëí•˜ë©´ ì·¨ì†Œ
         if (DraggedSlot == targetSlot) { EndDrag(); return; }
 
-        var fromSlot = DraggedSlot.SlotData;
+        var fromSlot    = DraggedSlot.SlotData;
         var fromManager = DraggedSlot.Owner;
-        var toSlot = targetSlot.SlotData;
-        var toManager = targetSlot.Owner;
+        var toSlot      = targetSlot.SlotData;
+        var toManager   = targetSlot.Owner;
 
         if (fromManager == null || toManager == null) { EndDrag(); return; }
 
-        if (fromManager == toManager)
+        if (IsSplitDrag)
         {
-            // °°Àº ÀÎº¥Åä¸® ³» ½½·Ô ±³È¯
+            // ALT ë¶„í•  ë“œë˜ê·¸: ì§€ì • ìˆ˜ëŸ‰ë§Œ ì´ë™
+            fromManager.MoveAmountToSlot(fromSlot.slotIndex, DragAmount, toManager, toSlot.slotIndex);
+        }
+        else if (fromManager == toManager)
+        {
             fromManager.SwapSlots(fromSlot.slotIndex, toSlot.slotIndex);
         }
         else
         {
-            // ´Ù¸¥ ÀÎº¥Åä¸® °£ ½½·Ô ÀÌµ¿ (±³È¯)
             fromManager.MoveSlotTo(fromSlot.slotIndex, toManager, toSlot.slotIndex);
         }
 
