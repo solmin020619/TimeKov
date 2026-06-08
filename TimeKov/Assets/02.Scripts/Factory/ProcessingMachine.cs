@@ -10,12 +10,12 @@ namespace TIMEKOV.Factory
         public string machineName = "설비";
         public override string MachineName => !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
 
-        [Header("제작 시간")]
-        [Tooltip("1회 가공 소요 시간(초). 레벨 배율이 곱해져 실제 시간이 결정됨.")]
+        [Header("제작 시간 (폴백)")]
+        [Tooltip("시트 레시피에 craftTime 이 없을 때만 쓰는 폴백(초). 평소엔 레시피별 시트 craftTime 사용.")]
         public float processingTime = 5f;
 
-        [Header("조합식 목록")]
-        [SerializeField] private List<FactoryRecipe> recipes = new();
+        // 레시피는 시트(RecipeData/RecipeInputData)에서 런타임 로드 — 인스펙터 편집 안 함.
+        private List<FactoryRecipe> recipes = new();
 
         public float Progress { get; private set; }
         public bool IsProcessing => _processing;
@@ -36,10 +36,42 @@ namespace TIMEKOV.Factory
         protected virtual void Start()
         {
             _loopSound = GetComponent<MachineLoopSound>();
+            TryLoadRecipesFromSheet();
         }
 
         private void OnDestroy()
         {
+            DataBoot.OnDataLoaded -= OnDataLoaded;
+        }
+
+        // ── 시트 레시피 로드 ────────────────────────────────────────────────
+        // 데이터가 이미 로드됐으면 즉시, 아직이면 DataBoot.OnDataLoaded 시점에 로드.
+        private void TryLoadRecipesFromSheet()
+        {
+            if (DataBoot.IsLoaded)
+                LoadRecipesFromSheet();
+            else
+                DataBoot.OnDataLoaded += OnDataLoaded;
+        }
+
+        private void OnDataLoaded()
+        {
+            DataBoot.OnDataLoaded -= OnDataLoaded;
+            LoadRecipesFromSheet();
+        }
+
+        // FacilityId 기준 시트 레시피를 빌드해 recipes 를 채운다 (인스펙터 하드코딩 대체).
+        public void LoadRecipesFromSheet()
+        {
+            int fid = FacilityId;
+            if (fid <= 0) return;
+
+            recipes = FactoryRecipeBuilder.BuildForFacility(fid);
+            LockedRecipeIndex = -1;
+
+            var facility = GameDataUtility.GetFacility(fid);
+            if (facility != null && !string.IsNullOrEmpty(facility.facilityName))
+                machineName = facility.facilityName;
         }
 
         /// <summary>
@@ -167,11 +199,12 @@ namespace TIMEKOV.Factory
             InputBuffer.ConsumeAll(recipe.inputs);
             NotifyBufferChanged();
 
-            // 설비 단위 제작 시간에 레벨 배율 적용
+            // 레시피별 시트 제작시간(craftTime) 우선, 없으면 processingTime 폴백. 레벨 배율 적용.
+            float baseTime = recipe.craftTime > 0f ? recipe.craftTime : processingTime;
             var facilityInst = GetComponent<FacilityInstance>();
             float actualTime = facilityInst != null
-                ? facilityInst.GetFinalProcessTime(processingTime)
-                : processingTime;
+                ? facilityInst.GetFinalProcessTime(baseTime)
+                : baseTime;
 
             float elapsed = 0f;
             while (elapsed < actualTime)

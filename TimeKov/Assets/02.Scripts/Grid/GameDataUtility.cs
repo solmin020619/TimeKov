@@ -1,13 +1,13 @@
 // =====================================================================
 // GameDataUtility.cs
-// »õ ½ºÅ°¸¶ ±â¹İ µ¥ÀÌÅÍ Á¶È¸ À¯Æ¿¸®Æ¼ (±¸¹öÀü DataStoreUtility ´ëÃ¼)
+// ê° ì‹œíŠ¸ ë°ì´í„° ì¡°íšŒ ìœ í‹¸ë¦¬í‹° (êµ¬ë²„ì „ DataStoreUtility ëŒ€ì²´)
 // =====================================================================
 
 using System.Collections.Generic;
 
 public static class GameDataUtility
 {
-    // itemId ·Î ItemDataSheetData Á¶È¸
+    // itemId ë¡œ ItemDataSheetData ì¡°íšŒ
     public static ItemDataSheetData GetItem(int itemId)
     {
         if (GameDataHolder.I.ItemData.TryGet(itemId.ToString(), out var data))
@@ -15,7 +15,7 @@ public static class GameDataUtility
         return null;
     }
 
-    // facilityId ·Î FacilityDataSheetData Á¶È¸
+    // facilityId ë¡œ FacilityDataSheetData ì¡°íšŒ
     public static FacilityDataSheetData GetFacility(int facilityId)
     {
         if (GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out var data))
@@ -23,7 +23,7 @@ public static class GameDataUtility
         return null;
     }
 
-    // facilityId ¿¡ ÇØ´çÇÏ´Â ·¹½ÃÇÇ ¸ñ·Ï ¹İÈ¯
+    // facilityId ì— í•´ë‹¹í•˜ëŠ” ë ˆì‹œí”¼ ëª©ë¡ ë°˜í™˜
     public static List<RecipeDataSheetData> GetRecipesByFacilityId(int facilityId)
     {
         var result = new List<RecipeDataSheetData>();
@@ -38,7 +38,7 @@ public static class GameDataUtility
         return result;
     }
 
-    // facilityId + level º¹ÇÕÅ°·Î FacilityLevelData Á¶È¸
+    // facilityId + level ë³µí•©í‚¤ë¡œ FacilityLevelData ì¡°íšŒ
     public static FacilityLevelDataSheetData GetFacilityLevelRow(int facilityId, int level)
     {
         string key = $"{facilityId}_{level}";
@@ -47,5 +47,29 @@ public static class GameDataUtility
             return row;
 
         return null;
+    }
+
+    // recipeId ì˜ ì…ë ¥ ì¬ë£Œë¥¼ (itemId, count) ëª©ë¡ìœ¼ë¡œ ë°˜í™˜.
+    // RecipeInputData ëŠ” ê°œë³„ í•„ë“œ ì—†ì´ ë³µí•©í‚¤ SheetId("recipeId_inputItemId")ë§Œ ê°€ì§€ë¯€ë¡œ
+    // ë³µí•©í‚¤ íŒŒì‹±ì„ ì´ ë©”ì„œë“œ í•œ ê³³ì— ì§‘ì¤‘í•œë‹¤ (recipeId/itemId ìì²´ì—” '_' ì—†ìŒ).
+    public static List<(int itemId, int count)> GetRecipeInputs(string recipeId)
+    {
+        var result = new List<(int itemId, int count)>();
+        if (string.IsNullOrEmpty(recipeId)) return result;
+
+        foreach (var input in GameDataHolder.I.RecipeInputData.All)
+        {
+            string key = input.SheetId;
+            if (string.IsNullOrEmpty(key)) continue;
+
+            int us = key.LastIndexOf('_');
+            if (us < 0) continue;
+
+            if (key.Substring(0, us) != recipeId) continue;   // ì•ë¶€ë¶„ = recipeId
+
+            if (int.TryParse(key.Substring(us + 1), out int itemId) && itemId > 0)
+                result.Add((itemId, input.inputCount));        // ë’·ë¶€ë¶„ = inputItemId
+        }
+        return result;
     }
 }
