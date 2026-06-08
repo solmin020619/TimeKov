@@ -668,6 +668,10 @@ PrefabInstance:
       value: 0.993
       objectReference: {fileID: 0}
     - target: {fileID: -2859636979221123976, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -2859636979221123976, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 5a9f3bfc492fcb9418559d807df5815d, type: 2}
@@ -696,9 +700,17 @@ PrefabInstance:
       value: 2.4336708
       objectReference: {fileID: 0}
     - target: {fileID: 4636747481057070269, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4636747481057070269, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 2b08ca3c46ad066469f924596a53a7d3, type: 2}
+    - target: {fileID: 6420796361495185029, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 6420796361495185029, guid: 3f20139daf3f4e3408d2b7a94a7a7d2e, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -770,34 +782,6 @@ MonoBehaviour:
   inputPort: {fileID: 2159382848285512016}
   machineName: "\uC0DD\uCCB4 \uCD94\uCD9C\uAE30"
   processingTime: 5
-  recipes:
-  - recipeName: "\uC0DD\uCCB4 \uD68C\uBCF5 \uC824"
-    inputs:
-    - itemId: 1101
-      amount: 1
-    - itemId: 1102
-      amount: 1
-    outputs:
-    - itemId: 1201
-      amount: 1
-  - recipeName: "\uC57C\uC218 \uD65C\uC131 \uCD94\uCD9C\uC561"
-    inputs:
-    - itemId: 1106
-      amount: 2
-    - itemId: 1107
-      amount: 1
-    outputs:
-    - itemId: 1204
-      amount: 1
-  - recipeName: "\uB18D\uCD95 \uC0DD\uCCB4 \uC601\uC591\uC561"
-    inputs:
-    - itemId: 1103
-      amount: 2
-    - itemId: 1104
-      amount: 1
-    outputs:
-    - itemId: 1202
-      amount: 1
   LockedRecipeIndex: -1
 --- !u!114 &-2193016134446586921
 MonoBehaviour:

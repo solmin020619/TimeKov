@@ -793,9 +793,21 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8641050984684442607}
     m_Modifications:
+    - target: {fileID: 65670629462831723, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 3500918210047874397, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
       propertyPath: m_Name
       value: mixer
+      objectReference: {fileID: 0}
+    - target: {fileID: 3522982718468966234, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3737346367336419478, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4313905544712277991, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
       propertyPath: m_LocalPosition.x
@@ -837,6 +849,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7347481384337281111, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7347481384337281111, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 977109f2f1fd9a74da98d98102d538f7, type: 2}
+    - target: {fileID: 9181377441942047221, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 9181377441942047221, guid: 3738f22a18dd6bb4994e145c271eee51, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 977109f2f1fd9a74da98d98102d538f7, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1120,21 +1148,6 @@ MonoBehaviour:
   inputPort: {fileID: 166708803800471700}
   machineName: "\uC0DD\uCCB4 \uBC30\uC591\uAE30"
   processingTime: 5
-  recipes:
-  - recipeName: "\uC18C\uD615 \uB098\uB178 \uD790\uB9C1 \uC570\uD50C"
-    inputs:
-    - itemId: 1201
-      amount: 1
-    outputs:
-    - itemId: 5101
-      amount: 1
-  - recipeName: "\uC2A4\uD14C\uBBF8\uB098 \uC570\uD50C"
-    inputs:
-    - itemId: 1202
-      amount: 1
-    outputs:
-    - itemId: 5112
-      amount: 1
   LockedRecipeIndex: -1
 --- !u!114 &-8972336924689333444
 MonoBehaviour:

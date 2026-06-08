@@ -930,7 +930,6 @@ MonoBehaviour:
   inputPort: {fileID: 2021674841979517255}
   machineName: "\uCF54\uC5B4 \uD569\uC131\uAE30"
   processingTime: 5
-  recipes: []
   LockedRecipeIndex: -1
 --- !u!114 &2726790970051960248
 MonoBehaviour:
@@ -994,6 +993,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1419892068476591272}
     m_Modifications:
+    - target: {fileID: 432440379987370926, guid: 3bfdc98167658d5478a628c23cfc7c24, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1236228880197061053, guid: 3bfdc98167658d5478a628c23cfc7c24, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 3647785512928658503, guid: 3bfdc98167658d5478a628c23cfc7c24, type: 3}
       propertyPath: m_Name
       value: synthesizer
@@ -1049,6 +1056,18 @@ PrefabInstance:
     - target: {fileID: 4167053637117124349, guid: 3bfdc98167658d5478a628c23cfc7c24, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5345868143602553387, guid: 3bfdc98167658d5478a628c23cfc7c24, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7104127730890971502, guid: 3bfdc98167658d5478a628c23cfc7c24, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7595937687514924855, guid: 3bfdc98167658d5478a628c23cfc7c24, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

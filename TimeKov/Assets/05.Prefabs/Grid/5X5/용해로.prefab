@@ -1271,7 +1271,6 @@ MonoBehaviour:
   inputPort: {fileID: 7782537121518882179}
   machineName: "\uC6A9\uD574\uB85C"
   processingTime: 5
-  recipes: []
   LockedRecipeIndex: -1
 --- !u!114 &2720681306392532451
 MonoBehaviour:
@@ -1381,6 +1380,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -4511608534375166962, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -4511608534375166962, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: bff50f55f17da624ba2b50e6c367ee25, type: 2}
@@ -1389,13 +1392,25 @@ PrefabInstance:
       value: blast furnace
       objectReference: {fileID: 0}
     - target: {fileID: 944221183892552506, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 944221183892552506, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 3c7d5b09e9b657a4d9621803dbcdb122, type: 2}
     - target: {fileID: 6215430063954507650, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6215430063954507650, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: aa8fed97c72617b41b25c6f05a6ad6df, type: 2}
+    - target: {fileID: 6403585439489842296, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 6403585439489842296, guid: 7b51f70c5551af34487ae1724ccc8872, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 

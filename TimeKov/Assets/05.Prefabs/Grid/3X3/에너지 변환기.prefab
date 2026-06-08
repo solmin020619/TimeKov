@@ -554,6 +554,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -4447984624665640506, guid: 6335942ac7c35cb428a92cf366c39aab, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -4447984624665640506, guid: 6335942ac7c35cb428a92cf366c39aab, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: f4ee07bd8a14e9f4dbd0bc9a4a347fdc, type: 2}
@@ -661,49 +665,6 @@ MonoBehaviour:
   inputPort: {fileID: 6497337500786869867}
   machineName: "\uC5D0\uB108\uC9C0 \uBCC0\uD658\uAE30"
   processingTime: 5
-  recipes:
-  - recipeName: "\uBCC0\uC774 \uC2DD\uBB3C \uC12C\uC720"
-    inputs:
-    - itemId: 4201
-      amount: 1
-    outputs:
-    - itemId: 1101
-      amount: 1
-  - recipeName: "\uC218\uBAA9 \uCF54\uC5B4 \uC218\uC561"
-    inputs:
-    - itemId: 4202
-      amount: 1
-    outputs:
-    - itemId: 1102
-      amount: 1
-  - recipeName: "\uC554\uD751 \uAC70\uBBF8 \uC2E4\uC0D8"
-    inputs:
-    - itemId: 4203
-      amount: 1
-    outputs:
-    - itemId: 1103
-      amount: 1
-  - recipeName: "\uC624\uC5FC \uD3EC\uC790\uB0AD"
-    inputs:
-    - itemId: 4204
-      amount: 1
-    outputs:
-    - itemId: 1204
-      amount: 1
-  - recipeName: "\uBD80\uC2DD\uC131 \uCCB4\uC561"
-    inputs:
-    - itemId: 4205
-      amount: 1
-    outputs:
-    - itemId: 3101
-      amount: 1
-  - recipeName: "\uBD88\uC548\uC815 \uAC00\uC2A4\uB0AD"
-    inputs:
-    - itemId: 4206
-      amount: 1
-    outputs:
-    - itemId: 3102
-      amount: 1
   LockedRecipeIndex: -1
 --- !u!114 &-4588088495583751210
 MonoBehaviour:

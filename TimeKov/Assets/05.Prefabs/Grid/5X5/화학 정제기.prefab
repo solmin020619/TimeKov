@@ -933,39 +933,6 @@ MonoBehaviour:
   inputPort: {fileID: 5902649821742554444}
   machineName: "\uD654\uD559 \uC815\uC81C\uAE30"
   processingTime: 5
-  recipes:
-  - recipeName: "\uACE0\uD6A8\uC728 \uC5F0\uB8CC \uCD09\uB9E4"
-    inputs:
-    - itemId: 3102
-      amount: 4
-    outputs:
-    - itemId: 3108
-      amount: 1
-  - recipeName: "\uBC29\uD638 \uD3F4\uB9AC\uBA38 \uC6D0\uB2E8"
-    inputs:
-    - itemId: 3101
-      amount: 2
-    outputs:
-    - itemId: 3109
-      amount: 1
-  - recipeName: "\uBC29\uC5B4\uB825 \uC570\uD50C"
-    inputs:
-    - itemId: 1202
-      amount: 2
-    - itemId: 3109
-      amount: 1
-    outputs:
-    - itemId: 5108
-      amount: 1
-  - recipeName: "\uACF5\uACA9\uB825 \uC570\uD514"
-    inputs:
-    - itemId: 1204
-      amount: 1
-    - itemId: 3108
-      amount: 1
-    outputs:
-    - itemId: 5106
-      amount: 1
   LockedRecipeIndex: -1
 --- !u!114 &2458546608518631032
 MonoBehaviour:
@@ -1038,6 +1005,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: extruder
       objectReference: {fileID: 0}
+    - target: {fileID: 3340054396287869492, guid: 9e34eaec980f1b048beb9a65afea4f84, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 3369765475316391073, guid: 9e34eaec980f1b048beb9a65afea4f84, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.252
@@ -1078,6 +1049,26 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4200721220372612763, guid: 9e34eaec980f1b048beb9a65afea4f84, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6401441962083530856, guid: 9e34eaec980f1b048beb9a65afea4f84, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6915189033238972775, guid: 9e34eaec980f1b048beb9a65afea4f84, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7085998293584997351, guid: 9e34eaec980f1b048beb9a65afea4f84, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7085998293584997351, guid: 9e34eaec980f1b048beb9a65afea4f84, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 73d66f9be875709429b8326234c0deca, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
