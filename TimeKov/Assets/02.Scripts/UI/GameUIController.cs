@@ -43,6 +43,10 @@ public class GameUIController : MonoBehaviour
     [Tooltip("항상 화면에 표시되는 퀘스트 HUD — CanvasGroup 필수 (SetActive 대신 alpha로 숨겨 QuestPanelUI 구독 유지)")]
     public GameObject questHud;
 
+    [Tooltip("머신/인벤 등 큰 패널이 열렸을 때 퀘스트 HUD 알파 (덜 거슬리게). 0~1, 보이되 흐리게.")]
+    [Range(0f, 1f)]
+    public float questHudDimmedAlpha = 0.4f;
+
     [Header("Player Stat (C키)")]
     [Tooltip("C키로 여닫는 플레이어 스탯창 패널")]
     public GameObject statPanel;
@@ -61,6 +65,7 @@ public class GameUIController : MonoBehaviour
     private UIState _currentState = UIState.None;
     private BuildManager _buildManager;
     private CanvasGroup _questHudGroup;
+    private bool _tutorialCoachActive;   // 튜토리얼 코치마크(오버레이) 표시 중 — 퀘스트 트래커 숨김
 
     // ── 초기화 ───────────────────────────────────────────────────────
 
@@ -72,6 +77,16 @@ public class GameUIController : MonoBehaviour
 
         if (questHud != null)
             _questHudGroup = questHud.GetComponent<CanvasGroup>();
+
+        // 튜토리얼 스포트라이트 "status_panel" 타깃 = C 스탯창의 보이는 배경(StatBG).
+        // statPanel(Character_stat)은 100x100 앵커 노드라 그대로 쓰면 박스가 작게 잡힌다.
+        // 실제 창 크기인 StatBG(600x350)를 우선 등록하고, 못 찾으면 statPanel로 폴백.
+        if (statPanel != null)
+        {
+            var statRect = statPanel.transform.Find("StatBG") as RectTransform
+                        ?? statPanel.GetComponent<RectTransform>();
+            if (statRect != null) TutorialOverlay.RegisterTarget("status_panel", statRect);
+        }
     }
 
     protected virtual void Update()
@@ -302,6 +317,37 @@ public class GameUIController : MonoBehaviour
     /// <summary>구 PauseMenuManager 호환용</summary>
     public void ClosePauseSettings() => CloseSettings();
 
+    // ── 퀘스트 HUD / 튜토리얼 코치마크 ───────────────────────────────
+
+    /// <summary>튜토리얼 코치마크(오버레이) 표시 중 퀘스트 트래커 숨김. TutorialOverlay가 호출.</summary>
+    public void SetTutorialCoachActive(bool active)
+    {
+        _tutorialCoachActive = active;
+        RefreshQuestHudAlpha();
+        // 코치마크 동안 이동/공격/대시/스킬/카메라 차단 (C키·오버레이 진행은 raw Input이라 영향 없음).
+        // 넘기면 Hide -> SetTutorialCoachActive(false)로 복귀.
+        SetGameplayInputEnabled(_currentState == UIState.None && !_tutorialCoachActive);
+    }
+
+    // 퀘스트 HUD 알파 — 코치마크 우선, 그다음 _currentState 기준 (SetActive 금지: QuestPanelUI 구독 유지).
+    void RefreshQuestHudAlpha()
+    {
+        if (_questHudGroup == null) return;
+
+        if (_tutorialCoachActive)
+            _questHudGroup.alpha = 0f;   // 코치마크 중 — 트래커 숨김(배너와 중복 방지)
+        else if (_currentState == UIState.None || _currentState == UIState.Build || _currentState == UIState.CoreUpgrade)
+            _questHudGroup.alpha = 1f;   // 게임플레이·건설·코어강화(좌상단 안 가림) 안내
+        else if (_currentState == UIState.Inventory || _currentState == UIState.Factory)
+            _questHudGroup.alpha = questHudDimmedAlpha;   // 큰 패널 겹침 — 흐리게
+        else
+            _questHudGroup.alpha = 0f;
+
+        // HUD는 정보 표시 전용 — 클릭 절대 가로채지 않음 (공장 드래그가 뒤로 빠지는 문제 방지)
+        _questHudGroup.interactable = false;
+        _questHudGroup.blocksRaycasts = false;
+    }
+
     // ── 내부 상태 적용 ───────────────────────────────────────────────
 
     protected virtual void ApplyState()
@@ -317,22 +363,8 @@ public class GameUIController : MonoBehaviour
 
         // 플레이어 스탯창은 _currentState와 독립이라 여기서 안 건드림 (TogglePlayerStat이 직접 관리)
 
-        // 퀘스트 HUD — CanvasGroup으로 숨김 (SetActive 금지: QuestPanelUI 구독 해제 방지)
-        // Build 모드에서도 퀘스트는 계속 보여야 함 (튜토리얼 진행 안내용)
-        if (_questHudGroup != null)
-        {
-            bool showQuest = _currentState == UIState.None
-                          || _currentState == UIState.Build
-                          || _currentState == UIState.Inventory
-                          || _currentState == UIState.Factory;
-            _questHudGroup.alpha = showQuest ? 1f : 0f;
-
-            // HUD 정책: 정보 표시 전용, 클릭은 절대 가로채지 않음.
-            // (전시에서 공장 드래그앤드롭이 questHud 뒤로 빠지는 문제 → blocksRaycasts=false 강제)
-            // questHud 내부에 클릭이 필요한 위젯이 있다면 그 위젯만 별도 Canvas+GraphicRaycaster로 분리할 것.
-            _questHudGroup.interactable = false;
-            _questHudGroup.blocksRaycasts = false;
-        }
+        // 퀘스트 HUD 알파 (코치마크/상태 기준) — Build 모드에서도 퀘스트는 계속 보임(튜토 안내용)
+        RefreshQuestHudAlpha();
 
         // 플레이어 HUD — 다른 UI가 열리면 숨김 (PlayerStat은 _currentState와 독립이라 영향 없음)
         if (playerHud != null)
@@ -350,8 +382,8 @@ public class GameUIController : MonoBehaviour
         }
 
         // 커서 + 입력 플래그
-        // None 상태일 때만 게임플레이 입력 활성화 (PlayerStat은 _currentState와 독립이라 영향 없음)
-        bool gameplay = _currentState == UIState.None;
+        // None 상태 + 코치마크(튜토 오버레이) 아님일 때만 게임플레이 입력 활성화
+        bool gameplay = _currentState == UIState.None && !_tutorialCoachActive;
         SetGameplayInputEnabled(gameplay);
 
         // 설정창이 열릴 때만 시간 정지

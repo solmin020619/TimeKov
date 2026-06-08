@@ -27,5 +27,9 @@ namespace TIMEKOV.Factory
 
         [Tooltip("출력 결과물")]
         public FactorySlot[] outputs;
+
+        // 시트 연동 필드 (FactoryRecipeBuilder 가 RecipeData 에서 채움)
+        public string recipeId = "";
+        public float craftTime = 0f;   // 0 이면 머신 기본 processingTime 폴백
     }
 }

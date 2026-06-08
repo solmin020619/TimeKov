@@ -71,6 +71,7 @@ public class RailBuildManager : MonoBehaviour
 
     private readonly Dictionary<Vector2Int, RailPiece> railMap = new();
     private readonly List<Vector2Int> currentPathCells = new();
+    private readonly List<Vector2Int> _gapTargetBuffer = new List<Vector2Int>(4);
 
     private Vector2Int lastPreviewCell = NoCell;
     private bool lastPreviewValid = false;
@@ -593,8 +594,9 @@ public class RailBuildManager : MonoBehaviour
             }
             else if (TryGetMouseCell(out Vector2Int startCell))
             {
-                // 포트가 아니더라도 기존 레일 셀에서 이어 시작 가능
-                TryStartRouteFromCell(startCell);
+                // 빈 칸이 인접 레일 2개 사이의 gap 이면 자동 연결, 아니면 기존(기존레일에서 라우팅 시작)
+                if (!TryGapFill(startCell))
+                    TryStartRouteFromCell(startCell);
             }
             return;
         }
@@ -611,6 +613,184 @@ public class RailBuildManager : MonoBehaviour
 
         if (TryGetMouseCell(out Vector2Int cell))
             TryPlacePathToward(cell);
+    }
+
+    // 빈 칸을 클릭하면 인접한 기존 레일 "정확히 2개"(빈 슬롯 있는)에 자동 연결해 gap 을 메운다.
+    // 직선/코너만(2개). 0/1/3+ 개는 모호하거나 무의미해서 기존 동작에 맡김(false 반환).
+    // 레일-레일 연결만 처리 (포트 직접 연결은 기존 드래그 흐름 사용). ConnectOrCreateRail 재사용.
+    private bool TryGapFill(Vector2Int cell)
+    {
+        if (CollectGapFillTargets(cell, _gapTargetBuffer) != 2)
+            return false;   // 정확히 2개일 때만 다리 놓기 (직선/코너)
+
+        Vector2Int a = _gapTargetBuffer[0];
+        Vector2Int b = _gapTargetBuffer[1];
+
+        bool any = false;
+        any |= ConnectOrCreateRail(cell, a);   // cell 생성 + 양방향 연결 + 비주얼까지 처리
+        any |= ConnectOrCreateRail(cell, b);
+        if (!any) return false;
+
+        // 연결로 합쳐진 체인 전체의 flow(화살표/_PathOffset)를 한 방향으로 재계산.
+        // C 한 칸만 세팅하면 기존 체인과 어긋나 접합부 화살표가 뒤집힌다.
+        ReflowConnectedChain(cell);
+
+        RefreshIndicators();
+        Log($"[Rail] Gap-filled at {cell} ({a} <-> {b})");
+        return true;
+    }
+
+    // gap-fill 대상(빈 슬롯 있는 인접 레일) 수집. 반환값 == 이 빈 칸에 연결 가능한 인접 레일 수.
+    // TryGapFill(실제 연결) + IsGapFillCandidate(프리뷰 녹/적 판정) 공용.
+    private int CollectGapFillTargets(Vector2Int cell, List<Vector2Int> targets)
+    {
+        targets.Clear();
+        if (isRouting) return 0;
+        if (railMap.ContainsKey(cell)) return 0;                      // 빈 칸 전용
+        if (owner != null && (!owner.IsCellInBuildZone(cell) || owner.IsCellOccupied(cell)))
+            return 0;                                                 // 존 밖 / 설비 위 금지
+
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        foreach (Vector2Int dir in dirs)
+        {
+            Vector2Int n = cell + dir;
+            if (railMap.TryGetValue(n, out RailPiece np) && np != null && CanAddConnection(np, cell))
+                targets.Add(n);
+        }
+        return targets.Count;
+    }
+
+    // 빈 칸이 gap-fill 가능한지(프리뷰 녹색 판정용). 실제 연결은 안 함.
+    private bool IsGapFillCandidate(Vector2Int cell)
+        => CollectGapFillTargets(cell, _gapTargetBuffer) == 2;
+
+    // 연결된 레일 체인(셀당 최대 2연결 -> 단순 경로/루프, 분기 없음) 전체의 flow 를
+    // 한쪽 끝(source)에서 반대 끝까지 일관 재계산. gap-fill 로 두 체인이 합쳐졌을 때
+    // 화살표/_PathOffset 이 끊기거나 뒤집히는 것 방지.
+    private void ReflowConnectedChain(Vector2Int seedCell)
+    {
+        if (!railMap.ContainsKey(seedCell)) return;
+
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        // 1. 연결된 컴포넌트 수집
+        HashSet<Vector2Int> component = new HashSet<Vector2Int>();
+        Queue<Vector2Int> bfs = new Queue<Vector2Int>();
+        component.Add(seedCell);
+        bfs.Enqueue(seedCell);
+        while (bfs.Count > 0)
+        {
+            Vector2Int c = bfs.Dequeue();
+            if (!railMap.TryGetValue(c, out RailPiece p) || p == null) continue;
+            foreach (Vector2Int d in dirs)
+            {
+                Vector2Int n = c + d;
+                if (component.Contains(n)) continue;
+                if (!IsConnectedTo(p, n)) continue;
+                if (!railMap.ContainsKey(n)) continue;
+                component.Add(n);
+                bfs.Enqueue(n);
+            }
+        }
+
+        // 2. source 끝점 선택 (Output 포트 끝 우선)
+        Vector2Int start = ChooseFlowStart(component, out BuildPort sourcePort);
+        if (start == NoCell) return;
+
+        // 3. 경로를 따라 걸으며 flow / pathIndex 재계산
+        Vector2Int prev = NoCell;
+        Vector2Int curr = start;
+        int index = 0;
+        HashSet<Vector2Int> walked = new HashSet<Vector2Int>();
+
+        while (railMap.TryGetValue(curr, out RailPiece piece) && piece != null && walked.Add(curr))
+        {
+            Vector2Int next = FindNextInChain(curr, piece, prev, component, walked, dirs);
+
+            Vector2Int flowFrom;
+            if (prev == NoCell)
+            {
+                // 시작 셀: 포트면 -worldDir, 아니면 다음 셀 반대쪽(체인 바깥)에서 들어오는 것으로.
+                if (sourcePort != null)
+                    flowFrom = -sourcePort.GetWorldDirection();
+                else if (next != NoCell)
+                    flowFrom = curr - next;
+                else
+                    flowFrom = ComputeStartCellFlowFrom(piece);
+            }
+            else
+            {
+                flowFrom = prev - curr;
+            }
+
+            piece.flowFrom = flowFrom;
+            piece.pathIndex = index++;
+            piece.ApplyVisual(straightPrefab, cornerPrefab);
+
+            if (next == NoCell) break;
+            prev = curr;
+            curr = next;
+        }
+    }
+
+    // 컴포넌트 안에서 아직 안 걸은 다음 연결 셀 하나 반환 (없으면 NoCell).
+    private Vector2Int FindNextInChain(Vector2Int curr, RailPiece piece, Vector2Int prev,
+        HashSet<Vector2Int> component, HashSet<Vector2Int> walked, Vector2Int[] dirs)
+    {
+        foreach (Vector2Int d in dirs)
+        {
+            Vector2Int n = curr + d;
+            if (n == prev) continue;
+            if (!IsConnectedTo(piece, n)) continue;
+            if (!component.Contains(n)) continue;
+            if (walked.Contains(n)) continue;
+            return n;
+        }
+        return NoCell;
+    }
+
+    // flow source 로 쓸 시작 셀 선택. 끝점(degree<=1) 우선, 그 중 Output 포트 > 일반 dead-end > Input 포트.
+    // 동점이면 좌표 낮은 셀(결정적). 끝점이 없으면(루프) 좌표 낮은 중간 셀.
+    private Vector2Int ChooseFlowStart(HashSet<Vector2Int> component, out BuildPort sourcePort)
+    {
+        sourcePort = null;
+        Vector2Int best = NoCell;
+        int bestScore = int.MinValue;
+
+        foreach (Vector2Int c in component)
+        {
+            if (!railMap.TryGetValue(c, out RailPiece p) || p == null) continue;
+
+            int degree = GetConnectionCount(p);
+            cachedPortByFrontCell.TryGetValue(c, out BuildPort portHere);
+
+            int score;
+            if (degree <= 1)
+            {
+                if (portHere != null && portHere.portType == PortType.Output) score = 4;
+                else if (portHere != null && portHere.portType == PortType.Input) score = 1; // sink -> 마지막 수단
+                else score = 3;                                                              // 일반 dead-end
+            }
+            else
+            {
+                score = 0;   // 중간 셀(루프 포함) - source 비선호
+            }
+
+            if (score > bestScore || (score == bestScore && IsLowerCoord(c, best)))
+            {
+                bestScore = score;
+                best = c;
+                sourcePort = (portHere != null && portHere.portType == PortType.Output) ? portHere : null;
+            }
+        }
+
+        return best;
+    }
+
+    private static bool IsLowerCoord(Vector2Int a, Vector2Int b)
+    {
+        if (a.x != b.x) return a.x < b.x;
+        return a.y < b.y;
     }
 
     private bool TryStartRoute(BuildPort port)
@@ -965,6 +1145,7 @@ public class RailBuildManager : MonoBehaviour
         endPort = port;
 
         AssignFlowDirections();
+        GameEvents.RaiseRailConnected();   // 튜토리얼 등 통지 (포트-포트 연결 완료)
 
         Log($"[Rail] Route completed: {(startPort != null ? startPort.name : "[cell-start]")} -> {endPort.name}");
 
@@ -1025,6 +1206,11 @@ public class RailBuildManager : MonoBehaviour
         // [BuildZone] 레일도 시설과 동일하게 건축존 안에서만 배치. 존 밖 셀은 거부.
         // 프리뷰/라우팅/실제배치 전부 이 메서드를 거치므로 한 곳만 막으면 모두 적용됨.
         if (owner != null && !owner.IsCellInBuildZone(cell))
+            return false;
+
+        // [점유] 설비가 점유한 셀은 레일이 못 지나가게 거부 (설비 중앙 관통 방지).
+        // 단 포트 연결셀(front cell)은 예외 - 그래야 포트에서 레일 시작/연결이 됨.
+        if (owner != null && owner.IsCellOccupied(cell) && !cachedPortByFrontCell.ContainsKey(cell))
             return false;
 
         if (!railMap.TryGetValue(cell, out RailPiece existingPiece))
@@ -1291,6 +1477,11 @@ public class RailBuildManager : MonoBehaviour
                 && railMap.TryGetValue(targetCell, out RailPiece existing)
                 && existing != null
                 && GetConnectionCount(existing) < 2)
+            {
+                valid = true;
+            }
+            // 빈 칸이지만 양옆 레일 2개를 이어줄 수 있는 gap 이면 설치 가능 (녹색)
+            else if (!isRouting && IsGapFillCandidate(targetCell))
             {
                 valid = true;
             }

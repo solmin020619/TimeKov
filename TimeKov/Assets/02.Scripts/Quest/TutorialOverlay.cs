@@ -1,0 +1,323 @@
+using System;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// 엔드필드식 단계별 코치마크 오버레이.
+/// - 화면을 어둡게 깔고, 지정한 UI 타깃 영역만 밝게(4-스트립 스포트라이트).
+/// - 상단 배너 텍스트 + "아무 곳이나 눌러 계속하기".
+/// UI를 코드로 자동 생성하므로 씬 세팅 불필요 (lazy 싱글턴).
+/// ContinueObjective 가 ShowContinueStep / Hide 를 호출한다.
+/// </summary>
+public class TutorialOverlay : MonoBehaviour
+{
+    // ── 싱글턴 (lazy, 런타임 자동 생성) ───────────────────────────────
+    private static TutorialOverlay _i;
+    public static bool HasInstance => _i != null;
+    public static TutorialOverlay I
+    {
+        get
+        {
+            if (_i == null && Application.isPlaying)
+            {
+                var go = new GameObject("[TutorialOverlay]");
+                _i = go.AddComponent<TutorialOverlay>();
+            }
+            return _i;
+        }
+    }
+
+    // ── 타깃 레지스트리 (UI 요소가 id로 등록) ─────────────────────────
+    // 같은 id에 여러 rect 등록 가능 (예: 재료 슬롯 2칸 → 합집합 영역으로 한 번에 강조).
+    private static readonly Dictionary<string, List<RectTransform>> _targets = new();
+
+    public static void RegisterTarget(string id, RectTransform rect)
+    {
+        if (string.IsNullOrEmpty(id) || rect == null) return;
+        if (!_targets.TryGetValue(id, out var list)) { list = new List<RectTransform>(); _targets[id] = list; }
+        if (!list.Contains(rect)) list.Add(rect);
+    }
+
+    public static void UnregisterTarget(string id, RectTransform rect)
+    {
+        if (string.IsNullOrEmpty(id)) return;
+        if (_targets.TryGetValue(id, out var list))
+        {
+            list.Remove(rect);
+            if (list.Count == 0) _targets.Remove(id);
+        }
+    }
+
+    // ── UI 요소 ───────────────────────────────────────────────────────
+    private RectTransform _root;
+    private Image _fullDim;
+    private Image _top, _bottom, _left, _right;
+    private Image _borderTop, _borderBottom, _borderLeft, _borderRight;
+    private Button _clickCatcher;
+    private RectTransform _bannerBg;
+    private TMP_Text _banner;
+    private TMP_Text _continueLabel;
+
+    private string _spotlightId;
+    private Action _onContinue;
+    private KeyCode _advanceKey;
+    private bool _active;
+
+    private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.88f);
+    private static readonly Color BorderColor = new Color(1f, 0.85f, 0.2f, 1f);   // 계속 라벨과 동일 금색
+    private const float SpotlightPadPx = 8f;
+    private const float BorderThicknessPx = 3f;
+    private const float ContinueCooldown = 0.2f;   // 표시 직후 잔여 입력으로 즉시 넘어가는 것 방지
+    private float _shownTime;
+
+    private void Awake()
+    {
+        if (_i != null && _i != this) { Destroy(gameObject); return; }
+        _i = this;
+        BuildUI();
+        SetVisible(false);
+    }
+
+    private void OnDestroy() { if (_i == this) _i = null; }
+
+    // ── 외부 API ──────────────────────────────────────────────────────
+
+    /// <summary>안내 단계 표시: 배너 + 스포트라이트 + 계속(클릭 또는 지정 키).</summary>
+    public void ShowContinueStep(string banner, string spotlightTargetId, Action onContinue, KeyCode advanceKey = KeyCode.None)
+    {
+        _spotlightId = spotlightTargetId;
+        _onContinue = onContinue;
+        _advanceKey = advanceKey;
+        _active = true;
+        _shownTime = Time.unscaledTime;
+
+        if (_banner != null)
+        {
+            _banner.text = banner ?? string.Empty;
+            _banner.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(banner));
+        }
+
+        _clickCatcher.gameObject.SetActive(true);
+        if (_continueLabel != null)
+        {
+            _continueLabel.gameObject.SetActive(true);
+            _continueLabel.text = advanceKey == KeyCode.None
+                ? "▶  아무 곳이나 클릭하여 계속  ◀"
+                : $"▶  {advanceKey} 키를 눌러 계속  ◀";
+        }
+
+        // 코치마크 표시 중 좌측 퀘스트 트래커 숨김 (배너와 중복 방지, 토스트 느낌)
+        GameUIController.Instance?.SetTutorialCoachActive(true);
+
+        SetVisible(true);
+        UpdateSpotlight();   // 첫 프레임부터 정확한 위치
+    }
+
+    public void Hide()
+    {
+        _active = false;
+        _spotlightId = null;
+        _onContinue = null;
+        _advanceKey = KeyCode.None;
+        GameUIController.Instance?.SetTutorialCoachActive(false);   // 트래커 복귀
+        SetVisible(false);
+    }
+
+    // ── 내부 ──────────────────────────────────────────────────────────
+
+    private void SetVisible(bool v)
+    {
+        if (_root != null) _root.gameObject.SetActive(v);
+    }
+
+    private void LateUpdate()
+    {
+        if (!_active) return;
+        UpdateSpotlight();
+
+        // 계속 처리 — uGUI Button(EventSystem) 대신 Input 폴링 (나머지 튜토와 동일 경로, 확실히 작동).
+        if (_onContinue == null) return;
+        if (Time.unscaledTime - _shownTime <= ContinueCooldown) return;
+
+        bool advance = _advanceKey != KeyCode.None
+            ? Input.GetKeyDown(_advanceKey)         // 특정 키로만 (예: C)
+            : Input.GetMouseButtonDown(0);          // 좌클릭에만 (아무 키로 넘어가는 것 방지)
+
+        if (advance) _onContinue.Invoke();
+    }
+
+    private void UpdateSpotlight()
+    {
+        // 같은 id에 등록된 모든 활성 rect의 합집합(union)으로 구멍 영역 계산 (재료 슬롯 2칸 등).
+        bool hasTarget = false;
+        float xMin = 1f, xMax = 0f, yMin = 1f, yMax = 0f;
+
+        if (!string.IsNullOrEmpty(_spotlightId) && _targets.TryGetValue(_spotlightId, out var list))
+        {
+            Vector3[] c = new Vector3[4];
+            float w = Mathf.Max(1, Screen.width);
+            float h = Mathf.Max(1, Screen.height);
+
+            foreach (var target in list)
+            {
+                if (target == null || !target.gameObject.activeInHierarchy) continue;
+
+                target.GetWorldCorners(c);   // 0=BL 1=TL 2=TR 3=BR (world)
+                Canvas tc = target.GetComponentInParent<Canvas>();
+                Camera cam = (tc != null && tc.renderMode != RenderMode.ScreenSpaceOverlay) ? tc.worldCamera : null;
+
+                Vector2 bl = RectTransformUtility.WorldToScreenPoint(cam, c[0]);
+                Vector2 tr = RectTransformUtility.WorldToScreenPoint(cam, c[2]);
+
+                float nxMin = Mathf.Clamp01((Mathf.Min(bl.x, tr.x) - SpotlightPadPx) / w);
+                float nxMax = Mathf.Clamp01((Mathf.Max(bl.x, tr.x) + SpotlightPadPx) / w);
+                float nyMin = Mathf.Clamp01((Mathf.Min(bl.y, tr.y) - SpotlightPadPx) / h);
+                float nyMax = Mathf.Clamp01((Mathf.Max(bl.y, tr.y) + SpotlightPadPx) / h);
+
+                if (!hasTarget) { xMin = nxMin; xMax = nxMax; yMin = nyMin; yMax = nyMax; hasTarget = true; }
+                else { xMin = Mathf.Min(xMin, nxMin); xMax = Mathf.Max(xMax, nxMax); yMin = Mathf.Min(yMin, nyMin); yMax = Mathf.Max(yMax, nyMax); }
+            }
+        }
+
+        // 타깃 없으면 전체 딤(스트립 숨김), 있으면 4스트립으로 구멍 + 금색 테두리
+        _fullDim.enabled = !hasTarget;
+        _top.enabled = _bottom.enabled = _left.enabled = _right.enabled = hasTarget;
+        _borderTop.enabled = _borderBottom.enabled = _borderLeft.enabled = _borderRight.enabled = hasTarget;
+
+        if (!hasTarget) { PositionBanner(true); return; }   // 타깃 없으면 배너 상단(기본)
+
+        SetAnchors(_top.rectTransform, 0f, yMax, 1f, 1f);
+        SetAnchors(_bottom.rectTransform, 0f, 0f, 1f, yMin);
+        SetAnchors(_left.rectTransform, 0f, yMin, xMin, yMax);
+        SetAnchors(_right.rectTransform, xMax, yMin, 1f, yMax);
+
+        // 구멍 둘레 금색 테두리 — 구멍 경계선에 px 두께로 붙임 (바깥쪽)
+        float t = BorderThicknessPx;
+        SetEdge(_borderTop.rectTransform,    xMin, yMax, xMax, yMax, 0f, 0f, 0f, t);
+        SetEdge(_borderBottom.rectTransform, xMin, yMin, xMax, yMin, 0f, -t, 0f, 0f);
+        SetEdge(_borderLeft.rectTransform,   xMin, yMin, xMin, yMax, -t, 0f, 0f, 0f);
+        SetEdge(_borderRight.rectTransform,  xMax, yMin, xMax, yMax, 0f, 0f, t, 0f);
+
+        // 배너가 타깃을 가리지 않게 — 타깃이 화면 위쪽이면 배너를 아래로.
+        PositionBanner(yMax <= 0.7f);
+    }
+
+    // 배너 위치: top=true 상단, false 하단(계속 라벨 위). 타깃을 가리지 않도록.
+    private void PositionBanner(bool top)
+    {
+        if (_bannerBg == null) return;
+        if (top) SetAnchors(_bannerBg, 0.12f, 0.84f, 0.88f, 0.93f);
+        else     SetAnchors(_bannerBg, 0.12f, 0.16f, 0.88f, 0.27f);
+    }
+
+    // ── UI 생성 ───────────────────────────────────────────────────────
+
+    private void BuildUI()
+    {
+        var canvas = gameObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 5000;   // 거의 최상단 (다른 UI 위)
+
+        var scaler = gameObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        gameObject.AddComponent<GraphicRaycaster>();
+
+        _root = (RectTransform)transform;
+
+        _fullDim = NewImage("FullDim", _root, DimColor);
+        Stretch(_fullDim.rectTransform, 0f, 0f, 1f, 1f);
+
+        _top = NewImage("DimTop", _root, DimColor);
+        _bottom = NewImage("DimBottom", _root, DimColor);
+        _left = NewImage("DimLeft", _root, DimColor);
+        _right = NewImage("DimRight", _root, DimColor);
+
+        // 스포트라이트 구멍 테두리 — 딤 스트립 위에 그려지도록 이후 생성
+        _borderTop = NewImage("BorderTop", _root, BorderColor);
+        _borderBottom = NewImage("BorderBottom", _root, BorderColor);
+        _borderLeft = NewImage("BorderLeft", _root, BorderColor);
+        _borderRight = NewImage("BorderRight", _root, BorderColor);
+
+        // 클릭 캐처 (투명, 전체 화면 — 뒤 UI 클릭 차단용. 진행은 LateUpdate 폴링이 담당)
+        _clickCatcher = NewButton("ClickCatcher", _root);
+        Stretch((RectTransform)_clickCatcher.transform, 0f, 0f, 1f, 1f);
+
+        // 상단 배너 (배경 박스 + 텍스트)
+        var bannerBg = NewImage("BannerBg", _root, new Color(0f, 0f, 0f, 0.85f));
+        SetAnchors(bannerBg.rectTransform, 0.12f, 0.84f, 0.88f, 0.93f);
+        _bannerBg = bannerBg.rectTransform;
+        _banner = NewText("BannerText", bannerBg.transform);
+        Stretch(_banner.rectTransform, 0f, 0f, 1f, 1f);
+        _banner.alignment = TextAlignmentOptions.Center;
+        _banner.fontSize = 30f;
+        _banner.enableAutoSizing = true; _banner.fontSizeMin = 16f; _banner.fontSizeMax = 32f;
+        _banner.enableWordWrapping = true;
+        _banner.color = Color.white;
+        _banner.margin = new Vector4(24f, 8f, 24f, 8f);
+
+        // 하단 "아무 곳이나 눌러 계속하기"
+        _continueLabel = NewText("ContinueLabel", _root);
+        SetAnchors(_continueLabel.rectTransform, 0.25f, 0.06f, 0.75f, 0.12f);
+        _continueLabel.alignment = TextAlignmentOptions.Center;
+        _continueLabel.fontSize = 24f;
+        _continueLabel.color = new Color(1f, 0.85f, 0.2f, 1f);
+        _continueLabel.text = "▶  아무 곳이나 클릭하여 계속  ◀";
+    }
+
+    private static Image NewImage(string name, Transform parent, Color col)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var img = go.AddComponent<Image>();
+        img.color = col;
+        img.raycastTarget = false;
+        return img;
+    }
+
+    private static Button NewButton(string name, Transform parent)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0f, 0f, 0f, 0f);   // 투명하지만 raycast는 받음
+        img.raycastTarget = true;
+        var btn = go.AddComponent<Button>();
+        btn.transition = Selectable.Transition.None;
+        return btn;
+    }
+
+    private static TMP_Text NewText(string name, Transform parent)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var t = go.AddComponent<TextMeshProUGUI>();
+        t.raycastTarget = false;
+        return t;
+    }
+
+    private static void Stretch(RectTransform rt, float xMin, float yMin, float xMax, float yMax)
+        => SetAnchors(rt, xMin, yMin, xMax, yMax);
+
+    private static void SetAnchors(RectTransform rt, float xMin, float yMin, float xMax, float yMax)
+    {
+        rt.anchorMin = new Vector2(xMin, yMin);
+        rt.anchorMax = new Vector2(xMax, yMax);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+    }
+
+    // 앵커는 구멍 경계선(0폭/0높이)에 두고 offset(px)으로 두께를 줘 얇은 테두리 바를 만든다.
+    private static void SetEdge(RectTransform rt, float axMin, float ayMin, float axMax, float ayMax,
+                               float ox0, float oy0, float ox1, float oy1)
+    {
+        rt.anchorMin = new Vector2(axMin, ayMin);
+        rt.anchorMax = new Vector2(axMax, ayMax);
+        rt.offsetMin = new Vector2(ox0, oy0);
+        rt.offsetMax = new Vector2(ox1, oy1);
+    }
+}

@@ -57,6 +57,14 @@ namespace TIMEKOV.Factory
         {
             _player = FindFirstObjectByType<Player>();
             _cam    = Camera.main;
+
+            // 씬에 이미 배치된 설비들의 아웃라인을 초기에 모두 OFF
+            // (프리팹 기본값이 ON이어도, 플레이어가 접근할 때만 켜지도록)
+            foreach (var mb in FindObjectsByType<MachineBase>(FindObjectsSortMode.None))
+            {
+                foreach (var outline in mb.GetComponentsInChildren<Outline>(true))
+                    outline.enabled = false;
+            }
         }
 
         // ── 매 프레임 ─────────────────────────────────────────────────────
