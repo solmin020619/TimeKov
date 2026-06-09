@@ -365,7 +365,7 @@ public class BuildManager : MonoBehaviour
     void ShowBuildZoneToast()
     {
         if (buildZoneToast != null)
-            buildZoneToast.Show(buildZoneBlockedMessage);
+            buildZoneToast.Show(buildZoneBlockedMessage, warning: true);
         else
             Debug.Log($"[BuildManager] {buildZoneBlockedMessage} (buildZoneToast 미연결)");
     }
