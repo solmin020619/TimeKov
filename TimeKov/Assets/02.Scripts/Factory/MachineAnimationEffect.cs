@@ -16,8 +16,8 @@ using UnityEngine;
 public class MachineAnimationEffect : MonoBehaviour
 {
     [Header("애니메이션 (선택)")]
-    [Tooltip("재생할 Animator 컴포넌트. 비워두면 애니메이션 제어 생략.")]
-    [SerializeField] private Animator animator;
+    [Tooltip("재생할 Animator 컴포넌트들. 비워두면 애니메이션 제어 생략.")]
+    [SerializeField] private Animator[] animators;
 
     [Header("이펙트 (선택)")]
     [Tooltip("가공 중 재생할 ParticleSystem 목록.")]
@@ -56,8 +56,8 @@ public class MachineAnimationEffect : MonoBehaviour
         _playing = true;
 
         // Animator 활성화
-        if (animator != null)
-            animator.enabled = true;
+        foreach (var anim in animators)
+            if (anim != null) anim.enabled = true;
 
         // ParticleSystem 재생
         foreach (var ps in effects)
@@ -91,18 +91,21 @@ public class MachineAnimationEffect : MonoBehaviour
             ps.Stop(withChildren: true, ParticleSystemStopBehavior.StopEmitting);
         }
 
-        // ② 애니메이션 : 현재 루프가 끝날 때까지 대기
-        if (animator != null && animator.enabled)
+        // ② 애니메이션 : 모든 Animator의 현재 루프가 끝날 때까지 대기 후 비활성화
+        float maxRemaining = 0f;
+        foreach (var anim in animators)
         {
-            var info     = animator.GetCurrentAnimatorStateInfo(0);
-            float frac   = info.normalizedTime % 1f;
+            if (anim == null || !anim.enabled) continue;
+            var info      = anim.GetCurrentAnimatorStateInfo(0);
+            float frac    = info.normalizedTime % 1f;
             float remaining = (frac > 0.001f) ? (1f - frac) * info.length : 0f;
-
-            if (remaining > 0.05f)
-                yield return new WaitForSeconds(remaining);
-
-            animator.enabled = false;
+            if (remaining > maxRemaining) maxRemaining = remaining;
         }
+        if (maxRemaining > 0.05f)
+            yield return new WaitForSeconds(maxRemaining);
+
+        foreach (var anim in animators)
+            if (anim != null) anim.enabled = false;
 
         // ③ 파티클 : 모든 파티클이 사라질 때까지 대기 (최대 maxEffectFadeTime 초)
         float waited = 0f;
@@ -142,7 +145,8 @@ public class MachineAnimationEffect : MonoBehaviour
         if (_stopRoutine != null) { StopCoroutine(_stopRoutine); _stopRoutine = null; }
         _playing = false;
 
-        if (animator != null) animator.enabled = false;
+        foreach (var anim in animators)
+            if (anim != null) anim.enabled = false;
 
         foreach (var ps in effects)
         {

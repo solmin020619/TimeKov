@@ -852,8 +852,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a9844ead624756f49baeb90c25858180, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  animator: {fileID: 0}
-  effects: []
+  animators: []
+  effects:
+  - {fileID: 0}
   maxEffectFadeTime: 5
 --- !u!4 &6914230979970503387 stripped
 Transform:
