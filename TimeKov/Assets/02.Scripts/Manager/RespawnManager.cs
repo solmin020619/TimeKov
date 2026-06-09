@@ -49,6 +49,13 @@ public class RespawnManager : MonoBehaviour
         _isRespawning     = true;
         _respawnRequested = false;
 
+        // 사망 즉시 열려있던 UI 닫기 — 부활 버튼을 인벤/설비 UI가 가리지 않도록 (#27)
+        GameUIController.Instance?.CloseAll();
+
+        // 진행 중이던 공격/스킬 중단 — 그 코루틴이 끝에서 ReturnToLocomotion/ResetToIdle 로
+        // 죽는 애니를 덮어써 가끔 사망 모션이 안 나오던 문제 방지 (#11)
+        _player.Skill?.Interrupt();
+
         // 1. 죽는 애니메이션 + 이동 잠금
         _player.Anim.PlayDie();
         _player.Movement.LockMovement(true);
