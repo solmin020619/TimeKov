@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TimeKov · 공통 토스트 시스템</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    /* tweakable */
+    --font: "Pretendard", system-ui, sans-serif;
+    --in-out: 0.24s;
+    --hold: 1.6s;
+    /* style colors */
+    --c-info: #cdd6e0;
+    --c-success: #ffcc00;
+    --c-warning: #ff9a2e;
+    --c-error: #ff5b63;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: #05070a;
+    color: #e8edf3;
+    overflow: hidden;
+  }
+  #root { height: 100vh; width: 100vw; }
+
+  /* ───────────────── 스테이지 ───────────────── */
+  .stage {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+
+  /* ───────────────── HUD 씬 ───────────────── */
+  .hud { position: absolute; inset: 0; }
+  .hud__bg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    display: block;
+    /* 기본 CSS 씬 — sci-fi 기지 분위기 */
+    background:
+      radial-gradient(120% 90% at 72% 8%, #1c2a38 0%, #0c141d 46%, #060a0f 100%),
+      linear-gradient(180deg, #0a1118, #05080c);
+  }
+  .hud__bg::part(placeholder) { font-family: var(--font); }
+  /* 기본 씬 위 은은한 그리드/광원 */
+  .hud__scrim {
+    position: absolute; inset: 0; pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(5,8,12,.30) 0%, rgba(5,8,12,0) 22%, rgba(5,8,12,.0) 58%, rgba(5,8,12,.55) 100%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 46px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.022) 0 1px, transparent 1px 46px);
+  }
+
+  /* 좌상단 퀘스트 트래커 (기존 골든 박스 표현 — 토스트와 별개) */
+  .quest-tracker {
+    position: absolute; top: 26px; left: 28px;
+    min-width: 232px; padding: 13px 16px 14px;
+    background: linear-gradient(180deg, rgba(28,23,8,.62), rgba(16,13,6,.55));
+    border: 1px solid rgba(255,204,0,.34);
+    backdrop-filter: blur(3px);
+  }
+  .quest-tracker__corner {
+    position: absolute; width: 12px; height: 12px; border: 2px solid var(--c-success);
+  }
+  .quest-tracker__corner--tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .quest-tracker__corner--br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+  .quest-tracker__label { font-size: 11px; letter-spacing: .22em; color: var(--c-success); opacity: .9; }
+  .quest-tracker__title { font-size: 15px; font-weight: 700; margin-top: 3px; color: #f4ead0; }
+  .quest-tracker__step { font-size: 12.5px; margin-top: 9px; color: #c7cdd4; display: flex; align-items: center; gap: 7px; }
+  .quest-tracker__step i { width: 5px; height: 5px; background: var(--c-success); transform: rotate(45deg); }
+  .quest-tracker__step b { margin-left: auto; color: #f4ead0; font-weight: 700; }
+
+  .minimap {
+    position: absolute; top: 26px; right: 28px; width: 92px; height: 92px;
+    border: 1px solid rgba(255,255,255,.14); border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(40,60,80,.4), rgba(8,12,18,.5));
+  }
+  .minimap__ping { position: absolute; top: 38%; left: 56%; width: 6px; height: 6px; border-radius: 50%; background: var(--c-success); box-shadow: 0 0 0 0 rgba(255,204,0,.6); animation: ping 2s ease-out infinite; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(255,204,0,.5); } 100% { box-shadow: 0 0 0 14px rgba(255,204,0,0); } }
+
+  /* 하단 스킬바 */
+  .skillbar { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .skillbar__slots { display: flex; gap: 10px; }
+  .slot {
+    position: relative; width: 52px; height: 52px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: linear-gradient(180deg, rgba(26,34,44,.65), rgba(12,18,24,.7));
+  }
+  .slot__key { position: absolute; top: 3px; left: 5px; font-size: 11px; color: #9aa7b4; }
+  .slot--cd { border-color: rgba(255,255,255,.1); }
+  .slot__cd { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 700; color: #cdd6e0; background: rgba(5,8,12,.5); }
+  .vitals { display: flex; flex-direction: column; gap: 5px; width: 250px; }
+  .vitals__bar { height: 6px; background: rgba(255,255,255,.1); }
+  .vitals__bar i { display: block; height: 100%; }
+  .vitals__bar--hp i { background: linear-gradient(90deg, #6fe3a0, #36c47e); }
+  .vitals__bar--st i { background: linear-gradient(90deg, #ffd24a, #ff9a2e); }
+
+  /* ───────────────── 토스트 레이어 ───────────────── */
+  .toast-layer {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    pointer-events: none; z-index: 40; width: max-content; max-width: 80vw;
+  }
+  .toast-layer[data-pos="bottom"] { bottom: 132px; }   /* 스킬바 위 */
+  .toast-layer[data-pos="center"] { top: 50%; transform: translate(-50%, -50%); }
+  .toast-layer[data-pos="top"]    { top: 96px; }
+
+  /* 토스트 색 변수 매핑 */
+  .toast { --accent: var(--c-info); }
+  .toast[data-style="success"] { --accent: var(--c-success); }
+  .toast[data-style="warning"] { --accent: var(--c-warning); }
+  .toast[data-style="error"]   { --accent: var(--c-error); }
+
+  .toast {
+    position: relative;
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 16px;
+    font-size: 14.5px; line-height: 1.35; font-weight: 500;
+    letter-spacing: .01em; white-space: nowrap; color: #f1f5f9;
+    animation: toast-in var(--in-out) cubic-bezier(.16,.84,.44,1) both;
+  }
+  .toast[data-leaving] { animation: toast-out var(--in-out) cubic-bezier(.5,0,.84,.4) both; }
+
+  .toast__icon { display: inline-flex; color: var(--accent); flex: none; }
+  .toast__body { display: inline-flex; align-items: baseline; gap: 8px; }
+  .toast__count { font-size: 12px; font-weight: 700; color: var(--accent); opacity: .92; }
+  .toast__accent { display: none; }
+
+  /* ── 박스 모드: pill (은은한 다크 블러 알약) ── */
+  .toast[data-box="pill"] {
+    background: linear-gradient(180deg, rgba(18,24,32,.74), rgba(10,14,20,.7));
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 999px;
+    backdrop-filter: blur(9px) saturate(1.1);
+    box-shadow: 0 6px 22px rgba(0,0,0,.34);
+  }
+  /* ── 박스 모드: line (좌측 바 + 미세 배경) ── */
+  .toast[data-box="line"] {
+    background: linear-gradient(90deg, rgba(14,19,26,.62), rgba(14,19,26,.28));
+    border-radius: 3px;
+    padding-left: 18px;
+  }
+  /* ── 박스 모드: none (무배경 — 텍스트 + 가독 스크림) ── */
+  .toast[data-box="none"] {
+    text-shadow: 0 1px 10px rgba(0,0,0,.85), 0 0 2px rgba(0,0,0,.9);
+  }
+  .toast[data-box="none"]::before {
+    content: ""; position: absolute; inset: -6px -22px; z-index: -1; border-radius: 999px;
+    background: radial-gradient(60% 120% at 50% 50%, rgba(4,7,11,.55), rgba(4,7,11,0) 72%);
+  }
+
+  /* ── 악센트: bar 제거됨 (좌측 세로줄 없음) ── */
+  .toast__accent { display: none !important; }
+
+  /* ── 악센트: underline (텍스트 하단 짧은 라인) ── */
+  .toast[data-accent="underline"] .toast__msg {
+    position: relative; padding-bottom: 4px;
+  }
+  .toast[data-accent="underline"] .toast__msg::after {
+    content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 26px;
+    background: linear-gradient(90deg, var(--accent), transparent); border-radius: 2px;
+  }
+  /* ── 악센트: icon (아이콘 틴트만 — 기본 상태 그대로) ── */
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px) scale(.985); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+  @keyframes toast-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-4px); }
+  }
+  .toast-layer[data-pos="top"] .toast { animation-name: toast-in-top; }
+  .toast-layer[data-pos="top"] .toast[data-leaving] { animation-name: toast-out-top; }
+  @keyframes toast-in-top { from { opacity: 0; transform: translateY(-10px) scale(.985);} to { opacity:1; transform:translateY(0) scale(1);} }
+  @keyframes toast-out-top { from { opacity: 1; } to { opacity: 0; transform: translateY(4px);} }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast, .toast[data-leaving] { animation-duration: .01s; }
+  }
+
+  /* ───────────────── 테스트 콘솔 ───────────────── */
+  .console {
+    position: absolute; top: 18px; right: 18px; z-index: 60;
+    width: 256px; padding: 14px; pointer-events: auto;
+    background: rgba(9,13,18,.86); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px; backdrop-filter: blur(10px);
+    font-size: 12.5px;
+  }
+  .console__head { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: .03em; color: #e8edf3; margin-bottom: 12px; }
+  .console__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c-success); box-shadow: 0 0 8px var(--c-success); }
+  .console__group { margin-top: 12px; }
+  .console__cap { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: #6f7c89; margin-bottom: 7px; }
+  .console__row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .console__row--wrap { gap: 6px; }
+  .chip {
+    appearance: none; border: 1px solid rgba(255,255,255,.16); cursor: pointer;
+    padding: 6px 11px; border-radius: 7px; font: inherit; font-size: 12px; font-weight: 600;
+    color: #dbe3ec; background: rgba(255,255,255,.04); transition: .14s ease;
+  }
+  .chip:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.28); transform: translateY(-1px); }
+  .chip:active { transform: translateY(0); }
+  .chip--info    { color: var(--c-info); border-color: color-mix(in oklab, var(--c-info) 45%, transparent); }
+  .chip--success { color: var(--c-success); border-color: color-mix(in oklab, var(--c-success) 45%, transparent); }
+  .chip--warning { color: var(--c-warning); border-color: color-mix(in oklab, var(--c-warning) 45%, transparent); }
+  .chip--error   { color: var(--c-error); border-color: color-mix(in oklab, var(--c-error) 45%, transparent); }
+  .chip--ghost { font-weight: 500; }
+  .chip--ghost { position: relative; }
+  .chip[class*="chip--dot-"]::before {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: 6px; vertical-align: middle; background: #888;
+  }
+  .chip--dot-info::before { background: var(--c-info); }
+  .chip--dot-success::before { background: var(--c-success); }
+  .chip--dot-warning::before { background: var(--c-warning); }
+  .chip--dot-error::before { background: var(--c-error); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="image-slot.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="toast.jsx"></script>
+<script type="text/babel" src="scene.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "box": "pill",
+  "accent": "icon",
+  "position": "bottom",
+  "font": "Pretendard",
+  "successHue": "gold",
+  "inOut": 0.24,
+  "hold": 1.6,
+  "showCount": true
+}/*EDITMODE-END*/;
+
+const FONT_STACK = {
+  "Pretendard": '"Pretendard", system-ui, sans-serif',
+  "Noto Sans KR": '"Noto Sans KR", sans-serif',
+  "System": 'system-ui, -apple-system, sans-serif',
+};
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  React.useEffect(() => {
+    const r = document.documentElement.style;
+    r.setProperty("--font", FONT_STACK[t.font] || FONT_STACK.Pretendard);
+    r.setProperty("--in-out", t.inOut + "s");
+    r.setProperty("--hold", t.hold + "s");
+    r.setProperty("--c-success", t.successHue === "green" ? "#46d98a" : "#ffcc00");
+  }, [t.font, t.inOut, t.hold, t.successHue]);
+
+  return (
+    <div className="stage">
+      <HudScene />
+      <ToastLayer
+        position={t.position}
+        box={t.box}
+        accent={t.accent}
+        inOut={t.inOut}
+        hold={t.hold}
+        showCount={t.showCount}
+        debounceMs={2500}
+        maxVisible={3}
+      />
+      <TestConsole />
+
+      <TweaksPanel>
+        <TweakSection label="박스 스타일" />
+        <TweakRadio label="박스" value={t.box}
+          options={["none", "pill", "line"]}
+          onChange={(v) => setTweak("box", v)} />
+        <TweakRadio label="악센트" value={t.accent}
+          options={["icon", "underline"]}
+          onChange={(v) => setTweak("accent", v)} />
+
+        <TweakSection label="배치 / 모션" />
+        <TweakRadio label="위치" value={t.position}
+          options={["bottom", "center", "top"]}
+          onChange={(v) => setTweak("position", v)} />
+        <TweakSlider label="인/아웃" value={t.inOut} min={0.12} max={0.4} step={0.02} unit="s"
+          onChange={(v) => setTweak("inOut", v)} />
+        <TweakSlider label="유지" value={t.hold} min={0.8} max={3} step={0.1} unit="s"
+          onChange={(v) => setTweak("hold", v)} />
+
+        <TweakSection label="타이포 / 색" />
+        <TweakSelect label="폰트" value={t.font}
+          options={["Pretendard", "Noto Sans KR", "System"]}
+          onChange={(v) => setTweak("font", v)} />
+        <TweakRadio label="Success 색" value={t.successHue}
+          options={["gold", "green"]}
+          onChange={(v) => setTweak("successHue", v)} />
+        <TweakToggle label="중복 횟수 ×N" value={t.showCount}
+          onChange={(v) => setTweak("showCount", v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
