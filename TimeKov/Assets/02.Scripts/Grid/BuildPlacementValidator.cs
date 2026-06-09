@@ -80,6 +80,9 @@ public class BuildPlacementValidator
         {
             if (owner.previewMarker != null && hits[i].transform.IsChildOf(owner.previewMarker.transform))
                 continue;
+            // 플레이어는 배치를 막지 않는다(#7) — 설치 시 밀어낸다.
+            if (owner.PlayerRigidbody != null && hits[i].attachedRigidbody == owner.PlayerRigidbody)
+                continue;
             return true;
         }
         return false;

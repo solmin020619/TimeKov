@@ -59,6 +59,14 @@ public class FacilityPlacer
         placedBuilding.originCell = footprintCells[0];
         placedBuilding.CacheRenderers();
 
+        // 몬스터(NavMeshAgent)가 설비를 뚫고 지나가지 못하도록 NavMesh 카빙 장애물 추가 (#15).
+        // 플레이어는 물리 콜라이더로, 몬스터는 NavMesh 카빙으로 막힌다(우회 경로 탐색).
+        // 런타임 배치 설비는 베이크가 불가하므로 NavMeshObstacle 카빙이 유일한 방법.
+        AddNavMeshObstacle(obj, facility, owner.cellSize);
+
+        // 설치 위치에 플레이어가 있으면 배치를 막지 않고 밀어낸다(#7, 엔드필드 방식).
+        PushPlayerOutOfBuilding(obj, owner.PlayerRigidbody);
+
         FacilityInstance facilityInstance = obj.GetComponent<FacilityInstance>();
         if (facilityInstance == null)
             facilityInstance = obj.AddComponent<FacilityInstance>();
@@ -142,6 +150,55 @@ public class FacilityPlacer
             if (behaviours[i] == null) continue; // 프리팹의 미싱 스크립트 보호
             if (behaviours[i] != skip)
                 behaviours[i].enabled = false;
+        }
+    }
+
+    // 배치된 설비에 NavMesh 카빙 장애물 추가 — 몬스터가 설비를 못 뚫고 우회하게 한다.
+    static void AddNavMeshObstacle(GameObject obj, FacilityDataSheetData facility, float cellSize)
+    {
+        if (obj.GetComponent<UnityEngine.AI.NavMeshObstacle>() != null) return; // 중복 방지
+
+        var obstacle = obj.AddComponent<UnityEngine.AI.NavMeshObstacle>();
+        obstacle.shape = UnityEngine.AI.NavMeshObstacleShape.Box;
+        obstacle.carving = true;
+        obstacle.carveOnlyStationary = true; // 설비는 안 움직임 → 카빙 비용 절감
+
+        float w = Mathf.Max(1f, facility.gridW) * cellSize;
+        float d = Mathf.Max(1f, facility.gridH) * cellSize;
+        // 높이는 넉넉히 — 설비 원점이 베이스/중앙 어디든 NavMesh와 겹쳐 확실히 카빙되도록.
+        obstacle.center = Vector3.zero;
+        obstacle.size   = new Vector3(w, 6f, d);
+    }
+
+    // 새로 놓인 설비와 겹친 플레이어를 수평으로 밀어낸다(#7, 엔드필드 방식).
+    // ComputePenetration 으로 정확한 분리 벡터를 구해 즉시 빼낸다(물리 depenetration의
+    // 거친 튕김 대신 제어된 1회 이동).
+    static void PushPlayerOutOfBuilding(GameObject building, Rigidbody playerRb)
+    {
+        if (playerRb == null || building == null) return;
+        var playerCol = playerRb.GetComponent<Collider>();
+        if (playerCol == null) return;
+
+        foreach (var col in building.GetComponentsInChildren<Collider>())
+        {
+            if (col == null || col.isTrigger) continue;
+
+            if (!Physics.ComputePenetration(
+                    playerCol, playerCol.transform.position, playerCol.transform.rotation,
+                    col, col.transform.position, col.transform.rotation,
+                    out Vector3 dir, out float dist))
+                continue;
+
+            // 위로 솟구치지 않게 수평 성분만 사용
+            Vector3 horiz = new Vector3(dir.x, 0f, dir.z);
+            if (horiz.sqrMagnitude < 1e-4f)
+                horiz = playerRb.position - col.bounds.center;
+            horiz.y = 0f;
+            if (horiz.sqrMagnitude < 1e-4f) horiz = Vector3.right; // 정중앙 폴백
+            horiz.Normalize();
+
+            playerRb.position += horiz * (dist + 0.15f);
+            playerRb.linearVelocity = Vector3.zero;
         }
     }
 }

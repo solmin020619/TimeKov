@@ -145,6 +145,23 @@ public class BuildManager : MonoBehaviour
     [SerializeField] private MonoBehaviour playerMovementScript;
     [SerializeField] private Animator playerAnimator;
 
+    private Rigidbody _resolvedPlayerRb;
+    /// <summary>플레이어 Rigidbody — 배치 검증(플레이어 제외)/밀어내기에서 참조.
+    /// 인스펙터 미연결이어도 "Player" 태그로 자동 탐색(수동 연결 불필요).</summary>
+    public Rigidbody PlayerRigidbody
+    {
+        get
+        {
+            if (playerRigidbody != null) return playerRigidbody;
+            if (_resolvedPlayerRb == null)
+            {
+                var p = GameObject.FindGameObjectWithTag("Player");
+                if (p != null) _resolvedPlayerRb = p.GetComponent<Rigidbody>();
+            }
+            return _resolvedPlayerRb;
+        }
+    }
+
     public bool IsBuildMode { get; private set; }
     public bool IsTopViewMode { get; private set; }
 
@@ -361,8 +378,9 @@ public class BuildManager : MonoBehaviour
         if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
             return false;
 
-        // 건축존 밖이면 진입 차단 + 안내 토스트 (zoneChecker 미연결 시 게이팅 생략)
-        if (requireZoneToBuild && zoneChecker != null && !zoneChecker.IsInBuildZone)
+        // 건축존 밖이면 진입 차단 + 안내 토스트 (zoneChecker 미연결 시 게이팅 생략).
+        // 점프로 BuildZone 트리거를 벗어나도(Y축) 막히던 #21 방지 — XZ 위치로 판정.
+        if (requireZoneToBuild && zoneChecker != null && !IsPlayerInBuildZoneXZ())
         {
             ShowBuildZoneToast();
             return false;
@@ -386,6 +404,22 @@ public class BuildManager : MonoBehaviour
         // 튜토리얼 등 전역 구독자 통지 — 존 게이트 통과 후 실제 진입 시에만 (B키만 누른 게 아님)
         GameEvents.RaiseBuildModeEntered();
         return true;
+    }
+
+    // 점프로 BuildZone 트리거를 벗어나도(Y축) 건축 진입이 막히던 #21 방지.
+    // buildZoneCollider 가 있으면 플레이어 XZ 위치만으로 판정(Y 무시), 없으면 트리거 폴백.
+    private bool IsPlayerInBuildZoneXZ()
+    {
+        var prb = PlayerRigidbody;
+        if (buildZoneCollider != null && prb != null)
+        {
+            Vector3 p = prb.position;
+            Bounds b = buildZoneCollider.bounds;
+            const float eps = 0.01f;
+            return p.x >= b.min.x - eps && p.x <= b.max.x + eps
+                && p.z >= b.min.z - eps && p.z <= b.max.z + eps;
+        }
+        return zoneChecker == null || zoneChecker.IsInBuildZone;
     }
 
     public void ExitBuildMode()
