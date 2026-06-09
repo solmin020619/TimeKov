@@ -57,6 +57,8 @@ public class TutorialOverlay : MonoBehaviour
     private Image _fullDim;
     private Image _top, _bottom, _left, _right;
     private Image _borderTop, _borderBottom, _borderLeft, _borderRight;
+    private Image _frameImage;        // 게임톤 sci-fi 프레임 스프라이트(9-slice). 있으면 4변 테두리 대신 사용.
+    private bool _useSpriteFrame;     // 프레임 스프라이트 로드 성공 시 true
     private Button _clickCatcher;
     private RectTransform _bannerBg;
     private TMP_Text _banner;
@@ -78,6 +80,15 @@ public class TutorialOverlay : MonoBehaviour
     private const float ContinueCooldown = 0.2f;   // 표시 직후 잔여 입력으로 즉시 넘어가는 것 방지
     private float _shownTime;
 
+    // 강조 등장 효과 — 큰 네모에서 타깃으로 수렴(focus-in) + 정착 후 은은한 펄스.
+    private const float FocusDuration = 0.28f;        // 수렴 시간
+    private const float FocusStartExpandPx = 120f;    // 시작 시 사방 확대량(px) → 0으로 수렴
+    private float _focusStartTime = -999f;            // 새 타깃 표시 시각 (수렴 기준)
+
+    // 프레임 스프라이트 금색 선이 가장자리에 딱 붙은(edge-to-edge) 버전이라 여백 보정 불필요(0).
+    // 금테가 안쪽으로 들어간 스프라이트를 쓰면 그 여백만큼 값을 올려 구멍 경계에 맞춘다.
+    private const float FrameOutsetPx = 0f;
+
     private void Awake()
     {
         if (_i != null && _i != this) { Destroy(gameObject); return; }
@@ -98,6 +109,7 @@ public class TutorialOverlay : MonoBehaviour
         _advanceKey = advanceKey;
         _active = true;
         _shownTime = Time.unscaledTime;
+        _focusStartTime = Time.unscaledTime;   // 이 단계 강조 수렴 효과 시작
 
         if (_banner != null)
         {
@@ -206,30 +218,68 @@ public class TutorialOverlay : MonoBehaviour
             }
         }
 
-        // 타깃 없으면 전체 딤(스트립 숨김), 있으면 4스트립으로 구멍 + 금색 테두리
+        // 타깃 없으면 전체 딤(스트립 숨김), 있으면 4스트립으로 구멍 + 테두리/프레임
         _fullDim.enabled = !hasTarget;
         _top.enabled = _bottom.enabled = _left.enabled = _right.enabled = hasTarget;
-        _borderTop.enabled = _borderBottom.enabled = _borderLeft.enabled = _borderRight.enabled = hasTarget;
+        // 프레임 스프라이트 있으면 그걸로, 없으면 4변 단색 테두리로 강조
+        _borderTop.enabled = _borderBottom.enabled = _borderLeft.enabled = _borderRight.enabled = hasTarget && !_useSpriteFrame;
+        if (_frameImage != null) _frameImage.enabled = hasTarget && _useSpriteFrame;
 
         // 계속 라벨 위치 — 타깃이 화면 하단 + 가로 중앙을 덮을 때(퀵슬롯 바)만 구멍 위로.
         PositionContinue(hasTarget, xMin, xMax, yMin, yMax);
 
         if (!hasTarget) { PositionBanner(true); return; }   // 타깃 없으면 배너 상단(기본)
 
-        SetAnchors(_top.rectTransform, 0f, yMax, 1f, 1f);
-        SetAnchors(_bottom.rectTransform, 0f, 0f, 1f, yMin);
-        SetAnchors(_left.rectTransform, 0f, yMin, xMin, yMax);
-        SetAnchors(_right.rectTransform, xMax, yMin, 1f, yMax);
+        // ── 강조 효과 ── 큰 네모 → 타깃으로 수렴(focus-in). 스트립/테두리에만 적용(라벨/배너는 실제 위치 기준).
+        float ft = Mathf.Clamp01((Time.unscaledTime - _focusStartTime) / FocusDuration);
+        float ease = 1f - (1f - ft) * (1f - ft);                 // ease-out quad
+        float expandPx = Mathf.Lerp(FocusStartExpandPx, 0f, ease);
+        float ex = expandPx / Mathf.Max(1, Screen.width);
+        float ey = expandPx / Mathf.Max(1, Screen.height);
+        float bxMin = Mathf.Clamp01(xMin - ex), bxMax = Mathf.Clamp01(xMax + ex);
+        float byMin = Mathf.Clamp01(yMin - ey), byMax = Mathf.Clamp01(yMax + ey);
 
-        // 구멍 둘레 금색 테두리 — 구멍 경계선에 px 두께로 붙임 (바깥쪽)
-        float t = BorderThicknessPx;
-        SetEdge(_borderTop.rectTransform,    xMin, yMax, xMax, yMax, 0f, 0f, 0f, t);
-        SetEdge(_borderBottom.rectTransform, xMin, yMin, xMax, yMin, 0f, -t, 0f, 0f);
-        SetEdge(_borderLeft.rectTransform,   xMin, yMin, xMin, yMax, -t, 0f, 0f, 0f);
-        SetEdge(_borderRight.rectTransform,  xMax, yMin, xMax, yMax, 0f, 0f, t, 0f);
+        SetAnchors(_top.rectTransform, 0f, byMax, 1f, 1f);
+        SetAnchors(_bottom.rectTransform, 0f, 0f, 1f, byMin);
+        SetAnchors(_left.rectTransform, 0f, byMin, bxMin, byMax);
+        SetAnchors(_right.rectTransform, bxMax, byMin, 1f, byMax);
 
-        // 배너가 타깃을 가리지 않게 — 타깃이 화면 위쪽이면 배너를 아래로.
+        // 강조: 수렴 중엔 흐리게 시작 → 정착 후 은은한 호흡(펄스). 프레임 스프라이트면 그걸, 아니면 4변 테두리.
+        float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);     // 0..1
+        float frameAlpha = Mathf.Lerp(0.3f, 0.82f + 0.18f * pulse, ease);
+        if (_useSpriteFrame)
+        {
+            // 9-slice 프레임을 구멍(확대 박스)에 맞춰 배치 — 코너 고정 크기, 변은 늘어남. 수렴/펄스 그대로 적용.
+            // 스프라이트 안쪽 여백 보정: rect를 FrameOutsetPx만큼 바깥으로 빼 금테가 구멍 경계에 딱 붙게.
+            var frt = _frameImage.rectTransform;
+            SetAnchors(frt, bxMin, byMin, bxMax, byMax);
+            frt.offsetMin = new Vector2(-FrameOutsetPx, -FrameOutsetPx);
+            frt.offsetMax = new Vector2(FrameOutsetPx, FrameOutsetPx);
+            var fc = _frameImage.color; fc.a = frameAlpha; _frameImage.color = fc;
+        }
+        else
+        {
+            // 폴백: 4변 단색 테두리 (수렴 중 굵게→얇게 + 호흡)
+            float thick = Mathf.Lerp(BorderThicknessPx + 5f, BorderThicknessPx + pulse * 1.5f, ease);
+            SetBorderAlpha(frameAlpha);
+            SetEdge(_borderTop.rectTransform,    bxMin, byMax, bxMax, byMax, 0f, 0f, 0f, thick);
+            SetEdge(_borderBottom.rectTransform, bxMin, byMin, bxMax, byMin, 0f, -thick, 0f, 0f);
+            SetEdge(_borderLeft.rectTransform,   bxMin, byMin, bxMin, byMax, -thick, 0f, 0f, 0f);
+            SetEdge(_borderRight.rectTransform,  bxMax, byMin, bxMax, byMax, 0f, 0f, thick, 0f);
+        }
+
+        // 배너가 타깃을 가리지 않게 — 타깃이 화면 위쪽이면 배너를 아래로. (실제 위치 기준)
         PositionBanner(yMax <= 0.7f);
+    }
+
+    // 4변 테두리 알파를 한 번에 설정 (수렴 페이드인 + 펄스용).
+    private void SetBorderAlpha(float a)
+    {
+        var col = BorderColor; col.a = Mathf.Clamp01(a);
+        if (_borderTop) _borderTop.color = col;
+        if (_borderBottom) _borderBottom.color = col;
+        if (_borderLeft) _borderLeft.color = col;
+        if (_borderRight) _borderRight.color = col;
     }
 
     // 배너 위치: top=true 상단, false 하단(계속 라벨 위). 타깃을 가리지 않도록.
@@ -246,6 +296,16 @@ public class TutorialOverlay : MonoBehaviour
     {
         if (_continueLabel == null) return;
         var rt = _continueLabel.rectTransform;
+
+        // 건설 모드(건축투어): 하단에 퀵슬롯 바가 항상 있으니 어떤 칸을 강조하든 라벨을 바 위로 고정.
+        bool buildMode = GameUIController.Instance != null
+                      && GameUIController.Instance.GetCurrentState() == GameUIController.UIState.Build;
+        if (buildMode)
+        {
+            SetAnchors(rt, 0.25f, 0.18f, 0.75f, 0.24f);
+            return;
+        }
+
         bool coversCenterBottom = hasTarget && holeBottomY < 0.22f && holeLeftX < 0.5f && holeRightX > 0.5f;
         if (coversCenterBottom)
         {
@@ -289,6 +349,19 @@ public class TutorialOverlay : MonoBehaviour
         _borderBottom = NewImage("BorderBottom", _root, BorderColor);
         _borderLeft = NewImage("BorderLeft", _root, BorderColor);
         _borderRight = NewImage("BorderRight", _root, BorderColor);
+
+        // 게임톤 sci-fi 프레임 스프라이트(9-slice) — 있으면 4변 단색 테두리 대신 이걸로 강조.
+        // "tutorial/1" = 완전 프레임(가장자리 딱 붙음). 코너만 원하면 "tutorial/2"로 교체.
+        var frameSprite = Resources.Load<Sprite>("tutorial/1");
+        _useSpriteFrame = frameSprite != null;
+        _frameImage = NewImage("FocusFrame", _root, Color.white);
+        if (_useSpriteFrame)
+        {
+            _frameImage.sprite = frameSprite;
+            _frameImage.type = Image.Type.Sliced;
+            _frameImage.pixelsPerUnitMultiplier = 3f;   // 9-slice 코너 렌더 크기(보더140/3 ≈ 47px). 크면 코너 작아짐.
+        }
+        _frameImage.enabled = false;
 
         // 클릭 캐처 (투명, 전체 화면 — 뒤 UI 클릭 차단용. 진행은 LateUpdate 폴링이 담당)
         _clickCatcher = NewButton("ClickCatcher", _root);

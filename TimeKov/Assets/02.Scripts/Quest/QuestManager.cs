@@ -284,22 +284,24 @@ public class QuestManager : MonoBehaviour
     {
         if (quest == null || quest.rewards == null || quest.rewards.Length == 0) return;
 
-        var inv = InventoryManager.Instance;
-        if (inv == null)
-        {
-            Debug.LogWarning($"[QuestManager] 보상 지급 실패 — InventoryManager 없음 (quest: {quest.id})");
-            return;
-        }
-
         foreach (var reward in quest.rewards)
         {
             if (reward == null || reward.itemId <= 0 || reward.amount <= 0) continue;
 
-            // 루팅용 경로 사용 — NEW 뱃지 자동 표시
-            int leftover = inv.TryAddItemFromLoot(reward.itemId, reward.amount);
+            int leftover = reward.amount;
+
+            // 1) 가방(루팅 경로 — NEW 뱃지 표시)
+            if (InventoryManager.Instance != null)
+                leftover = InventoryManager.Instance.TryAddItemFromLoot(reward.itemId, leftover);
+
+            // 2) 가방 가득/없음 → 창고 폴백. (보상이 조용히 증발하면 그걸 요구하는 다음 퀘 — 예: 코어키트→코어강화 — 가
+            //    영구 소프트락 되므로 반드시 어딘가엔 들어가게 한다)
+            if (leftover > 0 && InventoryManager.StorageInstance != null)
+                leftover = InventoryManager.StorageInstance.TryAddItemFromLoot(reward.itemId, leftover);
+
             if (leftover > 0)
-                Debug.LogWarning($"[QuestManager] 보상 일부 미지급 — 인벤토리 가득참 " +
-                                 $"(quest: {quest.id}, itemId: {reward.itemId}, 미지급: {leftover})");
+                Debug.LogError($"[QuestManager] 보상 미지급 — 가방·창고 모두 가득 " +
+                               $"(quest: {quest.id}, itemId: {reward.itemId}, 미지급: {leftover}). 후속 퀘 소프트락 위험.");
         }
     }
 

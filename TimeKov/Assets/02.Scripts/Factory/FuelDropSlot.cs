@@ -44,6 +44,7 @@ public class FuelDropSlot : MonoBehaviour,
     private MachineBase       _machine;
     private InventoryManager  _inventory;
     private Canvas            _canvas;
+    private bool              _dragHighlighted; // 인벤 드래그 시작으로 강조 중인지
 
     private void Awake()
     {
@@ -164,6 +165,19 @@ public class FuelDropSlot : MonoBehaviour,
         iconImage.enabled = sprite != null;
     }
 
+    // ── 드래그 시작 강조 (MachineUI가 인벤 드래그 시작 시 호출) ──────────
+
+    /// <summary>이 슬롯이 받는 아이템 ID (연료).</summary>
+    public int AcceptedItemId => FuelConfig.Instance != null ? FuelConfig.Instance.fuelItemId : -1;
+
+    /// <summary>인벤토리에서 연료를 집어든 순간 드랍 대상임을 미리 강조한다.</summary>
+    public void SetDragHighlight(bool on)
+    {
+        _dragHighlighted = on;
+        if (borderImage != null) borderImage.color = on ? hoverBorderColor : normalBorderColor;
+        if (labelText   != null) labelText.text    = on ? "연료 넣기" : "";
+    }
+
     // ── Hover (인벤토리 → 연료슬롯 방향) ────────────────────────────────
 
     public void OnPointerEnter(PointerEventData e)
@@ -185,6 +199,13 @@ public class FuelDropSlot : MonoBehaviour,
 
     public void OnPointerExit(PointerEventData e)
     {
+        // 드래그 강조 중이면 커서가 벗어나도 강조 유지
+        if (_dragHighlighted)
+        {
+            if (borderImage != null) borderImage.color = hoverBorderColor;
+            if (labelText   != null) labelText.text    = "연료 넣기";
+            return;
+        }
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
     }
@@ -193,6 +214,7 @@ public class FuelDropSlot : MonoBehaviour,
 
     public void OnDrop(PointerEventData e)
     {
+        _dragHighlighted = false;
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
 

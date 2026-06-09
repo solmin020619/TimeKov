@@ -22,6 +22,23 @@ public class QuickSlotIconUI : MonoBehaviour
     // (QuickSlotPanel이 비활성일 때 F키로 해금 → 패널 오픈 시 Awake() 실행 순서 역전 방지)
     private bool _facilityAssigned = false;
 
+    // 튜토리얼 "quick_slots" 스포트라이트 — 설비가 들어간(채워진) 슬롯만 강조.
+    // 슬롯 박스 = 형제 'Quick Slot' 프레임(실제 보이는 칸). 컨테이너 rect는 번호라벨까지 포함해 더 큼.
+    private RectTransform SpotlightRect
+    {
+        get
+        {
+            var parent = transform.parent;
+            if (parent != null)
+            {
+                var frame = parent.Find("Quick Slot") as RectTransform;
+                if (frame != null) return frame;
+                return parent as RectTransform;
+            }
+            return transform as RectTransform;
+        }
+    }
+
     private void Awake()
     {
         // iconImage 미연결 시 자신의 Image 컴포넌트를 자동으로 사용
@@ -39,6 +56,9 @@ public class QuickSlotIconUI : MonoBehaviour
     public void SetFacility(int facilityId)
     {
         _facilityAssigned = true;
+
+        // 채워진 슬롯을 튜토리얼 강조 대상으로 등록 (건축투어 "여기서 설비 고르기" 단계가 이 슬롯만 강조)
+        TutorialOverlay.RegisterTarget("quick_slots", SpotlightRect);
 
         // iconImage가 아직 null이면 (Awake 미실행 상태) 지금 바로 찾기
         if (iconImage == null)
@@ -69,11 +89,20 @@ public class QuickSlotIconUI : MonoBehaviour
     {
         _facilityAssigned = false;
 
+        // 빈 슬롯은 튜토리얼 강조 대상에서 제외
+        TutorialOverlay.UnregisterTarget("quick_slots", SpotlightRect);
+
         if (iconImage != null)
         {
             iconImage.sprite  = null;
             iconImage.enabled = false;
         }
+    }
+
+    private void OnDestroy()
+    {
+        // 씬 정리 시 정적 레지스트리에 죽은 rect 잔재 방지
+        TutorialOverlay.UnregisterTarget("quick_slots", SpotlightRect);
     }
 
     /// <summary>슬롯 번호 텍스트 설정 (1-based).</summary>

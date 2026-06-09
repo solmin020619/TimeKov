@@ -348,19 +348,20 @@ public class BuildManager : MonoBehaviour
             Debug.Log($"[BuildManager] {buildZoneBlockedMessage} (buildZoneToast 미연결)");
     }
 
-    public void EnterBuildMode()
+    // 진입 성공 여부 반환 (true=건설 모드, false=차단됨). 건축투어가 실패 시 대기하는 데 사용.
+    public bool EnterBuildMode()
     {
-        if (IsBuildMode) return;
+        if (IsBuildMode) return true;
 
         // 다른 UI가 열려있으면 진입 차단
         if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
-            return;
+            return false;
 
         // 건축존 밖이면 진입 차단 + 안내 토스트 (zoneChecker 미연결 시 게이팅 생략)
         if (requireZoneToBuild && zoneChecker != null && !zoneChecker.IsInBuildZone)
         {
             ShowBuildZoneToast();
-            return;
+            return false;
         }
 
         IsBuildMode = true;
@@ -380,6 +381,7 @@ public class BuildManager : MonoBehaviour
 
         // 튜토리얼 등 전역 구독자 통지 — 존 게이트 통과 후 실제 진입 시에만 (B키만 누른 게 아님)
         GameEvents.RaiseBuildModeEntered();
+        return true;
     }
 
     public void ExitBuildMode()

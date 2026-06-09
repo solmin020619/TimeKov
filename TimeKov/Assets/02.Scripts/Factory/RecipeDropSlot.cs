@@ -34,6 +34,7 @@ public class RecipeDropSlot : MonoBehaviour,
     private ProcessingMachine _machine;
     private InventoryManager _inventory;
     private Coroutine _glowRoutine;
+    private bool _dragHighlighted; // 인벤 드래그 시작으로 강조 중인지
     /// <summary>이 슬롯이 속한 레시피 인덱스. 재료를 넣을 때 SetLockedRecipe에 사용.</summary>
     private int _recipeIndex = -1;
 
@@ -73,6 +74,7 @@ public class RecipeDropSlot : MonoBehaviour,
     {
         // 활성화될 때마다 기본 상태 초기화
         // (패널 닫기 전 OnPointerEnter로 "재료 넣기" 텍스트가 남아있는 경우도 처리)
+        _dragHighlighted = false;
         if (labelText != null) labelText.text = "";
         StopGlow();
         SetBorderAlpha(0f);
@@ -136,9 +138,28 @@ public class RecipeDropSlot : MonoBehaviour,
 
     public void OnPointerExit(PointerEventData e)
     {
+        // 드래그 강조 중이면 커서가 벗어나도 강조 유지
+        if (_dragHighlighted) return;
         if (labelText != null) labelText.text = "";
         StopGlow();
         SetBorderAlpha(0f);
+    }
+
+    /// <summary>인벤토리에서 해당 재료를 집어든 순간 드랍 대상임을 미리 강조한다.</summary>
+    public void SetDragHighlight(bool on)
+    {
+        _dragHighlighted = on;
+        if (on)
+        {
+            if (labelText != null) labelText.text = "재료 넣기";
+            StartGlow();
+        }
+        else
+        {
+            if (labelText != null) labelText.text = "";
+            StopGlow();
+            SetBorderAlpha(0f);
+        }
     }
 
     // ── 드래그 아웃 (재료 슬롯 → 인벤토리) ─────────────────
@@ -236,6 +257,7 @@ public class RecipeDropSlot : MonoBehaviour,
 
     public void OnDrop(PointerEventData e)
     {
+        _dragHighlighted = false;
         if (labelText != null) labelText.text = "";
         StopGlow();
         SetBorderAlpha(0f);

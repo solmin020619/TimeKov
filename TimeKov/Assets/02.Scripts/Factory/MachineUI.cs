@@ -119,7 +119,11 @@ public class MachineUI : MonoBehaviour
         _machine.OnBufferChanged += OnBufferChanged;
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
-        if (inv != null) inv.OnInventoryChanged += RefreshInventorySlots;
+        if (inv != null)
+        {
+            inv.OnInventoryChanged -= RefreshInventorySlots;
+            inv.OnInventoryChanged += RefreshInventorySlots;
+        }
 
         _selectedRecipeIndex = Mathf.Max(0, machine.LockedRecipeIndex);
 
@@ -142,6 +146,12 @@ public class MachineUI : MonoBehaviour
 
         // [Gauge] 게이지 초기화 — 가공 시작 전 0%로 비우고 숨김
         if (processingGauge != null) processingGauge.StopAndHide();
+
+        // 인벤토리에서 아이템을 집어든 순간 연료/재료 슬롯을 강조 (드랍 위치 안내)
+        InventorySlotUI.OnAnySlotDragBegin -= OnInventoryDragBegin;
+        InventorySlotUI.OnAnySlotDragBegin += OnInventoryDragBegin;
+        InventorySlotUI.OnAnySlotDragEnd   -= OnInventoryDragEnd;
+        InventorySlotUI.OnAnySlotDragEnd   += OnInventoryDragEnd;
     }
 
     // ── 레시피 선택 ─────────────────────────────────────────────
@@ -181,6 +191,10 @@ public class MachineUI : MonoBehaviour
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
         if (inv != null) inv.OnInventoryChanged -= RefreshInventorySlots;
+
+        InventorySlotUI.OnAnySlotDragBegin -= OnInventoryDragBegin;
+        InventorySlotUI.OnAnySlotDragEnd   -= OnInventoryDragEnd;
+        ClearDropHighlights();
 
         var hintMgr = TimeKov.UI.HintArrowManager.I;
         if (hintMgr != null)
@@ -414,6 +428,40 @@ public class MachineUI : MonoBehaviour
             slot?.PublicRefresh();
 
         ShowRecipeHintIfQuestActive();
+    }
+
+    // ── 인벤 드래그 시작/종료에 맞춘 드랍 대상 강조 ──────────────
+
+    /// <summary>인벤토리에서 아이템을 집어들면 그 아이템을 받는 슬롯만 강조한다.</summary>
+    private void OnInventoryDragBegin(InventorySlotUI slot)
+    {
+        if (slot == null || slot.IsEmpty) return;
+        int id = slot.SlotData.itemId;
+
+        if (fuelDropSlot != null && id == fuelDropSlot.AcceptedItemId)
+            fuelDropSlot.SetDragHighlight(true);
+
+        if (recipeDropSlots != null)
+        {
+            foreach (var r in recipeDropSlots)
+                if (r != null && r.gameObject.activeSelf && r.RequiredItemId == id)
+                    r.SetDragHighlight(true);
+        }
+    }
+
+    private void OnInventoryDragEnd(InventorySlotUI slot)
+    {
+        ClearDropHighlights();
+    }
+
+    private void ClearDropHighlights()
+    {
+        if (fuelDropSlot != null) fuelDropSlot.SetDragHighlight(false);
+        if (recipeDropSlots != null)
+        {
+            foreach (var r in recipeDropSlots)
+                if (r != null) r.SetDragHighlight(false);
+        }
     }
 
     // ── 진행 바 ─────────────────────────────────────────────────

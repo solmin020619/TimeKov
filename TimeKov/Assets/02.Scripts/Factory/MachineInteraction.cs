@@ -38,6 +38,7 @@ namespace TIMEKOV.Factory
 
         private bool      _uiOpen;
         private bool      _selectShowing;
+        private bool      _wasBlocking;
         private Coroutine _flashRoutine;
 
         private int    _buildPortMask;
@@ -86,11 +87,23 @@ namespace TIMEKOV.Factory
 
             if (_flashRoutine != null) return;
 
-            if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
+            bool blocking = GameUIController.Instance != null
+                         && GameUIController.Instance.IsUIBlocking();
+            if (blocking)
             {
                 HideSelectPanel();
-                ScanNearby();
+                if (hintText != null) hintText.text = "";
+                _wasBlocking = true;
                 return;
+            }
+
+            // 차단 상태(건축/인벤/설정 등)에서 막 빠져나온 프레임:
+            // 변화 감지 캐시를 비워, 같은 자리에 그대로 서 있어도 선택 패널이
+            // 다시 뜨도록 강제 재탐색한다. (B로 건축모드 들어갔다 나오면 F가 안 뜨던 버그)
+            if (_wasBlocking)
+            {
+                _wasBlocking = false;
+                _prevNearMachines.Clear();
             }
 
             ScanNearby();

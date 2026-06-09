@@ -47,6 +47,9 @@ public static class TutorialAssetBuilder
     const string TargetQuickSlots    = "quick_slots";    // 건설 퀵슬롯 바
     const string TargetRailSlot      = "rail_slot";      // E 레일 슬롯
     const string TargetBuildDemolish = "build_demolish"; // X 일괄조작 힌트
+    const string TargetSkillQ        = "skill_q";        // 우하단 스킬 슬롯 Q
+    const string TargetSkillE        = "skill_e";        // 우하단 스킬 슬롯 E
+    const string TargetSkillR        = "skill_r";        // 우하단 스킬 슬롯 R
 
     const string Y = "<color=#FFCC00>";  // 강조 색 열기
     const string E = "</color>";          // 닫기
@@ -85,7 +88,10 @@ public static class TutorialAssetBuilder
                 TourStep($"{Y}B{E} - {Y}건설 모드{E}로 들어갑니다.", TargetBIcon),
                 TourStep($"{Y}ESC{E} - {Y}설정{E}을 엽니다.", TargetEscIcon),
                 TourStep($"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.", TargetStatButton, KeyCode.C),
-                TourStep($"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다. {Y}C{E} 키로 {Y}언제든 여닫을 수 있어요{E}.", TargetStatPanel))));
+                TourStep($"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다. {Y}C{E} 키로 {Y}언제든 여닫을 수 있어요{E}.", TargetStatPanel),
+                TourStep($"우하단 {Y}스킬{E} 3개. {Y}Q{E} 스킬은 {Y}기본 공격 1타{E}를 적에게 {Y}적중{E}시키면 충전돼요.", TargetSkillQ),
+                TourStep($"{Y}E{E} 스킬은 {Y}기본 공격 2타{E}를 {Y}적중{E}시키면 충전됩니다.", TargetSkillE),
+                TourStep($"{Y}R{E} 스킬은 {Y}기본 공격 3타{E}를 {Y}적중{E}시키면 충전됩니다. 충전되면 강력한 스킬을 사용하세요!", TargetSkillR))));
 
         // Q1. 기본 조작 [병렬]
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
@@ -109,12 +115,9 @@ public static class TutorialAssetBuilder
             CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}획득{E}하세요.", ItemTwig, 1),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
-        // Q4b. 추출기 위치로 이동 (트리거 도착) — 도착해야 해금 픽업과 만남
-        quests.Add(BuildQuest("quest_tut_04b_reach_extractor", "추출기 위치로 이동",
-            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1")));
-
-        // Q5. 설비 해금 (F로 줍기)
+        // Q5. 설비 해금 — 위치 이동 + F 해금 [병렬]. (따로 '도착' 퀘 안 둠: 갔다가 한 번 깨지고 다시 F 누르는 흐름 제거)
         quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "설비 해금",
+            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1"),
             CreateFacilityUnlock("obj_unlock_extractor", $"바닥의 {Y}생체 추출기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioExtractorId)));
 
         // Q5b. 건설 구역으로 이동 (build 트리거 도착) — 건설은 이 구역에서만 가능
@@ -126,11 +129,13 @@ public static class TutorialAssetBuilder
             CreateEnterBuildMode("obj_build_mode", $"{Y}B{E}로 {Y}건설 모드{E}에 진입하세요.")));
 
         // Q6a. [안내] 건설 조작 — 진입하자마자 퀵슬롯/해제/레일 설명 (가이드 투어)
-        quests.Add(BuildQuest("quest_tut_06a_build_tour", "건설 조작 안내",
-            CreateGuidedTour("obj_build_tour",
-                TourStep($"{Y}퀵 슬롯{E}에서 지을 설비를 고릅니다. 방금 {Y}해금한 설비{E}가 여기 있고, 빈 칸은 다른 설비가 맵에 {Y}숨겨져{E} 있어서예요 - {Y}찾아 F로 해금{E}하면 채워집니다.", TargetQuickSlots),
-                TourStep($"{Y}X{E} - 설치한 설비를 {Y}해제{E} (클릭 제거 / {Y}Shift 드래그{E}로 여러 개 한 번에).", TargetBuildDemolish),
-                TourStep($"{Y}E{E} - {Y}레일{E}을 깔아 설비를 이으면 아이템이 {Y}자동{E}으로 이동합니다.", TargetRailSlot))));
+        // ensureBuildMode=true: 퀘 갭에서 B를 연타로 들어갔다 나가도 투어가 항상 건설 모드에서 뜨도록 강제 진입.
+        var buildTour = CreateGuidedTour("obj_build_tour",
+            TourStep($"{Y}퀵 슬롯{E}에서 지을 설비를 고릅니다. 방금 {Y}해금한 설비{E}가 여기 있고, 빈 칸은 다른 설비가 맵에 {Y}숨겨져{E} 있어서예요 - {Y}찾아 F로 해금{E}하면 채워집니다.", TargetQuickSlots),
+            TourStep($"{Y}X{E} - 설치한 설비를 {Y}해제{E} (클릭 제거 / {Y}Shift 드래그{E}로 여러 개 한 번에).", TargetBuildDemolish),
+            TourStep($"{Y}E{E} - {Y}레일{E}을 깔아 설비를 이으면 아이템이 {Y}자동{E}으로 이동합니다.", TargetRailSlot));
+        buildTour.ensureBuildMode = true;
+        quests.Add(BuildQuest("quest_tut_06a_build_tour", "건설 조작 안내", buildTour));
 
         // Q6b. 생체 추출기 설치
         quests.Add(BuildQuest("quest_tut_06b_place_extractor", "생체 추출기 설치",
@@ -169,12 +174,9 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_10_collect_gel", "결과물 회수",
             CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}회복 젤{E}을 {Y}회수{E}하세요.", ItemHealGel, 1)));
 
-        // Q10b. 배양기 위치로 이동 (트리거 도착)
-        quests.Add(BuildQuest("quest_tut_10b_reach_cultivator", "배양기 위치로 이동",
-            CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2")));
-
-        // Q11. 배양기 해금 + 설치 [병렬]
+        // Q11. 배양기 해금 + 설치 — 위치 이동 + F 해금 + 설치 [병렬]. (도착 퀘 분리 안 함)
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
+            CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2"),
             CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}생체 배양기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioCultivatorId),
             CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 {Y}설치{E}하세요.", BioCultivatorId, 1)));
 
@@ -213,9 +215,9 @@ public static class TutorialAssetBuilder
         EditorUtility.SetDirty(qCoreIntro);
         quests.Add(qCoreIntro);
 
-        // Q20. 코어 강화 (액션)
+        // Q20. 코어 강화 (액션) — 강화는 결계(기지) 안에서만 가능하므로 라벨에 명시
         quests.Add(BuildQuest("quest_tut_20_core_upgrade", "코어 강화",
-            CreateCoreUpgrade("obj_core_upgrade", $"받은 키트로 {Y}코어{E}를 {Y}강화{E}하세요.", 0)));
+            CreateCoreUpgrade("obj_core_upgrade", $"{Y}기지(결계) 안{E}에서 받은 키트로 {Y}코어{E}를 {Y}강화{E}하세요.", 0)));
 
         // Q21. [안내] 마무리 (숨겨진 설비 안내는 건설투어에서 함)
         quests.Add(BuildQuest("quest_tut_21_finish", "튜토리얼 완료",
@@ -259,7 +261,7 @@ public static class TutorialAssetBuilder
             $"4. 스포트라이트: 시간막대('{TargetTimeBar}')/스탯창('{TargetStatPanel}')=코드 자동등록. 수동 TutorialHighlightTarget 부착 필요: C아이콘(C_Icon) id='{TargetStatButton}', 재료슬롯 id='{TargetMachineInput}', 연료슬롯 id='{TargetFuelSlot}', 코어강화 id='{TargetCoreUpgrade}'\n" +
             $"5. PlayerMovementWatcher.watchedKeys 에 Space/Mouse0/Mouse1/Tab/B 포함 확인 (C는 GameUIController에서 자동 발화 → 설정 불필요)\n" +
             $"6. QuestTrigger 콜라이더(IsTrigger, 플레이어Tag='Player'): 사냥터='enemy', 건설구역='build'(BuildZone위치), 추출기위치='1', 배양기위치='2'. 각 설비위치 트리거 안에 해당 FacilityUnlockPickup 배치(추출기#1/배양기#2)\n" +
-            $"7. 건설투어 스포트라이트는 QuickSlotPanel 자식 이름(Quick Slot/Quick (5)/X_IMG)으로 코드 자동등록 — 이름 다르면 전체딤 폴백(에러X), 플레이로 확인");
+            $"7. 건설투어/스킬 스포트라이트=전부 코드 자동등록(씬 작업 불필요): rail_slot=QuickSlotPanel 'Quick (8)'(라벨 E), build_demolish='Right_X'+자식(아이콘 포함), quick_slots=설비 들어간 슬롯만 QuickSlotIconUI가 자동, skill_q/e/r=PlayerHudUI가 skill1/2/3IconImage로 등록. (slotEffects/railSlotEffect는 씬 미연결이라 사용 안 함)");
     }
 
     // ── QuestSO 빌더 ──────────────────────────────────────────────────

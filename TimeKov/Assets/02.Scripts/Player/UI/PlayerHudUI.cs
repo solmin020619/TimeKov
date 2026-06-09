@@ -208,6 +208,51 @@ public class PlayerHudUI : MonoBehaviour
         RegisterKeyBox("tab_icon", "TAB_Text", "TAB_Icon");
         RegisterKeyBox("b_icon", "B_Text", "B_Icon");
         RegisterKeyBox("esc_icon", "ESC_Text", "Esc_Icon");
+
+        // 우하단 스킬 슬롯 Q/E/R → 스포트라이트 (인트로 투어에서 충전 조건 설명).
+        // 직렬화된 아이콘 참조의 부모(슬롯)를 등록 — 게이지 링까지 포함된 슬롯 전체를 강조.
+        RegisterSkillSlot(skill1IconImage, "skill_q");
+        RegisterSkillSlot(skill2IconImage, "skill_e");
+        RegisterSkillSlot(skill3IconImage, "skill_r");
+    }
+
+    [Tooltip("스킬 강조 박스를 아이콘 하단에서 아래로 더 내리는 양(px). 0% 바 쪽까지 살짝 덮되, 카드 밑(화면 가장자리)까진 안 가게.")]
+    [SerializeField] private float skillFrameExtendDownPx = 55f;
+
+    // 스킬 카드 강조 — 위 키라벨(Keycap_BG) + 아트(아이콘) + 아래 확장(0% 바 쪽). 폭은 아이콘(카드폭)에 맞춤.
+    // 맨 아래 게이지 바(Gauge_BG)를 통째로 넣으면 카드 밑=화면 가장자리까지 내려가 잘리므로,
+    // 대신 아이콘 아래에 얇은 확장 rect를 만들어 합집합 바닥을 0% 바 근처까지만 연장한다.
+    void RegisterSkillSlot(Image iconImage, string spotlightId)
+    {
+        if (iconImage == null) return;
+        var iconRt = iconImage.rectTransform;
+        RegisterRectTarget(iconRt, spotlightId);
+
+        var card = iconRt.parent;   // Skill_N (아이콘/키캡의 공통 부모)
+        if (card != null)
+            RegisterRectTarget(card.Find("Keycap_BG") as RectTransform, spotlightId);
+
+        // 바닥 연장용 얇은 합성 rect (아이콘 폭, 아이콘 하단에서 skillFrameExtendDownPx만큼 아래)
+        if (card != null && skillFrameExtendDownPx > 0f)
+        {
+            var ext = new GameObject("SkillSpotlightExt", typeof(RectTransform)).GetComponent<RectTransform>();
+            ext.SetParent(card, false);
+            ext.anchorMin = iconRt.anchorMin;
+            ext.anchorMax = iconRt.anchorMax;
+            ext.pivot = iconRt.pivot;
+            ext.localScale = Vector3.one;
+            ext.sizeDelta = new Vector2(iconRt.sizeDelta.x, 2f);
+            float iconBottom = iconRt.anchoredPosition.y - iconRt.sizeDelta.y * 0.5f;
+            ext.anchoredPosition = new Vector2(iconRt.anchoredPosition.x, iconBottom - skillFrameExtendDownPx);
+            RegisterRectTarget(ext, spotlightId);
+        }
+    }
+
+    void RegisterRectTarget(RectTransform rt, string spotlightId)
+    {
+        if (rt == null) return;
+        _iconTargets.Add((spotlightId, rt));
+        TutorialOverlay.RegisterTarget(spotlightId, rt);
     }
 
     // 한 키의 라벨+아이콘을 같은 스포트라이트 id로 등록 (합집합 박스).
