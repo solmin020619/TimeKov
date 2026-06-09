@@ -94,6 +94,7 @@ public class PlayerSkillComponent : MonoBehaviour
     void TryComboAttack()
     {
         if (_player.Movement.IsJumping) return;
+        if (_player.Dash != null && _player.Dash.IsDashing) return; // 대시와 동시 실행 차단
         if (_player.Stat.IsDead) return;
 
         // 피격 경직 중 공격 입력 → 경직 캔슬하고 공격 우선 (액션게임 표준).
@@ -164,6 +165,7 @@ public class PlayerSkillComponent : MonoBehaviour
     {
         // Dead·Hurt 상태 차단
         if (_player.Movement.IsJumping) return;
+        if (_player.Dash != null && _player.Dash.IsDashing) return; // 대시와 동시 실행 차단
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
         if (IsExecuting) return;

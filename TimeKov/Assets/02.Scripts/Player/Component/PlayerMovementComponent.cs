@@ -427,6 +427,25 @@ public class PlayerMovementComponent : MonoBehaviour
         }
     }
 
+    // 설비·건물 등 GroundMask 가 아닌 콜라이더에 닿은 채 이동 입력이 없으면
+    // 물리 depenetration(겹침 해소)이 만든 수평 미끄러짐을 제거한다.
+    // 설비 콜라이더는 BuildPort 레이어라 _isGrounded=false(공중 취급)가 되어
+    // HandleSlopeStabilize 같은 평지 안정화가 안 걸리고, 점프 후 설비 모서리에 닿으면
+    // 계속 미끄러지던 문제(모든 설비 공통)를 형상과 무관하게 잡는다.
+    // 이동 입력이 있으면(의도적 이동) 간섭하지 않으므로 언제든 빠져나올 수 있다.
+    void OnCollisionStay(Collision collision)
+    {
+        if (((1 << collision.gameObject.layer) & GroundMask) != 0) return; // 지면은 기존 로직대로
+        if (_moveDir.magnitude > 0.1f) return;  // 의도적 이동 중엔 간섭 안 함
+        if (_isSlashing) return;                // 슬래시 돌진 속도는 유지
+
+        Vector3 v = _rb.linearVelocity;
+        if (v.x * v.x + v.z * v.z < 0.0001f) return;
+        v.x = 0f;
+        v.z = 0f;
+        _rb.linearVelocity = v;
+    }
+
     void HandleRotation()
     {
         // 이동 잠금 / 피격 / 사망 중엔 회전도 막음
