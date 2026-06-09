@@ -50,7 +50,8 @@ public class PlayerDashComponent : MonoBehaviour
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
 
-        if (_player.Input.MoveInput.magnitude < 0.1f) return;
+        // 제자리(이동입력 없음)에서도 우클릭하면 정면으로 대시한다 (#20).
+        // GetDashDirection()이 입력 없으면 transform.forward 를 반환하므로 방향은 안전.
         if (IsOnCooldown) return;
         if (_player.Stat.CurrentStamina < DashCost) return;
         if (_player.Skill.IsExecuting) return;
