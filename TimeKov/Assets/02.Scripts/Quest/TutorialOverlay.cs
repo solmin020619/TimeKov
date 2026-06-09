@@ -85,6 +85,10 @@ public class TutorialOverlay : MonoBehaviour
     private const float FocusStartExpandPx = 120f;    // 시작 시 사방 확대량(px) → 0으로 수렴
     private float _focusStartTime = -999f;            // 새 타깃 표시 시각 (수렴 기준)
 
+    // 프레임 스프라이트 금색 선이 가장자리에 딱 붙은(edge-to-edge) 버전이라 여백 보정 불필요(0).
+    // 금테가 안쪽으로 들어간 스프라이트를 쓰면 그 여백만큼 값을 올려 구멍 경계에 맞춘다.
+    private const float FrameOutsetPx = 0f;
+
     private void Awake()
     {
         if (_i != null && _i != this) { Destroy(gameObject); return; }
@@ -246,7 +250,11 @@ public class TutorialOverlay : MonoBehaviour
         if (_useSpriteFrame)
         {
             // 9-slice 프레임을 구멍(확대 박스)에 맞춰 배치 — 코너 고정 크기, 변은 늘어남. 수렴/펄스 그대로 적용.
-            SetAnchors(_frameImage.rectTransform, bxMin, byMin, bxMax, byMax);
+            // 스프라이트 안쪽 여백 보정: rect를 FrameOutsetPx만큼 바깥으로 빼 금테가 구멍 경계에 딱 붙게.
+            var frt = _frameImage.rectTransform;
+            SetAnchors(frt, bxMin, byMin, bxMax, byMax);
+            frt.offsetMin = new Vector2(-FrameOutsetPx, -FrameOutsetPx);
+            frt.offsetMax = new Vector2(FrameOutsetPx, FrameOutsetPx);
             var fc = _frameImage.color; fc.a = frameAlpha; _frameImage.color = fc;
         }
         else
@@ -343,15 +351,15 @@ public class TutorialOverlay : MonoBehaviour
         _borderRight = NewImage("BorderRight", _root, BorderColor);
 
         // 게임톤 sci-fi 프레임 스프라이트(9-slice) — 있으면 4변 단색 테두리 대신 이걸로 강조.
-        // Resources/tutorial/focus-frame (완전 프레임). 코너만 원하면 "tutorial/focus-frame-corners"로 교체.
-        var frameSprite = Resources.Load<Sprite>("tutorial/focus-frame");
+        // "tutorial/1" = 완전 프레임(가장자리 딱 붙음). 코너만 원하면 "tutorial/2"로 교체.
+        var frameSprite = Resources.Load<Sprite>("tutorial/1");
         _useSpriteFrame = frameSprite != null;
         _frameImage = NewImage("FocusFrame", _root, Color.white);
         if (_useSpriteFrame)
         {
             _frameImage.sprite = frameSprite;
             _frameImage.type = Image.Type.Sliced;
-            _frameImage.pixelsPerUnitMultiplier = 5f;   // 9-slice 코너 렌더 크기(보더256/5 ≈ 51px). 크면 코너 작아짐.
+            _frameImage.pixelsPerUnitMultiplier = 3f;   // 9-slice 코너 렌더 크기(보더140/3 ≈ 47px). 크면 코너 작아짐.
         }
         _frameImage.enabled = false;
 
