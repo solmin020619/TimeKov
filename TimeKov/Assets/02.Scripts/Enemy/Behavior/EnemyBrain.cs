@@ -38,6 +38,7 @@ public class EnemyBrain : MonoBehaviour
     private EnemyFeedback feedback;
     private GameObject lastTarget;
     private Transform cachedPlayerTransform;
+    private PlayerStatComponent playerStat;
     private EnemyHealth healthRef;
     private NavMeshAgent navAgent;
     private Animator animator;
@@ -84,7 +85,11 @@ public class EnemyBrain : MonoBehaviour
 
         // 피격 시 즉시 가해자(=Player) 인식 — 뒤에서 맞아도 추적 시작
         var p = GameObject.FindGameObjectWithTag("Player");
-        if (p != null) cachedPlayerTransform = p.transform;
+        if (p != null)
+        {
+            cachedPlayerTransform = p.transform;
+            playerStat = p.GetComponent<PlayerStatComponent>();
+        }
 
         if (healthRef != null)
             healthRef.OnDamage += OnTookDamage;
@@ -118,6 +123,12 @@ public class EnemyBrain : MonoBehaviour
 
         Transform spotted = visionSensor.SpottedTarget;
         GameObject targetObj = spotted != null ? spotted.gameObject : null;
+
+        // 플레이어가 죽었거나 결계(기지) 안에 있으면 타깃 해제 —
+        // 죽은 플레이어를 계속 공격하거나, 결계 안의 플레이어를 인식/추적하지 않도록.
+        if (targetObj != null && playerStat != null && (playerStat.IsDead || playerStat.IsInBase))
+            targetObj = null;
+
         btAgent.SetVariableValue(targetVarName, targetObj);
 
         if (lastTarget == null && targetObj != null)
