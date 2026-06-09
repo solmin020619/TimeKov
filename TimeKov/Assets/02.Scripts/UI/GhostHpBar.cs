@@ -71,9 +71,15 @@ public class GhostHpBar : MonoBehaviour
     {
         if (ghostImage == null) return;
 
-        // 피격: 직전 프레임 HP 에 빨간 잔상을 세우고 멈춤 시작
+        // 피격: 직전 프레임 HP 에 빨간 잔상을 세우고 멈춤 시작.
+        // 이미 피격 잔상이 진행 중일 때만 기존 레벨과 Max (연속 피격 누적).
+        // 아니면 직전 프레임 HP에서 새로 시작 — 안 그러면 이전 잔상이 끝난 뒤 남은
+        // _ghostLevel(옛 HP 위치) 때문에, 그 사이 매초 닳은 시간딜까지 한꺼번에 잔상으로 떠버린다.
+        float start = (_mode == Mode.Damage)
+            ? Mathf.Max(_ghostLevel, _fillLastFrame)
+            : _fillLastFrame;
         _mode = Mode.Damage;
-        _ghostLevel = Mathf.Max(_ghostLevel, _fillLastFrame);
+        _ghostLevel = start;
         _holdTimer = holdDuration;
         ghostImage.color = damageColor;
         ghostImage.enabled = true;
