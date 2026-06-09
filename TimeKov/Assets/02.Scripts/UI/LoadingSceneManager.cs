@@ -73,13 +73,22 @@ public class LoadingSceneManager : MonoBehaviour
             dataReady = true;
         });
 
-        // 데이터 로드 중 진행바 스무스 이동 (실제 완료 전까지 99%까지만)
+        // 데이터 로드 중 진행바 이동. 구글시트 일괄 다운로드라 실제 진행도를 알 수 없어
+        // 가짜 진행도를 점근 보간으로 99%까지 채운다(완전 정지 없이 막판까지 미세하게 계속 이동).
+        // 숫자가 사실상 멈춰도 "멈춘 듯" 보이지 않게 텍스트 끝에 도는 점(.../..)을 붙인다 (#16).
         float dataFill = 0f;
+        float dotTimer = 0f;
+        int dotCount = 0;
         while (!dataReady)
         {
             yield return null;
-            dataFill = Mathf.MoveTowards(dataFill, 0.99f, Time.deltaTime * loadingSpeed * 0.3f);
-            SetProgress(SCENE_LOAD_RATIO + dataFill * DATA_LOAD_RATIO);
+            dataFill = Mathf.Lerp(dataFill, 1f, Time.deltaTime * loadingSpeed * 0.6f);
+            if (dataFill > 0.99f) dataFill = 0.99f;
+
+            dotTimer += Time.deltaTime;
+            if (dotTimer >= 0.35f) { dotTimer = 0f; dotCount = (dotCount + 1) % 4; }
+
+            SetProgress(SCENE_LOAD_RATIO + dataFill * DATA_LOAD_RATIO, new string('.', dotCount));
         }
 
         // 100% 확정
@@ -93,10 +102,10 @@ public class LoadingSceneManager : MonoBehaviour
         op.allowSceneActivation = true;
     }
 
-    void SetProgress(float value)
+    void SetProgress(float value, string suffix = "")
     {
         value = Mathf.Clamp01(value);
         if (loadingSlider != null) loadingSlider.value = value;
-        if (loadingText   != null) loadingText.text    = ((int)(value * 100)) + "%";
+        if (loadingText   != null) loadingText.text    = ((int)(value * 100)) + "%" + suffix;
     }
 }

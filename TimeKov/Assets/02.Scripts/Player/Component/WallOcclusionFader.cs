@@ -53,10 +53,13 @@ public class WallOcclusionFader : MonoBehaviour
 
     void Start()
     {
-        // occlusionMask 미설정 시 안전 폴백: Default/Ground/Building/BuildPort
-        // (나무는 보통 Default 라 자동 포함되게)
+        // occlusionMask 미설정 시 안전 폴백: Default/Ground (나무/지형만)
         if (occlusionMask.value == 0)
-            occlusionMask = LayerMask.GetMask("Default", "Ground", "Building", "BuildPort");
+            occlusionMask = LayerMask.GetMask("Default", "Ground");
+
+        // 구조물(건물/설비)은 반투명 제외 (#22) — 건물이 투과되면 내부 메시가 비쳐 보기 안 좋다는 QA.
+        // 인스펙터에서 Building/BuildPort 가 켜져 있어도 강제로 끈다. 나무/지형 가림은 유지(플레이어 가림 방지).
+        occlusionMask.value &= ~LayerMask.GetMask("Building", "BuildPort");
 
         CacheColliderlessCandidates();
     }

@@ -23,10 +23,13 @@ public class TutorialMarker : MonoBehaviour
     [SerializeField] private float screenEdgePadding = 80f;
     [Tooltip("이 거리 미만이면 거리 텍스트 숨김 (이미 도착)")]
     [SerializeField] private float hideTextDistance = 1.5f;
+    [Tooltip("마커 위치 보간 속도. 높을수록 즉각, 낮을수록 부드러움. 흔들림(튐) 억제용.")]
+    [SerializeField] private float positionSmooth = 14f;
 
     private Transform _player;
     private Camera _cam;
     private CanvasGroup _markerCg;
+    private bool _wasVisible;
 
     void Awake()
     {
@@ -101,28 +104,58 @@ public class TutorialMarker : MonoBehaviour
             return;
         }
 
-        Vector3 screen = cam.WorldToScreenPoint(targetWorld);
-        bool behind = screen.z < 0f;
+        // ── 화면 좌표 계산 (카메라 뒤/특이점에서도 안정적으로) ─────────────
+        Vector2 center = new Vector2(Screen.width, Screen.height) * 0.5f;
+        Vector3 sp = cam.WorldToScreenPoint(targetWorld);
+        bool behind = sp.z < 0f;
 
-        // 카메라 뒤면 좌표 반전 (가장자리 방향 표시)
-        if (behind)
+        bool onscreen = !behind
+                      && sp.x >= screenEdgePadding && sp.x <= Screen.width - screenEdgePadding
+                      && sp.y >= screenEdgePadding && sp.y <= Screen.height - screenEdgePadding;
+
+        Vector2 targetPos;
+        bool offscreen;
+        if (onscreen)
         {
-            screen.x = Screen.width - screen.x;
-            screen.y = Screen.height - screen.y;
+            targetPos = new Vector2(sp.x, sp.y);
+            offscreen = false;
+        }
+        else
+        {
+            // 방향 결정: 카메라 뒤면 WorldToScreenPoint 가 발산(=튐 원인)하므로 쓰지 않고
+            // 카메라 축(right/up) 투영으로 방향을 구한다. 특이점 jitter 가 사라진다.
+            Vector2 dir;
+            if (behind)
+            {
+                Vector3 to = targetWorld - cam.transform.position;
+                dir = new Vector2(Vector3.Dot(to, cam.transform.right),
+                                  Vector3.Dot(to, cam.transform.up));
+            }
+            else
+            {
+                dir = new Vector2(sp.x, sp.y) - center;
+            }
+            if (dir.sqrMagnitude < 1e-4f) dir = Vector2.up;
+            dir.Normalize();
+
+            // 중심에서 dir 방향으로 패딩된 화면 사각형 가장자리와의 교점
+            float halfW = center.x - screenEdgePadding;
+            float halfH = center.y - screenEdgePadding;
+            float scale = Mathf.Min(halfW / Mathf.Max(Mathf.Abs(dir.x), 1e-4f),
+                                    halfH / Mathf.Max(Mathf.Abs(dir.y), 1e-4f));
+            targetPos = center + dir * scale;
+            offscreen = true;
         }
 
-        bool offscreen = behind
-                       || screen.x < screenEdgePadding
-                       || screen.x > Screen.width - screenEdgePadding
-                       || screen.y < screenEdgePadding
-                       || screen.y > Screen.height - screenEdgePadding;
-
-        // 화면 가장자리에 클램프
-        screen.x = Mathf.Clamp(screen.x, screenEdgePadding, Screen.width - screenEdgePadding);
-        screen.y = Mathf.Clamp(screen.y, screenEdgePadding, Screen.height - screenEdgePadding);
-
-        markerRoot.position = new Vector3(screen.x, screen.y, 0f);
+        // 부드럽게 이동(튐 방지). 막 다시 보이기 시작한 프레임은 스냅(슬라이딩 잔상 방지).
+        Vector3 target3 = new Vector3(targetPos.x, targetPos.y, 0f);
+        if (!_wasVisible || positionSmooth <= 0f)
+            markerRoot.position = target3;
+        else
+            markerRoot.position = Vector3.Lerp(markerRoot.position, target3,
+                                               1f - Mathf.Exp(-positionSmooth * Time.deltaTime));
         if (_markerCg != null) _markerCg.alpha = 1f;
+        _wasVisible = true;
 
         // 거리
         float dist = Vector3.Distance(player.position, targetWorld);
@@ -132,14 +165,14 @@ public class TutorialMarker : MonoBehaviour
             else distanceText.text = $"{dist:F0} m";
         }
 
-        // 시야 밖이면 화살표 회전 (마커 root → 목표 방향)
+        // 시야 밖이면 화살표 회전 (화면 중심 → 마커 방향)
         if (offscreenArrow != null)
         {
             offscreenArrow.gameObject.SetActive(offscreen);
             if (offscreen)
             {
-                Vector2 centerToMarker = new Vector2(screen.x - Screen.width * 0.5f, screen.y - Screen.height * 0.5f);
-                float angle = Mathf.Atan2(centerToMarker.y, centerToMarker.x) * Mathf.Rad2Deg - 90f;
+                Vector2 d = targetPos - center;
+                float angle = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg - 90f;
                 offscreenArrow.rotation = Quaternion.Euler(0, 0, angle);
             }
         }
@@ -149,6 +182,7 @@ public class TutorialMarker : MonoBehaviour
     {
         // SetActive 안 씀! markerRoot가 TutorialMarker 자체 GameObject면 LateUpdate 영원히 멈춤
         if (_markerCg != null) _markerCg.alpha = 0f;
+        _wasVisible = false; // 다시 보일 때 보간 없이 스냅 (옛 위치에서 미끄러져 오는 것 방지)
     }
 
     Transform GetPlayer()
