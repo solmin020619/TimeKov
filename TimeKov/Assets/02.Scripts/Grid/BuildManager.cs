@@ -364,10 +364,8 @@ public class BuildManager : MonoBehaviour
     // 존 밖 빌드 시도 안내 토스트. buildZoneToast 미연결 시 콘솔 로그로 폴백.
     void ShowBuildZoneToast()
     {
-        if (buildZoneToast != null)
-            buildZoneToast.Show(buildZoneBlockedMessage, warning: true);
-        else
-            Debug.Log($"[BuildManager] {buildZoneBlockedMessage} (buildZoneToast 미연결)");
+        // 공통 토스트로 통일 (#9) — 기존 buildZoneToast(퀘스트형) 대신 ToastManager 사용.
+        ToastManager.Show(buildZoneBlockedMessage, ToastStyle.Warning);
     }
 
     // 진입 성공 여부 반환 (true=건설 모드, false=차단됨). 건축투어가 실패 시 대기하는 데 사용.
