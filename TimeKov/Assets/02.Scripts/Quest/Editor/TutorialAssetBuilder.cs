@@ -113,7 +113,7 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
             CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 {Y}획득{E}하세요.", ItemSpiderVenom, 1),
             CreateItemAcquire("obj_loot_corrosive", $"{Y}부식액{E}을 {Y}획득{E}하세요.", ItemCorrosive, 1),
-            CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}획득{E}하세요.", ItemTwig, 1),
+            CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
         // Q5. 설비 해금 — 위치 이동 + F 해금 [병렬]. (따로 '도착' 퀘 안 둠: 갔다가 한 번 깨지고 다시 F 누르는 흐름 제거)
@@ -173,16 +173,14 @@ public static class TutorialAssetBuilder
                 $"{Y}가공{E}이 끝나면 결과물이 나옵니다. {Y}모두 받기{E}로 결과물을 {Y}회수{E}하세요.",
                 TargetMachineOutput)));
 
-        // Q10. 회복젤 회수
-        quests.Add(BuildQuest("quest_tut_10_collect_gel", "결과물 회수",
-            CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}회복 젤{E}을 {Y}회수{E}하세요.", ItemHealGel, 1)));
+        // Q10. 회복젤 회수 (+ 다음 배양기 가동용 연료 나뭇가지 보상, #28)
+        var qCollectGel = BuildQuest("quest_tut_10_collect_gel", "결과물 회수",
+            CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}회복 젤{E}을 {Y}회수{E}하세요.", ItemHealGel, 1));
+        qCollectGel.rewards = new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 5 } };
+        EditorUtility.SetDirty(qCollectGel);
+        quests.Add(qCollectGel);
 
-        // Q10b. 연료 확보 — 배양기 가동에 쓸 나뭇가지 5개를 확보한다 (#28).
-        // ItemAcquire 라서 인벤에 이미 5개 있으면 즉시 완료(다른 재료 퀘와 동일). 없으면 오크 트리 처치로 모은다.
-        quests.Add(BuildQuest("quest_tut_10b_fuel_hunt", "연료 확보",
-            CreateItemAcquire("obj_fuel_hunt_collect",
-                $"배양기를 돌리려면 {Y}연료{E}가 필요합니다. {Y}나뭇가지{E}를 {Y}5개{E} 확보하세요. ({Y}오크 트리{E}를 처치하면 나옵니다)",
-                ItemTwig, 5)));
+        // (연료 확보는 별도 퀘 없이 — 초반 Q3에서 나뭇가지 2개 수집 + Q10 완료 보상으로 지급, #28)
 
         // Q11. 배양기 해금 + 설치 — 위치 이동 + F 해금 + 설치 [병렬]. (도착 퀘 분리 안 함)
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
@@ -208,7 +206,7 @@ public static class TutorialAssetBuilder
         // Q15. [안내] 레일 자동화
         quests.Add(BuildQuest("quest_tut_15_rail_info", "자동화 안내",
             CreateContinue("obj_rail_info",
-                $"{Y}레일{E}로 설비를 이으면 아이템이 {Y}자동{E}으로 다음 설비로 이동합니다. {Y}건설 모드(B){E}의 {Y}탑뷰{E}에서 {Y}E(레일){E}를 고른 뒤, 설비의 {Y}출구(E 표시){E}를 클릭해 다음 설비까지 이어 주세요.")));
+                $"{Y}레일{E}로 설비를 이으면 아이템이 {Y}자동{E}으로 다음 설비로 이동합니다. {Y}건설 모드(B){E}에서 {Y}E(레일){E}를 고른 뒤, 설비의 {Y}출구(E 표시){E}를 클릭해 다음 설비까지 이어 주세요.")));
 
         // Q16. 레일 연결 (액션)
         quests.Add(BuildQuest("quest_tut_16_rail_connect", "레일 연결",
@@ -216,18 +214,10 @@ public static class TutorialAssetBuilder
 
         // (저장고 #8 = 있으면 좋고 없으면 말고 → 튜토리얼 필수에서 제외. 마무리(Q21)에서 "숨겨진 설비 찾기"로 안내.)
 
-        // Q19. [안내 + 보상] 코어 키트 지급
-        var qCoreIntro = BuildQuest("quest_tut_19_core_intro", "코어 강화 안내",
-            CreateContinue("obj_core_info",
-                $"{Y}코어{E}를 {Y}강화{E}하면 {Y}최대 체력(시간){E}이 늘어납니다. 강화는 {Y}기지(결계) 안{E}의 {Y}코어 강화 단말{E}에 가서 {Y}코어 키트{E}를 재료로 진행해요. 체험용 {Y}코어 키트 I{E}를 지급합니다.",
-                TargetCoreUpgrade));
-        qCoreIntro.rewards = new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } };
-        EditorUtility.SetDirty(qCoreIntro);
-        quests.Add(qCoreIntro);
-
-        // Q20. 코어 강화 (액션) — 강화는 결계(기지) 안에서만 가능하므로 라벨에 명시
-        quests.Add(BuildQuest("quest_tut_20_core_upgrade", "코어 강화",
-            CreateCoreUpgrade("obj_core_upgrade", $"{Y}기지(결계) 안{E}에서 받은 키트로 {Y}코어{E}를 {Y}강화{E}하세요.", 0)));
+        // [보류] 코어 강화 튜토(옛 Q19 안내 + Q20 강화)는 방식 전면 개편 예정이라 현재 제외.
+        // 새 플로우(추후 구현, 지금은 만들지 말 것): (1) 코어강화 위치로 이동(마커) + 완료보상으로 코어 키트 3개
+        // (2) F로 단말 열기 (3) 열리면 UI 강조 + 효과 설명(체력↑/단계별 필요한 코어 다름/코어 제작처/스타포스식 강화 등)
+        // (4) 끝나면 체력바 강조로 최대치 변화 인지. ※코어 UI는 교체 예정이라 그에 맞춰 구현.
 
         // Q21. [안내] 마무리 (숨겨진 설비 안내는 건설투어에서 함)
         quests.Add(BuildQuest("quest_tut_21_finish", "튜토리얼 완료",

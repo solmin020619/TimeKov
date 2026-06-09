@@ -81,7 +81,7 @@ public class QuestEntry : MonoBehaviour
     }
 
     // 퀘스트 보상을 목표 줄들 아래에 한 줄로 표시한다.
-    // "퀘스트 보상: <노란색>아이템명</color> (개수)" 형식. 여러 개면 콤마로 연결.
+    // "퀘스트 보상: <노란색>아이템명</color> N개" 형식. 여러 개면 콤마로 연결.
     // 보상이 없거나 유효한 항목이 없으면 rewardText 를 숨긴다.
     void SetupRewardText(QuestSO q)
     {
@@ -102,7 +102,7 @@ public class QuestEntry : MonoBehaviour
             // 아이템 이름 조회 — 못 찾으면 ID로 폴백
             var itemData = ItemDatabase.GetItem(r.itemId);
             string itemName = itemData != null ? itemData.itemName : r.itemId.ToString();
-            sb.Append($"<color={rewardItemColorHex}>{itemName}</color> ({r.amount})");
+            sb.Append($"<color={rewardItemColorHex}>{itemName}</color> {r.amount}개");
             any = true;
         }
 

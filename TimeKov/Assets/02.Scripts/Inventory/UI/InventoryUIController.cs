@@ -329,29 +329,8 @@ public class InventoryUIController : MonoBehaviour
     // 슬롯 우클릭 핸들러
     private void OnSlotRightClicked(InventorySlotUI slot)
     {
-        // 튜토리얼 진행 중 설비(Factory) UI가 열려 있으면 우클릭(컨텍스트 메뉴)을 막는다 (#14).
-        // 튜토는 드래그/더블클릭(좌클릭)으로만 재료·연료를 넣게 유도 — 우클릭 '사용'으로
-        // 소비템(회복 젤 등)을 써버려 투입 단계가 깨지는 것을 방지. 공용 InventorySlotUI는 안 건드리고 여기서만 차단.
-        var gui = GameUIController.Instance;
-        if (gui != null && gui.GetCurrentState() == GameUIController.UIState.Factory && IsTutorialInProgress())
-            return;
-
         OnSlotClicked(slot);
         contextMenu?.Open(slot, Input.mousePosition);
-    }
-
-    // 튜토리얼이 아직 진행 중인지(활성·미완료 objective가 하나라도 있는지) 확인. 완료 후엔 false → 일반 우클릭 복귀.
-    private static bool IsTutorialInProgress()
-    {
-        var qm = QuestManager.Instance;
-        if (qm == null || !qm.IsReady) return false;
-        foreach (var rt in qm.Runtimes)
-        {
-            if (rt?.activeObjectives == null) continue;
-            foreach (var o in rt.activeObjectives)
-                if (o != null && !o.IsCompleted) return true;
-        }
-        return false;
     }
 
     // 툴팁 표시
