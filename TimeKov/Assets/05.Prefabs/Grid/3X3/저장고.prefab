@@ -658,6 +658,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5086754870531064526}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -3067020143810427520}
   m_SourcePrefab: {fileID: 100100000, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}
 --- !u!1 &4923407626932235549 stripped
 GameObject:
@@ -680,6 +683,21 @@ MonoBehaviour:
   inputBelt: {fileID: 0}
   outputPort: {fileID: 0}
   inputPort: {fileID: 8530809078581993906}
+--- !u!114 &-3067020143810427520
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4923407626932235549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9844ead624756f49baeb90c25858180, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 0}
+  effects: []
+  maxEffectFadeTime: 5
 --- !u!4 &5699487341183170471 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: f3871422c9834d54abb6f6f97d674bc8, type: 3}

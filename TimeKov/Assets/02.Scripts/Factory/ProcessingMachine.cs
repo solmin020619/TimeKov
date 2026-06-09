@@ -29,13 +29,15 @@ namespace TIMEKOV.Factory
         [HideInInspector] public int LockedRecipeIndex = -1;
 
         private bool _processing;
-        private MachineLoopSound _loopSound;
+        private MachineLoopSound       _loopSound;
+        private MachineAnimationEffect _animEffect;
 
         // ── 초기화 ─────────────────────────────────────────────────────────
 
         protected virtual void Start()
         {
-            _loopSound = GetComponent<MachineLoopSound>();
+            _loopSound  = GetComponent<MachineLoopSound>();
+            _animEffect = GetComponent<MachineAnimationEffect>();
             TryLoadRecipesFromSheet();
         }
 
@@ -194,7 +196,8 @@ namespace TIMEKOV.Factory
             }
             ActiveRecipe = recipe;
             SetStatus(MachineStatus.Processing);
-            _loopSound?.StartProduction();  // 생산 시작 → 루프 사운드 ON
+            _loopSound?.StartProduction();   // 생산 시작 → 루프 사운드 ON
+            _animEffect?.StartProduction();  // 생산 시작 → 애니메이션·이펙트 ON
 
             InputBuffer.ConsumeAll(recipe.inputs);
             NotifyBufferChanged();
@@ -214,9 +217,11 @@ namespace TIMEKOV.Factory
                 {
                     SetStatus(MachineStatus.NoFuel);
                     _loopSound?.StopProduction(playDoneSound: false);
+                    _animEffect?.StopProduction();   // 연료 소진 → 일시 정지
                     while (!HasFuel) yield return null;
                     SetStatus(MachineStatus.Processing);
                     _loopSound?.StartProduction();
+                    _animEffect?.StartProduction();  // 연료 재충전 → 재시작
                 }
 
                 ConsumeFuelDelta(Time.deltaTime);
@@ -228,7 +233,8 @@ namespace TIMEKOV.Factory
             Progress = 0f;
             ActiveRecipe = null;
             _processing = false;
-            _loopSound?.StopProduction(playDoneSound: true);  // 생산 완료 → 루프 OFF + 완료음 1회
+            _loopSound?.StopProduction(playDoneSound: true);   // 생산 완료 → 루프 OFF + 완료음 1회
+            _animEffect?.StopProduction();                     // 생산 완료 → 애니메이션·이펙트 부드럽게 OFF
 
             foreach (var output in recipe.outputs)
             {
