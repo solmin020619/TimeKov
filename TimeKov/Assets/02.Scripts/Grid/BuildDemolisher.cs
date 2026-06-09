@@ -10,6 +10,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using TIMEKOV.Factory;
 
 public class BuildDemolisher
 {
@@ -120,6 +121,9 @@ public class BuildDemolisher
     {
         if (building == null) return;
 
+        // 설비 내부 아이템을 창고로 이동 (파괴 전에 처리)
+        ReturnItemsToStorage(building.gameObject);
+
         owner.RailManager?.RemoveRailsConnectedToBuilding(building);
 
         occupancy.Free(building.occupiedCells);
@@ -130,6 +134,38 @@ public class BuildDemolisher
 
         if (owner.IsRailSubMode)
             owner.RailManager?.RefreshPortIndicators();
+    }
+
+    /// <summary>
+    /// 설비의 InputBuffer·OutputBuffer 아이템을 창고(StorageInstance)로 이동.
+    /// 창고가 없거나 설비가 MachineBase를 가지지 않으면 조용히 스킵.
+    /// </summary>
+    private void ReturnItemsToStorage(GameObject facilityObj)
+    {
+        var storage = InventoryManager.StorageInstance;
+        if (storage == null) return;
+
+        var machine = facilityObj.GetComponent<MachineBase>();
+        if (machine == null) return;
+
+        // Dictionary를 직접 순회하면 컬렉션 변경 오류가 날 수 있으므로 복사본으로 처리
+        var inputItems  = new Dictionary<int, int>(machine.InputBuffer.Stock);
+        var outputItems = new Dictionary<int, int>(machine.OutputBuffer.Stock);
+
+        foreach (var kv in inputItems)
+            if (kv.Value > 0) storage.AddItem(kv.Key, kv.Value);
+
+        foreach (var kv in outputItems)
+            if (kv.Value > 0) storage.AddItem(kv.Key, kv.Value);
+
+        // 연료 아이템 회수 (FuelTimeRemaining → 아이템 개수로 역산)
+        var cfg = FuelConfig.Instance;
+        if (cfg != null && machine.HasFuel)
+        {
+            int fuelCount = machine.TakeFuel();
+            if (fuelCount > 0)
+                storage.AddItem(cfg.fuelItemId, fuelCount);
+        }
     }
 
     private void DemolishRail(Vector2Int cell)
