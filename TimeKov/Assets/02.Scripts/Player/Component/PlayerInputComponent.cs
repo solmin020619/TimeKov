@@ -16,6 +16,7 @@ public class PlayerInputComponent : MonoBehaviour
     public static bool IsBlocked = false; // UI가 열림
 
     private PlayerSkillComponent _skill;
+    private PlayerDashComponent _dash;
 
     void Awake()
     {
@@ -23,6 +24,7 @@ public class PlayerInputComponent : MonoBehaviour
         // (UI 열린 채 사망 → 씬 재로드 시 IsBlocked = true 고착 방지)
         IsBlocked = false;
         _skill = GetComponent<PlayerSkillComponent>();
+        _dash  = GetComponent<PlayerDashComponent>();
     }
 
     void Update()
@@ -71,6 +73,18 @@ public class PlayerInputComponent : MonoBehaviour
         {
             AttackPressed = Input.GetMouseButtonDown(0);
             DashPressed   = Input.GetMouseButtonDown(1);
+        }
+
+        // 대시 중에는 공격·스킬 입력만 차단한다.
+        // 대시(우클릭)와 공격/스킬(좌클릭·QER)이 동시에 돌면 Action 애니 레이어가 꼬여
+        // ComboAttackBase의 WaitUntil(!IsInActionAnim)이 안 풀려 플레이어가 멈추고
+        // 이펙트만 나가는 버그가 생긴다. (이동/점프는 그대로 둠)
+        if (_dash != null && _dash.IsDashing)
+        {
+            AttackPressed = false;
+            Skill1Pressed = false;
+            Skill2Pressed = false;
+            Skill3Pressed = false;
         }
     }
 }
