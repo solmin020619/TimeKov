@@ -904,6 +904,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6702023074882078227}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5866955541733425800}
   m_SourcePrefab: {fileID: 100100000, guid: 265fbd7070370f24faded5774b8c1891, type: 3}
 --- !u!4 &1419892068476591272 stripped
 Transform:
@@ -988,6 +991,23 @@ MonoBehaviour:
   precomputeOutline: 0
   bakeKeys: []
   bakeValues: []
+--- !u!114 &5866955541733425800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1801344178978899474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9844ead624756f49baeb90c25858180, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animators:
+  - {fileID: 7499619570066557005}
+  effects:
+  - {fileID: 1375569077572744178}
+  maxEffectFadeTime: 5
 --- !u!1001 &5319542280414204334
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1045,6 +1065,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 98ab6fdf77bcd4142922710cae03f9f3, type: 3}
+--- !u!198 &1375569077572744178 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 6540861962094289500, guid: 98ab6fdf77bcd4142922710cae03f9f3, type: 3}
+  m_PrefabInstance: {fileID: 5319542280414204334}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &2573872854547450143 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7668209856227104945, guid: 98ab6fdf77bcd4142922710cae03f9f3, type: 3}
