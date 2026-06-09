@@ -109,6 +109,10 @@ public class GameUIController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
             HandleEscape();
 
+        // 사망 오버레이 중에는 ESC(위에서 처리)와 부활 버튼 외 모든 키 차단 (J/C 등).
+        if (DeathOverlayUI.IsOpen)
+            return;
+
         // 튜토리얼 코치마크(오버레이) 중에는 ESC 외 키보드 전부 차단.
         // 단, 오버레이가 현재 진행에 요구하는 키(예: C 스탯창 스텝)는 그 동작만 허용.
         if (_tutorialCoachActive)

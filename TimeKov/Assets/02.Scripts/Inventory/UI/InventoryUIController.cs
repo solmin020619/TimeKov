@@ -128,6 +128,10 @@ public class InventoryUIController : MonoBehaviour
         if (GameUIController.Instance != null && GameUIController.Instance.IsTutorialCoachActive)
             return;
 
+        // 사망 오버레이 중에는 인벤 토글 차단 (부활 버튼 외 입력 금지)
+        if (DeathOverlayUI.IsOpen)
+            return;
+
         // TAB 키로 인벤토리 토글 (DataBoot 완료 여부와 무관하게 항상 열 수 있음)
         if (Input.GetKeyDown(KeyCode.Tab))
         {

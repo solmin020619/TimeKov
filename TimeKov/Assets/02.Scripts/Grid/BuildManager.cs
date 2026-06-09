@@ -323,6 +323,10 @@ public class BuildManager : MonoBehaviour
         if (GameUIController.Instance != null && GameUIController.Instance.IsTutorialCoachActive)
             return;
 
+        // 사망 오버레이 중에는 건축 입력 차단 (부활 버튼 외 입력 금지)
+        if (DeathOverlayUI.IsOpen)
+            return;
+
         // B 키: 빌드 모드 진입/종료 토글
         if (Input.GetKeyDown(KeyCode.B))
         {
