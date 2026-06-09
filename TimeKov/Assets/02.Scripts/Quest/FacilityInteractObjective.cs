@@ -19,9 +19,14 @@ public class FacilityInteractObjective : ObjectiveSO
 
     public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
-    public override void Activate() { GameEvents.OnFacilityInteract += OnInteract; }
+    public override void Activate()
+    {
+        GameEvents.OnFacilityInteract += OnInteract;
+        _count += GameEvents.RecentCount(GameEvents.KeyInteract(facilityId));   // 갭에서 미리 연 분 인정
+    }
     public override void Deactivate() => GameEvents.OnFacilityInteract -= OnInteract;
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
+    protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
         => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;

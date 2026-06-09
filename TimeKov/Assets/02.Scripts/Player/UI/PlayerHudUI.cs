@@ -208,6 +208,35 @@ public class PlayerHudUI : MonoBehaviour
         RegisterKeyBox("tab_icon", "TAB_Text", "TAB_Icon");
         RegisterKeyBox("b_icon", "B_Text", "B_Icon");
         RegisterKeyBox("esc_icon", "ESC_Text", "Esc_Icon");
+
+        // 우하단 스킬 슬롯 Q/E/R → 스포트라이트 (인트로 투어에서 충전 조건 설명).
+        // 직렬화된 아이콘 참조의 부모(슬롯)를 등록 — 게이지 링까지 포함된 슬롯 전체를 강조.
+        RegisterSkillSlot(skill1IconImage, "skill_q");
+        RegisterSkillSlot(skill2IconImage, "skill_e");
+        RegisterSkillSlot(skill3IconImage, "skill_r");
+    }
+
+    // 스킬 카드 강조 — 카드 전체 높이(키라벨+아트+게이지)를 덮도록 합집합 등록.
+    // 부모 슬롯(Skill_N) rect는 레이아웃 앵커라 화면 중앙으로 잡혀 못 쓰고, 아이콘만 잡으면 150x150 정사각이라
+    // 세로가 짧아 위 키라벨/아래 게이지가 잘린다. 그래서 아이콘 + 형제 Keycap_BG(위) + Gauge_BG(아래)를 합쳐
+    // 폭은 유지하고 세로만 카드 전체로 늘린다.
+    void RegisterSkillSlot(Image iconImage, string spotlightId)
+    {
+        if (iconImage == null) return;
+        RegisterRectTarget(iconImage.rectTransform, spotlightId);
+        var card = iconImage.transform.parent;   // Skill_N (아이콘/키캡/게이지의 공통 부모)
+        if (card != null)
+        {
+            RegisterRectTarget(card.Find("Keycap_BG") as RectTransform, spotlightId);
+            RegisterRectTarget(card.Find("Gauge_BG") as RectTransform, spotlightId);
+        }
+    }
+
+    void RegisterRectTarget(RectTransform rt, string spotlightId)
+    {
+        if (rt == null) return;
+        _iconTargets.Add((spotlightId, rt));
+        TutorialOverlay.RegisterTarget(spotlightId, rt);
     }
 
     // 한 키의 라벨+아이콘을 같은 스포트라이트 id로 등록 (합집합 박스).

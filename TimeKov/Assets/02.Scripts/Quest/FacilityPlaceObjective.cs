@@ -12,9 +12,14 @@ public class FacilityPlaceObjective : ObjectiveSO
 
     public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
-    public override void Activate() { GameEvents.OnFacilityPlaced += OnPlaced; }
+    public override void Activate()
+    {
+        GameEvents.OnFacilityPlaced += OnPlaced;
+        _count += GameEvents.RecentCount(GameEvents.KeyPlaced(facilityId));   // 갭에서 미리 설치한 분 인정
+    }
     public override void Deactivate() => GameEvents.OnFacilityPlaced -= OnPlaced;
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
+    protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
         => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;

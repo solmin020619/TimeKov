@@ -14,9 +14,14 @@ public class FacilityInputObjective : ObjectiveSO
 
     public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
-    public override void Activate() { GameEvents.OnFacilityInput += OnInput; }
+    public override void Activate()
+    {
+        GameEvents.OnFacilityInput += OnInput;
+        _count += GameEvents.RecentCount(GameEvents.KeyInput(facilityId, inputItemId));   // 갭에서 미리 투입한 분 인정
+    }
     public override void Deactivate() => GameEvents.OnFacilityInput -= OnInput;
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
+    protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
         => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;

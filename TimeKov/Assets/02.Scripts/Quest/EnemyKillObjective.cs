@@ -12,9 +12,15 @@ public class EnemyKillObjective : ObjectiveSO
 
     public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
-    public override void Activate() { GameEvents.OnEnemyKilled += OnKill; }
+    public override void Activate()
+    {
+        GameEvents.OnEnemyKilled += OnKill;
+        if (!string.IsNullOrEmpty(enemyId))
+            _count += GameEvents.RecentCount(GameEvents.KeyEnemy(enemyId));   // 갭에서 미리 잡은 분 인정
+    }
     public override void Deactivate() => GameEvents.OnEnemyKilled -= OnKill;
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
+    protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
     {

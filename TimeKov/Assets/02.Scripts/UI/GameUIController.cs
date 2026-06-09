@@ -90,13 +90,16 @@ public class GameUIController : MonoBehaviour
             if (statRect != null) TutorialOverlay.RegisterTarget("status_panel", statRect);
         }
 
-        // 튜토리얼 스포트라이트 — 건설 퀵슬롯 UI 요소 (Build 상태에서 활성). 자식 이름으로 탐색해 등록(없으면 no-op).
+        // 튜토리얼 스포트라이트 — 건설 퀵슬롯. (slotEffects/railSlotEffect는 씬에서 미연결이라 못 씀 →
+        // 프리팹에서 검증한 GameObject 이름으로 등록. 슬롯 컨테이너 이름이 한 칸씩 밀려 있음에 주의.)
+        // quick_slots(채워진 슬롯)는 QuickSlotIconUI가 SetFacility/Clear 시 자가 등록한다.
         if (quickSlotUI != null)
         {
-            var qsT = quickSlotUI.transform;
-            RegisterDescendantTargets(qsT, "Quick Slot", "quick_slots");  // 슬롯 바 전부(합집합)
-            RegisterDescendantTargets(qsT, "Quick (5)", "rail_slot");     // E 레일 슬롯
-            RegisterDescendantTargets(qsT, "X_IMG", "build_demolish");    // X 일괄조작 힌트
+            // E 레일 슬롯 = 컨테이너 'Quick (8)'(라벨 'E') 안의 'Quick Slot' 프레임.
+            // 컨테이너 rect는 실제 보이는 슬롯과 어긋나 있어(아이콘이 +54 오프셋) 프레임을 직접 등록해야 정확.
+            RegisterChildInContainer(quickSlotUI.transform, "Quick (8)", "Quick Slot", "rail_slot");
+            // X 일괄조작 행 — 오른쪽 아이콘이 컨테이너 바운드 밖이라 Right_X + 모든 자식 합집합으로 등록
+            RegisterSubtreeByName(quickSlotUI.transform, "Right_X", "build_demolish");
         }
     }
 
@@ -371,16 +374,45 @@ public class GameUIController : MonoBehaviour
         _questHudGroup.blocksRaycasts = false;
     }
 
-    // 이름이 일치하는 모든 자손 RectTransform을 스포트라이트 타깃으로 등록 (없으면 no-op).
-    static void RegisterDescendantTargets(Transform root, string targetName, string spotlightId)
+    // 컨테이너(이름)를 찾고, 그 안에서 특정 자식(이름)을 찾아 스포트라이트로 등록.
+    // (슬롯 컨테이너 rect가 실제 보이는 칸과 어긋날 때, 보이는 자식 프레임을 정확히 강조하기 위함)
+    static void RegisterChildInContainer(Transform root, string containerName, string childName, string spotlightId)
+    {
+        var container = FindByName(root, containerName);
+        if (container == null) return;
+        var child = FindByName(container, childName);
+        if (child is RectTransform rt) TutorialOverlay.RegisterTarget(spotlightId, rt);
+    }
+
+    static Transform FindByName(Transform root, string name)
     {
         for (int i = 0; i < root.childCount; i++)
         {
             var c = root.GetChild(i);
-            if (c.name == targetName && c is RectTransform rt)
-                TutorialOverlay.RegisterTarget(spotlightId, rt);
-            RegisterDescendantTargets(c, targetName, spotlightId);
+            if (c.name == name) return c;
+            var f = FindByName(c, name);
+            if (f != null) return f;
         }
+        return null;
+    }
+
+    // 이름이 일치하는 첫 자손을 찾아, 그 자손 + 모든 하위 자손 rect를 등록.
+    // (자식이 부모 바운드를 넘는 경우 합집합으로 전부 포함시키기 위함 — 예: Right_X의 오른쪽 아이콘)
+    static void RegisterSubtreeByName(Transform root, string targetName, string spotlightId)
+    {
+        for (int i = 0; i < root.childCount; i++)
+        {
+            var c = root.GetChild(i);
+            if (c.name == targetName) { RegisterAllRects(c, spotlightId); return; }
+            RegisterSubtreeByName(c, targetName, spotlightId);
+        }
+    }
+
+    static void RegisterAllRects(Transform t, string spotlightId)
+    {
+        if (t is RectTransform rt) TutorialOverlay.RegisterTarget(spotlightId, rt);
+        for (int i = 0; i < t.childCount; i++)
+            RegisterAllRects(t.GetChild(i), spotlightId);
     }
 
     // ── 내부 상태 적용 ───────────────────────────────────────────────

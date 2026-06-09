@@ -12,9 +12,14 @@ public class ItemUseObjective : ObjectiveSO
 
     public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
-    public override void Activate() { GameEvents.OnItemUsed += OnUsed; }
+    public override void Activate()
+    {
+        GameEvents.OnItemUsed += OnUsed;
+        _count += GameEvents.RecentCount(GameEvents.KeyUsed(itemId));   // 갭에서 미리 사용한 분 인정
+    }
     public override void Deactivate() => GameEvents.OnItemUsed -= OnUsed;
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
+    protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
         => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;

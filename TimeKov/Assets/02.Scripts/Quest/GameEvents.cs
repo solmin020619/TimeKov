@@ -25,19 +25,55 @@ public static class GameEvents
     public static void RaiseMovedDelta(float d) => OnPlayerMovedDelta?.Invoke(d);
     public static void RaiseTriggerEnter(string id) => OnTriggerEntered?.Invoke(id);
     public static void RaiseTriggerExit(string id) => OnTriggerExited?.Invoke(id);
-    public static void RaiseEnemyKilled(string id) => OnEnemyKilled?.Invoke(id);
+    public static void RaiseEnemyKilled(string id) { Record(KeyEnemy(id), 1); OnEnemyKilled?.Invoke(id); }
 
     public static void RaiseItemAcquired(int itemId, int count) => OnItemAcquired?.Invoke(itemId, count);
-    public static void RaiseFacilityPlaced(int facilityId) => OnFacilityPlaced?.Invoke(facilityId);
-    public static void RaiseFacilityInput(int facilityId, int itemId, int count) => OnFacilityInput?.Invoke(facilityId, itemId, count);
+    public static void RaiseFacilityPlaced(int facilityId) { Record(KeyPlaced(facilityId), 1); OnFacilityPlaced?.Invoke(facilityId); }
+    public static void RaiseFacilityInput(int facilityId, int itemId, int count) { Record(KeyInput(facilityId, itemId), count); OnFacilityInput?.Invoke(facilityId, itemId, count); }
     public static void RaiseFacilityProcessComplete(int facilityId, int outputItemId, int count) => OnFacilityProcessComplete?.Invoke(facilityId, outputItemId, count);
-    public static void RaiseFacilityInteract(int facilityId) => OnFacilityInteract?.Invoke(facilityId);
-    public static void RaiseItemUsed(int itemId) => OnItemUsed?.Invoke(itemId);
+    public static void RaiseFacilityInteract(int facilityId) { Record(KeyInteract(facilityId), 1); OnFacilityInteract?.Invoke(facilityId); }
+    public static void RaiseItemUsed(int itemId) { Record(KeyUsed(itemId), 1); OnItemUsed?.Invoke(itemId); }
     public static void RaiseFacilityUnlocked(int facilityId) => OnFacilityUnlocked?.Invoke(facilityId);
     public static void RaiseCoreUpgraded(int newLevel) => OnCoreUpgraded?.Invoke(newLevel);
-    public static void RaiseRailConnected() => OnRailConnected?.Invoke();
-    public static void RaiseFuelAdded(int facilityId) => OnFuelAdded?.Invoke(facilityId);
+    public static void RaiseRailConnected() { Record(KeyRail, 1); OnRailConnected?.Invoke(); }
+    public static void RaiseFuelAdded(int facilityId) { Record(KeyFuel(facilityId), 1); OnFuelAdded?.Invoke(facilityId); }
     public static void RaiseBuildModeEntered() => OnBuildModeEntered?.Invoke();
+
+    // ── 일회성 이벤트 lookback 캐시 ───────────────────────────────────────
+    // 문제: 퀘↔퀘 사이 ~1.15초 갭 동안엔 활성 objective가 없어, 이때 플레이어가 다음 퀘가 시킬 행동을
+    //       미리 하면 그 일회성 이벤트를 아무도 안 듣고 증발 → 다음 퀘 영구 미완료(B따닥과 동일 클래스).
+    // 해결: 일회성 Raise를 (키+양+시각)으로 잠깐 기억해두고, 이벤트형 objective가 Activate 시
+    //       LookbackWindow 내 자기 키의 발생량을 _count에 인정 + IsAlreadySatisfied로 즉시 완료.
+    //       소비형(재료/연료)도 '이벤트가 났다'는 사실로 인정하므로 버퍼가 비어도 복구됨.
+    const float LookbackWindow = 2.5f;   // 갭(~1.15s)보다 넉넉히
+    static readonly System.Collections.Generic.List<(string key, int amount, float time)> _recent = new();
+
+    static void Record(string key, int amount)
+    {
+        float now = Time.unscaledTime;
+        _recent.Add((key, amount, now));
+        for (int i = _recent.Count - 1; i >= 0; i--)
+            if (now - _recent[i].time > LookbackWindow) _recent.RemoveAt(i);
+    }
+
+    /// <summary>최근 LookbackWindow 내 발생한 key 이벤트의 누적량. objective가 Activate 때 갭에서 놓친 행동을 인정받는 용도.</summary>
+    public static int RecentCount(string key)
+    {
+        float now = Time.unscaledTime;
+        int sum = 0;
+        for (int i = 0; i < _recent.Count; i++)
+            if (_recent[i].key == key && now - _recent[i].time <= LookbackWindow) sum += _recent[i].amount;
+        return sum;
+    }
+
+    // key 빌더 (Raise와 objective가 공유). facilityId==0(아무 설비나)은 갭-인정 미지원(라이브 경로는 동작).
+    public static string KeyEnemy(string enemyId) => "enemy:" + enemyId;
+    public static string KeyPlaced(int facilityId) => "place:" + facilityId;
+    public static string KeyInput(int facilityId, int itemId) => "input:" + facilityId + ":" + itemId;
+    public static string KeyInteract(int facilityId) => "interact:" + facilityId;
+    public static string KeyUsed(int itemId) => "used:" + itemId;
+    public static string KeyFuel(int facilityId) => "fuel:" + facilityId;
+    public const string KeyRail = "rail";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset()
@@ -57,5 +93,6 @@ public static class GameEvents
         OnRailConnected = null;
         OnFuelAdded = null;
         OnBuildModeEntered = null;
+        _recent.Clear();
     }
 }

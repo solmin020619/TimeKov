@@ -21,7 +21,12 @@ public class GuidedTourObjective : ObjectiveSO
 
     public Step[] steps;
 
+    [Tooltip("ON이면 투어 활성 시 건설 모드가 아니면 강제로 진입(건축투어 전용).\n" +
+             "퀘 사이 갭에서 B를 연타로 들어갔다 나가버려도 투어가 항상 건설 모드에서 뜨게 보장.")]
+    public bool ensureBuildMode = false;
+
     [NonSerialized] int _index;
+    [NonSerialized] bool _waitingForBuildMode;
 
     // 입력형(클릭/키)이라 OnUIActivated (슬라이드 인 끝난 뒤 활성)
     public override ActivationTiming Timing => ActivationTiming.OnUIActivated;
@@ -29,11 +34,35 @@ public class GuidedTourObjective : ObjectiveSO
     public override void Activate()
     {
         _index = 0;
+        // 건축투어: 활성 시 건설 모드가 아니면 강제 진입 (B 연타로 빠져나가도 투어가 건설 모드에서 뜨도록).
+        if (ensureBuildMode)
+        {
+            var bm = UnityEngine.Object.FindAnyObjectByType<BuildManager>();
+            if (bm != null && !bm.IsBuildMode && !bm.EnterBuildMode())
+            {
+                // 존 밖/다른 UI 열림 등으로 진입 실패 → 투어를 3인칭 위에 띄우지 않고, 실제 진입할 때까지 대기.
+                GameEvents.OnBuildModeEntered += OnBuildModeReady;
+                _waitingForBuildMode = true;
+                return;
+            }
+        }
+        ShowCurrent();
+    }
+
+    void OnBuildModeReady()
+    {
+        GameEvents.OnBuildModeEntered -= OnBuildModeReady;
+        _waitingForBuildMode = false;
         ShowCurrent();
     }
 
     public override void Deactivate()
     {
+        if (_waitingForBuildMode)
+        {
+            GameEvents.OnBuildModeEntered -= OnBuildModeReady;
+            _waitingForBuildMode = false;
+        }
         if (TutorialOverlay.HasInstance) TutorialOverlay.I.Hide();
     }
 

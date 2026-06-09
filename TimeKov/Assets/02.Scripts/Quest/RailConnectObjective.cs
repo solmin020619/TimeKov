@@ -11,9 +11,14 @@ public class RailConnectObjective : ObjectiveSO
 
     public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
-    public override void Activate() { GameEvents.OnRailConnected += OnConnected; }
+    public override void Activate()
+    {
+        GameEvents.OnRailConnected += OnConnected;
+        _count += GameEvents.RecentCount(GameEvents.KeyRail);   // 갭에서 미리 이은 레일 인정
+    }
     public override void Deactivate() => GameEvents.OnRailConnected -= OnConnected;
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
+    protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
         => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;
