@@ -47,6 +47,7 @@ public static class TutorialAssetBuilder
     const string TargetQuickSlots    = "quick_slots";    // 건설 퀵슬롯 바
     const string TargetRailSlot      = "rail_slot";      // E 레일 슬롯
     const string TargetBuildDemolish = "build_demolish"; // X 일괄조작 힌트
+    const string TargetBuildRotate   = "build_rotate";   // R 설비회전 힌트
     const string TargetSkillQ        = "skill_q";        // 우하단 스킬 슬롯 Q
     const string TargetSkillE        = "skill_e";        // 우하단 스킬 슬롯 E
     const string TargetSkillR        = "skill_r";        // 우하단 스킬 슬롯 R
@@ -133,7 +134,9 @@ public static class TutorialAssetBuilder
         var buildTour = CreateGuidedTour("obj_build_tour",
             TourStep($"{Y}퀵 슬롯{E}에서 지을 설비를 고릅니다. 방금 {Y}해금한 설비{E}가 여기 있고, 빈 칸은 다른 설비가 맵에 {Y}숨겨져{E} 있어서예요 - {Y}찾아 F로 해금{E}하면 채워집니다.", TargetQuickSlots),
             TourStep($"{Y}X{E} - 설치한 설비를 {Y}해제{E} (클릭 제거 / {Y}Shift 드래그{E}로 여러 개 한 번에).", TargetBuildDemolish),
-            TourStep($"{Y}E{E} - {Y}레일{E}을 깔아 설비를 이으면 아이템이 {Y}자동{E}으로 이동합니다.", TargetRailSlot));
+            TourStep($"{Y}E{E} - {Y}레일{E}을 깔아 설비를 이으면 아이템이 {Y}자동{E}으로 이동합니다.", TargetRailSlot),
+            TourStep($"{Y}R{E} - 설치할 설비를 {Y}회전{E}시켜 방향을 바꿉니다. (회전 가능한 설비만)", TargetBuildRotate),
+            TourStep($"{Y}우클릭{E} - {Y}건설 모드{E}를 {Y}빠져나갑니다{E}. ({Y}B{E}로 다시 들어올 수 있어요)"));
         buildTour.ensureBuildMode = true;
         quests.Add(BuildQuest("quest_tut_06a_build_tour", "건설 조작 안내", buildTour));
 
@@ -174,6 +177,13 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_10_collect_gel", "결과물 회수",
             CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}회복 젤{E}을 {Y}회수{E}하세요.", ItemHealGel, 1)));
 
+        // Q10b. 연료 확보 — 배양기 가동에 쓸 나뭇가지 5개를 확보한다 (#28).
+        // ItemAcquire 라서 인벤에 이미 5개 있으면 즉시 완료(다른 재료 퀘와 동일). 없으면 오크 트리 처치로 모은다.
+        quests.Add(BuildQuest("quest_tut_10b_fuel_hunt", "연료 확보",
+            CreateItemAcquire("obj_fuel_hunt_collect",
+                $"배양기를 돌리려면 {Y}연료{E}가 필요합니다. {Y}나뭇가지{E}를 {Y}5개{E} 확보하세요. ({Y}오크 트리{E}를 처치하면 나옵니다)",
+                ItemTwig, 5)));
+
         // Q11. 배양기 해금 + 설치 — 위치 이동 + F 해금 + 설치 [병렬]. (도착 퀘 분리 안 함)
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
             CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2"),
@@ -198,7 +208,7 @@ public static class TutorialAssetBuilder
         // Q15. [안내] 레일 자동화
         quests.Add(BuildQuest("quest_tut_15_rail_info", "자동화 안내",
             CreateContinue("obj_rail_info",
-                $"{Y}레일{E}로 설비를 이으면 아이템이 {Y}자동{E}으로 다음 설비로 이동합니다.")));
+                $"{Y}레일{E}로 설비를 이으면 아이템이 {Y}자동{E}으로 다음 설비로 이동합니다. {Y}건설 모드(B){E}의 {Y}탑뷰{E}에서 {Y}E(레일){E}를 고른 뒤, 설비의 {Y}출구(E 표시){E}를 클릭해 다음 설비까지 이어 주세요.")));
 
         // Q16. 레일 연결 (액션)
         quests.Add(BuildQuest("quest_tut_16_rail_connect", "레일 연결",
@@ -209,7 +219,7 @@ public static class TutorialAssetBuilder
         // Q19. [안내 + 보상] 코어 키트 지급
         var qCoreIntro = BuildQuest("quest_tut_19_core_intro", "코어 강화 안내",
             CreateContinue("obj_core_info",
-                $"{Y}코어{E}를 {Y}강화{E}하면 {Y}최대 체력{E}이 늘어납니다. 체험용 {Y}코어 키트 I{E}를 지급합니다.",
+                $"{Y}코어{E}를 {Y}강화{E}하면 {Y}최대 체력(시간){E}이 늘어납니다. 강화는 {Y}기지(결계) 안{E}의 {Y}코어 강화 단말{E}에 가서 {Y}코어 키트{E}를 재료로 진행해요. 체험용 {Y}코어 키트 I{E}를 지급합니다.",
                 TargetCoreUpgrade));
         qCoreIntro.rewards = new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } };
         EditorUtility.SetDirty(qCoreIntro);

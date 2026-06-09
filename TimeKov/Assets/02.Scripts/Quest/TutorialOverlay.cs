@@ -302,7 +302,8 @@ public class TutorialOverlay : MonoBehaviour
                       && GameUIController.Instance.GetCurrentState() == GameUIController.UIState.Build;
         if (buildMode)
         {
-            SetAnchors(rt, 0.25f, 0.18f, 0.75f, 0.24f);
+            // 퀵슬롯 바와 살짝 겹쳐서 조금 더 위로 올림 (#2)
+            SetAnchors(rt, 0.25f, 0.26f, 0.75f, 0.32f);
             return;
         }
 

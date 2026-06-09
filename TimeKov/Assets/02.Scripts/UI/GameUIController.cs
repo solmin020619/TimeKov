@@ -100,6 +100,8 @@ public class GameUIController : MonoBehaviour
             RegisterChildInContainer(quickSlotUI.transform, "Quick (8)", "Quick Slot", "rail_slot");
             // X 일괄조작 행 — 오른쪽 아이콘이 컨테이너 바운드 밖이라 Right_X + 모든 자식 합집합으로 등록
             RegisterSubtreeByName(quickSlotUI.transform, "Right_X", "build_demolish");
+            // R 설비회전 행 — Right_X 와 동일 패턴(아이콘이 바운드 밖)으로 등록 (#23 스포트라이트)
+            RegisterSubtreeByName(quickSlotUI.transform, "Right_R", "build_rotate");
         }
     }
 
