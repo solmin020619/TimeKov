@@ -17,10 +17,7 @@ public class ItemTooltipUI : MonoBehaviour
     private RectTransform _rect;
     private RectTransform _canvasRect;
     private bool _isShowing;
-
-    // Hide() 시점의 마우스 위치 — 같은 자리에서 Show()가 오면 억제
-    // (UI 재오픈 시 SetActive(true)로 인해 OnPointerEnter가 재발동되는 Unity 특성 대응)
-    private Vector3 _mousePositionAtHide = new Vector3(-9999f, -9999f, 0f);
+    private InventorySlotUI _currentSlot;
 
     // 카테고리 이름 한글 테이블 (ItemCategory 열거형 순서와 일치)
     private static readonly string[] CategoryNames = new string[]
@@ -64,9 +61,19 @@ public class ItemTooltipUI : MonoBehaviour
     {
         if (slot == null || slot.IsEmpty) return;
 
-        // Hide() 이후 마우스가 움직이지 않은 상태면 억제
-        // (패널 재오픈 직후 OnPointerEnter 오발동 방지)
-        if (Input.mousePosition == _mousePositionAtHide) return;
+        // UI가 닫혀 있으면 표시하지 않음
+        // (패널 재오픈 직후 stale OnPointerEnter 오발동 방지 — 기존 같은-픽셀 억제 대체)
+        var uic = GameUIController.Instance;
+        if (uic != null && !uic.IsUIBlocking()) return;
+
+        // 같은 슬롯에 이미 표시 중이면 위치만 갱신
+        // (슬롯 내부 그래픽 경계를 지날 때 enter/exit 가 반복돼도 깜빡임 없음)
+        if (_isShowing && slot == _currentSlot)
+        {
+            UpdatePosition(Input.mousePosition);
+            return;
+        }
+        _currentSlot = slot;
 
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
 
@@ -96,9 +103,8 @@ public class ItemTooltipUI : MonoBehaviour
     public void Hide()
     {
         _isShowing = false;
+        _currentSlot = null;
         gameObject.SetActive(false);
-        // 이 위치에서 Show()가 오면 억제 (재오픈 시 오발동 방지)
-        _mousePositionAtHide = Input.mousePosition;
     }
 
     // 위치 갱신 (마우스 클램프)

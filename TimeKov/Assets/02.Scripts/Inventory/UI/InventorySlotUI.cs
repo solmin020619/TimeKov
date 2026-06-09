@@ -24,6 +24,8 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private Color selectedColor = new Color(0.30f, 0.55f, 0.80f, 1f);
     [SerializeField] private Color emptyBorderColor = new Color(0.3f, 0.3f, 0.3f, 0f);
     [SerializeField] private Color dragColor = new Color(1f, 1f, 1f, 0.4f);
+    // 호버 시 슬롯에 "불 들어오는" 강조색 (선택색보다 밝게)
+    [SerializeField] private Color hoverColor = new Color(0.45f, 0.62f, 0.95f, 0.5f);
 
     // ��޺� �׵θ� ���� (Common / Advanced / Rare / Hero / Legend ����)
     private static readonly Color[] GradeColors = new Color[]
@@ -38,6 +40,7 @@ public class InventorySlotUI : MonoBehaviour,
     private InventorySlot _slot;
     private InventoryManager _owner;
     private bool _isSelected;
+    private bool _isHovered;
 
     // ���� �̺�Ʈ (InventoryUIController ���� ����)
     public static event Action<InventorySlotUI> OnAnySlotClicked;
@@ -46,11 +49,19 @@ public class InventorySlotUI : MonoBehaviour,
     public static event Action<InventorySlotUI> OnAnySlotHoverEnter;
     public static event Action<InventorySlotUI> OnAnySlotHoverExit;
     public static event Action<InventorySlotUI> OnAnySlotDragBegin;  // 드래그 시작
+    public static event Action<InventorySlotUI> OnAnySlotDragEnd;    // 드래그 종료
     public static event Action<InventorySlotUI> OnAnySlotDropped;    // 드랍 수신
 
     public InventorySlot SlotData => _slot;
     public InventoryManager Owner => _owner;
     public bool IsEmpty => _slot == null || _slot.IsEmpty;
+
+    private void OnDisable()
+    {
+        // 비활성화 시 Unity가 OnPointerExit를 호출하지 않으므로 호버 상태를 직접 리셋한다.
+        // (안 하면 패널을 닫았다 다시 열 때 마우스가 없던 칸이 강조된 채로 남는다)
+        _isHovered = false;
+    }
 
     // ���� ������ ���ε� �� �ð� ����
     public void Refresh(InventorySlot slot, InventoryManager owner)
@@ -63,12 +74,12 @@ public class InventorySlotUI : MonoBehaviour,
             SetEmpty();
             // �� ������ �Ǹ� ���� ���µ� ����
             _isSelected = false;
-            if (bgImage != null) bgImage.color = normalColor;
+            UpdateBgVisual();
             return;
         }
 
-        // 아이템 있는 칸도 빈 칸과 동일한 배경색 적용
-        if (bgImage != null) bgImage.color = normalColor;
+        // 호버/선택 상태를 반영해 배경색 적용 (리프레시 중에도 강조 유지)
+        UpdateBgVisual();
 
         var data = ItemDatabase.GetItem(slot.itemId);
 
@@ -114,8 +125,15 @@ public class InventorySlotUI : MonoBehaviour,
     public void SetSelected(bool selected)
     {
         _isSelected = selected;
-        if (bgImage != null)
-            bgImage.color = selected ? selectedColor : normalColor;
+        UpdateBgVisual();
+    }
+
+    // 선택 > 호버 > 기본 우선순위로 배경색 결정
+    private void UpdateBgVisual()
+    {
+        if (bgImage == null) return;
+        bgImage.color = _isSelected ? selectedColor
+                      : (_isHovered ? hoverColor : normalColor);
     }
 
     // Ŭ�� �̺�Ʈ (��Ŭ�� ��Ŭ�� / ����Ŭ�� / ��Ŭ�� �б�)
@@ -147,16 +165,20 @@ public class InventorySlotUI : MonoBehaviour,
         }
     }
 
-    // ȣ�� ���� (���� ǥ��)
+    // ȣ�� ���� (���� ǥ�� + ���� ����)
     public void OnPointerEnter(PointerEventData eventData)
     {
+        _isHovered = true;
+        UpdateBgVisual();
         if (!IsEmpty)
             OnAnySlotHoverEnter?.Invoke(this);
     }
 
-    // ȣ�� ��Ż (���� ����)
+    // ȣ�� ��Ż (���� ���� + ���� ����)
     public void OnPointerExit(PointerEventData eventData)
     {
+        _isHovered = false;
+        UpdateBgVisual();
         OnAnySlotHoverExit?.Invoke(this);
     }
 
@@ -191,6 +213,7 @@ public class InventorySlotUI : MonoBehaviour,
     public void OnEndDrag(PointerEventData eventData)
     {
         InventoryDragHandler.Instance?.EndDrag();
+        OnAnySlotDragEnd?.Invoke(this);
     }
 
     // 다른 슬롯에서 드랍 받기
