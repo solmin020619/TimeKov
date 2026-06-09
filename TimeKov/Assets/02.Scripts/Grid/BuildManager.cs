@@ -187,6 +187,7 @@ public class BuildManager : MonoBehaviour
             previewMarker.SetActive(false);
 
         SetTopViewMode(false, true);
+        EnsureTopViewPostProcessing();
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -565,6 +566,34 @@ public class BuildManager : MonoBehaviour
             mainCam = topViewCamera;
         else if (gameplayCamera != null)
             mainCam = gameplayCamera;
+    }
+
+    // 탑뷰(빌드) 카메라에 포스트프로세싱을 적용한다 (#6).
+    // URP는 카메라별로 포스트프로세싱을 켜는데, TopViewCamera는 꺼져 있어 빌드모드 진입 시
+    // 색보정/블룸/비네트 등이 빠져 보였다. 메인 카메라 설정을 그대로 복사해 화면을 일치시킨다.
+    private void EnsureTopViewPostProcessing()
+    {
+        if (topViewCamera == null) return;
+
+        var topData = topViewCamera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+        if (topData == null) return;
+
+        var gameData = gameplayCamera != null
+            ? gameplayCamera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>()
+            : null;
+
+        if (gameData != null)
+        {
+            topData.renderPostProcessing = gameData.renderPostProcessing;
+            topData.volumeLayerMask = gameData.volumeLayerMask;
+            topData.volumeTrigger = gameData.volumeTrigger;
+            topData.antialiasing = gameData.antialiasing;
+            topData.antialiasingQuality = gameData.antialiasingQuality;
+        }
+        else
+        {
+            topData.renderPostProcessing = true;
+        }
     }
 
     private void HandleRotateInput()
