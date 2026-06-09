@@ -157,6 +157,18 @@ public class FuelDropSlot : MonoBehaviour,
         var cfg = FuelConfig.Instance;
         if (cfg == null) { iconImage.enabled = false; return; }
 
+        // 현재 연소 중인 1개를 제외한 대기 아이템 수
+        // queued == 0 이면 마지막 1개가 타는 중 → 아이콘 숨김, 시간만 표시
+        float t      = _machine.FuelTimeRemaining;
+        float secs   = cfg.secondsPerFuel;
+        int   queued = Mathf.Max(0, Mathf.CeilToInt(t / secs) - 1);
+
+        if (queued <= 0)
+        {
+            iconImage.enabled = false;
+            return;
+        }
+
         var itemData = GameDataUtility.GetItem(cfg.fuelItemId);
         Sprite sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
 
