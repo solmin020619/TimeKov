@@ -9,10 +9,6 @@ public class PlayerInteractComponent : MonoBehaviour
 
     private Player _player;
 
-    // 홀드 진행 상태
-    private IHoldInteractable _holdingTarget;
-    private float _holdElapsed;
-
     void Awake()
     {
         _player = GetComponent<Player>();
@@ -20,66 +16,30 @@ public class PlayerInteractComponent : MonoBehaviour
 
     void Update()
     {
-        UpdateInteraction();
-    }
+        // Idle/Move/Run 상태에서만 상호작용
+        if (_player.Skill.IsExecuting) return;
+        if (_player.Movement.IsJumping) return;
+        if (_player.Dash != null && _player.Dash.IsDashing) return;
+        if (_player.Stat.IsDead) return;
+        if (_player.Stat.IsHurt) return;
 
-    void UpdateInteraction()
-    {
-        // Idle/Move/Run 상태에서만 상호작용. 그 외 상태면 진행 중인 홀드 취소.
-        if (_player.Skill.IsExecuting
-            || _player.Movement.IsJumping
-            || (_player.Dash != null && _player.Dash.IsDashing)
-            || _player.Stat.IsDead
-            || _player.Stat.IsHurt)
-        {
-            CancelHold();
-            return;
-        }
+        bool fPressed = _player.Input.InteractPressed;
+        bool gPressed = _player.Input.InstantPressed;
+        if (!fPressed && !gPressed) return;
 
         IInteractable closest = FindClosest();
+        if (closest == null) return;
 
-        // 홀드형 대상 (HoldDuration > 0) → 꾹 누르기 / G 즉시완료
-        if (closest is IHoldInteractable hold && hold.HoldDuration > 0f)
+        // G: 즉시완료 (가능한 대상만)
+        if (gPressed && closest is IInstantInteractable inst && inst.CanInstantComplete(_player))
         {
-            // 즉시완료 (HP 등 비용 소모)
-            if (_player.Input.InstantPressed && hold.CanInstantComplete(_player))
-            {
-                CancelHold();
-                hold.OnInstantComplete(_player);
-                return;
-            }
-
-            if (_player.Input.InteractHeld)
-            {
-                if (!ReferenceEquals(_holdingTarget, hold))
-                {
-                    CancelHold();
-                    _holdingTarget = hold;
-                    _holdElapsed = 0f;
-                }
-
-                _holdElapsed += Time.deltaTime;
-                hold.OnHoldProgress(Mathf.Clamp01(_holdElapsed / hold.HoldDuration));
-
-                if (_holdElapsed >= hold.HoldDuration)
-                {
-                    var done = _holdingTarget;
-                    _holdingTarget = null;
-                    _holdElapsed = 0f;
-                    done.OnHoldComplete(_player);
-                }
-            }
-            else
-            {
-                CancelHold();
-            }
+            inst.OnInstantComplete(_player);
             return;
         }
 
-        // 일반(즉시) 상호작용 — 기존처럼 F 누른 순간 1회
-        CancelHold();
-        if (_player.Input.InteractPressed)
-            closest?.Interact(_player);
+        // F: 일반 상호작용
+        if (fPressed)
+            closest.Interact(_player);
     }
 
     IInteractable FindClosest()
@@ -104,16 +64,6 @@ public class PlayerInteractComponent : MonoBehaviour
         }
 
         return closest;
-    }
-
-    void CancelHold()
-    {
-        if (_holdingTarget != null)
-        {
-            _holdingTarget.OnHoldCancel();
-            _holdingTarget = null;
-            _holdElapsed = 0f;
-        }
     }
 
     void OnDrawGizmosSelected()
