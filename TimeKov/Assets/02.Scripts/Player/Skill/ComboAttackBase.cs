@@ -14,7 +14,9 @@ public abstract class ComboAttackBase : ScriptableObject
     public LayerMask EnemyLayer;
 
     [Header("스킬 쿨감 (평타 적중 시)")]
-    [Tooltip("평타가 적에게 적중할 때마다 모든 스킬의 남은 쿨다운을 이 초만큼 줄인다 (LoL 나보리신속검 방식). 0이면 쿨감 없음.")]
+    [Tooltip("이 콤보 타가 적중하면 쿨다운을 줄일 대상 스킬 (1타→Skill1, 2타→Skill2, 3타→Skill3).")]
+    public SkillSheetId GaugeTarget;
+    [Tooltip("적중 1회당 줄일 쿨다운 초. 0이면 쿨감 없음.")]
     public float CdReducePerHit = 5f;
 
     // ─────────────────────────────────────────────────────────
@@ -124,7 +126,7 @@ public abstract class ComboAttackBase : ScriptableObject
 
         if (hitAny)
         {
-            skill?.ReduceAllCooldowns(CdReducePerHit);
+            skill?.ReduceCooldown(GaugeTarget, CdReducePerHit);
             // 공격 적중 사운드
             caster.GetComponent<Player>()?.Audio?.PlayAttackHit();
             // 카메라 셰이크

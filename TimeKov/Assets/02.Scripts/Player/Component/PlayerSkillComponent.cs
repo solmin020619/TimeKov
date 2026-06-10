@@ -55,16 +55,7 @@ public class PlayerSkillComponent : MonoBehaviour
         if (_player.Input.Skill3Pressed) TryExecute(SkillSheetId.Skill3);
     }
 
-    // 평타 적중 시 모든 스킬의 남은 쿨다운 감소 (ComboAttackBase에서 호출)
-    public void ReduceAllCooldowns(float seconds)
-    {
-        if (seconds <= 0f) return;
-        foreach (var key in _cooldownTimers.Keys.ToList())
-            if (_cooldownTimers[key] > 0f)
-                _cooldownTimers[key] = Mathf.Max(0f, _cooldownTimers[key] - seconds);
-    }
-
-    // 특정 스킬만 쿨다운 감소 (필요 시)
+    // 평타 적중 시 해당 콤보의 대상 스킬 쿨다운 감소 (ComboAttackBase에서 호출)
     public void ReduceCooldown(SkillSheetId id, float seconds)
     {
         if (seconds <= 0f) return;

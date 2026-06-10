@@ -165,6 +165,26 @@ public static class UISpriteFactory
         return 0f;
     }
 
+    // 꽉 찬 원 (쿨다운 라디얼 등). 가장자리 AA.
+    public static Sprite Circle(int size = 96)
+    {
+        string key = $"circle_{size}";
+        if (_cache.TryGetValue(key, out var c)) return c;
+        var tex = NewTex(size, size);
+        var px = new Color32[size * size];
+        float cc = size * 0.5f;
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float d = Mathf.Sqrt((x + 0.5f - cc) * (x + 0.5f - cc) + (y + 0.5f - cc) * (y + 0.5f - cc));
+                float a = Mathf.Clamp01(cc - d + 0.5f);
+                px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+        tex.SetPixels32(px); tex.Apply();
+        var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        _cache[key] = s; return s;
+    }
+
     private static Texture2D NewTex(int w, int h) => new Texture2D(w, h, TextureFormat.RGBA32, false)
     {
         filterMode = FilterMode.Bilinear,

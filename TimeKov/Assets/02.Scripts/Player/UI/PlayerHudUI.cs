@@ -93,6 +93,15 @@ public class PlayerHudUI : MonoBehaviour
     [SerializeField] private Image skill2CooldownImage;
     [SerializeField] private Image skill3CooldownImage;
 
+    [Header("Skill Cooldown Radial (시계방향)")]
+    [Tooltip("스킬 아이콘 크기 배율 (1=원래, 작게 하려면 0.7 등)")]
+    [SerializeField, Range(0.3f, 1f)] private float skillIconScale = 0.72f;
+    [Tooltip("시계방향으로 차오르는 쿨다운 라디얼 색")]
+    [SerializeField] private Color skillCooldownColor = new Color(0.18f, 0.62f, 0.92f, 0.5f);
+
+    // 런타임 생성한 시계방향 쿨 라디얼 (스킬별)
+    private readonly Dictionary<SkillSheetId, Image> _cdRadial = new();
+
     [Header("Base 상태 표시")]
     [Tooltip("기지 내부 TimeDecay 정지 시 활성화할 오브젝트")]
     [SerializeField] private GameObject baseStateIndicator;
@@ -173,10 +182,10 @@ public class PlayerHudUI : MonoBehaviour
         // 시작 시 DECAY HUD 1회 갱신
         UpdateBaseState();
 
-        // 시작 시 스킬 아이콘 투명도 초기화
-        SetImageAlpha(skill1IconImage, skillIconLockedAlpha);
-        SetImageAlpha(skill2IconImage, skillIconLockedAlpha);
-        SetImageAlpha(skill3IconImage, skillIconLockedAlpha);
+        // 스킬 슬롯 셋업: 바닥 게이지 바 제거 / 아이콘 축소 / 시계방향 쿨 라디얼 생성 / 아이콘 투명도 초기화
+        SetupSkillSlot(skill1GaugeImage, skill1IconImage, SkillSheetId.Skill1);
+        SetupSkillSlot(skill2GaugeImage, skill2IconImage, SkillSheetId.Skill2);
+        SetupSkillSlot(skill3GaugeImage, skill3IconImage, SkillSheetId.Skill3);
 
         // 이벤트 구독
         playerStat.OnHurt += TriggerHurtVignette;
@@ -454,17 +463,61 @@ public class PlayerHudUI : MonoBehaviour
         );
     }
 
+    // 스킬 슬롯 초기 셋업: 바닥 게이지 바 제거 / 아이콘 축소 / 시계방향 쿨 라디얼 오버레이 생성
+    void SetupSkillSlot(Image gaugeImage, Image iconImage, SkillSheetId id)
+    {
+        // 바닥 게이지 바 제거 (Gauge_Fill + Gauge_BG 의 Image만 끔 — 자식 텍스트는 유지)
+        if (gaugeImage != null)
+        {
+            gaugeImage.enabled = false;
+            var parent = gaugeImage.transform.parent;
+            if (parent != null && parent.name.Contains("Gauge"))
+            {
+                var bg = parent.GetComponent<Image>();
+                if (bg != null) bg.enabled = false;
+            }
+        }
+
+        if (iconImage == null) return;
+
+        // 아이콘 축소
+        iconImage.rectTransform.localScale = Vector3.one * skillIconScale;
+        SetImageAlpha(iconImage, skillIconLockedAlpha);
+
+        // 시계방향 쿨 라디얼 오버레이 (아이콘 위에 꽉 차게)
+        var go = new GameObject("CooldownRadial", typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(iconImage.rectTransform, false);
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.sprite = UISpriteFactory.Circle(96);
+        img.color = skillCooldownColor;
+        img.raycastTarget = false;
+        img.type = Image.Type.Filled;
+        img.fillMethod = Image.FillMethod.Radial360;
+        img.fillOrigin = (int)Image.Origin360.Top;
+        img.fillClockwise = true;
+        img.fillAmount = 0f;
+        _cdRadial[id] = img;
+    }
+
     void UpdateSingleSkillGauge(Image gaugeImage, TMP_Text gaugeText, Image iconImage, SkillSheetId id)
     {
-        float gauge = playerSkill.GetGauge(id);
-        float normalizedGauge = Mathf.Clamp01(gauge / 100f);
+        float gauge = playerSkill.GetGauge(id);          // 쿨다운 진행도(0~100)
+        float readiness = Mathf.Clamp01(gauge / 100f);
+        bool ready = readiness >= 0.999f;
 
-        if (gaugeImage != null)
-            gaugeImage.fillAmount = normalizedGauge;
+        // 시계방향 쿨 라디얼 — 차오르다 준비되면 숨김(아이콘 깨끗)
+        if (_cdRadial.TryGetValue(id, out var radial) && radial != null)
+        {
+            radial.enabled = !ready;
+            radial.fillAmount = readiness;
+        }
 
         if (gaugeText != null)
         {
-            // LoL식 쿨다운 표기: 쿨 중이면 남은 초(60→59→…→평타치면 줄어듦), 다 돌면 READY/공백
+            // 쿨 중이면 남은 초(60→59→…→평타치면 줄어듦), 다 돌면 READY/공백
             float remaining = playerSkill.GetCooldown(id);
             if (remaining > 0.05f)
                 gaugeText.text = Mathf.CeilToInt(remaining).ToString();
@@ -474,8 +527,7 @@ public class PlayerHudUI : MonoBehaviour
 
         if (iconImage != null)
         {
-            float targetAlpha = gauge >= 100f ? skillIconReadyAlpha : skillIconLockedAlpha;
-
+            float targetAlpha = ready ? skillIconReadyAlpha : skillIconLockedAlpha;
             Color color = iconImage.color;
             color.a = Mathf.Lerp(color.a, targetAlpha, Time.deltaTime * skillIconAlphaLerpSpeed);
             iconImage.color = color;
