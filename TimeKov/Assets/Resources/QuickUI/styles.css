@@ -1,0 +1,191 @@
+/* ============================================================
+   TimeKov — 설비 퀵슬롯 바 (블루-입체 / 건설모드 하단)
+   [1~8] + 세로 구분선 + [레일 E] · 코너 브래킷 · 강한 해금 연출
+   blur 미사용. 9-slice 가능. @2x. 밝은 잔디 탑뷰 위 대비.
+   ============================================================ */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+
+:root {
+  --navy-top: #0e1a2c; --navy-bot: #0b1422;
+  --cyan-hi: #9fe6ff; --cyan-1: #6fd2ff; --cyan-2: #2f9be0; --cyan-deep: #155a8a;
+  --text: #eaf3fb; --sub: #b9c9d8; --sub-dim: #7f93a6;
+  --cyan-grad: linear-gradient(180deg, #8fe0ff 0%, #4fc0f5 48%, #2f9be0 100%);
+  --cyan-rim: linear-gradient(180deg, #9fe6ff 0%, #2f9be0 56%, #155a8a 100%);
+  --font: "Pretendard", -apple-system, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #05070a; font-family: var(--font); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased; }
+.stage { position: fixed; inset: 0; display: grid; place-items: center; background: #000; overflow: hidden; }
+.canvas { position: relative; width: 1920px; height: 1080px; transform-origin: center center; overflow: hidden; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* =========================================================
+   밝은 잔디 탑뷰 배경 (대비 확인용)
+   ========================================================= */
+.grass { position: absolute; inset: 0; overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #8fc964 0%, #6fb34e 40%, #4f9438 100%); }
+.grass__grid { position: absolute; inset: -10%;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 2px, transparent 2px 88px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.07) 0 2px, transparent 2px 88px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 22px);
+  -webkit-mask-image: radial-gradient(120% 80% at 50% 40%, #000 50%, transparent 100%);
+          mask-image: radial-gradient(120% 80% at 50% 40%, #000 50%, transparent 100%); }
+.grass__patch { position: absolute; border-radius: 50%; filter: blur(22px); opacity: .5; }
+.grass__tag { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font-family: var(--mono); font-size: 13px; letter-spacing: .14em; color: rgba(20,40,16,0.5);
+  text-transform: uppercase; border: 1px dashed rgba(20,40,16,0.3); border-radius: 6px; padding: 6px 12px; background: rgba(255,255,255,0.12); }
+/* 건설 고스트(배치 미리보기 느낌) */
+.ghost { position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%);
+  width: 132px; height: 132px; border-radius: 12px; border: 2px dashed rgba(143,224,255,0.8);
+  background: rgba(47,155,224,0.16); box-shadow: 0 0 30px rgba(47,155,224,0.4); }
+.ghost__tag { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); white-space: nowrap;
+  font-family: var(--mono); font-size: 12px; color: #eaf3fb; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+
+.callout { position: absolute; left: 48px; top: 92px; max-width: 330px; z-index: 6; }
+.callout h1 { font-size: 24px; font-weight: 800; color: #0c2238; } .callout h1 b { color: #0b4a78; }
+.callout p { margin-top: 9px; font-family: var(--mono); font-size: 12px; color: #163048; line-height: 1.7;
+  background: rgba(255,255,255,0.16); padding: 8px 10px; border-radius: 8px; }
+
+/* =========================================================
+   퀵슬롯 바 (하단 중앙)
+   ========================================================= */
+.qbar-wrap { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 5; }
+.qbar { position: relative; padding: 2px; border-radius: 20px; background: var(--cyan-rim);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.45), 0 20px 44px rgba(0,0,0,0.5), 0 0 36px rgba(47,155,224,0.22); }
+.qbar__inner { display: flex; align-items: center; gap: 14px; padding: 15px 18px; border-radius: 18px;
+  background: linear-gradient(168deg, rgba(14,26,44,0.90), rgba(11,20,34,0.93));
+  box-shadow: inset 0 1.5px 0 rgba(159,230,255,0.16), inset 0 -22px 36px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(111,210,255,0.08); }
+
+/* 세로 구분선 (틱 디테일) */
+.divider { position: relative; width: 2px; height: 96px; flex: none; margin: 0 4px;
+  background: linear-gradient(180deg, transparent, rgba(111,210,255,0.6) 18%, rgba(111,210,255,0.6) 82%, transparent);
+  box-shadow: 0 0 8px rgba(47,155,224,0.5); }
+.divider::before, .divider::after { content: ""; position: absolute; left: -3px; width: 8px; height: 2px; background: rgba(111,210,255,0.7); }
+.divider::before { top: 14px; } .divider::after { bottom: 14px; }
+
+/* =========================================================
+   슬롯
+   ========================================================= */
+.qslot { position: relative; width: var(--slot, 104px); height: var(--slot, 104px); flex: none;
+  padding: 2px; border-radius: 15px; background: linear-gradient(180deg, rgba(111,210,255,0.35), rgba(21,90,138,0.4));
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4); cursor: pointer; transition: transform .1s; }
+.qslot:hover { transform: translateY(-2px); }
+.qslot__inner { position: relative; width: 100%; height: 100%; border-radius: 13px; overflow: hidden;
+  background: radial-gradient(120% 120% at 50% 14%, #17273c 0%, #0b1422 80%);
+  box-shadow: inset 0 1.5px 0 rgba(159,230,255,0.14), inset 0 -8px 18px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(111,210,255,0.08);
+  display: grid; place-items: center; }
+.qslot__inner::before { content:""; position:absolute; left:10%; right:10%; top:2px; height:32%; border-radius:0 0 50% 50%;
+  background: linear-gradient(180deg, rgba(159,230,255,0.12), transparent); pointer-events:none; }
+
+/* 코너 브래킷 (sci-fi) */
+.bracket { position: absolute; width: 13px; height: 13px; z-index: 3; pointer-events: none; border-color: var(--cyan-1); border-style: solid; opacity: .9; }
+.bracket.tl { top: 6px; left: 6px; border-width: 2px 0 0 2px; border-top-left-radius: 4px; }
+.bracket.tr { top: 6px; right: 6px; border-width: 2px 2px 0 0; border-top-right-radius: 4px; }
+.bracket.bl { bottom: 6px; left: 6px; border-width: 0 0 2px 2px; border-bottom-left-radius: 4px; }
+.bracket.br { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; border-bottom-right-radius: 4px; }
+
+/* 번호 뱃지 (좌상단) */
+.qnum { position: absolute; top: 6px; left: 6px; z-index: 4; min-width: 20px; height: 20px; padding: 0 5px;
+  display: grid; place-items: center; font-family: var(--mono); font-weight: 800; font-size: 12px; color: #06141f;
+  border-radius: 6px; background: var(--cyan-grad);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.5); }
+
+/* 설비 아이콘 / 자물쇠 */
+.qicon { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; }
+.qicon svg { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(47,155,224,0.4)); }
+.qlock { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; }
+.qlock > * { grid-area: 1 / 1; }
+
+/* 하단 틱 (시간 모티프) */
+.qtick { position: absolute; left: 50%; bottom: 7px; transform: translateX(-50%); display: flex; gap: 3px; z-index: 3; opacity: .55; }
+.qtick span { width: 2px; height: 4px; background: rgba(111,210,255,0.7); border-radius: 1px; }
+.qtick span:nth-child(3) { height: 6px; }
+
+/* --- 상태 --- */
+.qslot.locked { background: linear-gradient(180deg, rgba(110,124,140,0.3), rgba(40,48,58,0.4)); }
+.qslot.locked .qslot__inner { filter: grayscale(0.85) brightness(0.55); }
+.qslot.locked .bracket { border-color: rgba(150,162,176,0.4); opacity: .5; }
+.qslot.locked .qnum { background: linear-gradient(180deg,#7a8696,#4a5460); color: #11161d; }
+.qslot.locked .qtick { opacity: .25; }
+
+.qslot.active .qslot__inner { box-shadow: inset 0 1.5px 0 rgba(159,230,255,0.16), inset 0 -8px 18px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(111,210,255,0.16); }
+.qslot.active { box-shadow: 0 6px 16px rgba(0,0,0,0.4), 0 0 16px rgba(47,155,224,0.3); }
+
+/* 선택됨 — 시안 글로우 강하게 */
+.qslot.selected { background: var(--cyan-rim); box-shadow: 0 6px 16px rgba(0,0,0,0.4), 0 0 26px rgba(79,192,245,0.75), 0 0 0 1px rgba(159,230,255,0.5); }
+.qslot.selected .bracket { opacity: 1; box-shadow: 0 0 6px var(--cyan-1); }
+.qslot.selected .qslot__inner { box-shadow: inset 0 1.5px 0 rgba(159,230,255,0.22), inset 0 -8px 18px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(159,230,255,0.32); }
+
+/* 레일 E 슬롯 — 같은 톤, 키캡 E */
+.qslot.rail .qnum { font-size: 13px; }
+
+/* =========================================================
+   해금 연출
+   ========================================================= */
+/* 1) 세게 흔들림 */
+.qslot.shake { animation: qshake .36s cubic-bezier(.36,.07,.19,.97) both; z-index: 8; }
+@keyframes qshake {
+  0%,100% { transform: translateX(0) rotate(0); }
+  12% { transform: translate(-5px,1px) rotate(-8deg); }
+  26% { transform: translate(5px,-1px) rotate(8deg); }
+  40% { transform: translate(-5px,1px) rotate(-7deg); }
+  54% { transform: translate(4px,-1px) rotate(6deg); }
+  68% { transform: translate(-3px,0) rotate(-4deg); }
+  84% { transform: translate(2px,0) rotate(2deg); }
+}
+/* 2) 프레임 점화 펄스 */
+.qslot.ignite { animation: qpunch .5s cubic-bezier(.2,1.5,.3,1) both; z-index: 8; }
+.qslot.ignite .qslot__inner { filter: none; }
+@keyframes qpunch { 0%{ transform: scale(1);} 35%{ transform: scale(1.18);} 100%{ transform: scale(1);} }
+.qslot.ignite { background: var(--cyan-rim); box-shadow: 0 0 0 2px rgba(159,230,255,0.9), 0 0 40px rgba(79,192,245,1), 0 6px 16px rgba(0,0,0,0.4); }
+
+/* 자물쇠 닫힘/깨짐 크로스페이드 */
+.qlock > span { transition: opacity .2s ease, transform .3s cubic-bezier(.3,1.4,.4,1); }
+.qlock > span.broken { opacity: 0; transform: scale(1.6) rotate(14deg) translateY(8px); }
+
+/* 4) 설비 아이콘 쾅 박힘 */
+.qicon.slam { animation: qslam .5s cubic-bezier(.2,1.7,.35,1) both; }
+@keyframes qslam { 0%{ opacity:0; transform: scale(1.9);} 45%{ opacity:1; transform: scale(0.86);} 70%{ transform: scale(1.08);} 100%{ transform: scale(1);} }
+
+/* FX 오버레이 — 빛폭발 + 스파크 + 파편 */
+.fx { position: absolute; inset: 0; z-index: 7; pointer-events: none; }
+.fx__flash { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; border-radius: 50%; transform: translate(-50%,-50%);
+  background: radial-gradient(closest-side, #ffffff, #9fe6ff 35%, rgba(47,155,224,0.6) 60%, transparent 72%);
+  animation: fxflash .5s ease-out forwards; }
+@keyframes fxflash { 0%{ opacity:1; width:10px; height:10px;} 100%{ opacity:0; width:170px; height:170px;} }
+.fx__ring { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; border-radius: 50%; transform: translate(-50%,-50%);
+  border: 3px solid #9fe6ff; box-shadow: 0 0 16px rgba(111,210,255,0.9); animation: fxring .55s ease-out forwards; }
+@keyframes fxring { 0%{ opacity:1; transform: translate(-50%,-50%) scale(.3);} 100%{ opacity:0; transform: translate(-50%,-50%) scale(3.4);} }
+.fx span.spark { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; border-radius: 2px;
+  background: #cdeeff; box-shadow: 0 0 8px #6fd2ff; animation: fxspark .55s ease-out forwards; }
+.fx span.shard { position: absolute; left: 50%; top: 50%; width: 7px; height: 3px; border-radius: 1px;
+  background: linear-gradient(90deg,#9fe6ff,#2f9be0); animation: fxshard .6s ease-in forwards; }
+@keyframes fxspark { 0%{ opacity:1; transform: translate(-50%,-50%) scale(1);} 100%{ opacity:0; transform: translate(var(--dx),var(--dy)) scale(.4);} }
+@keyframes fxshard { 0%{ opacity:1; transform: translate(-50%,-50%) rotate(0);} 100%{ opacity:0; transform: translate(var(--dx),var(--dy)) rotate(220deg);} }
+
+/* =========================================================
+   데모 컨트롤 + 스프라이트 추출
+   ========================================================= */
+.demo { position: absolute; left: 48px; bottom: 56px; display: flex; flex-direction: column; gap: 9px; z-index: 6; }
+.demo__hint { font-family: var(--mono); font-size: 12px; color: #163048; background: rgba(255,255,255,0.16); padding: 5px 9px; border-radius: 7px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; padding: 11px 16px; border-radius: 11px;
+  font-weight: 700; font-size: 14px; color: var(--text); background: rgba(14,26,44,0.88); border: 1px solid rgba(111,210,255,0.25); transition: border-color .15s, transform .1s; }
+.btn:hover { border-color: rgba(111,210,255,0.6); } .btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--cyan-grad); color: #06141f; border-color: transparent; font-weight: 800; box-shadow: 0 0 18px rgba(47,155,224,0.4); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn .kc { font-family: var(--mono); font-weight: 800; font-size: 12px; padding: 1px 6px; border-radius: 5px; background: rgba(0,0,0,0.22); }
+.btn.primary .kc { background: rgba(0,0,0,0.16); }
+
+.sprites { position: absolute; right: 40px; top: 50%; transform: translateY(-50%); width: 244px; display: flex; flex-direction: column; gap: 13px; z-index: 6; }
+.sprites__title { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #0c2238; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 6px; align-self: flex-start; }
+.spritecard { display: flex; align-items: center; gap: 12px; }
+.checker { padding: 9px; border-radius: 11px; flex: none; background-color: #0c1018;
+  background-image: linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25% 75%, rgba(255,255,255,0.05) 75%),
+                    linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25% 75%, rgba(255,255,255,0.05) 75%);
+  background-size: 14px 14px; background-position: 0 0, 7px 7px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+.spritecard__meta b { font-size: 12px; font-weight: 700; color: #0c2238; display: block; white-space: nowrap; }
+.spritecard__meta span { font-family: var(--mono); font-size: 10px; color: #163048; white-space: nowrap; }
+.spritecard__meta { background: rgba(255,255,255,0.16); padding: 4px 8px; border-radius: 6px; }

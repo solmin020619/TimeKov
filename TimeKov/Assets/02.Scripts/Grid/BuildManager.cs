@@ -124,6 +124,9 @@ public class BuildManager : MonoBehaviour
     [Tooltip("각 슬롯의 QuickSlotIconUI. 배열 순서 = 슬롯 1~9번.")]
     public QuickSlotIconUI[] slotIconUIs;
 
+    [Tooltip("레일(E) 슬롯의 아이콘 오브젝트(설비 슬롯의 'Quick Slot_png'에 해당). 비워두면 레일 슬롯 스킨 미적용. QuickSlotIconUI가 없으면 런타임에 자동 추가.")]
+    public Transform railSlotIcon;
+
     [Header("Preview")]
     public GameObject previewMarker;
 
@@ -402,6 +405,9 @@ public class BuildManager : MonoBehaviour
 
         // 튜토리얼 등 전역 구독자 통지 — 존 게이트 통과 후 실제 진입 시에만 (B키만 누른 게 아님)
         GameEvents.RaiseBuildModeEntered();
+
+        // 대기 중인 해금 슬롯 '팡' 연출 재생
+        PlayPendingUnlocks();
         return true;
     }
 
@@ -971,18 +977,37 @@ public class BuildManager : MonoBehaviour
         {
             for (int i = 0; i < slotEffects.Length; i++)
             {
-                if (slotEffects[i] != null)
-                {
-                    bool isThisSelected = (IsBuildMode && hasSelectedSlot && currentIndex == i && CurrentSubMode == BuildSubMode.Facility);
-                    slotEffects[i].SetSelected(isThisSelected);
-                }
+                if (slotEffects[i] == null) continue;
+
+                bool isThisSelected = IsBuildMode && hasSelectedSlot
+                                   && currentIndex == i
+                                   && CurrentSubMode == BuildSubMode.Facility;
+
+                string name = "";
+                if (isThisSelected && buildSlots != null && i < buildSlots.Length)
+                    name = GetFacilityNameById(buildSlots[i].facilityId);
+
+                slotEffects[i].SetSelected(isThisSelected, name);
             }
         }
 
         if (railSlotEffect != null)
         {
-            bool isRailSelected = (IsBuildMode && CurrentSubMode == BuildSubMode.Rail);
-            railSlotEffect.SetSelected(isRailSelected);
+            bool isRailSelected = IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
+            railSlotEffect.SetSelected(isRailSelected, isRailSelected ? "레일 설치" : "");
+        }
+
+        // 새 퀵슬롯 스킨 선택 글로우 (slotEffects가 씬 미연결이라 직접 구동)
+        if (slotIconUIs != null)
+        {
+            for (int i = 0; i < slotIconUIs.Length; i++)
+            {
+                if (slotIconUIs[i] != null)
+                {
+                    bool sel = (IsBuildMode && hasSelectedSlot && currentIndex == i && CurrentSubMode == BuildSubMode.Facility);
+                    slotIconUIs[i].SetSelected(sel);
+                }
+            }
         }
     }
 
@@ -996,6 +1021,13 @@ public class BuildManager : MonoBehaviour
         if (GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out var data))
             return data;
         return null;
+    }
+
+    private string GetFacilityNameById(int facilityId)
+    {
+        if (facilityId <= 0) return "";
+        var data = GetFacilityData(facilityId);
+        return data != null ? data.facilityName : "";
     }
 
     // =====================================================================
@@ -1012,11 +1044,34 @@ public class BuildManager : MonoBehaviour
         for (int i = 0; i < slotCount; i++)
             buildSlots[i] = new BuildSlot { facilityId = 0 };
 
-        // 아이콘 UI 초기화
+        // 아이콘 UI 초기화 — 잠긴 슬롯은 자물쇠, 이미 해금된 슬롯은 설비 표시
         if (slotIconUIs != null)
         {
             for (int i = 0; i < slotIconUIs.Length; i++)
-                slotIconUIs[i]?.Clear();
+            {
+                var slot = slotIconUIs[i];
+                if (slot == null) continue;
+                slot.SetSlotNumber(i + 1);
+                int facilityId = i + 1;
+                bool unlocked = FacilityUnlockManager.Instance != null && FacilityUnlockManager.Instance.IsUnlocked(facilityId);
+                if (unlocked)
+                {
+                    buildSlots[i].facilityId = facilityId;
+                    slot.SetFacility(facilityId);
+                }
+                else
+                {
+                    slot.Clear();
+                }
+            }
+        }
+
+        // 레일(E) 슬롯 스킨 적용 — 항상 활성, 기존 레일 아이콘 유지
+        if (railSlotIcon != null)
+        {
+            var rq = railSlotIcon.GetComponent<QuickSlotIconUI>();
+            if (rq == null) rq = railSlotIcon.gameObject.AddComponent<QuickSlotIconUI>();
+            rq.SetRail();
         }
 
         // 해금 이벤트 구독
@@ -1033,7 +1088,21 @@ public class BuildManager : MonoBehaviour
 
         buildSlots[slotIndex].facilityId = facilityId;
 
+        // 즉시 표시하지 않고 '대기' — 다음 건설모드 진입 시 강한 해금 연출로 공개
         if (slotIconUIs != null && slotIndex < slotIconUIs.Length)
-            slotIconUIs[slotIndex]?.SetFacility(facilityId);
+            slotIconUIs[slotIndex]?.SetUnlockPending(facilityId);
+    }
+
+    // 건설모드 진입 시 대기 중인 해금 슬롯들의 '팡' 연출을 순차 재생
+    private void PlayPendingUnlocks()
+    {
+        if (slotIconUIs == null) return;
+        int order = 0;
+        for (int i = 0; i < slotIconUIs.Length; i++)
+        {
+            var slot = slotIconUIs[i];
+            if (slot != null && slot.HasPendingUnlock)
+                slot.PlayUnlockSequence(order++ * 0.26f);
+        }
     }
 }

@@ -50,7 +50,7 @@ public class ToastManager : MonoBehaviour
     const float Hold = 1.6f;          // 표시 유지
     const float DebounceSec = 2.5f;   // 같은 메시지 병합 창
     const int   MaxVisible = 3;       // 동시 표시 최대
-    const float LayerBottomPx = 132f; // 스킬바 위
+    const float LayerBottomPx = 150f; // 스킬바 위
     const float SpacingPx = 10f;
 
     // 스타일 색 (info/success(gold)/warning/error)
@@ -110,7 +110,7 @@ public class ToastManager : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
         // GraphicRaycaster 없음 — 토스트는 입력을 가로채지 않는다.
 
-        _pillSprite = MakeRoundedSprite(48, 48, 20f);
+        _pillSprite = MakeRoundedSprite(64, 64, 28f);
 
         var layerGo = new GameObject("ToastLayer", typeof(RectTransform));
         _layer = (RectTransform)layerGo.transform;
@@ -234,8 +234,8 @@ public class ToastManager : MonoBehaviour
         item.cg.interactable = false;
 
         var hlg = go.AddComponent<HorizontalLayoutGroup>();
-        hlg.padding = new RectOffset(16, 16, 8, 8);
-        hlg.spacing = 9;
+        hlg.padding = new RectOffset(26, 26, 14, 14);
+        hlg.spacing = 15;
         hlg.childAlignment = TextAnchor.MiddleCenter;
         hlg.childControlWidth = true;
         hlg.childControlHeight = true;
@@ -247,7 +247,7 @@ public class ToastManager : MonoBehaviour
         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         var minH = go.AddComponent<LayoutElement>();
-        minH.minHeight = 40f;
+        minH.minHeight = 64f;
 
         // 아이콘
         var iconGo = new GameObject("Icon", typeof(RectTransform));
@@ -257,15 +257,15 @@ public class ToastManager : MonoBehaviour
         item.icon.raycastTarget = false;
         item.icon.preserveAspect = true;
         var iconLe = iconGo.AddComponent<LayoutElement>();
-        iconLe.preferredWidth = 18; iconLe.preferredHeight = 18;
-        iconLe.minWidth = 18; iconLe.minHeight = 18;
+        iconLe.preferredWidth = 28; iconLe.preferredHeight = 28;
+        iconLe.minWidth = 28; iconLe.minHeight = 28;
 
         // 메시지
         var msgGo = new GameObject("Msg", typeof(RectTransform));
         msgGo.transform.SetParent(item.rt, false);
         item.msgText = msgGo.AddComponent<TextMeshProUGUI>();
         item.msgText.text = item.message;
-        item.msgText.fontSize = 14.5f;
+        item.msgText.fontSize = 22f;
         item.msgText.color = CText;
         item.msgText.alignment = TextAlignmentOptions.MidlineLeft;
         item.msgText.enableWordWrapping = false;
@@ -276,7 +276,7 @@ public class ToastManager : MonoBehaviour
         var cntGo = new GameObject("Count", typeof(RectTransform));
         cntGo.transform.SetParent(item.rt, false);
         item.countText = cntGo.AddComponent<TextMeshProUGUI>();
-        item.countText.fontSize = 12f;
+        item.countText.fontSize = 18f;
         item.countText.fontStyle = FontStyles.Bold;
         item.countText.alignment = TextAlignmentOptions.Midline;
         item.countText.enableWordWrapping = false;

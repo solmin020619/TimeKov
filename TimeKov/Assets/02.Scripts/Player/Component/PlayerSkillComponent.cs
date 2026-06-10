@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,7 +17,6 @@ public class PlayerSkillComponent : MonoBehaviour
 
     private Dictionary<SkillSheetId, SkillBase> _skillDatabase = new();
     private Dictionary<SkillSheetId, float> _cooldownTimers = new();
-    private Dictionary<SkillSheetId, float> _skillGauges = new();
     private List<ComboAttackBase> _comboAttacks = new();
 
     private int _comboIndex = 0;
@@ -37,9 +35,6 @@ public class PlayerSkillComponent : MonoBehaviour
     void Awake()
     {
         _player = GetComponent<Player>();
-
-        foreach (SkillSheetId id in Enum.GetValues(typeof(SkillSheetId)))
-            _skillGauges[id] = 0f;
 
         if (Skill1Asset != null) AddSkill(Skill1Asset);
         if (Skill2Asset != null) AddSkill(Skill2Asset);
@@ -60,17 +55,22 @@ public class PlayerSkillComponent : MonoBehaviour
         if (_player.Input.Skill3Pressed) TryExecute(SkillSheetId.Skill3);
     }
 
-    // ������ ���� (ComboAttackBase���� ȣ��)
-    public void AddGauge(SkillSheetId id, float amount)
+    // 평타 적중 시 해당 콤보의 대상 스킬 쿨다운 감소 (ComboAttackBase에서 호출)
+    public void ReduceCooldown(SkillSheetId id, float seconds)
     {
-        if (!_skillGauges.ContainsKey(id)) return;
-        _skillGauges[id] = Mathf.Min(100f, _skillGauges[id] + amount);
+        if (seconds <= 0f) return;
+        if (_cooldownTimers.TryGetValue(id, out float cur) && cur > 0f)
+            _cooldownTimers[id] = Mathf.Max(0f, cur - seconds);
     }
 
-    // ������ ��ȯ (UI��)
+    // UI용 '게이지' 값(0~100). 게이지 개념은 폐기됐고 쿨다운 진행도를 반환한다.
+    // 쿨다운이 다 돌면 100(READY) — 기존 게이지 링이 차오르던 연출을 그대로 유지.
     public float GetGauge(SkillSheetId id)
     {
-        return _skillGauges.TryGetValue(id, out float val) ? val : 0f;
+        float max = GetMaxCooldown(id);
+        if (max <= 0f) return 100f;
+        float remaining = GetCooldown(id);
+        return Mathf.Clamp01((max - remaining) / max) * 100f;
     }
 
     // ��Ÿ�� ��ȯ (UI��)
@@ -171,16 +171,14 @@ public class PlayerSkillComponent : MonoBehaviour
         if (IsExecuting) return;
         if (!_skillDatabase.TryGetValue(id, out var skill)) return;
 
-        // 게이지 부족 또는 쿨다운 중 → 사용 불가 사운드
+        // 쿨다운 중 → 사용 불가 사운드 (게이지 개념 폐기 — 평타로 쿨이 줄어든다)
         bool onCooldown = _cooldownTimers.TryGetValue(id, out float remaining) && remaining > 0;
-        bool gaugeFull  = _skillGauges[id] >= 100f;
-        if (onCooldown || !gaugeFull)
+        if (onCooldown)
         {
             _player.Audio?.PlaySkillUnavailable();
             return;
         }
 
-        _skillGauges[id] = 0f;
         _cooldownTimers[id] = skill.CoolTime;
         _currentSkill = skill;
 
@@ -243,11 +241,7 @@ public class PlayerSkillComponent : MonoBehaviour
     // ������ �� ��ü �ʱ�ȭ (3�ܰ�)
     public void ResetAll()
     {
-        // ������ �ʱ�ȭ
-        foreach (var key in _skillGauges.Keys.ToList())
-            _skillGauges[key] = 0f;
-
-        // ��Ÿ�� �ʱ�ȭ
+        // ��Ÿ�� �ʱ�ȭ — 부활 시 모든 스킬 즉시 사용 가능
         foreach (var key in _cooldownTimers.Keys.ToList())
             _cooldownTimers[key] = 0f;
 

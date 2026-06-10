@@ -1,0 +1,81 @@
+/* ============================================================
+   TimeKov — 튜토리얼 강조 마커 (시간 테마) (명령서 §8, 후순위)
+   ============================================================ */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+
+:root {
+  --panel-rgb: 15, 20, 28;
+  --text: #f1f5f9; --info: #cdd6e0; --info-dim: #8b97a6;
+  --gold: #ffcc00; --amber: #ff9a2e;
+  --line: rgba(255,204,0,0.32); --line-soft: rgba(241,245,249,0.12);
+  --mk: #ffce4a;
+  --font: "Pretendard", -apple-system, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #05070a; font-family: var(--font); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased; }
+.stage { position: fixed; inset: 0; display: grid; place-items: center; background: #000; overflow: hidden; }
+.canvas { position: relative; width: 1920px; height: 1080px; transform-origin: center center; overflow: hidden;
+  background: radial-gradient(110% 80% at 50% 6%, #1b2740 0%, #0c1320 46%, #070b13 100%); }
+.scene-tag { position: absolute; top: 28px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font-family: var(--mono); font-size: 13px; letter-spacing: .14em; color: rgba(205,214,224,0.42);
+  text-transform: uppercase; border: 1px dashed rgba(205,214,224,0.22); border-radius: 6px; padding: 6px 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.world__floor { position: absolute; left: -20%; right: -20%; bottom: 0; height: 46%;
+  background: repeating-linear-gradient(90deg, rgba(120,160,220,0.08) 0 1px, transparent 1px 92px),
+              repeating-linear-gradient(0deg, rgba(120,160,220,0.08) 0 1px, transparent 1px 66px);
+  transform: perspective(640px) rotateX(64deg); transform-origin: bottom center;
+  -webkit-mask-image: linear-gradient(0deg,#000 10%,transparent 86%); mask-image: linear-gradient(0deg,#000 10%,transparent 86%); opacity:.55; }
+
+.callout { position: absolute; left: 56px; top: 120px; max-width: 360px; }
+.callout h1 { font-size: 26px; font-weight: 800; } .callout h1 b { color: var(--gold); }
+.callout p { margin-top: 10px; font-family: var(--mono); font-size: 13px; color: rgba(205,214,224,0.62); line-height: 1.7; }
+
+/* =========================================================
+   마커 (월드 앵커)
+   ========================================================= */
+.markerscene { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); }
+.ground { position: absolute; left: 50%; top: 116px; transform: translate(-50%,-50%) perspective(300px) rotateX(60deg);
+  width: 150px; height: 150px; border-radius: 50%; border: 2px solid rgba(255,206,74,0.5);
+  box-shadow: 0 0 26px rgba(255,170,40,0.3); }
+.ground::after { content:""; position:absolute; inset:30px; border-radius:50%; border:1px dashed rgba(255,206,74,0.4); }
+.gpulse { position: absolute; left: 50%; top: 116px; transform: translate(-50%,-50%) perspective(300px) rotateX(60deg);
+  width: 150px; height: 150px; border-radius: 50%; border: 2px solid var(--mk);
+  animation: gpulse var(--pdur,1.8s) ease-out infinite; }
+@keyframes gpulse { 0%{ opacity:.7; width:80px; height:80px; } 100%{ opacity:0; width:260px; height:260px; } }
+
+/* 떠 있는 마커 본체 */
+.marker { position: relative; width: 120px; height: 120px; animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-12px);} }
+.marker svg { overflow: visible; }
+.spin-slow { transform-origin: 60px 60px; animation: spin 8s linear infinite; }
+.spin-rev { transform-origin: 60px 60px; animation: spin 12s linear infinite reverse; }
+.second-hand { transform-origin: 60px 60px; animation: spin var(--pdur,4s) linear infinite; }
+
+/* [B] 화면밖 방향 마커 (가장자리) — 같은 다이얼 + 방향 시계침 */
+.offmarker { position: absolute; right: 150px; top: 52%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 6; animation: bob 2.6s ease-in-out infinite; }
+.offmarker__clock svg { overflow: visible; }
+.offmarker__dist { font-family: var(--mono); font-weight: 800; font-size: 15px; color: var(--mk); text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+.offmarker__cap { font-family: var(--mono); font-size: 11px; color: rgba(205,214,224,0.55); white-space: nowrap; }
+.halo { animation: halo var(--pdur,1.8s) ease-out infinite; transform-origin: 60px 60px; }
+@keyframes halo { 0%{ opacity:.8; transform: scale(.7);} 100%{ opacity:0; transform: scale(1.5);} }
+
+.tip { position: absolute; left: 50%; top: -22px; transform: translate(-50%,-100%); white-space: nowrap;
+  font-family: var(--mono); font-size: 12px; color: var(--gold); background: rgba(15,20,28,0.85);
+  border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; }
+
+/* =========================================================
+   변형 선택 + 스펙
+   ========================================================= */
+.variants { position: absolute; right: 56px; top: 150px; width: 320px; display: flex; flex-direction: column; gap: 14px; }
+.vcard { padding: 18px; border-radius: 16px; background: rgba(var(--panel-rgb),0.7); border: 1px solid var(--line-soft); cursor: pointer; transition: border-color .15s; }
+.vcard.on { border-color: var(--line); box-shadow: 0 0 18px rgba(255,170,40,0.18); }
+.vcard__top { display: flex; align-items: center; gap: 12px; }
+.vthumb { width: 52px; height: 52px; flex: none; display: grid; place-items: center; }
+.vcard__name { font-weight: 700; font-size: 15px; } .vcard.on .vcard__name { color: var(--gold); }
+.vcard__desc { font-family: var(--mono); font-size: 11px; color: var(--info-dim); margin-top: 3px; line-height: 1.5; }
+
+.spec { position: absolute; left: 56px; bottom: 60px; font-family: var(--mono); font-size: 12px; color: var(--info); line-height: 1.9; }
+.spec span { color: var(--gold); }
+.spec h3 { font-size: 11px; letter-spacing: .1em; color: var(--info-dim); text-transform: uppercase; margin-bottom: 8px; }

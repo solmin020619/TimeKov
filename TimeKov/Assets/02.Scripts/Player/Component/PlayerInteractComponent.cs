@@ -16,18 +16,34 @@ public class PlayerInteractComponent : MonoBehaviour
 
     void Update()
     {
-        if (_player.Input.InteractPressed) TryInteract();
-    }
-
-    void TryInteract()
-    {
-        // Idle��Move��Run ���¿����� ���
+        // Idle/Move/Run 상태에서만 상호작용
         if (_player.Skill.IsExecuting) return;
         if (_player.Movement.IsJumping) return;
-        if (_player.Dash.IsDashing) return;
+        if (_player.Dash != null && _player.Dash.IsDashing) return;
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
 
+        bool fPressed = _player.Input.InteractPressed;
+        bool gPressed = _player.Input.InstantPressed;
+        if (!fPressed && !gPressed) return;
+
+        IInteractable closest = FindClosest();
+        if (closest == null) return;
+
+        // G: 즉시완료 (가능한 대상만)
+        if (gPressed && closest is IInstantInteractable inst && inst.CanInstantComplete(_player))
+        {
+            inst.OnInstantComplete(_player);
+            return;
+        }
+
+        // F: 일반 상호작용
+        if (fPressed)
+            closest.Interact(_player);
+    }
+
+    IInteractable FindClosest()
+    {
         Collider[] hits = Physics.OverlapSphere(
             transform.position, InteractRadius, InteractLayer, QueryTriggerInteraction.Collide);
 
@@ -39,8 +55,7 @@ public class PlayerInteractComponent : MonoBehaviour
             if (!hit.TryGetComponent<IInteractable>(out var interactable)) continue;
             if (!interactable.CanInteract) continue;
 
-            float dist = Vector3.Distance(transform.position, hit.transform.position);
-
+            float dist = (transform.position - hit.transform.position).sqrMagnitude;
             if (dist < closestDist)
             {
                 closestDist = dist;
@@ -48,7 +63,7 @@ public class PlayerInteractComponent : MonoBehaviour
             }
         }
 
-        closest?.Interact(_player);
+        return closest;
     }
 
     void OnDrawGizmosSelected()

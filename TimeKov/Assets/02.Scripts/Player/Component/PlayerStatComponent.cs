@@ -46,6 +46,8 @@ public class PlayerStatComponent : MonoBehaviour
 
     public event Action OnDead;
     public event Action OnHurt;  // UI �ǰ� �ǵ���
+    public event Action<float> OnDamaged;  // 시간(HP) 감소량 — 플로팅 텍스트용
+    public event Action<float> OnHealed;   // 시간(HP) 회복량 — 플로팅 텍스트용
 
     void Awake()
     {
@@ -84,6 +86,7 @@ public class PlayerStatComponent : MonoBehaviour
 
         float finalDamage = Mathf.Max(1f, amount - DEF);
         CurrentHp = Mathf.Max(0, CurrentHp - finalDamage);
+        OnDamaged?.Invoke(finalDamage);
 
         if (CurrentHp <= 0) { OnDead?.Invoke(); return; }
 
@@ -173,14 +176,31 @@ public class PlayerStatComponent : MonoBehaviour
     public void Heal(float amount)
     {
         if (IsDead) return; // 사망 후 힐로 IsDead=false가 되어 좀비 상태가 되는 버그 방지
+        float before = CurrentHp;
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + amount);
+        float healed = CurrentHp - before;
+        if (healed > 0f) OnHealed?.Invoke(healed);
     }
 
     // 최대 HP 비율 회복 (0.0 ~ 1.0)
     public void HealPercent(float percent)
     {
         if (IsDead) return; // 동일 사유
+        float before = CurrentHp;
         CurrentHp = Mathf.Min(MaxHp, CurrentHp + MaxHp * percent);
+        float healed = CurrentHp - before;
+        if (healed > 0f) OnHealed?.Invoke(healed);
+    }
+
+    // 시간(HP)을 비용으로 소모 (상자 즉시열기 등). DEF/무적/경직 무시하는 순수 차감.
+    public void SpendHp(float amount)
+    {
+        if (IsDead || amount <= 0f) return;
+        float before = CurrentHp;
+        CurrentHp = Mathf.Max(0f, CurrentHp - amount);
+        float spent = before - CurrentHp;
+        if (spent > 0f) OnDamaged?.Invoke(spent);
+        if (CurrentHp <= 0f) OnDead?.Invoke();
     }
 
     // ���¹̳� ��� ȸ��
@@ -192,10 +212,10 @@ public class PlayerStatComponent : MonoBehaviour
     // BaseZone���� ȣ��
     public void SetInBase(bool inBase) => IsInBase = inBase;
 
-    // ������ �� ȣ��
-    public void Respawn()
+    // ������ �� ȣ��  (hpPercent: 최대 HP 대비 부활 체력 비율. 1=풀피, 0.5=반피. 코어 강화로 MaxHp가 커져도 비율로 추적)
+    public void Respawn(float hpPercent = 1f)
     {
-        CurrentHp = MaxHp;
+        CurrentHp = Mathf.Clamp(MaxHp * hpPercent, 1f, MaxHp);
         CurrentStamina = MaxStamina;
         IsExhausted = false;
         IsInBase = true;
