@@ -242,7 +242,7 @@ public class FuelDropSlot : MonoBehaviour,
         if (cfg == null) { Debug.LogWarning("[FuelDropSlot] FuelConfig 없음."); return; }
 
         int itemId = draggedSlot.SlotData.itemId;
-        if (itemId != cfg.fuelItemId) return;
+        if (itemId != cfg.fuelItemId) { ToastManager.Warning("연료만 넣을 수 있습니다"); return; }
 
         int amount = draggedSlot.SlotData.amount;
         var inv    = _inventory != null ? _inventory : InventoryManager.Instance;

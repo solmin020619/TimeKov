@@ -273,7 +273,7 @@ public class RecipeDropSlot : MonoBehaviour,
         int itemId  = draggedSlot.SlotData.itemId;
         int dragAmt = draggedSlot.SlotData.amount;
 
-        if (itemId != RequiredItemId) return;
+        if (itemId != RequiredItemId) { ToastManager.Warning("요구하는 재료와 다릅니다"); return; }
 
         int have = _inventory != null ? _inventory.GetTotalItemCount(itemId) : dragAmt;
         if (have <= 0) return;

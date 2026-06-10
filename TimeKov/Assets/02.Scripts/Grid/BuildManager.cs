@@ -275,6 +275,14 @@ public class BuildManager : MonoBehaviour
 
     private void SelectFacilitySlot(int index)
     {
+        // 잠긴(미해금) 슬롯 키를 누르면 선택하지 않고 안내만 (잠긴 슬롯은 facilityId == 0)
+        if (buildSlots != null && index >= 0 && index < buildSlots.Length
+            && buildSlots[index].facilityId == 0)
+        {
+            ToastManager.Warning("아직 해금되지 않은 설비입니다");
+            return;
+        }
+
         // 해제 모드(X) 중 슬롯 키를 누르면 해제에서 빠져나와 바로 건축 모드로 (편의)
         bool fromDemolish = isDemolishMode;
         if (fromDemolish)
@@ -605,16 +613,22 @@ public class BuildManager : MonoBehaviour
         if (IsRailSubMode)
             return;
 
-        if (!CanCurrentFacilityRotate())
+        if (!Input.GetKeyDown(KeyCode.R))
             return;
 
-        if (Input.GetKeyDown(KeyCode.R))
+        // 선택된 설비가 없으면 무시. 설비는 있는데 회전 불가면 토스트.
+        FacilityDataSheetData data = GetCurrentFacilityData();
+        if (data == null)
+            return;
+        if (!data.canRotate)
         {
-            currentRotationY += 90;
-
-            if (currentRotationY >= 360)
-                currentRotationY = 0;
+            ToastManager.Info("회전할 수 없는 설비입니다");
+            return;
         }
+
+        currentRotationY += 90;
+        if (currentRotationY >= 360)
+            currentRotationY = 0;
     }
 
     private void HandleBuild()

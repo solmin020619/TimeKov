@@ -77,6 +77,7 @@ public class CoreUpgradeUI : MonoBehaviour
 
     // ── 내부 ──────────────────────────────────────────────────────────
     private Coroutine _feedbackRoutine;
+    private Color _btnNormalColor = Color.white;   // 강화 버튼 원래 색 (회색 처리용)
 
     // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
@@ -86,6 +87,9 @@ public class CoreUpgradeUI : MonoBehaviour
 
         upgradeButton?.onClick.AddListener(OnClickUpgrade);
         closeButton?.onClick.AddListener(OnClickClose);
+
+        if (upgradeButton != null && upgradeButton.image != null)
+            _btnNormalColor = upgradeButton.image.color;
 
         if (feedbackText != null) feedbackText.gameObject.SetActive(false);
 
@@ -200,9 +204,17 @@ public class CoreUpgradeUI : MonoBehaviour
         // 재료 패널
         RefreshKitPanel(mgr, next);
 
-        // 강화 버튼 활성화
+        // 강화 버튼: 불가여도 클릭은 받아 토스트로 이유를 안내 (interactable 유지 + 회색 비주얼만 수동)
         bool canUpgrade = mgr.CanUpgrade();
-        if (upgradeButton != null) upgradeButton.interactable = canUpgrade;
+        if (upgradeButton != null)
+        {
+            upgradeButton.interactable = true;
+            if (upgradeButton.image != null)
+            {
+                Color grey = _btnNormalColor * 0.5f; grey.a = _btnNormalColor.a;
+                upgradeButton.image.color = canUpgrade ? _btnNormalColor : grey;
+            }
+        }
         if (upgradeButtonText != null)
             upgradeButtonText.text = "강화";
     }
@@ -274,6 +286,17 @@ public class CoreUpgradeUI : MonoBehaviour
         var mgr = CoreUpgradeManager.Instance;
         if (mgr == null) return;
 
+        // 강화 불가 상태에서 클릭 → 이유 안내 (버튼은 회색이지만 클릭은 받음)
+        if (!mgr.CanUpgrade())
+        {
+            var blockedNext = mgr.GetNextLevelData();
+            if (blockedNext != null && IsKitShort(mgr, blockedNext))
+                ToastManager.Warning("강화 키트가 부족합니다");
+            else
+                ToastManager.Warning("지금은 강화할 수 없습니다");
+            return;
+        }
+
         var nextData = mgr.GetNextLevelData();
 
         if (timeCatch != null && nextData != null)
@@ -336,6 +359,14 @@ public class CoreUpgradeUI : MonoBehaviour
         if (tmp == null) return;
         tmp.text  = delta > 0 ? $"+{delta}{suffix} ↑" : $"{delta}{suffix}";
         tmp.color = deltaColor;
+    }
+
+    private bool IsKitShort(CoreUpgradeManager mgr, CoreLevelDataSheetData next)
+    {
+        string kitIdStr = (string)next.requiredKitItemId;
+        if (string.IsNullOrEmpty(kitIdStr) || kitIdStr == "-" || next.requiredAmount <= 0) return false;
+        if (!int.TryParse(kitIdStr, out int kitItemId)) return false;
+        return mgr.GetTotalKitCount(kitItemId) < next.requiredAmount;
     }
 
     private string GetKitName(CoreLevelDataSheetData data)

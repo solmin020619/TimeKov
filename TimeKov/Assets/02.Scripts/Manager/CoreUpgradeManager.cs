@@ -125,6 +125,7 @@ public class CoreUpgradeManager : MonoBehaviour
         if (!HasRequiredKit(nextData))
         {
             Debug.LogWarning("[CoreUpgrade] 재료 부족 (재검사 실패)");
+            ToastManager.Warning("강화 키트가 부족합니다");
             return false;
         }
 
@@ -149,6 +150,7 @@ public class CoreUpgradeManager : MonoBehaviour
 
             OnLevelChanged?.Invoke(CurrentCoreLevel);
             GameEvents.RaiseCoreUpgraded(CurrentCoreLevel);   // 튜토리얼 등 전역 구독자 통지
+            ToastManager.Success("코어 강화 성공!");
             Debug.Log($"[CoreUpgrade] 강화 성공! 현재 레벨: {CurrentCoreLevel}");
         }
         else

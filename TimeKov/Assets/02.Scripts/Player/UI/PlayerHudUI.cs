@@ -322,6 +322,9 @@ public class PlayerHudUI : MonoBehaviour
         }
     }
 
+    // 저시간(저HP) 경고 토스트 — 마지막으로 경고한 정수 시간 (10 이하부터 매 정수 감소마다)
+    int _lastTimeWarn = int.MaxValue;
+
     void Update()
     {
         if (playerStat == null) return;
@@ -330,11 +333,25 @@ public class PlayerHudUI : MonoBehaviour
         UpdateExhausted();
         UpdateBaseState();
         UpdateHurtVignette();
+        CheckLowTimeWarning();
 
         if (playerSkill == null) return;
 
         UpdateSkillGauge();
         UpdateCooldown();
+    }
+
+    // 시간(HP)이 10 이하로 떨어지면 매 정수마다 경고 토스트. 피격으로 점프해도 그 지점부터 다시.
+    void CheckLowTimeWarning()
+    {
+        if (playerStat.IsDead) return;
+        int t = Mathf.FloorToInt(playerStat.CurrentHp);
+        if (t > 10) { _lastTimeWarn = int.MaxValue; return; }   // 10 초과로 회복하면 리셋
+        if (t >= 1 && t < _lastTimeWarn)
+        {
+            ToastManager.Warning($"시간이 {t}초 남았습니다!");
+            _lastTimeWarn = t;
+        }
     }
 
     // HP·스태미나 슬라이더 갱신
