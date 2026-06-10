@@ -1,22 +1,20 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 // SetActive(false) 대신 CanvasGroup.alpha=0으로 숨김 — GameObject 자체는 항상 활성 유지
 // 안 그러면 markerRoot==TutorialMarker GO인 경우 Hide() 후 LateUpdate가 영원히 멈춤
 
 /// <summary>
-/// Endfield 스타일 위치 마커.
+/// 심플 위치 마커.
 /// 활성 ReachTriggerObjective의 targetTriggerId에 매칭되는 QuestTrigger를 찾아
-/// 그 위치에 화면 좌표로 노란 마커 + 거리(m) 표시.
-/// 카메라 시야 밖이면 화면 가장자리에 클램프.
+/// 그 위치에 화면 좌표로 마커(Circle 스프라이트) + 거리(m) 표시.
+/// 카메라 시야 밖이면 화면 가장자리에 클램프. 스프라이트/색은 인스펙터에서 직접 지정.
 /// </summary>
 public class TutorialMarker : MonoBehaviour
 {
     [Header("UI 참조 (Builder가 자동 박음)")]
     [SerializeField] private RectTransform markerRoot;       // Image + Text 부모
     [SerializeField] private TMP_Text distanceText;
-    [SerializeField] private RectTransform offscreenArrow;   // 시야 밖일 때 회전하는 화살표 (선택)
 
     [Header("동작")]
     [Tooltip("화면 가장자리에서 떨어진 픽셀 (시야 밖 클램프용)")]
@@ -26,10 +24,16 @@ public class TutorialMarker : MonoBehaviour
     [Tooltip("마커 위치 보간 속도. 높을수록 즉각, 낮을수록 부드러움. 흔들림(튐) 억제용.")]
     [SerializeField] private float positionSmooth = 14f;
 
+    [Header("연출 (잔잔한 둥둥)")]
+    [SerializeField] private float bobAmplitude = 4f;
+    [SerializeField] private float bobSpeed = 2f;
+
     private Transform _player;
     private Camera _cam;
     private CanvasGroup _markerCg;
     private bool _wasVisible;
+    private RectTransform _circle;
+    private Vector3 _circleHome;
 
     void Awake()
     {
@@ -39,6 +43,10 @@ public class TutorialMarker : MonoBehaviour
             _markerCg = markerRoot.GetComponent<CanvasGroup>();
             if (_markerCg == null) _markerCg = markerRoot.gameObject.AddComponent<CanvasGroup>();
             _markerCg.alpha = 0f;
+
+            // 메인 마커(Circle) 캐시 (둥둥 연출 기준 위치). 스프라이트/색은 인스펙터에서 직접 지정.
+            _circle = markerRoot.Find("Circle") as RectTransform;
+            if (_circle != null) _circleHome = _circle.localPosition;
         }
     }
 
@@ -114,11 +122,9 @@ public class TutorialMarker : MonoBehaviour
                       && sp.y >= screenEdgePadding && sp.y <= Screen.height - screenEdgePadding;
 
         Vector2 targetPos;
-        bool offscreen;
         if (onscreen)
         {
             targetPos = new Vector2(sp.x, sp.y);
-            offscreen = false;
         }
         else
         {
@@ -144,7 +150,6 @@ public class TutorialMarker : MonoBehaviour
             float scale = Mathf.Min(halfW / Mathf.Max(Mathf.Abs(dir.x), 1e-4f),
                                     halfH / Mathf.Max(Mathf.Abs(dir.y), 1e-4f));
             targetPos = center + dir * scale;
-            offscreen = true;
         }
 
         // 부드럽게 이동(튐 방지). 막 다시 보이기 시작한 프레임은 스냅(슬라이딩 잔상 방지).
@@ -157,6 +162,13 @@ public class TutorialMarker : MonoBehaviour
         if (_markerCg != null) _markerCg.alpha = 1f;
         _wasVisible = true;
 
+        // 잔잔한 둥둥 (살아있는 느낌만, 과한 연출 없음)
+        if (_circle != null)
+        {
+            float bob = Mathf.Sin(Time.unscaledTime * bobSpeed) * bobAmplitude;
+            _circle.localPosition = _circleHome + new Vector3(0f, bob, 0f);
+        }
+
         // 거리
         float dist = Vector3.Distance(player.position, targetWorld);
         if (distanceText != null)
@@ -165,17 +177,6 @@ public class TutorialMarker : MonoBehaviour
             else distanceText.text = $"{dist:F0} m";
         }
 
-        // 시야 밖이면 화살표 회전 (화면 중심 → 마커 방향)
-        if (offscreenArrow != null)
-        {
-            offscreenArrow.gameObject.SetActive(offscreen);
-            if (offscreen)
-            {
-                Vector2 d = targetPos - center;
-                float angle = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg - 90f;
-                offscreenArrow.rotation = Quaternion.Euler(0, 0, angle);
-            }
-        }
     }
 
     void Hide()
@@ -183,6 +184,7 @@ public class TutorialMarker : MonoBehaviour
         // SetActive 안 씀! markerRoot가 TutorialMarker 자체 GameObject면 LateUpdate 영원히 멈춤
         if (_markerCg != null) _markerCg.alpha = 0f;
         _wasVisible = false; // 다시 보일 때 보간 없이 스냅 (옛 위치에서 미끄러져 오는 것 방지)
+        if (_circle != null) { _circle.localPosition = _circleHome; _circle.localScale = Vector3.one; }
     }
 
     Transform GetPlayer()
