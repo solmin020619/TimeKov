@@ -11,7 +11,9 @@ public class PlayerInputComponent : MonoBehaviour
     public bool    Skill1Pressed { get; private set; }  // Q 스킬 입력
     public bool    Skill2Pressed { get; private set; }  // E 스킬 입력
     public bool    Skill3Pressed { get; private set; }  // R 스킬 입력
-    public bool    InteractPressed { get; private set; } // 상호작용 입력 (F키)
+    public bool    InteractPressed { get; private set; } // 상호작용 입력 (F키, 누른 순간)
+    public bool    InteractHeld    { get; private set; } // 상호작용 홀드 (F키 누르는 동안)
+    public bool    InstantPressed  { get; private set; } // 즉시완료 입력 (G키, 누른 순간)
 
     public static bool IsBlocked = false; // UI가 열림
 
@@ -41,6 +43,8 @@ public class PlayerInputComponent : MonoBehaviour
             Skill2Pressed   = false;
             Skill3Pressed   = false;
             InteractPressed = false;
+            InteractHeld    = false;
+            InstantPressed  = false;
             return;
         }
 
@@ -52,6 +56,8 @@ public class PlayerInputComponent : MonoBehaviour
         Skill2Pressed   = Input.GetKeyDown(KeyCode.E);
         Skill3Pressed   = Input.GetKeyDown(KeyCode.R);
         InteractPressed = Input.GetKeyDown(KeyCode.F);
+        InteractHeld    = Input.GetKey(KeyCode.F);
+        InstantPressed  = Input.GetKeyDown(KeyCode.G);
 
         // 스킬/콤보 실행 중 모든 행동 입력 차단 (이동/점프/공격/대시/스킬 전부).
         // 스킬은 끝까지 재생되어야 하며, 끝나는 순간(IsExecuting=false) 다시 입력을 받아

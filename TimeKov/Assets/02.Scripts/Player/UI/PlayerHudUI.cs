@@ -102,6 +102,12 @@ public class PlayerHudUI : MonoBehaviour
     [SerializeField] private CanvasGroup hurtVignette;
     [SerializeField] private float hurtFadeSpeed = 3f;
 
+    [Header("플로팅 텍스트 (시간 증감)")]
+    [Tooltip("시간 감소 시 뜨는 숫자 색 (예: -2)")]
+    [SerializeField] private Color damageTextColor = new Color(1f, 0.36f, 0.39f, 1f);
+    [Tooltip("시간 회복 시 뜨는 숫자 색 (예: +30)")]
+    [SerializeField] private Color healTextColor = new Color(0.45f, 0.9f, 0.5f, 1f);
+
     [Header("Tutorial")]
     [Tooltip("튜토리얼 스포트라이트가 강조할 시간/DECAY 패널(PlayerTime). 비우면 자동 탐색.")]
     [SerializeField] private RectTransform timeBarPanelRoot;
@@ -175,6 +181,8 @@ public class PlayerHudUI : MonoBehaviour
         // 이벤트 구독
         playerStat.OnHurt += TriggerHurtVignette;
         playerStat.OnDead += ForceHpSliderEmpty;
+        playerStat.OnDamaged += ShowDamageText;
+        playerStat.OnHealed += ShowHealText;
     }
 
     void OnDestroy()
@@ -183,6 +191,8 @@ public class PlayerHudUI : MonoBehaviour
         {
             playerStat.OnHurt -= TriggerHurtVignette;
             playerStat.OnDead -= ForceHpSliderEmpty;
+            playerStat.OnDamaged -= ShowDamageText;
+            playerStat.OnHealed -= ShowHealText;
         }
 
         if (_timeBarRoot != null)
@@ -454,12 +464,12 @@ public class PlayerHudUI : MonoBehaviour
 
         if (gaugeText != null)
         {
-            int percent = Mathf.RoundToInt(normalizedGauge * 100f);
-
-            if (showReadyTextAtFullGauge && percent >= 100)
-                gaugeText.text = "READY";
+            // LoL식 쿨다운 표기: 쿨 중이면 남은 초(60→59→…→평타치면 줄어듦), 다 돌면 READY/공백
+            float remaining = playerSkill.GetCooldown(id);
+            if (remaining > 0.05f)
+                gaugeText.text = Mathf.CeilToInt(remaining).ToString();
             else
-                gaugeText.text = $"{percent}%";
+                gaugeText.text = showReadyTextAtFullGauge ? "READY" : "";
         }
 
         if (iconImage != null)
@@ -492,6 +502,30 @@ public class PlayerHudUI : MonoBehaviour
     void TriggerHurtVignette()
     {
         _hurtAlpha = 1f;
+    }
+
+    // 시간(HP) 감소 → 빨간 -N 플로팅 텍스트 (시계/HP 근처)
+    void ShowDamageText(float amount)
+    {
+        int n = Mathf.RoundToInt(amount);
+        if (n <= 0) return;   // 0.x 단위는 '-0' 방지
+        FloatingTextManager.Show($"-{n}", damageTextColor, GetTimeAnchorScreenPos());
+    }
+
+    // 시간(HP) 회복 → 초록 +N 플로팅 텍스트
+    void ShowHealText(float amount)
+    {
+        int n = Mathf.RoundToInt(amount);
+        if (n <= 0) return;   // 0.x 단위는 '+0' 방지
+        FloatingTextManager.Show($"+{n}", healTextColor, GetTimeAnchorScreenPos());
+    }
+
+    // 플로팅 텍스트가 떠오를 화면 좌표 (좌하단 시계 아이콘 우선, 없으면 HP 바)
+    Vector3 GetTimeAnchorScreenPos()
+    {
+        if (timeDecayIcon != null) return timeDecayIcon.rectTransform.position;
+        if (hpSlider != null) return hpSlider.transform.position;
+        return new Vector3(Screen.width * 0.13f, Screen.height * 0.18f, 0f);
     }
 
     // Hurt Vignette 페이드 아웃
