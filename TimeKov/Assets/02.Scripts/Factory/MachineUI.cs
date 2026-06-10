@@ -409,8 +409,16 @@ public class MachineUI : MonoBehaviour
         if (!_machine.TryTakeOutput(itemId, amount)) return;
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
-        inv?.AddItem(itemId, amount);
+        int leftover = inv != null ? inv.AddItem(itemId, amount) : amount;
         inv?.ForceRefreshUI();
+
+        // 가방에 못 들어간 분량은 창고로 (창고는 거의 무한)
+        if (leftover > 0)
+        {
+            var storage = InventoryManager.StorageInstance;
+            if (storage != null) storage.AddItem(itemId, leftover);
+            ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+        }
 
         GameEvents.RaiseItemAcquired(itemId, amount);
 
@@ -565,15 +573,19 @@ public class MachineUI : MonoBehaviour
             var outputs   = recipes[recipeIdx]?.outputs;
             if (outputs != null)
             {
+                bool movedToStorage = false;
+                var storage = InventoryManager.StorageInstance;
                 foreach (var output in outputs)
                 {
                     int buffered = _machine.OutputBuffer.GetAmount(output.itemId);
                     if (buffered > 0 && _machine.TryTakeOutput(output.itemId, buffered))
                     {
-                        inv?.AddItem(output.itemId, buffered);
+                        int leftover = inv != null ? inv.AddItem(output.itemId, buffered) : buffered;
+                        if (leftover > 0 && storage != null) { storage.AddItem(output.itemId, leftover); movedToStorage = true; }
                         GameEvents.RaiseItemAcquired(output.itemId, buffered);
                     }
                 }
+                if (movedToStorage) ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
             }
         }
 

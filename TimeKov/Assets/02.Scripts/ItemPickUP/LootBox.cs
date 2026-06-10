@@ -65,27 +65,37 @@ public class LootBox : MonoBehaviour, IInteractable
         var inv = InventoryManager.Instance;
         if (inv != null && player != null)
         {
-            bool anyCompleteFail = false;
+            bool movedToStorage = false;
+            var storage = InventoryManager.StorageInstance;
 
             foreach (var (itemId, count) in _contents)
             {
                 int remaining = inv.TryAddItemFromLoot(itemId, count);
 
-                // 실제 인벤에 들어간 양만큼 퀘스트 이벤트 발화
-                int added = count - remaining;
-                if (added > 0)
-                    GameEvents.RaiseItemAcquired(itemId, added);
+                // 가방에 들어간 분량 (퀘스트 획득 이벤트)
+                int addedToBag = count - remaining;
+                if (addedToBag > 0)
+                    GameEvents.RaiseItemAcquired(itemId, addedToBag);
 
-                // 전량 실패 시 공간 부족
-                if (remaining == count)
+                // 가방에 못 들어간 분량은 창고로 (창고는 거의 무한). 획득 자체는 인정.
+                if (remaining > 0 && storage != null)
                 {
-                    anyCompleteFail = true;
-                    Debug.Log($"[LootBox] 가방 공간 부족: itemId={itemId} count={count}");
+                    int afterStore = storage.AddItem(itemId, remaining);
+                    int addedToStore = remaining - afterStore;
+                    if (addedToStore > 0)
+                    {
+                        movedToStorage = true;
+                        GameEvents.RaiseItemAcquired(itemId, addedToStore);
+                    }
+                    remaining = afterStore;
                 }
+
+                if (remaining > 0)
+                    Debug.LogWarning($"[LootBox] 가방·창고 모두 가득 — 손실 itemId={itemId} count={remaining}");
             }
 
-            if (anyCompleteFail)
-                Debug.Log("[LootBox] 일부 아이템을 넣지 못했습니다 — 가방 공간 부족");
+            if (movedToStorage)
+                ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
         }
         else if (inv == null)
         {

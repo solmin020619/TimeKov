@@ -152,11 +152,13 @@ public class BuildDemolisher
         var inputItems  = new Dictionary<int, int>(machine.InputBuffer.Stock);
         var outputItems = new Dictionary<int, int>(machine.OutputBuffer.Stock);
 
+        bool returnedAny = false;
+
         foreach (var kv in inputItems)
-            if (kv.Value > 0) storage.AddItem(kv.Key, kv.Value);
+            if (kv.Value > 0) { storage.AddItem(kv.Key, kv.Value); returnedAny = true; }
 
         foreach (var kv in outputItems)
-            if (kv.Value > 0) storage.AddItem(kv.Key, kv.Value);
+            if (kv.Value > 0) { storage.AddItem(kv.Key, kv.Value); returnedAny = true; }
 
         // 연료 아이템 회수 (FuelTimeRemaining → 아이템 개수로 역산)
         var cfg = FuelConfig.Instance;
@@ -164,8 +166,15 @@ public class BuildDemolisher
         {
             int fuelCount = machine.TakeFuel();
             if (fuelCount > 0)
+            {
                 storage.AddItem(cfg.fuelItemId, fuelCount);
+                returnedAny = true;
+            }
         }
+
+        // 내부 아이템이 사라진 게 아니라 창고로 갔음을 명확히 안내
+        if (returnedAny)
+            ToastManager.Info("설비 내부 아이템을 창고에 보관했습니다");
     }
 
     private void DemolishRail(Vector2Int cell)

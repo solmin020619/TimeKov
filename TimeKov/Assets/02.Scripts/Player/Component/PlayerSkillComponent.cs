@@ -176,6 +176,7 @@ public class PlayerSkillComponent : MonoBehaviour
         if (onCooldown)
         {
             _player.Audio?.PlaySkillUnavailable();
+            ToastManager.Warning("스킬이 아직 준비되지 않았습니다");
             return;
         }
 

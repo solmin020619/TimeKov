@@ -294,14 +294,23 @@ public class QuestManager : MonoBehaviour
             if (InventoryManager.Instance != null)
                 leftover = InventoryManager.Instance.TryAddItemFromLoot(reward.itemId, leftover);
 
+            int afterBag = leftover;
+
             // 2) 가방 가득/없음 → 창고 폴백. (보상이 조용히 증발하면 그걸 요구하는 다음 퀘 — 예: 코어키트→코어강화 — 가
             //    영구 소프트락 되므로 반드시 어딘가엔 들어가게 한다)
             if (leftover > 0 && InventoryManager.StorageInstance != null)
                 leftover = InventoryManager.StorageInstance.TryAddItemFromLoot(reward.itemId, leftover);
 
+            // 가방이 가득 차 창고로 넘어간 분량이 있으면 사라진 게 아님을 명확히 안내
+            if (afterBag > 0 && leftover < afterBag)
+                ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+
             if (leftover > 0)
+            {
+                ToastManager.Error("보상을 받지 못했습니다. 인벤토리를 비워주세요");
                 Debug.LogError($"[QuestManager] 보상 미지급 — 가방·창고 모두 가득 " +
                                $"(quest: {quest.id}, itemId: {reward.itemId}, 미지급: {leftover}). 후속 퀘 소프트락 위험.");
+            }
         }
     }
 
