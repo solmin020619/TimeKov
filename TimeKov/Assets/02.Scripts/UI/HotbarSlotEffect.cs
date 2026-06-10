@@ -86,12 +86,18 @@ public class HotbarSlotEffect : MonoBehaviour
         if (_isSelected == selected) return;
         _isSelected = selected;
 
+        // 비활성('Quick Slot' 꺼짐) 오브젝트에선 코루틴을 못 켜므로 즉시 상태만 반영
+        bool canAnimate = isActiveAndEnabled;
+
         // 색상 효과
         if (slotBackground != null)
         {
             if (_colorCoroutine != null) StopCoroutine(_colorCoroutine);
             if (_isSelected)
-                _colorCoroutine = StartCoroutine(FlashAndKeepColor());
+            {
+                if (canAnimate) _colorCoroutine = StartCoroutine(FlashAndKeepColor());
+                else slotBackground.color = selectedColor;
+            }
             else
                 slotBackground.color = originalColor;
         }
@@ -101,14 +107,15 @@ public class HotbarSlotEffect : MonoBehaviour
         {
             if (_nameFadeCoroutine != null) StopCoroutine(_nameFadeCoroutine);
 
-            if (_isSelected && !string.IsNullOrEmpty(facilityName))
-            {
-                if (nameLabel != null) nameLabel.text = facilityName;
-                _nameFadeCoroutine = StartCoroutine(FadeNamePopup(true));
-            }
+            bool show = _isSelected && !string.IsNullOrEmpty(facilityName);
+            if (show && nameLabel != null) nameLabel.text = facilityName;
+
+            if (canAnimate)
+                _nameFadeCoroutine = StartCoroutine(FadeNamePopup(show));
             else
             {
-                _nameFadeCoroutine = StartCoroutine(FadeNamePopup(false));
+                namePopupGroup.alpha = show ? 1f : 0f;
+                namePopupGroup.gameObject.SetActive(show);
             }
         }
     }
