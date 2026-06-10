@@ -977,18 +977,24 @@ public class BuildManager : MonoBehaviour
         {
             for (int i = 0; i < slotEffects.Length; i++)
             {
-                if (slotEffects[i] != null)
-                {
-                    bool isThisSelected = (IsBuildMode && hasSelectedSlot && currentIndex == i && CurrentSubMode == BuildSubMode.Facility);
-                    slotEffects[i].SetSelected(isThisSelected);
-                }
+                if (slotEffects[i] == null) continue;
+
+                bool isThisSelected = IsBuildMode && hasSelectedSlot
+                                   && currentIndex == i
+                                   && CurrentSubMode == BuildSubMode.Facility;
+
+                string name = "";
+                if (isThisSelected && buildSlots != null && i < buildSlots.Length)
+                    name = GetFacilityNameById(buildSlots[i].facilityId);
+
+                slotEffects[i].SetSelected(isThisSelected, name);
             }
         }
 
         if (railSlotEffect != null)
         {
-            bool isRailSelected = (IsBuildMode && CurrentSubMode == BuildSubMode.Rail);
-            railSlotEffect.SetSelected(isRailSelected);
+            bool isRailSelected = IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
+            railSlotEffect.SetSelected(isRailSelected, isRailSelected ? "레일 설치" : "");
         }
 
         // 새 퀵슬롯 스킨 선택 글로우 (slotEffects가 씬 미연결이라 직접 구동)
@@ -1015,6 +1021,13 @@ public class BuildManager : MonoBehaviour
         if (GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out var data))
             return data;
         return null;
+    }
+
+    private string GetFacilityNameById(int facilityId)
+    {
+        if (facilityId <= 0) return "";
+        var data = GetFacilityData(facilityId);
+        return data != null ? data.facilityName : "";
     }
 
     // =====================================================================
