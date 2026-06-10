@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: energ
-  m_Shader: {fileID: -6465566751694194690, guid: 7f141cdc6c85ada488abbdf29a71728e, type: 3}
+  m_Name: energe_2
+  m_Shader: {fileID: -6465566751694194690, guid: da4f28889164fbe4aac9e1b650525308, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -38,16 +38,15 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Depth_offset: 0.84
-    - _Distation_strege: 22.12
-    - _Fresnel_Power: 0.91
     - _QueueControl: 0
     - _QueueOffset: 0
+    - _power: 5
+    - _speed: 1
     m_Colors:
-    - _Color: {r: 6.623411, g: 36.131187, b: 63.25359, a: 1}
+    - _color: {r: 0.035294097, g: 0.7137255, b: 0.6502751, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &1114624241304028980
+--- !u!114 &7435525509170070273
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
