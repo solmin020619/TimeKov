@@ -132,6 +132,9 @@ public class BuildDemolisher
         PlayDemolishSound();
         Object.Destroy(building.gameObject);
 
+        // 철거된 설비를 가리키던 벨트 연결 정리 후 재감지
+        BeltSegment.ReconnectAll();
+
         if (owner.IsRailSubMode)
             owner.RailManager?.RefreshPortIndicators();
     }
@@ -183,6 +186,9 @@ public class BuildDemolisher
         if (!owner.RailManager.RemoveRailAt(cell)) return;
 
         PlayDemolishSound();
+
+        // 잘려나간 체인 양쪽에 이전 출발/도착 정보가 남지 않도록 재감지
+        BeltSegment.ReconnectAll();
     }
 
     private void SetHoveredBuilding(PlacedBuilding building)
