@@ -92,9 +92,9 @@ public static class TutorialAssetBuilder
                 TourStep($"{Y}ESC{E} - {Y}설정{E}을 엽니다.", TargetEscIcon),
                 TourStep($"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.", TargetStatButton, KeyCode.C),
                 TourStep($"여기서 {Y}최대 시간{E} · {Y}스태미나{E} · {Y}공격력{E} · {Y}방어력{E}을 확인할 수 있어요. {Y}코어 강화{E}로 {Y}최대 시간{E}을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있습니다. {Y}C{E} 키로 {Y}언제든 여닫을 수 있어요{E}.", TargetStatPanel),
-                TourStep($"우하단 {Y}스킬{E} 3개. {Y}Q{E} 스킬은 {Y}기본 공격 1타{E}를 적에게 {Y}적중{E}시키면 충전돼요.", TargetSkillQ),
-                TourStep($"{Y}E{E} 스킬은 {Y}기본 공격 2타{E}를 {Y}적중{E}시키면 충전됩니다.", TargetSkillE),
-                TourStep($"{Y}R{E} 스킬은 {Y}기본 공격 3타{E}를 {Y}적중{E}시키면 충전됩니다. 충전되면 강력한 스킬을 사용하세요!", TargetSkillR))));
+                TourStep($"우하단 {Y}스킬{E} 3개. {Y}Q·E·R{E}로 사용하고, 쓰고 나면 {Y}쿨타임{E}이 끝나야 다시 쓸 수 있어요.", TargetSkillQ),
+                TourStep($"{Y}E{E} 스킬도 {Y}쿨타임{E}이 끝나면 다시 사용할 수 있습니다.", TargetSkillE),
+                TourStep($"{Y}R{E} 스킬은 {Y}쿨타임{E}이 길지만 강력합니다. 준비되면 사용하세요!", TargetSkillR))));
 
         // Q1. 기본 조작 [병렬]
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
@@ -190,10 +190,13 @@ public static class TutorialAssetBuilder
             CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}생체 배양기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioCultivatorId),
             CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 {Y}설치{E}하세요.", BioCultivatorId, 1)));
 
-        // Q12. 배양기 가공 [병렬]
-        quests.Add(BuildQuest("quest_tut_12_cultivate", "회복 젤 가공",
+        // Q12. 배양기 가공 [병렬] (+ 완료보상: 다음 가동용 연료 나뭇가지 1)
+        var qCultivate = BuildQuest("quest_tut_12_cultivate", "회복 젤 가공",
             CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 {Y}생체 배양기{E}를 여세요.", BioCultivatorId, 1),
-            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 슬롯으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
+            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 슬롯으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 1));
+        qCultivate.rewards = new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 1 } };
+        EditorUtility.SetDirty(qCultivate);
+        quests.Add(qCultivate);
 
         // Q13. 앰플 회수 + 사용 [병렬]
         quests.Add(BuildQuest("quest_tut_13_ampoule", "회복 앰플 완성",
@@ -210,16 +213,27 @@ public static class TutorialAssetBuilder
             CreateContinue("obj_rail_info",
                 $"{Y}레일{E}로 설비를 이으면 아이템이 {Y}자동{E}으로 다음 설비로 이동합니다. {Y}건설 모드(B){E}에서 {Y}E(레일){E}를 고른 뒤, 설비의 {Y}출구(E 표시){E}를 클릭해 다음 설비까지 이어 주세요.")));
 
-        // Q16. 레일 연결 (액션)
-        quests.Add(BuildQuest("quest_tut_16_rail_connect", "레일 연결",
-            CreateRailConnect("obj_rail_connect", $"두 설비를 {Y}레일{E}로 {Y}연결{E}하세요.", 1)));
+        // Q16. 레일 연결 (액션) (+ 완료보상: 회복젤 재료 거미독액·부식액 → 추출기→레일→배양기 자동화 흐름 테스트용)
+        var qRail = BuildQuest("quest_tut_16_rail_connect", "레일 연결",
+            CreateRailConnect("obj_rail_connect", $"두 설비를 {Y}레일{E}로 {Y}연결{E}하세요.", 1));
+        qRail.rewards = new[] {
+            new QuestSO.QuestReward { itemId = ItemSpiderVenom, amount = 1 },
+            new QuestSO.QuestReward { itemId = ItemCorrosive,   amount = 1 },
+        };
+        EditorUtility.SetDirty(qRail);
+        quests.Add(qRail);
+
+        // Q16b. 레일 자동 이동 확인 — 추출기에 재료 넣어 가공 → 결과물이 레일 타고 배양기로 이동하면 완료
+        quests.Add(BuildQuest("quest_tut_16b_rail_move", "레일 자동화 확인",
+            CreateRailItemMove("obj_rail_move",
+                $"{Y}생체 추출기{E}에 재료를 넣어 가공하고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}자동 이동{E}하는지 확인하세요.", 1)));
 
         // (저장고 #8 = 있으면 좋고 없으면 말고 → 튜토리얼 필수에서 제외. 마무리(Q21)에서 "숨겨진 설비 찾기"로 안내.)
 
         // ── 코어 강화 (마커 안내 → F로 열기 → 코치마크 → 강화 → 체력바 강조) ──
         // Q17. 코어 강화 단말로 이동 (마커) + 완료 보상 코어 키트 3개 → 바로 강화 체험
         var qReachCore = BuildQuest("quest_tut_17_reach_core", "코어 강화 단말로 이동",
-            CreateReachTrigger("obj_reach_core", $"{Y}코어 강화 단말{E}이 있는 곳으로 {Y}이동{E}하세요.", "core_terminal"));
+            CreateReachTrigger("obj_reach_core", $"{Y}코어 강화 단말{E}이 있는 곳으로 {Y}이동{E}하세요.", "core"));
         qReachCore.rewards = new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } };
         EditorUtility.SetDirty(qReachCore);
         quests.Add(qReachCore);
@@ -428,6 +442,14 @@ public static class TutorialAssetBuilder
     static RailConnectObjective CreateRailConnect(string name, string label, int count = 1)
     {
         var o = ScriptableObject.CreateInstance<RailConnectObjective>();
+        o.label = label; o.requiredCount = count;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static RailItemMoveObjective CreateRailItemMove(string name, string label, int count = 1)
+    {
+        var o = ScriptableObject.CreateInstance<RailItemMoveObjective>();
         o.label = label; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;

@@ -499,6 +499,7 @@ namespace TIMEKOV.Factory
             {
                 token.isDelivered = true;
                 targetM.Receive(itemId, amount);
+                GameEvents.RaiseRailItemMoved(targetM.FacilityId, itemId, amount);   // 튜토: 레일 자동 이동 성공
             }
 
             CleanupVisual(visual);
