@@ -36,6 +36,14 @@ public class EnemySpawnPoint : MonoBehaviour
     [SerializeField] private int patrolPointsPerEnemy = 4;
     [Tooltip("랜덤 점 → NavMesh sample 시 허용 반경")]
     [SerializeField] private float navMeshSampleRadius = 5f;
+    [Tooltip("0이면 영역 전체에서 순찰. >0이면 각 적의 스폰 지점 반경 내에서만 순찰. 맵 전체 같은 큰 박스에서 적이 멀리 안 가게 할 때 사용.")]
+    [SerializeField] private float patrolRadius = 0f;
+
+    [Header("스폰 제외 영역 (갈색존 등)")]
+    [Tooltip("이 BoxCollider들 안에는 스폰/순찰 안 함. 갈색존 위에 둔 박스(예: 다른 몹 스폰존)를 드래그하면 그 부분만 빠짐.")]
+    [SerializeField] private List<BoxCollider> excludeZones = new();
+    [Tooltip("excludeZones에 더해, 씬에 있는 다른 모든 EnemySpawnPoint 영역도 자동으로 제외(=다른 몹 스폰존엔 안 겹치게).")]
+    [SerializeField] private bool autoExcludeOtherSpawnPoints = false;
 
     [Header("지면 정렬 (Ground Snap)")]
     [Tooltip("영역 위에서 아래로 raycast해서 ground에 정확히 박기. NavMesh가 지면보다 살짝 떠있을 때 사용.")]
@@ -51,6 +59,7 @@ public class EnemySpawnPoint : MonoBehaviour
     [SerializeField] private bool verboseLog = false;
 
     private BoxCollider area;
+    private readonly List<BoxCollider> _excluders = new();
     private readonly List<GameObject> aliveEnemies = new();
     private readonly Dictionary<GameObject, List<GameObject>> enemyWaypoints = new();
     private int pendingRespawns = 0;
@@ -63,6 +72,37 @@ public class EnemySpawnPoint : MonoBehaviour
     {
         area = GetComponent<BoxCollider>();
         area.isTrigger = true;
+        BuildExcluders();
+    }
+
+    private void BuildExcluders()
+    {
+        _excluders.Clear();
+        foreach (var bc in excludeZones)
+            if (bc != null && !_excluders.Contains(bc)) _excluders.Add(bc);
+
+        if (autoExcludeOtherSpawnPoints)
+        {
+            var others = FindObjectsByType<EnemySpawnPoint>(FindObjectsSortMode.None);
+            foreach (var sp in others)
+            {
+                if (sp == this) continue;
+                var bc = sp.GetComponent<BoxCollider>();
+                if (bc != null && !_excluders.Contains(bc)) _excluders.Add(bc);
+            }
+        }
+    }
+
+    // candidate가 제외 영역(갈색존 등) 안에 들어가는지
+    private bool IsInExcludedZone(Vector3 world)
+    {
+        for (int i = 0; i < _excluders.Count; i++)
+        {
+            var bc = _excluders[i];
+            if (bc == null) continue;
+            if ((bc.ClosestPoint(world) - world).sqrMagnitude < 0.01f) return true;
+        }
+        return false;
     }
 
     private IEnumerator Start()
@@ -183,7 +223,10 @@ public class EnemySpawnPoint : MonoBehaviour
         var list = new List<GameObject>(patrolPointsPerEnemy);
         for (int i = 0; i < patrolPointsPerEnemy; i++)
         {
-            if (!TryGetRandomNavPos(out Vector3 pos)) continue;
+            bool ok = patrolRadius > 0f
+                ? TryGetRandomNavPosNear(owner.transform.position, patrolRadius, out Vector3 pos)
+                : TryGetRandomNavPos(out pos);
+            if (!ok) continue;
             var wp = new GameObject($"WP_{owner.name}_{i}");
             wp.transform.SetParent(transform);
             wp.transform.position = pos;
@@ -222,11 +265,30 @@ public class EnemySpawnPoint : MonoBehaviour
 
             if (NavMesh.SamplePosition(candidate, out NavMeshHit navHit, navMeshSampleRadius, NavMesh.AllAreas))
             {
+                if (IsInExcludedZone(navHit.position)) continue;
                 result = navHit.position;
                 return true;
             }
         }
         result = transform.position;
+        return false;
+    }
+
+    // 특정 지점 반경 내에서 NavMesh 위 랜덤 점 (스폰 위치 중심 로컬 순찰용)
+    private bool TryGetRandomNavPosNear(Vector3 center, float radius, out Vector3 result)
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            Vector2 c = Random.insideUnitCircle * radius;
+            Vector3 candidate = center + new Vector3(c.x, 0f, c.y);
+            if (NavMesh.SamplePosition(candidate, out NavMeshHit navHit, Mathf.Max(navMeshSampleRadius, radius), NavMesh.AllAreas))
+            {
+                if (IsInExcludedZone(navHit.position)) continue;
+                result = navHit.position;
+                return true;
+            }
+        }
+        result = center;
         return false;
     }
 
