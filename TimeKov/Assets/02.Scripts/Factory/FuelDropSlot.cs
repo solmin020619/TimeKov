@@ -245,8 +245,12 @@ public class FuelDropSlot : MonoBehaviour,
         if (itemId != cfg.fuelItemId) { ToastManager.Warning("연료만 넣을 수 있습니다"); return; }
 
         int amount = draggedSlot.SlotData.amount;
-        var inv    = _inventory != null ? _inventory : InventoryManager.Instance;
-        if (inv == null || !inv.TryConsumeItem(itemId, amount)) return;
+        if (amount <= 0) return;
+
+        // 같은 아이템이 여러 칸에 나뉘어 있어도 실제로 드래그한 칸에서만 차감
+        var inv = draggedSlot.Owner != null ? draggedSlot.Owner
+                : (_inventory != null ? _inventory : InventoryManager.Instance);
+        if (inv == null || !inv.RemoveFromSlot(draggedSlot.SlotData.slotIndex, amount)) return;
 
         inv.ForceRefreshUI();
         _machine.AddFuel(amount);

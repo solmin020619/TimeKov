@@ -274,15 +274,15 @@ public class RecipeDropSlot : MonoBehaviour,
         int dragAmt = draggedSlot.SlotData.amount;
 
         if (itemId != RequiredItemId) { ToastManager.Warning("요구하는 재료와 다릅니다"); return; }
+        if (dragAmt <= 0) return;
 
-        int have = _inventory != null ? _inventory.GetTotalItemCount(itemId) : dragAmt;
-        if (have <= 0) return;
-
-        int take = Mathf.Min(dragAmt, have);
-        if (_inventory != null)
+        // 같은 아이템이 여러 칸에 나뉘어 있어도 실제로 드래그한 칸에서만 차감
+        var sourceInv = draggedSlot.Owner != null ? draggedSlot.Owner : _inventory;
+        int take = dragAmt;
+        if (sourceInv != null)
         {
-            _inventory.TryConsumeItem(itemId, take);
-            _inventory.ForceRefreshUI();
+            if (!sourceInv.RemoveFromSlot(draggedSlot.SlotData.slotIndex, take)) return;
+            sourceInv.ForceRefreshUI();
         }
 
         // 재료를 실제로 넣을 때 이 슬롯의 레시피로 생산 레시피를 고정
