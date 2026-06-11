@@ -72,35 +72,34 @@ public class PlayerHudUI : MonoBehaviour
     [Tooltip("100%일 때 퍼센트 대신 READY로 표시할지 여부")]
     [SerializeField] private bool showReadyTextAtFullGauge = false;
 
-    [Header("Skill Icon Alpha")]
-    [Tooltip("스킬 슬롯 안의 실제 스킬 아이콘 Image 연결")]
+    [Header("Skill Icon")]
+    [Tooltip("스킬 슬롯 안의 실제 스킬 아이콘 Image 연결 (컬러=준비됨 레이어)")]
     [SerializeField] private Image skill1IconImage;
     [SerializeField] private Image skill2IconImage;
     [SerializeField] private Image skill3IconImage;
 
-    [Tooltip("스킬 게이지가 100% 미만일 때 아이콘 투명도")]
-    [SerializeField, Range(0f, 1f)] private float skillIconLockedAlpha = 0.35f;
+    [Tooltip("스킬 아이콘 크기 배율 (1=원래, 작게 하려면 0.7 등)")]
+    [SerializeField, Range(0.3f, 1f)] private float skillIconScale = 0.72f;
 
-    [Tooltip("스킬 게이지가 100% 이상일 때 아이콘 투명도")]
-    [SerializeField, Range(0f, 1f)] private float skillIconReadyAlpha = 1f;
+    [Header("Skill Cooldown (롤식 시계방향 밝아짐)")]
+    [Tooltip("쿨타임 중 아이콘 뒤에 깔리는 '비활성' 색. 어두울수록 시계방향 밝아짐 대비가 커진다.")]
+    [SerializeField] private Color skillGrayColor = new Color(0.13f, 0.14f, 0.17f, 1f);
 
-    [Tooltip("아이콘 투명도 전환 속도. 높을수록 빠르게 바뀜")]
-    [SerializeField] private float skillIconAlphaLerpSpeed = 10f;
+    [Tooltip("준비 완료 시 아이콘 뒤에서 빛나는 글로우 색 (활성 강조)")]
+    [SerializeField] private Color skillReadyGlowColor = new Color(0.37f, 0.77f, 1f, 1f);
+    [Tooltip("준비 완료 글로우 최대 세기(알파)")]
+    [SerializeField, Range(0f, 1f)] private float skillReadyGlowAlpha = 0.7f;
+    [Tooltip("준비 완료 글로우 크기 배율(아이콘 대비)")]
+    [SerializeField] private float skillReadyGlowScale = 1.6f;
 
-    [Header("Skill Cooldown")]
-    [Tooltip("쿨타임 중 fillAmount가 줄어드는 Image 컴포넌트 연결")]
+    [Tooltip("(구버전) 쿨타임 중 fillAmount가 줄어드는 Image. 새 방식과 겹치므로 연결돼 있으면 자동으로 끔.")]
     [SerializeField] private Image skill1CooldownImage;
     [SerializeField] private Image skill2CooldownImage;
     [SerializeField] private Image skill3CooldownImage;
 
-    [Header("Skill Cooldown Radial (시계방향)")]
-    [Tooltip("스킬 아이콘 크기 배율 (1=원래, 작게 하려면 0.7 등)")]
-    [SerializeField, Range(0.3f, 1f)] private float skillIconScale = 0.72f;
-    [Tooltip("시계방향으로 차오르는 쿨다운 라디얼 색")]
-    [SerializeField] private Color skillCooldownColor = new Color(0.18f, 0.62f, 0.92f, 0.5f);
-
-    // 런타임 생성한 시계방향 쿨 라디얼 (스킬별)
-    private readonly Dictionary<SkillSheetId, Image> _cdRadial = new();
+    // 아이콘 뒤 레이어 (스킬별): 회색 베이스 / 준비완료 글로우
+    private readonly Dictionary<SkillSheetId, Image> _grayBase = new();
+    private readonly Dictionary<SkillSheetId, Image> _readyGlow = new();
 
     [Header("Base 상태 표시")]
     [Tooltip("기지 내부 TimeDecay 정지 시 활성화할 오브젝트")]
@@ -182,10 +181,15 @@ public class PlayerHudUI : MonoBehaviour
         // 시작 시 DECAY HUD 1회 갱신
         UpdateBaseState();
 
-        // 스킬 슬롯 셋업: 바닥 게이지 바 제거 / 아이콘 축소 / 시계방향 쿨 라디얼 생성 / 아이콘 투명도 초기화
+        // 스킬 슬롯 셋업: 바닥 게이지 바 제거 / 아이콘 축소 / 회색 베이스 + 시계방향 컬러 레이어 구성
         SetupSkillSlot(skill1GaugeImage, skill1IconImage, SkillSheetId.Skill1);
         SetupSkillSlot(skill2GaugeImage, skill2IconImage, SkillSheetId.Skill2);
         SetupSkillSlot(skill3GaugeImage, skill3IconImage, SkillSheetId.Skill3);
+
+        // 구버전 쿨다운 fill 이미지는 새 시계방향 방식과 겹치므로 끔
+        if (skill1CooldownImage != null) skill1CooldownImage.enabled = false;
+        if (skill2CooldownImage != null) skill2CooldownImage.enabled = false;
+        if (skill3CooldownImage != null) skill3CooldownImage.enabled = false;
 
         // 이벤트 구독
         playerStat.OnHurt += TriggerHurtVignette;
@@ -338,7 +342,6 @@ public class PlayerHudUI : MonoBehaviour
         if (playerSkill == null) return;
 
         UpdateSkillGauge();
-        UpdateCooldown();
     }
 
     // 시간(HP)이 10 이하로 떨어지면 매 정수마다 경고 토스트. 피격으로 점프해도 그 지점부터 다시.
@@ -480,7 +483,7 @@ public class PlayerHudUI : MonoBehaviour
         );
     }
 
-    // 스킬 슬롯 초기 셋업: 바닥 게이지 바 제거 / 아이콘 축소 / 시계방향 쿨 라디얼 오버레이 생성
+    // 스킬 슬롯 초기 셋업: 바닥 게이지 바 제거 / 아이콘 축소 / 회색 베이스 + 시계방향 컬러 레이어 구성
     void SetupSkillSlot(Image gaugeImage, Image iconImage, SkillSheetId id)
     {
         // 바닥 게이지 바 제거 (Gauge_Fill + Gauge_BG 의 Image만 끔 — 자식 텍스트는 유지)
@@ -497,39 +500,78 @@ public class PlayerHudUI : MonoBehaviour
 
         if (iconImage == null) return;
 
-        // 아이콘 축소
-        iconImage.rectTransform.localScale = Vector3.one * skillIconScale;
-        SetImageAlpha(iconImage, skillIconLockedAlpha);
+        var iconRt = iconImage.rectTransform;
 
-        // 시계방향 쿨 라디얼 오버레이 (아이콘 위에 꽉 차게)
-        var go = new GameObject("CooldownRadial", typeof(RectTransform));
-        var rt = (RectTransform)go.transform;
-        rt.SetParent(iconImage.rectTransform, false);
-        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
-        var img = go.AddComponent<Image>();
-        img.sprite = UISpriteFactory.Circle(96);
-        img.color = skillCooldownColor;
-        img.raycastTarget = false;
-        img.type = Image.Type.Filled;
-        img.fillMethod = Image.FillMethod.Radial360;
-        img.fillOrigin = (int)Image.Origin360.Top;
-        img.fillClockwise = true;
-        img.fillAmount = 0f;
-        _cdRadial[id] = img;
+        // 아이콘 축소
+        iconRt.localScale = Vector3.one * skillIconScale;
+
+        // [회색 베이스] 같은 스프라이트를 어둡게 깔아 '비활성' 상태 표현. 아이콘 바로 뒤(아래)에 배치.
+        var baseGo = new GameObject("SkillIconGray", typeof(RectTransform));
+        var brt = (RectTransform)baseGo.transform;
+        brt.SetParent(iconRt.parent, false);
+        brt.anchorMin = iconRt.anchorMin;
+        brt.anchorMax = iconRt.anchorMax;
+        brt.pivot = iconRt.pivot;
+        brt.sizeDelta = iconRt.sizeDelta;
+        brt.anchoredPosition = iconRt.anchoredPosition;
+        brt.localScale = iconRt.localScale;
+        brt.SetSiblingIndex(iconRt.GetSiblingIndex());   // 아이콘보다 뒤(아래)로
+
+        var grayImg = baseGo.AddComponent<Image>();
+        grayImg.sprite = iconImage.sprite;
+        grayImg.preserveAspect = iconImage.preserveAspect;
+        grayImg.color = skillGrayColor;
+        grayImg.raycastTarget = false;
+        grayImg.type = Image.Type.Simple;
+        _grayBase[id] = grayImg;
+
+        // [준비 완료 글로우] 회색 베이스 앞 / 컬러 아이콘 뒤. 쿨 끝날수록 켜지고 준비완료 시 맥동.
+        var glowGo = new GameObject("SkillReadyGlow", typeof(RectTransform));
+        var grt = (RectTransform)glowGo.transform;
+        grt.SetParent(iconRt.parent, false);
+        grt.anchorMin = iconRt.anchorMin;
+        grt.anchorMax = iconRt.anchorMax;
+        grt.pivot = iconRt.pivot;
+        grt.sizeDelta = iconRt.sizeDelta;
+        grt.anchoredPosition = iconRt.anchoredPosition;
+        grt.localScale = Vector3.one * (skillIconScale * skillReadyGlowScale);
+        grt.SetSiblingIndex(iconRt.GetSiblingIndex());   // 회색 베이스 앞, 컬러 아이콘 뒤
+
+        var glowImg = glowGo.AddComponent<Image>();
+        glowImg.sprite = UISpriteFactory.Disc(128);
+        glowImg.color = new Color(skillReadyGlowColor.r, skillReadyGlowColor.g, skillReadyGlowColor.b, 0f);
+        glowImg.raycastTarget = false;
+        _readyGlow[id] = glowImg;
+
+        // [컬러 레이어] 기존 아이콘을 시계방향 라디얼로 만들어, 쿨이 돌수록 밝은 컬러가 드러나게.
+        var c = iconImage.color; c.a = 1f; iconImage.color = c;   // 풀브라이트 고정 (알파 디밍 제거)
+        iconImage.type = Image.Type.Filled;
+        iconImage.fillMethod = Image.FillMethod.Radial360;
+        iconImage.fillOrigin = (int)Image.Origin360.Top;
+        iconImage.fillClockwise = true;
+        iconImage.fillAmount = 1f;   // 시작은 준비됨(풀 컬러)
     }
 
     void UpdateSingleSkillGauge(Image gaugeImage, TMP_Text gaugeText, Image iconImage, SkillSheetId id)
     {
         float gauge = playerSkill.GetGauge(id);          // 쿨다운 진행도(0~100)
         float readiness = Mathf.Clamp01(gauge / 100f);
-        bool ready = readiness >= 0.999f;
 
-        // 시계방향 쿨 라디얼 — 차오르다 준비되면 숨김(아이콘 깨끗)
-        if (_cdRadial.TryGetValue(id, out var radial) && radial != null)
+        // 컬러 아이콘을 시계방향으로 드러냄: 쿨이 돌수록(readiness 0→1) 밝은 컬러가 차오른다.
+        if (iconImage != null)
+            iconImage.fillAmount = readiness;
+
+        // 준비 완료 글로우: 쿨 끝날수록 밝아지고(charge), 준비완료면 맥동(pulse)으로 '활성' 강조.
+        if (_readyGlow.TryGetValue(id, out var glow) && glow != null)
         {
-            radial.enabled = !ready;
-            radial.fillAmount = readiness;
+            bool ready = readiness >= 0.999f;
+            float charge = readiness * readiness;                 // 초중반 어둡게, 끝물에 글로우 ↑
+            float pulse = ready ? 0.7f + 0.3f * Mathf.Sin(Time.unscaledTime * 5f) : 1f;
+            var gc = glow.color;
+            gc.a = skillReadyGlowAlpha * charge * pulse;
+            glow.color = gc;
+            float scalePulse = ready ? 1f + 0.05f * Mathf.Sin(Time.unscaledTime * 5f) : 1f;
+            glow.rectTransform.localScale = Vector3.one * (skillIconScale * skillReadyGlowScale * scalePulse);
         }
 
         if (gaugeText != null)
@@ -541,30 +583,6 @@ public class PlayerHudUI : MonoBehaviour
             else
                 gaugeText.text = showReadyTextAtFullGauge ? "READY" : "";
         }
-
-        if (iconImage != null)
-        {
-            float targetAlpha = ready ? skillIconReadyAlpha : skillIconLockedAlpha;
-            Color color = iconImage.color;
-            color.a = Mathf.Lerp(color.a, targetAlpha, Time.deltaTime * skillIconAlphaLerpSpeed);
-            iconImage.color = color;
-        }
-    }
-
-    // 쿨타임 fillAmount 갱신 (쿨타임 남을수록 채워짐)
-    void UpdateCooldown()
-    {
-        UpdateCooldownImage(skill1CooldownImage, SkillSheetId.Skill1);
-        UpdateCooldownImage(skill2CooldownImage, SkillSheetId.Skill2);
-        UpdateCooldownImage(skill3CooldownImage, SkillSheetId.Skill3);
-    }
-
-    void UpdateCooldownImage(Image img, SkillSheetId id)
-    {
-        if (img == null) return;
-
-        float max = playerSkill.GetMaxCooldown(id);
-        img.fillAmount = max > 0 ? playerSkill.GetCooldown(id) / max : 0f;
     }
 
     // 피격 시 Vignette 트리거
@@ -606,14 +624,5 @@ public class PlayerHudUI : MonoBehaviour
             _hurtAlpha = Mathf.Max(0f, _hurtAlpha - Time.deltaTime * hurtFadeSpeed);
 
         hurtVignette.alpha = _hurtAlpha;
-    }
-
-    void SetImageAlpha(Image image, float alpha)
-    {
-        if (image == null) return;
-
-        Color color = image.color;
-        color.a = Mathf.Clamp01(alpha);
-        image.color = color;
     }
 }

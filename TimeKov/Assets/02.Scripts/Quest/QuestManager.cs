@@ -69,6 +69,17 @@ public class QuestManager : MonoBehaviour
     public IReadOnlyList<CategoryRuntime> Runtimes => _runtimes;
     public bool IsReady { get; private set; }
 
+    /// <summary>아직 끝나지 않은 카테고리가 하나라도 있으면 true (튜토리얼 진행 중).</summary>
+    public bool IsTutorialActive
+    {
+        get
+        {
+            if (!IsReady) return false;
+            foreach (var rt in _runtimes) if (!rt.IsCategoryDone) return true;
+            return false;
+        }
+    }
+
     public event Action OnReady;
     public event Action OnReset;
     public event Action<CategoryRuntime, QuestSO> OnQuestShown;

@@ -18,6 +18,10 @@ namespace TIMEKOV.Factory
         [HideInInspector] public MachineBase sourceM;
         [HideInInspector] public MachineBase targetM;
 
+        // 이 세그먼트가 "직접" 감지한 설비 (체인 전파값과 구분 — 체인 방향 판정에 사용)
+        private MachineBase _localSource;
+        private MachineBase _localTarget;
+
         public bool IsHead => prevSegment == null && sourceM != null;
         public bool IsReady => sourceM != null && targetM != null;
 
@@ -76,7 +80,7 @@ namespace TIMEKOV.Factory
             }
 
             Vector3 origin   = bm.GridOriginPos;
-            float   cellSize = 1f;
+            float   cellSize = bm.cellSize > 0f ? bm.cellSize : 1f;
 
             // 이 벨트 자신의 셀 (transform 기준, FloorToInt로 확정)
             _beltCell = new Vector2Int(
@@ -92,8 +96,6 @@ namespace TIMEKOV.Factory
                 _backCell  = _beltCell + WorldDirToGridDir(endpointBack.position  - transform.position);
 
             _cellsInitialized = true;
-
-            Debug.Log($"[BeltSegment] {gameObject.name} 셀 초기화 — own:{_beltCell} front:{_frontCell} back:{_backCell}", this);
         }
 
         /// <summary>
@@ -123,11 +125,23 @@ namespace TIMEKOV.Factory
             nextSegment       = null;
             sourceM           = null;
             targetM           = null;
+            _localSource      = null;
+            _localTarget      = null;
             _cellsInitialized = false;
 
             // 재감지 → 재전파
             StartCoroutine(DetectNextFrame());
-            Debug.Log($"[BeltSegment] {gameObject.name} 재연결 요청", this);
+        }
+
+        /// <summary>
+        /// 씬의 모든 벨트 연결을 다시 감지한다.
+        /// 설비를 짓거나 철거한 직후 호출 — 벨트를 먼저 깔고 설비를 나중에 지어도 연결된다.
+        /// </summary>
+        public static void ReconnectAll()
+        {
+            var snapshot = new List<BeltSegment>(All);
+            foreach (var seg in snapshot)
+                if (seg != null) seg.Reconnect();
         }
 
         // ── 연결 감지 (그리드 기반) ──────────────────────────────────────
@@ -144,11 +158,30 @@ namespace TIMEKOV.Factory
 
         private void GridDetectConnections()
         {
-            // ── 설비 감지: 물리 기반 유지 ─────────────────────────────────
-            // 여러 벨트가 같은 설비 출력에 연결되는 라운드 로빈을 지원하려면
-            // 설비 연결은 OverlapSphere 방식을 사용해야 한다.
-            if (endpointBack  != null) DetectMachineAt(endpointBack.position);
-            if (endpointFront != null) DetectMachineAt(endpointFront.position);
+            // ── 설비 감지: 포트 그리드 매칭 (결정적) ─────────────────────
+            // 포트의 front cell == 이 벨트의 셀이면 해당 설비와 연결 확정.
+            // 물리 OverlapSphere는 콜라이더 크기·레이어·설치 순서에 따라
+            // 빗나가는 일이 있어 폴백으로만 사용한다.
+            bool portMatched = false;
+            foreach (var port in BuildPort.All)
+            {
+                if (port == null || port.OwnerBuilding == null) continue;
+                if (port.GetFrontCell() != _beltCell) continue;
+
+                var machine = port.GetComponentInParent<MachineBase>();
+                if (machine == null) continue;
+
+                if (port.portType == PortType.Output) { sourceM = machine; _localSource = machine; }
+                else                                  { targetM = machine; _localTarget = machine; }
+                portMatched = true;
+            }
+
+            // 포트 매칭이 하나도 없을 때만 물리 감지 폴백 (포트 미설정 설비 대응)
+            if (!portMatched)
+            {
+                if (endpointBack  != null) DetectMachineAt(endpointBack.position);
+                if (endpointFront != null) DetectMachineAt(endpointFront.position);
+            }
 
             // ── 벨트↔벨트 감지: 그리드 기반 ─────────────────────────────
             // A.frontCell == B.beltCell → A 다음에 B
@@ -185,8 +218,8 @@ namespace TIMEKOV.Factory
                       Vector3.Distance(pos, machine.inputPort.position)
                     : machine.outputPort != null;
 
-                if (nearOutput) sourceM = machine;
-                else            targetM  = machine;
+                if (nearOutput) { sourceM = machine; _localSource = machine; }
+                else            { targetM = machine; _localTarget = machine; }
             }
         }
 
@@ -213,8 +246,8 @@ namespace TIMEKOV.Factory
                           Vector3.Distance(pos, machine.inputPort.position)
                         : machine.outputPort != null;
 
-                    if (nearOutput) sourceM = machine;
-                    else            targetM  = machine;
+                    if (nearOutput) { sourceM = machine; _localSource = machine; }
+                    else            { targetM = machine; _localTarget = machine; }
                     continue;
                 }
 
@@ -280,17 +313,30 @@ namespace TIMEKOV.Factory
             int safety = 200;
             while (cur != null && safety-- > 0) { chain.Add(cur); cur = cur.nextSegment; }
 
-            MachineBase src = null, tgt = null;
+            // 후보 설비 수집 (방향 판정용 임시값)
+            MachineBase anySrc = null, anyTgt = null;
             foreach (var seg in chain)
             {
-                if (seg.sourceM != null) src = seg.sourceM;
-                if (seg.targetM != null) tgt = seg.targetM;
+                if (anySrc == null && seg.sourceM != null) anySrc = seg.sourceM;
+                if (seg.targetM != null) anyTgt = seg.targetM;
             }
+            if (anySrc == null || anyTgt == null || anySrc == anyTgt) return;
 
-            if (src == null || tgt == null || src == tgt) return;
+            // ── 체인 방향 확정 ───────────────────────────────────────────
+            // 출력 포트를 "직접" 감지한 세그먼트가 머리(head)여야 한다.
+            // 양끝의 직접 감지 결과로 판정하고, 둘 다 모호할 때만 거리 휴리스틱.
+            var head = chain[0];
+            var tail = chain[chain.Count - 1];
+            bool reverse;
+            if      (tail._localSource != null && head._localSource == null) reverse = true;
+            else if (head._localSource != null && tail._localSource == null) reverse = false;
+            else if (head._localTarget != null && tail._localTarget == null) reverse = true;
+            else if (tail._localTarget != null && head._localTarget == null) reverse = false;
+            else
+                reverse = Vector3.Distance(head.transform.position, anyTgt.transform.position) <
+                          Vector3.Distance(head.transform.position, anySrc.transform.position);
 
-            if (Vector3.Distance(chain[0].transform.position, tgt.transform.position)<
-                Vector3.Distance(chain[0].transform.position, src.transform.position))
+            if (reverse)
             {
                 chain.Reverse();
                 for (int i = 0; i < chain.Count; i++)
@@ -300,11 +346,31 @@ namespace TIMEKOV.Factory
                 }
             }
 
-            foreach (var seg in chain) { seg.sourceM = src; seg.targetM = tgt; }
+            // ── 출발/도착 설비 선정 ──────────────────────────────────────
+            // src는 머리 쪽부터, tgt는 꼬리 쪽부터 탐색 — 레일이 다른 설비
+            // 옆을 지나가며 생긴 중간 오감지가 양끝 연결을 덮어쓰지 못하게 한다.
+            MachineBase src = null, tgt = null;
+            for (int i = 0; i < chain.Count && src == null; i++)
+                src = chain[i].sourceM;
+            for (int i = chain.Count - 1; i >= 0 && tgt == null; i--)
+                tgt = chain[i].targetM;
+
+            if (src == null || tgt == null || src == tgt) return;
+
+            // 같은 체인의 세그먼트들이 각자 PropagateChain을 호출하므로,
+            // 실제로 연결 상태가 바뀐 첫 호출에서만 대기 발송을 시작한다 (연속 발송 방지)
+            bool changed = false;
+            foreach (var seg in chain)
+            {
+                if (seg.sourceM != src || seg.targetM != tgt) changed = true;
+                seg.sourceM = src;
+                seg.targetM = tgt;
+            }
             src.AddOutputBelt(chain[0]);
 
             // 벨트가 연결될 때 OutputBuffer에 이미 대기 중인 아이템이 있으면 즉시 첫 발송 시작
-            src.TryDispatchPendingOutput();
+            if (changed)
+                src.TryDispatchPendingOutput();
         }
 
         // =====================================================================
@@ -499,6 +565,7 @@ namespace TIMEKOV.Factory
             {
                 token.isDelivered = true;
                 targetM.Receive(itemId, amount);
+                GameEvents.RaiseRailItemMoved(targetM.FacilityId, itemId, amount);   // 튜토: 레일 자동 이동 성공
             }
 
             CleanupVisual(visual);

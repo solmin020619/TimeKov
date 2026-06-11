@@ -21,6 +21,8 @@ public static class GameEvents
     public static event Action OnRailConnected;                       // 레일 포트-포트 연결 완료
     public static event Action<int> OnFuelAdded;                      // facilityId — 설비 연료 슬롯에 연료 투입
     public static event Action OnBuildModeEntered;                    // 건설 모드 실제 진입 성공 (존 게이트 통과 후)
+    public static event Action OnCoreUIOpened;                        // 코어 강화 단말(UI) 열림
+    public static event Action<int, int, int> OnRailItemMoved;        // 레일(벨트)로 아이템이 다음 설비에 전달됨 (facilityId, itemId, count)
 
     public static void RaiseMovedDelta(float d) => OnPlayerMovedDelta?.Invoke(d);
     public static void RaiseTriggerEnter(string id) => OnTriggerEntered?.Invoke(id);
@@ -38,6 +40,9 @@ public static class GameEvents
     public static void RaiseRailConnected() { Record(KeyRail, 1); OnRailConnected?.Invoke(); }
     public static void RaiseFuelAdded(int facilityId) { Record(KeyFuel(facilityId), 1); OnFuelAdded?.Invoke(facilityId); }
     public static void RaiseBuildModeEntered() => OnBuildModeEntered?.Invoke();
+    public static void RaiseCoreUIOpened() { Record(KeyCoreOpen, 1); OnCoreUIOpened?.Invoke(); }
+    public static void RaiseCoreUpgradeAttempt() => Record(KeyCoreUpgrade, 1);   // 강화 시도 기록 (lookback 갭 인정용)
+    public static void RaiseRailItemMoved(int facilityId, int itemId, int count) { Record(KeyRailMove, count); OnRailItemMoved?.Invoke(facilityId, itemId, count); }
 
     // ── 일회성 이벤트 lookback 캐시 ───────────────────────────────────────
     // 문제: 퀘↔퀘 사이 ~1.15초 갭 동안엔 활성 objective가 없어, 이때 플레이어가 다음 퀘가 시킬 행동을
@@ -74,6 +79,9 @@ public static class GameEvents
     public static string KeyUsed(int itemId) => "used:" + itemId;
     public static string KeyFuel(int facilityId) => "fuel:" + facilityId;
     public const string KeyRail = "rail";
+    public const string KeyCoreOpen = "core_open";
+    public const string KeyCoreUpgrade = "core_upgrade";   // 강화 시도 (성공/실패 무관)
+    public const string KeyRailMove = "rail_move";         // 레일로 아이템 1회 전달
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset()
@@ -93,6 +101,8 @@ public static class GameEvents
         OnRailConnected = null;
         OnFuelAdded = null;
         OnBuildModeEntered = null;
+        OnCoreUIOpened = null;
+        OnRailItemMoved = null;
         _recent.Clear();
     }
 }

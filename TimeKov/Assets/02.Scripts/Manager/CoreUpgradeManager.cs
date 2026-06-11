@@ -163,6 +163,7 @@ public class CoreUpgradeManager : MonoBehaviour
             Debug.Log("[CoreUpgrade] 강화 실패. 레벨 유지.");
         }
 
+        GameEvents.RaiseCoreUpgradeAttempt();   // 튜토 lookback: 퀘 갭에 미리 강화해도 인정되게 기록
         OnUpgradeResult?.Invoke(success);
         return success;
     }

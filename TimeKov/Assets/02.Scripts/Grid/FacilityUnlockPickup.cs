@@ -89,9 +89,14 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
         }
     }
 
+    private bool _arrowShown = false;
+
     private void Update()
     {
         if (_collected || _interacting || _playerTransform == null) return;
+
+        // 해금 퀘스트가 이 설비를 가리키는 동안 위치 화살표 안내 (거리 무관 — 멀리서도 찾게)
+        UpdateUnlockArrow();
 
         // 다른 UI가 열려 있으면 강제 숨김
         bool uiBlocking = GameUIController.Instance != null
@@ -139,7 +144,37 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
     {
         if (!CanInteract) return;
         _interacting = true;
+        _arrowShown = false;
+        TimeKov.UI.HintArrowManager.I?.Hide("facility_pickup_" + facilityId);
         StartCoroutine(FlashThenUnlock());
+    }
+
+    // ── 해금 퀘스트 화살표 ────────────────────────────────────────
+    private void UpdateUnlockArrow()
+    {
+        var mgr = TimeKov.UI.HintArrowManager.I;
+        if (mgr == null) return;
+        bool show = CanInteract && IsUnlockQuestActive();
+        if (show == _arrowShown) return;
+        _arrowShown = show;
+        string arrowId = "facility_pickup_" + facilityId;
+        if (show) mgr.Show(arrowId, transform, 0f);
+        else       mgr.Hide(arrowId);
+    }
+
+    private bool IsUnlockQuestActive()
+    {
+        var qm = QuestManager.Instance;
+        if (qm == null || !qm.IsReady) return false;
+        foreach (var rt in qm.Runtimes)
+        {
+            if (rt?.activeObjectives == null) continue;
+            foreach (var obj in rt.activeObjectives)
+                if (obj is FacilityUnlockObjective u && !u.IsCompleted
+                    && (u.facilityId == 0 || u.facilityId == facilityId))
+                    return true;
+        }
+        return false;
     }
 
     // ── 깜빡임 → 해금 ────────────────────────────────────────────

@@ -13,6 +13,8 @@ public class CoreUpgradeObjective : ObjectiveSO
     {
         GameEvents.OnCoreUpgraded += OnUpgraded;            // 성공 + 레벨 도달
         CoreUpgradeManager.OnUpgradeResult += OnAttempt;    // 시도(성공/실패)
+        // 갭 보정: targetLevel 0(시도형)은 퀘 갭에서 한 강화 시도를 인정 (실패해도 키트는 소모됐으므로)
+        if (targetLevel <= 0 && GameEvents.RecentCount(GameEvents.KeyCoreUpgrade) > 0) Complete();
     }
     public override void Deactivate()
     {
