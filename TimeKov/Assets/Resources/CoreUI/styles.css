@@ -1,0 +1,202 @@
+/* ============================================================
+   TimeKov — 코어 강화 UI (깔끔 리디자인)
+   블루 sci-fi 유지, 장식 최소화 / 여백 확보.
+   핵심: 가운데 코어 → (강화) 시계 → 코어 전환.
+   ============================================================ */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+
+:root {
+  --bg0: #0a1422; --bg1: #0e1c30;
+  --panel: rgba(13, 24, 40, 0.72);
+  --line: rgba(95, 170, 235, 0.22);
+  --line-soft: rgba(140, 180, 225, 0.12);
+  --cyan: #5fc4ff; --cyan-2: #2f9be0; --cyan-hi: #aee3ff;
+  --text: #eaf3fb; --sub: #aebfd0; --sub-dim: #6f8298;
+  --green: #46e08a; --red: #ff6068;
+  --font: "Pretendard", -apple-system, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #05070a; font-family: var(--font); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased; }
+.stage { position: fixed; inset: 0; display: grid; place-items: center; background: #000; overflow: hidden; }
+.canvas { position: relative; width: 1920px; height: 1080px; transform-origin: center center; overflow: hidden; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 배경 (게임 위 오버레이 느낌) */
+.bg { position: absolute; inset: 0; background:
+  radial-gradient(130% 100% at 50% -10%, #15273f 0%, #0b1626 52%, #070d16 100%); }
+.bg::after { content:""; position:absolute; inset:0; background:
+  radial-gradient(60% 50% at 50% 42%, rgba(47,155,224,0.10), transparent 70%); }
+.bg__scrim { position: absolute; inset: 0; background: rgba(3,6,11,0.32); }
+
+/* =========================================================
+   메인 패널 — 단정한 라운드 + 얇은 시안 라인 (브래킷 최소)
+   ========================================================= */
+.panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: 1280px; height: 760px; border-radius: 26px;
+  background: linear-gradient(180deg, rgba(16,28,46,0.82), rgba(10,18,32,0.86));
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(174,227,255,0.10) inset, 0 0 0 1px rgba(0,0,0,0.4), 0 40px 100px rgba(0,0,0,0.6), 0 0 60px rgba(47,155,224,0.10);
+  padding: 40px 56px 44px; display: flex; flex-direction: column; }
+/* 은은한 상단 시안 광선 한 줄만 */
+.panel__topline { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 60%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(95,196,255,0.6), transparent); }
+
+.head { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 8px; }
+.head h1 { font-size: 26px; font-weight: 800; letter-spacing: .04em; }
+.head h1 .t { color: var(--cyan); }
+.lvbadge { position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 96px;
+  padding: 8px 18px; border-radius: 14px; background: linear-gradient(180deg, rgba(20,40,64,0.8), rgba(10,20,34,0.7));
+  border: 1px solid rgba(95,196,255,0.4); box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(174,227,255,0.16); }
+.lvbadge__cap { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .1em; color: var(--sub-dim); }
+.lvbadge__num { display: flex; align-items: baseline; gap: 5px; }
+.lvbadge__num b { font-size: 30px; font-weight: 800; color: #fff; line-height: 1; text-shadow: 0 0 14px rgba(95,196,255,0.6); }
+.lvbadge__num i { font-family: var(--mono); font-size: 13px; font-style: normal; color: var(--sub); }
+.lvbadge.bump { animation: lvbump .6s cubic-bezier(.2,1.4,.3,1); }
+@keyframes lvbump {
+  0% { transform: translateY(-50%) scale(1); }
+  35% { transform: translateY(-50%) scale(1.22); border-color: var(--cyan-hi); box-shadow: 0 0 28px rgba(95,196,255,0.9), inset 0 1px 0 rgba(174,227,255,0.3); }
+  100% { transform: translateY(-50%) scale(1); }
+}
+.closebtn { position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; cursor: pointer;
+  color: var(--sub); background: rgba(8,16,28,0.5); border: 1px solid var(--line-soft); transition: .15s; }
+.closebtn:hover { color: var(--text); border-color: var(--line); }
+
+/* =========================================================
+   본문 3열: 현재 / 코어 / 강화후
+   ========================================================= */
+.body { flex: 1; display: grid; grid-template-columns: 1fr 460px 1fr; align-items: center; gap: 30px; }
+
+/* 스탯 프레임 (참고 에셋의 세로 패널 감각, 가볍게) */
+.statcol { display: flex; flex-direction: column; gap: 12px; }
+.statcol__head { font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: .02em; text-align: center; }
+.statcol:last-child .statcol__head { color: var(--cyan-hi); }
+.statcol:first-child .statcol__head { color: var(--sub); }
+.stats { position: relative; padding: 30px 24px; border-radius: 18px; min-height: 170px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, rgba(12,24,40,0.5), rgba(8,16,28,0.4));
+  border: 1px solid var(--line-soft); }
+.stats::before, .stats::after { content: ""; position: absolute; width: 14px; height: 14px; border: 2px solid var(--cyan-2); opacity: .7; }
+.stats::before { top: 9px; left: 9px; border-width: 2px 0 0 2px; border-top-left-radius: 5px; }
+.stats::after { bottom: 9px; right: 9px; border-width: 0 2px 2px 0; border-bottom-right-radius: 5px; }
+.bigstat { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.bigstat__lbl { font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: .1em; color: var(--sub); white-space: nowrap; }
+.bigstat__v { font-family: var(--mono); font-weight: 800; font-size: 72px; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; text-shadow: 0 2px 14px rgba(0,0,0,0.6); }
+.bigstat__v i { font-size: 32px; font-style: normal; color: var(--sub); margin-left: 3px; }
+.bigstat__v.up { color: var(--cyan-hi); text-shadow: 0 0 20px rgba(95,196,255,0.55); }
+.bigstat__d { font-family: var(--mono); font-size: 17px; font-weight: 700; color: var(--green); white-space: nowrap; }
+
+/* 코어 스테이지 */
+.corewrap { position: relative; height: 460px; display: grid; place-items: center; }
+.coreframe { position: absolute; width: 410px; height: 410px; border-radius: 50%;
+  border: 1px solid var(--line-soft); }
+.coreframe::before { content: ""; position: absolute; inset: 14px; border-radius: 50%;
+  border: 1px dashed rgba(95,170,235,0.16); }
+.corering { position: absolute; width: 430px; height: 430px; border-radius: 50%;
+  border: 1px solid rgba(95,196,255,0.14); animation: spin 28s linear infinite; }
+.corering::after { content: ""; position: absolute; top: -3px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.coreaura { position: absolute; width: 380px; height: 380px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(47,155,224,0.28), transparent 70%); filter: blur(4px); }
+.corestage { position: relative; width: 360px; height: 360px; display: grid; place-items: center; }
+.corestage > * { grid-area: 1 / 1; }
+.coreimg { width: 360px; height: 360px; object-fit: contain; transition: opacity .35s ease, transform .35s ease;
+  filter: drop-shadow(0 0 24px rgba(47,155,224,0.35)); }
+.coreimg.idle { animation: corefloat 4s ease-in-out infinite; }
+@keyframes corefloat { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-10px);} }
+
+/* 시계 (전환 상태) */
+.clock { position: relative; width: 320px; height: 320px; transition: opacity .35s ease, transform .45s cubic-bezier(.2,1,.3,1); }
+.clocksvg { display: block; filter: drop-shadow(0 0 18px rgba(95,196,255,0.5)); }
+.handlayer { position: absolute; inset: 0; transform-origin: 160px 160px; will-change: transform; }
+.handlayer svg { display: block; }
+
+/* 상태 전환은 React inline style로 제어 */
+.coreimg { transition: opacity .35s ease, transform .35s ease; }
+
+/* 타이밍 판정 칩 (opacity는 inline로만 제어) */
+.tchip { position: absolute; top: -44px; left: 50%; pointer-events: none; z-index: 10;
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 18px; border-radius: 999px;
+  font-weight: 800; font-size: 20px; letter-spacing: .1em; transition: opacity .2s, transform .2s; white-space: nowrap; }
+.tchip.perfect { color: #ffe7a0; background: rgba(40,30,8,0.7); border: 1px solid rgba(255,214,107,0.6); text-shadow: 0 0 14px rgba(255,214,107,0.8); }
+.tchip.good { color: #b6f5d2; background: rgba(10,34,22,0.7); border: 1px solid rgba(70,224,138,0.5); text-shadow: 0 0 12px rgba(70,224,138,0.7); }
+.tchip.miss { color: #ffb4b8; background: rgba(34,12,14,0.7); border: 1px solid rgba(255,96,104,0.5); }
+.tchip__b { font-family: var(--mono); font-size: 15px; }
+
+/* 스핀 힌트 */
+.spinhint { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font-family: var(--mono); font-size: 14px; color: var(--cyan-hi); text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+  animation: hintpulse 1s ease-in-out infinite; }
+.spinhint b { color: #fff; }
+@keyframes hintpulse { 0%,100%{ opacity:.7; } 50%{ opacity:1; } }
+
+/* 아우라 티어 */
+.coreaura.good { background: radial-gradient(closest-side, rgba(70,224,138,0.35), transparent 70%); transition: background .3s; }
+.coreaura.perfect { background: radial-gradient(closest-side, rgba(255,214,107,0.45), transparent 70%); transition: background .3s; }
+.progress { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 220px; height: 4px; border-radius: 999px;
+  background: rgba(8,16,28,0.8); overflow: hidden; opacity: 0; transition: opacity .2s; }
+.progress.show { opacity: 1; }
+.progress__fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan-2), var(--cyan-hi)); box-shadow: 0 0 10px rgba(95,196,255,0.7); }
+
+/* 결과 배너 (opacity는 inline로만 제어) */
+.result { position: absolute; top: 8px; left: 50%;
+  font-weight: 800; font-size: 22px; letter-spacing: .04em; transition: opacity .25s, transform .25s; pointer-events: none; z-index: 9; }
+.result.success { color: var(--green); text-shadow: 0 0 16px rgba(70,224,138,0.6); }
+.result.fail { color: var(--red); text-shadow: 0 0 16px rgba(255,96,104,0.6); }
+
+/* =========================================================
+   하단: 재료 + 성공률 + 버튼
+   ========================================================= */
+.foot { margin-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+/* 확률 게이지 패널 */
+.probpanel { width: 560px; padding: 14px 20px 16px; border-radius: 14px;
+  background: rgba(8,16,28,0.5); border: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 11px; }
+.probpanel__row { display: flex; align-items: center; justify-content: space-between; }
+.matchip { display: flex; align-items: center; gap: 12px; }
+.matchip__icon { width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center;
+  background: rgba(13,24,40,0.9); border: 1px solid var(--line); color: var(--cyan); box-shadow: inset 0 1px 0 rgba(174,227,255,0.12); }
+.matchip__txt { display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+.matchip__name { font-size: 16px; font-weight: 700; color: var(--text); }
+.matchip__cnt { display: flex; align-items: baseline; gap: 4px; }
+.matchip__cnt em { font-family: var(--mono); font-style: normal; font-size: 14px; letter-spacing: .06em; color: var(--sub); font-weight: 600; margin-left: 8px; }
+.matchip__cnt b { font-family: var(--mono); font-size: 22px; font-weight: 800; line-height: 1; margin-left: 2px; color: var(--text); }
+.matchip__cnt b.ok { color: var(--text); }
+.matchip__cnt b.lack { color: var(--red); }
+.matchip__cnt b.need { color: var(--text); }
+.matchip__cnt s { color: var(--sub-dim); text-decoration: none; margin: 0 6px; font-family: var(--mono); font-size: 18px; }
+.probval { display: flex; align-items: baseline; gap: 10px; }
+.probval__lbl { font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: .08em; color: var(--sub); white-space: nowrap; }
+.probval__num { font-family: var(--mono); font-size: 26px; font-weight: 800; color: var(--cyan-hi); line-height: 1; text-shadow: 0 0 14px rgba(95,196,255,0.5); }
+.probval__num i { font-size: 16px; font-style: normal; color: var(--sub); }
+.probval__num em { font-family: var(--mono); font-style: normal; font-size: 15px; font-weight: 700; color: var(--green); margin-left: 6px; }
+/* 게이지 */
+.gauge { position: relative; height: 12px; border-radius: 999px; overflow: hidden;
+  background: linear-gradient(180deg, #05080d, #0c121b); box-shadow: inset 0 2px 4px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(95,196,255,0.1); }
+.gauge__fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px;
+  background: linear-gradient(180deg, #aee3ff, #2f9be0); box-shadow: 0 0 10px rgba(95,196,255,0.5); transition: width .3s; }
+.gauge__bonus { position: absolute; top: 0; bottom: 0; border-radius: 999px;
+  background: linear-gradient(180deg, #7af0b0, #2bbf6a); box-shadow: 0 0 10px rgba(70,224,138,0.6); transition: width .3s, left .3s; }
+.gauge__tick { position: absolute; top: -2px; bottom: -2px; width: 2px; background: rgba(255,255,255,0.6); transition: left .3s; }
+
+.actions { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.btn-enh { position: relative; width: 360px; height: 60px; border: none; border-radius: 14px; cursor: pointer;
+  font-family: var(--font); font-weight: 800; font-size: 19px; letter-spacing: .04em; color: #05131f;
+  background: linear-gradient(180deg, #aee3ff, #4fb4f0 52%, #2f9be0);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 -3px 8px rgba(20,90,140,0.5) inset, 0 10px 24px rgba(47,155,224,0.35);
+  transition: transform .1s, filter .15s; }
+.btn-enh:hover { filter: brightness(1.06); }
+.btn-enh:active { transform: translateY(1px); }
+.btn-enh:disabled { background: linear-gradient(180deg,#3a4a5e,#2a3646); color: #7e8da0; box-shadow: none; cursor: not-allowed; }
+.btn-enh.stop { background: linear-gradient(180deg, #ffe08a, #ffb43f 52%, #f29a23); color: #2a1804;
+  animation: stoppulse .6s ease-in-out infinite; box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 10px 24px rgba(242,154,35,0.45); }
+@keyframes stoppulse { 0%,100%{ filter: brightness(1); } 50%{ filter: brightness(1.12); } }
+.matbar__rate .boost { font-family: var(--mono); font-size: 13px; color: var(--green); font-style: normal; }
+.btn-close { width: 96px; height: 60px; border-radius: 14px; cursor: pointer; font-family: var(--font); font-weight: 700; font-size: 16px;
+  color: var(--sub); background: rgba(8,16,28,0.6); border: 1px solid var(--line); transition: .15s; }
+.btn-close:hover { color: var(--text); border-color: var(--cyan-2); }
+
+/* hint */
+.hint { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 12px; color: rgba(174,191,208,0.42); }

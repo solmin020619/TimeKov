@@ -1,7 +1,8 @@
 // =====================================================================
 // CoreUpgradeUI.cs
-// 코어 강화 패널 UI
-// CoreUpgradeTerminal.cs → GameUIController.OpenCoreUpgradeUI() → Open()
+// 코어 강화 패널 UI — 코어→시계 인라인 전환 타이밍 미니게임 통합
+// 강화 시작 → 중앙 코어가 시계로 전환 → 정지 판정(PERFECT/GOOD/MISS) → 코어 복귀
+// (클로드디자인 프로토타입 app.jsx 동작 이식)
 // =====================================================================
 
 using System.Collections;
@@ -20,64 +21,85 @@ public class CoreUpgradeUI : MonoBehaviour
 
     // ── 레벨 표시 ─────────────────────────────────────────────────────
     [Header("레벨")]
-    [SerializeField] private TextMeshProUGUI levelText;         // "Lv.3 / 10"
+    [SerializeField] private TextMeshProUGUI levelText;
 
-    // ── 코어 비주얼 (플레이스홀더 — 나중에 이미지/스프라이트 교체) ──
-    [Header("코어 비주얼 (Image 플레이스홀더)")]
+    // ── 코어 비주얼 ───────────────────────────────────────────────────
+    [Header("코어 비주얼")]
     [SerializeField] private Image coreImage;
 
-    // ── 현재 스탯 패널 ────────────────────────────────────────────────
+    // ── 현재 / 강화 후 스탯 ───────────────────────────────────────────
     [Header("현재 스탯")]
     [SerializeField] private TextMeshProUGUI currentTimeText;
-
-    // ── 강화 후 스탯 패널 ─────────────────────────────────────────────
     [Header("강화 후 스탯")]
     [SerializeField] private TextMeshProUGUI nextTimeText;
-
-    // ── 증가량 텍스트 (+60s ↑) ────────────────────────────────────────
-    [Header("증가량 (+N ↑)")]
     [SerializeField] private TextMeshProUGUI deltaTimeText;
 
     // ── 재료 패널 ─────────────────────────────────────────────────────
     [Header("재료 패널")]
-    [SerializeField] private Image kitIconImage;                // 키트 아이콘 (나중에 교체)
-    [SerializeField] private TextMeshProUGUI kitNameText;       // "내장 코어 보강 키트 II"
-    [SerializeField] private TextMeshProUGUI kitCountText;      // "1 / 2"
-    [SerializeField] private TextMeshProUGUI kitShortageText;   // "← 1개 부족"  (충족 시 숨김)
-    [SerializeField] private TextMeshProUGUI successRateText;   // "85%"
+    [SerializeField] private Image kitIconImage;
+    [SerializeField] private TextMeshProUGUI kitNameText;
+    [SerializeField] private TextMeshProUGUI kitCountText;
+    [SerializeField] private TextMeshProUGUI kitShortageText;
+    [SerializeField] private TextMeshProUGUI successRateText;
+    [SerializeField] private Image gaugeFill;
 
-    // ── 강화 버튼 ─────────────────────────────────────────────────────
+    // ── 버튼 ──────────────────────────────────────────────────────────
     [Header("버튼")]
     [SerializeField] private Button upgradeButton;
     [SerializeField] private TextMeshProUGUI upgradeButtonText;
     [SerializeField] private Button closeButton;
 
-    // ── 최대 단계 / 강화 정보 그룹 ────────────────────────────────────
+    // ── 그룹 (최대 단계 분기) ─────────────────────────────────────────
     [Header("그룹 (최대 단계 분기)")]
-    [SerializeField] private GameObject upgradeInfoGroup;   // 일반 강화 정보 (MAX면 숨김)
-    [SerializeField] private GameObject maxLevelGroup;      // MAX 표시 (MAX일 때만 보임)
+    [SerializeField] private GameObject upgradeInfoGroup;
+    [SerializeField] private GameObject maxLevelGroup;
 
-    // ── 타임 캐치 미니게임 ────────────────────────────────────────────
-    [Header("타임 캐치")]
-    [SerializeField] private TimeCatchUI timeCatch;
-    private const float TIME_CATCH_BONUS = 0.05f;  // 타임 캐치 성공 시 +5%
-    private bool _waitingForTimeCatch;              // 타임 캐치 진행 중 여부
+    // ── 인라인 시계 (코어 자리에서 전환) ──────────────────────────────
+    [Header("인라인 시계")]
+    [SerializeField] private CanvasGroup     clockGroup;       // 시계 묶음 (alpha 0 시작)
+    [SerializeField] private Image           successZoneImage; // 성공존 아크 (초록, Filled Radial360)
+    [SerializeField] private Image           perfectZoneImage; // 퍼펙트존 아크 (골드)
+    [SerializeField] private RectTransform   clockNeedle;      // 회전 바늘
+    [SerializeField] private TextMeshProUGUI judgeChipText;    // PERFECT/GOOD/MISS +N%
+    [SerializeField] private GameObject      spinHint;         // "멈춰서 성공존에 맞추세요!"
 
-    // ── 피드백 텍스트 (성공/실패 메시지) ─────────────────────────────
+    // ── 타임 캐치 수치 (난이도) ───────────────────────────────────────
+    [Header("타임 캐치 수치")]
+    [SerializeField] private float spinPeriod     = 1.18f;  // 바늘 1회전 (초)
+    [SerializeField] private float zoneHalfDeg    = 26f;    // 성공존 반각
+    [SerializeField] private float perfectHalfDeg = 8.8f;   // 퍼펙트존 반각
+    [SerializeField] private int   perfectBonusPct = 45;
+    [SerializeField] private int   goodBonusPct    = 22;
+    [SerializeField] private float spinTimeout     = 6f;    // 미정지 자동 미스
+    [SerializeField] private float crossfadeDur    = 0.35f;
+    [SerializeField] private float judgeHold       = 1.1f;  // 판정 칩 유지
+    [SerializeField] private float resultHold      = 1.6f;  // 결과 표시 유지
+
+    // ── 피드백 ────────────────────────────────────────────────────────
     [Header("피드백")]
     [SerializeField] private TextMeshProUGUI feedbackText;
     [SerializeField] private float feedbackDuration = 2.5f;
 
-    // ── 색상 설정 ─────────────────────────────────────────────────────
+    // ── 색상 ──────────────────────────────────────────────────────────
     [Header("색상")]
-    [SerializeField] private Color deltaColor     = new Color(0.2f, 0.9f, 0.4f);   // 증가량 초록
-    [SerializeField] private Color shortageColor  = new Color(1f,   0.3f, 0.3f);   // 부족 빨강
-    [SerializeField] private Color rateNormalColor = new Color(0.4f, 0.8f, 1f);    // 성공률 하늘색
-    [SerializeField] private Color rateLowColor   = new Color(1f,   0.6f, 0.2f);   // 50% 미만 주황
+    [SerializeField] private Color deltaColor      = new Color(0.2f, 0.9f, 0.4f);
+    [SerializeField] private Color shortageColor   = new Color(1f,   0.3f, 0.3f);
+    [SerializeField] private Color rateNormalColor = new Color(0.4f, 0.8f, 1f);
+    [SerializeField] private Color rateLowColor    = new Color(1f,   0.6f, 0.2f);
+    [SerializeField] private Color stopButtonColor = new Color(1f,   0.70f, 0.23f); // 정지! 골드
+    [SerializeField] private Color perfectColor    = new Color(1f,   0.84f, 0.42f);
+    [SerializeField] private Color goodColor       = new Color(0.27f,0.88f, 0.54f);
+    [SerializeField] private Color missColor       = new Color(1f,   0.38f, 0.41f);
 
     // ── 내부 ──────────────────────────────────────────────────────────
+    private enum CatchPhase { Idle, Spin, Judge, Result }
+    private CatchPhase _phase = CatchPhase.Idle;
+    private float _spinElapsed;
+    private Coroutine _spinCo;
+    private Coroutine _seqCo;
+    private Coroutine _fadeCo;
     private Coroutine _feedbackRoutine;
-    private Color _btnNormalColor = Color.white;   // 강화 버튼 원래 색 (회색 처리용)
+    private Color _btnNormalColor = Color.white;
 
     // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
@@ -92,6 +114,9 @@ public class CoreUpgradeUI : MonoBehaviour
             _btnNormalColor = upgradeButton.image.color;
 
         if (feedbackText != null) feedbackText.gameObject.SetActive(false);
+        if (clockGroup != null) { clockGroup.alpha = 0f; clockGroup.gameObject.SetActive(false); }
+        if (spinHint != null) spinHint.SetActive(false);
+        if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
 
         panelRoot?.SetActive(false);
     }
@@ -100,7 +125,6 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         CoreUpgradeManager.OnUpgradeResult += OnUpgradeResult;
         CoreUpgradeManager.OnLevelChanged  += OnLevelChanged;
-        // 데이터 로드 완료 시 Refresh (World씬 직접 플레이 시 데이터 미로드 상태 대비)
         DataBoot.OnDataLoaded += OnDataReady;
     }
 
@@ -111,14 +135,21 @@ public class CoreUpgradeUI : MonoBehaviour
         DataBoot.OnDataLoaded -= OnDataReady;
     }
 
-    private void OnDataReady() => Refresh();
+    private void OnDataReady() => RefreshData();
 
     private void Update()
     {
         if (!IsPanelOpen()) return;
 
-        // F키 토글 닫기 (IsBlocked 상태에서도 직접 감지)
-        if (Input.GetKeyDown(KeyCode.F))
+        // 스핀 중 Space로도 정지
+        if (_phase == CatchPhase.Spin && Input.GetKeyDown(KeyCode.Space))
+        {
+            StopSpin(false);
+            return;
+        }
+
+        // F키 닫기 — 미니게임 진행 중에는 막음
+        if (_phase == CatchPhase.Idle && Input.GetKeyDown(KeyCode.F))
             Close();
     }
 
@@ -127,10 +158,10 @@ public class CoreUpgradeUI : MonoBehaviour
     public void Open()
     {
         panelRoot?.SetActive(true);
+        ResetCatchVisual();
         Refresh();
     }
 
-    /// <summary>GameUIController.CloseAll() 에서 순환 호출 없이 패널만 숨길 때 사용</summary>
     public void HidePanel()
     {
         panelRoot?.SetActive(false);
@@ -138,73 +169,55 @@ public class CoreUpgradeUI : MonoBehaviour
 
     public void Close()
     {
+        if (_phase != CatchPhase.Idle) return;   // 미니게임 진행 중 닫기 방지
         panelRoot?.SetActive(false);
         GameUIController.Instance?.CloseCoreUpgradeUI();
     }
 
     // ── 이벤트 콜백 ───────────────────────────────────────────────────
 
-    private void OnUpgradeResult(bool success)
-    {
-        Refresh();
-
-        if (success)
-            ShowFeedback("강화 성공!", deltaColor);
-        else
-        {
-            var nextData = CoreUpgradeManager.Instance?.GetNextLevelData();
-            string kitName = GetKitName(nextData);
-            int amount = nextData != null ? nextData.requiredAmount : 0;
-            ShowFeedback($"강화 실패.  {kitName} {amount}개가 소모되었습니다.", shortageColor);
-        }
-    }
-
-    private void OnLevelChanged(int newLevel)
-    {
-        Refresh();
-    }
+    // 결과 메시지/연출은 시퀀스(JudgeThenResult)가 담당 — 여기선 데이터만 갱신
+    private void OnUpgradeResult(bool success) => RefreshData();
+    private void OnLevelChanged(int newLevel)  => RefreshData();
 
     // ── UI 갱신 ───────────────────────────────────────────────────────
 
     private void Refresh()
+    {
+        RefreshData();
+        if (_phase == CatchPhase.Idle) RefreshButton();
+    }
+
+    private void RefreshData()
     {
         var mgr = CoreUpgradeManager.Instance;
         if (mgr == null) return;
 
         var cur  = mgr.GetCurrentLevelData();
         var next = mgr.GetNextLevelData();
-
-        // 데이터 미로드 상태에서 next==null이면 isMax로 오판 방지
-        // → DataBoot.IsLoaded가 true일 때만 진짜 최대 단계로 처리
         bool isMax = (next == null) && DataBoot.IsLoaded;
 
-        // 레벨 텍스트
-        if (levelText != null)
-            levelText.text = $"Lv.{mgr.CurrentCoreLevel} / 10";
+        if (levelText != null) levelText.text = $"Lv.{mgr.CurrentCoreLevel} / 10";
 
-        // 최대 단계 분기 (upgradeInfoGroup이 버튼도 포함하므로 여기서만 제어)
         if (upgradeInfoGroup != null) upgradeInfoGroup.SetActive(!isMax);
         if (maxLevelGroup    != null) maxLevelGroup.SetActive(isMax);
 
-        // 현재 스탯
-        if (cur != null)
-        {
-            SetText(currentTimeText, $"Time : {cur.maxTime}s");
-        }
-
+        if (cur != null) SetText(currentTimeText, $"{cur.maxTime}s");
         if (isMax) return;
 
-        // 강화 후 스탯 + 증가량
         if (next != null && cur != null)
         {
-            SetText(nextTimeText, $"Time : {next.maxTime}s");
+            SetText(nextTimeText, $"{next.maxTime}s");
             SetDelta(deltaTimeText, next.maxTime - cur.maxTime, "s");
         }
-
-        // 재료 패널
         RefreshKitPanel(mgr, next);
+    }
 
-        // 강화 버튼: 불가여도 클릭은 받아 토스트로 이유를 안내 (interactable 유지 + 회색 비주얼만 수동)
+    private void RefreshButton()
+    {
+        var mgr = CoreUpgradeManager.Instance;
+        if (mgr == null) return;
+
         bool canUpgrade = mgr.CanUpgrade();
         if (upgradeButton != null)
         {
@@ -215,8 +228,7 @@ public class CoreUpgradeUI : MonoBehaviour
                 upgradeButton.image.color = canUpgrade ? _btnNormalColor : grey;
             }
         }
-        if (upgradeButtonText != null)
-            upgradeButtonText.text = "강화";
+        if (upgradeButtonText != null) upgradeButtonText.text = "강화";
     }
 
     private void RefreshKitPanel(CoreUpgradeManager mgr, CoreLevelDataSheetData next)
@@ -232,15 +244,14 @@ public class CoreUpgradeUI : MonoBehaviour
             SetText(kitCountText,    "");
             SetText(kitShortageText, "");
             SetText(successRateText, "100%");
+            if (gaugeFill != null) gaugeFill.fillAmount = 1f;
             if (kitIconImage != null) kitIconImage.gameObject.SetActive(false);
             return;
         }
 
-        // 키트 이름
         string kitName = GetKitName(next);
         SetText(kitNameText, $"필요: {kitName}");
 
-        // 보유 수량
         int owned = 0;
         if (int.TryParse(kitIdStr, out int kitItemId))
             owned = mgr.GetTotalKitCount(kitItemId);
@@ -248,11 +259,10 @@ public class CoreUpgradeUI : MonoBehaviour
         int required = next.requiredAmount;
         if (kitCountText != null)
         {
-            kitCountText.text = $"보유:  {owned} / {required}";
+            kitCountText.text  = $"보유:  {owned} / {required}";
             kitCountText.color = owned >= required ? Color.white : shortageColor;
         }
 
-        // 부족 표시
         if (kitShortageText != null)
         {
             int shortage = required - owned;
@@ -262,31 +272,29 @@ public class CoreUpgradeUI : MonoBehaviour
                 kitShortageText.color = shortageColor;
                 kitShortageText.gameObject.SetActive(true);
             }
-            else
-            {
-                kitShortageText.gameObject.SetActive(false);
-            }
+            else kitShortageText.gameObject.SetActive(false);
         }
 
-        // 성공 확률
         if (successRateText != null)
         {
             int ratePct = Mathf.RoundToInt(next.successRate * 100f);
             successRateText.text  = $"성공 확률:  {ratePct}%";
             successRateText.color = ratePct >= 50 ? rateNormalColor : rateLowColor;
         }
+
+        if (gaugeFill != null) gaugeFill.fillAmount = Mathf.Clamp01(next.successRate);
     }
 
     // ── 버튼 콜백 ─────────────────────────────────────────────────────
 
     private void OnClickUpgrade()
     {
-        if (_waitingForTimeCatch) return;  // 타임 캐치 진행 중 중복 클릭 방지
+        if (_phase == CatchPhase.Spin) { StopSpin(false); return; }   // 정지!
+        if (_phase != CatchPhase.Idle) return;                        // judge/result 중 무시
 
         var mgr = CoreUpgradeManager.Instance;
         if (mgr == null) return;
 
-        // 강화 불가 상태에서 클릭 → 이유 안내 (버튼은 회색이지만 클릭은 받음)
         if (!mgr.CanUpgrade())
         {
             var blockedNext = mgr.GetNextLevelData();
@@ -297,33 +305,166 @@ public class CoreUpgradeUI : MonoBehaviour
             return;
         }
 
-        var nextData = mgr.GetNextLevelData();
+        StartSpin();
+    }
 
-        if (timeCatch != null && nextData != null)
+    private void OnClickClose() => Close();
+
+    // ── 미니게임 ──────────────────────────────────────────────────────
+
+    private void StartSpin()
+    {
+        _phase = CatchPhase.Spin;
+        SetupZones();
+
+        if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
+        if (spinHint != null) spinHint.SetActive(true);
+        SetButtonStopMode(true);
+
+        if (_fadeCo != null) StopCoroutine(_fadeCo);
+        _fadeCo = StartCoroutine(CrossfadeCoreToClock(true));
+
+        _spinElapsed = 0f;
+        if (_spinCo != null) StopCoroutine(_spinCo);
+        _spinCo = StartCoroutine(SpinRoutine());
+    }
+
+    private IEnumerator SpinRoutine()
+    {
+        while (true)
         {
-            // 강화 버튼 클릭 → 타임 캐치 팝업 즉시 표시
-            _waitingForTimeCatch = true;
-            timeCatch.StartCatch(
-                mgr.CurrentCoreLevel,
-                nextData.successRate,
-                onResult: catchSuccess =>
-                {
-                    _waitingForTimeCatch = false;
-                    float bonus = catchSuccess ? TIME_CATCH_BONUS : 0f;
-                    mgr.TryUpgrade(bonus);
-                    Refresh();
-                });
-        }
-        else
-        {
-            // TimeCatchUI 없으면 바로 강화
-            mgr.TryUpgrade(0f);
+            _spinElapsed += Time.unscaledDeltaTime;
+            float ang = ((_spinElapsed / spinPeriod) * 360f) % 360f;
+            if (clockNeedle != null) clockNeedle.localRotation = Quaternion.Euler(0f, 0f, -ang);
+            if (_spinElapsed >= spinTimeout) { StopSpin(true); yield break; }
+            yield return null;
         }
     }
 
-    private void OnClickClose()
+    private void StopSpin(bool auto)
     {
-        Close();
+        if (_phase != CatchPhase.Spin) return;
+        if (_spinCo != null) { StopCoroutine(_spinCo); _spinCo = null; }
+        _phase = CatchPhase.Judge;
+        if (spinHint != null) spinHint.SetActive(false);
+
+        // 상단(12시, 0deg) 기준 최소 각도 거리
+        float ang = ((_spinElapsed / spinPeriod) * 360f) % 360f;
+        float a = ang; if (a > 180f) a -= 360f; if (a < -180f) a += 360f;
+        float dist = Mathf.Abs(a);
+
+        int bonus; string tier; Color chipColor;
+        if (auto || dist > zoneHalfDeg)        { tier = "MISS";    bonus = 0;               chipColor = missColor; }
+        else if (dist <= perfectHalfDeg)       { tier = "PERFECT"; bonus = perfectBonusPct; chipColor = perfectColor; }
+        else
+        {
+            float k = 1f - (dist - perfectHalfDeg) / (zoneHalfDeg - perfectHalfDeg);
+            tier = "GOOD"; bonus = Mathf.RoundToInt(goodBonusPct * (0.4f + 0.6f * k)); chipColor = goodColor;
+        }
+
+        ShowJudgeChip(tier, bonus, chipColor);
+        SetButtonBusyMode();
+
+        if (_seqCo != null) StopCoroutine(_seqCo);
+        _seqCo = StartCoroutine(JudgeThenResult(bonus));
+    }
+
+    private IEnumerator JudgeThenResult(int bonusPct)
+    {
+        yield return new WaitForSecondsRealtime(judgeHold);
+
+        var mgr = CoreUpgradeManager.Instance;
+        bool success = (mgr != null) && mgr.TryUpgrade(bonusPct / 100f);
+
+        _phase = CatchPhase.Result;
+        ShowFeedback(success ? "강화 성공!" : "강화 실패", success ? deltaColor : shortageColor);
+
+        yield return new WaitForSecondsRealtime(resultHold);
+
+        if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
+        if (_fadeCo != null) StopCoroutine(_fadeCo);
+        _fadeCo = StartCoroutine(CrossfadeCoreToClock(false));
+
+        _phase = CatchPhase.Idle;
+        Refresh();
+    }
+
+    private IEnumerator CrossfadeCoreToClock(bool toClock)
+    {
+        if (toClock && clockGroup != null) clockGroup.gameObject.SetActive(true);
+
+        float e = 0f;
+        Color cc = coreImage != null ? coreImage.color : Color.white;
+        while (e < crossfadeDur)
+        {
+            e += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(e / crossfadeDur);
+            float clockA = toClock ? k : 1f - k;
+            if (coreImage != null) { cc.a = 1f - clockA; coreImage.color = cc; }
+            if (clockGroup != null) clockGroup.alpha = clockA;
+            yield return null;
+        }
+
+        if (coreImage != null) { cc.a = toClock ? 0f : 1f; coreImage.color = cc; }
+        if (clockGroup != null)
+        {
+            clockGroup.alpha = toClock ? 1f : 0f;
+            if (!toClock) clockGroup.gameObject.SetActive(false);
+        }
+        _fadeCo = null;
+    }
+
+    private void SetupZones()
+    {
+        if (successZoneImage != null)
+        {
+            successZoneImage.fillAmount = Mathf.Clamp01((zoneHalfDeg * 2f) / 360f);
+            successZoneImage.transform.localRotation = Quaternion.Euler(0f, 0f, zoneHalfDeg);
+        }
+        if (perfectZoneImage != null)
+        {
+            perfectZoneImage.fillAmount = Mathf.Clamp01((perfectHalfDeg * 2f) / 360f);
+            perfectZoneImage.transform.localRotation = Quaternion.Euler(0f, 0f, perfectHalfDeg);
+        }
+    }
+
+    private void ShowJudgeChip(string tier, int bonus, Color color)
+    {
+        if (judgeChipText == null) return;
+        judgeChipText.gameObject.SetActive(true);
+        judgeChipText.text  = bonus > 0 ? $"{tier}  +{bonus}%" : tier;
+        judgeChipText.color = color;
+    }
+
+    private void SetButtonStopMode(bool stop)
+    {
+        if (upgradeButtonText != null) upgradeButtonText.text = stop ? "정지!" : "강화";
+        if (upgradeButton != null && upgradeButton.image != null)
+            upgradeButton.image.color = stop ? stopButtonColor : _btnNormalColor;
+    }
+
+    private void SetButtonBusyMode()
+    {
+        if (upgradeButtonText != null) upgradeButtonText.text = "강화 중...";
+        if (upgradeButton != null && upgradeButton.image != null)
+        {
+            Color grey = _btnNormalColor * 0.5f; grey.a = _btnNormalColor.a;
+            upgradeButton.image.color = grey;
+        }
+    }
+
+    private void ResetCatchVisual()
+    {
+        _phase = CatchPhase.Idle;
+        if (_spinCo != null) { StopCoroutine(_spinCo); _spinCo = null; }
+        if (_seqCo  != null) { StopCoroutine(_seqCo);  _seqCo  = null; }
+        if (_fadeCo != null) { StopCoroutine(_fadeCo); _fadeCo = null; }
+
+        if (clockGroup != null) { clockGroup.alpha = 0f; clockGroup.gameObject.SetActive(false); }
+        if (coreImage != null) { var c = coreImage.color; c.a = 1f; coreImage.color = c; }
+        if (spinHint != null) spinHint.SetActive(false);
+        if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
+        if (clockNeedle != null) clockNeedle.localRotation = Quaternion.identity;
     }
 
     // ── 피드백 ────────────────────────────────────────────────────────
@@ -340,7 +481,7 @@ public class CoreUpgradeUI : MonoBehaviour
         feedbackText.text  = message;
         feedbackText.color = color;
         feedbackText.gameObject.SetActive(true);
-        yield return new WaitForSeconds(feedbackDuration);
+        yield return new WaitForSecondsRealtime(feedbackDuration);
         feedbackText.gameObject.SetActive(false);
         _feedbackRoutine = null;
     }
