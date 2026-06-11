@@ -1,7 +1,8 @@
 // =====================================================================
 // CoreUpgradeUIBuilder.cs  (Editor Only)
-// Tools/TIMEKOV/코어 강화 UI 생성 실행 시 World 씬 Canvas 안에
-// CoreUpgradePanel 전체 계층을 자동으로 만들고 레퍼런스 연결까지 처리
+// Tools/TIMEKOV/코어 강화 UI 생성 → Canvas 안에 CoreUpgradePanel 계층 자동 생성 + 필드 연결.
+// 레이아웃 = CoreUI/README.md [최종 화면] 스펙: 스탯은 "체력(시간)" 하나만.
+// (스프라이트는 비워두고 색 플레이스홀더만 — core.png/reference PNG는 인스펙터에서 드래그)
 // =====================================================================
 
 using UnityEditor;
@@ -15,7 +16,6 @@ public static class CoreUpgradeUIBuilder
     [MenuItem("Tools/TIMEKOV/코어 강화 UI 생성")]
     public static void Build()
     {
-        // ── Canvas 찾기 ───────────────────────────────
         Canvas canvas = Object.FindAnyObjectByType<Canvas>();
         if (canvas == null)
         {
@@ -23,161 +23,241 @@ public static class CoreUpgradeUIBuilder
             return;
         }
 
-        // ── 기존 패널 삭제 ────────────────────────────
-        Transform existing = canvas.transform.Find("CoreUpgradePanel");
-        if (existing != null)
+        // 기존 패널 전수 제거 (비활성 포함). 옛 빌더 잔재가 다른 부모 밑에 숨어
+        // 런타임 싱글톤(CoreUpgradeUI.Instance)을 가로채면 새 패널이 파괴돼 "변경이 안 먹힌다".
+        var existingUis = Object.FindObjectsByType<CoreUpgradeUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (existingUis.Length > 0)
         {
             bool replace = EditorUtility.DisplayDialog("경고",
-                "CoreUpgradePanel이 이미 존재합니다.\n기존 패널을 삭제하고 새로 만들까요?",
+                $"기존 코어 강화 패널 {existingUis.Length}개가 있습니다.\n모두 삭제하고 새로 만들까요?",
                 "새로 만들기", "취소");
             if (!replace) return;
-            Object.DestroyImmediate(existing.gameObject);
+            foreach (var u in existingUis)
+                if (u != null) Object.DestroyImmediate(u.gameObject);
         }
 
-        // ── 루트 패널 ─────────────────────────────────
-        GameObject root = MakeImage("CoreUpgradePanel", canvas.transform,
-            size: new Vector2(1100, 700), pos: Vector2.zero, color: Hex("1A2035", 240));
-        root.SetActive(false); // 처음엔 숨김 상태
+        // ── 루트 = 컴포넌트 호스트. 항상 active로 둬야 Awake가 돌아 Instance가 등록되고,
+        //    트리거(CoreUpgradeUI.Instance.Open())가 패널을 열 수 있다.
+        //    실제 보이는 딤/패널은 PanelRoot 자식으로 빼서 그것만 껐다 켠다. ──
+        GameObject root = new GameObject("CoreUpgradePanel", typeof(RectTransform));
+        var rootTr = root.GetComponent<RectTransform>();
+        rootTr.SetParent(canvas.transform, false);
+        rootTr.anchorMin = Vector2.zero; rootTr.anchorMax = Vector2.one;
+        rootTr.offsetMin = rootTr.offsetMax = Vector2.zero;
 
         CoreUpgradeUI ui = root.AddComponent<CoreUpgradeUI>();
         SerializedObject so = new SerializedObject(ui);
-        SetRef(so, "panelRoot", root);
 
-        // ── 타이틀 ────────────────────────────────────
-        MakeTMP("TitleText", root.transform,
-            size: new Vector2(400, 50), pos: new Vector2(0, 310),
-            text: "코어 강화", fontSize: 28,
-            color: Hex("7DD4FC"), align: TextAlignmentOptions.Center);
+        // ── PanelRoot = 전체화면 딤(scrim) + 패널 내용. 평소 false, Open()에서 true. ──
+        GameObject panelRootGo = new GameObject("PanelRoot", typeof(RectTransform), typeof(Image));
+        var panelRootTr = panelRootGo.GetComponent<RectTransform>();
+        panelRootTr.SetParent(rootTr, false);
+        panelRootTr.anchorMin = Vector2.zero; panelRootTr.anchorMax = Vector2.one;
+        panelRootTr.offsetMin = panelRootTr.offsetMax = Vector2.zero;
+        panelRootGo.GetComponent<Image>().color = Hex("070C16", 190);   // 은은한 딤
+        SetRef(so, "panelRoot", panelRootGo);
+        panelRootGo.SetActive(false);
 
-        // ── 레벨 뱃지 ─────────────────────────────────
-        GameObject badge = MakeImage("LevelBadge", root.transform,
-            size: new Vector2(130, 130), pos: new Vector2(430, 275),
-            color: Hex("0D1929", 230));
-        TextMeshProUGUI levelTxt = MakeTMP("LevelText", badge.transform,
-            size: Vector2.zero, pos: Vector2.zero,
-            text: "Lv.0\n/ 10", fontSize: 22,
-            color: Color.white, align: TextAlignmentOptions.Center, stretch: true);
+        // ── 패널 (1280x720) = 투명 컨테이너. 불투명 베이스/프레임은 스프라이트 블록에서 얹음. ──
+        GameObject panel = MakeImage("Panel", panelRootTr,
+            size: new Vector2(1280, 720), pos: Vector2.zero, color: Hex("0E1A2C", 0));
+
+        // ── 타이틀 ──
+        var title = MakeTMP("TitleText", panel.transform,
+            new Vector2(500, 44), new Vector2(0, 305),
+            "코어 <color=#5FC4FF>강화</color>", 30, Hex("EAF3FB"), TextAlignmentOptions.Center);
+        title.fontStyle = FontStyles.Bold;
+
+        // ── 레벨 뱃지 (우상단) ──
+        GameObject badge = MakeImage("LevelBadge", panel.transform,
+            new Vector2(140, 60), new Vector2(540, 300), Hex("0B1422", 230));
+        var levelTxt = MakeTMP("LevelText", badge.transform, Vector2.zero, Vector2.zero,
+            "Lv.0 / 10", 22, Hex("EAF3FB"), TextAlignmentOptions.Center, stretch: true);
+        levelTxt.fontStyle = FontStyles.Bold;
         SetRef(so, "levelText", levelTxt);
 
-        // ── 코어 이미지 (플레이스홀더) ───────────────
-        GameObject coreGo = MakeImage("CoreImage", root.transform,
-            size: new Vector2(220, 260), pos: new Vector2(0, 30),
-            color: Hex("4A9EFF", 100));
+        // ── 닫기 버튼 (좌상단) ──
+        GameObject closeBtn = MakeButton("CloseButton", panel.transform,
+            new Vector2(48, 48), new Vector2(-596, 300), "X", 22, Hex("16263C", 215));
+        SetRef(so, "closeButton", closeBtn.GetComponent<Button>());
+
+        // ── 코어 이미지 (중앙) ──
+        GameObject coreGo = MakeImage("CoreImage", panel.transform,
+            new Vector2(300, 300), new Vector2(0, 45), Hex("4A9EFF", 0));
+        coreGo.GetComponent<Image>().preserveAspect = true;
         SetRef(so, "coreImage", coreGo.GetComponent<Image>());
 
-        // ── 현재 스탯 패널 (왼쪽) ────────────────────
-        GameObject leftPanel = MakeImage("LeftPanel", root.transform,
-            size: new Vector2(280, 300), pos: new Vector2(-385, 30),
-            color: Hex("0D1929", 200));
-        MakeTMP("LeftTitle", leftPanel.transform,
-            size: new Vector2(240, 35), pos: new Vector2(0, 120),
-            text: "현재 스탯", fontSize: 18,
-            color: Hex("7DD4FC"), align: TextAlignmentOptions.Center);
+        // ── 현재 카드 (좌, 항상 표시) ──
+        GameObject leftCard = MakeImage("CurrentCard", panel.transform,
+            new Vector2(280, 210), new Vector2(-430, 0), Hex("0B1422", 150));
+        MakeTMP("CurHead", leftCard.transform, new Vector2(240, 30), new Vector2(0, 78), "현재", 20, Hex("AEBFD0"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+        MakeTMP("CurLbl",  leftCard.transform, new Vector2(200, 24), new Vector2(0, 30), "체력", 16, Hex("AEBFD0"), TextAlignmentOptions.Center);
+        var curTime = MakeTMP("CurrentTimeText", leftCard.transform, new Vector2(260, 80), new Vector2(0, -28), "0s", 56, Hex("EAF3FB"), TextAlignmentOptions.Center);
+        curTime.fontStyle = FontStyles.Bold;
+        SetRef(so, "currentTimeText", curTime);
 
-        TextMeshProUGUI curTime    = MakeTMP("CurrentTimeText",    leftPanel.transform, new Vector2(240, 35), new Vector2(0,  65), "Time:  0s",   18, Hex("CCDDFF"));
-        TextMeshProUGUI curStamina = MakeTMP("CurrentStaminaText", leftPanel.transform, new Vector2(240, 35), new Vector2(0,  18), "Stamina:  0", 18, Hex("CCDDFF"));
-        TextMeshProUGUI curAtk     = MakeTMP("CurrentAtkText",     leftPanel.transform, new Vector2(240, 35), new Vector2(0, -29), "ATK:  0",     18, Hex("CCDDFF"));
-        TextMeshProUGUI curDef     = MakeTMP("CurrentDefText",     leftPanel.transform, new Vector2(240, 35), new Vector2(0, -76), "DEF:  0",     18, Hex("CCDDFF"));
-
-        SetRef(so, "currentTimeText",    curTime);
-        SetRef(so, "currentStaminaText", curStamina);
-        SetRef(so, "currentAtkText",     curAtk);
-        SetRef(so, "currentDefText",     curDef);
-
-        // ── 강화 후 스탯 패널 (오른쪽) ───────────────
-        GameObject rightPanel = MakeImage("RightPanel", root.transform,
-            size: new Vector2(280, 300), pos: new Vector2(385, 30),
-            color: Hex("0D1929", 200));
-        MakeTMP("RightTitle", rightPanel.transform,
-            size: new Vector2(240, 35), pos: new Vector2(0, 120),
-            text: "강화 후 스탯", fontSize: 18,
-            color: Hex("7DD4FC"), align: TextAlignmentOptions.Center);
-
-        TextMeshProUGUI nxtTime    = MakeTMP("NextTimeText",    rightPanel.transform, new Vector2(155, 35), new Vector2(-45,  65), "Time:  0s",   18, Hex("CCDDFF"));
-        TextMeshProUGUI nxtStamina = MakeTMP("NextStaminaText", rightPanel.transform, new Vector2(155, 35), new Vector2(-45,  18), "Stamina:  0", 18, Hex("CCDDFF"));
-        TextMeshProUGUI nxtAtk     = MakeTMP("NextAtkText",     rightPanel.transform, new Vector2(155, 35), new Vector2(-45, -29), "ATK:  0",     18, Hex("CCDDFF"));
-        TextMeshProUGUI nxtDef     = MakeTMP("NextDefText",     rightPanel.transform, new Vector2(155, 35), new Vector2(-45, -76), "DEF:  0",     18, Hex("CCDDFF"));
-
-        TextMeshProUGUI dltTime    = MakeTMP("DeltaTimeText",    rightPanel.transform, new Vector2(85, 35), new Vector2(105,  65), "+0s ↑", 15, Hex("33CC66"));
-        TextMeshProUGUI dltStamina = MakeTMP("DeltaStaminaText", rightPanel.transform, new Vector2(85, 35), new Vector2(105,  18), "+0 ↑",  15, Hex("33CC66"));
-        TextMeshProUGUI dltAtk     = MakeTMP("DeltaAtkText",     rightPanel.transform, new Vector2(85, 35), new Vector2(105, -29), "+0 ↑",  15, Hex("33CC66"));
-        TextMeshProUGUI dltDef     = MakeTMP("DeltaDefText",     rightPanel.transform, new Vector2(85, 35), new Vector2(105, -76), "+0 ↑",  15, Hex("33CC66"));
-
-        SetRef(so, "nextTimeText",     nxtTime);
-        SetRef(so, "nextStaminaText",  nxtStamina);
-        SetRef(so, "nextAtkText",      nxtAtk);
-        SetRef(so, "nextDefText",      nxtDef);
-        SetRef(so, "deltaTimeText",    dltTime);
-        SetRef(so, "deltaStaminaText", dltStamina);
-        SetRef(so, "deltaAtkText",     dltAtk);
-        SetRef(so, "deltaDefText",     dltDef);
-
-        // ── UpgradeInfoGroup ──────────────────────────
-        GameObject infoGroup = MakeEmpty("UpgradeInfoGroup", root.transform);
+        // ── 강화 정보 그룹 (MAX면 숨김) ──
+        GameObject infoGroup = MakeEmpty("UpgradeInfoGroup", panel.transform);
         SetRef(so, "upgradeInfoGroup", infoGroup);
 
-        // ── 재료 패널 ─────────────────────────────────
-        GameObject kitPanel = MakeImage("KitPanel", infoGroup.transform,
-            size: new Vector2(650, 115), pos: new Vector2(-50, -210),
-            color: Hex("0D2040", 220));
+        // 강화 후 카드 (우)
+        GameObject rightCard = MakeImage("NextCard", infoGroup.transform,
+            new Vector2(280, 210), new Vector2(430, 0), Hex("0B1422", 150));
+        MakeTMP("NxtHead", rightCard.transform, new Vector2(240, 30), new Vector2(0, 78), "강화 후", 20, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+        MakeTMP("NxtLbl",  rightCard.transform, new Vector2(200, 24), new Vector2(0, 30), "체력", 16, Hex("AEBFD0"), TextAlignmentOptions.Center);
+        var nxtTime = MakeTMP("NextTimeText", rightCard.transform, new Vector2(260, 80), new Vector2(0, -18), "0s", 56, Hex("AEE3FF"), TextAlignmentOptions.Center);
+        nxtTime.fontStyle = FontStyles.Bold;
+        SetRef(so, "nextTimeText", nxtTime);
+        var dltTime = MakeTMP("DeltaTimeText", rightCard.transform, new Vector2(220, 24), new Vector2(0, -72), "+0s ↑", 17, Hex("46E08A"), TextAlignmentOptions.Center);
+        dltTime.fontStyle = FontStyles.Bold;
+        SetRef(so, "deltaTimeText", dltTime);
 
-        GameObject kitIconGo = MakeImage("KitIcon", kitPanel.transform,
-            size: new Vector2(70, 70), pos: new Vector2(-255, 0),
-            color: Hex("4A6080", 200));
+        // 하단 바 (재료 + 성공확률 + 게이지) — 행 간격 충분히 (겹침 방지)
+        GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform,
+            new Vector2(640, 110), new Vector2(0, -215), Hex("0B1422", 200));
+        GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform,
+            new Vector2(48, 48), new Vector2(-288, 24), Hex("0D2040", 220));
         SetRef(so, "kitIconImage", kitIconGo.GetComponent<Image>());
-
-        TextMeshProUGUI kitName  = MakeTMP("KitNameText",     kitPanel.transform, new Vector2(390, 32), new Vector2(55,  35), "필요: 내장 코어 보강 키트 I", 15, Color.white);
-        TextMeshProUGUI kitCount = MakeTMP("KitCountText",    kitPanel.transform, new Vector2(190, 28), new Vector2(-15,  0), "보유:  0 / 1",              14, Color.white);
-        TextMeshProUGUI kitShort = MakeTMP("KitShortageText", kitPanel.transform, new Vector2(150, 28), new Vector2(165,  0), "← 1개 부족",               13, Hex("FF4444"));
-        TextMeshProUGUI succRate = MakeTMP("SuccessRateText", kitPanel.transform, new Vector2(280, 28), new Vector2(25, -35), "성공 확률:  100%",          15, Hex("4DCFFF"));
-
+        var kitName  = MakeTMP("KitNameText",     bottomBar.transform, new Vector2(280, 24), new Vector2(-100, 30), "필요: 코어 키트", 16, Hex("EAF3FB"), TextAlignmentOptions.Left);
+        var kitCount = MakeTMP("KitCountText",    bottomBar.transform, new Vector2(200, 22), new Vector2(-110, 4),  "보유:  0 / 3",   15, Hex("AEBFD0"), TextAlignmentOptions.Left);
+        var kitShort = MakeTMP("KitShortageText", bottomBar.transform, new Vector2(130, 22), new Vector2(95, 4),    "",              14, Hex("FF6068"), TextAlignmentOptions.Left);
+        var succRate = MakeTMP("SuccessRateText", bottomBar.transform, new Vector2(240, 26), new Vector2(170, 30),  "성공 확률:  50%", 18, Hex("AEE3FF"), TextAlignmentOptions.Right);
+        succRate.fontStyle = FontStyles.Bold;
         SetRef(so, "kitNameText",     kitName);
         SetRef(so, "kitCountText",    kitCount);
         SetRef(so, "kitShortageText", kitShort);
         SetRef(so, "successRateText", succRate);
 
-        // ── 강화 버튼 ─────────────────────────────────
+        // 성공 확률 게이지 (바닥)
+        GameObject gaugeBg = MakeImage("GaugeBG", bottomBar.transform, new Vector2(600, 10), new Vector2(0, -34), Hex("05080D", 255));
+        GameObject gaugeFillGo = MakeImage("GaugeFill", gaugeBg.transform, new Vector2(600, 10), Vector2.zero, Hex("6FD2FF", 255));
+        var gaugeFillImg = gaugeFillGo.GetComponent<Image>();
+        gaugeFillImg.type       = Image.Type.Filled;
+        gaugeFillImg.fillMethod = Image.FillMethod.Horizontal;
+        gaugeFillImg.fillOrigin = 0; // Left
+        gaugeFillImg.fillAmount = 0.5f;
+        SetRef(so, "gaugeFill", gaugeFillImg);
+
+        // 강화 시작 버튼
         GameObject upgradeBtn = MakeButton("UpgradeButton", infoGroup.transform,
-            size: new Vector2(390, 65), pos: new Vector2(-65, -305),
-            label: "강화", fontSize: 24, bgColor: Hex("1A4080"));
+            new Vector2(360, 60), new Vector2(0, -312), "강화 시작", 20, Hex("2F9BE0"));
         SetRef(so, "upgradeButton",     upgradeBtn.GetComponent<Button>());
         SetRef(so, "upgradeButtonText", upgradeBtn.GetComponentInChildren<TextMeshProUGUI>());
 
-        // ── 닫기 버튼 ─────────────────────────────────
-        GameObject closeBtn = MakeButton("CloseButton", root.transform,
-            size: new Vector2(120, 65), pos: new Vector2(430, -305),
-            label: "닫기", fontSize: 20, bgColor: Hex("2A2A3A"));
-        SetRef(so, "closeButton", closeBtn.GetComponent<Button>());
-
-        // ── MaxLevelGroup ─────────────────────────────
-        GameObject maxGroup = MakeEmpty("MaxLevelGroup", root.transform);
-        MakeTMP("MaxText", maxGroup.transform,
-            size: new Vector2(500, 50), pos: new Vector2(0, -230),
-            text: "★ 최대 단계 달성", fontSize: 24,
-            color: Hex("FFD700"), align: TextAlignmentOptions.Center);
+        // ── MAX 그룹 ──
+        GameObject maxGroup = MakeEmpty("MaxLevelGroup", panel.transform);
+        MakeTMP("MaxText", maxGroup.transform, new Vector2(500, 50), new Vector2(0, -200), "최대 단계 달성", 24, Hex("FFD66B"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         maxGroup.SetActive(false);
         SetRef(so, "maxLevelGroup", maxGroup);
 
-        // ── 피드백 텍스트 ──────────────────────────────
-        TextMeshProUGUI feedback = MakeTMP("FeedbackText", root.transform,
-            size: new Vector2(700, 40), pos: new Vector2(0, -265),
-            text: "", fontSize: 18,
-            color: Color.white, align: TextAlignmentOptions.Center);
+        // ── 피드백 텍스트 ──
+        var feedback = MakeTMP("FeedbackText", panel.transform, new Vector2(600, 40), new Vector2(0, -150), "", 22, Hex("EAF3FB"), TextAlignmentOptions.Center);
+        feedback.fontStyle = FontStyles.Bold;
         feedback.gameObject.SetActive(false);
         SetRef(so, "feedbackText", feedback);
 
-        // ── 타임 캐치 UI ───────────────────────────────
-        BuildTimeCatch(root, so);
+        // ── 스프라이트 자동 적용 (CoreUI/sprites) — Sprite 임포트 + 9-slice border 자동 ──
+        SetSpr(badge,       LoadSpr("Bar_Frame", 36),          Image.Type.Sliced);   // 종욱이 LevelBadge->Bar_Frame 선택, 재생성 보존
+        SetSpr(leftCard,    LoadSpr("Card_Frame", 48),         Image.Type.Sliced);
+        SetSpr(rightCard,   LoadSpr("Card_Frame", 48),         Image.Type.Sliced);
+        SetSpr(bottomBar,   LoadSpr("Bar_Frame", 36),          Image.Type.Sliced);
+        SetSpr(kitIconGo,   LoadSpr("KitSlot"),                Image.Type.Simple);   // 육각이라 9-slice 금지(찌그러짐)
+        SetSpr(gaugeBg,     LoadSpr("Gauge_Trough", 6),        Image.Type.Sliced);
+        SetSpr(gaugeFillGo, LoadSpr("Gauge_Fill", 6),          Image.Type.Filled);
+        gaugeFillGo.GetComponent<Image>().color = Hex("6FD2FF");   // 채움은 시안 (흰색 아님)
+        SetSpr(upgradeBtn,  LoadSpr("Btn_Enhance_Normal", 24), Image.Type.Sliced);
+        SetSpr(coreGo,      LoadSpr("core"), Image.Type.Simple);   // core.png는 sprites/ 안에 있음
 
-        // ── 레퍼런스 적용 ─────────────────────────────
+        // 패널 배경 = Panel_BG 2겹(같은 크기/둥근 모양). 단색 직각 베이스를 쓰면 그 직선 변이
+        // 반투명 프레임 뒤로 비쳐 상/우/하에 "선"이 생김 → 같은 스프라이트를 겹쳐 경계를 없애고
+        // 불투명도도 보강(코너 삐짐 동시 해결).
+        var panelBase = MakeImage("PanelBase", panel.transform, new Vector2(1280, 720), Vector2.zero, Color.white);
+        SetSpr(panelBase, LoadSpr("Panel_BG"), Image.Type.Simple);
+        panelBase.GetComponent<Image>().color = Hex("0E1A2C", 255);   // 뒤겹은 navy 틴트로 시안 테두리 죽임 → 테두리 1줄, 불투명 채움 유지
+        panelBase.transform.SetSiblingIndex(0);
+        var panelFrame = MakeImage("PanelFrame", panel.transform, new Vector2(1280, 720), Vector2.zero, Color.white);
+        SetSpr(panelFrame, LoadSpr("Panel_BG"), Image.Type.Simple);
+        panelFrame.transform.SetSiblingIndex(1);
+
+        // 데코 링 + 코어 글로우 (프레임 위 · 코어 뒤, 살짝 작게)
+        var dring = MakeImage("DecoRing", panel.transform, new Vector2(360, 360), new Vector2(0, 45), Color.white);
+        SetSpr(dring, LoadSpr("Deco_Ring"), Image.Type.Simple);
+        dring.transform.SetSiblingIndex(2);
+        var glow = MakeImage("CoreGlow", panel.transform, new Vector2(380, 380), new Vector2(0, 45), Color.white);
+        SetSpr(glow, LoadSpr("Core_Glow"), Image.Type.Simple);
+        glow.transform.SetSiblingIndex(3);
+
+        // 키트 아이콘 (슬롯 위에)
+        var kitItemIcon = MakeImage("KitItemIcon", kitIconGo.transform, new Vector2(34, 34), Vector2.zero, Color.white);
+        SetSpr(kitItemIcon, LoadSpr("KitIcon"), Image.Type.Simple);
+
+        // ── 인라인 시계 (강화 시 코어→시계 전환) — Clock_* 스프라이트 사용 ──
+        var clockGo = MakeEmpty("ClockGroup", panel.transform);
+        var clockRt = clockGo.GetComponent<RectTransform>();
+        clockRt.anchorMin = clockRt.anchorMax = clockRt.pivot = new Vector2(0.5f, 0.5f);
+        clockRt.sizeDelta        = new Vector2(300, 300);
+        clockRt.anchoredPosition = new Vector2(0, 45);
+        var clockCg = clockGo.AddComponent<CanvasGroup>();
+        clockCg.alpha = 0f;
+        SetRef(so, "clockGroup", clockCg);
+
+        var clockFace = MakeImage("ClockFace", clockGo.transform, new Vector2(300, 300), Vector2.zero, Color.white);
+        SetSpr(clockFace, LoadSpr("Clock_Face"), Image.Type.Simple);
+
+        // 성공존/퍼펙트존: 흰 링 스프라이트를 틴트 + Radial360 채움 (상단 중앙 기준)
+        var succZone = MakeImage("SuccessZone", clockGo.transform, new Vector2(300, 300), Vector2.zero, Color.white);
+        SetSpr(succZone, LoadSpr("Clock_RingWhite"), Image.Type.Filled);
+        var succImg = succZone.GetComponent<Image>();
+        succImg.color         = Hex("46E08A", 235);
+        succImg.fillMethod    = Image.FillMethod.Radial360;
+        succImg.fillOrigin    = (int)Image.Origin360.Top;
+        succImg.fillClockwise = true;
+        succImg.fillAmount    = 52f / 360f;
+        SetRef(so, "successZoneImage", succImg);
+
+        var perfZone = MakeImage("PerfectZone", clockGo.transform, new Vector2(300, 300), Vector2.zero, Color.white);
+        SetSpr(perfZone, LoadSpr("Clock_RingWhite"), Image.Type.Filled);
+        var perfImg = perfZone.GetComponent<Image>();
+        perfImg.color         = Hex("FFD66B", 245);
+        perfImg.fillMethod    = Image.FillMethod.Radial360;
+        perfImg.fillOrigin    = (int)Image.Origin360.Top;
+        perfImg.fillClockwise = true;
+        perfImg.fillAmount    = 18f / 360f;
+        SetRef(so, "perfectZoneImage", perfImg);
+
+        // 바늘 (회전축을 하단쪽 = 시계 중앙으로)
+        var needleGo = MakeImage("ClockNeedle", clockGo.transform, new Vector2(150, 150), Vector2.zero, Color.white);
+        SetSpr(needleGo, LoadSpr("Clock_Needle"), Image.Type.Simple);
+        var needleRt = needleGo.GetComponent<RectTransform>();
+        needleRt.pivot            = new Vector2(0.5f, 0.18f);
+        needleRt.anchoredPosition = Vector2.zero;
+        SetRef(so, "clockNeedle", needleRt);
+
+        // 중앙 허브
+        var hubGo = MakeImage("ClockHub", clockGo.transform, new Vector2(46, 46), Vector2.zero, Color.white);
+        SetSpr(hubGo, LoadSpr("Clock_Hub"), Image.Type.Simple);
+
+        // 스핀 안내 (코어 아래) + 판정 칩 (코어 위)
+        var spinHintTmp = MakeTMP("SpinHint", panel.transform, new Vector2(540, 36), new Vector2(0, -120),
+            "멈춰서 <color=#46E08A>성공존</color>에 맞추세요!", 18, Hex("AEE3FF"), TextAlignmentOptions.Center);
+        spinHintTmp.fontStyle = FontStyles.Bold;
+        spinHintTmp.gameObject.SetActive(false);
+        SetRef(so, "spinHint", spinHintTmp.gameObject);
+
+        var judgeChip = MakeTMP("JudgeChip", panel.transform, new Vector2(360, 40), new Vector2(0, 200),
+            "", 26, Hex("FFD66B"), TextAlignmentOptions.Center);
+        judgeChip.fontStyle = FontStyles.Bold;
+        judgeChip.gameObject.SetActive(false);
+        SetRef(so, "judgeChipText", judgeChip);
+
+        // ── 적용 + 저장 ──
         so.ApplyModifiedProperties();
-
-        // ── 씬 저장 필요 표시 ─────────────────────────
         EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         Selection.activeGameObject = root;
 
-        Debug.Log($"[TIMEKOV] ✅ 코어 강화 UI 생성 완료! Canvas: '{canvas.name}' 하위에 CoreUpgradePanel이 추가됐습니다.");
-        EditorUtility.DisplayDialog("완료", "코어 강화 UI가 생성됐습니다!\n\n하이어라키에서 CoreUpgradePanel을 확인하세요.\n씬을 저장(Ctrl+S)하는 것을 잊지 마세요.", "확인");
+        Debug.Log("[TIMEKOV] 코어 강화 UI 생성 완료 (README 스펙: 체력만).");
+        EditorUtility.DisplayDialog("완료",
+            "코어 강화 UI 생성 완료!\n\n- CoreUpgradePanel은 active(켜진 상태)로 둘 것\n  (안 보이는 처리는 자식 PanelRoot가 자동으로 함)\n- Ctrl+S로 씬 저장", "확인");
     }
 
     // ── 타임 캐치 단독 추가 ───────────────────────────────────────────
@@ -218,7 +298,6 @@ public static class CoreUpgradeUIBuilder
     static void BuildTimeCatch(GameObject root, SerializedObject coreSO)
     {
         // ── TimeCatchHost ─────────────────────────────────
-        // 항상 활성. 화면 정중앙 오버레이 팝업
         var host = new GameObject("TimeCatchHost", typeof(RectTransform));
         host.transform.SetParent(root.transform, false);
         var hostRt = host.GetComponent<RectTransform>();
@@ -230,7 +309,6 @@ public static class CoreUpgradeUIBuilder
         var tso = new SerializedObject(tc);
 
         // ── 팝업 패널 (처음엔 숨김) ──────────────────────
-        // 전체 화면을 살짝 가리는 반투명 딤 레이어 + 팝업 창
         var dimGo = new GameObject("Dim", typeof(RectTransform), typeof(Image));
         dimGo.transform.SetParent(host.transform, false);
         var dimRt = dimGo.GetComponent<RectTransform>();
@@ -249,22 +327,18 @@ public static class CoreUpgradeUIBuilder
         popup.SetActive(false);
         SetRef(tso, "timeCatchPanel", popup);
 
-        // 파란 외곽 테두리 효과 (살짝 큰 배경)
         var border = MakeImage("Border", popup.transform,
             new Vector2(380, 500), Vector2.zero, Hex("1A4060", 180));
         border.transform.SetAsFirstSibling();
 
-        // ── 타이틀 ────────────────────────────────────────
         MakeTMP("Title", popup.transform,
             new Vector2(340, 45), new Vector2(0f, 210f),
             "TIME  CATCH", 26f, Hex("7DD4FC"),
             TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
 
-        // 타이틀 구분선
         MakeImage("TitleLine", popup.transform,
             new Vector2(320, 1), new Vector2(0f, 185f), Hex("1A4060", 200));
 
-        // ── 시계 영역 컨테이너 ────────────────────────────
         var clock = new GameObject("ClockArea", typeof(RectTransform));
         clock.transform.SetParent(popup.transform, false);
         var clockRt = clock.GetComponent<RectTransform>();
@@ -272,11 +346,9 @@ public static class CoreUpgradeUIBuilder
         clockRt.sizeDelta        = new Vector2(260, 260);
         clockRt.anchoredPosition = new Vector2(0f, 40f);
 
-        // 시계 어두운 배경 원
         MakeImage("ClockFace", clock.transform,
             new Vector2(260, 260), Vector2.zero, Hex("030A12", 255));
 
-        // 외곽 링 (Radial360 full, 얇은 청록 링)
         var outerRingGo = MakeImage("OuterRing", clock.transform,
             new Vector2(260, 260), Vector2.zero, Hex("7DD4FC", 90));
         var outerRingImg = outerRingGo.GetComponent<Image>();
@@ -285,22 +357,19 @@ public static class CoreUpgradeUIBuilder
         outerRingImg.fillAmount = 1f;
         SetRef(tso, "trackRingImage", outerRingImg);
 
-        // 성공 구간 아크 (Radial360, 초록, 12시 중앙)
         var zoneGo  = MakeImage("SuccessZone", clock.transform,
             new Vector2(260, 260), Vector2.zero, Hex("00E676", 220));
         var zoneImg = zoneGo.GetComponent<Image>();
         zoneImg.type       = Image.Type.Filled;
         zoneImg.fillMethod = Image.FillMethod.Radial360;
         zoneImg.fillOrigin = 2;           // Top
-        zoneImg.fillAmount = 60f / 360f;  // 기본 60°
+        zoneImg.fillAmount = 60f / 360f;
         zoneGo.transform.localRotation = Quaternion.Euler(0f, 0f, 30f);
         SetRef(tso, "successZoneImage", zoneImg);
 
-        // 내부 마스크 (도넛 효과)
         MakeImage("InnerMask", clock.transform,
             new Vector2(210, 210), Vector2.zero, Hex("030A12", 255));
 
-        // 12개 눈금
         for (int i = 0; i < 12; i++)
         {
             float  deg  = i * 30f;
@@ -318,26 +387,22 @@ public static class CoreUpgradeUIBuilder
             tick.transform.localRotation = Quaternion.Euler(0f, 0f, -deg);
         }
 
-        // 12시 성공 구간 강조 마커
         MakeImage("TopMarker", clock.transform,
             new Vector2(5f, 18f), new Vector2(0f, 108f), Hex("00E676", 255));
 
-        // 바늘 (pivot 하단 중앙 → 중심에서 위로 뻗음)
         var needleGo = new GameObject("Needle", typeof(RectTransform), typeof(Image));
         needleGo.transform.SetParent(clock.transform, false);
         var needleRt = needleGo.GetComponent<RectTransform>();
         needleRt.anchorMin = needleRt.anchorMax = new Vector2(0.5f, 0.5f);
-        needleRt.pivot     = new Vector2(0.5f, 0f);  // 하단 = 회전축
+        needleRt.pivot     = new Vector2(0.5f, 0f);
         needleRt.sizeDelta        = new Vector2(3f, 90f);
         needleRt.anchoredPosition = Vector2.zero;
         needleGo.GetComponent<Image>().color = Color.white;
         SetRef(tso, "needle", needleRt);
 
-        // 중심 핀
         MakeImage("CenterPin", clock.transform,
             new Vector2(10f, 10f), Vector2.zero, Hex("7DD4FC", 255));
 
-        // ── 확률 표시 ─────────────────────────────────────
         MakeImage("RateLine", popup.transform,
             new Vector2(320, 1), new Vector2(0f, -90f), Hex("1A4060", 200));
 
@@ -354,7 +419,6 @@ public static class CoreUpgradeUIBuilder
         bonusRate.fontStyle = FontStyles.Bold;
         SetRef(tso, "bonusRateText", bonusRate);
 
-        // ── 하단 안내 ─────────────────────────────────────
         MakeImage("GuideLine", popup.transform,
             new Vector2(320, 1), new Vector2(0f, -175f), Hex("1A4060", 200));
 
@@ -365,7 +429,6 @@ public static class CoreUpgradeUIBuilder
         guide.fontStyle = FontStyles.Bold;
         SetRef(tso, "guideText", guide);
 
-        // ── 결과 텍스트 ───────────────────────────────────
         var result = MakeTMP("ResultText", popup.transform,
             new Vector2(340, 40), new Vector2(0f, -205f),
             "", 22f, Hex("33CC66"), TextAlignmentOptions.Center);
@@ -375,7 +438,6 @@ public static class CoreUpgradeUIBuilder
 
         tso.ApplyModifiedProperties();
 
-        // CoreUpgradeUI 연결
         SetRef(coreSO, "timeCatch", tc);
     }
 
@@ -436,7 +498,6 @@ public static class CoreUpgradeUIBuilder
         go.GetComponent<Image>().color = bgColor;
         go.GetComponent<Button>().targetGraphic = go.GetComponent<Image>();
 
-        // TMP 텍스트 자식
         var txtGo = new GameObject("Text", typeof(RectTransform));
         txtGo.transform.SetParent(go.transform, false);
         var txtRt = txtGo.GetComponent<RectTransform>();
@@ -482,5 +543,47 @@ public static class CoreUpgradeUIBuilder
             return c;
         }
         return Color.white;
+    }
+
+    // ── 스프라이트 로드 (Sprite 임포트 타입 + 9-slice border 자동 설정 후 로드) ──
+    static Sprite LoadSpr(string name, int border = 0)
+        => LoadSprAt("Assets/Resources/CoreUI/sprites/" + name + ".png", border);
+
+    static Sprite LoadSprAt(string path, int border = 0)
+    {
+        var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (imp != null)
+        {
+            bool dirty = false;
+            if (imp.textureType != TextureImporterType.Sprite) { imp.textureType = TextureImporterType.Sprite; dirty = true; }
+            // UI 스프라이트는 압축 금지: DXT/BC 블록압축이 그라데이션·얇은선을 뭉개
+            // 고해상도 원본이어도 엔진에선 "블러"처럼 보인다.
+            if (imp.textureCompression != TextureImporterCompression.Uncompressed) { imp.textureCompression = TextureImporterCompression.Uncompressed; dirty = true; }
+            if (imp.mipmapEnabled) { imp.mipmapEnabled = false; dirty = true; }
+            if (imp.filterMode != FilterMode.Bilinear) { imp.filterMode = FilterMode.Bilinear; dirty = true; }
+            if (imp.maxTextureSize < 4096) { imp.maxTextureSize = 4096; dirty = true; }   // Panel_BG 2560 클램프 방지
+            if (border > 0)
+            {
+                var b = new Vector4(border, border, border, border);
+                if (imp.spriteBorder != b) { imp.spriteBorder = b; dirty = true; }
+            }
+            if (dirty) imp.SaveAndReimport();
+        }
+        else
+        {
+            Debug.LogWarning($"[UIBuilder] 스프라이트 없음: {path}");
+        }
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    static void SetSpr(GameObject go, Sprite spr, Image.Type type)
+    {
+        if (go == null || spr == null) return;
+        var img = go.GetComponent<Image>();
+        if (img == null) return;
+        img.sprite = spr;
+        img.type   = type;
+        img.color  = Color.white;
+        if (type == Image.Type.Simple) img.preserveAspect = true;
     }
 }
