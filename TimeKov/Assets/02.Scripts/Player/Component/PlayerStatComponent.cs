@@ -210,7 +210,20 @@ public class PlayerStatComponent : MonoBehaviour
     }
 
     // BaseZone���� ȣ��
-    public void SetInBase(bool inBase) => IsInBase = inBase;
+    public void SetInBase(bool inBase)
+    {
+        bool wasInBase = IsInBase;
+        IsInBase = inBase;
+        // 결계 안→밖 전이 시 1회 경고 (경계 들락날락 스팸은 쿨다운으로 억제)
+        if (wasInBase && !inBase && !IsDead
+            && Time.unscaledTime - _lastOutsideWarnTime > OutsideWarnCooldown)
+        {
+            _lastOutsideWarnTime = Time.unscaledTime;
+            ToastManager.Warning("결계 밖입니다. 시간이 줄어듭니다!");
+        }
+    }
+    private float _lastOutsideWarnTime = -999f;
+    private const float OutsideWarnCooldown = 8f;
 
     // ������ �� ȣ��  (hpPercent: 최대 HP 대비 부활 체력 비율. 1=풀피, 0.5=반피. 코어 강화로 MaxHp가 커져도 비율로 추적)
     public void Respawn(float hpPercent = 1f)

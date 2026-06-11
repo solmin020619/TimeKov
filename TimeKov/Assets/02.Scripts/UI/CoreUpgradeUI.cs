@@ -65,9 +65,9 @@ public class CoreUpgradeUI : MonoBehaviour
 
     // ── 타임 캐치 수치 (난이도) ───────────────────────────────────────
     [Header("타임 캐치 수치")]
-    [SerializeField] private float spinPeriod     = 1.18f;  // 바늘 1회전 (초)
-    [SerializeField] private float zoneHalfDeg    = 26f;    // 성공존 반각
-    [SerializeField] private float perfectHalfDeg = 8.8f;   // 퍼펙트존 반각
+    [SerializeField] private float spinPeriod     = 1.6f;   // 바늘 1회전 (초) — 처음엔 느긋하게
+    [SerializeField] private float zoneHalfDeg    = 32f;    // 성공존 반각 (넉넉히)
+    [SerializeField] private float perfectHalfDeg = 11f;    // 퍼펙트존 반각
     [SerializeField] private int   perfectBonusPct = 45;
     [SerializeField] private int   goodBonusPct    = 22;
     [SerializeField] private float spinTimeout     = 6f;    // 미정지 자동 미스
@@ -160,7 +160,11 @@ public class CoreUpgradeUI : MonoBehaviour
         panelRoot?.SetActive(true);
         ResetCatchVisual();
         Refresh();
+        GameEvents.RaiseCoreUIOpened();   // 튜토리얼 'F로 단말 열기' 감지용
     }
+
+    // 튜토리얼 objective(CoreOpenObjective)에서 현재 열림 상태 확인용
+    public bool IsOpen => IsPanelOpen();
 
     public void HidePanel()
     {

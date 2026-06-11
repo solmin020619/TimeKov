@@ -115,6 +115,7 @@ public static class CoreUpgradeUIBuilder
         // 하단 바 (재료 + 성공확률 + 게이지) — 행 간격 충분히 (겹침 방지)
         GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform,
             new Vector2(640, 110), new Vector2(0, -215), Hex("0B1422", 200));
+        AddHighlight(bottomBar, "core_upgrade_materials");   // 튜토 코치마크 대상 (재료/성공확률)
         GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform,
             new Vector2(48, 48), new Vector2(-288, 24), Hex("0D2040", 220));
         SetRef(so, "kitIconImage", kitIconGo.GetComponent<Image>());
@@ -143,6 +144,7 @@ public static class CoreUpgradeUIBuilder
             new Vector2(360, 60), new Vector2(0, -312), "강화 시작", 20, Hex("2F9BE0"));
         SetRef(so, "upgradeButton",     upgradeBtn.GetComponent<Button>());
         SetRef(so, "upgradeButtonText", upgradeBtn.GetComponentInChildren<TextMeshProUGUI>());
+        AddHighlight(upgradeBtn, "core_upgrade_button");   // 튜토 코치마크 대상 (강화 버튼)
 
         // ── MAX 그룹 ──
         GameObject maxGroup = MakeEmpty("MaxLevelGroup", panel.transform);
@@ -585,5 +587,16 @@ public static class CoreUpgradeUIBuilder
         img.type   = type;
         img.color  = Color.white;
         if (type == Image.Type.Simple) img.preserveAspect = true;
+    }
+
+    // 튜토리얼 코치마크(스포트라이트) 대상으로 등록되도록 TutorialHighlightTarget 부착 + id 설정
+    static void AddHighlight(GameObject go, string id)
+    {
+        if (go == null) return;
+        var h = go.GetComponent<TutorialHighlightTarget>();
+        if (h == null) h = go.AddComponent<TutorialHighlightTarget>();
+        var hso = new SerializedObject(h);
+        var prop = hso.FindProperty("id");
+        if (prop != null) { prop.stringValue = id; hso.ApplyModifiedProperties(); }
     }
 }

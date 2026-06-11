@@ -11,6 +11,32 @@ public class CoreUpgradeTerminal : MonoBehaviour, IInteractable
     // IInteractable — 항상 상호작용 표시 (기지 내부 조건은 Interact 안에서 검사)
     public bool CanInteract => true;
 
+    // 튜토리얼: '코어 단말 열기' 퀘스트 활성 시 위치 화살표 안내
+    private bool _arrowShown = false;
+    private void Update()
+    {
+        var mgr = TimeKov.UI.HintArrowManager.I;
+        if (mgr == null) return;
+        bool show = IsCoreOpenQuestActive();
+        if (show == _arrowShown) return;
+        _arrowShown = show;
+        if (show) mgr.Show("core_terminal_hint", transform, 0f);
+        else       mgr.Hide("core_terminal_hint");
+    }
+
+    private bool IsCoreOpenQuestActive()
+    {
+        var qm = QuestManager.Instance;
+        if (qm == null || !qm.IsReady) return false;
+        foreach (var rt in qm.Runtimes)
+        {
+            if (rt?.activeObjectives == null) continue;
+            foreach (var obj in rt.activeObjectives)
+                if (obj is CoreOpenObjective && !obj.IsCompleted) return true;
+        }
+        return false;
+    }
+
     public void Interact(Player player)
     {
         if (player == null) return;

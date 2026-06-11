@@ -36,6 +36,8 @@ public static class TutorialAssetBuilder
     // ── 스포트라이트 타깃 id (씬 UI 요소의 TutorialHighlightTarget 와 매칭) ──
     const string TargetMachineInput = "machine_input";   // 머신 재료 슬롯
     const string TargetCoreUpgrade  = "core_upgrade";    // 코어 강화 버튼/패널
+    const string TargetCoreUpgradeButton    = "core_upgrade_button";    // 강화 시작 버튼
+    const string TargetCoreUpgradeMaterials = "core_upgrade_materials"; // 코어 키트/성공확률 바
     const string TargetFuelSlot     = "fuel_slot";       // 설비 연료 슬롯
     const string TargetTimeBar      = "time_bar";        // 좌하단 시간/DECAY 막대
     const string TargetStatPanel    = "status_panel";    // C 스탯 창
@@ -151,21 +153,21 @@ public static class TutorialAssetBuilder
         // Q7b. [안내 + 스포트라이트] 연료 설명
         quests.Add(BuildQuest("quest_tut_07b_fuel_info", "연료 안내",
             CreateContinue("obj_fuel_info",
-                $"설비는 {Y}연료{E}가 있어야 가동됩니다. {Y}연료 슬롯{E}에 {Y}나뭇가지{E}를 넣으세요. (연료는 {Y}오크 트리{E} 처치로 보충)", TargetFuelSlot)));
+                $"설비는 {Y}연료{E}가 있어야 가동됩니다. {Y}인벤토리(TAB){E}에서 {Y}나뭇가지{E}를 {Y}연료 슬롯으로 끌어다 놓으세요{E}. (연료는 {Y}오크 트리{E} 처치로 보충)", TargetFuelSlot)));
 
         // Q7c. 연료 투입 (게이트)
         quests.Add(BuildQuest("quest_tut_07c_fuel_add", "연료 투입",
-            CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}에 {Y}투입{E}하세요.", BioExtractorId)));
+            CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId)));
 
         // Q8. [안내 + 스포트라이트] 재료 슬롯 강조
         quests.Add(BuildQuest("quest_tut_08_input_info", "재료 투입 안내",
             CreateContinue("obj_input_info",
-                $"이곳에 {Y}재료{E}를 넣으면 설비가 {Y}가공{E}을 시작합니다.", TargetMachineInput)));
+                $"{Y}인벤토리{E}에서 {Y}재료{E}를 이 슬롯으로 {Y}드래그{E}하면 설비가 {Y}가공{E}을 시작합니다.", TargetMachineInput)));
 
         // Q9. 재료 투입 [병렬] (R1201: 거미독액 + 부식액 -> 회복젤)
         quests.Add(BuildQuest("quest_tut_09_input_materials", "재료 투입",
-            CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 {Y}투입{E}하세요.", BioExtractorId, ItemSpiderVenom, 1),
-            CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 {Y}투입{E}하세요.", BioExtractorId, ItemCorrosive, 1)));
+            CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 슬롯으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemSpiderVenom, 1),
+            CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 슬롯으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemCorrosive, 1)));
 
         // Q9b. [안내 + 스포트라이트] 출력/받기 강조
         quests.Add(BuildQuest("quest_tut_09b_output_info", "결과물 받기 안내",
@@ -191,7 +193,7 @@ public static class TutorialAssetBuilder
         // Q12. 배양기 가공 [병렬]
         quests.Add(BuildQuest("quest_tut_12_cultivate", "회복 젤 가공",
             CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 {Y}생체 배양기{E}를 여세요.", BioCultivatorId, 1),
-            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 {Y}투입{E}하세요.", BioCultivatorId, ItemHealGel, 1)));
+            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 슬롯으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
 
         // Q13. 앰플 회수 + 사용 [병렬]
         quests.Add(BuildQuest("quest_tut_13_ampoule", "회복 앰플 완성",
@@ -214,15 +216,38 @@ public static class TutorialAssetBuilder
 
         // (저장고 #8 = 있으면 좋고 없으면 말고 → 튜토리얼 필수에서 제외. 마무리(Q21)에서 "숨겨진 설비 찾기"로 안내.)
 
-        // [보류] 코어 강화 튜토(옛 Q19 안내 + Q20 강화)는 방식 전면 개편 예정이라 현재 제외.
-        // 새 플로우(추후 구현, 지금은 만들지 말 것): (1) 코어강화 위치로 이동(마커) + 완료보상으로 코어 키트 3개
-        // (2) F로 단말 열기 (3) 열리면 UI 강조 + 효과 설명(체력↑/단계별 필요한 코어 다름/코어 제작처/스타포스식 강화 등)
-        // (4) 끝나면 체력바 강조로 최대치 변화 인지. ※코어 UI는 교체 예정이라 그에 맞춰 구현.
+        // ── 코어 강화 (마커 안내 → F로 열기 → 코치마크 → 강화 → 체력바 강조) ──
+        // Q17. 코어 강화 단말로 이동 (마커) + 완료 보상 코어 키트 3개 → 바로 강화 체험
+        var qReachCore = BuildQuest("quest_tut_17_reach_core", "코어 강화 단말로 이동",
+            CreateReachTrigger("obj_reach_core", $"{Y}코어 강화 단말{E}이 있는 곳으로 {Y}이동{E}하세요.", "core_terminal"));
+        qReachCore.rewards = new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } };
+        EditorUtility.SetDirty(qReachCore);
+        quests.Add(qReachCore);
+
+        // Q18. F로 코어 강화 단말 열기
+        quests.Add(BuildQuest("quest_tut_18_open_core", "코어 강화 단말 열기",
+            CreateCoreOpen("obj_open_core", $"{Y}F{E}로 {Y}코어 강화 단말{E}을 여세요.")));
+
+        // Q19. [안내] 코어 강화 방법 — 코치마크 (재료/합성기/시계·Space)
+        quests.Add(BuildQuest("quest_tut_19_core_tour", "코어 강화 방법",
+            CreateGuidedTour("obj_core_tour",
+                TourStep($"{Y}코어 강화{E}로 {Y}최대 시간(체력){E}을 늘릴 수 있습니다. 단계가 오를수록 더 많은 {Y}코어 키트{E}가 필요해요."),
+                TourStep($"강화엔 {Y}코어 키트{E}가 필요합니다({Y}코어 합성기{E}에서 제작). 강화는 {Y}성공·실패와 무관하게 키트를 소모{E}하니, 오른쪽 {Y}성공 확률{E}을 꼭 확인하세요.", TargetCoreUpgradeMaterials),
+                TourStep($"{Y}강화 시작{E}을 누르면 코어가 {Y}시계{E}로 바뀝니다. 바늘이 {Y}초록 성공존{E}에 올 때 {Y}정지! 버튼(또는 Space){E}으로 멈추면 성공 확률이 오릅니다!", TargetCoreUpgradeButton))));
+
+        // Q20. 코어 강화 시도 (성공/실패 무관 1회)
+        quests.Add(BuildQuest("quest_tut_20_core_upgrade", "코어 강화",
+            CreateCoreUpgrade("obj_core_upgrade", $"{Y}강화 시작{E}을 누르고 {Y}정지! 버튼{E}으로 멈춰 코어를 강화해 보세요.", 0)));
+
+        // Q20b. [안내] 강화 결과 — 체력바 강조로 최대치 증가 인지
+        quests.Add(BuildQuest("quest_tut_20b_core_result", "강화 결과 확인",
+            CreateContinue("obj_core_result",
+                $"{Y}최대 시간{E}이 늘었습니다! 코어를 계속 {Y}강화{E}해 더 오래 버티세요.", TargetTimeBar)));
 
         // Q21. [안내] 마무리 (숨겨진 설비 안내는 건설투어에서 함)
         quests.Add(BuildQuest("quest_tut_21_finish", "튜토리얼 완료",
             CreateContinue("obj_finish",
-                $"{Y}튜토리얼 완료!{E} {Y}코어 키트{E}는 {Y}코어 합성기{E}에서 제작할 수 있어요. 이제 자유롭게 기지를 키워보세요!")));
+                $"{Y}튜토리얼 완료!{E} 코어를 계속 강화하려면 {Y}코어 키트{E}가 필요한데, {Y}코어 합성기{E}를 찾아 해금하면 직접 만들 수 있어요. 이제 자유롭게 기지를 키워보세요!")));
 
         // CategorySO (GUID 유지)
         string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
@@ -388,6 +413,14 @@ public static class TutorialAssetBuilder
     {
         var o = ScriptableObject.CreateInstance<CoreUpgradeObjective>();
         o.label = label; o.targetLevel = targetLevel;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static CoreOpenObjective CreateCoreOpen(string name, string label)
+    {
+        var o = ScriptableObject.CreateInstance<CoreOpenObjective>();
+        o.label = label;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }

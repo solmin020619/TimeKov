@@ -64,8 +64,10 @@ public class RespawnManager : MonoBehaviour
         _player.Anim.PlayDie();
         _player.Movement.LockMovement(true);
 
-        // 2. 사망 즉시 아이템 드롭
-        if (DropItemsOnDeath)
+        // 2. 사망 즉시 아이템 드롭 — 단, 튜토리얼 진행 중에는 OFF
+        //    (주운 재료를 흘려 후속 투입/강화 퀘가 막히는 소프트락 방지)
+        bool tutorialActive = QuestManager.Instance != null && QuestManager.Instance.IsTutorialActive;
+        if (DropItemsOnDeath && !tutorialActive)
             DropInventoryItems();
 
         // 3. DEFEAT 오버레이 표시 + 카운트다운 후 버튼 활성화
