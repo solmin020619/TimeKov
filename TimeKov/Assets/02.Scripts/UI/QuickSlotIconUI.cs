@@ -111,6 +111,7 @@ public class QuickSlotIconUI : MonoBehaviour
         if (!_pending) return;
         EnsureBuilt();
         if (_unlockCo != null) StopCoroutine(_unlockCo);
+        ResetAnimTransforms();   // 재진입 시 이전 연출 잔여 트윈/변형 제거 (각도 고정 버그 방지)
         _unlockCo = StartCoroutine(UnlockRoutine(delay));
     }
 
@@ -139,6 +140,52 @@ public class QuickSlotIconUI : MonoBehaviour
     private void OnDestroy()
     {
         TutorialOverlay.UnregisterTarget("quick_slots", SpotlightRect);
+    }
+
+    private void OnEnable()
+    {
+        // 비활성화 중 마무리된 상태(또는 외부 변경)를 다시 보이게 반영
+        if (_built) ApplyState();
+    }
+
+    private void OnDisable()
+    {
+        // 해금 연출 도중 퀵슬롯 바가 꺼지면(빌드모드 B 토글 등) DOTween 트윈이 끊겨
+        // _skin이 회전/스케일/위치가 틀어진 채 고정되는 버그 방지.
+        // 진행 중이던 연출은 즉시 해금 완료 상태로 스냅한다.
+        if (_unlockCo != null)
+        {
+            StopCoroutine(_unlockCo);
+            _unlockCo = null;
+            _state = SlotState.Active;
+            _pending = false;
+        }
+        ResetAnimTransforms();
+    }
+
+    // 해금 연출이 건드리는 트윈/트랜스폼을 전부 죽이고 기본 상태로 되돌린다.
+    private void ResetAnimTransforms()
+    {
+        if (_skin != null)
+        {
+            _skin.DOKill();
+            _skin.localRotation   = Quaternion.identity;
+            _skin.localScale      = Vector3.one;
+            _skin.anchoredPosition = Vector2.zero;
+        }
+        if (_lock != null)
+        {
+            _lock.transform.DOKill();
+            _lock.DOKill();
+            _lock.transform.localScale    = Vector3.one;
+            _lock.transform.localRotation = Quaternion.identity;
+            var c = _lock.color; c.a = 1f; _lock.color = c;
+        }
+        if (_facility != null)
+        {
+            _facility.transform.DOKill();
+            _facility.transform.localScale = Vector3.one;
+        }
     }
 
     // ── 스킨 생성 ───────────────────────────────────────────────────────
