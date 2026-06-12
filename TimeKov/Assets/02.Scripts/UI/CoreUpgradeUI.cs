@@ -98,6 +98,10 @@ public class CoreUpgradeUI : MonoBehaviour
     [SerializeField] private Color failFlashColor    = new Color(1f,    0.38f, 0.41f, 0.35f);
     private Image _flashOverlay;   // 런타임 생성 전체화면 플래시
 
+    // 부가 스탯(부활/흡수) 행 — 런타임 생성(빌더 재실행 불필요, 현재 패널 위에 얹음)
+    private bool _extraStatsBuilt;
+    private TextMeshProUGUI _curRespawnText, _curLifestealText, _nextRespawnText, _nextLifestealText;
+
     // ── 내부 ──────────────────────────────────────────────────────────
     private enum CatchPhase { Idle, Spin, Judge, Result }
     private CatchPhase _phase = CatchPhase.Idle;
@@ -214,12 +218,28 @@ public class CoreUpgradeUI : MonoBehaviour
         if (maxLevelGroup    != null) maxLevelGroup.SetActive(isMax);
 
         if (cur != null) SetText(currentTimeText, $"{cur.maxTime}s");
+
+        // 부가 스탯(부활/흡수) — 현재 레벨 값
+        BuildExtraStatRows();
+        int lv = mgr.CurrentCoreLevel;
+        if (_curRespawnText != null)
+        {
+            _curRespawnText.text   = $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv))}";
+            _curLifestealText.text = $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv))}";
+        }
+
         if (isMax) return;
 
         if (next != null && cur != null)
         {
             SetText(nextTimeText, $"{next.maxTime}s");
             SetDelta(deltaTimeText, next.maxTime - cur.maxTime, "s");
+
+            if (_nextRespawnText != null)
+            {
+                _nextRespawnText.text   = $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv + 1))}";
+                _nextLifestealText.text = $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv + 1))}";
+            }
         }
         RefreshKitPanel(mgr, next);
     }
@@ -618,6 +638,57 @@ public class CoreUpgradeUI : MonoBehaviour
     // ── 헬퍼 ──────────────────────────────────────────────────────────
 
     private bool IsPanelOpen() => panelRoot != null && panelRoot.activeSelf;
+
+    private static string Pct(float f) => $"{Mathf.RoundToInt(f * 100f)}%";
+
+    // 현재/강화후 카드에 부활·흡수 두 줄을 런타임 생성 (빌더 재실행 없이 현재 패널 위에 얹음)
+    private void BuildExtraStatRows()
+    {
+        if (_extraStatsBuilt) return;
+        if (currentTimeText == null || nextTimeText == null) return;
+
+        var leftCard  = currentTimeText.transform.parent as RectTransform;
+        var rightCard = nextTimeText.transform.parent as RectTransform;
+        if (leftCard == null || rightCard == null) return;
+
+        _extraStatsBuilt = true;
+
+        EnlargeCard(leftCard);
+        EnlargeCard(rightCard);
+
+        Color sub = new Color(0.68f, 0.75f, 0.82f);   // 현재(보조)
+        Color hi  = new Color(0.68f, 0.89f, 1f);      // 강화 후(강조)
+
+        _curRespawnText    = MakeStatRow(leftCard,  -92f,  sub);
+        _curLifestealText  = MakeStatRow(leftCard,  -120f, sub);
+        _nextRespawnText   = MakeStatRow(rightCard, -92f,  hi);
+        _nextLifestealText = MakeStatRow(rightCard, -120f, hi);
+    }
+
+    private static void EnlargeCard(RectTransform card)
+    {
+        var s = card.sizeDelta;
+        if (s.y < 280f) card.sizeDelta = new Vector2(s.x, 290f);
+    }
+
+    private TextMeshProUGUI MakeStatRow(RectTransform parent, float y, Color color)
+    {
+        var go = new GameObject("StatRow", typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(parent, false);
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(250f, 26f);
+        rt.anchoredPosition = new Vector2(0f, y);
+
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        if (currentTimeText.font != null) tmp.font = currentTimeText.font;
+        tmp.fontSize  = 18;
+        tmp.color     = color;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.raycastTarget = false;
+        return tmp;
+    }
 
     private void SetText(TextMeshProUGUI tmp, string value)
     {

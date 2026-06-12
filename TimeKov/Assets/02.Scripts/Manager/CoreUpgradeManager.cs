@@ -198,16 +198,24 @@ public class CoreUpgradeManager : MonoBehaviour
     }
 
     /// <summary>현재 코어 레벨의 0~1 진행도 (0 = Lv.0, 1 = 최대 레벨).</summary>
-    public float LevelProgress => MAX_LEVEL <= 0 ? 0f : (float)CurrentCoreLevel / MAX_LEVEL;
+    public float LevelProgress => LevelProgressAt(CurrentCoreLevel);
 
     /// <summary>최대 코어 레벨.</summary>
     public int MaxLevel => MAX_LEVEL;
 
+    private float LevelProgressAt(int level) => MAX_LEVEL <= 0 ? 0f : Mathf.Clamp01((float)level / MAX_LEVEL);
+
     /// <summary>몬스터 처치 시 흡수할 체력(시간) 비율(최대HP 대비). 코어 레벨이 오를수록 증가.</summary>
-    public float GetLifestealPercent() => Mathf.Lerp(lifestealPercentAtLv0, lifestealPercentAtMax, LevelProgress);
+    public float GetLifestealPercent() => GetLifestealPercentAt(CurrentCoreLevel);
 
     /// <summary>부활 시 회복할 체력 비율. 코어 레벨이 오를수록 증가(최종 레벨 = 풀피).</summary>
-    public float GetRespawnHpPercent() => Mathf.Lerp(respawnHpPercentAtLv0, respawnHpPercentAtMax, LevelProgress);
+    public float GetRespawnHpPercent() => GetRespawnHpPercentAt(CurrentCoreLevel);
+
+    /// <summary>특정 레벨의 흡수율 (UI에서 현재/강화후 비교용).</summary>
+    public float GetLifestealPercentAt(int level) => Mathf.Lerp(lifestealPercentAtLv0, lifestealPercentAtMax, LevelProgressAt(level));
+
+    /// <summary>특정 레벨의 부활 체력 비율 (UI에서 현재/강화후 비교용).</summary>
+    public float GetRespawnHpPercentAt(int level) => Mathf.Lerp(respawnHpPercentAtLv0, respawnHpPercentAtMax, LevelProgressAt(level));
 
     /// <summary>가방 + 창고 합산 보유 수량 반환.</summary>
     public int GetTotalKitCount(int itemId)
