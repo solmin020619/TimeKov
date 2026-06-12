@@ -15,8 +15,9 @@ public class LootBoxCollectFlyer : MonoBehaviour
     private float _elapsed;
     private float _linger;
     private bool _arrived;
+    private System.Action _onArrived;   // 플레이어 몸에 닿는 순간 1회 호출 (예: 체력 흡수)
 
-    public void Begin(Transform target, float flyTime, float targetHeight)
+    public void Begin(Transform target, float flyTime, float targetHeight, System.Action onArrived = null, float scatter = 0.3f)
     {
         _target = target;
         _start = transform.position;
@@ -25,9 +26,10 @@ public class LootBoxCollectFlyer : MonoBehaviour
         _elapsed = 0f;
         _linger = LingerTime;
         _arrived = false;
+        _onArrived = onArrived;
 
-        // 플레이어 몸 중앙 근처의 살짝씩 다른 지점 — 여러 개가 한 점에 안 뭉치게
-        Vector3 r = Random.insideUnitSphere * 0.3f;
+        // 목표 지점 근처의 살짝씩 다른 지점 — 여러 개가 한 점에 안 뭉치게 (scatter=0이면 정확히 한 점)
+        Vector3 r = Random.insideUnitSphere * scatter;
         _targetOffset = new Vector3(r.x, targetHeight + r.y, r.z);
     }
 
@@ -43,7 +45,7 @@ public class LootBoxCollectFlyer : MonoBehaviour
 
         if (_target == null)
         {
-            _arrived = true;
+            Arrive();
             return;
         }
 
@@ -61,7 +63,17 @@ public class LootBoxCollectFlyer : MonoBehaviour
         if (t >= 1f)
         {
             transform.localScale = Vector3.zero;
-            _arrived = true;
+            Arrive();
         }
+    }
+
+    // 도착 처리: 1회만 onArrived 발화 후 linger 단계로
+    void Arrive()
+    {
+        if (_arrived) return;
+        _arrived = true;
+        var cb = _onArrived;
+        _onArrived = null;
+        cb?.Invoke();
     }
 }

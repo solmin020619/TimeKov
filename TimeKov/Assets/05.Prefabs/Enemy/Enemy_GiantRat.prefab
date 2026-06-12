@@ -94,8 +94,33 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 592508339822526650, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
       insertIndex: -1
       addedObject: {fileID: 9150095020065651735}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8765979620077600285, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -3477033682786217435}
   m_SourcePrefab: {fileID: 100100000, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+--- !u!1 &3796608734151977979 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8765979620077600285, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+  m_PrefabInstance: {fileID: 5554987291024283110}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &-3477033682786217435
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3796608734151977979}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b94666fba6d414dbb2eb6567d2a242, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbVfxPrefab: {fileID: 1652120292757738852, guid: 4ad361e05246d6d4eb78bae170440ae5, type: 3}
+  flyTime: 0.55
+  targetHeight: 1
+  spawnHeight: 1
+  fallbackLifestealPercent: 0.03
 --- !u!4 &4984997361674343772 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 592508339822526650, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
