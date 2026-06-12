@@ -1,14 +1,16 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// 맵에 배치하는 설비 해금 픽업 오브젝트.
-/// - 가까이 가면 hintUI 표시 + 아웃라인 ON
-/// - 다른 UI(설정·인벤 등) 열리면 hintUI 즉시 숨김
-/// - F키 → 깜빡임 → 해금 → 스르륵 사라짐
+/// - 가까이 가면 hintUI(이름) 표시 + 아웃라인 ON
+/// - 파밍 상자와 동일한 방식: F로 "걸어두면" openTime초 뒤 '수령 가능'(자리 비워도 카운트),
+///   돌아와서 F로 해금. 기다리기 싫으면 G로 즉시완료(HP=시간 소모).
+/// - 해금 시 깜빡임 → 스르륵 사라짐.
 /// </summary>
-public class FacilityUnlockPickup : MonoBehaviour, IInteractable
+public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
 {
     [Header("해금 설정")]
     [SerializeField] private int facilityId;
@@ -19,6 +21,12 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
     [Tooltip("힌트 UI / 아웃라인 표시 거리 (m)")]
     [SerializeField] private float hintRadius = 3f;
 
+    [Header("해금 대기 / 즉시완료 (파밍 상자와 동일)")]
+    [Tooltip("F로 걸어두면 이 시간(초) 뒤 '해금 가능'이 된다. 자리를 비워도 카운트됨.")]
+    [SerializeField] private float openTimeSeconds = 20f;
+    [Tooltip("즉시완료(G) 시 소모 HP = openTime * 이 배율. 2면 20초 설비에 40HP(=40초) 소모.")]
+    [SerializeField] private float instantHpCostMultiplier = 2f;
+
     [Header("깜빡임 효과")]
     [SerializeField] private float flashDuration = 0.4f;
     [SerializeField] private int   flashCount    = 3;
@@ -27,19 +35,36 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
     [SerializeField] private float vanishDuration = 0.7f;
     [SerializeField] private AnimationCurve vanishCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
+    [Header("상태 표시 (임시 — 디자인 나오면 교체)")]
+    [SerializeField] private float indicatorHeight = 1.9f;
+    [SerializeField] private float indicatorWidthPx = 180f;
+
     [Header("시야 체크")]
     [Tooltip("플레이어 눈높이 오프셋 (m)")]
     [SerializeField] private float playerEyeHeight = 1.4f;
 
     // ─────────────────────────────────────────────────────────────
 
+    // 파밍 상자와 동일한 상태머신
+    private enum State { Idle, Opening, Ready }
+    private State _state = State.Idle;
+    private float _timer;
+
     private bool              _collected    = false;
-    private bool              _interacting  = false;
+    private bool              _interacting  = false;  // 최종 해금 연출 중
     private bool              _playerNearby = false;
-    private bool              _tmpInitialized = false;  // TMP Awake() 실행 여부
+    private bool              _tmpInitialized = false;
     private Outline[]         _outlines;
     private FacilitySelectRow _row;
     private Transform         _playerTransform;
+
+    private float InstantCost => Mathf.Max(0f, openTimeSeconds * instantHpCostMultiplier);
+
+    // 진행 상태 표시 UI (런타임 생성)
+    private RectTransform _indRoot;
+    private Image         _indFill;
+    private TMP_Text      _indText;
+    private Transform     _camTr;
 
     private void Awake()
     {
@@ -98,6 +123,22 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
         // 해금 퀘스트가 이 설비를 가리키는 동안 위치 화살표 안내 (거리 무관 — 멀리서도 찾게)
         UpdateUnlockArrow();
 
+        // ── 해금 타이머 진행 (자리 비워도 카운트) ─────────────────────
+        if (_state == State.Opening)
+        {
+            _timer -= Time.deltaTime;
+            if (_timer <= 0f)
+            {
+                _timer = 0f;
+                _state = State.Ready;
+            }
+            RefreshIndicator();
+        }
+        else if (_state == State.Ready)
+        {
+            RefreshIndicator();
+        }
+
         // 다른 UI가 열려 있으면 강제 숨김
         bool uiBlocking = GameUIController.Instance != null
                        && GameUIController.Instance.IsUIBlocking();
@@ -133,8 +174,8 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
         }
     }
 
-    // ── IInteractable ─────────────────────────────────────────────
-
+    // ── IInteractable (F 상호작용) ────────────────────────────────
+    // 해금 안 됐고 해금 연출 중이 아니면 항상 상호작용 가능 (Opening 중에도 G 디스패치 위해 true 유지)
     public bool CanInteract =>
         !_collected && !_interacting
         && FacilityUnlockManager.Instance != null
@@ -142,10 +183,54 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
 
     public void Interact(Player player)
     {
-        if (!CanInteract) return;
+        if (!CanInteract || player == null) return;
+
+        switch (_state)
+        {
+            case State.Idle:
+                _state = State.Opening;   // F로 걸어두기
+                _timer = openTimeSeconds;
+                RefreshIndicator();
+                break;
+
+            case State.Opening:
+                // 이미 여는 중 — 그냥 대기 (아무것도 안 함)
+                break;
+
+            case State.Ready:
+                BeginUnlock();            // 다시 와서 F → 해금
+                break;
+        }
+    }
+
+    // ── IInstantInteractable (G 즉시완료) ─────────────────────────
+    public bool CanInstantComplete(Player player)
+    {
+        if (player == null) return false;
+        if (_state != State.Idle && _state != State.Opening) return false;
+        return player.Stat.CurrentHp > InstantCost; // 비용보다 많아야 (즉시완료로 죽지 않게)
+    }
+
+    public void OnInstantComplete(Player player)
+    {
+        if (player == null || !CanInstantComplete(player))
+        {
+            Debug.Log("[FacilityUnlockPickup] 즉시완료 불가 — 시간(HP) 부족.");
+            return;
+        }
+        player.Stat.SpendHp(InstantCost);
+        BeginUnlock();
+    }
+
+    // ── 해금 시작 (깜빡임 → 해금 → 사라짐) ────────────────────────
+    private void BeginUnlock()
+    {
+        if (_interacting) return;
         _interacting = true;
         _arrowShown = false;
         TimeKov.UI.HintArrowManager.I?.Hide("facility_pickup_" + facilityId);
+        HideIndicator();
+        if (hintUI != null) hintUI.SetActive(false);
         StartCoroutine(FlashThenUnlock());
     }
 
@@ -222,6 +307,99 @@ public class FacilityUnlockPickup : MonoBehaviour, IInteractable
         }
 
         Destroy(gameObject);
+    }
+
+    // ── 진행 상태 표시 (파밍 상자와 동일한 placeholder) ───────────
+    private void RefreshIndicator()
+    {
+        if (_state == State.Opening)
+        {
+            EnsureIndicator();
+            _indRoot.gameObject.SetActive(true);
+            if (_indFill != null) _indFill.fillAmount = openTimeSeconds > 0f ? 1f - _timer / openTimeSeconds : 1f;
+            if (_indText != null) _indText.text = $"해금 중 {Mathf.CeilToInt(_timer)}초\nG 즉시 (HP -{Mathf.CeilToInt(InstantCost)})";
+        }
+        else if (_state == State.Ready)
+        {
+            EnsureIndicator();
+            _indRoot.gameObject.SetActive(true);
+            if (_indFill != null) _indFill.fillAmount = 1f;
+            if (_indText != null) _indText.text = "F 로 해금";
+        }
+        else
+        {
+            HideIndicator();
+        }
+    }
+
+    private void HideIndicator()
+    {
+        if (_indRoot != null) _indRoot.gameObject.SetActive(false);
+    }
+
+    private void EnsureIndicator()
+    {
+        if (_indRoot != null) return;
+
+        var go = new GameObject("UnlockStatusUI");
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = Vector3.up * indicatorHeight;
+        var canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        _indRoot = (RectTransform)go.transform;
+        _indRoot.sizeDelta = new Vector2(indicatorWidthPx, 64f);
+        _indRoot.localScale = Vector3.one * 0.01f;
+
+        // 텍스트 (위)
+        var txtGo = new GameObject("Text", typeof(RectTransform));
+        var trt = (RectTransform)txtGo.transform;
+        trt.SetParent(_indRoot, false);
+        trt.anchorMin = new Vector2(0, 0); trt.anchorMax = new Vector2(1, 1);
+        trt.offsetMin = new Vector2(0, 14); trt.offsetMax = Vector2.zero;
+        _indText = txtGo.AddComponent<TextMeshProUGUI>();
+        _indText.alignment = TextAlignmentOptions.Bottom;
+        _indText.fontSize = 16f;
+        _indText.color = new Color(1f, 0.86f, 0.4f, 1f);
+        _indText.fontStyle = FontStyles.Bold;
+        _indText.raycastTarget = false;
+
+        // 진행 바 (아래)
+        var bgGo = new GameObject("BarBG", typeof(RectTransform));
+        var brt = (RectTransform)bgGo.transform;
+        brt.SetParent(_indRoot, false);
+        brt.anchorMin = new Vector2(0, 0); brt.anchorMax = new Vector2(1, 0); brt.pivot = new Vector2(0.5f, 0f);
+        brt.sizeDelta = new Vector2(-10, 10); brt.anchoredPosition = Vector2.zero;
+        var bg = bgGo.AddComponent<Image>();
+        bg.color = new Color(0.05f, 0.07f, 0.1f, 0.8f);
+        bg.raycastTarget = false;
+
+        var fillGo = new GameObject("BarFill", typeof(RectTransform));
+        var frt = (RectTransform)fillGo.transform;
+        frt.SetParent(bgGo.transform, false);
+        frt.anchorMin = Vector2.zero; frt.anchorMax = Vector2.one;
+        frt.offsetMin = Vector2.zero; frt.offsetMax = Vector2.zero;
+        _indFill = fillGo.AddComponent<Image>();
+        _indFill.sprite = UISpriteFactory.RoundedRect(16, 4);
+        _indFill.type = Image.Type.Filled;
+        _indFill.fillMethod = Image.FillMethod.Horizontal;
+        _indFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        _indFill.color = new Color(1f, 0.78f, 0.18f, 1f);
+        _indFill.fillAmount = 0f;
+        _indFill.raycastTarget = false;
+
+        _indRoot.gameObject.SetActive(false);
+    }
+
+    private void LateUpdate()
+    {
+        if (_indRoot == null || !_indRoot.gameObject.activeSelf) return;
+        if (_camTr == null)
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            _camTr = cam.transform;
+        }
+        _indRoot.forward = _camTr.forward;
     }
 
     // ── 시야 체크 ────────────────────────────────────────────────
