@@ -6,6 +6,7 @@
 // =====================================================================
 
 using System.Collections;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -90,6 +91,12 @@ public class CoreUpgradeUI : MonoBehaviour
     [SerializeField] private Color perfectColor    = new Color(1f,   0.84f, 0.42f);
     [SerializeField] private Color goodColor       = new Color(0.27f,0.88f, 0.54f);
     [SerializeField] private Color missColor       = new Color(1f,   0.38f, 0.41f);
+
+    // ── 결과 연출 ─────────────────────────────────────────────────────
+    [Header("결과 연출")]
+    [SerializeField] private Color successFlashColor = new Color(0.27f, 0.88f, 0.54f, 0.35f);
+    [SerializeField] private Color failFlashColor    = new Color(1f,    0.38f, 0.41f, 0.35f);
+    private Image _flashOverlay;   // 런타임 생성 전체화면 플래시
 
     // ── 내부 ──────────────────────────────────────────────────────────
     private enum CatchPhase { Idle, Spin, Judge, Result }
@@ -368,6 +375,7 @@ public class CoreUpgradeUI : MonoBehaviour
 
         ShowJudgeChip(tier, bonus, chipColor);
         SetButtonBusyMode();
+        AnimateGaugeToEffective(bonus);   // 미니게임 보너스만큼 게이지 차오름
 
         if (_seqCo != null) StopCoroutine(_seqCo);
         _seqCo = StartCoroutine(JudgeThenResult(bonus));
@@ -382,6 +390,7 @@ public class CoreUpgradeUI : MonoBehaviour
 
         _phase = CatchPhase.Result;
         ShowFeedback(success ? "강화 성공!" : "강화 실패", success ? deltaColor : shortageColor);
+        PlayResultEffect(success);   // 플래시 + 펀치 + 성공 버스트 / 실패 흔들림
 
         yield return new WaitForSecondsRealtime(resultHold);
 
@@ -469,6 +478,122 @@ public class CoreUpgradeUI : MonoBehaviour
         if (spinHint != null) spinHint.SetActive(false);
         if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
         if (clockNeedle != null) clockNeedle.localRotation = Quaternion.identity;
+
+        // 결과 연출 잔여 정리
+        if (gaugeFill != null) gaugeFill.DOKill();
+        if (feedbackText != null) { feedbackText.transform.DOKill(); feedbackText.transform.localScale = Vector3.one; }
+        if (_flashOverlay != null) { _flashOverlay.DOKill(); _flashOverlay.gameObject.SetActive(false); }
+    }
+
+    // ── 결과 연출 ─────────────────────────────────────────────────────
+
+    // 미니게임 정지 보너스만큼 게이지를 기본확률 → 보정확률로 차오르게 (성공확률 상승 시각화)
+    private void AnimateGaugeToEffective(int bonusPct)
+    {
+        if (gaugeFill == null) return;
+        var mgr  = CoreUpgradeManager.Instance;
+        var next = mgr != null ? mgr.GetNextLevelData() : null;
+        if (next == null) return;
+
+        float baseRate = Mathf.Clamp01(next.successRate);
+        float eff      = Mathf.Clamp01(baseRate + bonusPct / 100f);
+
+        gaugeFill.DOKill();
+        gaugeFill.fillAmount = baseRate;
+        gaugeFill.DOFillAmount(eff, 0.4f).SetUpdate(true).SetEase(Ease.OutQuad);
+
+        if (successRateText != null && bonusPct > 0)
+        {
+            int effPct = Mathf.RoundToInt(eff * 100f);
+            successRateText.text  = $"성공 확률:  {effPct}%  (+{bonusPct})";
+            successRateText.color = rateNormalColor;
+        }
+    }
+
+    private void PlayResultEffect(bool success)
+    {
+        // 전체화면 플래시 (초록=성공 / 빨강=실패)
+        EnsureFlashOverlay();
+        if (_flashOverlay != null)
+        {
+            _flashOverlay.DOKill();
+            _flashOverlay.color = success ? successFlashColor : failFlashColor;
+            _flashOverlay.gameObject.SetActive(true);
+            _flashOverlay.DOFade(0f, 0.45f).SetUpdate(true)
+                .OnComplete(() => { if (_flashOverlay != null) _flashOverlay.gameObject.SetActive(false); });
+        }
+
+        // 결과 텍스트 펀치
+        if (feedbackText != null)
+        {
+            feedbackText.transform.DOKill();
+            feedbackText.transform.localScale = Vector3.one;
+            feedbackText.transform.DOPunchScale(Vector3.one * 0.35f, 0.5f, 6, 0.7f).SetUpdate(true);
+        }
+
+        if (success) PlaySuccessBurst();
+        else         PlayFailShake();
+    }
+
+    private void EnsureFlashOverlay()
+    {
+        if (_flashOverlay != null || panelRoot == null) return;
+        var go = new GameObject("ResultFlash", typeof(RectTransform), typeof(Image));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(panelRoot.transform, false);
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        rt.SetAsLastSibling();
+        _flashOverlay = go.GetComponent<Image>();
+        _flashOverlay.raycastTarget = false;
+        _flashOverlay.color = new Color(0f, 0f, 0f, 0f);
+        go.SetActive(false);
+    }
+
+    // 성공: 코어 자리에 링 + 디스크 버스트
+    private void PlaySuccessBurst()
+    {
+        if (coreImage == null) return;
+        var parent = coreImage.rectTransform.parent as RectTransform;
+        if (parent == null) return;
+        Vector2 pos = coreImage.rectTransform.anchoredPosition;
+
+        var ring = MakeFxImage("ResultRing", parent, pos, 120f, UISpriteFactory.Ring(96, 5f));
+        ring.color = perfectColor;
+        ring.rectTransform.localScale = Vector3.one * 0.6f;
+        ring.rectTransform.DOScale(2.6f, 0.6f).SetUpdate(true).SetEase(Ease.OutCubic);
+        ring.DOFade(0f, 0.6f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
+
+        var disc = MakeFxImage("ResultDisc", parent, pos, 110f, UISpriteFactory.Disc(96));
+        disc.color = new Color(goodColor.r, goodColor.g, goodColor.b, 0.7f);
+        disc.rectTransform.localScale = Vector3.one * 0.5f;
+        disc.rectTransform.DOScale(1.8f, 0.5f).SetUpdate(true).SetEase(Ease.OutCubic);
+        disc.DOFade(0f, 0.5f).SetUpdate(true).OnComplete(() => { if (disc != null) Destroy(disc.gameObject); });
+    }
+
+    // 실패: 시계(코어) 영역 흔들기
+    private void PlayFailShake()
+    {
+        RectTransform t = clockGroup != null ? clockGroup.transform as RectTransform
+                        : coreImage != null ? coreImage.rectTransform : null;
+        if (t == null) return;
+        t.DOShakeAnchorPos(0.4f, new Vector2(16f, 7f), 18, 90, false, true).SetUpdate(true);
+    }
+
+    private Image MakeFxImage(string name, RectTransform parent, Vector2 anchoredPos, float size, Sprite sprite)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(parent, false);
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = anchoredPos;
+        rt.sizeDelta = new Vector2(size, size);
+        rt.SetAsLastSibling();
+        var img = go.GetComponent<Image>();
+        img.sprite = sprite;
+        img.raycastTarget = false;
+        return img;
     }
 
     // ── 피드백 ────────────────────────────────────────────────────────
