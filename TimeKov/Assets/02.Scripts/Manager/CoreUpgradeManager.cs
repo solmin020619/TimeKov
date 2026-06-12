@@ -28,6 +28,19 @@ public class CoreUpgradeManager : MonoBehaviour
     /// <summary>레벨이 바뀔 때 발생. UI 갱신용</summary>
     public static event Action<int>  OnLevelChanged;
 
+    // ── 코어 부가 스탯 (레벨 0 → 최대레벨 선형 보간) ────────────────────
+    // maxTime/successRate는 시트 데이터, 아래 둘은 코어에 어울리는 부가 능력으로 여기서 직접 튜닝.
+    [Header("코어 부가 스탯 (레벨 0 → 최대 선형 보간)")]
+    [Tooltip("몬스터 처치 시 흡수하는 체력(시간) = 최대HP × 이 비율. 레벨 0일 때 값.")]
+    [Range(0f, 1f)][SerializeField] private float lifestealPercentAtLv0 = 0.03f;
+    [Tooltip("몬스터 처치 흡수 비율 — 최대 레벨일 때 값.")]
+    [Range(0f, 1f)][SerializeField] private float lifestealPercentAtMax = 0.10f;
+
+    [Tooltip("부활 시 회복 체력 비율 — 레벨 0일 때 (0.5 = 반피).")]
+    [Range(0f, 1f)][SerializeField] private float respawnHpPercentAtLv0 = 0.5f;
+    [Tooltip("부활 시 회복 체력 비율 — 최대 레벨일 때 (1.0 = 풀피).")]
+    [Range(0f, 1f)][SerializeField] private float respawnHpPercentAtMax = 1.0f;
+
     // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
     {
@@ -183,6 +196,18 @@ public class CoreUpgradeManager : MonoBehaviour
     {
         return GetLevelData(CurrentCoreLevel);
     }
+
+    /// <summary>현재 코어 레벨의 0~1 진행도 (0 = Lv.0, 1 = 최대 레벨).</summary>
+    public float LevelProgress => MAX_LEVEL <= 0 ? 0f : (float)CurrentCoreLevel / MAX_LEVEL;
+
+    /// <summary>최대 코어 레벨.</summary>
+    public int MaxLevel => MAX_LEVEL;
+
+    /// <summary>몬스터 처치 시 흡수할 체력(시간) 비율(최대HP 대비). 코어 레벨이 오를수록 증가.</summary>
+    public float GetLifestealPercent() => Mathf.Lerp(lifestealPercentAtLv0, lifestealPercentAtMax, LevelProgress);
+
+    /// <summary>부활 시 회복할 체력 비율. 코어 레벨이 오를수록 증가(최종 레벨 = 풀피).</summary>
+    public float GetRespawnHpPercent() => Mathf.Lerp(respawnHpPercentAtLv0, respawnHpPercentAtMax, LevelProgress);
 
     /// <summary>가방 + 창고 합산 보유 수량 반환.</summary>
     public int GetTotalKitCount(int itemId)

@@ -7,7 +7,7 @@ public class RespawnManager : MonoBehaviour
     public Transform RespawnPoint;
     public float RespawnDelay = 2f;
 
-    [Tooltip("부활 시 시작 체력(=시간) 비율. 0.5 = 최대치의 50%로 부활. '죽어서 풀피로 리셋' 악용 방지.")]
+    [Tooltip("부활 시 시작 체력(=시간) 비율. CoreUpgradeManager가 있으면 코어 레벨 기반 값이 우선, 없을 때만 이 값 사용(폴백).")]
     [Range(0f, 1f)]
     [SerializeField] private float respawnHpPercent = 0.5f;
 
@@ -84,8 +84,11 @@ public class RespawnManager : MonoBehaviour
             yield return new WaitForSeconds(RespawnDelay);
         }
 
-        // 2. 스탯 회복 (IsDead → false). 부활 체력은 최대치의 respawnHpPercent.
-        _player.Stat.Respawn(respawnHpPercent);
+        // 2. 스탯 회복 (IsDead → false). 부활 체력은 코어 레벨 기반(없으면 인스펙터 폴백).
+        float respawnPct = CoreUpgradeManager.Instance != null
+            ? CoreUpgradeManager.Instance.GetRespawnHpPercent()
+            : respawnHpPercent;
+        _player.Stat.Respawn(respawnPct);
 
         // 3. 리지드바디 위치 직접 설정
         //    transform.position 대신 rb.position 사용:
