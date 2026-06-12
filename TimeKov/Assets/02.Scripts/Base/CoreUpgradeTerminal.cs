@@ -41,6 +41,9 @@ public class CoreUpgradeTerminal : MonoBehaviour, IInteractable
     {
         if (player == null) return;
 
+        // F로 방금 닫은 직후(같은~다음 프레임)엔 다시 열지 않음 (한 F 입력이 닫기+재오픈으로 깜빡이는 것 방지)
+        if (Time.frameCount - CoreUpgradeUI.LastCloseFrame <= 1) return;
+
         // 기지 내부 조건 검사
         if (!player.Stat.IsInBase)
         {

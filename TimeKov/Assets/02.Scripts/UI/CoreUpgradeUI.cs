@@ -112,6 +112,11 @@ public class CoreUpgradeUI : MonoBehaviour
     private Coroutine _feedbackRoutine;
     private Color _btnNormalColor = Color.white;
 
+    // F 열기/닫기 충돌 방지용 프레임 가드.
+    // 연 프레임엔 F-닫기 무시, 닫은 프레임엔 터미널이 재오픈 무시.
+    private int _openedFrame = -1;
+    public static int LastCloseFrame { get; private set; } = -10;
+
     // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
     {
@@ -159,8 +164,8 @@ public class CoreUpgradeUI : MonoBehaviour
             return;
         }
 
-        // F키 닫기 — 미니게임 진행 중에는 막음
-        if (_phase == CatchPhase.Idle && Input.GetKeyDown(KeyCode.F))
+        // F키 닫기 — 미니게임 진행 중에는 막음. 연 프레임엔 무시(같은 F 입력으로 바로 닫히는 깜빡임 방지).
+        if (_phase == CatchPhase.Idle && Time.frameCount != _openedFrame && Input.GetKeyDown(KeyCode.F))
             Close();
     }
 
@@ -169,6 +174,7 @@ public class CoreUpgradeUI : MonoBehaviour
     public void Open()
     {
         panelRoot?.SetActive(true);
+        _openedFrame = Time.frameCount;
         ResetCatchVisual();
         Refresh();
         GameEvents.RaiseCoreUIOpened();   // 튜토리얼 'F로 단말 열기' 감지용
@@ -185,6 +191,7 @@ public class CoreUpgradeUI : MonoBehaviour
     public void Close()
     {
         if (_phase != CatchPhase.Idle) return;   // 미니게임 진행 중 닫기 방지
+        LastCloseFrame = Time.frameCount;        // 같은 프레임에 터미널 F가 다시 여는 것 방지
         panelRoot?.SetActive(false);
         GameUIController.Instance?.CloseCoreUpgradeUI();
     }

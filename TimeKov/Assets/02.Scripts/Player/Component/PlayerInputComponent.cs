@@ -1,5 +1,9 @@
 using UnityEngine;
 
+// 입력은 매 프레임 가장 먼저 수집한다(실행순서 -100). 그래야 소비자(상호작용/UI)가
+// 같은 프레임에 IsBlocked를 바꿔도, 그 프레임의 InteractPressed는 바뀌기 전 값으로 고정돼
+// "UI 닫는 F가 다음 프레임에 다시 열어버리는" 입력 지연 버그가 안 생긴다.
+[DefaultExecutionOrder(-100)]
 public class PlayerInputComponent : MonoBehaviour
 {
     public Vector2 MoveInput     { get; private set; }  // WASD 이동 입력
