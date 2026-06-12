@@ -129,6 +129,13 @@ public class RecipeDropSlot : MonoBehaviour,
 
     public void OnPointerEnter(PointerEventData e)
     {
+        // 아이템 정보 툴팁 (인벤토리/창고와 동일) — 요구 재료 기준
+        if (RequiredItemId > 0)
+        {
+            if (_canvas == null) _canvas = GetComponentInParent<Canvas>();
+            ItemTooltipUI.Instance?.Show(RequiredItemId, _canvas);
+        }
+
         // 인벤토리 → 재료 슬롯 드래그일 때만 "재료 넣기" 표시
         bool isDragging = InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging;
         if (!isDragging) return;
@@ -138,6 +145,8 @@ public class RecipeDropSlot : MonoBehaviour,
 
     public void OnPointerExit(PointerEventData e)
     {
+        ItemTooltipUI.Instance?.Hide();
+
         // 드래그 강조 중이면 커서가 벗어나도 강조 유지
         if (_dragHighlighted) return;
         if (labelText != null) labelText.text = "";

@@ -233,6 +233,13 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
+        // 연료 슬롯 드래그 → 부모 계층의 InventoryPanelDropZone에 위임
+        if (FuelDropSlot.IsFuelDragging)
+        {
+            GetComponentInParent<InventoryPanelDropZone>()?.AcceptFuelDrop();
+            return;
+        }
+
         OnAnySlotDropped?.Invoke(this);
         InventoryDragHandler.Instance?.HandleDrop(this);
     }

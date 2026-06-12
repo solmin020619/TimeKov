@@ -194,6 +194,14 @@ public class FuelDropSlot : MonoBehaviour,
 
     public void OnPointerEnter(PointerEventData e)
     {
+        // 아이템 정보 툴팁 (인벤토리/창고와 동일) — 연료가 들어있을 때만
+        var fcfg = FuelConfig.Instance;
+        if (fcfg != null && _machine != null && _machine.FuelItemCount > 0)
+        {
+            if (_canvas == null) _canvas = GetComponentInParent<Canvas>();
+            ItemTooltipUI.Instance?.Show(fcfg.fuelItemId, _canvas);
+        }
+
         bool isDragging = InventoryDragHandler.Instance != null
                        && InventoryDragHandler.Instance.IsDragging;
         if (!isDragging) return;
@@ -211,6 +219,8 @@ public class FuelDropSlot : MonoBehaviour,
 
     public void OnPointerExit(PointerEventData e)
     {
+        ItemTooltipUI.Instance?.Hide();
+
         // 드래그 강조 중이면 커서가 벗어나도 강조 유지
         if (_dragHighlighted)
         {
@@ -352,6 +362,9 @@ public class FuelDropSlot : MonoBehaviour,
         var inv = _inventory != null ? _inventory : InventoryManager.Instance;
         inv?.AddItem(cfg.fuelItemId, count);
         inv?.ForceRefreshUI();
+
+        // 회수로 슬롯이 비었으므로 호버 툴팁 즉시 숨김 (마우스가 그대로면 Exit가 안 뜸)
+        ItemTooltipUI.Instance?.Hide();
 
         RefreshTime();
     }

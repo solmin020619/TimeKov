@@ -13,7 +13,8 @@ namespace TIMEKOV.Factory
 {
     public class MachineSlotWidget : MonoBehaviour,
         IPointerClickHandler,
-        IBeginDragHandler, IDragHandler, IEndDragHandler
+        IBeginDragHandler, IDragHandler, IEndDragHandler,
+        IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private Image iconImage;
         [SerializeField] private Image rarityBorder;
@@ -105,6 +106,20 @@ namespace TIMEKOV.Factory
         public void SetClickAction(Action a) => _onClick = a;
         public void SetDoubleClickAction(Action a) => _onDoubleClick = a;
 
+        // ── 호버 툴팁 (인벤토리/창고와 동일) ──────────────────────────────
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (!_hasItem || _currentItemId <= 0) return;
+            if (_canvas == null) _canvas = GetComponentInParent<Canvas>();
+            ItemTooltipUI.Instance?.Show(_currentItemId, _canvas);
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            ItemTooltipUI.Instance?.Hide();
+        }
+
         // ── 클릭 ────────────────────────────────────────────────────────
 
         public void OnPointerClick(PointerEventData eventData)
@@ -112,6 +127,9 @@ namespace TIMEKOV.Factory
             float now = Time.unscaledTime;
             if (now - _lastClickTime < DoubleClickThreshold)
             {
+                // 더블클릭으로 출력물을 가져가면 슬롯이 비므로 호버 툴팁 즉시 숨김
+                // (마우스가 그대로면 Exit가 안 떠서 툴팁이 남는 문제)
+                ItemTooltipUI.Instance?.Hide();
                 _onDoubleClick?.Invoke();
                 _lastClickTime = 0f;
             }
