@@ -51,6 +51,18 @@ public class WallOcclusionFader : MonoBehaviour
     // 콜라이더 없는 occluder(SpeedTree 등) 폴백 감지용 Renderer 캐시
     private readonly List<Renderer> _colliderlessCandidates = new();
 
+    [Header("기지 내부")]
+    [Tooltip("기지(결계) 안에 있을 땐 투명화를 끈다. 실내에서 벽이 비쳐 밖이 보이는 버그 방지.")]
+    [SerializeField] private bool disableInsideBase = true;
+    private PlayerStatComponent _stat;
+
+    private bool IsInBase()
+    {
+        if (!disableInsideBase) return false;
+        if (_stat == null) _stat = GetComponent<PlayerStatComponent>();
+        return _stat != null && _stat.IsInBase;
+    }
+
     void Start()
     {
         // occlusionMask 미설정 시 안전 폴백: Default/Ground (나무/지형만)
@@ -90,8 +102,14 @@ public class WallOcclusionFader : MonoBehaviour
     void LateUpdate()
     {
         _thisFrame.Clear();
-        FindOccluders();
-        FindColliderlessOccluders();
+
+        // 기지 내부에선 투명화 스킵 — _thisFrame 이 비어 UpdateFade가 모든 것을 불투명 복원한다.
+        if (!IsInBase())
+        {
+            FindOccluders();
+            FindColliderlessOccluders();
+        }
+
         UpdateFade();
     }
 
