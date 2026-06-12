@@ -49,6 +49,9 @@ public class InventoryUIController : MonoBehaviour
     [Header("창고 정렬 바")]
     [SerializeField] private SortBarUI sortBarUI;
 
+    [Header("가방 정렬 바")]
+    [SerializeField] private SortBarUI bagSortBarUI;
+
     [Header("드랍 아이템 프리팹")]
     [SerializeField] private GameObject lootBoxPrefab;
 
@@ -104,6 +107,10 @@ public class InventoryUIController : MonoBehaviour
         // 창고 정렬 바 바인딩
         if (sortBarUI != null && InventoryManager.StorageInstance != null)
             sortBarUI.Bind(InventoryManager.StorageInstance, warehouseFilterUI);
+
+        // 가방 정렬 바 바인딩 (가방=Instance)
+        if (bagSortBarUI != null && InventoryManager.Instance != null)
+            bagSortBarUI.Bind(InventoryManager.Instance, bagFilterUI);
 
         // 슬롯 클릭 이벤트 연결
         InventorySlotUI.OnAnySlotClicked += OnSlotClicked;

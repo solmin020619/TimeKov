@@ -51,6 +51,12 @@ const ICONS = {
 
   // ---- function icons ----
   caret: <path d="M7 10 L12 15 L17 10" />,
+  clock: (
+    <g>
+      <circle cx="12" cy="12" r="8.2" />
+      <path d="M12 7.4 V12 L15.2 13.8" />
+    </g>
+  ),
   chevup: <path d="M7 14 L12 9 L17 14" />,
   ascdesc: (
     <g>

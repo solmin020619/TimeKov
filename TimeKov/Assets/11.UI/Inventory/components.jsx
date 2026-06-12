@@ -33,10 +33,8 @@ function Tooltip({ item }) {
   const g = GRADES[item.grade];
   return (
     <div className="tooltip" role="tooltip">
-      <div className="tt-name" style={{ color: g.color || 'var(--text-main)' }}>{item.name}</div>
-      <div className="tt-sub">
-        {CAT_LABEL[item.cat]} · {g.label} · {fmt(item.qty)}
-      </div>
+      <div className="tt-name">{item.name}</div>
+      {g.color && <span className="tt-grade" style={{ color: g.color }}>{g.label}</span>}
     </div>
   );
 }
@@ -46,6 +44,7 @@ function Slot({ item, selected, hovered, gradeVariant, glowStyle, onClick, onEnt
     return <div className="slot empty" data-glow={glowStyle} />;
   }
   const g = GRADES[item.grade];
+  const tint = g.color || '#e3eefa';
   const cls = 'slot' + (selected ? ' sel' : '') + (item.grade === 'legend' ? ' is-legend' : '');
   return (
     <div
@@ -55,7 +54,7 @@ function Slot({ item, selected, hovered, gradeVariant, glowStyle, onClick, onEnt
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
     >
-      <Icon name={item.icon} size={34} sw={1.4} className="slot-icon" />
+      <Icon name={item.icon} size={52} sw={1.6} className="slot-icon" style={{ color: tint }} />
       {item.isNew && <NewBadge />}
       {item.qty > 1 && <span className="slot-qty">{fmt(item.qty)}</span>}
       <GradeBar grade={g} variant={gradeVariant} />
@@ -67,7 +66,7 @@ function Slot({ item, selected, hovered, gradeVariant, glowStyle, onClick, onEnt
 function Grid({ slots, cols, gradeVariant, glowStyle, selectedId, hoveredId, onSelect, onHover }) {
   return (
     <div className="grid-scroll">
-      <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, 64px)` }}>
+      <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, 90px)` }}>
         {slots.map((it, i) => (
           <Slot
             key={it ? 'i' + it.id : 'e' + i}
@@ -99,6 +98,21 @@ function Barcode({ seed = 7 }) {
   return <span className="barcode">{bars}</span>;
 }
 
+function LiveClock() {
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const p = (n) => String(n).padStart(2, '0');
+  return (
+    <span className="clock" title="세션 시각">
+      <Icon name="clock" size={14} sw={1.7} />
+      <span className="clock-t">{p(now.getHours())}:{p(now.getMinutes())}:<span className="clock-s">{p(now.getSeconds())}</span></span>
+    </span>
+  );
+}
+
 function CapacityGauge({ count, cap }) {
   const ratio = Math.min(1, count / cap);
   const near = ratio >= 0.9;
@@ -119,10 +133,7 @@ function CapacityGauge({ count, cap }) {
 function PanelHeader({ title, count, cap, seed }) {
   return (
     <div className="p-head">
-      <div className="p-head-l">
-        <span className="p-title">{title}</span>
-        <Barcode seed={seed} />
-      </div>
+      <span className="p-title">{title}</span>
       <CapacityGauge count={count} cap={cap} />
     </div>
   );
@@ -138,8 +149,7 @@ function CategoryRow({ active, onPick }) {
           onClick={() => onPick(c.key)}
           title={c.label}
         >
-          <Icon name={c.icon} size={24} sw={1.6} />
-          <span className="cat-label">{c.label}</span>
+          <Icon name={c.icon} size={30} sw={1.7} />
         </button>
       ))}
     </div>
@@ -214,6 +224,7 @@ Object.assign(window, {
   Slot,
   Grid,
   Barcode,
+  LiveClock,
   CapacityGauge,
   PanelHeader,
   CategoryRow,

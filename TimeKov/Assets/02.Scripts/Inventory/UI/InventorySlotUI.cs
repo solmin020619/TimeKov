@@ -30,11 +30,11 @@ public class InventorySlotUI : MonoBehaviour,
     // ��޺� �׵θ� ���� (Common / Advanced / Rare / Hero / Legend ����)
     private static readonly Color[] GradeColors = new Color[]
     {
-        new Color(0.60f, 0.60f, 0.60f, 0f),    // Common   - 투명
-        new Color(0.30f, 0.55f, 0.90f, 0.5f),  // Advanced - 파랑
-        new Color(0.20f, 0.75f, 0.40f, 0.5f),  // Rare     - 초록
-        new Color(0.65f, 0.30f, 0.90f, 0.5f),  // Hero     - 보라
-        new Color(0.95f, 0.55f, 0.10f, 0.5f),  // Legend   - 황금
+        new Color(0.60f, 0.60f, 0.60f, 0f),    // Common   - 없음
+        new Color(0.31f, 0.61f, 0.88f, 1f),    // Advanced - 파랑 4f9be0
+        new Color(0.20f, 0.75f, 0.42f, 1f),    // Rare     - 초록 34c06a
+        new Color(0.65f, 0.31f, 0.88f, 1f),    // Hero     - 보라 a64fe0
+        new Color(1.00f, 0.69f, 0.13f, 1f),    // Legend   - 골드 ffb020
     };
 
     private InventorySlot _slot;

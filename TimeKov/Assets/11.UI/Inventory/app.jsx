@@ -6,15 +6,17 @@ const { useState, useEffect, useRef, useMemo } = React;
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/ {
   gradeVariant: '언더라인',
   glowStyle: '소프트',
-  glow: 72,
-  blur: 6,
+  glow: 64,
+  blur: 26,
+  chroma: '절제',
+  scene: '실사',
   accent: '#5fc4ff',
 } /*EDITMODE-END*/;
 
 const GV_MAP = { '언더라인': 'underline', '코너': 'corner', '풀테두리': 'fulledge' };
 const GL_MAP = { '소프트': 'soft', '링': 'ring', '엣지': 'edge' };
-const CAP = { bag: 35, warehouse: 50 };
-const COLS = { bag: 7, warehouse: 10 };
+const CAP = { bag: 35, warehouse: 56 };
+const COLS = { bag: 5, warehouse: 8 };
 
 function hexToRgb(h) {
   const n = parseInt(h.slice(1), 16);
@@ -43,31 +45,29 @@ function derive(items, filter, sortKey, dir) {
   return list;
 }
 
-function InvPanel({
-  id, title, items, seed, ui, tweaks,
-  selectedId, hoveredId, onSelect, onHover,
-  onFilter, onSort, onDir, actions,
-}) {
-  const cols = COLS[id];
-  const cap = CAP[id];
-  const slots = useMemo(() => {
+const colWidth = (id) => COLS[id] * 90 + (COLS[id] - 1) * 11 + 22;
+
+function useSlots(items, ui, cap) {
+  return useMemo(() => {
     const list = derive(items, ui.filter, ui.sort, ui.dir).slice(0, cap);
     const arr = list.slice();
     while (arr.length < cap) arr.push(null);
     return arr;
   }, [items, ui.filter, ui.sort, ui.dir, cap]);
+}
 
-  const width = cols * 64 + (cols - 1) * 9 + 52;
-
+// Bare column used inside the merged (창고+가방) frame — no frame/header/footer of its own.
+function MergedColumn({
+  id, items, ui, tweaks, selectedId, hoveredId, onSelect, onHover, onFilter,
+}) {
+  const slots = useSlots(items, ui, CAP[id]);
   return (
-    <div className="panel" style={{ width }}>
-      <CornerBrackets />
-      <PanelHeader title={title} count={items.length} cap={cap} seed={seed} />
+    <div className={'mcol mcol-' + id} style={{ width: colWidth(id) }}>
       <CategoryRow active={ui.filter} onPick={onFilter} />
       <div className="p-divider" />
       <Grid
         slots={slots}
-        cols={cols}
+        cols={COLS[id]}
         gradeVariant={GV_MAP[tweaks.gradeVariant]}
         glowStyle={GL_MAP[tweaks.glowStyle]}
         selectedId={selectedId}
@@ -75,6 +75,39 @@ function InvPanel({
         onSelect={(iid) => onSelect(id, iid)}
         onHover={(iid) => onHover(id, iid)}
       />
+    </div>
+  );
+}
+
+function InvPanel({
+  id, title, items, seed, ui, tweaks,
+  selectedId, hoveredId, onSelect, onHover,
+  onFilter, onSort, onDir, actions,
+}) {
+  const cols = COLS[id];
+  const cap = CAP[id];
+  const slots = useSlots(items, ui, cap);
+
+  const width = cols * 90 + (cols - 1) * 11 + 22 + 44;
+
+  return (
+    <div className={'panel panel-' + id} style={{ width }}>
+      <CornerBrackets />
+      <PanelHeader title={title} count={items.length} cap={cap} seed={seed} />
+      <div className="p-body">
+        <CategoryRow active={ui.filter} onPick={onFilter} />
+        <div className="p-divider" />
+        <Grid
+          slots={slots}
+          cols={cols}
+          gradeVariant={GV_MAP[tweaks.gradeVariant]}
+          glowStyle={GL_MAP[tweaks.glowStyle]}
+          selectedId={selectedId}
+          hoveredId={hoveredId}
+          onSelect={(iid) => onSelect(id, iid)}
+          onHover={(iid) => onHover(id, iid)}
+        />
+      </div>
       <div className="bottom-bar">{actions}</div>
     </div>
   );
@@ -179,6 +212,8 @@ function App() {
     '--glow': (t.glow / 100).toFixed(3),
     '--blur': t.blur + 'px',
   };
+  const CHROMA = { '절제': 'calm', '상시': 'lit' };
+  const SCENE = { '실사': 'game', '협곡': 'canyon', '야간': 'night', '끄기': 'off' };
 
   const sortCtl = (panel) => (
     <SortControl
@@ -201,8 +236,26 @@ function App() {
   });
 
   return (
-    <div className="app-root" style={rootVars}>
+    <div className={'app-root chroma-' + CHROMA[t.chroma]} style={rootVars}>
+      <div className="world-bg" data-scene={SCENE[t.scene]} />
       <div className="ambiance" />
+
+      <div className="brand">
+        <Icon name="clock" size={20} sw={1.7} />
+        <span className="brand-t">TIME<span className="brand-k">KOV</span></span>
+      </div>
+
+      <div className="blur-ctl">
+        <span className="bc-label">블러 <b>{t.blur}</b>px</span>
+        <input
+          type="range"
+          className="bc-range"
+          min="0"
+          max="40"
+          value={t.blur}
+          onChange={(e) => setTweak('blur', +e.target.value)}
+        />
+      </div>
 
       <div className="topbar">
         <div className="seg">
@@ -230,43 +283,46 @@ function App() {
                   <React.Fragment>
                     {sortCtl('bag')}
                     <IconAction icon="compact" label="정리" onClick={() => doCompact('bag')} />
-                    <IconAction icon="trash" label="휴지통" danger onClick={() => doTrash('bag')} />
-                    <span className="bb-spacer" />
-                    <IconAction icon="store" label="일괄보관" primary onClick={() => moveAll('bag', 'warehouse')} />
                   </React.Fragment>
                 }
               />
             </div>
           ) : (
-            <div className="layout-dual">
-              <button className="close-x" title="닫기 (Esc)" onClick={() => setGen((g) => g + 1)}>
-                <Icon name="close" size={20} sw={1.8} />
-              </button>
-              <InvPanel
-                {...panelProps('warehouse')}
-                title="창고"
-                seed={11}
-                actions={
-                  <React.Fragment>
-                    {sortCtl('warehouse')}
-                    <IconAction icon="compact" label="정리" onClick={() => doCompact('warehouse')} />
-                    <IconAction icon="trash" label="휴지통" danger onClick={() => doTrash('warehouse')} />
-                  </React.Fragment>
-                }
-              />
-              <div className="dual-divider" />
-              <InvPanel
-                {...panelProps('bag')}
-                title="가방"
-                seed={3}
-                actions={
-                  <React.Fragment>
-                    <IconAction icon="store" label="일괄보관" onClick={() => moveAll('bag', 'warehouse')} />
-                    <span className="bb-spacer" />
-                    <IconAction icon="retrieve" label="일괄가져오기" primary onClick={() => moveAll('warehouse', 'bag')} />
-                  </React.Fragment>
-                }
-              />
+            <div className="merged" style={{ '--wh-w': colWidth('warehouse') + 'px', '--bag-w': colWidth('bag') + 'px' }}>
+              <CornerBrackets />
+
+              <div className="merged-head">
+                <div className="mhcol mhcol-wh">
+                  <PanelHeader title="창고" count={data.warehouse.length} cap={CAP.warehouse} seed={11} />
+                </div>
+                <div className="vsep vsep-head" />
+                <div className="mhcol mhcol-bag">
+                  <PanelHeader title="가방" count={data.bag.length} cap={CAP.bag} seed={3} />
+                </div>
+                <button className="close-x2" title="닫기 (Esc)" onClick={() => setGen((g) => g + 1)}>
+                  <Icon name="close" size={20} sw={1.8} />
+                </button>
+              </div>
+
+              <div className="merged-body">
+                <MergedColumn {...panelProps('warehouse')} />
+                <div className="vsep vsep-body" />
+                <MergedColumn {...panelProps('bag')} />
+              </div>
+
+              <div className="merged-foot">
+                <div className="mfcol mfcol-wh">
+                  {sortCtl('warehouse')}
+                  <IconAction icon="compact" label="정리" onClick={() => doCompact('warehouse')} />
+                  <IconAction icon="trash" label="휴지통" danger onClick={() => doTrash('warehouse')} />
+                </div>
+                <div className="vsep vsep-foot" />
+                <div className="mfcol mfcol-bag">
+                  <IconAction icon="store" label="일괄보관" onClick={() => moveAll('bag', 'warehouse')} />
+                  <span className="bb-spacer" />
+                  <IconAction icon="retrieve" label="일괄가져오기" primary onClick={() => moveAll('warehouse', 'bag')} />
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -275,13 +331,16 @@ function App() {
       <div className={'toast' + (toast ? ' show' : '')}>{toast}</div>
 
       <TweaksPanel>
+        <TweakSection label="간유리 / 배경" />
+        <TweakRadio label="뒤 배경" value={t.scene} options={['실사', '협곡', '야간', '끄기']} onChange={(v) => setTweak('scene', v)} />
+        <TweakSlider label="블러 강도" value={t.blur} min={0} max={40} unit="px" onChange={(v) => setTweak('blur', v)} />
+        <TweakRadio label="크롬 채도" value={t.chroma} options={['절제', '상시']} onChange={(v) => setTweak('chroma', v)} />
         <TweakSection label="등급 바 표현" />
         <TweakRadio label="형태" value={t.gradeVariant} options={['언더라인', '코너', '풀테두리']} onChange={(v) => setTweak('gradeVariant', v)} />
         <TweakSection label="슬롯 발광" />
         <TweakRadio label="스타일" value={t.glowStyle} options={['소프트', '링', '엣지']} onChange={(v) => setTweak('glowStyle', v)} />
         <TweakSlider label="발광 강도" value={t.glow} min={20} max={100} unit="%" onChange={(v) => setTweak('glow', v)} />
-        <TweakSection label="패널" />
-        <TweakSlider label="블러 강도" value={t.blur} min={0} max={14} unit="px" onChange={(v) => setTweak('blur', v)} />
+        <TweakSection label="포인트 색" />
         <TweakColor label="시안 포인트" value={t.accent} options={['#5fc4ff', '#5ad0e6', '#8ab4ff']} onChange={(v) => setTweak('accent', v)} />
       </TweaksPanel>
     </div>
