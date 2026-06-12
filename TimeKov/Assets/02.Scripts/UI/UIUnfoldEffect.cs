@@ -47,15 +47,21 @@ public class UIUnfoldEffect : MonoBehaviour
     // ─── 공개 닫기 메서드 ────────────────────────────────────────────────────
 
     /// <summary>
-    /// 닫기 애니메이션 재생 후 SetActive(false) 호출.
-    /// GameUIController.SetPanelActive() 또는 외부에서 직접 호출.
+    /// 패널 닫기. 즉시 비활성화한다.
+    /// [멈춤 버그 수정] 예전엔 접기 애니(0.15s) 후 SetActive(false) 했는데, 그 사이 다시 열면
+    /// SetActive(true)가 no-op이 되어 펼치기가 안 돌고 돌던 접기 코루틴이 패널을 꺼버려
+    /// '논리상 열림(입력잠금/일시정지) + 화면엔 없음'으로 멈췄다. ESC·인벤 연타 시 재현.
+    /// → 닫기는 즉시 비활성화해 레이스를 제거한다(열기 펼침 연출은 유지).
     /// </summary>
     public void Close()
     {
-        if (!gameObject.activeInHierarchy) return;
+        if (!gameObject.activeSelf) return;
 
-        if (_currentCoroutine != null) StopCoroutine(_currentCoroutine);
-        _currentCoroutine = StartCoroutine(FoldRoutine());
+        if (_currentCoroutine != null) { StopCoroutine(_currentCoroutine); _currentCoroutine = null; }
+
+        if (_isInitialized) transform.localScale = _originalScale;
+        if (dimOverlay != null) dimOverlay.alpha = 0f;
+        gameObject.SetActive(false);
     }
 
     // ─── 열기 애니메이션 ─────────────────────────────────────────────────────
@@ -81,39 +87,6 @@ public class UIUnfoldEffect : MonoBehaviour
         // 완료: 정확한 원래 크기로 복원
         transform.localScale = _originalScale;
         if (dimOverlay != null) dimOverlay.alpha = 1f;
-        _currentCoroutine = null;
-    }
-
-    // ─── 닫기 애니메이션 ─────────────────────────────────────────────────────
-
-    private IEnumerator FoldRoutine()
-    {
-        // 시작 상태: 현재 스케일에서 역방향 (열리다 멈춰도 자연스럽게 처리)
-        float startYRatio = _originalScale.y > 0f
-            ? transform.localScale.y / _originalScale.y
-            : 0f;
-        float startAlpha  = dimOverlay != null ? dimOverlay.alpha : 0f;
-
-        float time = 0f;
-        while (time < duration)
-        {
-            time += Time.unscaledDeltaTime;
-            // 열기 커브의 역방향: 1→0
-            float t = 1f - unfoldCurve.Evaluate(Mathf.Clamp01(time / duration));
-
-            // startYRatio에서 0으로 줄어듦 (중간에 닫혀도 자연스럽게)
-            float yScale = startYRatio * t;
-            transform.localScale = new Vector3(_originalScale.x, _originalScale.y * yScale, _originalScale.z);
-            if (dimOverlay != null) dimOverlay.alpha = startAlpha * t;
-
-            yield return null;
-        }
-
-        // 완료: Y 스케일 0, 딤 알파 0, 비활성화
-        transform.localScale = new Vector3(_originalScale.x, 0f, _originalScale.z);
-        if (dimOverlay != null) dimOverlay.alpha = 0f;
-
-        gameObject.SetActive(false);
         _currentCoroutine = null;
     }
 }
