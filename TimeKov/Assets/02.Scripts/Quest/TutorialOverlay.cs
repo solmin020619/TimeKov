@@ -73,6 +73,9 @@ public class TutorialOverlay : MonoBehaviour
     /// <summary>현재 단계가 진행을 위해 요구하는 키 (없으면 None). GameUIController가 코치 중 그 키만 통과시키는 데 사용.</summary>
     public KeyCode ActiveAdvanceKey => _active ? _advanceKey : KeyCode.None;
 
+    /// <summary>코치마크가 지금 화면에 떠 있는지 (HUD 자동표시에서 '설명 중 강제표시' 판단용).</summary>
+    public bool IsActive => _active;
+
     private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.88f);
     private static readonly Color BorderColor = new Color(1f, 0.85f, 0.2f, 1f);   // 계속 라벨과 동일 금색
     private const float SpotlightPadPx = 8f;

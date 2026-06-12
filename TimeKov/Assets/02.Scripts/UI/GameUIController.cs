@@ -283,6 +283,9 @@ public class GameUIController : MonoBehaviour
     // PlayerStat은 정보 표시용 — _currentState와 독립으로 동작.
     // 다른 UI(인벤/팩토리/빌드 등) 열려있어도 같이 켜질 수 있음.
 
+    /// <summary>C 스탯창이 열려있는지 (HUD 자동 페이드에서 '강제 표시' 판단용).</summary>
+    public bool IsPlayerStatOpen => statPanel != null && statPanel.activeSelf;
+
     public void TogglePlayerStat()
     {
         if (statPanel == null) return;
