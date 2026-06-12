@@ -52,7 +52,8 @@ MonoBehaviour:
     probeVolumeBlendStatesCS: {fileID: 0}
   m_RendererFeatures:
   - {fileID: -9102144420786863495}
-  m_RendererFeatureMap: 7902b2e0dfafae81
+  - {fileID: 2563062599490024721}
+  m_RendererFeatureMap: 7902b2e0dfafae811135b1c3dad39123
   m_UseNativeRenderPass: 0
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -78,3 +79,28 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 1
+--- !u!114 &2563062599490024721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 872075d247354644389befca4a299b7a, type: 3}
+  m_Name: FlexibleBlurFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  platformData: 
+  renderPassEvent: 600
+  destinationFilterMode: 1
+  uiBlurLayersSeeLower: 1
+  blurredImagesSeeUIBlurs: 1
+  blurredImageLayersSeeLower: 1
+  useComputeShaders: 1
+  overlayCompatibilityFix: 0
+  resultFormat: 48
+  blurFormat: 48
+  layerResolutionRatio: 1
+  maxLayerResolution: 1080

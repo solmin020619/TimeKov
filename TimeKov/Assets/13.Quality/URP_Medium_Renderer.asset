@@ -1,5 +1,30 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-6139573112838016848
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 872075d247354644389befca4a299b7a, type: 3}
+  m_Name: FlexibleBlurFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  platformData: 
+  renderPassEvent: 600
+  destinationFilterMode: 1
+  uiBlurLayersSeeLower: 1
+  blurredImagesSeeUIBlurs: 1
+  blurredImageLayersSeeLower: 1
+  useComputeShaders: 1
+  overlayCompatibilityFix: 0
+  resultFormat: 48
+  blurFormat: 48
+  layerResolutionRatio: 1
+  maxLayerResolution: 1080
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24,8 +49,9 @@ MonoBehaviour:
     probeSamplingDebugMesh: {fileID: 0}
     probeSamplingDebugTexture: {fileID: 0}
     probeVolumeBlendStatesCS: {fileID: 0}
-  m_RendererFeatures: []
-  m_RendererFeatureMap: 
+  m_RendererFeatures:
+  - {fileID: -6139573112838016848}
+  m_RendererFeatureMap: b030c060c8dacbaa
   m_UseNativeRenderPass: 0
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
