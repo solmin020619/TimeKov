@@ -18,14 +18,17 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private Image itemIcon;
     [SerializeField] private TextMeshProUGUI countText;
     [SerializeField] private GameObject newBadge;
+    [SerializeField] private GameObject countChip;   // 우상단 수량 칩 배경 (수량 2 이상일 때만 표시)
+    [SerializeField] private GameObject iconBacking; // 아이콘 뒤 어두운 backing (아이템 있을 때만 표시)
 
     [Header("���� ����")]
     [SerializeField] private Color normalColor = new Color(0.18f, 0.22f, 0.30f, 1f);
-    [SerializeField] private Color selectedColor = new Color(0.30f, 0.55f, 0.80f, 1f);
     [SerializeField] private Color emptyBorderColor = new Color(0.3f, 0.3f, 0.3f, 0f);
     [SerializeField] private Color dragColor = new Color(1f, 1f, 1f, 0.4f);
     // 호버 시 슬롯에 "불 들어오는" 강조색 (선택색보다 밝게)
     [SerializeField] private Color hoverColor = new Color(0.45f, 0.62f, 0.95f, 0.5f);
+    [SerializeField] private Color normalBorderColor = new Color(0.627f, 0.745f, 0.855f, 0.34f);  // 평소 테두리(크롬)
+    [SerializeField] private Color hoverBorderColor  = new Color(0.37f, 0.77f, 1f, 0.9f);          // 호버 테두리(시안)
 
     // ��޺� �׵θ� ���� (Common / Advanced / Rare / Hero / Legend ����)
     private static readonly Color[] GradeColors = new Color[]
@@ -39,8 +42,8 @@ public class InventorySlotUI : MonoBehaviour,
 
     private InventorySlot _slot;
     private InventoryManager _owner;
-    private bool _isSelected;
     private bool _isHovered;
+    private UnityEngine.UI.Outline _outline;   // 호버 시 테두리 시안 전환용 (루트 Outline)
 
     // ���� �̺�Ʈ (InventoryUIController ���� ����)
     public static event Action<InventorySlotUI> OnAnySlotClicked;
@@ -73,13 +76,14 @@ public class InventorySlotUI : MonoBehaviour,
         {
             SetEmpty();
             // �� ������ �Ǹ� ���� ���µ� ����
-            _isSelected = false;
             UpdateBgVisual();
             return;
         }
 
         // 호버/선택 상태를 반영해 배경색 적용 (리프레시 중에도 강조 유지)
         UpdateBgVisual();
+
+        if (iconBacking != null) iconBacking.SetActive(true);   // 아이템 있을 때만 backing
 
         var data = ItemDatabase.GetItem(slot.itemId);
 
@@ -106,6 +110,7 @@ public class InventorySlotUI : MonoBehaviour,
             countText.gameObject.SetActive(slot.amount > 1);
             countText.text = slot.amount.ToString();
         }
+        if (countChip != null) countChip.SetActive(slot.amount > 1);
 
         // NEW ����
         if (newBadge != null)
@@ -118,22 +123,22 @@ public class InventorySlotUI : MonoBehaviour,
         if (itemIcon != null) itemIcon.enabled = false;
         if (rarityBorder != null) rarityBorder.color = emptyBorderColor;
         if (countText != null) countText.gameObject.SetActive(false);
+        if (countChip != null) countChip.SetActive(false);
+        if (iconBacking != null) iconBacking.SetActive(false);
         if (newBadge != null) newBadge.SetActive(false);
     }
 
     // ���� ���� ���
-    public void SetSelected(bool selected)
-    {
-        _isSelected = selected;
-        UpdateBgVisual();
-    }
-
-    // 선택 > 호버 > 기본 우선순위로 배경색 결정
+    // 호버일 때만 배경 강조 (클릭 선택 강조는 제거함 - 호버 전용)
     private void UpdateBgVisual()
     {
-        if (bgImage == null) return;
-        bgImage.color = _isSelected ? selectedColor
-                      : (_isHovered ? hoverColor : normalColor);
+        if (bgImage != null)
+            bgImage.color = _isHovered ? hoverColor : normalColor;
+
+        // 호버 시 테두리 시안 (글로우 느낌). 루트 Outline 색 전환.
+        if (_outline == null) _outline = GetComponent<UnityEngine.UI.Outline>();
+        if (_outline != null)
+            _outline.effectColor = _isHovered ? hoverBorderColor : normalBorderColor;
     }
 
     // Ŭ�� �̺�Ʈ (��Ŭ�� ��Ŭ�� / ����Ŭ�� / ��Ŭ�� �б�)
@@ -168,10 +173,10 @@ public class InventorySlotUI : MonoBehaviour,
     // ȣ�� ���� (���� ǥ�� + ���� ����)
     public void OnPointerEnter(PointerEventData eventData)
     {
+        if (IsEmpty) return;   // 빈 칸은 호버 강조/툴팁 없음 (빈 칸 선택돼 보이던 버그)
         _isHovered = true;
         UpdateBgVisual();
-        if (!IsEmpty)
-            OnAnySlotHoverEnter?.Invoke(this);
+        OnAnySlotHoverEnter?.Invoke(this);
     }
 
     // ȣ�� ��Ż (���� ���� + ���� ����)

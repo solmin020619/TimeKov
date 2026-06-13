@@ -1,7 +1,7 @@
 // CategoryFilterUI.cs
-// FilterBar ¿ÀºêÁ§Æ®¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// Ä«Å×°í¸® ¹öÆ° Å¬¸¯ ½Ã InventoryGridUI ¿¡ ÇÊÅÍ º¯°æ ¾Ë¸²
-// null ÀÌ¸é ÀüÃ¼ Ç¥½Ã, °ªÀÌ ÀÖÀ¸¸é ÇØ´ç Ä«Å×°í¸®¸¸ Ç¥½Ã
+// FilterBar ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
+// Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½ï¿½Æ° Å¬ï¿½ï¿½ ï¿½ï¿½ InventoryGridUI ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ë¸ï¿½
+// null ï¿½Ì¸ï¿½ ï¿½ï¿½Ã¼ Ç¥ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ø´ï¿½ Ä«ï¿½×°ï¿½ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
 
 using System;
 using UnityEngine;
@@ -9,7 +9,7 @@ using UnityEngine.UI;
 
 public class CategoryFilterUI : MonoBehaviour
 {
-    // ¹öÆ° ¹è¿­ (Inspector ¿¡¼­ ¼ø¼­´ë·Î ÇÒ´ç)
+    // ï¿½ï¿½Æ° ï¿½è¿­ (Inspector ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ò´ï¿½)
     // 0: AllFilterBtn
     // 1: RawMaterialBtn     (RawMaterial)
     // 2: ProcessedTier1Btn  (ProcessedTier1)
@@ -17,44 +17,48 @@ public class CategoryFilterUI : MonoBehaviour
     // 4: TacticalBtn        (TacticalConsumable)
     // 5: CoreBtn            (CoreUpgrade)
     // 6: SpecialBtn         (Special)
-    [Header("Ä«Å×°í¸® ¹öÆ° (0¹ø: ÀüÃ¼, 1~6¹ø: Ä«Å×°í¸® ¼ø¼­´ë·Î)")]
+    [Header("Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½ï¿½Æ° (0ï¿½ï¿½: ï¿½ï¿½Ã¼, 1~6ï¿½ï¿½: Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)")]
     [SerializeField] private Button[] filterButtons;
 
-    [Header("»ö»ó")]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Color selectedColor = new Color(0.30f, 0.60f, 0.90f, 1f);
     [SerializeField] private Color normalColor = new Color(0.20f, 0.25f, 0.35f, 1f);
+    [SerializeField] private Color selectedBorderColor = new Color(0.37f, 0.77f, 1f, 1f);    // ì„ íƒ íƒ­ í…Œë‘ë¦¬ (ì‹œì•ˆ)
+    [SerializeField] private Color normalBorderColor = new Color(0.59f, 0.70f, 0.80f, 0.26f); // ë¹„ì„ íƒ í…Œë‘ë¦¬ (í¬ë¡¬)
+    [SerializeField] private Color selectedIconColor = new Color(0.68f, 0.89f, 1f, 1f);       // ì„ íƒ ì•„ì´ì½˜ (ë°ì€ ì‹œì•ˆ)
+    [SerializeField] private Color normalIconColor = new Color(0.76f, 0.83f, 0.90f, 1f);      // ë¹„ì„ íƒ ì•„ì´ì½˜
 
-    // ÇÊÅÍ º¯°æ ÀÌº¥Æ®
-    // null ÀÌ¸é ÀüÃ¼, °ªÀÌ ÀÖÀ¸¸é ÇØ´ç Ä«Å×°í¸®
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìºï¿½Æ®
+    // null ï¿½Ì¸ï¿½ ï¿½ï¿½Ã¼, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ø´ï¿½ Ä«ï¿½×°ï¿½ï¿½ï¿½
     public event Action<ItemCategory?> OnFilterChanged;
 
-    // ÇöÀç ¼±ÅÃµÈ Ä«Å×°í¸® (null = ÀüÃ¼)
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ãµï¿½ Ä«ï¿½×°ï¿½ï¿½ï¿½ (null = ï¿½ï¿½Ã¼)
     private ItemCategory? _current = null;
 
-    // ÇöÀç ¼±ÅÃµÈ Ä«Å×°í¸® ¿ÜºÎ ÀĞ±â¿ë ÇÁ·ÎÆÛÆ¼
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ãµï¿½ Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½Üºï¿½ ï¿½Ğ±ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¼
     public ItemCategory? CurrentFilter => _current;
 
-    // ÇöÀç ¼±ÅÃµÈ ¹öÆ° ÀÎµ¦½º (0 = ÀüÃ¼)
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ãµï¿½ ï¿½ï¿½Æ° ï¿½Îµï¿½ï¿½ï¿½ (0 = ï¿½ï¿½Ã¼)
     private int _selectedIndex = 0;
 
-    // Ä«Å×°í¸® ¹öÆ° ÀÎµ¦½º¿Í ½ÇÁ¦ ItemCategory °ª ¸ÅÇÎ Å×ÀÌºí
-    // filterButtons[0] = ÀüÃ¼(null), filterButtons[1] = RawMaterial, ...
+    // Ä«ï¿½×°ï¿½ï¿½ï¿½ ï¿½ï¿½Æ° ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ItemCategory ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ìºï¿½
+    // filterButtons[0] = ï¿½ï¿½Ã¼(null), filterButtons[1] = RawMaterial, ...
     private static readonly ItemCategory?[] IndexToCategory = new ItemCategory?[]
     {
-        null,                              // 0: ÀüÃ¼
-        ItemCategory.RawMaterial,          // 1: ¿øÃÊ Àç·á
-        ItemCategory.ProcessedTier1,       // 2: 1Â÷ °¡°øÇ°
-        ItemCategory.ProcessedTier2,       // 3: 2Â÷ ½ÉÈ­ °¡°øÇ°
-        ItemCategory.TacticalConsumable,   // 4: Àü¼ú ¼Ò¸ğÇ°
-        ItemCategory.CoreUpgrade,          // 5: ÄÚ¾î °­È­ Àç·á
-        ItemCategory.Special               // 6: Æ¯¼ö
+        null,                              // 0: ï¿½ï¿½Ã¼
+        ItemCategory.RawMaterial,          // 1: ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+        ItemCategory.ProcessedTier1,       // 2: 1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç°
+        ItemCategory.ProcessedTier2,       // 3: 2ï¿½ï¿½ ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½Ç°
+        ItemCategory.TacticalConsumable,   // 4: ï¿½ï¿½ï¿½ï¿½ ï¿½Ò¸ï¿½Ç°
+        ItemCategory.CoreUpgrade,          // 5: ï¿½Ú¾ï¿½ ï¿½ï¿½È­ ï¿½ï¿½ï¿½
+        ItemCategory.Special               // 6: Æ¯ï¿½ï¿½
     };
 
     private void Start()
     {
         if (filterButtons == null || filterButtons.Length == 0) return;
 
-        // ¹öÆ°¸¶´Ù ÀÎµ¦½º ±â¹İ Å¬¸¯ ÀÌº¥Æ® µî·Ï
+        // ï¿½ï¿½Æ°ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ ï¿½Ìºï¿½Æ® ï¿½ï¿½ï¿½
         for (int i = 0; i < filterButtons.Length; i++)
         {
             if (filterButtons[i] == null) continue;
@@ -62,11 +66,11 @@ public class CategoryFilterUI : MonoBehaviour
             filterButtons[i].onClick.AddListener(() => SetFilterByIndex(capturedIndex));
         }
 
-        // Ã¹ ¹øÂ° ¹öÆ°(ÀüÃ¼) ¼±ÅÃ »óÅÂ·Î ÃÊ±âÈ­
+        // Ã¹ ï¿½ï¿½Â° ï¿½ï¿½Æ°(ï¿½ï¿½Ã¼) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â·ï¿½ ï¿½Ê±ï¿½È­
         UpdateButtonColors();
     }
 
-    // ¹öÆ° ÀÎµ¦½º·Î ÇÊÅÍ ¼³Á¤
+    // ï¿½ï¿½Æ° ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void SetFilterByIndex(int index)
     {
         if (index < 0 || index >= IndexToCategory.Length) return;
@@ -78,7 +82,7 @@ public class CategoryFilterUI : MonoBehaviour
         OnFilterChanged?.Invoke(_current);
     }
 
-    // ¹öÆ° »ö»ó °»½Å
+    // ï¿½ï¿½Æ° ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     private void UpdateButtonColors()
     {
         if (filterButtons == null) return;
@@ -86,15 +90,26 @@ public class CategoryFilterUI : MonoBehaviour
         for (int i = 0; i < filterButtons.Length; i++)
         {
             if (filterButtons[i] == null) continue;
+            bool sel = (i == _selectedIndex);
 
             var img = filterButtons[i].GetComponent<Image>();
-            if (img == null) continue;
+            if (img != null) img.color = sel ? selectedColor : normalColor;
 
-            img.color = (i == _selectedIndex) ? selectedColor : normalColor;
+            // í…Œë‘ë¦¬(Outline) ìƒ‰ ì „í™˜
+            var ol = filterButtons[i].GetComponent<UnityEngine.UI.Outline>();
+            if (ol != null) ol.effectColor = sel ? selectedBorderColor : normalBorderColor;
+
+            // ì•„ì´ì½˜ ìƒ‰ ì „í™˜ (ìì‹ CatIcon)
+            var iconTr = filterButtons[i].transform.Find("CatIcon");
+            if (iconTr != null)
+            {
+                var iconImg = iconTr.GetComponent<Image>();
+                if (iconImg != null) iconImg.color = sel ? selectedIconColor : normalIconColor;
+            }
         }
     }
 
-    // ¿ÜºÎ¿¡¼­ ÀüÃ¼ ÇÊÅÍ ÃÊ±âÈ­ (ÀÎº¥Åä¸® ´İÀ» ¶§ È£Ãâ)
+    // ï¿½ÜºÎ¿ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ (ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ È£ï¿½ï¿½)
     public void ResetToAll()
     {
         SetFilterByIndex(0);
