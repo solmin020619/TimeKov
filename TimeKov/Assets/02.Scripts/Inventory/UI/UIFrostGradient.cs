@@ -35,7 +35,10 @@ public class UIFrostGradient : BaseMeshEffect
         {
             var v = _verts[i];
             float t = (v.position.y - minY) / h;   // 0 아래 ~ 1 위
-            v.color = Color32.Lerp(bottomColor, topColor, t);
+            // 기존 vertex 색(Image.color)에 그라데이션을 곱함. Image.color=흰색이면 예전과 동일,
+            // 다른 색이면 런타임 틴트(등급 오로라 등)에 쓸 수 있음.
+            Color grad = Color.Lerp(bottomColor, topColor, t);
+            v.color = (Color)v.color * grad;
             _verts[i] = v;
         }
 

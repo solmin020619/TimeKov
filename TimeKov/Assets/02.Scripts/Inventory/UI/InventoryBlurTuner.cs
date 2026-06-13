@@ -18,11 +18,11 @@ public class InventoryBlurTuner : MonoBehaviour
     [Tooltip("샘플 간격.")]
     [Range(0.5f, 4f)] public float sampleDistance = 1.5f;
 
-    [Tooltip("채도 (회색 뭉개짐 보정).")]
-    [Range(-1f, 1f)] public float vibrancy = 0.2f;
+    [Tooltip("채도. 최종은 낮춰서 맵색 중화 (saturate 0.5 = 약 -0.5).")]
+    [Range(-1f, 1f)] public float vibrancy = -0.5f;
 
-    [Tooltip("밝기. 살짝만(0.04 이하). 과하면 뿌예짐.")]
-    [Range(-1f, 1f)] public float brightness = 0.04f;
+    [Tooltip("밝기. 다크 표면이라 0 권장. 올리면 표면이 떠서 글자 대비 죽음.")]
+    [Range(-1f, 1f)] public float brightness = 0f;
 
     private UIBlur _blur;
     private bool _logged;

@@ -83,19 +83,15 @@ public class InventoryUIController : MonoBehaviour
         {
             inventoryRoot.SetActive(false);
 
-            // 블러 영역(블러캔버스 첫 자식)
-            RectTransform blurRegion = (bagBlurCanvas != null && bagBlurCanvas.transform.childCount > 0)
-                ? bagBlurCanvas.transform.GetChild(0) as RectTransform : null;
-
-            // 가방을 화면 오른쪽으로 (빌더 재실행 안 해도 먹게 런타임 강제). 패널+블러 같은 값이라 정렬돼 떨림/어긋남 방지.
+            // 가방을 화면 오른쪽으로 (빌더 재실행 안 해도 먹게 런타임 강제).
             const float bagRightX = 360f;
             if (bagPanel != null)
             {
                 var prt0 = bagPanel.GetComponent<RectTransform>();
                 if (prt0 != null) prt0.anchoredPosition = new Vector2(bagRightX, prt0.anchoredPosition.y);
             }
-            if (blurRegion != null)
-                blurRegion.anchoredPosition = new Vector2(bagRightX, blurRegion.anchoredPosition.y);
+            // 블러 영역 위치/크기는 LateUpdate의 SyncBlurToPanel이 매 프레임 패널 스크린 사각형에 맞춘다
+            // (Camera 블러캔버스 vs Overlay 패널 좌표 어긋남 -> 블러가 일부만 덮이던 문제 해결).
 
             // 인벤 열기/닫기 = 가로 슬라이드. 공용 UIUnfoldEffect(Y스케일)는 꺼서 충돌 방지.
             var fold = inventoryRoot.GetComponent<UIUnfoldEffect>();
@@ -106,7 +102,7 @@ public class InventoryUIController : MonoBehaviour
             {
                 var bcg = bagBlurCanvas.GetComponent<CanvasGroup>();
                 if (bcg == null) bcg = bagBlurCanvas.AddComponent<CanvasGroup>();
-                _slide.SetExtras(bcg, bagBlurCanvas, blurRegion);   // 블러 영역 = 슬라이드 동기 대상(정렬 유지)
+                _slide.SetExtras(bcg, bagBlurCanvas, null);   // 블러는 알파 페이드/끄기만. 위치는 SyncBlurToPanel이.
             }
         }
     }
@@ -183,6 +179,45 @@ public class InventoryUIController : MonoBehaviour
         // ContextMenu 외부 클릭 감지
         if (contextMenu != null)
             contextMenu.TryCloseOnOutsideClick();
+    }
+
+    private void LateUpdate()
+    {
+        // 열려있는 동안 + 닫기 슬라이드 중에도(블러캔버스 켜진 동안) 블러를 패널에 붙여둔다.
+        // (_isOpen만 보면 닫기 시작 즉시 false라 블러가 멈춰서, 패널만 슬라이드돼 나가고 왼쪽에 블러 잔상이 남음)
+        if (bagBlurCanvas != null && bagBlurCanvas.activeInHierarchy) SyncBlurToPanel();
+    }
+
+    // 블러 영역(별도 Screen Space-Camera 캔버스)을 가방 패널의 실제 화면 사각형에 맞춘다.
+    // Camera 캔버스와 Overlay 패널은 같은 anchoredPosition이라도 화면 위치/스케일이 달라 어긋남 -> 화면좌표 변환으로 동기.
+    private void SyncBlurToPanel()
+    {
+        if (bagBlurCanvas == null || bagPanel == null) return;
+        if (bagBlurCanvas.transform.childCount == 0) return;
+
+        var region       = bagBlurCanvas.transform.GetChild(0) as RectTransform;
+        var blurCanvasRt = bagBlurCanvas.transform as RectTransform;
+        var blurCanvas   = bagBlurCanvas.GetComponent<Canvas>();
+        var panelRt      = bagPanel.transform as RectTransform;
+        if (region == null || blurCanvasRt == null || blurCanvas == null || panelRt == null) return;
+
+        Camera blurCam = blurCanvas.worldCamera != null ? blurCanvas.worldCamera : Camera.main;
+        var invCanvas = bagPanel.GetComponentInParent<Canvas>();
+        Camera invCam = (invCanvas != null && invCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            ? invCanvas.worldCamera : null;
+
+        Vector3[] corners = new Vector3[4];
+        panelRt.GetWorldCorners(corners);
+        Vector2 sMin = RectTransformUtility.WorldToScreenPoint(invCam, corners[0]);   // 좌하
+        Vector2 sMax = RectTransformUtility.WorldToScreenPoint(invCam, corners[2]);   // 우상
+        float wPx = Mathf.Abs(sMax.x - sMin.x), hPx = Mathf.Abs(sMax.y - sMin.y);
+        if (wPx < 100f || hPx < 100f) return;   // 비정상(찌부러짐) 방어 - 잘못된 값이면 적용 안 함
+
+        Vector2 sCenter = (sMin + sMax) * 0.5f;
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(blurCanvasRt, sCenter, blurCam, out var local))
+            region.anchoredPosition = local;
+        float sf = blurCanvas.scaleFactor <= 0f ? 1f : blurCanvas.scaleFactor;
+        region.sizeDelta = new Vector2(wPx / sf, hPx / sf);
     }
 
     // 인벤토리 토글
@@ -322,7 +357,15 @@ public class InventoryUIController : MonoBehaviour
         int max = InventoryManager.Instance.GetMaxSlots();
 
         if (capacityText != null)
-            capacityText.text = used + " / " + max;
+        {
+            capacityText.text = "용량 " + used + "/" + max;   // clggdesign #4: 띄어쓰기 없이
+            // 최종 디자인 = 게이지 바 없음, 글자색만 상태색 (평소 어두운회색 / 90% 노랑 / 가득 빨강)
+            float r = max > 0 ? Mathf.Clamp01((float)used / max) : 0f;
+            capacityText.color =
+                r >= 1f   ? new Color(0.878f, 0.349f, 0.290f, 1f) :   // 가득 빨강 (경고)
+                r >= 0.9f ? new Color(0.878f, 0.627f, 0.125f, 1f) :   // 거의참 노랑 (경고)
+                            new Color(0.141f, 0.165f, 0.192f, 1f);    // 평소 어두운 슬레이트 #242a31 (잘 보이게)
+        }
 
         if (bagCapacityGaugeFill != null && max > 0)
         {

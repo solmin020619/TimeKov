@@ -20,6 +20,7 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private GameObject newBadge;
     [SerializeField] private GameObject countChip;   // 우상단 수량 칩 배경 (수량 2 이상일 때만 표시)
     [SerializeField] private GameObject iconBacking; // 아이콘 뒤 어두운 backing (아이템 있을 때만 표시)
+    [SerializeField] private Image gradeAurora;      // 등급 오로라 (하단서 위로 번지는 그라데이션, 런타임 등급색 틴트)
 
     [Header("���� ����")]
     [SerializeField] private Color normalColor = new Color(0.18f, 0.22f, 0.30f, 1f);
@@ -104,6 +105,15 @@ public class InventorySlotUI : MonoBehaviour,
             rarityBorder.color = GradeColors[gradeIndex];
         }
 
+        // 등급 오로라 색 (커먼은 GradeColors a=0이라 안 보임)
+        if (gradeAurora != null)
+        {
+            int gi = data != null ? (int)data.itemGrade : 0;
+            gi = Mathf.Clamp(gi, 0, GradeColors.Length - 1);
+            var gc = GradeColors[gi];
+            gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.9f);
+        }
+
         // ���� �ؽ�Ʈ (1���� ����)
         if (countText != null)
         {
@@ -122,6 +132,7 @@ public class InventorySlotUI : MonoBehaviour,
     {
         if (itemIcon != null) itemIcon.enabled = false;
         if (rarityBorder != null) rarityBorder.color = emptyBorderColor;
+        if (gradeAurora != null) gradeAurora.color = new Color(1, 1, 1, 0f);
         if (countText != null) countText.gameObject.SetActive(false);
         if (countChip != null) countChip.SetActive(false);
         if (iconBacking != null) iconBacking.SetActive(false);
