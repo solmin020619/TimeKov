@@ -595,16 +595,26 @@ public class InventoryManager : MonoBehaviour
             return b.amount.CompareTo(a.amount);
         });
 
-        // 대상 슬롯에 정렬된 데이터 기록
-        for (int i = 0; i < targetIndices.Count; i++)
+        // filter==null(가방=전체 정리): 전부 비우고 0번부터 채워 빈칸 압축(기대 동작).
+        // filter 있으면(창고 카테고리 정리) 해당 슬롯들 안에서만 정렬(다른 아이템은 그대로).
+        if (filter == null)
         {
-            var slot = GetSlot(targetIndices[i]);
-            if (slot == null) continue;
+            foreach (var s in _slots) s.Clear();
+            for (int i = 0; i < merged.Count; i++)
+                _slots[i].Set(merged[i].itemId, merged[i].amount);
+        }
+        else
+        {
+            for (int i = 0; i < targetIndices.Count; i++)
+            {
+                var slot = GetSlot(targetIndices[i]);
+                if (slot == null) continue;
 
-            if (i < merged.Count)
-                slot.Set(merged[i].itemId, merged[i].amount);
-            else
-                slot.Clear();
+                if (i < merged.Count)
+                    slot.Set(merged[i].itemId, merged[i].amount);
+                else
+                    slot.Clear();
+            }
         }
 
         OnInventoryChanged?.Invoke();

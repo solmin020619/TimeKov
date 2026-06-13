@@ -18,6 +18,7 @@ public class InventoryUIController : MonoBehaviour
     [Header("패널")]
     [SerializeField] private GameObject warehousePanel;
     [SerializeField] private GameObject bagPanel;
+    [SerializeField] private GameObject bagBlurCanvas;    // 가방 뒤 블러 캔버스 (Screen Space-Camera, 열릴 때만 활성)
     [SerializeField] private GameObject chestPanel;       // 상자 파밍 패널
 
     [Header("그리드 UI")]
@@ -31,6 +32,7 @@ public class InventoryUIController : MonoBehaviour
 
     [Header("가방 패널 UI 버튼")]
     [SerializeField] private TextMeshProUGUI capacityText;
+    [SerializeField] private Image bagCapacityGaugeFill;   // 용량 게이지 fill (비율 + 상태색 갱신)
     [SerializeField] private Button moveAllBtn;
     [SerializeField] private Button bagTrashBtn;
     [SerializeField] private Button bagCloseBtn;
@@ -61,6 +63,9 @@ public class InventoryUIController : MonoBehaviour
     // 현재 선택된 슬롯
     private InventorySlotUI _selectedSlot;
 
+    // 인벤 열기/닫기 가로 슬라이드 효과 (inventoryRoot에 자동 부착)
+    private UISlideEffect _slide;
+
     // 인벤토리 UI 오픈 상태
     private bool _isOpen = false;
     public bool IsOpen => _isOpen;
@@ -75,7 +80,35 @@ public class InventoryUIController : MonoBehaviour
     {
         Instance = this;
         if (inventoryRoot != null)
+        {
             inventoryRoot.SetActive(false);
+
+            // 블러 영역(블러캔버스 첫 자식)
+            RectTransform blurRegion = (bagBlurCanvas != null && bagBlurCanvas.transform.childCount > 0)
+                ? bagBlurCanvas.transform.GetChild(0) as RectTransform : null;
+
+            // 가방을 화면 오른쪽으로 (빌더 재실행 안 해도 먹게 런타임 강제). 패널+블러 같은 값이라 정렬돼 떨림/어긋남 방지.
+            const float bagRightX = 360f;
+            if (bagPanel != null)
+            {
+                var prt0 = bagPanel.GetComponent<RectTransform>();
+                if (prt0 != null) prt0.anchoredPosition = new Vector2(bagRightX, prt0.anchoredPosition.y);
+            }
+            if (blurRegion != null)
+                blurRegion.anchoredPosition = new Vector2(bagRightX, blurRegion.anchoredPosition.y);
+
+            // 인벤 열기/닫기 = 가로 슬라이드. 공용 UIUnfoldEffect(Y스케일)는 꺼서 충돌 방지.
+            var fold = inventoryRoot.GetComponent<UIUnfoldEffect>();
+            if (fold != null) fold.enabled = false;
+            _slide = inventoryRoot.GetComponent<UISlideEffect>();
+            if (_slide == null) _slide = inventoryRoot.AddComponent<UISlideEffect>();
+            if (bagBlurCanvas != null)
+            {
+                var bcg = bagBlurCanvas.GetComponent<CanvasGroup>();
+                if (bcg == null) bcg = bagBlurCanvas.AddComponent<CanvasGroup>();
+                _slide.SetExtras(bcg, bagBlurCanvas, blurRegion);   // 블러 영역 = 슬라이드 동기 대상(정렬 유지)
+            }
+        }
     }
 
     private void Start()
@@ -197,6 +230,13 @@ public class InventoryUIController : MonoBehaviour
         if (bagPanel != null)
             bagPanel.SetActive(true);
 
+        // 블러 캔버스(별도 루트)는 inventoryRoot 밖이라 직접 토글
+        if (bagBlurCanvas != null)
+            bagBlurCanvas.SetActive(true);
+
+        // 슬라이드 열기 명시 호출 (닫기 도중 재오픈해도 복구되게 - SetActive(true) no-op 대비)
+        _slide?.Open();
+
         RefreshCapacityText();
         Debug.Log("[InventoryUI] 인벤토리 열림");
 
@@ -250,12 +290,14 @@ public class InventoryUIController : MonoBehaviour
 
         ClearSelection();
 
-        // UIUnfoldEffect가 있으면 닫기 애니메이션 후 SetActive(false), 없으면 즉시 비활성화
-        var unfold = inventoryRoot.GetComponent<UIUnfoldEffect>();
-        if (unfold != null && inventoryRoot.activeInHierarchy)
-            unfold.Close();
+        // 가로 슬라이드 아웃 후 비활성화 (블러 캔버스도 슬라이드가 같이 끔). 슬라이드 없으면 즉시.
+        if (_slide != null && inventoryRoot.activeInHierarchy)
+            _slide.Close();
         else
+        {
             inventoryRoot.SetActive(false);
+            if (bagBlurCanvas != null) bagBlurCanvas.SetActive(false);
+        }
 
         // 커서·입력 복구는 GameUIController에 위임
         GameUIController.Instance?.CloseAll();
@@ -272,23 +314,32 @@ public class InventoryUIController : MonoBehaviour
         return false;
     }
 
-    // 용량 텍스트 갱신
+    // 용량 텍스트 + 게이지 갱신
     public void RefreshCapacityText()
     {
-        if (capacityText == null || InventoryManager.Instance == null) return;
+        if (InventoryManager.Instance == null) return;
         int used = InventoryManager.Instance.GetUsedSlotCount();
         int max = InventoryManager.Instance.GetMaxSlots();
-        capacityText.text = used + "/" + max;
+
+        if (capacityText != null)
+            capacityText.text = used + " / " + max;
+
+        if (bagCapacityGaugeFill != null && max > 0)
+        {
+            float ratio = Mathf.Clamp01((float)used / max);
+            bagCapacityGaugeFill.fillAmount = ratio;
+            // HANDOFF 3-5: 90% 이상 노랑, 가득 빨강, 그 외 시안
+            bagCapacityGaugeFill.color =
+                ratio >= 1f   ? new Color(1f, 0.42f, 0.42f, 1f) :
+                ratio >= 0.9f ? new Color(1f, 0.69f, 0.13f, 1f) :
+                                new Color(0.37f, 0.77f, 1f, 1f);
+        }
     }
 
-    // 단일 슬롯 클릭 핸들러
+    // 단일 슬롯 클릭 핸들러 (시각 강조 없음 - 우클릭 메뉴/버리기 버튼용으로 슬롯만 기억)
     private void OnSlotClicked(InventorySlotUI slot)
     {
-        if (_selectedSlot != null && _selectedSlot != slot)
-            _selectedSlot.SetSelected(false);
-
         _selectedSlot = slot;
-        slot.SetSelected(true);
         contextMenu?.Close();
         RefreshCapacityText();
     }
@@ -340,7 +391,7 @@ public class InventoryUIController : MonoBehaviour
         contextMenu?.Open(slot, Input.mousePosition);
     }
 
-    // 툴팁 표시
+    // 툴팁 표시 (강조는 슬롯이 호버 시 스스로 처리)
     private void OnSlotHoverEnter(InventorySlotUI slot)
     {
         tooltip?.Show(slot);
@@ -456,10 +507,6 @@ public class InventoryUIController : MonoBehaviour
     // 선택 해제
     private void ClearSelection()
     {
-        if (_selectedSlot != null)
-        {
-            _selectedSlot.SetSelected(false);
-            _selectedSlot = null;
-        }
+        _selectedSlot = null;
     }
 }

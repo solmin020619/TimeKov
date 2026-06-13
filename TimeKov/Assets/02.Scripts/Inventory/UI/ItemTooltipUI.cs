@@ -39,6 +39,12 @@ public class ItemTooltipUI : MonoBehaviour
         Instance = this;
         _rect = GetComponent<RectTransform>();
 
+        // 항상 최상단에 그려지게 - 자체 Canvas overrideSorting (인벤 패널 뒤로 숨는 문제 해결)
+        var ownCanvas = GetComponent<Canvas>();
+        if (ownCanvas == null) ownCanvas = gameObject.AddComponent<Canvas>();
+        ownCanvas.overrideSorting = true;
+        ownCanvas.sortingOrder = 32000;
+
         var canvas = GetComponentInParent<Canvas>();
         if (canvas != null) AttachToCanvas(canvas);
 
