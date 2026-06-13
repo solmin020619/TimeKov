@@ -42,6 +42,8 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     [Header("시야 체크")]
     [Tooltip("플레이어 눈높이 오프셋 (m)")]
     [SerializeField] private float playerEyeHeight = 1.4f;
+    [Tooltip("이 거리(m)보다 가까우면 시야 체크를 건너뛴다. 너무 가까이서 레이가 오브젝트/바닥에 막혀 힌트가 꺼지는 것 방지.")]
+    [SerializeField] private float lineOfSightSkipDistance = 1.5f;
 
     // ─────────────────────────────────────────────────────────────
 
@@ -143,9 +145,11 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
         bool uiBlocking = GameUIController.Instance != null
                        && GameUIController.Instance.IsUIBlocking();
 
+        float distToPlayer = Vector3.Distance(transform.position, _playerTransform.position);
         bool nearby = !uiBlocking
-                   && Vector3.Distance(transform.position, _playerTransform.position) <= hintRadius
-                   && HasLineOfSight();
+                   && distToPlayer <= hintRadius
+                   // 아주 가까우면 시야 체크 생략 (근접 시 레이가 막혀 힌트가 꺼지는 문제 방지)
+                   && (distToPlayer <= lineOfSightSkipDistance || HasLineOfSight());
 
         if (nearby == _playerNearby) return;
         _playerNearby = nearby;
@@ -341,14 +345,16 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     {
         if (_indRoot != null) return;
 
+        // 설비를 작게(0.1~0.2) 스케일해 배치해도 인디케이터가 그 스케일을 물려받아
+        // 설비 안에 묻히지 않도록, 픽업의 자식이 아니라 월드 공간 독립 오브젝트로 만든다.
+        // (위치/회전은 LateUpdate에서 픽업 위에 직접 고정, 파괴 시 OnDestroy에서 정리)
         var go = new GameObject("UnlockStatusUI");
-        go.transform.SetParent(transform, false);
-        go.transform.localPosition = Vector3.up * indicatorHeight;
         var canvas = go.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         _indRoot = (RectTransform)go.transform;
         _indRoot.sizeDelta = new Vector2(indicatorWidthPx, 64f);
-        _indRoot.localScale = Vector3.one * 0.01f;
+        _indRoot.localScale = Vector3.one * 0.01f;   // 부모 스케일 비상속 → 항상 일정 크기
+        _indRoot.position = transform.position + Vector3.up * indicatorHeight;
 
         // 텍스트 (위)
         var txtGo = new GameObject("Text", typeof(RectTransform));
@@ -393,6 +399,10 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     private void LateUpdate()
     {
         if (_indRoot == null || !_indRoot.gameObject.activeSelf) return;
+
+        // 독립 오브젝트라 위치를 매 프레임 픽업 위에 직접 고정 (월드 높이 — 스케일 무관)
+        _indRoot.position = transform.position + Vector3.up * indicatorHeight;
+
         if (_camTr == null)
         {
             var cam = Camera.main;
@@ -400,6 +410,12 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
             _camTr = cam.transform;
         }
         _indRoot.forward = _camTr.forward;
+    }
+
+    private void OnDestroy()
+    {
+        // 인디케이터는 픽업의 자식이 아니므로(스케일 비상속) 직접 파괴해 잔존 방지
+        if (_indRoot != null) Destroy(_indRoot.gameObject);
     }
 
     // ── 시야 체크 ────────────────────────────────────────────────
