@@ -38,13 +38,13 @@ public static class InventoryUIBuilder
     // ("라이트 washes out"은 사실 InventoryRoot active 버그였고, 고쳐진 지금은 라이트가 정상. 컬러는 아이템/등급바에만.)
     static Color TxtMain  => Hex("242a31");                 // 어두운 슬레이트 (밝은 밴드 위)
     static Color TxtSub   => Hex("4c545d");
-    static Color BaseDark   => RGBA(22, 26, 32, 0.55f);     // 베이스(맨뒤 어두움, 가장자리/푸터로 노출) - 라이트밴드 위라 진해야 보임
-    static Color BandHead   => RGBA(202, 207, 213, 0.70f);  // 헤더 밴드 - 그리드보다 살짝 진하게(사진2 two-tone)
-    static Color BandBody   => RGBA(218, 223, 228, 0.60f);  // 본문/그리드 밴드 - 헤더보다 연하게
+    static Color BaseDark   => RGBA(22, 26, 32, 0.20f);     // 패널 단일 필름(얇게). 블러가 배경 담당, 이건 통일 틴트만. (3겹중 본문겹 제거 -> 이거+헤더만)
+    static Color BandHead   => RGBA(202, 207, 213, 0.30f);  // 헤더만 살짝 더 또렷(BagPanel 위 얇게 1겹 더). 본문은 필름 없음.
+    static Color BandBody   => RGBA(218, 223, 228, 0.00f);  // 본문 밴드 제거(투명). 블러가 본문 배경 = 칸마다 블러 비침(엔필 단일 프로스트 방식)
     static Color Hairline   => RGBA(20, 24, 30, 0.50f);     // 헤더 밑 1px 선 (밝은 위라 어둡게)
     static Color BtnLight   => RGBA(255, 255, 255, 0.40f);  // 하단 버튼(밝은 무채색)
     static Color BtnLightBd => RGBA(255, 255, 255, 0.50f);
-    static Color SlotFill   => RGBA(24, 28, 34, 0.15f);     // 슬롯 셀 안 = 아주 연한 반투명(뒤 잘 비침). 칸 정의는 테두리가. (0.32도 진해서 0.15로)
+    static Color SlotFill   => RGBA(24, 28, 34, 0.06f);     // 칸 안 거의 비움(borders-only). 블러 그대로 비침. 칸 정의는 4변 테두리가.
     static Color SlotEmptyC => RGBA(20, 24, 30, 0.20f);     // 빈 칸 더 어둡게
     static Color SlotBorder => RGBA(8, 10, 14, 0.90f);      // 슬롯 진한 검정 2px 테두리 (연한 fill 위에서 또렷하게)
 
