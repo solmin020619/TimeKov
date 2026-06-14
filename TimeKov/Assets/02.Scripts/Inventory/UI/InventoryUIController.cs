@@ -25,6 +25,11 @@ public class InventoryUIController : MonoBehaviour
     [SerializeField] private InventoryGridUI bagGridUI;
     [SerializeField] private InventoryGridUI warehouseGridUI;
     [SerializeField] private InventoryGridUI chestGridUI; // 상자 파밍 그리드
+    [SerializeField] private InventoryGridUI warehouseBagGridUI;   // 통합패널 안의 가방 구역 그리드(결계 안에서 단독 가방 대신 표시)
+
+    [Header("통합 패널(결계 안) 전용")]
+    [SerializeField] private TextMeshProUGUI warehouseBagCapacityText;   // 통합패널 가방 구역 용량
+    [SerializeField] private UnityEngine.UI.Button warehouseDualCloseBtn; // 통합패널 닫기
 
     [Header("카테고리 필터")]
     [SerializeField] private CategoryFilterUI bagFilterUI;
@@ -128,6 +133,10 @@ public class InventoryUIController : MonoBehaviour
         if (chestGridUI != null && InventoryManager.ChestInstance != null)
             chestGridUI.Bind(InventoryManager.ChestInstance);
 
+        // 통합패널 가방 구역 = 단독 가방과 같은 데이터(Instance)
+        if (warehouseBagGridUI != null && InventoryManager.Instance != null)
+            warehouseBagGridUI.Bind(InventoryManager.Instance);
+
         // 카테고리 필터 이벤트 연결
         if (bagFilterUI != null)
             bagFilterUI.OnFilterChanged += bagGridUI.SetFilter;
@@ -140,6 +149,7 @@ public class InventoryUIController : MonoBehaviour
         if (takeAllBtn != null) takeAllBtn.onClick.AddListener(OnClickTakeAll);
         if (bagTrashBtn != null) bagTrashBtn.onClick.AddListener(OnClickBagTrash);
         if (bagCloseBtn != null) bagCloseBtn.onClick.AddListener(Close);
+        if (warehouseDualCloseBtn != null) warehouseDualCloseBtn.onClick.AddListener(Close);
         if (takeAllFromChestBtn != null) takeAllFromChestBtn.onClick.AddListener(OnClickTakeAllFromChest);
 
         // 창고 정렬 바 바인딩
@@ -265,9 +275,9 @@ public class InventoryUIController : MonoBehaviour
         // (구 WarehouseInteractable F 상호작용 폐기 -> 결계존 기반으로 일원화)
         IsInBase = !IsChestOpen && IsPlayerInBase();
 
-        // 창고(결계존)일 때만 창고 패널 표시
+        // 결계 안 = 통합패널(창고+가방) 표시. (아래에서 단독 가방은 숨김)
         if (warehousePanel != null)
-            warehousePanel.SetActive(IsInBase && !IsChestOpen);
+            warehousePanel.SetActive(IsInBase);
 
         // 상자 열었을 때 상자 패널 표시
         if (chestPanel != null)
@@ -277,8 +287,9 @@ public class InventoryUIController : MonoBehaviour
         if (IsChestOpen && chestGridUI != null && InventoryManager.ChestInstance != null)
             chestGridUI.Bind(InventoryManager.ChestInstance);
 
+        // 단독 가방 = 결계 밖(또는 상자)에서만. 결계 안이면 통합패널의 가방 구역이 대신 표시.
         if (bagPanel != null)
-            bagPanel.SetActive(true);
+            bagPanel.SetActive(!IsInBase);
 
         // 블러 캔버스(별도 루트)는 inventoryRoot 밖이라 직접 토글
         if (bagBlurCanvas != null)
@@ -380,6 +391,17 @@ public class InventoryUIController : MonoBehaviour
                 r >= 1f   ? new Color(0.878f, 0.349f, 0.290f, 1f) :   // 가득 빨강 (경고)
                 r >= 0.9f ? new Color(0.878f, 0.627f, 0.125f, 1f) :   // 거의참 노랑 (경고)
                             new Color(0.141f, 0.165f, 0.192f, 1f);    // 평소 어두운 슬레이트 #242a31 (잘 보이게)
+        }
+
+        // 통합패널(결계 안) 가방 구역 용량도 동일하게
+        if (warehouseBagCapacityText != null)
+        {
+            warehouseBagCapacityText.text = "용량 " + used + "/" + max;
+            float rw = max > 0 ? Mathf.Clamp01((float)used / max) : 0f;
+            warehouseBagCapacityText.color =
+                rw >= 1f   ? new Color(0.878f, 0.349f, 0.290f, 1f) :
+                rw >= 0.9f ? new Color(0.878f, 0.627f, 0.125f, 1f) :
+                             new Color(0.141f, 0.165f, 0.192f, 1f);
         }
 
         if (bagCapacityGaugeFill != null && max > 0)
