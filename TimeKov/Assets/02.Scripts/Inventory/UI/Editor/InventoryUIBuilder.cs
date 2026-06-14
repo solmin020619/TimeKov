@@ -331,7 +331,13 @@ public static class InventoryUIBuilder
         }
 
         // 그리기 순서 (뒤->앞): SlotInner(호버) < GradeAurora < GradeBorder(언더라인) < ItemIcon < AmountChip < 숫자 < NEW
-        var newBadge = t.Find("NewBedge");
+        var newBadge = t.Find("NewBedge") as RectTransform;
+        if (newBadge != null)
+        {
+            // NEW 배지 = 좌상단 안쪽 (우상단 수량칩과 안 겹치고, 슬롯 밖으로 안 삐져나가 옆칸에 안 가림)
+            newBadge.anchorMin = newBadge.anchorMax = new Vector2(0, 1); newBadge.pivot = new Vector2(0, 1);
+            newBadge.anchoredPosition = new Vector2(4, -4); newBadge.sizeDelta = new Vector2(32, 16);
+        }
         if (si != null) si.SetAsLastSibling();
         if (hl != null) hl.SetAsLastSibling();
         if (aurora != null) aurora.SetAsLastSibling();
