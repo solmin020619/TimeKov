@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using TIMEKOV.Factory;
 
 public class RailBuildManager : MonoBehaviour
 {
@@ -82,14 +83,22 @@ public class RailBuildManager : MonoBehaviour
     private PlacedBuilding _railTargetHighlightedBuilding;
     private PlacedBuilding _railHoverPreviewBuilding;
 
+    // cell-start(기존 레일에서 이어 시작) 라우팅의 출발 빌딩. 체인을 거슬러 찾은 값.
+    // 자기 자신(같은 빌딩) 연결을 막는 데 사용. 포트에서 시작한 경우엔 startPort 로 판정.
+    private PlacedBuilding _cellStartSourceBuilding;
+
     private readonly Dictionary<BuildPort, GameObject> portIndicatorMap = new();
 
     private enum PortIndicatorState { Arrow, X, Hidden }
+
+    // 레일 모드 중 매니저가 비활성화/파괴돼도 색상 보류 플래그가 박혀있지 않게 방어.
+    private void OnDisable() => BeltSegment.SuppressConnectionColor = false;
 
     public void BeginRailMode(BuildManager buildManager)
     {
         owner = buildManager;
         isRailModeActive = true;
+        BeltSegment.SuppressConnectionColor = true;   // 빌드 중 색상 판정 보류 (작업 중 빨강 숨김)
         RefreshPortCache();
         CancelCurrentRouteStateOnly();
         ResetPreviewCache();
@@ -103,6 +112,7 @@ public class RailBuildManager : MonoBehaviour
         ClearRailHighlight();
         ClearHoverSourcePreview();
         isRailModeActive = false;
+        BeltSegment.SuppressConnectionColor = false;  // 보류 해제 → 다음 프레임부터 정상 판정
         CancelCurrentRouteStateOnly();
         ResetPreviewCache();
         ClearPathPreviewInstances();
@@ -563,10 +573,9 @@ public class RailBuildManager : MonoBehaviour
         if (!port.HasCapacity)
             return PortIndicatorState.X;
 
-        if (startPort != null &&
-            port.OwnerBuilding != null &&
-            startPort.OwnerBuilding != null &&
-            port.OwnerBuilding == startPort.OwnerBuilding)
+        // 출발 빌딩과 같은 설비면 연결 불가 (자기 자신 연결 방지).
+        // cell-start 라우팅(startPort==null)도 추적한 출발 빌딩으로 막는다.
+        if (IsSameBuildingAsSource(port))
             return PortIndicatorState.X;
 
         return port.CanEndConnection() ? PortIndicatorState.Arrow : PortIndicatorState.X;
@@ -854,6 +863,9 @@ public class RailBuildManager : MonoBehaviour
         currentPathCells.Clear();
         currentPathCells.Add(cell);
 
+        // 이 레일 체인이 거슬러 닿는 출발 빌딩 추적 → 같은 빌딩 도착(자기 자신) 차단용
+        _cellStartSourceBuilding = TraceChainSourceBuilding(cell);
+
         // 기존 셀에 connection 이 1개 있으면 그 방향을 incoming flow 로 둠
         piece.flowFrom = ComputeStartCellFlowFrom(piece);
         piece.pathIndex = 0;
@@ -905,6 +917,13 @@ public class RailBuildManager : MonoBehaviour
             && port != null)
         {
             CompleteRoute(port);
+        }
+        else
+        {
+            // 포트에 도달 못한(미완성) 라인은 완성 시점의 AssignFlowDirections 를 못 타므로
+            // 각 칸의 증분 flowFrom 이 남아 화살표가 군데군데 반대로 향할 수 있다.
+            // 매 커밋마다 체인 전체 flow 를 일관되게 재계산해 방향을 정규화한다.
+            ReflowConnectedChain(currentEndCell);
         }
     }
 
@@ -989,16 +1008,61 @@ public class RailBuildManager : MonoBehaviour
         return result;
     }
 
+    // 현재 라우팅의 출발 빌딩. 포트 시작이면 그 포트의 빌딩, cell-start 면 추적해둔 빌딩.
+    private PlacedBuilding GetRouteSourceBuilding()
+        => startPort != null ? startPort.OwnerBuilding : _cellStartSourceBuilding;
+
+    // 도착 후보 포트가 출발 빌딩과 같은 설비인지(자기 자신 연결) 판정.
+    private bool IsSameBuildingAsSource(BuildPort port)
+    {
+        PlacedBuilding src = GetRouteSourceBuilding();
+        return src != null && port != null && port.OwnerBuilding == src;
+    }
+
+    // 기존 레일 셀에서 시작할 때, 그 체인이 거슬러 닿는 출발 포트의 빌딩을 찾는다.
+    // (Output 포트 우선 — 실제 출발지. 없으면 닿는 아무 포트의 빌딩.)
+    private PlacedBuilding TraceChainSourceBuilding(Vector2Int startCell)
+    {
+        if (!railMap.ContainsKey(startCell)) return null;
+
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int> { startCell };
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        queue.Enqueue(startCell);
+
+        PlacedBuilding fallback = null;
+        while (queue.Count > 0)
+        {
+            Vector2Int c = queue.Dequeue();
+
+            if (cachedPortByFrontCell.TryGetValue(c, out BuildPort p) && p != null && p.OwnerBuilding != null)
+            {
+                if (p.portType == PortType.Output) return p.OwnerBuilding;  // 출발지 확정
+                if (fallback == null) fallback = p.OwnerBuilding;
+            }
+
+            if (!railMap.TryGetValue(c, out RailPiece piece) || piece == null) continue;
+            foreach (Vector2Int d in dirs)
+            {
+                Vector2Int n = c + d;
+                if (visited.Contains(n)) continue;
+                if (!IsConnectedTo(piece, n)) continue;
+                visited.Add(n);
+                queue.Enqueue(n);
+            }
+        }
+        return fallback;
+    }
+
     private bool IsCandidateDestination(BuildPort port)
     {
         if (!isRouting || port == null) return false;
         // startPort 가 null 이면 (cell-start) port-비교/동일빌딩 검사 건너뜀
         if (startPort != null && port == startPort) return false;
         if (!port.CanEndConnection()) return false;
-        if (startPort != null
-            && port.OwnerBuilding != null
-            && startPort.OwnerBuilding != null
-            && port.OwnerBuilding == startPort.OwnerBuilding)
+        // 출발 빌딩과 같은 설비면 연결 불가 (자기 자신 연결 방지).
+        // cell-start 라우팅(startPort==null)도 추적한 출발 빌딩으로 막는다.
+        if (IsSameBuildingAsSource(port))
             return false;
         return true;
     }
@@ -1096,7 +1160,9 @@ public class RailBuildManager : MonoBehaviour
             return false;
         }
 
-        return CanUseCellAsRail(candidate, simEnd, allowExisting: true);
+        // 이미 깔린 레일 칸은 경로 후보에서 제외 (allowExisting:false) — 자동 경로가
+        // 기존 레일 위로 겹쳐 계산되지 않게 한다. (포트로의 마무리는 위에서 별도 처리)
+        return CanUseCellAsRail(candidate, simEnd, allowExisting: false);
     }
 
     private Vector2Int GetRequiredFirstExpansionCell()
@@ -1114,10 +1180,9 @@ public class RailBuildManager : MonoBehaviour
         if (currentPathCells.Count + extraSimulatedCells < 2) return false;
 
         // 동일 빌딩 검사도 startPort 가 있을 때만
-        if (startPort != null
-            && port.OwnerBuilding != null
-            && startPort.OwnerBuilding != null
-            && port.OwnerBuilding == startPort.OwnerBuilding)
+        // 출발 빌딩과 같은 설비면 연결 불가 (자기 자신 연결 방지).
+        // cell-start 라우팅(startPort==null)도 추적한 출발 빌딩으로 막는다.
+        if (IsSameBuildingAsSource(port))
             return false;
 
         Vector2Int frontCell = port.GetFrontCell();
@@ -1145,7 +1210,14 @@ public class RailBuildManager : MonoBehaviour
         endPort = port;
 
         AssignFlowDirections();
+        // 새 경로가 기존 레일과 합쳐진 경우 기존 칸들은 예전 flow 가 남아 합류부 화살표가
+        // 뒤집힌다. 체인 전체를 다시 일관되게 흐르도록 정규화.
+        ReflowConnectedChain(currentEndCell);
         GameEvents.RaiseRailConnected();   // 튜토리얼 등 통지 (포트-포트 연결 완료)
+
+        // 포트 connectionCount 가 올라갔으니 벨트들이 다시 감지해 연결(파랑)로 갱신되게 한다.
+        // (BeltSegment 는 connectionCount>0 인 포트만 실제 연결로 인정함)
+        BeltSegment.ReconnectAll();
 
         Log($"[Rail] Route completed: {(startPort != null ? startPort.name : "[cell-start]")} -> {endPort.name}");
 
@@ -1199,6 +1271,7 @@ public class RailBuildManager : MonoBehaviour
         endPort = null;
         currentEndCell = default;
         currentPathCells.Clear();
+        _cellStartSourceBuilding = null;
     }
 
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
@@ -1425,6 +1498,8 @@ public class RailBuildManager : MonoBehaviour
         foreach (Collider col in previewInstance.GetComponentsInChildren<Collider>())
             col.enabled = false;
 
+        DisableBeltLogic(previewInstance);
+
         previewRenderers = previewInstance.GetComponentsInChildren<Renderer>(true);
     }
 
@@ -1609,6 +1684,8 @@ public class RailBuildManager : MonoBehaviour
             foreach (Collider col in root.GetComponentsInChildren<Collider>())
                 col.enabled = false;
 
+            DisableBeltLogic(root);
+
             ApplyGhostMaterial(root, ghostOverride, currentPathCells.Count + i);
 
             pathPreviewInstances.Add(root);
@@ -1735,6 +1812,21 @@ public class RailBuildManager : MonoBehaviour
                 mats[i] = mat;
             r.materials = mats;
         }
+    }
+
+    // 프리뷰/고스트 레일은 시각용일 뿐이라, 프리팹에 포함된 BeltSegment(연결 감지·아이템
+    // 운송·연결 색상)를 꺼서 실제 벨트 연결 로직과 색상 표시에 끼어들지 않게 한다.
+    // (컴포넌트를 끄면 OnDisable 이 호출돼 BeltSegment.All 목록에서도 빠진다.)
+    private static void DisableBeltLogic(GameObject root)
+    {
+        if (root == null) return;
+        foreach (BeltSegment seg in root.GetComponentsInChildren<BeltSegment>(true))
+            seg.enabled = false;
+
+        // BeltSegment 가 OnEnable 에서 입힌 색상 오버라이드(MPB)를 제거 — 고스트는
+        // 순수 고스트 머티리얼만 쓰도록. (안 지우면 흰색 MPB 가 고스트 머티리얼 위에 남음)
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+            r.SetPropertyBlock(null);
     }
 
     private void ResetPreviewCache()
