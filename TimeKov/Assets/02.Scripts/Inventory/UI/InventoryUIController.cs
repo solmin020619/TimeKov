@@ -70,11 +70,19 @@ public class InventoryUIController : MonoBehaviour
     private bool _isOpen = false;
     public bool IsOpen => _isOpen;
 
-    // 기지 내부 여부 (WarehouseInteractable 등에서 설정, 닫을 때 자동 초기화)
+    // 기지(결계존) 내부 여부. Open()에서 플레이어 결계상태(IsPlayerInBase)로 매번 세팅(상자 파밍 중엔 false). 닫을 때 false.
     public static bool IsInBase { get; set; } = false;
 
     // 상자 열기 여부 (ChestInteractable에서 설정, 닫을 때 자동 초기화)
     public static bool IsChestOpen { get; set; } = false;
+
+    // 플레이어가 결계존(BaseZone) 안인지 조회 — TAB로 인벤 열 때 창고 자동 연동 판정용
+    private static Player _player;
+    private static bool IsPlayerInBase()
+    {
+        if (_player == null) _player = FindAnyObjectByType<Player>();
+        return _player != null && _player.Stat != null && _player.Stat.IsInBase;
+    }
 
     private void Awake()
     {
@@ -253,7 +261,11 @@ public class InventoryUIController : MonoBehaviour
         _isOpen = true;
         inventoryRoot.SetActive(true);
 
-        // 창고 안에서만 창고 패널 표시
+        // 창고 표시 판정: 상자 파밍 중이면 창고 X(가방+상자만), 그 외엔 결계존 안일 때만 창고 자동 연동.
+        // (구 WarehouseInteractable F 상호작용 폐기 -> 결계존 기반으로 일원화)
+        IsInBase = !IsChestOpen && IsPlayerInBase();
+
+        // 창고(결계존)일 때만 창고 패널 표시
         if (warehousePanel != null)
             warehousePanel.SetActive(IsInBase && !IsChestOpen);
 
