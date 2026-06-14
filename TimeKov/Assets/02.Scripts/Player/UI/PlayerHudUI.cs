@@ -115,6 +115,14 @@ public class PlayerHudUI : MonoBehaviour
     [SerializeField] private Color damageTextColor = new Color(1f, 0.36f, 0.39f, 1f);
     [Tooltip("시간 회복 시 뜨는 숫자 색 (예: +30)")]
     [SerializeField] private Color healTextColor = new Color(0.45f, 0.9f, 0.5f, 1f);
+    [Tooltip("데미지/회복 숫자를 플레이어 옆에 띄움 (끄면 기존 HP바 옆)")]
+    [SerializeField] private bool floatTextAtPlayer = true;
+    [Tooltip("플레이어 발 기준 월드 높이 (가슴/머리쯤)")]
+    [SerializeField] private float floatTextWorldHeight = 1.5f;
+    [Tooltip("화면상 플레이어 우측으로 띄울 픽셀")]
+    [SerializeField] private float floatTextScreenRight = 70f;
+    [Tooltip("화면상 위로 보정할 픽셀")]
+    [SerializeField] private float floatTextScreenUp = 20f;
 
     [Header("Tutorial")]
     [Tooltip("튜토리얼 스포트라이트가 강조할 시간/DECAY 패널(PlayerTime). 비우면 자동 탐색.")]
@@ -596,7 +604,7 @@ public class PlayerHudUI : MonoBehaviour
     {
         int n = Mathf.RoundToInt(amount);
         if (n <= 0) return;   // 0.x 단위는 '-0' 방지
-        FloatingTextManager.Show($"-{n}", damageTextColor, GetTimeAnchorScreenPos());
+        FloatingTextManager.Show($"-{n}", damageTextColor, GetFloatTextPos());
     }
 
     // 시간(HP) 회복 → 초록 +N 플로팅 텍스트
@@ -604,7 +612,7 @@ public class PlayerHudUI : MonoBehaviour
     {
         int n = Mathf.RoundToInt(amount);
         if (n <= 0) return;   // 0.x 단위는 '+0' 방지
-        FloatingTextManager.Show($"+{n}", healTextColor, GetTimeAnchorScreenPos());
+        FloatingTextManager.Show($"+{n}", healTextColor, GetFloatTextPos());
     }
 
     // 플로팅 텍스트가 떠오를 화면 좌표 (좌하단 시계 아이콘 우선, 없으면 HP 바)
@@ -613,6 +621,28 @@ public class PlayerHudUI : MonoBehaviour
         if (timeDecayIcon != null) return timeDecayIcon.rectTransform.position;
         if (hpSlider != null) return hpSlider.transform.position;
         return new Vector3(Screen.width * 0.13f, Screen.height * 0.18f, 0f);
+    }
+
+    // 데미지/회복 텍스트가 뜰 화면좌표 = 플레이어 우측 (toggle 꺼지면 기존 HP바 위치)
+    Vector3 GetFloatTextPos()
+    {
+        if (floatTextAtPlayer && playerStat != null)
+        {
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                Vector3 wp = playerStat.transform.position + Vector3.up * floatTextWorldHeight;
+                Vector3 sp = cam.WorldToScreenPoint(wp);
+                if (sp.z > 0f)   // 카메라 앞일 때만
+                {
+                    sp.x += floatTextScreenRight;
+                    sp.y += floatTextScreenUp;
+                    sp.z = 0f;
+                    return sp;
+                }
+            }
+        }
+        return GetTimeAnchorScreenPos();   // 폴백 (카메라 뒤/없을 때)
     }
 
     // Hurt Vignette 페이드 아웃
