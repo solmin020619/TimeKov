@@ -2266,6 +2266,7 @@ MonoBehaviour:
   newBadge: {fileID: 8823403114553178722}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -15717,6 +15718,7 @@ MonoBehaviour:
   newBadge: {fileID: 6314054732783155083}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -15824,6 +15826,7 @@ MonoBehaviour:
   newBadge: {fileID: 647799478712702623}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -16737,6 +16740,7 @@ MonoBehaviour:
   newBadge: {fileID: 6005428674887788823}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -18100,7 +18104,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &4604174658898977087
 RectTransform:
   m_ObjectHideFlags: 0
@@ -19462,6 +19466,7 @@ MonoBehaviour:
   newBadge: {fileID: 8410174898264614451}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -19569,6 +19574,7 @@ MonoBehaviour:
   newBadge: {fileID: 1048020586487086210}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -21567,6 +21573,7 @@ MonoBehaviour:
   newBadge: {fileID: 7230794071911551995}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -23040,6 +23047,7 @@ MonoBehaviour:
   newBadge: {fileID: 3352839588776717620}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -23799,6 +23807,7 @@ MonoBehaviour:
   newBadge: {fileID: 6152560259646281855}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -25761,6 +25770,81 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &3628900474967628160
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3849161827752246754}
+  - component: {fileID: 3722728803303930099}
+  - component: {fileID: 1027293003589686476}
+  m_Layer: 0
+  m_Name: Content
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &3849161827752246754
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3628900474967628160}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3523830987339792537}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 1}
+--- !u!114 &3722728803303930099
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3628900474967628160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a8695521f0d02e499659fee002a26c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 1
+  m_StartCorner: 0
+  m_StartAxis: 0
+  m_CellSize: {x: 185, y: 180}
+  m_Spacing: {x: 5, y: 5}
+  m_Constraint: 1
+  m_ConstraintCount: 6
+--- !u!114 &1027293003589686476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3628900474967628160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_HorizontalFit: 0
+  m_VerticalFit: 2
 --- !u!1 &3634719107512674394
 GameObject:
   m_ObjectHideFlags: 0
@@ -29009,6 +29093,7 @@ MonoBehaviour:
   newBadge: {fileID: 651094231610348156}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -29801,6 +29886,7 @@ MonoBehaviour:
   newBadge: {fileID: 6863016773384268145}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -31623,6 +31709,7 @@ MonoBehaviour:
   newBadge: {fileID: 6027445544825056546}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -32449,6 +32536,7 @@ MonoBehaviour:
   newBadge: {fileID: 5553168026723165959}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -35353,6 +35441,7 @@ MonoBehaviour:
   newBadge: {fileID: 8952575070540862249}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -39812,6 +39901,7 @@ MonoBehaviour:
   newBadge: {fileID: 1013786437959949868}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -42494,6 +42584,7 @@ MonoBehaviour:
   newBadge: {fileID: 7959238578532901847}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -44305,7 +44396,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uiPanel: {fileID: 6168786873978208401}
   machineTitleText: {fileID: 1538395126410962321}
-  inventorySlotParent: {fileID: 3523830987339792537}
+  inventorySlotParent: {fileID: 3849161827752246754}
   inventorySlotPrefab: {fileID: 4752992831769660478, guid: c8fc623efafcd514e9865fc3f2de0fbc, type: 3}
   inventorySlotCount: 25
   recipeDropSlots:
@@ -46456,8 +46547,9 @@ GameObject:
   - component: {fileID: 3523830987339792537}
   - component: {fileID: 4462278367334239844}
   - component: {fileID: 4302959330166317810}
-  - component: {fileID: 6905364151592460642}
   - component: {fileID: 8735575195567754705}
+  - component: {fileID: 8724416201132027804}
+  - component: {fileID: 6414625941690490677}
   m_Layer: 5
   m_Name: Inven
   m_TagString: Untagged
@@ -46474,15 +46566,16 @@ RectTransform:
   m_GameObject: {fileID: 6552830342910133519}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.325, y: 1, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 3849161827752246754}
   m_Father: {fileID: 4581090894840103445}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -777.7696, y: -99.96977}
-  m_SizeDelta: {x: 861.12, y: 907.7853}
+  m_SizeDelta: {x: 1140.984, y: 907.7853}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4462278367334239844
 CanvasRenderer:
@@ -46522,30 +46615,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &6905364151592460642
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6552830342910133519}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a8695521f0d02e499659fee002a26c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_StartCorner: 0
-  m_StartAxis: 0
-  m_CellSize: {x: 140, y: 180}
-  m_Spacing: {x: 5, y: 5}
-  m_Constraint: 1
-  m_ConstraintCount: 6
 --- !u!114 &8735575195567754705
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46561,6 +46630,50 @@ MonoBehaviour:
   highlightImage: {fileID: 0}
   normalColor: {r: 1, g: 1, b: 1, a: 0}
   highlightColor: {r: 0.3, g: 0.8, b: 1, a: 0.15}
+--- !u!114 &8724416201132027804
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6552830342910133519}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3312d7739989d2b4e91e6319e9a96d76, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Padding: {x: 0, y: 0, z: 0, w: 0}
+  m_Softness: {x: 0, y: 0}
+--- !u!114 &6414625941690490677
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6552830342910133519}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1aa08ab6e0800fa44ae55d278d1423e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Content: {fileID: 3849161827752246754}
+  m_Horizontal: 0
+  m_Vertical: 1
+  m_MovementType: 2
+  m_Elasticity: 0.1
+  m_Inertia: 1
+  m_DecelerationRate: 0.135
+  m_ScrollSensitivity: 30
+  m_Viewport: {fileID: 3523830987339792537}
+  m_HorizontalScrollbar: {fileID: 0}
+  m_VerticalScrollbar: {fileID: 0}
+  m_HorizontalScrollbarVisibility: 0
+  m_VerticalScrollbarVisibility: 0
+  m_HorizontalScrollbarSpacing: 0
+  m_VerticalScrollbarSpacing: 0
+  m_OnValueChanged:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &6558783025923916445
 GameObject:
   m_ObjectHideFlags: 0
@@ -52111,6 +52224,7 @@ MonoBehaviour:
   newBadge: {fileID: 1774289424214030951}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -53898,6 +54012,7 @@ MonoBehaviour:
   newBadge: {fileID: 2795276638356788381}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -59089,6 +59204,7 @@ MonoBehaviour:
   newBadge: {fileID: 1246041841337448512}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}
@@ -59487,6 +59603,7 @@ MonoBehaviour:
   newBadge: {fileID: 5453222986510835366}
   countChip: {fileID: 0}
   iconBacking: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalColor: {r: 0.21551263, g: 0.2374311, b: 0.2735849, a: 0.41960785}
   emptyBorderColor: {r: 0.3, g: 0.3, b: 0.3, a: 0}
   dragColor: {r: 1, g: 1, b: 1, a: 0.4}

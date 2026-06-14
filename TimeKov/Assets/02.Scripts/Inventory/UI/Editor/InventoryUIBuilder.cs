@@ -261,12 +261,12 @@ public static class InventoryUIBuilder
         var auGrad = aurora.GetComponent<UIFrostGradient>(); if (auGrad == null) auGrad = aurora.gameObject.AddComponent<UIFrostGradient>();
         auGrad.topColor = new Color(1, 1, 1, 0f); auGrad.bottomColor = new Color(1, 1, 1, 1f);
 
-        // ItemIcon -> 중앙 78 (슬롯 90의 ~87%, 꽉차게. 너무 크면 줄임)
+        // ItemIcon -> 칸 채우기(stretch+여백6). 90칸이면 78로 동일, 큰 칸(공장 등)이면 그만큼 커짐. preserveAspect로 찌그러짐 방지.
         var ic = t.Find("ItemIcon") as RectTransform;
         if (ic != null)
         {
-            ic.anchorMin = ic.anchorMax = new Vector2(0.5f, 0.5f); ic.pivot = new Vector2(0.5f, 0.5f);
-            ic.sizeDelta = new Vector2(78, 78); ic.anchoredPosition = Vector2.zero;
+            ic.anchorMin = Vector2.zero; ic.anchorMax = Vector2.one; ic.pivot = new Vector2(0.5f, 0.5f);
+            ic.offsetMin = new Vector2(6, 6); ic.offsetMax = new Vector2(-6, -6); ic.anchoredPosition = Vector2.zero;
             var ii = ic.GetComponent<Image>(); if (ii != null) ii.preserveAspect = true;
         }
 
@@ -275,10 +275,10 @@ public static class InventoryUIBuilder
         GameObject chipGo = null;
         if (at != null)
         {
-            at.anchorMin = at.anchorMax = new Vector2(1, 1); at.pivot = new Vector2(1, 1);
-            at.sizeDelta = new Vector2(34, 20); at.anchoredPosition = new Vector2(-5, -5);
+            at.anchorMin = new Vector2(0.56f, 0.72f); at.anchorMax = new Vector2(0.96f, 0.96f); at.pivot = new Vector2(0.5f, 0.5f);
+            at.offsetMin = Vector2.zero; at.offsetMax = Vector2.zero;
             var tmp = at.GetComponent<TextMeshProUGUI>();
-            if (tmp != null) { tmp.fontSize = 14; tmp.fontStyle = FontStyles.Bold; tmp.alignment = TextAlignmentOptions.Center; tmp.color = Color.white; }
+            if (tmp != null) { tmp.enableAutoSizing = true; tmp.fontSizeMin = 12; tmp.fontSizeMax = 40; tmp.fontStyle = FontStyles.Bold; tmp.alignment = TextAlignmentOptions.Center; tmp.color = Color.white; }
 
             // 칩은 새 GameObject 대신 안 쓰는 기존 SelectedOverlay를 재활용
             // (LoadPrefabContents에서 new GameObject가 프리팹에 저장 안 되는 경우 대비 - 확실한 방식)
@@ -287,8 +287,8 @@ public static class InventoryUIBuilder
             {
                 chip.gameObject.name = "AmountChip";
                 chip.gameObject.SetActive(true);
-                chip.anchorMin = chip.anchorMax = new Vector2(1, 1); chip.pivot = new Vector2(1, 1);
-                chip.sizeDelta = new Vector2(34, 20); chip.anchoredPosition = new Vector2(-5, -5);
+                chip.anchorMin = new Vector2(0.56f, 0.72f); chip.anchorMax = new Vector2(0.96f, 0.96f); chip.pivot = new Vector2(0.5f, 0.5f);
+                chip.offsetMin = Vector2.zero; chip.offsetMax = Vector2.zero;
                 var chipImg = chip.GetComponent<Image>();
                 if (chipImg == null) chipImg = chip.gameObject.AddComponent<Image>();
                 chipImg.sprite = RoundedSprite(); chipImg.type = Image.Type.Sliced;
