@@ -25,7 +25,7 @@ public static class InventoryUIBuilder
 
     // HANDOFF §3 색
     const string BlurCanvasName = "InventoryBlurCanvas";
-    const float BagRightX = 360f;   // 가방을 화면 중앙에서 오른쪽으로 (엔드필드처럼). 패널/블러 같은 값으로 정렬
+    const float BagRightX = 500f;   // 가방을 화면 중앙에서 오른쪽으로. 패널/블러 같은 값으로 정렬 (값 키울수록 더 오른쪽)
     // clggdesign 따뜻한 간유리 패널 표면 (9-slice). 톤을 배경무관 고정 + 블러는 뒤에서 깊이만.
     // 알파 강화 원하면 a82/a88 파일로 경로만 바꾸면 됨.
     const string PartDir = "Assets/11.UI/New";   // clggdesign 부품 PNG 폴더 (패널 변형 + header_bar/grade_bar/divider/scrollbar/icons)
@@ -207,11 +207,34 @@ public static class InventoryUIBuilder
         title.fontStyle = FontStyles.Bold;
         AddOutline(title.gameObject, new Color(0.86f, 0.90f, 0.96f, 0.5f), new Vector2(1f, -1f));   // 옅은 라이트 외곽선 = 배경 어두워도 글자 살게
 
-        // 닫기 X (박스 없는 SF 글리프, 어두운 글자색)
-        var closeBtn = MakeIconButton("CloseButton", header.transform, "ic_close", 40, Color.clear);
-        AnchorRight(closeBtn.GetComponent<RectTransform>(), 14, 40, 40);
+        // 닫기 버튼 (New 폴더 ic_close + 호버/클릭 하이라이트)
+        var closeBtn = MakeIconButton("CloseButton", header.transform, "ic_close", 54, Color.clear);
+        AnchorRight(closeBtn.GetComponent<RectTransform>(), 12, 54, 54);   // 헤더 높이(56)에 꽉 차게
         TintIcon(closeBtn, TxtMain);   // 밝은 표면 위라 어두운 글리프
-        SetRef(so, "bagCloseBtn", closeBtn.GetComponent<Button>());
+        // 아이콘을 New 폴더의 ic_close 로 교체 (LoadSpr은 sprites/ 폴더라 New를 직접 로드) + 헤더에 꽉 차게 크게
+        var closeSpr = LoadPartSprite(PartDir + "/ic_close.png", Vector4.zero);
+        var closeIconImg = closeBtn.transform.Find("Icon")?.GetComponent<Image>();
+        if (closeIconImg != null)
+        {
+            if (closeSpr != null) closeIconImg.sprite = closeSpr;
+            closeIconImg.rectTransform.sizeDelta = new Vector2(48, 48);   // 위아래 여백 거의 없이
+        }
+        // 호버/클릭 인터랙션: 루트에 둥근 배경(평소 투명) + ColorTint 로 강조
+        var closeBg = closeBtn.GetComponent<Image>();
+        closeBg.sprite = RoundedSprite(); closeBg.type = Image.Type.Sliced;
+        closeBg.color = Color.white;   // ColorTint state 색이 그대로 보이게 base = white
+        var closeButton = closeBtn.GetComponent<Button>();
+        closeButton.transition = Selectable.Transition.ColorTint;
+        closeButton.targetGraphic = closeBg;
+        var ccb = closeButton.colors;
+        ccb.normalColor      = new Color(1f, 1f, 1f, 0f);              // 평소 = 투명
+        ccb.highlightedColor = new Color(0.24f, 0.29f, 0.39f, 0.20f);  // 호버 = 은은한 쿨 슬레이트
+        ccb.pressedColor     = new Color(0.20f, 0.24f, 0.34f, 0.36f);  // 누름 = 더 진하게
+        ccb.selectedColor    = new Color(1f, 1f, 1f, 0f);
+        ccb.disabledColor    = new Color(1f, 1f, 1f, 0f);
+        ccb.colorMultiplier  = 1f; ccb.fadeDuration = 0.1f;
+        closeButton.colors = ccb;
+        SetRef(so, "bagCloseBtn", closeButton);
 
         // ── 본문 밴드 (밝음, 블러 대상). 위=용량 텍스트, 아래=슬롯 그리드 ──
         var body = MakeRounded("BodyBand", prt, Vector2.zero, Vector2.zero, BandBody);
@@ -295,9 +318,23 @@ public static class InventoryUIBuilder
         var compactBtn = MakeImage("Compact", prt, new Vector2(34, 34), Vector2.zero, new Color(0, 0, 0, 0));   // 투명 히트영역
         var compactRt = compactBtn.GetComponent<RectTransform>();
         compactRt.anchorMin = compactRt.anchorMax = new Vector2(1, 0); compactRt.pivot = new Vector2(1, 0);
-        compactRt.sizeDelta = new Vector2(34, 34); compactRt.anchoredPosition = new Vector2(-16, 16);
-        var compactBtnComp = compactBtn.AddComponent<Button>(); compactBtnComp.targetGraphic = compactBtn.GetComponent<Image>();
-        var sortIcon = MakeImage("Icon", compactBtn.transform, new Vector2(22, 22), Vector2.zero, RGBA(214, 224, 238, 1f));   // 밝은 글리프(어두운 푸터 위)
+        compactRt.sizeDelta = new Vector2(52, 52); compactRt.anchoredPosition = new Vector2(-16, 4);   // 푸터(60) 높이에 꽉 차게
+        var compactBtnComp = compactBtn.AddComponent<Button>();
+        // 호버/클릭 강조: 루트에 둥근 배경(평소 투명) + ColorTint (어두운 푸터 위라 밝은 하이라이트)
+        var compactBg = compactBtn.GetComponent<Image>();
+        compactBg.sprite = RoundedSprite(); compactBg.type = Image.Type.Sliced;
+        compactBg.color = Color.white;   // ColorTint state 색이 그대로 보이게 base = white
+        compactBtnComp.transition = Selectable.Transition.ColorTint;
+        compactBtnComp.targetGraphic = compactBg;
+        var scb = compactBtnComp.colors;
+        scb.normalColor      = new Color(1f, 1f, 1f, 0f);     // 평소 = 투명
+        scb.highlightedColor = new Color(1f, 1f, 1f, 0.16f);  // 호버 = 은은한 밝은 강조(어두운 푸터 위)
+        scb.pressedColor     = new Color(1f, 1f, 1f, 0.30f);  // 누름 = 더 밝게
+        scb.selectedColor    = new Color(1f, 1f, 1f, 0f);
+        scb.disabledColor    = new Color(1f, 1f, 1f, 0f);
+        scb.colorMultiplier  = 1f; scb.fadeDuration = 0.1f;
+        compactBtnComp.colors = scb;
+        var sortIcon = MakeImage("Icon", compactBtn.transform, new Vector2(46, 46), Vector2.zero, RGBA(214, 224, 238, 1f));   // 밝은 글리프(어두운 푸터 위), 크게
         var siImg = sortIcon.GetComponent<Image>(); siImg.raycastTarget = false; siImg.preserveAspect = true;
         var sortSpr = LoadPartSprite(PartDir + "/ic_sort.png", Vector4.zero);
         if (sortSpr != null) siImg.sprite = sortSpr;

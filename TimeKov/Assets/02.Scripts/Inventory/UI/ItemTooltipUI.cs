@@ -108,15 +108,31 @@ public class ItemTooltipUI : MonoBehaviour
 
         var data = ItemDatabase.GetItem(itemId);
 
+        // 아이템 이름 = 등급 색 (일반은 흰색). 등급이 한눈에 느껴지게.
         if (itemNameText != null)
-            itemNameText.text = data != null ? data.itemName : "알 수 없는 아이템";
+        {
+            if (data != null)
+            {
+                int g = (int)data.itemGrade;
+                itemNameText.text = data.itemName;
+                itemNameText.color = GradeVisual.IsCommon(g) ? Color.white : GradeVisual.GetColor(g);
+            }
+            else
+            {
+                itemNameText.text = "알 수 없는 아이템";
+                itemNameText.color = Color.white;
+            }
+        }
 
+        // 카테고리 줄 = 등급이름(등급색) + 카테고리 (예: 고급  원재료)
         if (categoryText != null)
         {
             if (data != null)
             {
+                int g = (int)data.itemGrade;
                 int catIndex = Mathf.Clamp((int)data.itemCategory, 0, CategoryNames.Length - 1);
-                categoryText.text = CategoryNames[catIndex];
+                categoryText.richText = true;
+                categoryText.text = $"<color=#{GradeVisual.GetColorHex(g)}>{GradeVisual.GetName(g)}</color>  {CategoryNames[catIndex]}";
             }
             else
             {

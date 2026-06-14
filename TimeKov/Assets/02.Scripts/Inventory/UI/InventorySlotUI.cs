@@ -32,14 +32,7 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private Color hoverBorderColor  = new Color(0.37f, 0.77f, 1f, 0.9f);          // 호버 테두리(시안)
 
     // ��޺� �׵θ� ���� (Common / Advanced / Rare / Hero / Legend ����)
-    private static readonly Color[] GradeColors = new Color[]
-    {
-        new Color(0.60f, 0.60f, 0.60f, 0f),    // Common   - 없음
-        new Color(0.31f, 0.61f, 0.88f, 1f),    // Advanced - 파랑 4f9be0
-        new Color(0.20f, 0.75f, 0.42f, 1f),    // Rare     - 초록 34c06a
-        new Color(0.65f, 0.31f, 0.88f, 1f),    // Hero     - 보라 a64fe0
-        new Color(1.00f, 0.69f, 0.13f, 1f),    // Legend   - 골드 ffb020
-    };
+    // 등급 색은 공용 GradeVisual 로 이동(중앙화). 일반(0)은 인벤에서 숨김.
 
     private InventorySlot _slot;
     private InventoryManager _owner;
@@ -98,21 +91,18 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         // ��� �׵θ� ����
-        if (rarityBorder != null)
-        {
-            int gradeIndex = data != null ? (int)data.itemGrade : 0;
-            gradeIndex = Mathf.Clamp(gradeIndex, 0, GradeColors.Length - 1);
-            rarityBorder.color = GradeColors[gradeIndex];
-        }
+        // 등급/연료 색 계산 (연료템은 등급과 별개의 독자 색)
+        int gradeIndex = data != null ? (int)data.itemGrade : 0;
+        bool isFuel = data != null && FuelConfig.Instance != null && FuelConfig.Instance.fuelItemId == slot.itemId;
+        Color slotColor = isFuel ? GradeVisual.FuelColor : GradeVisual.GetColor(gradeIndex);
 
-        // 등급 오로라 색 (커먼은 GradeColors a=0이라 안 보임)
+        // 칸 하단 등급 테두리 (모든 등급에 색)
+        if (rarityBorder != null)
+            rarityBorder.color = slotColor;
+
+        // 등급/연료 오로라 색 (모든 등급. 일반도 은은하게)
         if (gradeAurora != null)
-        {
-            int gi = data != null ? (int)data.itemGrade : 0;
-            gi = Mathf.Clamp(gi, 0, GradeColors.Length - 1);
-            var gc = GradeColors[gi];
-            gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.9f);
-        }
+            gradeAurora.color = new Color(slotColor.r, slotColor.g, slotColor.b, slotColor.a * 0.9f);
 
         // ���� �ؽ�Ʈ (1���� ����)
         if (countText != null)

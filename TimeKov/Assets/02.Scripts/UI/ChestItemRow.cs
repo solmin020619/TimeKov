@@ -43,15 +43,7 @@ public class ChestItemRow : MonoBehaviour
 
     private Color GetGradeColor(int grade)
     {
-        return grade switch
-        {
-            0 => new Color(0.7f, 0.7f, 0.7f),   // Common  (회색)
-            1 => new Color(0.3f, 0.8f, 0.3f),   // Uncommon (초록)
-            2 => new Color(0.3f, 0.5f, 1.0f),   // Rare     (파랑)
-            3 => new Color(0.7f, 0.3f, 1.0f),   // Epic     (보라)
-            4 => new Color(1.0f, 0.6f, 0.1f),   // Hero     (주황)
-            5 => new Color(1.0f, 0.8f, 0.0f),   // Legend   (금색)
-            _ => Color.white
-        };
+        // 공용 GradeVisual 사용 (예전 switch는 6단계 + Uncommon/Epic 라벨로 enum과 어긋난 버그였음)
+        return GradeVisual.GetColor(grade);
     }
 }

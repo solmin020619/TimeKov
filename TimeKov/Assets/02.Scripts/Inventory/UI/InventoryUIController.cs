@@ -84,7 +84,8 @@ public class InventoryUIController : MonoBehaviour
             inventoryRoot.SetActive(false);
 
             // 가방을 화면 오른쪽으로 (빌더 재실행 안 해도 먹게 런타임 강제).
-            const float bagRightX = 360f;
+            // ★이 값이 실제 화면 위치를 결정한다(런타임이 빌더 BagRightX를 덮어씀). 위치 바꾸려면 여기. 빌더 BagRightX와 같게 유지.
+            const float bagRightX = 500f;
             if (bagPanel != null)
             {
                 var prt0 = bagPanel.GetComponent<RectTransform>();

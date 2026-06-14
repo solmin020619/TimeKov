@@ -220,13 +220,11 @@ public class ItemGetLog : MonoBehaviour
         // [연료 전용 색] FuelConfig.fuelItemId 와 일치하면 등급 색 대신 연료색 사용.
         // fuelColor 알파가 0이면 미설정으로 보고 기존 등급 색으로 폴백 (안 깨짐).
         var fuelCfg = FuelConfig.Instance;
-        if (fuelCfg != null && fuelCfg.fuelItemId == itemId && fuelColor.a > 0f)
-            return fuelColor;
+        if (fuelCfg != null && fuelCfg.fuelItemId == itemId)
+            return GradeVisual.FuelColor;   // 연료 전용 색 (인벤/로그 동일 소스)
 
         ItemDataSheetData item = GameDataUtility.GetItem(itemId);
         int tier = item != null ? (int)item.itemGrade : 0;
-        if (tierColors != null && tier >= 0 && tier < tierColors.Length)
-            return tierColors[tier];
-        return Color.white;
+        return GradeVisual.GetColor(tier);   // 공용 등급색 (인벤/설비와 동일 소스)
     }
 }
