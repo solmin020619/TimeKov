@@ -217,7 +217,9 @@ public class InventoryUIController : MonoBehaviour
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(blurCanvasRt, sCenter, blurCam, out var local))
             region.anchoredPosition = local;
         float sf = blurCanvas.scaleFactor <= 0f ? 1f : blurCanvas.scaleFactor;
-        region.sizeDelta = new Vector2(wPx / sf, hPx / sf);
+        // 패널 코너가 둥근데 블러는 사각이라 모서리가 삐짐. 코너 반경만큼만 안쪽으로(5). 링은 인셋폭에 비례하니 코너만 가릴 최소로.
+        const float blurInset = 5f;
+        region.sizeDelta = new Vector2(Mathf.Max(0f, wPx / sf - blurInset * 2f), Mathf.Max(0f, hPx / sf - blurInset * 2f));
     }
 
     // 인벤토리 토글

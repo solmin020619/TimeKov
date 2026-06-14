@@ -26,6 +26,11 @@ public static class InventoryUIBuilder
     // HANDOFF §3 색
     const string BlurCanvasName = "InventoryBlurCanvas";
     const float BagRightX = 360f;   // 가방을 화면 중앙에서 오른쪽으로 (엔드필드처럼). 패널/블러 같은 값으로 정렬
+    // clggdesign 따뜻한 간유리 패널 표면 (9-slice). 톤을 배경무관 고정 + 블러는 뒤에서 깊이만.
+    // 알파 강화 원하면 a82/a88 파일로 경로만 바꾸면 됨.
+    const string PartDir = "Assets/11.UI/New";   // clggdesign 부품 PNG 폴더 (패널 변형 + header_bar/grade_bar/divider/scrollbar/icons)
+    const string PanelSpritePath = PartDir + "/panel_ash_a78.png";   // 기본 = 밝은 중성 쿨(ash). F9로 steel/cool 비교
+    const int PanelSlice = 56;
     static Color Panel    => RGBA(26, 32, 42, 0.40f);   // 본체 (쿨 뉴트럴 - 엔드필드처럼 깔끔. 진한 파랑 빼서 블러색이 살게)
     static Color BarBg    => RGBA(34, 40, 52, 0.55f);   // 헤더 바 (쿨 뉴트럴, 약간 더 불투명)
     static Color SlotTone => RGBA(30, 36, 46, 0.10f);   // 본문 톤
@@ -38,15 +43,22 @@ public static class InventoryUIBuilder
     // ("라이트 washes out"은 사실 InventoryRoot active 버그였고, 고쳐진 지금은 라이트가 정상. 컬러는 아이템/등급바에만.)
     static Color TxtMain  => Hex("242a31");                 // 어두운 슬레이트 (밝은 밴드 위)
     static Color TxtSub   => Hex("4c545d");
-    static Color BaseDark   => RGBA(22, 26, 32, 0.20f);     // 패널 단일 필름(얇게). 블러가 배경 담당, 이건 통일 틴트만. (3겹중 본문겹 제거 -> 이거+헤더만)
-    static Color BandHead   => RGBA(202, 207, 213, 0.30f);  // 헤더만 살짝 더 또렷(BagPanel 위 얇게 1겹 더). 본문은 필름 없음.
-    static Color BandBody   => RGBA(218, 223, 228, 0.00f);  // 본문 밴드 제거(투명). 블러가 본문 배경 = 칸마다 블러 비침(엔필 단일 프로스트 방식)
+    static Color BaseDark   => RGBA(230, 223, 211, 0.38f);  // PNG 못 찾을때 폴백색. 정상시엔 패널이 PNG라 안쓰임.
+    static Color BandHead   => RGBA(150, 165, 185, 0.18f);  // 헤더/푸터 밴드 = 쿨 라이트(프레임 또렷). 인셋26으로 코너 회피.
+    static Color BandBody   => RGBA(232, 225, 213, 0.00f);  // 본문 투명 (PNG가 표면 담당, 이중 틴트 방지)
     static Color Hairline   => RGBA(20, 24, 30, 0.50f);     // 헤더 밑 1px 선 (밝은 위라 어둡게)
     static Color BtnLight   => RGBA(255, 255, 255, 0.40f);  // 하단 버튼(밝은 무채색)
     static Color BtnLightBd => RGBA(255, 255, 255, 0.50f);
-    static Color SlotFill   => RGBA(24, 28, 34, 0.06f);     // 칸 안 거의 비움(borders-only). 블러 그대로 비침. 칸 정의는 4변 테두리가.
-    static Color SlotEmptyC => RGBA(20, 24, 30, 0.20f);     // 빈 칸 더 어둡게
-    static Color SlotBorder => RGBA(8, 10, 14, 0.90f);      // 슬롯 진한 검정 2px 테두리 (연한 fill 위에서 또렷하게)
+    static Color SlotFill   => RGBA(12, 16, 24, 0.10f);    // 칸 = 살짝만 어둡게(마진보다 약간 진해 칸 음각) + 블러 통과. 정의는 4변 테두리가 담당.
+    static Color SlotEmptyC => RGBA(12, 16, 24, 0.22f);     // 빈 칸 더 어둡게
+    static Color SlotBorder => RGBA(8, 10, 14, 0.85f);      // 슬롯 테두리 기본
+    // 칸 음각용 비대칭 엣지 + 크롬 (쿨)
+    static Color SlotEdgeDark  => RGBA(12, 16, 24, 0.22f);  // (구) 비대칭 음각 - 밝은 패널선 안 보여 폐기
+    static Color SlotEdgeLight => RGBA(150, 165, 188, 0.22f);
+    static Color SlotLine      => RGBA(40, 54, 74, 0.45f);  // 칸 4변 균일 테두리(쿨 슬레이트). 밝은 패널 위에서 격자 또렷.
+    static Color HeaderHair   => RGBA(170, 190, 212, 0.28f); // 헤더/푸터 구분선 (쿨 라이트)
+    static Color PillDark     => RGBA(16, 20, 28, 0.55f);   // 닫기/액션 pill 다크 배경
+    static Color ScrollHandle => RGBA(150, 178, 205, 0.40f); // 스크롤 핸들 쿨실버
 
     [MenuItem("Tools/TIMEKOV/인벤토리 UI 생성 (가방)")]
     public static void BuildBag()
@@ -77,35 +89,140 @@ public static class InventoryUIBuilder
 
         // 베이스 패널 = 어두운 0.30 (HANDOFF 0.5). 위에 밝은 밴드들이 얹히고 가장자리 3px + 푸터로 베이스가 노출됨.
         // 블러는 뒤 UIBlur 캔버스가 담당(채도 낮춰 맵색 중화). 화면 오른쪽(BagRightX).
-        const float pw = 560f, ph = 588f;
+        const float pw = 560f, ph = 600f;   // 슬롯-푸터 간격 타이트하게 줄여서 패널 다시 줄임(4줄 유지)
         var panel = MakeRounded("BagPanel", rootGo.transform, new Vector2(pw, ph), new Vector2(BagRightX, 0), BaseDark);
         var prt = panel.GetComponent<RectTransform>();
+        // 따뜻한 간유리 표면 PNG(9-slice)로 베이스 교체. 없으면 위 RoundedSprite+BaseDark 폴백.
+        var panelSprite = LoadPanelSprite();
+        if (panelSprite != null)
+        {
+            var pimg = panel.GetComponent<Image>();
+            pimg.sprite = panelSprite;
+            pimg.type = Image.Type.Sliced;
+            pimg.color = new Color(1f, 1f, 1f, 0.12f);   // ash 표면 아주 옅게 = 슬롯칸이 블러 통과(엔필 빈칸=배경 비침). 코너 Mask는 0.12여도 동작.
+            pimg.pixelsPerUnitMultiplier = 1f;   // 코너 크기 안 맞으면 이 값 조절
+        }
+        // ★패널 둥근 알파로 자식 클리핑(Mask) = 헤더/푸터 풀폭이어도 코너 밖으로 안 삐짐. showMaskGraphic=패널 자체는 그대로 보임.
+        var panelMask = panel.GetComponent<UnityEngine.UI.Mask>();
+        if (panelMask == null) panelMask = panel.AddComponent<UnityEngine.UI.Mask>();
+        panelMask.showMaskGraphic = true;
 
-        // ── 헤더 밴드 (밝음, 상단 3px 띄워 베이스 노출). 타이틀 + 닫기, 아래 hairline ──
-        var header = MakeRounded("HeaderBand", prt, Vector2.zero, Vector2.zero, BandHead);
-        StretchTop(header.GetComponent<RectTransform>(), 52, 1, 1);   // 베이스 가장자리 얇게(1px)
-        AddTopSheen(header.transform, 0.18f);
-        // 가로 구분선 없음 (clggdesign #3: 헤더/용량/그리드 한 표면, 푸터만 베이스로 구분)
+        // 개발용 스킨 스왑 (Play 중 F9=다음/F10=이전 으로 panel_* PNG 갈아끼며 톤 비교). 톤 확정후 제거.
+        var skinSwap = panel.GetComponent<InventoryPanelSkinSwapper>();
+        if (skinSwap == null) skinSwap = panel.AddComponent<InventoryPanelSkinSwapper>();
+        skinSwap.skins = LoadAllPanelSkins();
+        skinSwap.alpha = 0.12f;   // 패널 pimg.color 알파와 동일해야 함(skinSwap Update가 매프레임 덮음)
+        skinSwap.index = 0;
 
-        var title = MakeTMP("Title", header.transform, "가방", 27, TxtMain, TextAlignmentOptions.Left);
-        AnchorLeft(title.rectTransform, 20, 240, 40);
+        // ── ★엔필 구조 (별도 블러캔버스 폐기): 통합블러 + 어두운배경(풀) + 둥근 밝은카드(inset) ──
+        //   블러 = 패널 자식 BlurredImage(둥근 스프라이트라 코너 일치, 겹침 없음). 배경 BgDark가 가장자리/코너로 비쳐 그림자 착시.
+        //   푸터 = 배경 아래쪽 노출. 칸 = 배경색(어두움)이라 구멍처럼. 카드도 둥글어 배경 코너와 일치(패널 두개처럼 안 보임).
+        if (panelSprite != null)
+        {
+            const float inset   = 3f;     // 위/좌우는 아주 얇게 = 배경 은은히만 비침(2중패널처럼 안 보이게)
+            const float footerH = 60f;    // 아래 배경 노출 = 푸터(여긴 도드라져도 됨)
+            const float titleH  = 62f;    // 제목바(가방 아이콘+제목)만 밝게. 용량바는 슬롯영역과 한 표면으로 합쳐 색 끊김 제거
+
+            // 통합 블러 = 패널 자식 (별도 Screen Space-Camera 캔버스 X). 둥근 패널 스프라이트 + Mask로 코너 일치.
+            var blurGo = new GameObject("PanelBlur", typeof(RectTransform));
+            blurGo.transform.SetParent(prt, false);
+            var blRt = blurGo.GetComponent<RectTransform>();
+            blRt.anchorMin = Vector2.zero; blRt.anchorMax = Vector2.one; blRt.offsetMin = Vector2.zero; blRt.offsetMax = Vector2.zero;
+            var blur = blurGo.AddComponent<BlurredImage>();
+            blur.sprite = panelSprite; blur.type = Image.Type.Sliced; blur.pixelsPerUnitMultiplier = 1f;
+            blur.color = Color.white; blur.raycastTarget = false;
+            blur.Common.blurReferencesFrom = UIBlurCommon.BlurReferencesFrom.Self;
+            blur.Common.cameraReference = PickBuildCamera();
+            blur.Common.featureNumber = 0;
+            blur.Common.unrankedLayer = 1;
+            var bs = blur.Common.blurInstanceSettings;
+            if (bs != null)
+            {
+                if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 1.5f; }
+                bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
+            }
+            blur.Common.ValidateBlur();
+
+            // 어두운 배경 = 풀사이즈(Mask 둥근코너). 칸/푸터/그림자 = 이 색. 블러 위에 어둡게.
+            var bgGo = MakeImage("BgDark", prt, Vector2.zero, Vector2.zero, Color.white);
+            var bgrt = bgGo.GetComponent<RectTransform>();
+            bgrt.anchorMin = Vector2.zero; bgrt.anchorMax = Vector2.one; bgrt.offsetMin = Vector2.zero; bgrt.offsetMax = Vector2.zero;
+            var bgImg = bgGo.GetComponent<Image>(); bgImg.sprite = null; bgImg.type = Image.Type.Simple; bgImg.raycastTarget = false;
+            var bgGrad = bgGo.AddComponent<UIFrostGradient>();
+            bgGrad.topColor    = RGBA(22, 28, 40, 0.26f);   // 위 = 옅게(콘텐츠 뒤 회색 덜 입힘 -> 흰색느낌). 위/좌우 3px 그림자도 은은.
+            bgGrad.bottomColor = RGBA(10, 14, 22, 0.52f);   // 아래 = 진하게(푸터 또렷)
+
+            // 슬롯영역 = 풀폭 틴트(스프라이트 X) -> 패널 Mask가 코너를 패널과 똑같이 둥글림(사다리꼴/2중패널 X). inset 3 = 좌우 배경 은은히만.
+            var cardGo = MakeImage("SlotFrost", prt, Vector2.zero, Vector2.zero, Color.white);
+            var crt2 = cardGo.GetComponent<RectTransform>();
+            crt2.anchorMin = Vector2.zero; crt2.anchorMax = Vector2.one;
+            crt2.offsetMin = new Vector2(inset, footerH); crt2.offsetMax = new Vector2(-inset, -titleH);   // 위로 용량바까지 덮어 용량바+슬롯영역을 한 표면으로 (색 단차 제거)
+            var cImg = cardGo.GetComponent<Image>(); cImg.sprite = null; cImg.type = Image.Type.Simple; cImg.raycastTarget = false;
+            var cGrad = cardGo.AddComponent<UIFrostGradient>();
+            cGrad.topColor    = RGBA(216, 224, 237, 0.34f);   // 용량바쪽(위) 살짝 더 밝게 - 부드러운 위->아래 그라데만, 단차 X
+            cGrad.bottomColor = RGBA(199, 209, 223, 0.26f);   // 슬롯 아래로 갈수록 살짝 투명 = 배경 더 비침(스크롤 깊이감)
+
+            // 헤더+용량바 = 풀폭 틴트(스프라이트 X, Mask로 둥근 윗코너). 거의 흰색. inset 3 = 위/좌우 배경 은은.
+            var hbGo = MakeImage("HeaderFrost", prt, Vector2.zero, Vector2.zero, Color.white);
+            var hbrt = hbGo.GetComponent<RectTransform>();
+            hbrt.anchorMin = new Vector2(0, 1); hbrt.anchorMax = new Vector2(1, 1); hbrt.pivot = new Vector2(0.5f, 1);
+            hbrt.offsetMin = new Vector2(inset, -titleH); hbrt.offsetMax = new Vector2(-inset, -inset);
+            var hbImg = hbGo.GetComponent<Image>(); hbImg.sprite = null; hbImg.type = Image.Type.Simple; hbImg.raycastTarget = false;
+            var hbGrad = hbGo.AddComponent<UIFrostGradient>();
+            hbGrad.topColor    = RGBA(245, 248, 253, 0.62f);   // 거의 흰색(엔필처럼)
+            hbGrad.bottomColor = RGBA(237, 243, 251, 0.56f);
+
+            // 헤더(제목) / 용량바 사이 구분선 (엔필처럼). 흰 헤더 위라 또렷하게 (진하게+2px).
+            var hdiv = MakeImage("HeaderDivider", prt, Vector2.zero, Vector2.zero, RGBA(84, 98, 122, 0.60f));
+            var hdrt = hdiv.GetComponent<RectTransform>();
+            hdrt.anchorMin = new Vector2(0, 1); hdrt.anchorMax = new Vector2(1, 1); hdrt.pivot = new Vector2(0.5f, 1);
+            hdrt.offsetMin = new Vector2(inset, -63); hdrt.offsetMax = new Vector2(-inset, -61);   // 제목 아래 ~ 용량바 위, 2px, 헤더 폭에 꽉 차게(좌우 여백 제거 = inset 3)
+            hdiv.GetComponent<Image>().raycastTarget = false;
+
+            // 가방 아이콘을 정사각형 칸으로 감싼다. 아래=가로 헤더선, 좌/상=패널 가장자리(둥근코너), 우=이 세로선.
+            // 4변 길이를 같게(=62) 맞춰야 칸이 정사각형으로 보인다(엔필처럼). 가로선이 위에서 62px라 세로선도 x=62, 높이 62.
+            var vdiv = MakeImage("HeaderIconDivider", prt, Vector2.zero, Vector2.zero, RGBA(84, 98, 122, 0.60f));
+            var vdrt = vdiv.GetComponent<RectTransform>();
+            vdrt.anchorMin = new Vector2(0, 1); vdrt.anchorMax = new Vector2(0, 1); vdrt.pivot = new Vector2(0.5f, 1);
+            vdrt.sizeDelta = new Vector2(2, 62); vdrt.anchoredPosition = new Vector2(62, 0);   // 위 끝=패널 상단, 아래 끝=가로 헤더선과 만남
+            vdiv.GetComponent<Image>().raycastTarget = false;
+        }
+
+        // ── 헤더 = 제목/아이콘/닫기 위치 컨테이너만 (밝기는 위 TopFrost가 담당, 투명). ──
+        var header = MakeImage("HeaderBand", prt, Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
+        StretchTop(header.GetComponent<RectTransform>(), 56, 0, 0);
+        header.GetComponent<Image>().raycastTarget = false;
+
+        // 헤더 가방 아이콘 (좌, 어두운 틴트 = 밝은 표면 위)
+        var bagIcon = MakeImage("TitleIcon", header.transform, new Vector2(36, 36), Vector2.zero, TxtMain);
+        var biRt = bagIcon.GetComponent<RectTransform>();
+        biRt.anchorMin = biRt.anchorMax = new Vector2(0, 0.5f); biRt.pivot = new Vector2(0, 0.5f);
+        biRt.anchoredPosition = new Vector2(13, -3);   // 정사각형 칸(62x62) 정중앙
+        var biImg = bagIcon.GetComponent<Image>(); biImg.raycastTarget = false; biImg.preserveAspect = true;
+        var bagSpr = LoadPartSprite(PartDir + "/ic_bag.png", Vector4.zero);
+        if (bagSpr != null) biImg.sprite = bagSpr; else bagIcon.SetActive(false);
+
+        var title = MakeTMP("Title", header.transform, "가방", 26, TxtMain, TextAlignmentOptions.Left);   // 밝은 표면 위 어두운 글자
+        AnchorLeft(title.rectTransform, bagSpr != null ? 74 : 22, 240, 40);   // 아이콘 정사각형 칸(우변 x=62) 뒤로 제목 시작
         title.fontStyle = FontStyles.Bold;
+        AddOutline(title.gameObject, new Color(0.86f, 0.90f, 0.96f, 0.5f), new Vector2(1f, -1f));   // 옅은 라이트 외곽선 = 배경 어두워도 글자 살게
 
         // 닫기 X (박스 없는 SF 글리프, 어두운 글자색)
         var closeBtn = MakeIconButton("CloseButton", header.transform, "ic_close", 40, Color.clear);
-        AnchorRight(closeBtn.GetComponent<RectTransform>(), 10, 44, 44);
-        TintIcon(closeBtn, TxtMain);
+        AnchorRight(closeBtn.GetComponent<RectTransform>(), 14, 40, 40);
+        TintIcon(closeBtn, TxtMain);   // 밝은 표면 위라 어두운 글리프
         SetRef(so, "bagCloseBtn", closeBtn.GetComponent<Button>());
 
         // ── 본문 밴드 (밝음, 블러 대상). 위=용량 텍스트, 아래=슬롯 그리드 ──
         var body = MakeRounded("BodyBand", prt, Vector2.zero, Vector2.zero, BandBody);
         var bodyRt = body.GetComponent<RectTransform>();
         bodyRt.anchorMin = Vector2.zero; bodyRt.anchorMax = Vector2.one;
-        bodyRt.offsetMin = new Vector2(1, 63); bodyRt.offsetMax = new Vector2(-1, -53);   // 헤더(53) 바로 아래 ~ 푸터(63) 위, 좌우 1(얇은 베이스 가장자리)
+        bodyRt.offsetMin = new Vector2(1, 60); bodyRt.offsetMax = new Vector2(-1, -60);   // 헤더 간격 살짝 줄임(60), 푸터쪽은 타이트(60=푸터높이와 동일), 좌우 1
 
         // 용량 = 텍스트만 ("용량 0 / 35"), 상태색은 컨트롤러가 갱신. (최종 디자인 = 게이지 바 없음)
         var cap = MakeTMP("CapacityText", body.transform, "용량 0/35", 22, TxtSub, TextAlignmentOptions.Left);
         cap.fontStyle = FontStyles.Bold;
+        AddOutline(cap.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.55f), new Vector2(1f, -1f));   // 투명 슬롯영역 위라 옅은 외곽선으로 대비 확보
         var caprt = cap.rectTransform;
         caprt.anchorMin = caprt.anchorMax = new Vector2(0, 1); caprt.pivot = new Vector2(0, 1);
         caprt.sizeDelta = new Vector2(320, 30); caprt.anchoredPosition = new Vector2(22, -16);
@@ -117,7 +234,7 @@ public static class InventoryUIBuilder
 
         // ── 슬롯 그리드 (스크롤). 본문 밴드 안, 용량(50) 아래 ~ 바닥(8) 위. 4행 보이고 세로 스크롤 ──
         var scrollGo = MakeEmpty("SlotScroll", body.transform, Vector2.zero, Vector2.zero);
-        StretchMiddle(scrollGo.GetComponent<RectTransform>(), 50, 8, 14);
+        StretchMiddle(scrollGo.GetComponent<RectTransform>(), 76, 8, 14);   // top76=용량과 간격 유지, bottom8=슬롯이 푸터에 거의 붙게(엔필 타이트)
         var scrollImg = scrollGo.AddComponent<Image>(); scrollImg.color = Color.clear;   // 투명(밴드가 표면), 스크롤휠 레이캐스트용
         scrollGo.AddComponent<RectMask2D>();
         var scroll = scrollGo.AddComponent<ScrollRect>();
@@ -129,7 +246,7 @@ public static class InventoryUIBuilder
         crt.anchorMin = new Vector2(0, 1); crt.anchorMax = new Vector2(1, 1); crt.pivot = new Vector2(0.5f, 1);
         crt.offsetMin = new Vector2(0, 0); crt.offsetMax = new Vector2(-8, 0);   // 우측 스크롤 거터 8
         var grid = content.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(14, 14);
+        grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(9, 9);   // 엔필처럼 타이트하게 (14는 너무 벌어져 답답)
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 5;
         grid.childAlignment = TextAnchor.UpperCenter;
         var csf = content.AddComponent<ContentSizeFitter>();
@@ -143,7 +260,10 @@ public static class InventoryUIBuilder
         var sbRt = sbGo.GetComponent<RectTransform>();
         sbRt.anchorMin = new Vector2(1, 0); sbRt.anchorMax = new Vector2(1, 1); sbRt.pivot = new Vector2(1, 1);
         sbRt.sizeDelta = new Vector2(6, 0); sbRt.anchoredPosition = new Vector2(-1, 0);
-        var sbTrack = sbGo.GetComponent<Image>(); sbTrack.sprite = RoundedSprite(); sbTrack.type = Image.Type.Sliced; sbTrack.color = RGBA(40, 46, 54, 0.18f);
+        var sbTrack = sbGo.GetComponent<Image>();
+        var trackSpr = LoadPartSprite(PartDir + "/scrollbar_track.png", new Vector4(0, 8, 0, 8));
+        if (trackSpr != null) { sbTrack.sprite = trackSpr; sbTrack.type = Image.Type.Sliced; sbTrack.color = Color.white; }
+        else { sbTrack.sprite = RoundedSprite(); sbTrack.type = Image.Type.Sliced; sbTrack.color = RGBA(40, 46, 54, 0.18f); }
         var sb = sbGo.GetComponent<Scrollbar>(); sb.direction = Scrollbar.Direction.BottomToTop;
 
         var slideArea = new GameObject("Sliding Area", typeof(RectTransform));
@@ -153,7 +273,10 @@ public static class InventoryUIBuilder
         var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
         handle.transform.SetParent(slideArea.transform, false);
         var hRt = handle.GetComponent<RectTransform>(); Stretch(hRt);
-        var hImg = handle.GetComponent<Image>(); hImg.sprite = RoundedSprite(); hImg.type = Image.Type.Sliced; hImg.color = RGBA(70, 78, 90, 0.55f);
+        var hImg = handle.GetComponent<Image>();
+        var handleSpr = LoadPartSprite(PartDir + "/scrollbar_handle.png", new Vector4(0, 8, 0, 8));
+        if (handleSpr != null) { hImg.sprite = handleSpr; hImg.type = Image.Type.Sliced; hImg.color = Color.white; }
+        else { hImg.sprite = RoundedSprite(); hImg.type = Image.Type.Sliced; hImg.color = ScrollHandle; }
 
         sb.targetGraphic = hImg; sb.handleRect = hRt;
         scroll.verticalScrollbar = sb;
@@ -166,15 +289,18 @@ public static class InventoryUIBuilder
         gso.ApplyModifiedProperties();
         SetRef(so, "bagGridUI", gridUI);
 
-        // ── 푸터 (배경 없음 = 베이스 노출). 정렬 버튼만 우하단 = 아이콘 없이 "정렬" 텍스트 박스 ──
-        var compactBtn = MakeRounded("Compact", prt, new Vector2(84, 40), Vector2.zero, BtnLight);
-        AddOutline(compactBtn, BtnLightBd, new Vector2(1f, -1f));
+        // ── 푸터 = 따로 없음. BgDark(어두운 배경) 아래쪽 footerH 노출이 곧 푸터(엔필 방식). 정렬/액션 버튼만 그 위에 올림. ──
+
+        // ── 푸터 정렬 = 엔필식 작은 글리프 아이콘 (어두운 푸터밴드 위, pill/글자 X). 기능은 동일(정리). ──
+        var compactBtn = MakeImage("Compact", prt, new Vector2(34, 34), Vector2.zero, new Color(0, 0, 0, 0));   // 투명 히트영역
         var compactRt = compactBtn.GetComponent<RectTransform>();
         compactRt.anchorMin = compactRt.anchorMax = new Vector2(1, 0); compactRt.pivot = new Vector2(1, 0);
-        compactRt.sizeDelta = new Vector2(84, 40); compactRt.anchoredPosition = new Vector2(-16, 14);
+        compactRt.sizeDelta = new Vector2(34, 34); compactRt.anchoredPosition = new Vector2(-16, 16);
         var compactBtnComp = compactBtn.AddComponent<Button>(); compactBtnComp.targetGraphic = compactBtn.GetComponent<Image>();
-        var compactTxt = MakeTMP("Text", compactBtn.transform, "정렬", 16, TxtMain, TextAlignmentOptions.Center);
-        Stretch(compactTxt.rectTransform); compactTxt.fontStyle = FontStyles.Bold;
+        var sortIcon = MakeImage("Icon", compactBtn.transform, new Vector2(22, 22), Vector2.zero, RGBA(214, 224, 238, 1f));   // 밝은 글리프(어두운 푸터 위)
+        var siImg = sortIcon.GetComponent<Image>(); siImg.raycastTarget = false; siImg.preserveAspect = true;
+        var sortSpr = LoadPartSprite(PartDir + "/ic_sort.png", Vector4.zero);
+        if (sortSpr != null) siImg.sprite = sortSpr;
 
         // 가방 정렬바 — 정리(분류순 자동정렬)만 연결
         var bagSort = panel.AddComponent<SortBarUI>();
@@ -183,10 +309,20 @@ public static class InventoryUIBuilder
         bso.ApplyModifiedProperties();
         SetRef(so, "bagSortBarUI", bagSort);
 
-        // ── 블러 캔버스 (Screen Space-Camera + UIBlur), 채도 낮춰 맵색 중화 ──
-        var blurCanvas = MakeBlurCanvas(new Vector2(pw - 6, ph - 6));
-        blurCanvas.SetActive(false);   // 인벤 닫힘 상태 기본 (컨트롤러가 열 때 켬)
-        SetRef(so, "bagBlurCanvas", blurCanvas);
+        // ── 유리 림 = 패널 형태 그대로 1px 라이트 보더 (글래스모피즘: 눈이 패널 경계를 잡게). 맨 위에 올려 또렷하게 ──
+        if (panelSprite != null)
+        {
+            var rim = MakeImage("PanelRim", prt, Vector2.zero, Vector2.zero, new Color(1f, 1f, 1f, 0f));   // 채움 투명, 림만
+            var rimRt = rim.GetComponent<RectTransform>();
+            rimRt.anchorMin = Vector2.zero; rimRt.anchorMax = Vector2.one; rimRt.offsetMin = Vector2.zero; rimRt.offsetMax = Vector2.zero;
+            var rimImg = rim.GetComponent<Image>();
+            rimImg.sprite = panelSprite; rimImg.type = Image.Type.Sliced; rimImg.raycastTarget = false;
+            AddOutline(rim, RGBA(238, 246, 255, 0.32f), new Vector2(1f, -1f));   // 안쪽 1px 라이트 림
+            rim.transform.SetAsLastSibling();
+        }
+
+        // ── 블러 = 위에서 만든 통합 BlurredImage(PanelBlur)가 담당. 별도 캔버스 폐기 -> bagBlurCanvas 비움(컨트롤러 null-safe로 스킵). ──
+        SetRef(so, "bagBlurCanvas", null);
 
         SetRef(so, "bagPanel", panel);
         so.ApplyModifiedProperties();
@@ -195,7 +331,7 @@ public static class InventoryUIBuilder
 
         EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         Selection.activeGameObject = panel;
-        EditorUtility.DisplayDialog("완료", "가방 패널 + 슬롯 리스타일 한 번에 생성 완료.\nPlay -> TAB 확인 후 Ctrl+S.\n블러는 BagPanel의 InventoryBlurTuner 슬라이더로 미세조정.", "확인");
+        EditorUtility.DisplayDialog("완료", "가방 패널 + 슬롯 리스타일 한 번에 생성 완료.\nPlay -> TAB 확인 후 Ctrl+S.\n블러 = 패널 자식 BlurredImage(PanelBlur) 통합방식(별도 캔버스 없음).", "확인");
     }
 
     // ── 슬롯 프리팹 리스타일 (둥근 프레임 + 크롬 테두리 + 하단 등급바 + 우상단 수량칩) ──
@@ -224,11 +360,11 @@ public static class InventoryUIBuilder
 
         var t = root.transform;
 
-        // ── 진한 검정 2px 테두리 = 4변 독립 프레임 (Outline은 알파가 fill에 곱해져 회색됨 -> 폐기) ──
-        var edgeT = MakeSlotEdge(t, "BorderTop",    new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, 2), SlotBorder);
-        var edgeB = MakeSlotEdge(t, "BorderBottom", new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0), new Vector2(0, 2), SlotBorder);
-        var edgeL = MakeSlotEdge(t, "BorderLeft",   new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(2, 0), SlotBorder);
-        var edgeR = MakeSlotEdge(t, "BorderRight",  new Vector2(1, 0), new Vector2(1, 1), new Vector2(1, 0.5f), new Vector2(2, 0), SlotBorder);
+        // ── 4변 균일 테두리 (가로/세로 다 보이는 격자). 밝은 패널 위라 어두운 쿨선으로 통일(비대칭 음각은 밝은쪽 묻혀서 폐기) ──
+        var edgeT = MakeSlotEdge(t, "BorderTop",    new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), new Vector2(0, 2), SlotLine);
+        var edgeB = MakeSlotEdge(t, "BorderBottom", new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0), new Vector2(0, 2), SlotLine);
+        var edgeL = MakeSlotEdge(t, "BorderLeft",   new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(2, 0), SlotLine);
+        var edgeR = MakeSlotEdge(t, "BorderRight",  new Vector2(1, 0), new Vector2(1, 1), new Vector2(1, 0.5f), new Vector2(2, 0), SlotLine);
 
         // SlotInner(호버 오버레이)도 각지게
         var si = t.Find("SlotInner") as RectTransform;
@@ -243,8 +379,14 @@ public static class InventoryUIBuilder
         if (gb != null)
         {
             gb.anchorMin = new Vector2(0, 0); gb.anchorMax = new Vector2(1, 0); gb.pivot = new Vector2(0.5f, 0);
-            gb.sizeDelta = new Vector2(0, 4); gb.anchoredPosition = new Vector2(0, 0);
-            var gbi = gb.GetComponent<Image>(); if (gbi != null) { gbi.sprite = null; gbi.type = Image.Type.Simple; }
+            gb.sizeDelta = new Vector2(0, 8); gb.anchoredPosition = new Vector2(0, 0);   // 등급 밑줄(grade_bar PNG, 8px)
+            var gbi = gb.GetComponent<Image>();
+            if (gbi != null)
+            {
+                var gradeBarSpr = LoadPartSprite(PartDir + "/grade_bar.png", new Vector4(12, 0, 12, 0));   // 흰+알파, 런타임 등급색 틴트
+                if (gradeBarSpr != null) { gbi.sprite = gradeBarSpr; gbi.type = Image.Type.Sliced; }
+                else { gbi.sprite = null; gbi.type = Image.Type.Simple; }
+            }
         }
 
         // 등급 오로라: 하단서 위로 번지는 그라데이션(높이 46). 색은 런타임에 슬롯이 등급색으로 Image.color 틴트.
@@ -256,7 +398,7 @@ public static class InventoryUIBuilder
             aurora = ag.GetComponent<RectTransform>(); aurora.SetParent(t, false);
         }
         aurora.anchorMin = new Vector2(0, 0); aurora.anchorMax = new Vector2(1, 0); aurora.pivot = new Vector2(0.5f, 0);
-        aurora.sizeDelta = new Vector2(0, 46); aurora.anchoredPosition = new Vector2(0, 0);
+        aurora.sizeDelta = new Vector2(0, 28); aurora.anchoredPosition = new Vector2(0, 6);   // 밑줄(6px) 위에서 글로우 시작 = 바 또렷 + 은은한 번짐
         var auImg = aurora.GetComponent<Image>(); auImg.sprite = null; auImg.color = new Color(1, 1, 1, 0f); auImg.raycastTarget = false;
         var auGrad = aurora.GetComponent<UIFrostGradient>(); if (auGrad == null) auGrad = aurora.gameObject.AddComponent<UIFrostGradient>();
         auGrad.topColor = new Color(1, 1, 1, 0f); auGrad.bottomColor = new Color(1, 1, 1, 1f);
@@ -278,7 +420,7 @@ public static class InventoryUIBuilder
             at.anchorMin = new Vector2(0.56f, 0.72f); at.anchorMax = new Vector2(0.96f, 0.96f); at.pivot = new Vector2(0.5f, 0.5f);
             at.offsetMin = Vector2.zero; at.offsetMax = Vector2.zero;
             var tmp = at.GetComponent<TextMeshProUGUI>();
-            if (tmp != null) { tmp.enableAutoSizing = true; tmp.fontSizeMin = 12; tmp.fontSizeMax = 40; tmp.fontStyle = FontStyles.Bold; tmp.alignment = TextAlignmentOptions.Center; tmp.color = Color.white; }
+            if (tmp != null) { tmp.enableAutoSizing = true; tmp.fontSizeMin = 12; tmp.fontSizeMax = 30; tmp.fontStyle = FontStyles.Bold; tmp.alignment = TextAlignmentOptions.Center; tmp.color = RGBA(232, 238, 245, 1f); }
 
             // 칩은 새 GameObject 대신 안 쓰는 기존 SelectedOverlay를 재활용
             // (LoadPrefabContents에서 new GameObject가 프리팹에 저장 안 되는 경우 대비 - 확실한 방식)
@@ -292,7 +434,7 @@ public static class InventoryUIBuilder
                 var chipImg = chip.GetComponent<Image>();
                 if (chipImg == null) chipImg = chip.gameObject.AddComponent<Image>();
                 chipImg.sprite = RoundedSprite(); chipImg.type = Image.Type.Sliced;
-                chipImg.color = RGBA(8, 10, 14, 0.62f); chipImg.raycastTarget = false;
+                chipImg.color = RGBA(6, 9, 14, 0.70f); chipImg.raycastTarget = false;
                 chip.SetSiblingIndex(at.GetSiblingIndex());   // AmountText 아래로 -> 숫자가 칩 위에 보이게
                 chipGo = chip.gameObject;
             }
@@ -398,7 +540,7 @@ public static class InventoryUIBuilder
         var uiBlur = region.AddComponent<UIBlur>();
         var s = uiBlur.Common.blurInstanceSettings;
         // 채도 낮춤(맵색 중화). 다크 표면이라 밝기는 0 (올리면 표면이 떠서 글자 대비 죽음).
-        if (s != null) { s.blurAdditionalDistancePerIteration = 11f; s.vibrancy = -0.5f; s.brightness = 0f; }
+        if (s != null) { s.blurAdditionalDistancePerIteration = 6f; s.vibrancy = 0f; s.brightness = 0.02f; }   // 채도=0(정석 글래스모피즘은 오히려 saturate. -0.55는 회색죽 만들던 원인). 밝기는 흰막이 담당. Tuner 기본값과 동일하게
         if (cam != null) uiBlur.Common.cameraReference = cam;
         region.AddComponent<InventoryBlurTuner>();
         return go;
@@ -420,6 +562,59 @@ public static class InventoryUIBuilder
         img.sprite = RoundedSprite();
         img.type = Image.Type.Sliced;
         return go;
+    }
+
+    // 간유리 패널 PNG 로드 + 임포트 설정 자동(Sprite/Single/9-slice 보더/무압축). 종욱이 Sprite Editor 안 건드려도 됨.
+    static Sprite LoadPanelSprite() => ConfigurePanelSprite(PanelSpritePath);
+
+    static Sprite ConfigurePanelSprite(string path) => LoadPartSprite(path, new Vector4(PanelSlice, PanelSlice, PanelSlice, PanelSlice));
+
+    // 부품 PNG 로드 + 임포트 자동(Sprite/Single/9-slice 보더/무압축). border = 9-slice 보더(아이콘 등 통짜면 Vector4.zero).
+    static Sprite LoadPartSprite(string path, Vector4 border)
+    {
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer == null) { Debug.LogWarning("[InventoryUIBuilder] PNG 못 찾음: " + path); return null; }
+
+        bool changed = false;
+        if (importer.textureType != TextureImporterType.Sprite) { importer.textureType = TextureImporterType.Sprite; changed = true; }
+        if (importer.spriteImportMode != SpriteImportMode.Single) { importer.spriteImportMode = SpriteImportMode.Single; changed = true; }
+        if (!importer.alphaIsTransparency) { importer.alphaIsTransparency = true; changed = true; }
+        if (importer.mipmapEnabled) { importer.mipmapEnabled = false; changed = true; }
+        if (importer.wrapMode != TextureWrapMode.Clamp) { importer.wrapMode = TextureWrapMode.Clamp; changed = true; }
+        if (importer.textureCompression != TextureImporterCompression.Uncompressed) { importer.textureCompression = TextureImporterCompression.Uncompressed; changed = true; }
+
+        var s = new TextureImporterSettings();
+        importer.ReadTextureSettings(s);
+        if (s.spriteBorder != border || s.spriteMeshType != SpriteMeshType.FullRect)
+        {
+            s.spriteBorder = border;
+            s.spriteMeshType = SpriteMeshType.FullRect;
+            importer.SetTextureSettings(s);
+            changed = true;
+        }
+
+        if (changed) importer.SaveAndReimport();
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    // sprites 폴더의 panel_* 전부 로드(각각 9-slice 설정). 프로스트(기본) 먼저. 스킨 스왑용.
+    static Sprite[] LoadAllPanelSkins()
+    {
+        var list = new System.Collections.Generic.List<Sprite>();
+        var first = ConfigurePanelSprite(PanelSpritePath);
+        if (first != null) list.Add(first);
+
+        var guids = AssetDatabase.FindAssets("panel t:Texture2D", new[] { PartDir, "Assets/11.UI/Inventory UI/sprites" });
+        foreach (var g in guids)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(g);
+            if (path == PanelSpritePath) continue;
+            var fn = path.Substring(path.LastIndexOf('/') + 1);
+            if (!fn.StartsWith("panel_")) continue;
+            var spr = ConfigurePanelSprite(path);
+            if (spr != null) list.Add(spr);
+        }
+        return list.ToArray();
     }
 
     static GameObject MakeImage(string name, Transform parent, Vector2 size, Vector2 pos, Color color)

@@ -9,20 +9,20 @@ using JeffGrawAssets.FlexibleUI;
 public class InventoryBlurTuner : MonoBehaviour
 {
     [Header("블러 (Play 중 실시간 조절)")]
-    [Tooltip("블러 강도. 엔드필드 우유빛은 10~12.")]
-    [Range(0f, 16f)] public float blurStrength = 11f;
+    [Tooltip("블러 강도(addDist). 높을수록 배경 뭉개짐. 6 = 엔필처럼 배경 알아볼만큼만 부드럽게. 너무 높으면 배경 사라져 회색죽.")]
+    [Range(0f, 16f)] public float blurStrength = 6f;
 
     [Tooltip("반복 횟수. 클수록 더 부드럽게 퍼짐.")]
-    [Range(1, 8)] public int iterations = 4;
+    [Range(1, 8)] public int iterations = 5;
 
     [Tooltip("샘플 간격.")]
     [Range(0.5f, 4f)] public float sampleDistance = 1.5f;
 
-    [Tooltip("채도. 최종은 낮춰서 맵색 중화 (saturate 0.5 = 약 -0.5).")]
-    [Range(-1f, 1f)] public float vibrancy = -0.5f;
+    [Tooltip("채도. 0=배경색 자연스럽게 비침(엔필). 정석 글래스모피즘은 오히려 +로 올림. -로 내리면 회색죽.")]
+    [Range(-1f, 1f)] public float vibrancy = 0f;
 
-    [Tooltip("밝기. 다크 표면이라 0 권장. 올리면 표면이 떠서 글자 대비 죽음.")]
-    [Range(-1f, 1f)] public float brightness = 0f;
+    [Tooltip("밝기. 블러 중앙만 떠서 링 생김 -> 0 권장. 전체 밝기는 패널 흰막으로 낸다.")]
+    [Range(-1f, 1f)] public float brightness = 0.02f;
 
     private UIBlur _blur;
     private bool _logged;
