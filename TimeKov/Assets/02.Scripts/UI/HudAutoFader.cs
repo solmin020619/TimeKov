@@ -46,7 +46,11 @@ public class HudAutoFader : MonoBehaviour
         {
             _stat  = player.Stat;
             _skill = player.Skill;
-            if (_stat != null) _stat.OnHurt += PulseShow;   // 피격 시 표시
+            if (_stat != null)
+            {
+                _stat.OnHurt += PulseShow;            // 피격 시 표시
+                _stat.OnDamaged += OnDamagedPulse;    // 시간(HP) 감소 시 표시 (즉시완료 SpendHp 포함 - 결계 안에서도 체력바 뜨게)
+            }
         }
 
         _showTimer = showHoldSeconds;   // 시작은 보이게
@@ -54,10 +58,15 @@ public class HudAutoFader : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_stat != null) _stat.OnHurt -= PulseShow;
+        if (_stat != null)
+        {
+            _stat.OnHurt -= PulseShow;
+            _stat.OnDamaged -= OnDamagedPulse;
+        }
     }
 
     private void PulseShow() => _showTimer = showHoldSeconds;
+    private void OnDamagedPulse(float _) => PulseShow();   // OnDamaged(Action<float>) 래퍼
 
     private void Update()
     {
