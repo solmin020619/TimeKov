@@ -26,6 +26,8 @@ public class HudAutoFader : MonoBehaviour
     private PlayerSkillComponent _skill;
     private float _showTimer;
     private float _alpha = 1f;
+    private float _lastHp = float.NaN;     // 직전 프레임 체력(시간) - 변화 감지용
+    private float _lastMaxHp = float.NaN;  // 직전 프레임 최대 체력 - 코어강화 등 변화 감지용
 
     private void Start()
     {
@@ -50,6 +52,8 @@ public class HudAutoFader : MonoBehaviour
             {
                 _stat.OnHurt += PulseShow;            // 피격 시 표시
                 _stat.OnDamaged += OnDamagedPulse;    // 시간(HP) 감소 시 표시 (즉시완료 SpendHp 포함 - 결계 안에서도 체력바 뜨게)
+                _lastHp    = _stat.CurrentHp;
+                _lastMaxHp = _stat.MaxHp;
             }
         }
 
@@ -72,6 +76,16 @@ public class HudAutoFader : MonoBehaviour
     {
         // 결계 안에서의 잠깐 표시용 타이머 (평타/스킬 시)
         if (_skill != null && _skill.IsExecuting) _showTimer = showHoldSeconds;
+
+        // 시간바 값이 조금이라도 바뀌면 표시 — 힐/딜/소모/코어강화(최대치) 전부 한 곳에서 커버.
+        // (결계 밖 드레인은 매 프레임 바뀌지만 그땐 outside로 이미 표시 중이라 무해)
+        if (_stat != null && (_stat.CurrentHp != _lastHp || _stat.MaxHp != _lastMaxHp))
+        {
+            _showTimer = showHoldSeconds;
+            _lastHp    = _stat.CurrentHp;
+            _lastMaxHp = _stat.MaxHp;
+        }
+
         if (_showTimer > 0f) _showTimer -= Time.deltaTime;
 
         bool outside  = _stat == null || !_stat.IsInBase;   // 결계 밖 = 항상 표시(시간 감소 위험)

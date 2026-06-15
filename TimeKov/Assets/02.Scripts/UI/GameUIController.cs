@@ -359,9 +359,18 @@ public class GameUIController : MonoBehaviour
     {
         _tutorialCoachActive = active;
         RefreshQuestHudAlpha();
+        RefreshPlayerHudActive();   // 코치마크 중엔 플레이어 HUD 켜둠 — 시간바 등을 스포트라이트로 가리킬 때 보여야 함(예: 코어강화 직후 "최대 시간 증가" 안내)
         // 코치마크 동안 이동/공격/대시/스킬/카메라 차단 (C키·오버레이 진행은 raw Input이라 영향 없음).
         // 넘기면 Hide -> SetTutorialCoachActive(false)로 복귀.
         SetGameplayInputEnabled(_currentState == UIState.None && !_tutorialCoachActive);
+    }
+
+    // 플레이어 HUD(HP/시간) 활성 — 평소엔 다른 UI 열리면 숨김.
+    // 단, 튜토리얼 코치마크 중엔 켜둔다(시간바 등을 스포트라이트로 가리킬 때 보여야 하므로).
+    void RefreshPlayerHudActive()
+    {
+        if (playerHud == null) return;
+        playerHud.SetActive(_currentState == UIState.None || _tutorialCoachActive);
     }
 
     // 퀘스트 HUD 알파 — 코치마크 우선, 그다음 _currentState 기준 (SetActive 금지: QuestPanelUI 구독 유지).
@@ -443,8 +452,7 @@ public class GameUIController : MonoBehaviour
         RefreshQuestHudAlpha();
 
         // 플레이어 HUD — 다른 UI가 열리면 숨김 (PlayerStat은 _currentState와 독립이라 영향 없음)
-        if (playerHud != null)
-            playerHud.SetActive(_currentState == UIState.None);
+        RefreshPlayerHudActive();
 
         // 플레이어 정보 세트(좌하단 HP/시간 창 + C키 스탯창) — 설정창/건설(탑뷰)에서만 통째로 숨김.
         // playerInfoRoot(PlayerHud 그룹)가 좌하단 창과 Character_stat(C키)을 모두 자식으로 가지므로
