@@ -22,6 +22,7 @@ public class ItemTooltipUI : MonoBehaviour
     private Canvas _canvas;
     private bool _isShowing;
     private int _currentItemId = -1;
+    private bool _currentChestMode;
 
     // 카테고리 이름 한글 테이블 (ItemCategory 열거형 순서와 일치)
     private static readonly string[] CategoryNames = new string[]
@@ -81,7 +82,9 @@ public class ItemTooltipUI : MonoBehaviour
         var uic = GameUIController.Instance;
         if (uic != null && !uic.IsUIBlocking()) return;
 
-        ShowItem(slot.SlotData.itemId, slot.GetComponentInParent<Canvas>());
+        // 파밍 상자 슬롯이면 회수 안내 위주(이름만). 가방/창고는 평소대로.
+        bool chestMode = slot.Owner != null && slot.Owner == InventoryManager.ChestInstance;
+        ShowItem(slot.SlotData.itemId, slot.GetComponentInParent<Canvas>(), chestMode);
     }
 
     // ── 표시 (설비 UI 등 외부 — itemId 직접 지정) ──────────────────────────
@@ -92,31 +95,55 @@ public class ItemTooltipUI : MonoBehaviour
         var uic = GameUIController.Instance;
         if (uic != null && !uic.IsUIBlocking()) return;
 
-        ShowItem(itemId, hostCanvas);
+        ShowItem(itemId, hostCanvas, false);
     }
 
     // ── 공통 표시 처리 ─────────────────────────────────────────────────────
-    private void ShowItem(int itemId, Canvas hostCanvas)
+    private void ShowItem(int itemId, Canvas hostCanvas, bool chestMode = false)
     {
         // 같은 아이템에 이미 표시 중이면 위치만 갱신 (깜빡임 방지)
-        if (_isShowing && itemId == _currentItemId)
+        if (_isShowing && itemId == _currentItemId && chestMode == _currentChestMode)
         {
             UpdatePosition(Input.mousePosition);
             return;
         }
         _currentItemId = itemId;
+        _currentChestMode = chestMode;
 
         var data = ItemDatabase.GetItem(itemId);
 
+        // 아이템 이름 = 등급 색 (일반은 흰색). 등급이 한눈에 느껴지게.
         if (itemNameText != null)
-            itemNameText.text = data != null ? data.itemName : "알 수 없는 아이템";
-
-        if (categoryText != null)
         {
             if (data != null)
             {
+                int g = (int)data.itemGrade;
+                itemNameText.text = data.itemName;
+                itemNameText.color = GradeVisual.IsCommon(g) ? Color.white : GradeVisual.GetColor(g);
+            }
+            else
+            {
+                itemNameText.text = "알 수 없는 아이템";
+                itemNameText.color = Color.white;
+            }
+        }
+
+        // 카테고리 줄
+        if (categoryText != null)
+        {
+            if (chestMode)
+            {
+                // 파밍 상자 = 회수 안내 위주(상세는 가방에 넣으면 거기서 호버 시)
+                categoryText.richText = true;
+                categoryText.text = "<color=#9FB0C0>우클릭 / 더블클릭으로 회수</color>";
+            }
+            else if (data != null)
+            {
+                // 평소 = 등급이름(등급색) + 카테고리 (예: 고급  원재료)
+                int g = (int)data.itemGrade;
                 int catIndex = Mathf.Clamp((int)data.itemCategory, 0, CategoryNames.Length - 1);
-                categoryText.text = CategoryNames[catIndex];
+                categoryText.richText = true;
+                categoryText.text = $"<color=#{GradeVisual.GetColorHex(g)}>{GradeVisual.GetName(g)}</color>  {CategoryNames[catIndex]}";
             }
             else
             {
@@ -138,6 +165,7 @@ public class ItemTooltipUI : MonoBehaviour
     {
         _isShowing = false;
         _currentItemId = -1;
+        _currentChestMode = false;
         gameObject.SetActive(false);
     }
 

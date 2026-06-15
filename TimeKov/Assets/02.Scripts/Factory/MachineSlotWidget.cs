@@ -21,15 +21,7 @@ namespace TIMEKOV.Factory
         [SerializeField] private TextMeshProUGUI itemNameText;
         [SerializeField] private TextMeshProUGUI amountText;
 
-        // InventorySlotUI 와 동일한 등급 색상 배열
-        private static readonly Color[] GradeColors = new Color[]
-        {
-            new Color(0.60f, 0.60f, 0.60f, 1f),  // Common   - 회색
-            new Color(0.30f, 0.55f, 0.90f, 1f),  // Advanced - 파랑
-            new Color(0.20f, 0.75f, 0.40f, 1f),  // Rare     - 초록
-            new Color(0.65f, 0.30f, 0.90f, 1f),  // Hero     - 보라
-            new Color(0.95f, 0.55f, 0.10f, 1f),  // Legend   - 황금
-        };
+        // 등급 색상은 공용 GradeVisual 로 이동(중앙화).
 
         private Action _onClick;
         private Action _onDoubleClick;
@@ -92,8 +84,7 @@ namespace TIMEKOV.Factory
             if (rarityBorder != null)
             {
                 int gradeIndex = itemData != null ? (int)itemData.itemGrade : 0;
-                gradeIndex = Mathf.Clamp(gradeIndex, 0, GradeColors.Length - 1);
-                rarityBorder.color = GradeColors[gradeIndex];
+                rarityBorder.color = GradeVisual.GetColor(gradeIndex);
             }
 
             if (itemNameText != null)

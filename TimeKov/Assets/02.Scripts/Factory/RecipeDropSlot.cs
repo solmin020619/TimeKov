@@ -17,15 +17,7 @@ public class RecipeDropSlot : MonoBehaviour,
     [SerializeField] private TextMeshProUGUI amountText;
     [SerializeField] private TextMeshProUGUI labelText;
 
-    // InventorySlotUI 와 동일한 등급 색상 배열
-    private static readonly Color[] GradeColors = new Color[]
-    {
-        new Color(0.60f, 0.60f, 0.60f, 1f),  // Common   - 회색
-        new Color(0.30f, 0.55f, 0.90f, 1f),  // Advanced - 파랑
-        new Color(0.20f, 0.75f, 0.40f, 1f),  // Rare     - 초록
-        new Color(0.65f, 0.30f, 0.90f, 1f),  // Hero     - 보라
-        new Color(0.95f, 0.55f, 0.10f, 1f),  // Legend   - 황금
-    };
+    // 등급 색상은 공용 GradeVisual 로 이동(중앙화).
 
     public int RequiredItemId { get; private set; }
     public int RequiredAmount { get; private set; }
@@ -115,8 +107,7 @@ public class RecipeDropSlot : MonoBehaviour,
         {
             if (itemData != null)
             {
-                int gradeIndex = Mathf.Clamp((int)itemData.itemGrade, 0, GradeColors.Length - 1);
-                rarityBorder.color = GradeColors[gradeIndex];
+                rarityBorder.color = GradeVisual.GetColor((int)itemData.itemGrade);
             }
             else
             {

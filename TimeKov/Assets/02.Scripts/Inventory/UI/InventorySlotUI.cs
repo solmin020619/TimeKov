@@ -1,7 +1,3 @@
-// InventorySlotUI.cs
-// ���� �����տ� ���̴� ��ũ��Ʈ
-// Ŭ��, ��Ŭ��, ȣ��, �巡�׾ص�� �̺�Ʈ ó��
-
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,7 +8,6 @@ public class InventorySlotUI : MonoBehaviour,
     IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler,
     IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
 {
-    [Header("�ð� ���")]
     [SerializeField] private Image bgImage;
     [SerializeField] private Image rarityBorder;
     [SerializeField] private Image itemIcon;
@@ -22,7 +17,6 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private GameObject iconBacking; // 아이콘 뒤 어두운 backing (아이템 있을 때만 표시)
     [SerializeField] private Image gradeAurora;      // 등급 오로라 (하단서 위로 번지는 그라데이션, 런타임 등급색 틴트)
 
-    [Header("���� ����")]
     [SerializeField] private Color normalColor = new Color(0.18f, 0.22f, 0.30f, 1f);
     [SerializeField] private Color emptyBorderColor = new Color(0.3f, 0.3f, 0.3f, 0f);
     [SerializeField] private Color dragColor = new Color(1f, 1f, 1f, 0.4f);
@@ -31,22 +25,17 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private Color normalBorderColor = new Color(0.627f, 0.745f, 0.855f, 0.34f);  // 평소 테두리(크롬)
     [SerializeField] private Color hoverBorderColor  = new Color(0.37f, 0.77f, 1f, 0.9f);          // 호버 테두리(시안)
 
-    // ��޺� �׵θ� ���� (Common / Advanced / Rare / Hero / Legend ����)
-    private static readonly Color[] GradeColors = new Color[]
-    {
-        new Color(0.60f, 0.60f, 0.60f, 0f),    // Common   - 없음
-        new Color(0.31f, 0.61f, 0.88f, 1f),    // Advanced - 파랑 4f9be0
-        new Color(0.20f, 0.75f, 0.42f, 1f),    // Rare     - 초록 34c06a
-        new Color(0.65f, 0.31f, 0.88f, 1f),    // Hero     - 보라 a64fe0
-        new Color(1.00f, 0.69f, 0.13f, 1f),    // Legend   - 골드 ffb020
-    };
+    [Tooltip("드롭 대상으로 강조될 때 슬롯이 커지는 배율 (살짝 커지는 팝). 1=안 커짐.")]
+    [SerializeField] private float dropPopScale = 1.08f;
+
+    // 등급 색은 공용 GradeVisual 로 이동(중앙화). 일반(0)은 인벤에서 숨김.
 
     private InventorySlot _slot;
     private InventoryManager _owner;
     private bool _isHovered;
+    private bool _dropHighlight;   // 드래그 입고 대상으로 강조 (호버와 별개)
     private UnityEngine.UI.Outline _outline;   // 호버 시 테두리 시안 전환용 (루트 Outline)
 
-    // ���� �̺�Ʈ (InventoryUIController ���� ����)
     public static event Action<InventorySlotUI> OnAnySlotClicked;
     public static event Action<InventorySlotUI> OnAnySlotDoubleClicked;
     public static event Action<InventorySlotUI> OnAnySlotRightClicked;
@@ -60,14 +49,38 @@ public class InventorySlotUI : MonoBehaviour,
     public InventoryManager Owner => _owner;
     public bool IsEmpty => _slot == null || _slot.IsEmpty;
 
+    private const float DropPopSpeed = 1.0f;   // 팝 스케일 변화 속도(초당)
+
     private void OnDisable()
     {
         // 비활성화 시 Unity가 OnPointerExit를 호출하지 않으므로 호버 상태를 직접 리셋한다.
         // (안 하면 패널을 닫았다 다시 열 때 마우스가 없던 칸이 강조된 채로 남는다)
         _isHovered = false;
+        _dropHighlight = false;
+        transform.localScale = Vector3.one;   // 팝 스케일 잔재 제거
     }
 
-    // ���� ������ ���ε� �� �ð� ����
+    private void Update()
+    {
+        // 드롭 대상일 때 살짝 커지는 팝. _dropHighlight on -> dropPopScale, off -> 1.
+        // 주의: 카테고리 전환 촤라락(InventoryGridUI.RevealRoutine)도 루트 스케일을 쓰므로,
+        //       강조가 아닌데 스케일 < 1 이면 리빌 등장 중이니 건드리지 않는다.
+        float target = _dropHighlight ? dropPopScale : 1f;
+        float s = transform.localScale.x;
+        if (Mathf.Approximately(s, target)) return;
+        if (!_dropHighlight && s < 0.999f) return;
+        float ns = Mathf.MoveTowards(s, target, DropPopSpeed * Time.unscaledDeltaTime);
+        transform.localScale = new Vector3(ns, ns, ns);
+    }
+
+    // 드래그 입고 대상으로 강조 켜기/끄기 (창고 드롭존이 호출)
+    public void SetDragHighlight(bool on)
+    {
+        if (_dropHighlight == on) return;
+        _dropHighlight = on;
+        UpdateBgVisual();
+    }
+
     public void Refresh(InventorySlot slot, InventoryManager owner)
     {
         _slot = slot;
@@ -76,7 +89,6 @@ public class InventorySlotUI : MonoBehaviour,
         if (slot == null || slot.IsEmpty)
         {
             SetEmpty();
-            // �� ������ �Ǹ� ���� ���µ� ����
             UpdateBgVisual();
             return;
         }
@@ -88,7 +100,6 @@ public class InventorySlotUI : MonoBehaviour,
 
         var data = ItemDatabase.GetItem(slot.itemId);
 
-        // ������ ����
         if (itemIcon != null)
         {
             itemIcon.enabled = true;
@@ -97,24 +108,19 @@ public class InventorySlotUI : MonoBehaviour,
             itemIcon.color = icon != null ? Color.white : new Color(1, 1, 1, 0.3f);
         }
 
-        // ��� �׵θ� ����
+        // 등급/연료 색 계산 (연료템은 등급과 별개의 독자 색)
+        int gradeIndex = data != null ? (int)data.itemGrade : 0;
+        bool isFuel = data != null && FuelConfig.Instance != null && FuelConfig.Instance.fuelItemId == slot.itemId;
+        Color slotColor = isFuel ? GradeVisual.FuelColor : GradeVisual.GetColor(gradeIndex);
+
+        // 칸 하단 등급 테두리 (모든 등급에 색)
         if (rarityBorder != null)
-        {
-            int gradeIndex = data != null ? (int)data.itemGrade : 0;
-            gradeIndex = Mathf.Clamp(gradeIndex, 0, GradeColors.Length - 1);
-            rarityBorder.color = GradeColors[gradeIndex];
-        }
+            rarityBorder.color = slotColor;
 
-        // 등급 오로라 색 (커먼은 GradeColors a=0이라 안 보임)
+        // 등급/연료 오로라 색 (모든 등급. 일반도 은은하게)
         if (gradeAurora != null)
-        {
-            int gi = data != null ? (int)data.itemGrade : 0;
-            gi = Mathf.Clamp(gi, 0, GradeColors.Length - 1);
-            var gc = GradeColors[gi];
-            gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.9f);
-        }
+            gradeAurora.color = new Color(slotColor.r, slotColor.g, slotColor.b, slotColor.a * 0.9f);
 
-        // ���� �ؽ�Ʈ (1���� ����)
         if (countText != null)
         {
             countText.gameObject.SetActive(slot.amount > 1);
@@ -122,12 +128,10 @@ public class InventorySlotUI : MonoBehaviour,
         }
         if (countChip != null) countChip.SetActive(slot.amount > 1);
 
-        // NEW ����
         if (newBadge != null)
             newBadge.SetActive(slot.isNew);
     }
 
-    // �� ���� �ð� �ʱ�ȭ
     private void SetEmpty()
     {
         if (itemIcon != null) itemIcon.enabled = false;
@@ -139,20 +143,20 @@ public class InventorySlotUI : MonoBehaviour,
         if (newBadge != null) newBadge.SetActive(false);
     }
 
-    // ���� ���� ���
     // 호버일 때만 배경 강조 (클릭 선택 강조는 제거함 - 호버 전용)
     private void UpdateBgVisual()
     {
+        // 배경(fill)은 마우스 호버일 때만. 드래그 드롭대상(_dropHighlight)은 슬롯 fill 안 건드리고 테두리만.
         if (bgImage != null)
             bgImage.color = _isHovered ? hoverColor : normalColor;
 
-        // 호버 시 테두리 시안 (글로우 느낌). 루트 Outline 색 전환.
+        // 호버 또는 드롭대상 시 테두리 시안 (글로우). 루트 Outline 색 전환.
+        bool border = _isHovered || _dropHighlight;
         if (_outline == null) _outline = GetComponent<UnityEngine.UI.Outline>();
         if (_outline != null)
-            _outline.effectColor = _isHovered ? hoverBorderColor : normalBorderColor;
+            _outline.effectColor = border ? hoverBorderColor : normalBorderColor;
     }
 
-    // Ŭ�� �̺�Ʈ (��Ŭ�� ��Ŭ�� / ����Ŭ�� / ��Ŭ�� �б�)
     public void OnPointerClick(PointerEventData eventData)
     {
         if (IsEmpty) return;
@@ -161,12 +165,10 @@ public class InventorySlotUI : MonoBehaviour,
         {
             if (eventData.clickCount >= 2)
             {
-                // ����Ŭ��: �ٸ� �κ��丮�� ���� �̵�
                 OnAnySlotDoubleClicked?.Invoke(this);
             }
             else
             {
-                // ���� Ŭ��: ���� ����
                 OnAnySlotClicked?.Invoke(this);
                 if (_slot != null && _slot.isNew)
                 {
@@ -181,7 +183,6 @@ public class InventorySlotUI : MonoBehaviour,
         }
     }
 
-    // ȣ�� ���� (���� ǥ�� + ���� ����)
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (IsEmpty) return;   // 빈 칸은 호버 강조/툴팁 없음 (빈 칸 선택돼 보이던 버그)
@@ -190,7 +191,6 @@ public class InventorySlotUI : MonoBehaviour,
         OnAnySlotHoverEnter?.Invoke(this);
     }
 
-    // ȣ�� ��Ż (���� ���� + ���� ����)
     public void OnPointerExit(PointerEventData eventData)
     {
         _isHovered = false;
@@ -219,16 +219,22 @@ public class InventorySlotUI : MonoBehaviour,
         InventoryDragHandler.Instance?.BeginDrag(this);
     }
 
-    // �巡�� �� ����Ʈ ��ġ ����
     public void OnDrag(PointerEventData eventData)
     {
         InventoryDragHandler.Instance?.UpdateDragPosition(eventData.position);
     }
 
-    // �巡�� ����
     public void OnEndDrag(PointerEventData eventData)
     {
-        InventoryDragHandler.Instance?.EndDrag();
+        var dh = InventoryDragHandler.Instance;
+        // 슬롯에 안 떨어지고(드래그 유지) 패널 밖에 놓으면 = 바닥에 버리기
+        if (dh != null && dh.IsDragging && dh.DraggedSlot == this)
+        {
+            var ctrl = InventoryUIController.Instance;
+            if (ctrl != null && !ctrl.IsPointInsideOpenPanel(eventData.position))
+                ctrl.DiscardSlotByDrag(this);
+        }
+        dh?.EndDrag();
         OnAnySlotDragEnd?.Invoke(this);
     }
 

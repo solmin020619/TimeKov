@@ -1,11 +1,11 @@
 // =====================================================================
 // ChestInteractable.cs
-// 파밍 상자 — F로 "걸어두면" openTime초 뒤 '수령 가능' (자리 비워도 카운트),
-// 돌아와서 F로 수령. 기다리기 싫으면 G로 즉시완료(HP=시간 소모).
-// 수령 후 respawnTime초 뒤 재생성. 값은 박스별 인스펙터 조절.
+// 파밍 상자 — F로 "걸어두면" openTime초 뒤 '수령 가능'(자리 비워도 카운트),
+// 돌아와서 F로 수령(전리품 패널). 기다리기 싫으면 G로 즉시완료(HP=시간 소모).
+// 한 번 연 상자는 전리품이 남아있는 동안 F로 쿨 없이 즉시 다시 열린다.
+// 다 비우면 다시 걸어둬야(쿨) 채워진다.
 // =====================================================================
 
-using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -25,38 +25,44 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     [Tooltip("기지 결계 밖에서도 열 수 있는지")]
     [SerializeField] private bool requireBase = false;
 
-    [Header("열기/즉시완료/리스폰")]
+    [Header("열기 / 즉시완료")]
     [Tooltip("F로 걸어두면 이 시간(초) 뒤 '수령 가능'이 된다. 자리를 비워도 카운트됨.")]
     [SerializeField] private float openTimeSeconds = 20f;
     [Tooltip("즉시완료(G) 시 소모 HP = openTime * 이 배율. 2면 20초 상자에 40HP(=40초) 소모.")]
     [SerializeField] private float instantHpCostMultiplier = 2f;
-    [Tooltip("수령 후 재생성까지 시간(초). 0이면 재생성 안 함.")]
-    [SerializeField] private float respawnTimeSeconds = 30f;
 
-    [Header("상태 표시 (임시 — 디자인 나오면 교체)")]
+    [Header("프롬프트 / 상태 표시 (임시 — 디자인 나오면 교체)")]
+    [Tooltip("플레이어가 이 거리(m) 안이면 'F 눌러서 열기' 프롬프트를 띄운다.")]
+    [SerializeField] private float promptRange = 2.6f;
     [SerializeField] private float indicatorHeight = 1.9f;
     [SerializeField] private float indicatorWidthPx = 170f;
 
     // ── 상태 ──────────────────────────────────────────────────────────
-    private enum State { Idle, Opening, Ready, Depleted }
+    // Idle=잠김(걸어두기 전) / Opening=자물쇠 따는 중 / Ready=수령 가능 / Opened=잠금해제(자유 개폐, 재굴림 안 함)
+    private enum State { Idle, Opening, Ready, Opened }
     private State _state = State.Idle;
     private float _timer;
-    private Coroutine _respawnCo;
+
+    // 공용 상자 인벤(ChestInstance)을 현재 점유한 상자. 다른 상자를 열면 소유권이 넘어간다.
+    private static ChestInteractable _activeChest;
+    // 이 상자가 1회 굴린 전리품(가져간 만큼 빠짐). null=아직 안 엶(잠김). 한 번 열면 재굴림 없이 이걸 표시.
+    private System.Collections.Generic.List<(int itemId, int count)> _contents;
 
     private float InstantCost => Mathf.Max(0f, openTimeSeconds * instantHpCostMultiplier);
 
     // 상태 표시 UI
     private RectTransform _indRoot;
     private Image _indFill;
+    private GameObject _indBar;
     private TMP_Text _indText;
     private Transform _camTr;
+    private Player _player;
 
-    // 인벤토리 UI 열려있거나 고갈 상태면 차단
+    // 인벤토리 UI 열려있을 때만 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
     public bool CanInteract
     {
         get
         {
-            if (_state == State.Depleted) return false;
             var inv = InventoryUIController.Instance;
             return inv == null || !inv.IsOpen;
         }
@@ -77,14 +83,18 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
                 }
                 _state = State.Opening;       // F로 걸어두기
                 _timer = openTimeSeconds;
+                SetVisual(false);
                 break;
 
             case State.Opening:
-                // 이미 여는 중 — 그냥 대기 (아무것도 안 함)
-                break;
+                break;   // 여는 중 — 대기
 
             case State.Ready:
-                Collect(player);             // 다시 와서 F → 수령
+                Collect(player);             // 수령(롤 + 패널 열기)
+                break;
+
+            case State.Opened:
+                ReopenPanel();               // 이미 연 상자 — 쿨 없이 즉시 다시 열기
                 break;
         }
         RefreshIndicator();
@@ -94,7 +104,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     public bool CanInstantComplete(Player player)
     {
         if (player == null) return false;
-        if (_state != State.Idle && _state != State.Opening) return false;
+        if (_state != State.Idle && _state != State.Opening) return false;   // 걸어두기 전/도중만 즉시완료
         return player.Stat.CurrentHp > InstantCost; // 비용보다 많아야 (즉시완료로 죽지 않게)
     }
 
@@ -110,94 +120,125 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         Collect(player);
     }
 
-    // ── 시간 경과 (자리 비워도 카운트) ──────────────────────────────────
+    // ── 매 프레임 ─────────────────────────────────────────────────────────
     private void Update()
     {
-        if (_state != State.Opening) return;
-        _timer -= Time.deltaTime;
-        if (_timer <= 0f)
+        if (_state == State.Opening)
         {
-            _timer = 0f;
-            _state = State.Ready;
+            _timer -= Time.deltaTime;
+            if (_timer <= 0f) { _timer = 0f; _state = State.Ready; }
         }
+        // Opened(잠금해제)는 절대 Idle로 안 돌아간다 = 재굴림 없음(다 비우면 빈 채로 유지).
         RefreshIndicator();
     }
 
-    // ── 수령(롤+지급+UI) ────────────────────────────────────────────────
+    // ── 수령: 자물쇠 따서 전리품 1회만 굴림 + 패널. 이후 이 상자는 잠금해제(재굴림 없음). ──
     private void Collect(Player player)
     {
         if (InventoryUIController.IsChestOpen)
-        {
             InventoryUIController.IsChestOpen = false;
-            InventoryManager.ChestInstance?.ClearAllItems();
-        }
 
-        List<(int itemId, int count)> items = Roll();
+        var items = Roll();
         if (items.Count == 0)
             Debug.LogWarning($"[Chest] sourceId='{sourceId}' — DropTable에 Chest 항목 없음");
+        _contents = items;   // 이 상자 전리품 저장(딱 한 번만 굴림. 이후 재굴림 X)
+
+        _state = State.Opened;
+        SetVisual(true);
+        OpenWithMyContents();
+    }
+
+    // 이미 연(잠금해제) 상자를 재굴림 없이 다시 열기 (껐다 켜도 같은 내용, 가져간 만큼 빠진 채로)
+    private void ReopenPanel()
+    {
+        OpenWithMyContents();
+    }
+
+    // 현재 표시중 내용을 그 상자에 보존 -> 내 전리품을 ChestInstance에 로드 -> 패널 열기
+    private void OpenWithMyContents()
+    {
+        SaveActiveChestContents();   // 직전 활성 상자(또는 나 자신)의 가져간-반영 상태 보존
 
         var chestInv = InventoryManager.ChestInstance;
         if (chestInv != null)
         {
             chestInv.ClearAllItems();
-            foreach (var (itemId, count) in items)
-                chestInv.AddItem(itemId, count);
+            if (_contents != null)
+                foreach (var (itemId, count) in _contents)
+                    chestInv.AddItem(itemId, count);
         }
+        _activeChest = this;
 
         InventoryUIController.IsChestOpen = true;
         InventoryUIController.Instance?.Open();
-
-        if (closedVisual != null) closedVisual.SetActive(false);
-        if (openedVisual != null) openedVisual.SetActive(true);
-
-        _state = State.Depleted;
-        HideIndicator();
-        if (respawnTimeSeconds > 0f)
-            _respawnCo = StartCoroutine(RespawnRoutine());
     }
 
-    private IEnumerator RespawnRoutine()
+    // ChestInstance의 현재 내용을 활성 상자의 _contents에 저장(플레이어가 가져간 만큼 반영). 재오픈 시 복제 방지.
+    private static void SaveActiveChestContents()
     {
-        yield return new WaitForSeconds(respawnTimeSeconds);
-        _respawnCo = null;
-        _state = State.Idle;
-        if (closedVisual != null) closedVisual.SetActive(true);
-        if (openedVisual != null) openedVisual.SetActive(false);
+        if (_activeChest == null) return;
+        var c = InventoryManager.ChestInstance;
+        if (c == null) return;
+        var list = new System.Collections.Generic.List<(int itemId, int count)>();
+        foreach (var slot in c.GetSlots())
+            if (!slot.IsEmpty) list.Add((slot.itemId, slot.amount));
+        _activeChest._contents = list;
+    }
+
+    private void SetVisual(bool opened)
+    {
+        if (closedVisual != null) closedVisual.SetActive(!opened);
+        if (openedVisual != null) openedVisual.SetActive(opened);
     }
 
     private void OnDisable()
     {
-        if (_respawnCo != null) { StopCoroutine(_respawnCo); _respawnCo = null; }
         HideIndicator();
     }
 
-    private void OnEnable()
-    {
-        if (_state == State.Depleted && respawnTimeSeconds > 0f && _respawnCo == null)
-            _respawnCo = StartCoroutine(RespawnRoutine());
-    }
-
-    // ── 상태 표시 (임시 placeholder) ────────────────────────────────────
+    // ── 프롬프트 / 상태 표시 ─────────────────────────────────────────────
     private void RefreshIndicator()
     {
+        var inv = InventoryUIController.Instance;
+        bool invOpen = inv != null && inv.IsOpen;
+
         if (_state == State.Opening)
         {
-            EnsureIndicator();
-            _indRoot.gameObject.SetActive(true);
+            ShowIndicator(true);
             if (_indFill != null) _indFill.fillAmount = openTimeSeconds > 0f ? 1f - _timer / openTimeSeconds : 1f;
             if (_indText != null) _indText.text = $"여는 중 {Mathf.CeilToInt(_timer)}초\nG 즉시 (HP -{Mathf.CeilToInt(InstantCost)})";
+            return;
         }
-        else if (_state == State.Ready)
+        if (_state == State.Ready)
         {
-            EnsureIndicator();
-            _indRoot.gameObject.SetActive(true);
+            ShowIndicator(true);
             if (_indFill != null) _indFill.fillAmount = 1f;
             if (_indText != null) _indText.text = "F 로 수령";
+            return;
         }
-        else
+
+        // Idle / Opened = 'F 눌러서 열기' 프롬프트 (근접 시에만, 진행바 없음)
+        if (invOpen || !IsPlayerNear())
         {
             HideIndicator();
+            return;
         }
+        ShowIndicator(false);
+        if (_indText != null) _indText.text = "F 눌러서 열기";
+    }
+
+    private bool IsPlayerNear()
+    {
+        if (_player == null) _player = FindAnyObjectByType<Player>();
+        if (_player == null) return false;
+        return (_player.transform.position - transform.position).sqrMagnitude <= promptRange * promptRange;
+    }
+
+    private void ShowIndicator(bool withBar)
+    {
+        EnsureIndicator();
+        _indRoot.gameObject.SetActive(true);
+        if (_indBar != null) _indBar.SetActive(withBar);
     }
 
     private void HideIndicator()
@@ -231,7 +272,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         _indText.fontStyle = FontStyles.Bold;
         _indText.raycastTarget = false;
 
-        // 진행 바 (아래)
+        // 진행 바 (아래) — 걸어두기/수령 때만 표시, 프롬프트일 땐 숨김
         var bgGo = new GameObject("BarBG", typeof(RectTransform));
         var brt = (RectTransform)bgGo.transform;
         brt.SetParent(_indRoot, false);
@@ -240,6 +281,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         var bg = bgGo.AddComponent<Image>();
         bg.color = new Color(0.05f, 0.07f, 0.1f, 0.8f);
         bg.raycastTarget = false;
+        _indBar = bgGo;
 
         var fillGo = new GameObject("BarFill", typeof(RectTransform));
         var frt = (RectTransform)fillGo.transform;

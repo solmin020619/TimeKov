@@ -15,6 +15,16 @@ public static class ChestPanelBuilder
     [MenuItem("Tools/TIMEKOV/상자 패널 생성 (창고 복제)")]
     public static void Build()
     {
+        // [폐기] 창고가 통합패널(창고+가방 한 표면)로 바뀐 뒤로 이 복제 방식은 거대한 듀얼패널을
+        // 그대로 복제해버려 상자 패널을 망가뜨린다. 상자 패널은 이제 '인벤토리 UI 생성 (가방)'
+        // 메뉴가 BuildChestPanel로 같이 만든다. 이 메뉴는 실행하지 말 것.
+        EditorUtility.DisplayDialog("폐기된 메뉴",
+            "이 메뉴는 더 이상 쓰지 않습니다.\n\n" +
+            "상자 패널은 [Tools/TIMEKOV/인벤토리 UI 생성 (가방)] 메뉴가\n" +
+            "가방/창고와 함께 자동으로 만듭니다.\n\n" +
+            "그 메뉴를 실행하세요.", "확인");
+        return;
+#pragma warning disable CS0162
         // ── InventoryUIController 찾기 ────────────────────────────────
         var invCtrl = Object.FindAnyObjectByType<InventoryUIController>();
         if (invCtrl == null)
@@ -118,6 +128,7 @@ public static class ChestPanelBuilder
             "1. ChestPanel의 타이틀 텍스트 확인\n" +
             "2. ChestInventory 오브젝트가 씬에 있는지 확인\n" +
             "3. Ctrl+S 저장", "확인");
+#pragma warning restore CS0162
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────────

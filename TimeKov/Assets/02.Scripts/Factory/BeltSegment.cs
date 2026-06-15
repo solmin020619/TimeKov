@@ -35,6 +35,30 @@ namespace TIMEKOV.Factory
         [Header("감지 레이어")]
         public LayerMask detectMask;
 
+        [Header("연결 상태 색상")]
+        [Tooltip("연결이 확정적으로 안 됐을 때 벨트 글로우 색 (HDR). 빨강.\n" +
+                 "연결되면 원래 머티리얼 색(파랑)으로 자동 복귀.")]
+        [ColorUsage(true, true)]
+        public Color disconnectedColor = new Color(20f, 0f, 0f, 0f);
+
+        [Tooltip("레일 빌드 모드 중(연결 작업 중) 아직 연결 안 된 벨트의 중립 글로우 색.\n" +
+                 "값을 1 미만으로 두면 블룸(과한 빛번짐) 없이 고스트처럼 부드러운 매트 흰색이 된다.\n" +
+                 "작업이 끝나기 전까진 빨강/파랑 판정을 보류하고 이 색으로 둔다.")]
+        [ColorUsage(true, true)]
+        public Color buildingColor = new Color(0.4f, 0.4f, 0.4f, 0f);
+
+        [Tooltip("작업 중 레일 바닥 틴트 (중립). 1 미만 권장.")]
+        [ColorUsage(true, true)]
+        public Color buildingRailColor = new Color(0.6f, 0.6f, 0.6f, 0f);
+
+        [Tooltip("작업 중(흰색) 상태의 밝기 배수(_intelsity). 머티리얼 기본값은 15라 그대로면\n" +
+                 "화살표가 과하게 빛난다. 1~2 정도로 낮추면 눈 안 아프게 부드러워짐.")]
+        public float buildingIntensity = 1.5f;
+
+        [Tooltip("연결이 끊긴 뒤 빨강으로 바꾸기까지의 유예 시간(초).\n" +
+                 "다른 레일 철거 시 재감지로 잠깐 연결이 비는 동안 깜빡이지 않게 함.")]
+        public float disconnectColorGrace = 0.3f;
+
         /// <summary>씬에 활성화된 BeltSegment 전체 목록. 그리드 연결 감지에 사용.</summary>
         public static readonly List<BeltSegment> All = new();
 
@@ -44,9 +68,106 @@ namespace TIMEKOV.Factory
         private Vector2Int _backCell;   // beltCell + 뒤 방향 (이전 연결 대상 셀)
         private bool       _cellsInitialized;
 
-        private void OnEnable() => All.Add(this);
+        private void OnEnable()
+        {
+            All.Add(this);
+
+            // 새로 생성/활성화될 때 빌드 중이면 즉시 흰색을 적용한다.
+            // OnEnable 은 Instantiate 중 렌더 전에 동기 실행되므로, 첫 프레임에 기본 머티리얼
+            // (파랑)이 잠깐 비쳐 깜빡이는 것을 막는다 — 특히 경로 끝 코너(rail_turn)가
+            // 매 경로계산마다 재생성될 때 파랑으로 깜빡이던 문제 해결.
+            if (SuppressConnectionColor)
+                ApplyColorState(ColorState.Building);
+        }
 
         private void Start() => StartCoroutine(DetectNextFrame());
+
+        /// <summary>레일 빌드 모드 중 연결 색상 판정을 보류할지. RailBuildManager 가 토글.
+        /// 보류 중엔 연결된 건 파랑, 아직 안 된 건 빨강 대신 중립(흰색)으로 둔다.</summary>
+        public static bool SuppressConnectionColor;
+
+        // 벨트 색상 상태. Connected=파랑(원래색), Disconnected=빨강(확정 미연결),
+        // Building=흰색(작업 중 보류).
+        private enum ColorState { Connected, Disconnected, Building }
+
+        // 연결 상태가 바뀌는 경로가 여러 곳(감지/전파/재연결/철거)이라
+        // 매 프레임 IsReady 를 폴링해 색을 갱신한다. 상태가 그대로면 즉시 반환해 비용 거의 없음.
+        private void Update()
+        {
+            if (IsReady)
+            {
+                // 연결됨 → 즉시 파랑
+                _disconnectTimer = 0f;
+                ApplyColorState(ColorState.Connected);
+            }
+            else if (SuppressConnectionColor)
+            {
+                // 레일 빌드 모드 중(작업 중) + 아직 연결 안 됨 → 판정 보류, 중립(흰색).
+                // 빨강은 작업이 끝난(빌드 모드 종료) 뒤에만 표시.
+                _disconnectTimer = 0f;
+                ApplyColorState(ColorState.Building);
+            }
+            else
+            {
+                // 작업 끝났는데 미연결 → 유예 후 빨강. 유예는 재감지 빈틈 깜빡임 방지용.
+                _disconnectTimer += Time.deltaTime;
+                if (_disconnectTimer >= disconnectColorGrace)
+                    ApplyColorState(ColorState.Disconnected);
+            }
+        }
+
+        // ── 연결 상태 색상 표시 ─────────────────────────────────────────
+        private Renderer[] _renderers;
+        private MaterialPropertyBlock _mpb;
+        private ColorState _appliedState;
+        private bool _colorInitialized;
+        private float _disconnectTimer;  // 연결 끊긴 지속 시간 (유예 판정용)
+
+        private static readonly int FresnelColorId = Shader.PropertyToID("_Fresnel_color");
+        private static readonly int RailColorId     = Shader.PropertyToID("_rail_color");
+        private static readonly int BaseColorId     = Shader.PropertyToID("_Base_Color");
+        private static readonly int IntensityId     = Shader.PropertyToID("_intelsity");
+
+        // 빨강(미연결) 상태는 머티리얼 기본 밝기(15)를 유지해 또렷하게.
+        private const float DisconnectedIntensity = 15f;
+
+        /// <summary>벨트 색을 상태에 맞게 적용. 같은 상태면 즉시 반환.</summary>
+        private void ApplyColorState(ColorState state)
+        {
+            if (_colorInitialized && _appliedState == state) return;
+
+            if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>(true);
+            _mpb ??= new MaterialPropertyBlock();
+
+            foreach (var r in _renderers)
+            {
+                if (r == null) continue;
+
+                if (state == ColorState.Connected)
+                {
+                    // 오버라이드 제거 → 머티리얼 원래 색(파랑)으로 복귀
+                    r.SetPropertyBlock(null);
+                    continue;
+                }
+
+                Color glow = state == ColorState.Disconnected ? disconnectedColor : buildingColor;
+                Color rail = state == ColorState.Disconnected
+                    ? new Color(0.30f, 0.05f, 0.05f, 0f)   // 빨강 레일 바닥
+                    : buildingRailColor;                   // 중립 레일 바닥
+                // 작업 중(흰색)은 밝기를 크게 낮춰 블룸/눈부심 제거, 빨강은 또렷하게 유지.
+                float intensity = state == ColorState.Disconnected ? DisconnectedIntensity : buildingIntensity;
+
+                _mpb.Clear();   // 이전 상태의 잔여 오버라이드 제거 후 깨끗이 설정
+                _mpb.SetColor(FresnelColorId, glow);   // 글로우/프레넬
+                _mpb.SetColor(RailColorId, rail);      // 레일 바닥 틴트
+                _mpb.SetColor(BaseColorId, glow);      // Emisson 머티리얼 대응
+                _mpb.SetFloat(IntensityId, intensity); // 밝기 배수 (화살표 눈부심 제어)
+                r.SetPropertyBlock(_mpb);
+            }
+
+            _appliedState     = state;
+            _colorInitialized = true;
+        }
 
         private void OnDisable()
         {
@@ -159,35 +280,33 @@ namespace TIMEKOV.Factory
         private void GridDetectConnections()
         {
             // ── 설비 감지: 포트 그리드 매칭 (결정적) ─────────────────────
-            // 포트의 front cell == 이 벨트의 셀이면 해당 설비와 연결 확정.
-            // 물리 OverlapSphere는 콜라이더 크기·레이어·설치 순서에 따라
-            // 빗나가는 일이 있어 폴백으로만 사용한다.
-            bool portMatched = false;
+            // 포트의 front cell == 이 벨트의 셀이고, 이 레일이 포트를 향해(head-on) 연결돼
+            // 있을 때만 source/target 으로 인정한다. "포트를 향한 연결"이란 레일이 포트 방향
+            // 쪽 칸(접근 칸)으로 연결돼 있다는 뜻 — 포트 앞 칸을 수직으로 그냥 통과(스쳐
+            // 지나감)하는 레일은 그 방향 연결이 없어 제외된다.
+            // (connectionCount 같은 장부 대신 실제 레일 형상으로 판정 → cell-start·gap-fill 등
+            //  어떤 방식으로 연결해도 동일하게 인정됨.)
             foreach (var port in BuildPort.All)
             {
                 if (port == null || port.OwnerBuilding == null) continue;
                 if (port.GetFrontCell() != _beltCell) continue;
+                if (!RailConnectsToward(port.GetWorldDirection())) continue; // head-on 연결만 인정
 
                 var machine = port.GetComponentInParent<MachineBase>();
                 if (machine == null) continue;
 
                 if (port.portType == PortType.Output) { sourceM = machine; _localSource = machine; }
                 else                                  { targetM = machine; _localTarget = machine; }
-                portMatched = true;
-            }
-
-            // 포트 매칭이 하나도 없을 때만 물리 감지 폴백 (포트 미설정 설비 대응)
-            if (!portMatched)
-            {
-                if (endpointBack  != null) DetectMachineAt(endpointBack.position);
-                if (endpointFront != null) DetectMachineAt(endpointFront.position);
             }
 
             // ── 벨트↔벨트 감지: 그리드 기반 ─────────────────────────────
-            // A.frontCell == B.beltCell → A 다음에 B
+            // A.frontCell == B.beltCell → A 다음에 B.
+            // 단, 실제 레일(RailPiece)이 서로 연결돼 있어야만 체인으로 엮는다.
+            // (셀만 인접한 다른 라인이나, 중간이 끊긴 칸끼리 잘못 엮이는 것 방지)
             foreach (var other in All)
             {
                 if (other == null || other == this || !other._cellsInitialized) continue;
+                if (!RailLinked(other)) continue;   // 실제 레일 연결이 없으면 체인 안 엮음
 
                 if (_frontCell == other._beltCell)
                 {
@@ -203,24 +322,51 @@ namespace TIMEKOV.Factory
             }
         }
 
-        /// <summary>설비 포트 물리 감지 — 여러 벨트가 같은 설비에 연결되는 라운드 로빈 지원.</summary>
-        private void DetectMachineAt(Vector3 pos)
+        // 이 벨트의 RailPiece (시각 프리팹의 부모). 레일의 실제 연결 방향 판정에 사용.
+        private RailPiece _railPiece;
+        private bool _railPieceResolved;
+        private RailPiece RailPieceRef
         {
-            var hits = Physics.OverlapSphere(pos, detectRadius, detectMask);
-            foreach (var hit in hits)
+            get
             {
-                if (hit.gameObject == gameObject) continue;
-                var machine = hit.GetComponentInParent<MachineBase>();
-                if (machine == null) continue;
-
-                bool nearOutput = machine.outputPort != null && machine.inputPort != null
-                    ? Vector3.Distance(pos, machine.outputPort.position) <
-                      Vector3.Distance(pos, machine.inputPort.position)
-                    : machine.outputPort != null;
-
-                if (nearOutput) { sourceM = machine; _localSource = machine; }
-                else            { targetM = machine; _localTarget = machine; }
+                if (!_railPieceResolved)
+                {
+                    _railPiece = GetComponentInParent<RailPiece>();
+                    _railPieceResolved = true;
+                }
+                return _railPiece;
             }
+        }
+
+        /// <summary>두 벨트의 RailPiece 가 서로 마주보는 방향으로 실제 레일 연결돼 있는지.
+        /// RailPiece 가 없으면(레거시 배치) 기존 동작 유지 위해 true.</summary>
+        private bool RailLinked(BeltSegment other)
+        {
+            RailPiece a = RailPieceRef;
+            RailPiece b = other.RailPieceRef;
+            if (a == null || b == null) return true;
+
+            Vector2Int d = b.cell - a.cell;
+            if (d == Vector2Int.up)    return a.up    && b.down;
+            if (d == Vector2Int.down)  return a.down  && b.up;
+            if (d == Vector2Int.left)  return a.left  && b.right;
+            if (d == Vector2Int.right) return a.right && b.left;
+            return false;   // 인접하지 않음 → 연결 아님
+        }
+
+        /// <summary>이 레일(RailPiece)이 지정한 방향으로 실제 연결돼 있는지.
+        /// 포트를 향한(head-on) 연결인지 판정하는 데 사용. dir = 포트가 바라보는 방향.
+        /// RailPiece 가 없으면(레거시) 기존 동작 유지 위해 true.</summary>
+        private bool RailConnectsToward(Vector2Int dir)
+        {
+            RailPiece rp = RailPieceRef;
+            if (rp == null) return true;
+
+            if (dir == Vector2Int.up)    return rp.up;
+            if (dir == Vector2Int.down)  return rp.down;
+            if (dir == Vector2Int.left)  return rp.left;
+            if (dir == Vector2Int.right) return rp.right;
+            return false;
         }
 
         // ── 레거시 물리 감지 (폴백) ──────────────────────────────────────
