@@ -31,6 +31,9 @@ public class InventoryGridUI : MonoBehaviour
     private int _dynamicVisibleCount = 0;     // 동적모드에서 현재 보이는 아이템 칸 수
     private InventorySlotUI _appendPreviewSlot;   // 새 칸 미리보기(드래그 중 빈 칸)
     private InventorySlotUI _highlightedUI;   // 현재 드롭 대상 강조 칸(고정가방용 - 커서 밑 칸 추적)
+    private Camera _eventCam;
+    private bool _eventCamResolved;
+    private bool _withinDragDriving;   // 같은 인벤 안 슬롯끼리 드래그 강조를 이 그리드가 구동 중인지
 
     // 인벤토리 매니저 바인딩
     public void Bind(InventoryManager manager)
@@ -363,10 +366,38 @@ public class InventoryGridUI : MonoBehaviour
 
     private void OnDataChanged() => RefreshAll();
 
+    // 같은 인벤 안에서 슬롯끼리 드래그할 때도 커서 밑 칸 강조. (창<->창 입출고는 InventoryDropZone이 담당)
+    private void Update()
+    {
+        var dh = InventoryDragHandler.Instance;
+        bool within = dh != null && dh.IsDragging && dh.DraggedSlot != null
+                      && !dh.DraggedSlot.IsEmpty && _manager != null && dh.DraggedSlot.Owner == _manager;
+        if (!within)
+        {
+            if (_withinDragDriving) { ClearDropHighlight(); _withinDragDriving = false; }
+            return;
+        }
+
+        _withinDragDriving = true;
+        var hit = FindSlotUnderPointer(Input.mousePosition, ResolveEventCam());
+        if (hit == dh.DraggedSlot) hit = null;   // 자기 자신엔 강조 안 함(드롭=취소)
+        SetDropHighlightUI(hit);   // null이면 해제
+    }
+
+    private Camera ResolveEventCam()
+    {
+        if (_eventCamResolved) return _eventCam;
+        var canvas = GetComponentInParent<Canvas>();
+        _eventCam = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? canvas.worldCamera : null;
+        _eventCamResolved = true;
+        return _eventCam;
+    }
+
     private void OnDisable()
     {
         if (_revealCo != null) { StopCoroutine(_revealCo); _revealCo = null; }
         ClearDropHighlight();
+        _withinDragDriving = false;
     }
 
     private void OnDestroy()

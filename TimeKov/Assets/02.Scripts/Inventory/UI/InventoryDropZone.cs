@@ -46,7 +46,11 @@ public class InventoryDropZone : MonoBehaviour, IDropHandler
         {
             SetRegion(false);
             SetHint(false);
-            _grid?.ClearDropHighlight();
+            // 이 그리드 소속 아이템을 드래그 중(같은 인벤 안 슬롯 이동)이면 그리드 Update가 강조를 담당 -> 지우지 않는다.
+            var tgt = Target;
+            bool withinThisGrid = dh != null && dh.IsDragging && dh.DraggedSlot != null
+                                  && tgt != null && dh.DraggedSlot.Owner == tgt;
+            if (!withinThisGrid) _grid?.ClearDropHighlight();
             return;
         }
 
