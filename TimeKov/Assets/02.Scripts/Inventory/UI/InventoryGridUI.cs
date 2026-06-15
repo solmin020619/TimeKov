@@ -12,6 +12,8 @@ public class InventoryGridUI : MonoBehaviour
     [Header("슬롯 설정")]
     [SerializeField] private GameObject slotPrefab;
     [SerializeField] private Transform slotGrid;
+    [Tooltip("드롭 대상 강조 흰 프레임 스프라이트(9-slice). 빌더가 자동 연결. 없으면 Outline 폴백.")]
+    [SerializeField] private Sprite dropFrameSprite;
 
     [Header("창고용 동적 칸 (가방/상자는 끔)")]
     [Tooltip("켜면 아이템 수만큼만 칸 표시(빈칸 없이 앞으로 압축). 용량 무제한 느낌. 창고 전용.")]
@@ -95,6 +97,7 @@ public class InventoryGridUI : MonoBehaviour
             Debug.LogError("[InventoryGridUI] slotPrefab에 InventorySlotUI 없음: " + obj.name);
             return null;
         }
+        slotUI.InitDropFrame(dropFrameSprite);   // 흰 강조 프레임 주입(스프라이트 없으면 무시)
         _slotUIs.Add(slotUI);
         return slotUI;
     }

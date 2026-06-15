@@ -39,7 +39,7 @@ namespace TIMEKOV.Factory
         [Tooltip("연결이 확정적으로 안 됐을 때 벨트 글로우 색 (HDR). 빨강.\n" +
                  "연결되면 원래 머티리얼 색(파랑)으로 자동 복귀.")]
         [ColorUsage(true, true)]
-        public Color disconnectedColor = new Color(20f, 0f, 0f, 0f);
+        public Color disconnectedColor = new Color(5f, 0f, 0f, 0f);
 
         [Tooltip("레일 빌드 모드 중(연결 작업 중) 아직 연결 안 된 벨트의 중립 글로우 색.\n" +
                  "값을 1 미만으로 두면 블룸(과한 빛번짐) 없이 고스트처럼 부드러운 매트 흰색이 된다.\n" +
@@ -128,15 +128,22 @@ namespace TIMEKOV.Factory
         private static readonly int BaseColorId     = Shader.PropertyToID("_Base_Color");
         private static readonly int IntensityId     = Shader.PropertyToID("_intelsity");
 
-        // 빨강(미연결) 상태는 머티리얼 기본 밝기(15)를 유지해 또렷하게.
-        private const float DisconnectedIntensity = 15f;
+        // 빨강(미연결) 상태 밝기. 5~8 정도가 눈 안 아프면서 또렷하게 보임.
+        private const float DisconnectedIntensity = 8f;
 
         /// <summary>벨트 색을 상태에 맞게 적용. 같은 상태면 즉시 반환.</summary>
         private void ApplyColorState(ColorState state)
         {
             if (_colorInitialized && _appliedState == state) return;
 
-            if (_renderers == null) _renderers = GetComponentsInChildren<Renderer>(true);
+            // 코너 교체(RailPiece.ApplyVisual) 후 캐시된 렌더러가 파괴돼 있으면 재쿼리.
+            // 비주얼이 RailPiece 의 자식(BeltSegment 의 형제)일 수 있으므로
+            // RailPiece 루트 기준으로 탐색해 확실히 찾는다.
+            if (_renderers == null || (_renderers.Length > 0 && _renderers[0] == null))
+            {
+                Component searchRoot = RailPieceRef != null ? (Component)RailPieceRef : (Component)this;
+                _renderers = searchRoot.GetComponentsInChildren<Renderer>(true);
+            }
             _mpb ??= new MaterialPropertyBlock();
 
             foreach (var r in _renderers)
@@ -152,7 +159,7 @@ namespace TIMEKOV.Factory
 
                 Color glow = state == ColorState.Disconnected ? disconnectedColor : buildingColor;
                 Color rail = state == ColorState.Disconnected
-                    ? new Color(0.30f, 0.05f, 0.05f, 0f)   // 빨강 레일 바닥
+                    ? new Color(0.30f, 0.05f, 0.05f, 0f)  // 빨강 레일 바닥
                     : buildingRailColor;                   // 중립 레일 바닥
                 // 작업 중(흰색)은 밝기를 크게 낮춰 블룸/눈부심 제거, 빨강은 또렷하게 유지.
                 float intensity = state == ColorState.Disconnected ? DisconnectedIntensity : buildingIntensity;
@@ -160,7 +167,6 @@ namespace TIMEKOV.Factory
                 _mpb.Clear();   // 이전 상태의 잔여 오버라이드 제거 후 깨끗이 설정
                 _mpb.SetColor(FresnelColorId, glow);   // 글로우/프레넬
                 _mpb.SetColor(RailColorId, rail);      // 레일 바닥 틴트
-                _mpb.SetColor(BaseColorId, glow);      // Emisson 머티리얼 대응
                 _mpb.SetFloat(IntensityId, intensity); // 밝기 배수 (화살표 눈부심 제어)
                 r.SetPropertyBlock(_mpb);
             }

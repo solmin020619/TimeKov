@@ -35,6 +35,8 @@ public class InventorySlotUI : MonoBehaviour,
     private bool _isHovered;
     private bool _dropHighlight;   // 드래그 입고 대상으로 강조 (호버와 별개)
     private UnityEngine.UI.Outline _outline;   // 호버 시 테두리 시안 전환용 (루트 Outline)
+    private Image _dropFrame;   // 드롭 대상 강조 흰 프레임(런타임 생성, 9-slice). 없으면 Outline 폴백.
+    private bool _wasDragSource;   // 드래그 출발 슬롯 회색처리 상태 추적
 
     public static event Action<InventorySlotUI> OnAnySlotClicked;
     public static event Action<InventorySlotUI> OnAnySlotDoubleClicked;
@@ -57,11 +59,16 @@ public class InventorySlotUI : MonoBehaviour,
         // (안 하면 패널을 닫았다 다시 열 때 마우스가 없던 칸이 강조된 채로 남는다)
         _isHovered = false;
         _dropHighlight = false;
+        _wasDragSource = false;
         transform.localScale = Vector3.one;   // 팝 스케일 잔재 제거
+        if (_dropFrame != null) { SetFrameAlpha(0f); }   // 프레임 잔재 제거
     }
 
     private void Update()
     {
+        DriveDropFrame();
+        DriveDragSourceDim();
+
         // 드롭 대상일 때 살짝 커지는 팝. _dropHighlight on -> dropPopScale, off -> 1.
         // 주의: 카테고리 전환 촤라락(InventoryGridUI.RevealRoutine)도 루트 스케일을 쓰므로,
         //       강조가 아닌데 스케일 < 1 이면 리빌 등장 중이니 건드리지 않는다.
@@ -71,6 +78,69 @@ public class InventorySlotUI : MonoBehaviour,
         if (!_dropHighlight && s < 0.999f) return;
         float ns = Mathf.MoveTowards(s, target, DropPopSpeed * Time.unscaledDeltaTime);
         transform.localScale = new Vector3(ns, ns, ns);
+    }
+
+    // 드롭 대상 흰 프레임 페이드 + 호흡(알파 0.75<->1). 프레임 없으면(미연결) 무시 -> Outline 폴백.
+    private void DriveDropFrame()
+    {
+        if (_dropFrame == null) return;
+        float a = _dropFrame.color.a;
+        if (_dropHighlight)
+        {
+            float pulse = 0.875f + 0.125f * Mathf.Sin(Time.unscaledTime * 5f);   // 0.75..1.0
+            SetFrameAlpha(Mathf.MoveTowards(a, pulse, 5f * Time.unscaledDeltaTime));
+        }
+        else if (a > 0f)
+        {
+            SetFrameAlpha(Mathf.MoveTowards(a, 0f, 6f * Time.unscaledDeltaTime));
+        }
+    }
+
+    // 드래그 출발 슬롯이면 흐리게(회색) 처리 -> 어느 칸을 들었는지 시각 피드백. 상태 바뀔 때만 갱신.
+    private void DriveDragSourceDim()
+    {
+        var dh = InventoryDragHandler.Instance;
+        bool isSource = dh != null && dh.IsDragging && dh.DraggedSlot == this;
+        if (isSource == _wasDragSource) return;
+        _wasDragSource = isSource;
+        if (isSource)
+        {
+            if (itemIcon != null) itemIcon.color = new Color(1f, 1f, 1f, 0.22f);
+            if (countText != null) countText.gameObject.SetActive(false);
+            if (countChip != null) countChip.SetActive(false);
+        }
+        else
+        {
+            Refresh(_slot, _owner);   // 복원(현재 데이터 기준 재바인딩)
+        }
+    }
+
+    private void SetFrameAlpha(float a)
+    {
+        if (_dropFrame == null) return;
+        var c = _dropFrame.color; c.a = a; _dropFrame.color = c;
+        bool on = a > 0.001f;
+        if (_dropFrame.gameObject.activeSelf != on) _dropFrame.gameObject.SetActive(on);
+    }
+
+    // 그리드(InventoryGridUI)가 슬롯 생성 시 1회 호출. 흰 9-slice 프레임 child 생성(슬롯보다 살짝 바깥).
+    public void InitDropFrame(Sprite frameSprite)
+    {
+        if (frameSprite == null || _dropFrame != null) return;
+        var go = new GameObject("DropFrame", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(-5f, -5f); rt.offsetMax = new Vector2(5f, 5f);   // 슬롯보다 살짝 바깥
+        var img = go.GetComponent<Image>();
+        img.sprite = frameSprite;
+        img.type = Image.Type.Sliced;
+        img.pixelsPerUnitMultiplier = 2f;   // @2x 에셋 -> 코너 논리 22px (코너 = border/multiplier)
+        img.raycastTarget = false;
+        img.color = new Color(1f, 1f, 1f, 0f);   // 흰색, 시작 투명 (시안 액센트는 텍스처에 베이크됨)
+        go.transform.SetAsLastSibling();
+        go.SetActive(false);
+        _dropFrame = img;
     }
 
     // 드래그 입고 대상으로 강조 켜기/끄기 (창고 드롭존이 호출)
@@ -150,8 +220,8 @@ public class InventorySlotUI : MonoBehaviour,
         if (bgImage != null)
             bgImage.color = _isHovered ? hoverColor : normalColor;
 
-        // 호버 또는 드롭대상 시 테두리 시안 (글로우). 루트 Outline 색 전환.
-        bool border = _isHovered || _dropHighlight;
+        // 드롭 대상은 흰 프레임(_dropFrame)이 담당하므로 Outline은 호버에만. 프레임 미연결 시(폴백) 드롭도 Outline.
+        bool border = _isHovered || (_dropHighlight && _dropFrame == null);
         if (_outline == null) _outline = GetComponent<UnityEngine.UI.Outline>();
         if (_outline != null)
             _outline.effectColor = border ? hoverBorderColor : normalBorderColor;
