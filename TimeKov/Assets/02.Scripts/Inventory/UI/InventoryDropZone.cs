@@ -55,17 +55,16 @@ public class InventoryDropZone : MonoBehaviour, IDropHandler
         }
 
         SetRegion(true);   // 집자마자 영역 강조
+        SetHint(true);     // 집자마자 "드래그하여 ...에 넣기" 힌트도 바로 표시 (포인터 진입 안 기다림)
 
         if (IsPointerOver())
         {
-            SetHint(true);
             // 가방=커서 밑 칸 강조(드롭 위치와 일치), 창고=매칭 칸/새 칸 미리보기
             Camera cam = (_canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? _canvas.worldCamera : null;
             _grid?.HighlightDropTarget(dh.DraggedSlot.SlotData.itemId, Input.mousePosition, cam);
         }
         else
         {
-            SetHint(false);
             _grid?.ClearDropHighlight();
         }
     }
