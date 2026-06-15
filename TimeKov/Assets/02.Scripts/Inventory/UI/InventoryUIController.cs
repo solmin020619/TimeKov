@@ -47,6 +47,8 @@ public class InventoryUIController : MonoBehaviour
 
     [Header("상자 패널 UI 버튼")]
     [SerializeField] private Button takeAllFromChestBtn;  // 상자 아이템 전부 가방으로
+    [SerializeField] private Button chestCloseBtn;        // 상자 패널 닫기 X
+    [SerializeField] private TextMeshProUGUI chestCapacityText;  // 상자 카운터 "아이템 N/M"
 
     [Header("팝업")]
     [SerializeField] private ContextMenuUI contextMenu;
@@ -58,6 +60,7 @@ public class InventoryUIController : MonoBehaviour
 
     [Header("가방 정렬 바")]
     [SerializeField] private SortBarUI bagSortBarUI;
+    [SerializeField] private SortBarUI warehouseBagSortBarUI;   // 통합패널 가방 구역 정렬
 
     [Header("드랍 아이템 프리팹")]
     [SerializeField] private GameObject lootBoxPrefab;
@@ -103,6 +106,14 @@ public class InventoryUIController : MonoBehaviour
             {
                 var prt0 = bagPanel.GetComponent<RectTransform>();
                 if (prt0 != null) prt0.anchoredPosition = new Vector2(bagRightX, prt0.anchoredPosition.y);
+            }
+
+            // 파밍 상자 = 화면 왼쪽(가방 거울). 이 값이 실제 위치 결정(빌더값 덮음). 위치 바꾸려면 여기.
+            const float chestLeftX = -480f;
+            if (chestPanel != null)
+            {
+                var cprt = chestPanel.GetComponent<RectTransform>();
+                if (cprt != null) cprt.anchoredPosition = new Vector2(chestLeftX, cprt.anchoredPosition.y);
             }
             // 블러 영역 위치/크기는 LateUpdate의 SyncBlurToPanel이 매 프레임 패널 스크린 사각형에 맞춘다
             // (Camera 블러캔버스 vs Overlay 패널 좌표 어긋남 -> 블러가 일부만 덮이던 문제 해결).
@@ -151,6 +162,7 @@ public class InventoryUIController : MonoBehaviour
         if (bagCloseBtn != null) bagCloseBtn.onClick.AddListener(Close);
         if (warehouseDualCloseBtn != null) warehouseDualCloseBtn.onClick.AddListener(Close);
         if (takeAllFromChestBtn != null) takeAllFromChestBtn.onClick.AddListener(OnClickTakeAllFromChest);
+        if (chestCloseBtn != null) chestCloseBtn.onClick.AddListener(Close);
 
         // 창고 정렬 바 바인딩
         if (sortBarUI != null && InventoryManager.StorageInstance != null)
@@ -159,6 +171,23 @@ public class InventoryUIController : MonoBehaviour
         // 가방 정렬 바 바인딩 (가방=Instance)
         if (bagSortBarUI != null && InventoryManager.Instance != null)
             bagSortBarUI.Bind(InventoryManager.Instance, bagFilterUI);
+
+        // 통합패널 가방 정렬 (필터 없음)
+        if (warehouseBagSortBarUI != null && InventoryManager.Instance != null)
+            warehouseBagSortBarUI.Bind(InventoryManager.Instance, null);
+
+        // 인벤(가방/상자) 데이터가 바뀌면 용량/카운터 즉시 갱신.
+        // (드래그 입출고는 RefreshCapacityText를 직접 안 부르므로 이벤트로 실시간 반영 — 창 열린 채로 0/35 안 멈추게)
+        if (InventoryManager.Instance != null)
+        {
+            InventoryManager.Instance.OnInventoryChanged -= RefreshCapacityText;
+            InventoryManager.Instance.OnInventoryChanged += RefreshCapacityText;
+        }
+        if (InventoryManager.ChestInstance != null)
+        {
+            InventoryManager.ChestInstance.OnInventoryChanged -= RefreshCapacityText;
+            InventoryManager.ChestInstance.OnInventoryChanged += RefreshCapacityText;
+        }
 
         // 슬롯 클릭 이벤트 연결
         InventorySlotUI.OnAnySlotClicked += OnSlotClicked;
@@ -170,6 +199,11 @@ public class InventoryUIController : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (InventoryManager.Instance != null)
+            InventoryManager.Instance.OnInventoryChanged -= RefreshCapacityText;
+        if (InventoryManager.ChestInstance != null)
+            InventoryManager.ChestInstance.OnInventoryChanged -= RefreshCapacityText;
+
         InventorySlotUI.OnAnySlotClicked -= OnSlotClicked;
         InventorySlotUI.OnAnySlotDoubleClicked -= OnSlotDoubleClicked;
         InventorySlotUI.OnAnySlotRightClicked -= OnSlotRightClicked;
@@ -299,6 +333,12 @@ public class InventoryUIController : MonoBehaviour
         _slide?.Open();
 
         RefreshCapacityText();
+
+        // 엔필식 열기: 가방 먼저, 창고 콘텐츠(탭+그리드)는 살짝 뒤 페이드 인.
+        // (아이템 첫칸부터 촤라락 순차 등장은 카테고리 바꿀 때만 = InventoryGridUI.SetFilter)
+        if (IsInBase)
+            PlayWarehouseSectionOpen();
+
         Debug.Log("[InventoryUI] 인벤토리 열림");
 
         // ── 진단: 부모 캔버스 / CanvasGroup 상태 확인 ─────────────────
@@ -319,6 +359,49 @@ public class InventoryUIController : MonoBehaviour
         // ─────────────────────────────────────────────────────────────
     }
 
+    // 엔필식 열기 애니: 가방 먼저 보이고, 창고 콘텐츠(탭+그리드)는 살짝 뒤 페이드 인.
+    private Coroutine _whRevealCo;
+
+    private void PlayWarehouseSectionOpen()
+    {
+        var cgGrid = EnsureCanvasGroup(warehouseGridUI != null ? warehouseGridUI.gameObject : null);
+        var cgTabs = EnsureCanvasGroup(warehouseFilterUI != null ? warehouseFilterUI.gameObject : null);
+        if (cgGrid == null && cgTabs == null) return;
+        if (_whRevealCo != null) { StopCoroutine(_whRevealCo); _whRevealCo = null; }
+        _whRevealCo = StartCoroutine(WarehouseSectionOpenRoutine(cgGrid, cgTabs));
+    }
+
+    private static CanvasGroup EnsureCanvasGroup(GameObject go)
+    {
+        if (go == null) return null;
+        var cg = go.GetComponent<CanvasGroup>();
+        if (cg == null) cg = go.AddComponent<CanvasGroup>();
+        return cg;
+    }
+
+    private System.Collections.IEnumerator WarehouseSectionOpenRoutine(CanvasGroup a, CanvasGroup b)
+    {
+        if (a != null) a.alpha = 0f;
+        if (b != null) b.alpha = 0f;
+
+        // 가방 먼저: 창고 콘텐츠는 잠깐 뒤 등장
+        float delay = 0.16f, td = 0f;
+        while (td < delay) { td += Time.unscaledDeltaTime; yield return null; }
+
+        float dur = 0.18f, e = 0f;
+        while (e < dur)
+        {
+            e += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(e / dur); k = 1f - (1f - k) * (1f - k);   // ease-out
+            if (a != null) a.alpha = k;
+            if (b != null) b.alpha = k;
+            yield return null;
+        }
+        if (a != null) a.alpha = 1f;
+        if (b != null) b.alpha = 1f;
+        _whRevealCo = null;
+    }
+
     // 인벤토리 닫기
     public void Close()
     {
@@ -330,12 +413,9 @@ public class InventoryUIController : MonoBehaviour
         // 창고 재진입 플래그 초기화 (다음 TAB 시 창고가 열리지 않도록)
         IsInBase = false;
 
-        // 상자 닫기 — 남은 아이템 비우기
+        // 상자 닫기 — 전리품은 비우지 않는다(껐다 켜도 그대로 즉시 재오픈). 비우기는 ChestInteractable 재가동 때.
         if (IsChestOpen)
-        {
             IsChestOpen = false;
-            InventoryManager.ChestInstance?.ClearAllItems();
-        }
 
         _isOpen = false;
 
@@ -391,6 +471,14 @@ public class InventoryUIController : MonoBehaviour
                 r >= 1f   ? new Color(0.878f, 0.349f, 0.290f, 1f) :   // 가득 빨강 (경고)
                 r >= 0.9f ? new Color(0.878f, 0.627f, 0.125f, 1f) :   // 거의참 노랑 (경고)
                             new Color(0.141f, 0.165f, 0.192f, 1f);    // 평소 어두운 슬레이트 #242a31 (잘 보이게)
+        }
+
+        // 파밍 상자 카운터 "아이템 N/M" (상자 인벤 기준)
+        if (chestCapacityText != null && InventoryManager.ChestInstance != null)
+        {
+            int cu = InventoryManager.ChestInstance.GetUsedSlotCount();
+            int cm = InventoryManager.ChestInstance.GetMaxSlots();
+            chestCapacityText.text = "아이템 " + cu + "/" + cm;
         }
 
         // 통합패널(결계 안) 가방 구역 용량도 동일하게
@@ -467,6 +555,20 @@ public class InventoryUIController : MonoBehaviour
     // 슬롯 우클릭 핸들러
     private void OnSlotRightClicked(InventorySlotUI slot)
     {
+        if (slot == null || slot.IsEmpty) return;
+
+        // 파밍 상자 슬롯 = 우클릭으로 바로 가방에 회수 (분할/버리기 메뉴 X)
+        if (slot.Owner != null && slot.Owner == InventoryManager.ChestInstance)
+        {
+            var player = InventoryManager.Instance;
+            if (player != null)
+                slot.Owner.MoveSlot(slot.SlotData.slotIndex, player);
+            ClearSelection();
+            RefreshCapacityText();
+            return;
+        }
+
+        // 일반 슬롯 = 컨텍스트 메뉴(분할/버리기)
         OnSlotClicked(slot);
         contextMenu?.Open(slot, Input.mousePosition);
     }
@@ -528,6 +630,49 @@ public class InventoryUIController : MonoBehaviour
         OpenTrashConfirm(_selectedSlot);
     }
 
+    // 화면 좌표가 현재 열린 패널(가방/창고/상자) 안에 있는지 검사 (드래그 버리기 판정용)
+    public bool IsPointInsideOpenPanel(Vector2 screenPos)
+    {
+        return RectContains(bagPanel, screenPos)
+            || RectContains(warehousePanel, screenPos)
+            || RectContains(chestPanel, screenPos);
+    }
+
+    private static bool RectContains(GameObject go, Vector2 screenPos)
+    {
+        if (go == null || !go.activeInHierarchy) return false;
+        var rt = go.transform as RectTransform;
+        if (rt == null) return false;
+        var canvas = go.GetComponentInParent<Canvas>();
+        Camera cam = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? canvas.worldCamera : null;
+        return RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, cam);
+    }
+
+    // 슬롯을 패널 밖으로 드래그해 놓으면 호출 = 바닥에 버리기(루트박스로 회수 가능). 결계 안/밖 공통.
+    public void DiscardSlotByDrag(InventorySlotUI slot)
+    {
+        if (slot == null || slot.IsEmpty) return;
+
+        // 버리기는 인벤토리 화면(가방/창고/상자)에서만 허용. 설비(공장) UI 등 다른 상태에선 막는다.
+        // (설비 UI에서 슬롯 옆 빈 곳에 잘못 드롭하면 아이템이 버려지던 문제 차단 - 그 경우 그냥 취소)
+        var gui = GameUIController.Instance;
+        if (gui != null && gui.GetCurrentState() != GameUIController.UIState.Inventory) return;
+
+        var dh = InventoryDragHandler.Instance;
+        int amount = (dh != null && dh.IsSplitDrag) ? dh.DragAmount : slot.SlotData.amount;
+        if (amount <= 0) return;
+
+        int itemId  = slot.SlotData.itemId;
+        int slotIdx = slot.SlotData.slotIndex;
+        var owner   = slot.Owner;
+        if (owner == null) return;
+
+        owner.RemoveFromSlot(slotIdx, amount);
+        SpawnDroppedItem(itemId, amount);
+        ClearSelection();
+        RefreshCapacityText();
+    }
+
     // 분할 팝업 열기
     public void OpenSplitPopup(InventorySlotUI slot)
     {
@@ -537,7 +682,7 @@ public class InventoryUIController : MonoBehaviour
     }
 
     // 버리기 확인 팝업 열기
-    public void OpenTrashConfirm(InventorySlotUI slot)
+    public void OpenTrashConfirm(InventorySlotUI slot, bool permanent = false)
     {
         if (confirmPopup == null || slot == null || slot.IsEmpty) return;
 
@@ -550,12 +695,12 @@ public class InventoryUIController : MonoBehaviour
         int slotIdx = slot.SlotData.slotIndex;
         var owner = slot.Owner;
 
-        string message = name + " x" + amount + "개를 버리시겠습니까?";
+        string message = name + " x" + amount + (permanent ? "개를 영구 삭제하시겠습니까?" : "개를 버리시겠습니까?");
 
         confirmPopup.Open(message, () =>
         {
             owner?.RemoveFromSlot(slotIdx, amount);
-            SpawnDroppedItem(itemId, amount);
+            if (!permanent) SpawnDroppedItem(itemId, amount);   // 영구삭제는 바닥에 드롭하지 않음
             ClearSelection();
             RefreshCapacityText();
         });

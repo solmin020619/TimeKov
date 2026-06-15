@@ -37,6 +37,7 @@ public class InventorySlotUI : MonoBehaviour,
     private InventorySlot _slot;
     private InventoryManager _owner;
     private bool _isHovered;
+    private bool _dropHighlight;   // 드래그 입고 대상으로 강조 (호버와 별개)
     private UnityEngine.UI.Outline _outline;   // 호버 시 테두리 시안 전환용 (루트 Outline)
 
     // ���� �̺�Ʈ (InventoryUIController ���� ����)
@@ -58,6 +59,15 @@ public class InventorySlotUI : MonoBehaviour,
         // 비활성화 시 Unity가 OnPointerExit를 호출하지 않으므로 호버 상태를 직접 리셋한다.
         // (안 하면 패널을 닫았다 다시 열 때 마우스가 없던 칸이 강조된 채로 남는다)
         _isHovered = false;
+        _dropHighlight = false;
+    }
+
+    // 드래그 입고 대상으로 강조 켜기/끄기 (창고 드롭존이 호출)
+    public void SetDragHighlight(bool on)
+    {
+        if (_dropHighlight == on) return;
+        _dropHighlight = on;
+        UpdateBgVisual();
     }
 
     // ���� ������ ���ε� �� �ð� ����
@@ -133,13 +143,15 @@ public class InventorySlotUI : MonoBehaviour,
     // 호버일 때만 배경 강조 (클릭 선택 강조는 제거함 - 호버 전용)
     private void UpdateBgVisual()
     {
+        // 배경(fill)은 마우스 호버일 때만. 드래그 드롭대상(_dropHighlight)은 슬롯 fill 안 건드리고 테두리만.
         if (bgImage != null)
             bgImage.color = _isHovered ? hoverColor : normalColor;
 
-        // 호버 시 테두리 시안 (글로우 느낌). 루트 Outline 색 전환.
+        // 호버 또는 드롭대상 시 테두리 시안 (글로우). 루트 Outline 색 전환.
+        bool border = _isHovered || _dropHighlight;
         if (_outline == null) _outline = GetComponent<UnityEngine.UI.Outline>();
         if (_outline != null)
-            _outline.effectColor = _isHovered ? hoverBorderColor : normalBorderColor;
+            _outline.effectColor = border ? hoverBorderColor : normalBorderColor;
     }
 
     // Ŭ�� �̺�Ʈ (��Ŭ�� ��Ŭ�� / ����Ŭ�� / ��Ŭ�� �б�)
@@ -218,7 +230,15 @@ public class InventorySlotUI : MonoBehaviour,
     // �巡�� ����
     public void OnEndDrag(PointerEventData eventData)
     {
-        InventoryDragHandler.Instance?.EndDrag();
+        var dh = InventoryDragHandler.Instance;
+        // 슬롯에 안 떨어지고(드래그 유지) 패널 밖에 놓으면 = 바닥에 버리기
+        if (dh != null && dh.IsDragging && dh.DraggedSlot == this)
+        {
+            var ctrl = InventoryUIController.Instance;
+            if (ctrl != null && !ctrl.IsPointInsideOpenPanel(eventData.position))
+                ctrl.DiscardSlotByDrag(this);
+        }
+        dh?.EndDrag();
         OnAnySlotDragEnd?.Invoke(this);
     }
 

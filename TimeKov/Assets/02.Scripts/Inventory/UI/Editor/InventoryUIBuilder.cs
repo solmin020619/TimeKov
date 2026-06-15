@@ -272,7 +272,7 @@ public static class InventoryUIBuilder
         var grid = content.AddComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(9, 9);   // 엔필처럼 타이트하게 (14는 너무 벌어져 답답)
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 5;
-        grid.childAlignment = TextAnchor.UpperCenter;
+        grid.childAlignment = TextAnchor.UpperLeft;   // 좌상단부터 채우기(아이템 적어도 첫 칸부터)
         var csf = content.AddComponent<ContentSizeFitter>();
         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scroll.viewport = scrollGo.GetComponent<RectTransform>();
@@ -366,6 +366,9 @@ public static class InventoryUIBuilder
 
         // ── 통합 패널 (창고+가방 한 표면, 결계 안에서만 표시. 결계 밖이면 위 단독 가방). ──
         BuildDualPanel(so, rootGo, panel);
+
+        // ── 파밍 상자 패널 (결계 밖/상자 파밍 시 화면 왼쪽 단독). ──
+        BuildChestPanel(so, rootGo);
         so.ApplyModifiedProperties();
 
         if (!wasActive) rootGo.SetActive(false);
@@ -971,9 +974,47 @@ public static class InventoryUIBuilder
 
         // 창고 그리드(좌, 8열) / 가방 그리드(우, 5열)
         var whGrid = BuildScrollGrid(body, "WarehouseScroll", new Vector2(0f, 0f), new Vector2(whFrac, 1f), 8, 30f);   // 스크롤바를 seam에서 더 떼기
+        // 창고만 동적 칸(아이템 수만큼, 빈칸 없음 = 무제한 느낌)
+        var whGridSo = new SerializedObject(whGrid);
+        whGridSo.FindProperty("dynamicSlots").boolValue = true;
+        whGridSo.ApplyModifiedProperties();
         SetRef(so, "warehouseGridUI", whGrid);
+
+        // 창고 영역 드롭존 (가방->창고 입고) + 영역강조 + 매칭강조 + 힌트. ScrollRect 같은 GO라 드래그중 스크롤 유지.
+        SetupDropZone(body, whGrid, true, 0f, whFrac, "드래그하여 창고에 넣기");
         var bagGrid = BuildScrollGrid(body, "BagScroll", new Vector2(whFrac, 0f), new Vector2(1f, 1f), 5);
         SetRef(so, "warehouseBagGridUI", bagGrid);
+
+        // 가방 영역 드롭존 (창고->가방 회수) + 영역강조 + 매칭강조 + 힌트
+        SetupDropZone(body, bagGrid, false, whFrac, 1f, "드래그하여 가방에 넣기");
+
+        // 창고 카테고리 분류 탭 (헤더선 아래 줄, 창고 구역) — cat_* 7개 + tab_selected
+        var whFilter = BuildCategoryTabs(prt, whFrac);
+        SetRef(so, "warehouseFilterUI", whFilter);
+
+        // 푸터: 창고정렬(좌하) / 이음선 좌우 = 일괄회수 + 가방정렬 / 일괄보관(우하)
+        var whSortBtn = BuildFooterGlyph(prt, "WarehouseSort", LoadPartSprite(PartDir + "/ic_sort.png", Vector4.zero), new Vector2(0f, 0f), 16f);
+        var depositBtn = BuildFooterGlyph(prt, "BagDeposit", LoadWarehouseSprite("ic_deposit_all", Vector4.zero), new Vector2(1f, 0f), -16f);
+        SetRef(so, "moveAllBtn", depositBtn);
+        var bagSortBtn = BuildFooterGlyph(prt, "BagSort", LoadPartSprite(PartDir + "/ic_sort.png", Vector4.zero), new Vector2(whFrac, 0f), 36f, 0.5f);
+
+        // 정렬바 컴포넌트 (각 정렬버튼 GO에 부착 = 같은 타입 중복 회피). 창고=StorageInstance, 가방=Instance는 컨트롤러가 바인딩.
+        var whSort = whSortBtn.gameObject.AddComponent<SortBarUI>();
+        var whso = new SerializedObject(whSort);
+        whso.FindProperty("organizeBtn")?.SetValueObj(whSortBtn);
+        whso.ApplyModifiedProperties();
+        SetRef(so, "sortBarUI", whSort);
+        var bagSortC = bagSortBtn.gameObject.AddComponent<SortBarUI>();
+        var bsso = new SerializedObject(bagSortC);
+        bsso.FindProperty("organizeBtn")?.SetValueObj(bagSortBtn);
+        bsso.ApplyModifiedProperties();
+        SetRef(so, "warehouseBagSortBarUI", bagSortC);
+
+        // 일괄회수 (창고->가방, 이음선 왼쪽). OnClickTakeAll = 창고 카테고리 필터 적용(보이는 것만 회수).
+        var retrieveBtn = BuildFooterGlyph(prt, "BagRetrieve", LoadWarehouseSprite("ic_deposit_all", Vector4.zero), new Vector2(whFrac, 0f), -36f, 0.5f);
+        var rIcon = retrieveBtn.transform.Find("Icon");
+        if (rIcon != null) rIcon.localScale = new Vector3(1f, -1f, 1f);   // 아이콘 세로 뒤집어 '회수(위로)' (보관=아래). 전용 아이콘 받으면 교체
+        SetRef(so, "takeAllBtn", retrieveBtn);
 
         // 유리 림
         if (panelSprite != null)
@@ -988,6 +1029,150 @@ public static class InventoryUIBuilder
         }
 
         SetRef(so, "warehousePanel", panel);
+    }
+
+    // 파밍 상자 패널 = 가방과 같은 간유리 표면, 화면 왼쪽 단독(결계 밖/상자 파밍). 그리드는 ChestInstance 바인딩.
+    static void BuildChestPanel(SerializedObject so, GameObject rootGo)
+    {
+        // 기존 상자 패널 제거 (스테일 클론/중복 방지)
+        var oldChest = so.FindProperty("chestPanel")?.objectReferenceValue as GameObject;
+        if (oldChest != null) Object.DestroyImmediate(oldChest);
+        var byName = rootGo.transform.Find("ChestPanel");
+        if (byName != null) Object.DestroyImmediate(byName.gameObject);
+
+        const float pw = 520f, ph = 300f;   // 컴팩트 - 5칸 한 줄만(스크롤 없음). ChestInstance.maxSlots=5 가정.
+        const float chestX = -480f;          // 화면 왼쪽(가방 거울). 런타임은 컨트롤러 chestLeftX가 덮음.
+        var panel = MakeRounded("ChestPanel", rootGo.transform, new Vector2(pw, ph), new Vector2(chestX, 0), BaseDark);
+        var prt = panel.GetComponent<RectTransform>();
+
+        var panelSprite = LoadPanelSprite();
+        if (panelSprite != null)
+        {
+            var pimg = panel.GetComponent<Image>();
+            pimg.sprite = panelSprite; pimg.type = Image.Type.Sliced;
+            pimg.color = new Color(1f, 1f, 1f, 0.12f); pimg.pixelsPerUnitMultiplier = 1f;
+        }
+        var mask = panel.GetComponent<UnityEngine.UI.Mask>();
+        if (mask == null) mask = panel.AddComponent<UnityEngine.UI.Mask>();
+        mask.showMaskGraphic = true;
+
+        // 간유리 레이어 (가방과 동일 레시피: 통합블러 + 어두운배경 + 밝은 inset 카드/헤더)
+        if (panelSprite != null)
+        {
+            const float inset = 3f, footerH = 60f, titleH = 62f;
+
+            var blurGo = new GameObject("PanelBlur", typeof(RectTransform));
+            blurGo.transform.SetParent(prt, false);
+            var blRt = blurGo.GetComponent<RectTransform>();
+            blRt.anchorMin = Vector2.zero; blRt.anchorMax = Vector2.one; blRt.offsetMin = Vector2.zero; blRt.offsetMax = Vector2.zero;
+            var blur = blurGo.AddComponent<BlurredImage>();
+            blur.sprite = panelSprite; blur.type = Image.Type.Sliced; blur.pixelsPerUnitMultiplier = 1f;
+            blur.color = Color.white; blur.raycastTarget = false;
+            blur.Common.blurReferencesFrom = UIBlurCommon.BlurReferencesFrom.Self;
+            blur.Common.cameraReference = PickBuildCamera();
+            blur.Common.featureNumber = 0; blur.Common.unrankedLayer = 1;
+            var bs = blur.Common.blurInstanceSettings;
+            if (bs != null)
+            {
+                if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 1.5f; }
+                bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
+            }
+            blur.Common.ValidateBlur();
+
+            var bgGo = MakeImage("BgDark", prt, Vector2.zero, Vector2.zero, Color.white);
+            var bgrt = bgGo.GetComponent<RectTransform>();
+            bgrt.anchorMin = Vector2.zero; bgrt.anchorMax = Vector2.one; bgrt.offsetMin = Vector2.zero; bgrt.offsetMax = Vector2.zero;
+            var bgImg = bgGo.GetComponent<Image>(); bgImg.sprite = null; bgImg.type = Image.Type.Simple; bgImg.raycastTarget = false;
+            var bgGrad = bgGo.AddComponent<UIFrostGradient>();
+            bgGrad.topColor = RGBA(22, 28, 40, 0.26f); bgGrad.bottomColor = RGBA(10, 14, 22, 0.52f);
+
+            var cardGo = MakeImage("SlotFrost", prt, Vector2.zero, Vector2.zero, Color.white);
+            var crt2 = cardGo.GetComponent<RectTransform>();
+            crt2.anchorMin = Vector2.zero; crt2.anchorMax = Vector2.one;
+            crt2.offsetMin = new Vector2(inset, footerH); crt2.offsetMax = new Vector2(-inset, -titleH);
+            var cImg = cardGo.GetComponent<Image>(); cImg.sprite = null; cImg.type = Image.Type.Simple; cImg.raycastTarget = false;
+            var cGrad = cardGo.AddComponent<UIFrostGradient>();
+            cGrad.topColor = RGBA(216, 224, 237, 0.34f); cGrad.bottomColor = RGBA(199, 209, 223, 0.26f);
+
+            var hbGo = MakeImage("HeaderFrost", prt, Vector2.zero, Vector2.zero, Color.white);
+            var hbrt = hbGo.GetComponent<RectTransform>();
+            hbrt.anchorMin = new Vector2(0, 1); hbrt.anchorMax = new Vector2(1, 1); hbrt.pivot = new Vector2(0.5f, 1);
+            hbrt.offsetMin = new Vector2(inset, -titleH); hbrt.offsetMax = new Vector2(-inset, -inset);
+            var hbImg = hbGo.GetComponent<Image>(); hbImg.sprite = null; hbImg.type = Image.Type.Simple; hbImg.raycastTarget = false;
+            var hbGrad = hbGo.AddComponent<UIFrostGradient>();
+            hbGrad.topColor = RGBA(245, 248, 253, 0.62f); hbGrad.bottomColor = RGBA(237, 243, 251, 0.56f);
+
+            var hdiv = MakeImage("HeaderDivider", prt, Vector2.zero, Vector2.zero, RGBA(84, 98, 122, 0.60f));
+            var hdrt = hdiv.GetComponent<RectTransform>();
+            hdrt.anchorMin = new Vector2(0, 1); hdrt.anchorMax = new Vector2(1, 1); hdrt.pivot = new Vector2(0.5f, 1);
+            hdrt.offsetMin = new Vector2(inset, -63); hdrt.offsetMax = new Vector2(-inset, -61);
+            hdiv.GetComponent<Image>().raycastTarget = false;
+        }
+
+        // 헤더 = 제목 "파밍 상자" + 닫기 (투명 컨테이너, 밝기는 HeaderFrost가)
+        var header = MakeImage("HeaderBand", prt, Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
+        StretchTop(header.GetComponent<RectTransform>(), 56, 0, 0);
+        header.GetComponent<Image>().raycastTarget = false;
+
+        var title = MakeTMP("Title", header.transform, "파밍 상자", 26, TxtMain, TextAlignmentOptions.Left);
+        AnchorLeft(title.rectTransform, 22, 240, 40);
+        title.fontStyle = FontStyles.Bold;
+        AddOutline(title.gameObject, new Color(0.86f, 0.90f, 0.96f, 0.5f), new Vector2(1f, -1f));
+
+        var closeBtn = MakeIconButton("CloseButton", header.transform, "ic_close", 54, Color.clear);
+        AnchorRight(closeBtn.GetComponent<RectTransform>(), 12, 54, 54);
+        TintIcon(closeBtn, TxtMain);
+        var closeSpr = LoadPartSprite(PartDir + "/ic_close.png", Vector4.zero);
+        var closeIconImg = closeBtn.transform.Find("Icon")?.GetComponent<Image>();
+        if (closeIconImg != null) { if (closeSpr != null) closeIconImg.sprite = closeSpr; closeIconImg.rectTransform.sizeDelta = new Vector2(48, 48); }
+        var closeBg = closeBtn.GetComponent<Image>();
+        closeBg.sprite = RoundedSprite(); closeBg.type = Image.Type.Sliced; closeBg.color = Color.white;
+        var closeButton = closeBtn.GetComponent<Button>();
+        closeButton.transition = Selectable.Transition.ColorTint; closeButton.targetGraphic = closeBg;
+        var ccb = closeButton.colors;
+        ccb.normalColor = new Color(1f, 1f, 1f, 0f); ccb.highlightedColor = new Color(0.24f, 0.29f, 0.39f, 0.20f);
+        ccb.pressedColor = new Color(0.20f, 0.24f, 0.34f, 0.36f); ccb.selectedColor = new Color(1f, 1f, 1f, 0f);
+        ccb.disabledColor = new Color(1f, 1f, 1f, 0f); ccb.colorMultiplier = 1f; ccb.fadeDuration = 0.1f;
+        closeButton.colors = ccb;
+        SetRef(so, "chestCloseBtn", closeButton);
+
+        // 본문 = 카운터 "아이템 N/M" + 그리드
+        var body = MakeRounded("BodyBand", prt, Vector2.zero, Vector2.zero, BandBody);
+        var bodyRt = body.GetComponent<RectTransform>();
+        bodyRt.anchorMin = Vector2.zero; bodyRt.anchorMax = Vector2.one;
+        bodyRt.offsetMin = new Vector2(1, 60); bodyRt.offsetMax = new Vector2(-1, -60);
+
+        var cap = MakeTMP("ChestCapacityText", body.transform, "아이템 0/5", 22, TxtSub, TextAlignmentOptions.Left);
+        cap.fontStyle = FontStyles.Bold;
+        AddOutline(cap.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.55f), new Vector2(1f, -1f));
+        var caprt = cap.rectTransform;
+        caprt.anchorMin = caprt.anchorMax = new Vector2(0, 1); caprt.pivot = new Vector2(0, 1);
+        caprt.sizeDelta = new Vector2(320, 30); caprt.anchoredPosition = new Vector2(22, -16);
+        SetRef(so, "chestCapacityText", cap);
+
+        var chestGrid = BuildScrollGrid(body, "ChestScroll", new Vector2(0f, 0f), new Vector2(1f, 1f), 5, 14f, false);   // 한 줄 5칸, 스크롤 없음
+        SetRef(so, "chestGridUI", chestGrid);
+
+        // 푸터 = 모두 가져오기(상자->가방). 아이콘 위로 뒤집어 '가져오기'.
+        var takeAll = BuildFooterGlyph(prt, "ChestTakeAll", LoadWarehouseSprite("ic_deposit_all", Vector4.zero), new Vector2(1f, 0f), -16f);
+        var taIcon = takeAll.transform.Find("Icon");
+        if (taIcon != null) taIcon.localScale = new Vector3(1f, -1f, 1f);
+        SetRef(so, "takeAllFromChestBtn", takeAll);
+
+        // 유리 림
+        if (panelSprite != null)
+        {
+            var rim = MakeImage("PanelRim", prt, Vector2.zero, Vector2.zero, new Color(1f, 1f, 1f, 0f));
+            var rimRt = rim.GetComponent<RectTransform>();
+            rimRt.anchorMin = Vector2.zero; rimRt.anchorMax = Vector2.one; rimRt.offsetMin = Vector2.zero; rimRt.offsetMax = Vector2.zero;
+            var rimImg = rim.GetComponent<Image>();
+            rimImg.sprite = panelSprite; rimImg.type = Image.Type.Sliced; rimImg.raycastTarget = false;
+            AddOutline(rim, RGBA(238, 246, 255, 0.32f), new Vector2(1f, -1f));
+            rim.transform.SetAsLastSibling();
+        }
+
+        panel.SetActive(false);
+        SetRef(so, "chestPanel", panel);
     }
 
     // 아이콘 칸 세로 구분선 (헤더 구역 시작 fraction 에서 우측 62px, 높이 62 = 정사각형 칸)
@@ -1017,8 +1202,139 @@ public static class InventoryUIBuilder
         AddOutline(title.gameObject, new Color(0.86f, 0.90f, 0.96f, 0.5f), new Vector2(1f, -1f));
     }
 
+    // 푸터 글리프 버튼 (어두운 푸터 위, 둥근 배경 호버/클릭 강조 + 밝은 아이콘). anchor=코너(0,0 좌하 / 1,0 우하), xOff=코너에서 가로 오프셋.
+    static Button BuildFooterGlyph(RectTransform prt, string name, Sprite iconSpr, Vector2 anchor, float xOff, float pivotX = -1f)
+    {
+        var go = MakeImage(name, prt, new Vector2(52, 52), Vector2.zero, Color.white);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = anchor;
+        rt.pivot = new Vector2(pivotX < 0f ? anchor.x : pivotX, anchor.y);   // 이음선 배치용: pivotX 지정 시 가로 기준점 분리
+        rt.anchoredPosition = new Vector2(xOff, 4);
+        var bg = go.GetComponent<Image>(); bg.sprite = RoundedSprite(); bg.type = Image.Type.Sliced;
+        var btn = go.AddComponent<Button>(); btn.transition = Selectable.Transition.ColorTint; btn.targetGraphic = bg;
+        var cb = btn.colors;
+        cb.normalColor = new Color(1f, 1f, 1f, 0f); cb.highlightedColor = new Color(1f, 1f, 1f, 0.16f);
+        cb.pressedColor = new Color(1f, 1f, 1f, 0.30f); cb.selectedColor = new Color(1f, 1f, 1f, 0f);
+        cb.disabledColor = new Color(1f, 1f, 1f, 0f); cb.colorMultiplier = 1f; cb.fadeDuration = 0.1f;
+        btn.colors = cb;
+        var icon = MakeImage("Icon", go.transform, new Vector2(42, 42), Vector2.zero, RGBA(214, 224, 238, 1f));
+        var iImg = icon.GetComponent<Image>(); iImg.raycastTarget = false; iImg.preserveAspect = true;
+        if (iconSpr != null) iImg.sprite = iconSpr;
+        return btn;
+    }
+
+    // 창고 카테고리 분류 탭 (전체 + ItemCategory 6종). CategoryFilterUI 반환(컨트롤러가 warehouseGridUI.SetFilter에 연결).
+    static CategoryFilterUI BuildCategoryTabs(RectTransform prt, float whFrac)
+    {
+        var bar = MakeEmpty("FilterBar", prt, Vector2.zero, Vector2.zero);
+        var brt = bar.GetComponent<RectTransform>();
+        brt.anchorMin = new Vector2(0, 1); brt.anchorMax = new Vector2(whFrac, 1); brt.pivot = new Vector2(0, 1);
+        brt.offsetMin = new Vector2(0, -128); brt.offsetMax = new Vector2(0, -66);   // 헤더선(62) 아래 줄, 높이 62, 좌우 풀(탭은 가운데 정렬)
+
+        // 인덱스 순서 = CategoryFilterUI.IndexToCategory (0 전체 / 1~6 분류)
+        string[] cats = { "cat_all", "cat_raw", "cat_proc1", "cat_proc2", "cat_consumable", "cat_core", "cat_special" };
+        const float tabSize = 58f, gap = 8f;
+        var tabBg = LoadWarehouseSprite("tab_selected", new Vector4(20, 20, 20, 20));
+        var buttons = new Button[cats.Length];
+        for (int i = 0; i < cats.Length; i++)
+        {
+            var t = MakeImage("Tab" + i, bar.transform, new Vector2(tabSize, tabSize), Vector2.zero, Color.white);
+            var trt = t.GetComponent<RectTransform>();
+            trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 0.5f); trt.pivot = new Vector2(0.5f, 0.5f);   // 바 가운데 기준
+            trt.anchoredPosition = new Vector2((i - (cats.Length - 1) / 2f) * (tabSize + gap), 0);   // 가운데에서 양옆으로 퍼지게
+            var tImg = t.GetComponent<Image>();
+            if (tabBg != null) { tImg.sprite = tabBg; tImg.type = Image.Type.Sliced; }   // 선택 시 보이는 다크 pill(시안 림). 평소엔 CategoryFilterUI가 alpha 0으로 숨김
+            var b = t.AddComponent<Button>(); b.targetGraphic = tImg; b.transition = Selectable.Transition.None;   // 색은 CategoryFilterUI가 직접 관리
+            var ci = MakeImage("CatIcon", t.transform, new Vector2(38, 38), Vector2.zero, new Color(0.76f, 0.83f, 0.90f, 1f));
+            var cirt = ci.GetComponent<RectTransform>();
+            cirt.anchorMin = cirt.anchorMax = new Vector2(0f, 0.5f); cirt.pivot = new Vector2(0f, 0.5f);
+            cirt.anchoredPosition = new Vector2(10f, 0f);   // 좌측 고정(펼쳐도 아이콘 왼쪽). 접힘(58)일 땐 가운데처럼 보임
+            var ciImg = ci.GetComponent<Image>(); ciImg.raycastTarget = false; ciImg.preserveAspect = true;
+            var cs = LoadWarehouseSprite(cats[i], Vector4.zero);
+            if (cs != null) ciImg.sprite = cs;
+
+            // 카테고리 이름 (선택 시 펼쳐 보임). 평소 alpha 0. 폭/배치/페이드는 CategoryFilterUI가 런타임 처리.
+            var lbl = MakeTMP("CatLabel", t.transform, "", 20, new Color(0.82f, 0.92f, 1f, 0f), TextAlignmentOptions.Left);
+            var lrt = lbl.rectTransform;
+            lrt.anchorMin = lrt.anchorMax = new Vector2(0f, 0.5f); lrt.pivot = new Vector2(0f, 0.5f);
+            lrt.anchoredPosition = new Vector2(56f, 0f); lrt.sizeDelta = new Vector2(140f, 30f);   // 아이콘(10+38)+간격8 우측
+            lbl.raycastTarget = false; lbl.enableWordWrapping = false; lbl.fontStyle = FontStyles.Bold;
+            buttons[i] = b;
+        }
+
+        var filter = bar.AddComponent<CategoryFilterUI>();
+        var cfso = new SerializedObject(filter);
+        var arr = cfso.FindProperty("filterButtons");
+        if (arr != null)
+        {
+            arr.arraySize = buttons.Length;
+            for (int i = 0; i < buttons.Length; i++) arr.GetArrayElementAtIndex(i).objectReferenceValue = buttons[i];
+        }
+        cfso.FindProperty("selectedColor")?.SetColor(new Color(1f, 1f, 1f, 1f));        // 선택 = tab_selected pill 그대로 보임
+        cfso.FindProperty("normalColor")?.SetColor(new Color(1f, 1f, 1f, 0f));          // 비선택 = pill 숨김(아이콘만)
+        cfso.FindProperty("selectedIconColor")?.SetColor(new Color(0.68f, 0.89f, 1f, 1f));
+        cfso.FindProperty("normalIconColor")?.SetColor(new Color(0.76f, 0.83f, 0.90f, 1f));
+        cfso.ApplyModifiedProperties();
+        return filter;
+    }
+
+    // 드롭존 셋업: 그리드 GO에 InventoryDropZone 부착 + 영역강조 프레임 + 힌트 pill 생성/연결.
+    // toStorage=true: 가방->창고 입고 / false: 창고->가방 회수. [aMinX,aMaxX]=body 내 이 구역 가로 비율.
+    static void SetupDropZone(GameObject body, InventoryGridUI grid, bool toStorage, float aMinX, float aMaxX, string hintText)
+    {
+        var dz = grid.gameObject.AddComponent<InventoryDropZone>();
+
+        // 영역 강조 = 채움 없이 테두리(4변 라인)만 (집으면 켜짐). 시안 라인.
+        var region = MakeEmpty("DropRegion", body.transform, Vector2.zero, Vector2.zero);
+        var rr = region.GetComponent<RectTransform>();
+        rr.anchorMin = new Vector2(aMinX, 0f); rr.anchorMax = new Vector2(aMaxX, 1f);
+        rr.offsetMin = new Vector2(8, 8); rr.offsetMax = new Vector2(-8, -66);   // 그리드 영역(헤더/탭 아래) 테두리
+        var edge = RGBA(130, 214, 230, 0.95f);
+        MakeRegionEdge(region.transform, edge, 3f, 0);   // 위
+        MakeRegionEdge(region.transform, edge, 3f, 1);   // 아래
+        MakeRegionEdge(region.transform, edge, 3f, 2);   // 좌
+        MakeRegionEdge(region.transform, edge, 3f, 3);   // 우
+        region.transform.SetAsLastSibling();
+        region.SetActive(false);
+
+        // 힌트 pill (포인터가 영역 안일 때만)
+        var hint = MakeRounded("DropHint", body.transform, new Vector2(360, 52), Vector2.zero, RGBA(10, 14, 22, 0.82f));
+        var hrt = hint.GetComponent<RectTransform>();
+        hrt.anchorMin = hrt.anchorMax = new Vector2((aMinX + aMaxX) * 0.5f, 0.5f); hrt.pivot = new Vector2(0.5f, 0.5f);
+        hrt.anchoredPosition = Vector2.zero;
+        hint.GetComponent<Image>().raycastTarget = false;
+        var ht = MakeTMP("Text", hint.transform, hintText, 22, RGBA(235, 242, 250, 1f), TextAlignmentOptions.Center);
+        var htt = ht.rectTransform; htt.anchorMin = Vector2.zero; htt.anchorMax = Vector2.one; htt.offsetMin = Vector2.zero; htt.offsetMax = Vector2.zero;
+        ht.raycastTarget = false; ht.fontStyle = FontStyles.Bold;
+        hint.transform.SetAsLastSibling();
+        hint.SetActive(false);
+
+        var dzso = new SerializedObject(dz);
+        dzso.FindProperty("depositToStorage").boolValue = toStorage;
+        dzso.FindProperty("regionHighlight").objectReferenceValue = region;
+        dzso.FindProperty("dragHint").objectReferenceValue = hint;
+        dzso.ApplyModifiedProperties();
+    }
+
+    // 영역 강조 테두리 한 변. side: 0=위 1=아래 2=좌 3=우.
+    static void MakeRegionEdge(Transform parent, Color c, float th, int side)
+    {
+        var go = MakeImage("Edge" + side, parent, Vector2.zero, Vector2.zero, c);
+        var rt = go.GetComponent<RectTransform>();
+        go.GetComponent<Image>().raycastTarget = false;
+        switch (side)
+        {
+            case 0: rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(0.5f, 1); rt.sizeDelta = new Vector2(0, th); break;
+            case 1: rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(1, 0); rt.pivot = new Vector2(0.5f, 0); rt.sizeDelta = new Vector2(0, th); break;
+            case 2: rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(0, 1); rt.pivot = new Vector2(0, 0.5f); rt.sizeDelta = new Vector2(th, 0); break;
+            default: rt.anchorMin = new Vector2(1, 0); rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(1, 0.5f); rt.sizeDelta = new Vector2(th, 0); break;
+        }
+        rt.anchoredPosition = Vector2.zero;
+    }
+
     // 스크롤+그리드 빌드 (body 안 fraction 영역, columns열). InventoryGridUI 반환. 창고/가방 공용.
-    static InventoryGridUI BuildScrollGrid(GameObject body, string name, Vector2 aMin, Vector2 aMax, int columns, float rightInset = 14f)
+    // withScroll=false 면 스크롤바/세로스크롤 없음(파밍상자처럼 한 줄 고정용).
+    static InventoryGridUI BuildScrollGrid(GameObject body, string name, Vector2 aMin, Vector2 aMax, int columns, float rightInset = 14f, bool withScroll = true)
     {
         var scrollGo = MakeEmpty(name, body.transform, Vector2.zero, Vector2.zero);
         var srt = scrollGo.GetComponent<RectTransform>();
@@ -1027,45 +1343,48 @@ public static class InventoryUIBuilder
         var scrollImg = scrollGo.AddComponent<Image>(); scrollImg.color = Color.clear;
         scrollGo.AddComponent<RectMask2D>();
         var scroll = scrollGo.AddComponent<ScrollRect>();
-        scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.horizontal = false; scroll.vertical = withScroll; scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 30;
 
         var content = MakeEmpty("Content", scrollGo.transform, Vector2.zero, Vector2.zero);
         var crt = content.GetComponent<RectTransform>();
         crt.anchorMin = new Vector2(0, 1); crt.anchorMax = new Vector2(1, 1); crt.pivot = new Vector2(0.5f, 1);
-        crt.offsetMin = new Vector2(0, 0); crt.offsetMax = new Vector2(-8, 0);
+        crt.offsetMin = new Vector2(0, 0); crt.offsetMax = new Vector2(withScroll ? -8 : 0, 0);
         var grid = content.AddComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(9, 9);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = columns;
-        grid.childAlignment = TextAnchor.UpperCenter;
+        grid.childAlignment = TextAnchor.UpperLeft;   // 좌상단부터 채우기(아이템 적어도 첫 칸부터)
         var csf = content.AddComponent<ContentSizeFitter>();
         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scroll.viewport = srt;
         scroll.content = crt;
 
-        var sbGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
-        sbGo.transform.SetParent(scrollGo.transform, false);
-        var sbRt = sbGo.GetComponent<RectTransform>();
-        sbRt.anchorMin = new Vector2(1, 0); sbRt.anchorMax = new Vector2(1, 1); sbRt.pivot = new Vector2(1, 1);
-        sbRt.sizeDelta = new Vector2(6, 0); sbRt.anchoredPosition = new Vector2(-1, 0);
-        var sbTrack = sbGo.GetComponent<Image>();
-        var trackSpr = LoadPartSprite(PartDir + "/scrollbar_track.png", new Vector4(0, 8, 0, 8));
-        if (trackSpr != null) { sbTrack.sprite = trackSpr; sbTrack.type = Image.Type.Sliced; sbTrack.color = Color.white; }
-        else { sbTrack.sprite = RoundedSprite(); sbTrack.type = Image.Type.Sliced; sbTrack.color = RGBA(40, 46, 54, 0.18f); }
-        var sb = sbGo.GetComponent<Scrollbar>(); sb.direction = Scrollbar.Direction.BottomToTop;
-        var slideArea = new GameObject("Sliding Area", typeof(RectTransform));
-        slideArea.transform.SetParent(sbGo.transform, false);
-        Stretch(slideArea.GetComponent<RectTransform>());
-        var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
-        handle.transform.SetParent(slideArea.transform, false);
-        var hRt = handle.GetComponent<RectTransform>(); Stretch(hRt);
-        var hImg = handle.GetComponent<Image>();
-        var handleSpr = LoadPartSprite(PartDir + "/scrollbar_handle.png", new Vector4(0, 8, 0, 8));
-        if (handleSpr != null) { hImg.sprite = handleSpr; hImg.type = Image.Type.Sliced; hImg.color = Color.white; }
-        else { hImg.sprite = RoundedSprite(); hImg.type = Image.Type.Sliced; hImg.color = ScrollHandle; }
-        sb.targetGraphic = hImg; sb.handleRect = hRt;
-        scroll.verticalScrollbar = sb;
-        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        if (withScroll)
+        {
+            var sbGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            sbGo.transform.SetParent(scrollGo.transform, false);
+            var sbRt = sbGo.GetComponent<RectTransform>();
+            sbRt.anchorMin = new Vector2(1, 0); sbRt.anchorMax = new Vector2(1, 1); sbRt.pivot = new Vector2(1, 1);
+            sbRt.sizeDelta = new Vector2(6, 0); sbRt.anchoredPosition = new Vector2(-1, 0);
+            var sbTrack = sbGo.GetComponent<Image>();
+            var trackSpr = LoadPartSprite(PartDir + "/scrollbar_track.png", new Vector4(0, 8, 0, 8));
+            if (trackSpr != null) { sbTrack.sprite = trackSpr; sbTrack.type = Image.Type.Sliced; sbTrack.color = Color.white; }
+            else { sbTrack.sprite = RoundedSprite(); sbTrack.type = Image.Type.Sliced; sbTrack.color = RGBA(40, 46, 54, 0.18f); }
+            var sb = sbGo.GetComponent<Scrollbar>(); sb.direction = Scrollbar.Direction.BottomToTop;
+            var slideArea = new GameObject("Sliding Area", typeof(RectTransform));
+            slideArea.transform.SetParent(sbGo.transform, false);
+            Stretch(slideArea.GetComponent<RectTransform>());
+            var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handle.transform.SetParent(slideArea.transform, false);
+            var hRt = handle.GetComponent<RectTransform>(); Stretch(hRt);
+            var hImg = handle.GetComponent<Image>();
+            var handleSpr = LoadPartSprite(PartDir + "/scrollbar_handle.png", new Vector4(0, 8, 0, 8));
+            if (handleSpr != null) { hImg.sprite = handleSpr; hImg.type = Image.Type.Sliced; hImg.color = Color.white; }
+            else { hImg.sprite = RoundedSprite(); hImg.type = Image.Type.Sliced; hImg.color = ScrollHandle; }
+            sb.targetGraphic = hImg; sb.handleRect = hRt;
+            scroll.verticalScrollbar = sb;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        }
 
         var gridUI = scrollGo.AddComponent<InventoryGridUI>();
         var gso = new SerializedObject(gridUI);
@@ -1131,4 +1450,5 @@ public static class InventoryUIBuilder
 static class _InvBuilderSPExt
 {
     public static void SetValueObj(this SerializedProperty p, Object v) { if (p != null) p.objectReferenceValue = v; }
+    public static void SetColor(this SerializedProperty p, Color c) { if (p != null) p.colorValue = c; }
 }

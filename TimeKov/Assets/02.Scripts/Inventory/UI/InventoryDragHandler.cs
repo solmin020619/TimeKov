@@ -1,7 +1,6 @@
 // InventoryDragHandler.cs
-// Canvas �� ���̴� ��ũ��Ʈ
-// �巡�� ���� ���� ���� ���� �� ����Ʈ �̹��� ó��
-// ���� �κ��丮 �� �̵�, â���� ���� �� �̵� ��� ó��
+// Canvas 에 붙는 스크립트. 드래그 상태 보관 + 고스트 이미지 처리.
+// 같은/다른 인벤토리 간 이동 처리.
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,10 +9,10 @@ public class InventoryDragHandler : MonoBehaviour
 {
     public static InventoryDragHandler Instance { get; private set; }
 
-    [Header("�巡�� ����Ʈ �̹��� (DragGhost ������Ʈ ����)")]
+    [Header("드래그 고스트 이미지 (DragGhost 연결)")]
     [SerializeField] private Image ghostImage;
 
-    // ���� �巡�� ���� ����
+    // 현재 드래그 중인 슬롯
     public InventorySlotUI DraggedSlot { get; private set; }
     public bool IsDragging => DraggedSlot != null;
 
@@ -30,9 +29,12 @@ public class InventoryDragHandler : MonoBehaviour
         _ghostRect = ghostImage != null ? ghostImage.GetComponent<RectTransform>() : null;
         _canvasRect = GetComponent<RectTransform>();
 
-        // ���� �� ����Ʈ �����
+        // 시작 시 고스트 숨김 + 레이캐스트 차단 해제(드래그 중 아래 슬롯/드롭존 감지 방해 안 하게)
         if (ghostImage != null)
+        {
+            ghostImage.raycastTarget = false;
             ghostImage.gameObject.SetActive(false);
+        }
     }
 
     // 드래그 시작 (InventorySlotUI.OnBeginDrag 에서 호출)
@@ -44,7 +46,7 @@ public class InventoryDragHandler : MonoBehaviour
         DraggedSlot = slot;
         DragAmount  = amount;
 
-        // ����Ʈ �̹����� ������ ����
+        // 고스트 이미지에 아이콘 세팅
         if (ghostImage != null)
         {
             var data = ItemDatabase.GetItem(slot.SlotData.itemId);
@@ -54,7 +56,7 @@ public class InventoryDragHandler : MonoBehaviour
         }
     }
 
-    // �巡�� �� ����Ʈ ��ġ ���� (InventorySlotUI.OnDrag ���� ȣ��)
+    // 드래그 중 고스트 위치 갱신 (InventorySlotUI.OnDrag 에서 호출)
     public void UpdateDragPosition(Vector2 screenPos)
     {
         if (!IsDragging || _ghostRect == null || _canvasRect == null) return;

@@ -105,9 +105,8 @@ public class InventoryManager : MonoBehaviour
     // 아이템 추가 (남은 수량 반환)
     public int AddItem(int itemId, int amount, bool markAsNew = false)
     {
-        // GameDataHolder 에서 maxStack 조회
-        var data = ItemDatabase.GetItem(itemId);
-        int maxStack = data != null ? data.maxStack : 999;
+        // 창고(Storage)는 무제한 스택 = 한 칸에 다 겹침(칸 안 늘어남). 그 외엔 아이템별 maxStack.
+        int maxStack = MaxStackFor(itemId);
         int remaining = amount;
 
         // 기존 슬롯에 스택 추가
@@ -146,6 +145,40 @@ public class InventoryManager : MonoBehaviour
         }
 
         return remaining;
+    }
+
+    // 이 itemId 가 들어갈 대상 슬롯 인덱스 (드래그 입고 강조용). 매칭 스택 우선, 없으면 첫 빈칸, 둘 다 없으면 -1.
+    public int FindTargetSlotIndexForItem(int itemId)
+    {
+        int m = FindMatchingSlotIndex(itemId);
+        if (m >= 0) return m;
+        return FindEmptySlotIndex();
+    }
+
+    // 같은 itemId + 스택 여유 있는 슬롯 (없으면 -1)
+    public int FindMatchingSlotIndex(int itemId)
+    {
+        int maxStack = MaxStackFor(itemId);
+        foreach (var slot in _slots)
+            if (!slot.IsEmpty && slot.itemId == itemId && slot.amount < maxStack)
+                return slot.slotIndex;
+        return -1;
+    }
+
+    // 한 칸 최대 스택. 창고는 무제한(int.MaxValue), 그 외엔 ItemData.maxStack.
+    private int MaxStackFor(int itemId)
+    {
+        if (ownerType == InventoryOwnerType.Storage) return int.MaxValue;
+        var data = ItemDatabase.GetItem(itemId);
+        return data != null ? data.maxStack : 999;
+    }
+
+    // 첫 빈 슬롯 (없으면 -1)
+    public int FindEmptySlotIndex()
+    {
+        foreach (var slot in _slots)
+            if (slot.IsEmpty) return slot.slotIndex;
+        return -1;
     }
 
     // 루팅으로 아이템 획득 (NEW 뱃지 자동 설정)
