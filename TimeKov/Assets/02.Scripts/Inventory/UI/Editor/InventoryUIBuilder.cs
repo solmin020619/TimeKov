@@ -272,7 +272,7 @@ public static class InventoryUIBuilder
         var grid = content.AddComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(9, 9);   // 엔필처럼 타이트하게 (14는 너무 벌어져 답답)
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 5;
-        grid.childAlignment = TextAnchor.UpperLeft;   // 좌상단부터 채우기(아이템 적어도 첫 칸부터)
+        grid.childAlignment = TextAnchor.UpperLeft;   // 좌상단부터 채우기(순서 유지). 좌우대칭은 콘텐츠를 블록 폭으로 가운데 둬서 처리.
         var csf = content.AddComponent<ContentSizeFitter>();
         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scroll.viewport = scrollGo.GetComponent<RectTransform>();
@@ -309,6 +309,7 @@ public static class InventoryUIBuilder
         var gridUI = scrollGo.AddComponent<InventoryGridUI>();
         var gso = new SerializedObject(gridUI);
         gso.FindProperty("slotPrefab").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(SlotPrefabPath);
+        gso.FindProperty("dropFrameSprite").objectReferenceValue = LoadPartSprite(PartDir + "/hl_slot_frame@2x.png", new Vector4(44, 44, 44, 44));
         gso.FindProperty("slotGrid").objectReferenceValue = content.transform;
         gso.ApplyModifiedProperties();
         SetRef(so, "bagGridUI", gridUI);
@@ -1284,16 +1285,45 @@ public static class InventoryUIBuilder
     {
         var dz = grid.gameObject.AddComponent<InventoryDropZone>();
 
-        // 영역 강조 = 채움 없이 테두리(4변 라인)만 (집으면 켜짐). 시안 라인.
+        // 영역 강조 = 흰 sci-fi 프레임(위/좌/우 3변, 바닥 열림) 9-slice. 집으면 켜짐. 로드 실패 시 4변 라인 폴백.
+        // 프레임을 '가로 중앙정렬된 슬롯 그리드' 폭에 딱 맞춰 중앙 배치 -> 슬롯이 패널보다 좁아도 좌우대칭으로 감쌈.
+        var gridRt = grid.GetComponent<RectTransform>();
+        var glg = grid.GetComponentInChildren<GridLayoutGroup>(true);
+        int cols = glg != null ? glg.constraintCount : 5;
+        float cell = glg != null ? glg.cellSize.x : 90f;
+        float sp = glg != null ? glg.spacing.x : 9f;
+        const float gutter = 8f, sideGap = 16f, topUp = -4f;   // topUp 음수 = 프레임 윗변을 탭 아래로(탭에 선 안 생기게)
+        float frameW = cols * cell + (cols - 1) * sp + 2f * sideGap;            // 그리드 폭 + 좌우 여백
+        float cxAnchor = (gridRt.anchorMin.x + gridRt.anchorMax.x) * 0.5f;
+        float cxPos = (gridRt.offsetMin.x + gridRt.offsetMax.x) * 0.5f - gutter * 0.5f;   // 슬롯(거터 보정) 가로 중심
         var region = MakeEmpty("DropRegion", body.transform, Vector2.zero, Vector2.zero);
         var rr = region.GetComponent<RectTransform>();
-        rr.anchorMin = new Vector2(aMinX, 0f); rr.anchorMax = new Vector2(aMaxX, 1f);
-        rr.offsetMin = new Vector2(8, 8); rr.offsetMax = new Vector2(-8, -66);   // 그리드 영역(헤더/탭 아래) 테두리
-        var edge = RGBA(130, 214, 230, 0.95f);
-        MakeRegionEdge(region.transform, edge, 3f, 0);   // 위
-        MakeRegionEdge(region.transform, edge, 3f, 1);   // 아래
-        MakeRegionEdge(region.transform, edge, 3f, 2);   // 좌
-        MakeRegionEdge(region.transform, edge, 3f, 3);   // 우
+        rr.anchorMin = new Vector2(cxAnchor, gridRt.anchorMin.y);
+        rr.anchorMax = new Vector2(cxAnchor, gridRt.anchorMax.y);
+        rr.pivot = new Vector2(0.5f, 0.5f);
+        rr.offsetMin = new Vector2(cxPos - frameW * 0.5f, gridRt.offsetMin.y - sideGap);
+        rr.offsetMax = new Vector2(cxPos + frameW * 0.5f, gridRt.offsetMax.y + topUp);
+        var regionSpr = LoadPartSprite(PartDir + "/hl_region_frame_open@2x.png", new Vector4(52, 52, 52, 52));
+        if (regionSpr != null)
+        {
+            // 두 겹: 안쪽 굵은 선 = 고정 / 바깥 얇은 선 = 물결처럼 안으로 반복 수렴(RegionFrameRipple).
+            // ★물결 조절값 3개 (바꾼 뒤 이 메뉴 재실행해야 반영):
+            const float rippleDepth = 1f;       // 안쪽 고정선 위치(작을수록 슬롯에서 멀어짐 = 겹침↓)
+            const float rippleStartOut = 14f;   // 물결 시작 거리 = 프레임 밖 이만큼서 옴(클수록 멀리서)
+            const float ripplePeriod = 0.8f;    // 물결 주기(초, 작을수록 빠름)
+            MakeRegionFrameLayer(region.transform, regionSpr, 2f, rippleDepth);    // 안쪽 고정(굵음)
+            var outer = MakeRegionFrameLayer(region.transform, regionSpr, 3f, 0f); // 바깥(얇음)
+            var ripple = outer.gameObject.AddComponent<RegionFrameRipple>();
+            ripple.rippleDepth = rippleDepth; ripple.startOut = rippleStartOut; ripple.period = ripplePeriod;
+        }
+        else
+        {
+            var edge = RGBA(130, 214, 230, 0.95f);
+            MakeRegionEdge(region.transform, edge, 3f, 0);
+            MakeRegionEdge(region.transform, edge, 3f, 1);
+            MakeRegionEdge(region.transform, edge, 3f, 2);
+            MakeRegionEdge(region.transform, edge, 3f, 3);
+        }
         region.transform.SetAsLastSibling();
         region.SetActive(false);
 
@@ -1332,6 +1362,20 @@ public static class InventoryUIBuilder
         rt.anchoredPosition = Vector2.zero;
     }
 
+    // 범위 강조 한 겹 라인(9-slice). ppuMult 클수록 라인 얇아짐. inset px만큼 사방 안으로(0=region 경계). 흰색. Image 반환.
+    static Image MakeRegionFrameLayer(Transform parent, Sprite spr, float ppuMult, float inset)
+    {
+        var go = new GameObject("Frame", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(inset, inset); rt.offsetMax = new Vector2(-inset, -inset);
+        var img = go.GetComponent<Image>();
+        img.sprite = spr; img.type = Image.Type.Sliced; img.pixelsPerUnitMultiplier = ppuMult;
+        img.color = Color.white; img.raycastTarget = false;
+        return img;
+    }
+
     // 스크롤+그리드 빌드 (body 안 fraction 영역, columns열). InventoryGridUI 반환. 창고/가방 공용.
     // withScroll=false 면 스크롤바/세로스크롤 없음(파밍상자처럼 한 줄 고정용).
     static InventoryGridUI BuildScrollGrid(GameObject body, string name, Vector2 aMin, Vector2 aMax, int columns, float rightInset = 14f, bool withScroll = true)
@@ -1341,19 +1385,25 @@ public static class InventoryUIBuilder
         srt.anchorMin = aMin; srt.anchorMax = aMax;
         srt.offsetMin = new Vector2(14, 8); srt.offsetMax = new Vector2(-rightInset, -76);   // 우측 인셋 클수록 스크롤바가 seam에서 멀어짐
         var scrollImg = scrollGo.AddComponent<Image>(); scrollImg.color = Color.clear;
-        scrollGo.AddComponent<RectMask2D>();
+        var scrollMask = scrollGo.AddComponent<RectMask2D>();
+        // 마스크 클립 영역을 살짝 넓힌다(음수 padding=확장) -> 가장자리(맨윗줄/좌/우) 칸의 강조 프레임+팝이 안 잘리게.
+        scrollMask.padding = new Vector4(-12f, -12f, -12f, -12f);
         var scroll = scrollGo.AddComponent<ScrollRect>();
         scroll.horizontal = false; scroll.vertical = withScroll; scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 30;
 
         var content = MakeEmpty("Content", scrollGo.transform, Vector2.zero, Vector2.zero);
         var crt = content.GetComponent<RectTransform>();
-        crt.anchorMin = new Vector2(0, 1); crt.anchorMax = new Vector2(1, 1); crt.pivot = new Vector2(0.5f, 1);
-        crt.offsetMin = new Vector2(0, 0); crt.offsetMax = new Vector2(withScroll ? -8 : 0, 0);
+        float blockW = columns * 90f + (columns - 1) * 9f;        // 그리드 블록 폭(열 수 기준)
+        float gutter = withScroll ? 8f : 0f;                      // 우측 스크롤바 거터
+        crt.anchorMin = new Vector2(0.5f, 1f); crt.anchorMax = new Vector2(0.5f, 1f); crt.pivot = new Vector2(0.5f, 1f);
+        crt.sizeDelta = new Vector2(blockW, 0f);                  // 가로 고정폭=블록 -> 슬롯 그리드가 패널 가운데 대칭. 세로는 ContentSizeFitter.
+        crt.anchoredPosition = new Vector2(-gutter * 0.5f, 0f);   // 거터/2만큼 좌로 -> 우측에 스크롤바 자리
         var grid = content.AddComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(9, 9);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = columns;
-        grid.childAlignment = TextAnchor.UpperLeft;   // 좌상단부터 채우기(아이템 적어도 첫 칸부터)
+        grid.childAlignment = TextAnchor.UpperLeft;   // 좌상단부터 채우기(순서 유지). 좌우대칭은 콘텐츠를 블록 폭으로 가운데 둬서 처리.
+        grid.padding = new RectOffset(0, 0, 20, 0);   // 윗줄을 내려 범위강조 프레임 상단 코너 + 호버 커짐이 첫 칸과 안 겹치게
         var csf = content.AddComponent<ContentSizeFitter>();
         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scroll.viewport = srt;
@@ -1389,6 +1439,7 @@ public static class InventoryUIBuilder
         var gridUI = scrollGo.AddComponent<InventoryGridUI>();
         var gso = new SerializedObject(gridUI);
         gso.FindProperty("slotPrefab").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(SlotPrefabPath);
+        gso.FindProperty("dropFrameSprite").objectReferenceValue = LoadPartSprite(PartDir + "/hl_slot_frame@2x.png", new Vector4(44, 44, 44, 44));
         gso.FindProperty("slotGrid").objectReferenceValue = content.transform;
         gso.ApplyModifiedProperties();
         return gridUI;
