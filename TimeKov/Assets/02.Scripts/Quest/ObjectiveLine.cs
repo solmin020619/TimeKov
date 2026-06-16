@@ -56,10 +56,16 @@ public class ObjectiveLine : MonoBehaviour
         }
     }
 
-    void OnProgress(float _) => Refresh();
+    void OnProgress(float _)
+    {
+        Refresh();
+        GameUIController.Instance?.PulseQuestTracker();   // UI 열린 중 목표 진행 시 트래커 잠깐 팝
+    }
 
     void OnDone(ObjectiveSO _)
     {
+        GameUIController.Instance?.PulseQuestTracker();   // 목표 완료 시 트래커 잠깐 팝
+
         // InfoMessage(안내 전용) Objective는 collapse/sweep 없이 체크박스만 표시.
         // 다른 Objective가 같은 Quest 안에 있으면 그 줄들 사이 안내 텍스트 계속 유지.
         if (_o is InfoMessageObjective)

@@ -69,6 +69,13 @@ public class GameUIController : MonoBehaviour
     /// <summary>튜토리얼 코치마크 표시 중인지 — BuildManager 입력 게이트가 조회.</summary>
     public bool IsTutorialCoachActive => _tutorialCoachActive;
 
+    // 퀘스트 트래커 페이드: 게임플레이/건설=항상 표시 / 공장·코어 등 UI 열림=평소 숨김, 퀘 활동 시 잠깐 팝.
+    private float _questPulseTimer;
+    const float QuestTrackerHoldSec = 2.5f;   // 퀘 활동(목표 진행/완료, 새 퀘) 후 트래커 유지 시간
+    const float QuestHudFadeSpeed = 5f;        // 알파 페이드 속도(초당)
+    /// <summary>퀘스트 관련 변화(목표 진행/완료, 새 퀘) 시 트래커를 잠깐 띄운다(UI 열린 상태에서 팝). ObjectiveLine/QuestPanelUI가 호출.</summary>
+    public void PulseQuestTracker() => _questPulseTimer = QuestTrackerHoldSec;
+
     // ── 초기화 ───────────────────────────────────────────────────────
 
     protected virtual void Awake()
@@ -139,6 +146,7 @@ public class GameUIController : MonoBehaviour
     protected virtual void LateUpdate()
     {
         RefreshCursorState();
+        DriveQuestHudFade();
     }
 
     // ── 공개 쿼리 ────────────────────────────────────────────────────
@@ -373,21 +381,32 @@ public class GameUIController : MonoBehaviour
         playerHud.SetActive(_currentState == UIState.None || _tutorialCoachActive);
     }
 
-    // 퀘스트 HUD 알파 — 코치마크 우선, 그다음 _currentState 기준 (SetActive 금지: QuestPanelUI 구독 유지).
+    // 퀘스트 HUD 알파는 DriveQuestHudFade(LateUpdate)가 매 프레임 구동. 여기선 입력 차단만 보장.
+    // (HUD는 표시 전용 - 클릭 가로채면 공장 드래그가 뒤로 빠짐)
     void RefreshQuestHudAlpha()
     {
         if (_questHudGroup == null) return;
+        _questHudGroup.interactable = false;
+        _questHudGroup.blocksRaycasts = false;
+    }
 
+    // 퀘스트 트래커 페이드 구동 (매 프레임):
+    //   코치마크 = 숨김(배너가 대신) / 게임플레이·건설 = 항상 표시 / 그 외 UI(공장·코어·인벤 등) = 평소 숨김, 퀘 활동 시 팝.
+    void DriveQuestHudFade()
+    {
+        if (_questHudGroup == null) return;
+
+        float target;
         if (_tutorialCoachActive)
-            _questHudGroup.alpha = 0f;   // 코치마크 중 — 트래커 숨김(배너와 중복 방지)
-        else if (_currentState == UIState.None || _currentState == UIState.Build || _currentState == UIState.CoreUpgrade)
-            _questHudGroup.alpha = 1f;   // 게임플레이·건설·코어강화(좌상단 안 가림) 안내
-        else if (_currentState == UIState.Inventory || _currentState == UIState.Factory)
-            _questHudGroup.alpha = questHudDimmedAlpha;   // 큰 패널 겹침 — 흐리게
+            target = 0f;
+        else if (_currentState == UIState.None || _currentState == UIState.Build)
+            target = 1f;   // 평소 게임플레이/건설 - 퀘스트 계속 표시
         else
-            _questHudGroup.alpha = 0f;
+            target = _questPulseTimer > 0f ? 1f : 0f;   // 다른 UI 열림 - 평소 숨김, 퀘 활동(진행/완료/새퀘) 때만 잠깐 팝
 
-        // HUD는 정보 표시 전용 — 클릭 절대 가로채지 않음 (공장 드래그가 뒤로 빠지는 문제 방지)
+        if (_questPulseTimer > 0f) _questPulseTimer -= Time.unscaledDeltaTime;
+
+        _questHudGroup.alpha = Mathf.MoveTowards(_questHudGroup.alpha, target, QuestHudFadeSpeed * Time.unscaledDeltaTime);
         _questHudGroup.interactable = false;
         _questHudGroup.blocksRaycasts = false;
     }

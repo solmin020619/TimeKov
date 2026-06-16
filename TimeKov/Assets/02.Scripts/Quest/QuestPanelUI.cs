@@ -101,6 +101,7 @@ public class QuestPanelUI : MonoBehaviour
             w.ShowQuest(q);
             _lastShownWidget = w;
         }
+        GameUIController.Instance?.PulseQuestTracker();   // 새 퀘 등장 시 (UI 열린 중이어도) 트래커 잠깐 팝
     }
 
     void HandleQuestCompleted(CategoryRuntime rt, QuestSO q)
@@ -109,7 +110,7 @@ public class QuestPanelUI : MonoBehaviour
         if (IsExplanationQuest(q)) return;
         if (toast == null) return;
 
-        // 토스트가 hold 끝나고 좌측으로 사라지기 시작하는 시점 = 다음 QuestEntry의 iconAlert→iconNormal 전환 시점
+        // 토스트가 hold 끝나고 좌측으로 사라지기 시작하는 시점 = 다음 QuestEntry의 iconAlert -> iconNormal 전환 시점
         toast.Show(toastMessage, toastDelay, onHideStart: () =>
         {
             if (_lastShownWidget != null) _lastShownWidget.TriggerIconSwitchToNormal();
@@ -136,8 +137,10 @@ public class QuestPanelUI : MonoBehaviour
         if (!_widgets.TryGetValue(rt, out var w) || w == null) yield break;
 
         bool done = false;
-        if (IsExplanationQuest(q))
-            w.RemoveImmediate(() => done = true);   // 설명퀘 = 완료연출 없이 즉시 제거 -> 갭 0, 다음 행동퀘 바로 활성
+        // 완료연출(1.15s) 스킵: (1) 완료된 게 설명퀘(팡파레 억제) 또는
+        // (2) 다음 퀘가 설명/코치마크 - 액션 직후 코치마크가 늦게 떠 그 사이 미리 조작 가능한 갭을 없앤다(공장/코어/건설진입).
+        if (IsExplanationQuest(q) || IsExplanationQuest(NextQuest(rt)))
+            w.RemoveImmediate(() => done = true);
         else
             w.PlayCompleteAndRemove(() => done = true);
 
@@ -162,6 +165,16 @@ public class QuestPanelUI : MonoBehaviour
         foreach (var o in q.objectives)
             if (o == null || !o.IsExplanation) return false;
         return true;
+    }
+
+    // 현재 카테고리의 다음 퀘 (완료 시점엔 activeQuestIndex가 이미 ++돼 있어 이게 곧 표시될 다음 퀘). 없으면 null.
+    static QuestSO NextQuest(CategoryRuntime rt)
+    {
+        if (rt == null || rt.data == null || rt.IsCategoryDone) return null;
+        var quests = rt.data.quests;
+        int i = rt.activeQuestIndex;
+        if (quests == null || i < 0 || i >= quests.Length) return null;
+        return quests[i];
     }
 
     // TAB 키 토글 제거 — TAB은 인벤토리(InventoryUIController)가 단독 사용

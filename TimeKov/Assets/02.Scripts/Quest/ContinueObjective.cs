@@ -15,8 +15,9 @@ public class ContinueObjective : ObjectiveSO
     [Tooltip("None = 아무 곳이나 클릭/키로 진행. 특정 키 지정 시 그 키로만 진행 (예: C로 스탯창 열기).")]
     public KeyCode advanceKey = KeyCode.None;
 
-    // 입력형(클릭)이라 OnUIActivated (슬라이드 인 끝난 뒤 활성, 고인물 방어)
-    public override ActivationTiming Timing => ActivationTiming.OnUIActivated;
+    // 코치마크는 퀘 표시 즉시 떠야 함 - 슬라이드인(0.3s) 기다리면 그 사이 입력차단이 안 걸려 미리 조작 가능.
+    // 카운트형이 아니라 고인물 방어 불필요(첫 클릭은 startGracePeriod로 무시).
+    public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
     // 순수 설명 코치마크 - 완료 시 트래커 완료배너/토스트 생략
     public override bool IsExplanation => true;

@@ -28,8 +28,9 @@ public class GuidedTourObjective : ObjectiveSO
     [NonSerialized] int _index;
     [NonSerialized] bool _waitingForBuildMode;
 
-    // 입력형(클릭/키)이라 OnUIActivated (슬라이드 인 끝난 뒤 활성)
-    public override ActivationTiming Timing => ActivationTiming.OnUIActivated;
+    // 코치마크는 퀘 표시 즉시 떠야 함 - 슬라이드인(0.3s) 기다리면 그 사이 입력차단이 안 걸려 미리 조작 가능.
+    // 카운트형이 아니라 고인물 방어 불필요(첫 클릭은 startGracePeriod로 무시).
+    public override ActivationTiming Timing => ActivationTiming.OnUIPresented;
 
     // 순수 설명 코치마크(여러 스텝) - 완료 시 트래커 완료배너/토스트 생략
     public override bool IsExplanation => true;
