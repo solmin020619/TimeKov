@@ -59,6 +59,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     private Outline[]         _outlines;
     private FacilitySelectRow _row;
     private Transform         _playerTransform;
+    private Player            _player;
 
     private float InstantCost => Mathf.Max(0f, openTimeSeconds * instantHpCostMultiplier);
 
@@ -83,7 +84,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     private void Start()
     {
         var player = FindFirstObjectByType<Player>();
-        if (player != null) _playerTransform = player.transform;
+        if (player != null) { _player = player; _playerTransform = player.transform; }
     }
 
     private void ApplyFacilityName()
@@ -134,11 +135,6 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
                 _timer = 0f;
                 _state = State.Ready;
             }
-            RefreshIndicator();
-        }
-        else if (_state == State.Ready)
-        {
-            RefreshIndicator();
         }
 
         // 다른 UI가 열려 있으면 강제 숨김
@@ -151,8 +147,12 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
                    // 아주 가까우면 시야 체크 생략 (근접 시 레이가 막혀 힌트가 꺼지는 문제 방지)
                    && (distToPlayer <= lineOfSightSkipDistance || HasLineOfSight());
 
-        if (nearby == _playerNearby) return;
+        bool nearbyChanged = nearby != _playerNearby;
         _playerNearby = nearby;
+
+        RefreshIndicator();
+
+        if (!nearbyChanged) return;
 
         SetOutlineEnabled(nearby);
 
@@ -160,17 +160,15 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
         {
             if (hintUI != null)
             {
-                // TMP Awake()가 최초 1회만 실행되도록 처음엔 강제 활성화
+                // TMP Awake()가 최초 1회만 실행되도록 처음엔 강제 활성화 후 즉시 숨김
                 if (!_tmpInitialized)
                 {
                     hintUI.SetActive(true);
+                    ApplyFacilityName();
                     _tmpInitialized = true;
+                    hintUI.SetActive(false);
                 }
-                // 공유 UI에 이 오브젝트의 이름을 항상 다시 세팅 (다른 픽업이 덮어쓸 수 있으므로)
-                ApplyFacilityName();
-                hintUI.SetActive(true);
             }
-            _row?.SetSelected(true);
         }
         else
         {
@@ -234,6 +232,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
         _arrowShown = false;
         TimeKov.UI.HintArrowManager.I?.Hide("facility_pickup_" + facilityId);
         HideIndicator();
+        FacilityPromptUI.Instance?.Hide();
         if (hintUI != null) hintUI.SetActive(false);
         StartCoroutine(FlashThenUnlock());
     }
@@ -313,26 +312,32 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
         Destroy(gameObject);
     }
 
-    // ── 진행 상태 표시 (파밍 상자와 동일한 placeholder) ───────────
+    // ── 진행 상태 표시 ────────────────────────────────────────────
     private void RefreshIndicator()
     {
-        if (_state == State.Opening)
+        var ui = FacilityPromptUI.GetOrCreate();
+
+        if (!_playerNearby) { ui.HideIfOwner(this); HideIndicator(); return; }
+
+        switch (_state)
         {
-            EnsureIndicator();
-            _indRoot.gameObject.SetActive(true);
-            if (_indFill != null) _indFill.fillAmount = openTimeSeconds > 0f ? 1f - _timer / openTimeSeconds : 1f;
-            if (_indText != null) _indText.text = $"해금 중 {Mathf.CeilToInt(_timer)}초\nG 즉시 (HP -{Mathf.CeilToInt(InstantCost)})";
-        }
-        else if (_state == State.Ready)
-        {
-            EnsureIndicator();
-            _indRoot.gameObject.SetActive(true);
-            if (_indFill != null) _indFill.fillAmount = 1f;
-            if (_indText != null) _indText.text = "F 로 해금";
-        }
-        else
-        {
-            HideIndicator();
+            case State.Idle:
+                ui.ShowIdle(this, InstantCost,
+                    () => Interact(_player),
+                    () => OnInstantComplete(_player));
+                HideIndicator();
+                break;
+            case State.Opening:
+            {
+                float prog = openTimeSeconds > 0f ? 1f - _timer / openTimeSeconds : 1f;
+                ui.ShowOpening(this, prog, _timer, InstantCost, () => OnInstantComplete(_player));
+                HideIndicator();
+                break;
+            }
+            case State.Ready:
+                ui.ShowReady(this, () => Interact(_player));
+                HideIndicator();
+                break;
         }
     }
 
@@ -416,6 +421,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     {
         // 인디케이터는 픽업의 자식이 아니므로(스케일 비상속) 직접 파괴해 잔존 방지
         if (_indRoot != null) Destroy(_indRoot.gameObject);
+        FacilityPromptUI.GetOrCreate().HideIfOwner(this);
     }
 
     // ── 시야 체크 ────────────────────────────────────────────────
