@@ -23,6 +23,7 @@ public static class TutorialAssetBuilder
     const int BioExtractorId = 1;   // 생체 추출기 (3x3)
     const int BioCultivatorId = 2;  // 생체 배양기 (5x5) — 옛 "생체 주입기" 대체
     const int StorageId = 8;        // 저장고 (창고 용량 제공)
+    const int TotalFacilityCount = 8;   // 전체 설비 수 (마무리 "설비 해금하기" 목표 = x/8). 설비 수 바뀌면 여기 수정.
 
     // ── 최종 ItemData 시트 기준 ──────────────────────────────────────────
     const int ItemSpiderVenom = 1102;  // 거미 독액 (드롭, 원료)
@@ -262,6 +263,13 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_21_finish", "튜토리얼 완료",
             CreateContinue("obj_finish",
                 $"{Y}튜토리얼 완료!{E} 코어를 계속 강화하려면 {Y}코어 키트{E}가 필요한데, {Y}코어 합성기{E}를 찾아 해금하면 직접 만들 수 있어요. 이제 자유롭게 기지를 키워보세요!")));
+
+        // Q22. [목표] 설비 다 해금하기 - 튜토 끝나도 막연하지 않게 남는 목표 하나.
+        // facilityId=0 = 아무 설비나 해금하면 카운트(UnlockedIds.Count 기준). 해금할 때마다 (x/8) 갱신.
+        // 튜토 마치면 보통 추출기/배양기 2개 해금 상태라 2/8쯤에서 시작. 운좋게 더 주웠으면 더 높게.
+        quests.Add(BuildQuest("quest_tut_22_unlock_all", "설비 해금하기",
+            CreateFacilityUnlock("obj_unlock_all",
+                $"맵에 {Y}숨겨진 설비{E}를 찾아 {Y}F{E}로 {Y}해금{E}해보세요.", 0, TotalFacilityCount)));
 
         // CategorySO (GUID 유지)
         string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
