@@ -121,7 +121,7 @@ public static class TutorialAssetBuilder
 
         // Q5. 설비 해금 — 위치 이동 + F 해금 [병렬]. (따로 '도착' 퀘 안 둠: 갔다가 한 번 깨지고 다시 F 누르는 흐름 제거)
         quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "설비 해금",
-            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1"),
+            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1", BioExtractorId),
             CreateFacilityUnlock("obj_unlock_extractor", $"바닥의 {Y}생체 추출기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioExtractorId)));
 
         // Q5b. 건설 구역으로 이동 (build 트리거 도착) — 건설은 이 구역에서만 가능
@@ -187,7 +187,7 @@ public static class TutorialAssetBuilder
 
         // Q11. 배양기 해금 + 설치 — 위치 이동 + F 해금 + 설치 [병렬]. (도착 퀘 분리 안 함)
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
-            CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2"),
+            CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2", BioCultivatorId),
             CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}생체 배양기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioCultivatorId),
             CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 {Y}설치{E}하세요.", BioCultivatorId, 1)));
 
@@ -347,10 +347,10 @@ public static class TutorialAssetBuilder
         return o;
     }
 
-    static ReachTriggerObjective CreateReachTrigger(string name, string label, string triggerId)
+    static ReachTriggerObjective CreateReachTrigger(string name, string label, string triggerId, int satisfiedIfFacilityUnlocked = 0)
     {
         var o = ScriptableObject.CreateInstance<ReachTriggerObjective>();
-        o.label = label; o.targetTriggerId = triggerId;
+        o.label = label; o.targetTriggerId = triggerId; o.satisfiedIfFacilityUnlocked = satisfiedIfFacilityUnlocked;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
