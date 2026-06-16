@@ -10,8 +10,12 @@ using UnityEngine;
 public class HudAutoFader : MonoBehaviour
 {
     [Header("숨길 HUD 묶음 (CanvasGroup 자동 부착)")]
-    [Tooltip("플레이어 HUD(체력/시간바) 루트, 우측하단 스킬바 루트 등. 전투 외엔 이들이 페이드아웃.")]
+    [Tooltip("전투 외엔 페이드아웃할 묶음. 스킬바 루트 등. (체력/시간바는 아래 alwaysOnRoots로 옮겨 항상 표시)")]
     [SerializeField] private GameObject[] fadeRoots;
+
+    [Header("항상 표시 묶음 (기지에서도 안 숨김)")]
+    [Tooltip("결계 안에서도 페이드 없이 항상 보일 묶음. 체력/시간바 HUD 루트를 여기에 넣는다(무적 표시). CanvasGroup 자동 부착.")]
+    [SerializeField] private GameObject[] alwaysOnRoots;
 
     [Header("튜닝")]
     [Tooltip("전투 신호 후 HUD를 유지하는 시간(초). 이 시간 지나면 다시 숨김.")]
@@ -22,6 +26,7 @@ public class HudAutoFader : MonoBehaviour
     [Range(0f, 1f)][SerializeField] private float hiddenAlpha = 0f;
 
     private CanvasGroup[] _groups;
+    private CanvasGroup[] _alwaysOnGroups;
     private PlayerStatComponent _stat;
     private PlayerSkillComponent _skill;
     private float _showTimer;
@@ -32,16 +37,8 @@ public class HudAutoFader : MonoBehaviour
     private void Start()
     {
         // 루트에 CanvasGroup get-or-add
-        if (fadeRoots != null)
-        {
-            _groups = new CanvasGroup[fadeRoots.Length];
-            for (int i = 0; i < fadeRoots.Length; i++)
-            {
-                if (fadeRoots[i] == null) continue;
-                _groups[i] = fadeRoots[i].GetComponent<CanvasGroup>();
-                if (_groups[i] == null) _groups[i] = fadeRoots[i].AddComponent<CanvasGroup>();
-            }
-        }
+        _groups = EnsureGroups(fadeRoots);
+        _alwaysOnGroups = EnsureGroups(alwaysOnRoots);
 
         var player = FindAnyObjectByType<Player>();
         if (player != null)
@@ -72,6 +69,19 @@ public class HudAutoFader : MonoBehaviour
     private void PulseShow() => _showTimer = showHoldSeconds;
     private void OnDamagedPulse(float _) => PulseShow();   // OnDamaged(Action<float>) 래퍼
 
+    private static CanvasGroup[] EnsureGroups(GameObject[] roots)
+    {
+        if (roots == null) return null;
+        var groups = new CanvasGroup[roots.Length];
+        for (int i = 0; i < roots.Length; i++)
+        {
+            if (roots[i] == null) continue;
+            groups[i] = roots[i].GetComponent<CanvasGroup>();
+            if (groups[i] == null) groups[i] = roots[i].AddComponent<CanvasGroup>();
+        }
+        return groups;
+    }
+
     private void Update()
     {
         // 결계 안에서의 잠깐 표시용 타이머 (평타/스킬 시)
@@ -100,14 +110,29 @@ public class HudAutoFader : MonoBehaviour
         float target = show ? 1f : hiddenAlpha;
         _alpha = Mathf.MoveTowards(_alpha, target, fadeSpeed * Time.deltaTime);
 
-        if (_groups == null) return;
-        bool interactable = _alpha > 0.5f;
-        foreach (var g in _groups)
+        // 페이드 묶음 (전투 외 숨김)
+        if (_groups != null)
         {
-            if (g == null) continue;
-            g.alpha = _alpha;
-            g.blocksRaycasts = interactable;
-            g.interactable   = interactable;
+            bool interactable = _alpha > 0.5f;
+            foreach (var g in _groups)
+            {
+                if (g == null) continue;
+                g.alpha = _alpha;
+                g.blocksRaycasts = interactable;
+                g.interactable   = interactable;
+            }
+        }
+
+        // 항상 표시 묶음 (체력/시간바) - 결계 안에서도 안 숨김. 표시 전용이라 클릭 가로채지 않게 raycast 끔.
+        if (_alwaysOnGroups != null)
+        {
+            foreach (var g in _alwaysOnGroups)
+            {
+                if (g == null) continue;
+                g.alpha = 1f;
+                g.blocksRaycasts = false;
+                g.interactable   = false;
+            }
         }
     }
 }

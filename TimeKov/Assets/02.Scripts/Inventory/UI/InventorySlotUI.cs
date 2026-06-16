@@ -16,6 +16,7 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private GameObject countChip;   // 우상단 수량 칩 배경 (수량 2 이상일 때만 표시)
     [SerializeField] private GameObject iconBacking; // 아이콘 뒤 어두운 backing (아이템 있을 때만 표시)
     [SerializeField] private Image gradeAurora;      // 등급 오로라 (하단서 위로 번지는 그라데이션, 런타임 등급색 틴트)
+    [SerializeField] private Image consumableBadge;  // 소모품 표시 배지 (소모품 카테고리일 때만 좌상단 표시, item_marker)
 
     [SerializeField] private Color normalColor = new Color(0.18f, 0.22f, 0.30f, 1f);
     [SerializeField] private Color emptyBorderColor = new Color(0.3f, 0.3f, 0.3f, 0f);
@@ -200,6 +201,10 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (newBadge != null)
             newBadge.SetActive(slot.isNew);
+
+        // 소모품 마커 - 소모품이고 NEW가 아닐 때만. NEW와 같은 좌상단 자리라, NEW 먼저 뜨고 사라지면 마커가 그 자리 차지(안 겹침).
+        if (consumableBadge != null)
+            consumableBadge.enabled = !slot.isNew && data != null && data.itemCategory == ItemCategory.TacticalConsumable;
     }
 
     private void SetEmpty()
@@ -211,6 +216,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (countChip != null) countChip.SetActive(false);
         if (iconBacking != null) iconBacking.SetActive(false);
         if (newBadge != null) newBadge.SetActive(false);
+        if (consumableBadge != null) consumableBadge.enabled = false;
     }
 
     // 호버일 때만 배경 강조 (클릭 선택 강조는 제거함 - 호버 전용)
@@ -244,6 +250,12 @@ public class InventorySlotUI : MonoBehaviour,
                 {
                     _owner?.ClearNewFlag(_slot.slotIndex);
                     if (newBadge != null) newBadge.SetActive(false);
+                    // NEW 사라지면 같은 자리에 소모품 마커 (소모품이면)
+                    if (consumableBadge != null)
+                    {
+                        var d = ItemDatabase.GetItem(_slot.itemId);
+                        consumableBadge.enabled = d != null && d.itemCategory == ItemCategory.TacticalConsumable;
+                    }
                 }
             }
         }

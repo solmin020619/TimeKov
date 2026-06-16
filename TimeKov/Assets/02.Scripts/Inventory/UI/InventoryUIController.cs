@@ -410,6 +410,11 @@ public class InventoryUIController : MonoBehaviour
         // 드래그 중이었으면 강제 종료 (ESC로 닫을 때 Ghost 화면 잔재 방지)
         InventoryDragHandler.Instance?.EndDrag();
 
+        // 인벤 닫으면 NEW 뱃지 일괄 소멸 (한 번 열어 봤으면 인식 -> 다시 열면 그 자리에 소모품 마커가 뜸)
+        InventoryManager.Instance?.ClearAllNewFlags();
+        InventoryManager.StorageInstance?.ClearAllNewFlags();
+        InventoryManager.ChestInstance?.ClearAllNewFlags();
+
         // 창고 재진입 플래그 초기화 (다음 TAB 시 창고가 열리지 않도록)
         IsInBase = false;
 
@@ -504,6 +509,20 @@ public class InventoryUIController : MonoBehaviour
         }
     }
 
+    // 가방 -> 창고 입고 후 호출. 현재 창고 탭이 그 아이템을 숨기는 상태면 해당 카테고리 탭으로 자동 전환.
+    // (전체 탭이거나 이미 같은 카테고리면 그대로 둠 - 탭이 매번 튀는 것 방지. InventoryDropZone/더블클릭에서 호출)
+    public void OnDepositedToWarehouse(int itemId)
+    {
+        if (!IsInBase || warehouseFilterUI == null) return;
+
+        var data = ItemDatabase.GetItem(itemId);
+        if (data == null) return;
+
+        var cur = warehouseFilterUI.CurrentFilter;
+        if (cur.HasValue && cur.Value != data.itemCategory)
+            warehouseFilterUI.SelectByCategory(data.itemCategory);
+    }
+
     // 단일 슬롯 클릭 핸들러 (시각 강조 없음 - 우클릭 메뉴/버리기 버튼용으로 슬롯만 기억)
     private void OnSlotClicked(InventorySlotUI slot)
     {
@@ -532,7 +551,11 @@ public class InventoryUIController : MonoBehaviour
             {
                 bool warehouseOpen = warehousePanel != null && warehousePanel.activeSelf;
                 if (IsInBase && warehouseOpen && storage != null)
+                {
+                    int movedItemId = slot.SlotData.itemId;   // MoveSlot 후 칸이 비므로 미리 캡처
                     owner.MoveSlot(slot.SlotData.slotIndex, storage);
+                    OnDepositedToWarehouse(movedItemId);
+                }
             }
         }
         else if (owner == storage)
