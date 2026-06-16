@@ -18,6 +18,9 @@ public class ContinueObjective : ObjectiveSO
     // 입력형(클릭)이라 OnUIActivated (슬라이드 인 끝난 뒤 활성, 고인물 방어)
     public override ActivationTiming Timing => ActivationTiming.OnUIActivated;
 
+    // 순수 설명 코치마크 - 완료 시 트래커 완료배너/토스트 생략
+    public override bool IsExplanation => true;
+
     public override void Activate()
     {
         var ov = TutorialOverlay.I;

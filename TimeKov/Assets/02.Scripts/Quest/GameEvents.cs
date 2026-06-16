@@ -50,7 +50,7 @@ public static class GameEvents
     // 해결: 일회성 Raise를 (키+양+시각)으로 잠깐 기억해두고, 이벤트형 objective가 Activate 시
     //       LookbackWindow 내 자기 키의 발생량을 _count에 인정 + IsAlreadySatisfied로 즉시 완료.
     //       소비형(재료/연료)도 '이벤트가 났다'는 사실로 인정하므로 버퍼가 비어도 복구됨.
-    const float LookbackWindow = 2.5f;   // 갭(~1.15s)보다 넉넉히
+    const float LookbackWindow = 3.5f;   // 퀘 완료연출 갭(~1.15s) + 완료 타임아웃(3s) 위로 — 갭에 미리 한 행동도 인정(소프트락 방지)
     static readonly System.Collections.Generic.List<(string key, int amount, float time)> _recent = new();
 
     static void Record(string key, int amount)

@@ -143,6 +143,7 @@ public class TutorialOverlay : MonoBehaviour
         _spotlightId = null;
         _onContinue = null;
         _advanceKey = KeyCode.None;
+        _continueLocked = false;   // 다음 영역은 위치 새로 계산
         GameUIController.Instance?.SetTutorialCoachActive(false);   // 트래커 복귀
         SetVisible(false);
     }
@@ -293,6 +294,12 @@ public class TutorialOverlay : MonoBehaviour
         else     SetAnchors(_bannerBg, 0.12f, 0.16f, 0.88f, 0.27f);
     }
 
+    // "클릭하여 계속" 라벨 위치 - 한 코치 세션(=한 영역) 동안 고정. 첫 계산값을 잠그고 Hide서 해제.
+    // GuidedTour는 스텝 교체 시 Hide를 안 부르므로(내용만 교체) 락이 투어 내내 유지 -> 스텝마다 안 튐.
+    // 영역(인트로/공장/코어)마다는 Hide로 락이 풀려 새로 계산되니 서로 달라도 됨.
+    private bool _continueLocked;
+    private Vector2 _contAnchorMin, _contAnchorMax;
+
     // 계속 라벨 위치: 타깃이 화면 하단(yMin<0.22)이면서 가로 중앙(0.5)을 덮을 때만(퀵슬롯 바)
     // 구멍 위로 올린다. 하단-구석 패널(Status/시간막대)은 중앙 라벨과 안 겹치므로 기본 하단 유지.
     private void PositionContinue(bool hasTarget, float holeLeftX, float holeRightX, float holeBottomY, float holeTopY)
@@ -300,27 +307,41 @@ public class TutorialOverlay : MonoBehaviour
         if (_continueLabel == null) return;
         var rt = _continueLabel.rectTransform;
 
+        // 이미 이 영역에서 위치가 잡혔으면 그대로 유지 (스텝 바뀌어도 안 튐).
+        if (_continueLocked)
+        {
+            SetAnchors(rt, _contAnchorMin.x, _contAnchorMin.y, _contAnchorMax.x, _contAnchorMax.y);
+            return;
+        }
+
+        float aMinX = 0.25f, aMaxX = 0.75f, aMinY, aMaxY;
+
         // 건설 모드(건축투어): 하단에 퀵슬롯 바가 항상 있으니 어떤 칸을 강조하든 라벨을 바 위로 고정.
         bool buildMode = GameUIController.Instance != null
                       && GameUIController.Instance.GetCurrentState() == GameUIController.UIState.Build;
         if (buildMode)
         {
             // 퀵슬롯 바와 살짝 겹쳐서 조금 더 위로 올림 (#2)
-            SetAnchors(rt, 0.25f, 0.26f, 0.75f, 0.32f);
-            return;
-        }
-
-        bool coversCenterBottom = hasTarget && holeBottomY < 0.22f && holeLeftX < 0.5f && holeRightX > 0.5f;
-        if (coversCenterBottom)
-        {
-            float y0 = Mathf.Clamp(holeTopY + 0.03f, 0.14f, 0.74f);
-            float y1 = Mathf.Min(y0 + 0.05f, 0.79f);
-            SetAnchors(rt, 0.25f, y0, 0.75f, y1);
+            aMinY = 0.26f; aMaxY = 0.32f;
         }
         else
         {
-            SetAnchors(rt, 0.25f, 0.06f, 0.75f, 0.12f);   // 기본 하단(중앙)
+            bool coversCenterBottom = hasTarget && holeBottomY < 0.22f && holeLeftX < 0.5f && holeRightX > 0.5f;
+            if (coversCenterBottom)
+            {
+                aMinY = Mathf.Clamp(holeTopY + 0.03f, 0.14f, 0.74f);
+                aMaxY = Mathf.Min(aMinY + 0.05f, 0.79f);
+            }
+            else
+            {
+                aMinY = 0.06f; aMaxY = 0.12f;   // 기본 하단(중앙)
+            }
         }
+
+        SetAnchors(rt, aMinX, aMinY, aMaxX, aMaxY);
+        _contAnchorMin = new Vector2(aMinX, aMinY);
+        _contAnchorMax = new Vector2(aMaxX, aMaxY);
+        _continueLocked = true;   // 이 영역 동안 고정
     }
 
     // ── UI 생성 ───────────────────────────────────────────────────────
