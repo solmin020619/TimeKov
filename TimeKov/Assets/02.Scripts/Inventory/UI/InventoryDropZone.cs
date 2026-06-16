@@ -94,6 +94,8 @@ public class InventoryDropZone : MonoBehaviour, IDropHandler
         var fromSlot = dragged.SlotData;
         if (fromSlot == null) { dh.EndDrag(); return; }
 
+        int movedItemId = fromSlot.itemId;   // 이동 후 칸이 비므로 미리 캡처
+
         if (dh.IsSplitDrag)
         {
             int t = tgt.FindTargetSlotIndexForItem(fromSlot.itemId);
@@ -103,6 +105,10 @@ public class InventoryDropZone : MonoBehaviour, IDropHandler
         {
             src.MoveSlot(fromSlot.slotIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
         }
+
+        // 가방 -> 창고 입고면, 옮긴 아이템 카테고리 탭으로 창고 자동 전환(현재 탭이 숨기는 경우만)
+        if (depositToStorage)
+            InventoryUIController.Instance?.OnDepositedToWarehouse(movedItemId);
 
         dh.EndDrag();
     }

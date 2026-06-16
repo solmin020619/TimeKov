@@ -97,6 +97,17 @@ public class CategoryFilterUI : MonoBehaviour
         OnFilterChanged?.Invoke(_current);
     }
 
+    // 외부에서 특정 카테고리 탭으로 전환 (입고 시 옮긴 아이템 카테고리로 자동 점프).
+    // null = 전체 탭. 매칭 탭이 없으면 아무 것도 안 함.
+    public void SelectByCategory(ItemCategory? cat)
+    {
+        if (cat == null) { SetFilterByIndex(0); return; }
+        for (int i = 0; i < IndexToCategory.Length; i++)
+        {
+            if (IndexToCategory[i] == cat) { SetFilterByIndex(i); return; }
+        }
+    }
+
     // ── 탭 펼침(이름 표시 + 양옆 밀림) ──────────────────────────────
     private void InitExpandLayout()
     {
