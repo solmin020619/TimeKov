@@ -59,6 +59,17 @@ public class CategoryWidget : MonoBehaviour
         });
     }
 
+    /// <summary>설명 코치마크 퀘 완료용: 완료 연출(sweep/rise/fade) 없이 즉시 제거.
+    /// 트래커는 코치 중 이미 숨겨져 있어 깜빡임 없음. 갭이 0이 돼 다음 행동퀘가 바로 활성됨.</summary>
+    public void RemoveImmediate(Action onFinished)
+    {
+        if (_currentEntry == null) { onFinished?.Invoke(); return; }
+        var entry = _currentEntry;
+        _currentEntry = null;
+        Destroy(entry.gameObject);
+        onFinished?.Invoke();
+    }
+
     /// <summary>WaitForUIComplete 타임아웃 시 호출. 진행 중 코루틴/엔트리 강제 정리</summary>
     public void ForceCleanup()
     {
