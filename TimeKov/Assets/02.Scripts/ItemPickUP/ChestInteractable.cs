@@ -7,9 +7,7 @@
 // =====================================================================
 
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class ChestInteractable : MonoBehaviour, IInstantInteractable
 {
@@ -31,11 +29,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     [Tooltip("즉시완료(G) 시 소모 HP = openTime * 이 배율. 2면 20초 상자에 40HP(=40초) 소모.")]
     [SerializeField] private float instantHpCostMultiplier = 2f;
 
-    [Header("프롬프트 / 상태 표시 (임시 — 디자인 나오면 교체)")]
-    [Tooltip("플레이어가 이 거리(m) 안이면 'F 눌러서 열기' 프롬프트를 띄운다.")]
+    [Header("프롬프트")]
     [SerializeField] private float promptRange = 2.6f;
-    [SerializeField] private float indicatorHeight = 1.9f;
-    [SerializeField] private float indicatorWidthPx = 170f;
 
     // ── 상태 ──────────────────────────────────────────────────────────
     // Idle=잠김(걸어두기 전) / Opening=자물쇠 따는 중 / Ready=수령 가능 / Opened=잠금해제(자유 개폐, 재굴림 안 함)
@@ -50,13 +45,19 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
 
     private float InstantCost => Mathf.Max(0f, openTimeSeconds * instantHpCostMultiplier);
 
-    // 상태 표시 UI
-    private RectTransform _indRoot;
-    private Image _indFill;
-    private GameObject _indBar;
-    private TMP_Text _indText;
-    private Transform _camTr;
-    private Player _player;
+    private Player  _player;
+    private Outline _outline;
+
+    private void Awake()
+    {
+        _outline = GetComponentInChildren<Outline>(true);
+        if (_outline == null)
+            _outline = gameObject.AddComponent<Outline>();
+        _outline.OutlineMode  = Outline.Mode.OutlineVisible;
+        _outline.OutlineColor = new Color(1f, 0.85f, 0.35f);
+        _outline.OutlineWidth = 5f;
+        _outline.enabled      = false;
+    }
 
     // 인벤토리 UI 열려있을 때만 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
     public bool CanInteract
@@ -94,7 +95,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
                 break;
 
             case State.Opened:
-                ReopenPanel();               // 이미 연 상자 — 쿨 없이 즉시 다시 열기
+                if (HasItems())
+                    ReopenPanel();           // 아이템 남아있을 때만 다시 열기
                 break;
         }
         RefreshIndicator();
@@ -130,6 +132,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         }
         // Opened(잠금해제)는 절대 Idle로 안 돌아간다 = 재굴림 없음(다 비우면 빈 채로 유지).
         RefreshIndicator();
+        UpdateOutline();
     }
 
     // ── 수령: 자물쇠 따서 전리품 1회만 굴림 + 패널. 이후 이 상자는 잠금해제(재굴림 없음). ──
@@ -159,6 +162,9 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     {
         SaveActiveChestContents();   // 직전 활성 상자(또는 나 자신)의 가져간-반영 상태 보존
 
+        _activeChest = this;
+        InventoryUIController.IsChestOpen = true;   // 아이템 로드 전에 먼저 설정 (이벤트 타이밍 대비)
+
         var chestInv = InventoryManager.ChestInstance;
         if (chestInv != null)
         {
@@ -167,9 +173,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
                 foreach (var (itemId, count) in _contents)
                     chestInv.AddItem(itemId, count);
         }
-        _activeChest = this;
 
-        InventoryUIController.IsChestOpen = true;
         InventoryUIController.Instance?.Open();
     }
 
@@ -193,38 +197,53 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
 
     private void OnDisable()
     {
-        HideIndicator();
+        ChestPromptUI.GetOrCreate().HideIfOwner(this);
+        if (_outline != null) _outline.enabled = false;
     }
 
     // ── 프롬프트 / 상태 표시 ─────────────────────────────────────────────
     private void RefreshIndicator()
     {
-        var inv = InventoryUIController.Instance;
-        bool invOpen = inv != null && inv.IsOpen;
+        // GameUIController.IsUIBlocking() = 설정/인벤/퀘스트/팩토리/빌드 등 모든 UI 상태 포함
+        bool anyUIOpen = (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
+                      || (InventoryUIController.Instance != null && InventoryUIController.Instance.IsOpen);
+        var ui = ChestPromptUI.GetOrCreate();
 
-        if (_state == State.Opening)
-        {
-            ShowIndicator(true);
-            if (_indFill != null) _indFill.fillAmount = openTimeSeconds > 0f ? 1f - _timer / openTimeSeconds : 1f;
-            if (_indText != null) _indText.text = $"여는 중 {Mathf.CeilToInt(_timer)}초\nG 즉시 (HP -{Mathf.CeilToInt(InstantCost)})";
-            return;
-        }
-        if (_state == State.Ready)
-        {
-            ShowIndicator(true);
-            if (_indFill != null) _indFill.fillAmount = 1f;
-            if (_indText != null) _indText.text = "F 로 수령";
-            return;
-        }
+        if (anyUIOpen) { ui.HideIfOwner(this); return; }
 
-        // Idle / Opened = 'F 눌러서 열기' 프롬프트 (근접 시에만, 진행바 없음)
-        if (invOpen || !IsPlayerNear())
+        switch (_state)
         {
-            HideIndicator();
-            return;
+            case State.Opening:
+                if (!IsPlayerNear()) { ui.HideIfOwner(this); return; }
+                float prog = openTimeSeconds > 0f ? 1f - _timer / openTimeSeconds : 1f;
+                ui.ShowOpening(this, prog, _timer, InstantCost, () => OnInstantComplete(_player));
+                break;
+            case State.Ready:
+                if (!IsPlayerNear()) { ui.HideIfOwner(this); return; }
+                ui.ShowReady(this, () => Interact(_player));
+                break;
+            case State.Idle:
+                if (!IsPlayerNear()) { ui.HideIfOwner(this); return; }
+                ui.ShowIdle(this, InstantCost,
+                    () => Interact(_player),
+                    () => OnInstantComplete(_player));
+                break;
+            case State.Opened:
+                if (!IsPlayerNear() || !HasItems()) { ui.HideIfOwner(this); return; }
+                ui.ShowOpened(this, () => Interact(_player));
+                break;
+            default:
+                ui.HideIfOwner(this);
+                break;
         }
-        ShowIndicator(false);
-        if (_indText != null) _indText.text = "F 눌러서 열기";
+    }
+
+    private void UpdateOutline()
+    {
+        if (_outline == null) return;
+        bool near = IsPlayerNear();
+        bool show = near && !(_state == State.Opened && !HasItems());
+        if (_outline.enabled != show) _outline.enabled = show;
     }
 
     private bool IsPlayerNear()
@@ -234,82 +253,19 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         return (_player.transform.position - transform.position).sqrMagnitude <= promptRange * promptRange;
     }
 
-    private void ShowIndicator(bool withBar)
+    // 현재 이 상자에 남아있는 아이템이 있는지 확인
+    // _activeChest == this면 ChestInstance(실시간)를 직접 확인, 아니면 저장된 _contents 사용
+    private bool HasItems()
     {
-        EnsureIndicator();
-        _indRoot.gameObject.SetActive(true);
-        if (_indBar != null) _indBar.SetActive(withBar);
-    }
-
-    private void HideIndicator()
-    {
-        if (_indRoot != null) _indRoot.gameObject.SetActive(false);
-    }
-
-    private void EnsureIndicator()
-    {
-        if (_indRoot != null) return;
-
-        var go = new GameObject("ChestStatusUI");
-        go.transform.SetParent(transform, false);
-        go.transform.localPosition = Vector3.up * indicatorHeight;
-        var canvas = go.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.WorldSpace;
-        _indRoot = (RectTransform)go.transform;
-        _indRoot.sizeDelta = new Vector2(indicatorWidthPx, 64f);
-        _indRoot.localScale = Vector3.one * 0.01f;
-
-        // 텍스트 (위)
-        var txtGo = new GameObject("Text", typeof(RectTransform));
-        var trt = (RectTransform)txtGo.transform;
-        trt.SetParent(_indRoot, false);
-        trt.anchorMin = new Vector2(0, 0); trt.anchorMax = new Vector2(1, 1);
-        trt.offsetMin = new Vector2(0, 14); trt.offsetMax = Vector2.zero;
-        _indText = txtGo.AddComponent<TextMeshProUGUI>();
-        _indText.alignment = TextAlignmentOptions.Bottom;
-        _indText.fontSize = 16f;
-        _indText.color = new Color(1f, 0.86f, 0.4f, 1f);
-        _indText.fontStyle = FontStyles.Bold;
-        _indText.raycastTarget = false;
-
-        // 진행 바 (아래) — 걸어두기/수령 때만 표시, 프롬프트일 땐 숨김
-        var bgGo = new GameObject("BarBG", typeof(RectTransform));
-        var brt = (RectTransform)bgGo.transform;
-        brt.SetParent(_indRoot, false);
-        brt.anchorMin = new Vector2(0, 0); brt.anchorMax = new Vector2(1, 0); brt.pivot = new Vector2(0.5f, 0f);
-        brt.sizeDelta = new Vector2(-10, 10); brt.anchoredPosition = Vector2.zero;
-        var bg = bgGo.AddComponent<Image>();
-        bg.color = new Color(0.05f, 0.07f, 0.1f, 0.8f);
-        bg.raycastTarget = false;
-        _indBar = bgGo;
-
-        var fillGo = new GameObject("BarFill", typeof(RectTransform));
-        var frt = (RectTransform)fillGo.transform;
-        frt.SetParent(bgGo.transform, false);
-        frt.anchorMin = Vector2.zero; frt.anchorMax = Vector2.one;
-        frt.offsetMin = Vector2.zero; frt.offsetMax = Vector2.zero;
-        _indFill = fillGo.AddComponent<Image>();
-        _indFill.sprite = UISpriteFactory.RoundedRect(16, 4);
-        _indFill.type = Image.Type.Filled;
-        _indFill.fillMethod = Image.FillMethod.Horizontal;
-        _indFill.fillOrigin = (int)Image.OriginHorizontal.Left;
-        _indFill.color = new Color(1f, 0.78f, 0.18f, 1f);
-        _indFill.fillAmount = 0f;
-        _indFill.raycastTarget = false;
-
-        _indRoot.gameObject.SetActive(false);
-    }
-
-    private void LateUpdate()
-    {
-        if (_indRoot == null || !_indRoot.gameObject.activeSelf) return;
-        if (_camTr == null)
+        if (_activeChest == this)
         {
-            var cam = Camera.main;
-            if (cam == null) return;
-            _camTr = cam.transform;
+            var ci = InventoryManager.ChestInstance;
+            if (ci == null) return false;
+            foreach (var slot in ci.GetSlots())
+                if (!slot.IsEmpty) return true;
+            return false;
         }
-        _indRoot.forward = _camTr.forward;
+        return _contents != null && _contents.Count > 0;
     }
 
     // ── 드롭 롤 ───────────────────────────────────────────────────────

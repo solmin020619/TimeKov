@@ -295,7 +295,18 @@ public class InventoryUIController : MonoBehaviour
         var gui = GameUIController.Instance;
         if (gui != null && gui.IsUIBlocking())
         {
-            Debug.Log($"[InventoryUI] Open 차단 — 현재 UI 상태: {gui.GetCurrentState()}");
+            // 인벤토리가 이미 열려있는 상태에서 상자 열기 요청이면 패널만 재구성
+            if (_isOpen && IsChestOpen)
+            {
+                IsInBase = false;
+                if (warehousePanel != null) warehousePanel.SetActive(false);
+                if (chestPanel != null) chestPanel.SetActive(true);
+                if (chestGridUI != null && InventoryManager.ChestInstance != null)
+                    chestGridUI.Bind(InventoryManager.ChestInstance);
+                if (bagPanel != null) bagPanel.SetActive(true);
+            }
+            else
+                Debug.Log($"[InventoryUI] Open 차단 — 현재 UI 상태: {gui.GetCurrentState()}");
             return;
         }
 
