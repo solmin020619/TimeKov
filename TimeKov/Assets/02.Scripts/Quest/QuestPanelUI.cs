@@ -105,6 +105,8 @@ public class QuestPanelUI : MonoBehaviour
 
     void HandleQuestCompleted(CategoryRuntime rt, QuestSO q)
     {
+        // 설명 코치마크 퀘 = '완료' 토스트 없음 (읽기만 한 거라 완료 팡파레가 어리둥절하게 함)
+        if (IsExplanationQuest(q)) return;
         if (toast == null) return;
 
         // 토스트가 hold 끝나고 좌측으로 사라지기 시작하는 시점 = 다음 QuestEntry의 iconAlert→iconNormal 전환 시점
@@ -129,12 +131,15 @@ public class QuestPanelUI : MonoBehaviour
     }
 
     /// <summary>타임아웃. 위젯 비활성/파괴로 콜백 못 받아도 매니저 안 멈춤</summary>
-    IEnumerator WaitForUIComplete(CategoryRuntime rt, QuestSO _)
+    IEnumerator WaitForUIComplete(CategoryRuntime rt, QuestSO q)
     {
         if (!_widgets.TryGetValue(rt, out var w) || w == null) yield break;
 
         bool done = false;
-        w.PlayCompleteAndRemove(() => done = true);
+        if (IsExplanationQuest(q))
+            w.RemoveImmediate(() => done = true);   // 설명퀘 = 완료연출 없이 즉시 제거 -> 갭 0, 다음 행동퀘 바로 활성
+        else
+            w.PlayCompleteAndRemove(() => done = true);
 
         float t = 0f;
         while (!done && t < completionTimeoutSec)
@@ -148,6 +153,15 @@ public class QuestPanelUI : MonoBehaviour
             w.ForceCleanup();
             Debug.LogWarning($"[QuestPanelUI] Completion animation timeout for {rt.data.id}");
         }
+    }
+
+    // 순수 설명(코치마크) 퀘 = 모든 objective가 설명형(Continue/GuidedTour). 완료 시 토스트/완료연출 생략.
+    static bool IsExplanationQuest(QuestSO q)
+    {
+        if (q == null || q.objectives == null || q.objectives.Length == 0) return false;
+        foreach (var o in q.objectives)
+            if (o == null || !o.IsExplanation) return false;
+        return true;
     }
 
     // TAB 키 토글 제거 — TAB은 인벤토리(InventoryUIController)가 단독 사용

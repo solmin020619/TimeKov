@@ -45,6 +45,9 @@ public abstract class ObjectiveSO : ScriptableObject
 
     public virtual string GetDisplayLabel() => label;
 
+    // 순수 설명/코치마크(클릭하여 계속) objective인지. true면 완료 시 트래커 완료배너/토스트를 생략한다.
+    public virtual bool IsExplanation => false;
+
     public void ActivateInternal()
     {
         _isCompleted = false;

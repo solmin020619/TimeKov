@@ -31,6 +31,9 @@ public class GuidedTourObjective : ObjectiveSO
     // 입력형(클릭/키)이라 OnUIActivated (슬라이드 인 끝난 뒤 활성)
     public override ActivationTiming Timing => ActivationTiming.OnUIActivated;
 
+    // 순수 설명 코치마크(여러 스텝) - 완료 시 트래커 완료배너/토스트 생략
+    public override bool IsExplanation => true;
+
     public override void Activate()
     {
         _index = 0;
