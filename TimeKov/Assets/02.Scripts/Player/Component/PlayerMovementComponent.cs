@@ -51,6 +51,11 @@ public class PlayerMovementComponent : MonoBehaviour
     private const float POST_UNLOCK_PHYS = 0.15f; // 물리 dead zone 길이
     private const float POST_UNLOCK_ANIM = 0.20f; // anim sync 길이 (dead zone + 1프레임 여유)
 
+    // 사망 시 시체를 지면 경사에 맞춰 눕히기 (경사면 파묻힘 방지)
+    private bool       _deathAligned;            // 이번 사망에서 목표 회전을 이미 잡았는지
+    private Quaternion _deathTargetRot;          // 지면 법선에 정렬된 목표 회전
+    private const float CORPSE_ALIGN_SPEED = 8f; // 경사 정렬 슬러프 속도
+
     // Slash
     private bool _isSlashing;
     private float _slashTimer;
@@ -109,6 +114,30 @@ public class PlayerMovementComponent : MonoBehaviour
     public void UnfreezeOnRespawn()
     {
         _rb.isKinematic = false;
+
+        // 사망 중 지면 경사에 맞춰 기울였던 회전을 수직(yaw만 유지)으로 복원.
+        // 안 하면 부활 후 기울어진 채 시작했다가 HandleRotation이 천천히 세워 어색함.
+        Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        if (flatFwd.sqrMagnitude < 1e-4f) flatFwd = Vector3.forward;
+        transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
+        _deathAligned = false;
+    }
+
+    // 사망 시 시체를 지면 경사면을 따라 눕힌다 (경사에서 누운 메시가 지형에 파묻히는 것 방지).
+    // 캡슐을 지면 법선 방향으로 기울여, 누운 사망 애니메이션이 경사면 표면에 얹히게 한다.
+    // 평지(법선=up)에선 목표 회전이 수직이라 기울지 않음. 카메라는 회전 비의존이라 영향 없음.
+    void AlignCorpseToSlope()
+    {
+        if (!_deathAligned)
+        {
+            Vector3 n = _smoothedGroundNormal;
+            Vector3 fwd = Vector3.ProjectOnPlane(transform.forward, n);
+            if (fwd.sqrMagnitude < 1e-4f) fwd = Vector3.ProjectOnPlane(Vector3.forward, n);
+            _deathTargetRot = Quaternion.LookRotation(fwd.normalized, n);
+            _deathAligned = true;
+        }
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation, _deathTargetRot, Time.fixedDeltaTime * CORPSE_ALIGN_SPEED);
     }
 
     void Update()
@@ -132,6 +161,23 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void FixedUpdate()
     {
+        // 사망 시 모든 물리 이동 정지 (경사면 미끄러짐 방지)
+        // FreezeOnDeath가 kinematic으로 전환하지만, 전환 직전 1프레임이나
+        // HandleGravity의 경사 밀착(중력 Y를 경사면 접선으로 투영)이 잔류 XZ 속도를
+        // 다시 만들 수 있어, 핸들러 진입 전에 여기서 확실히 차단한다.
+        if (_player.Stat.IsDead)
+        {
+            if (!_rb.isKinematic)
+            {
+                _rb.linearVelocity  = Vector3.zero;
+                _rb.angularVelocity = Vector3.zero;
+            }
+            _currentSpeed = 0f;
+            AlignCorpseToSlope();
+            return;
+        }
+        _deathAligned = false;  // 살아있으면 다음 사망 때 다시 정렬하도록 리셋
+
         HandleJump();
         HandleSlash();
         HandleMove();
