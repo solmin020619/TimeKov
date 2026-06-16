@@ -410,6 +410,11 @@ public class InventoryUIController : MonoBehaviour
         // 드래그 중이었으면 강제 종료 (ESC로 닫을 때 Ghost 화면 잔재 방지)
         InventoryDragHandler.Instance?.EndDrag();
 
+        // 인벤 닫으면 NEW 뱃지 일괄 소멸 (한 번 열어 봤으면 인식 -> 다시 열면 그 자리에 소모품 마커가 뜸)
+        InventoryManager.Instance?.ClearAllNewFlags();
+        InventoryManager.StorageInstance?.ClearAllNewFlags();
+        InventoryManager.ChestInstance?.ClearAllNewFlags();
+
         // 창고 재진입 플래그 초기화 (다음 TAB 시 창고가 열리지 않도록)
         IsInBase = false;
 

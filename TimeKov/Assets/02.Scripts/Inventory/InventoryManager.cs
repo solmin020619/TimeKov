@@ -660,6 +660,19 @@ public class InventoryManager : MonoBehaviour
         if (slot != null) slot.isNew = false;
     }
 
+    // 모든 칸 NEW 뱃지 일괄 해제 (인벤 닫을 때 = 유저가 한 번 봤으니 인식 처리). 바뀐 게 있으면 UI 갱신.
+    public void ClearAllNewFlags()
+    {
+        int n = GetMaxSlots();
+        bool any = false;
+        for (int i = 0; i < n; i++)
+        {
+            var slot = GetSlot(i);
+            if (slot != null && slot.isNew) { slot.isNew = false; any = true; }
+        }
+        if (any) OnInventoryChanged?.Invoke();
+    }
+
     // UI 강제 갱신
     public void ForceRefreshUI()
     {

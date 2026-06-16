@@ -448,6 +448,21 @@ public static class InventoryUIBuilder
         var auGrad = aurora.GetComponent<UIFrostGradient>(); if (auGrad == null) auGrad = aurora.gameObject.AddComponent<UIFrostGradient>();
         auGrad.topColor = new Color(1, 1, 1, 0f); auGrad.bottomColor = new Color(1, 1, 1, 1f);
 
+        // 소모품 표시 배지 (좌상단). 소모품 아이템일 때만 InventorySlotUI가 런타임에 켠다. item_marker = clggdesign.
+        var consumable = t.Find("ConsumableBadge") as RectTransform;
+        if (consumable == null)
+        {
+            var cbGo = new GameObject("ConsumableBadge", typeof(RectTransform), typeof(Image));
+            consumable = cbGo.GetComponent<RectTransform>(); consumable.SetParent(t, false);
+        }
+        consumable.anchorMin = consumable.anchorMax = new Vector2(0, 1); consumable.pivot = new Vector2(0, 1);
+        consumable.anchoredPosition = new Vector2(4, -4); consumable.sizeDelta = new Vector2(26, 26);
+        var cbImg = consumable.GetComponent<Image>();
+        var markerSpr = LoadPartSprite(PartDir + "/item_marker.png", Vector4.zero);
+        cbImg.sprite = markerSpr; cbImg.type = Image.Type.Simple; cbImg.color = Color.white;
+        cbImg.raycastTarget = false; cbImg.preserveAspect = true;
+        cbImg.enabled = false;   // 기본 숨김 - 소모품일 때만 런타임에 켜짐
+
         // ItemIcon -> 칸 채우기(stretch+여백6). 90칸이면 78로 동일, 큰 칸(공장 등)이면 그만큼 커짐. preserveAspect로 찌그러짐 방지.
         var ic = t.Find("ItemIcon") as RectTransform;
         if (ic != null)
@@ -496,6 +511,7 @@ public static class InventoryUIBuilder
             var hb = sso.FindProperty("hoverBorderColor"); if (hb != null) hb.colorValue = RGBA(255, 255, 255, 0.5f); // 호버 흰 테두리
             var cc = sso.FindProperty("countChip"); if (cc != null && chipGo != null) cc.objectReferenceValue = chipGo;
             var ga = sso.FindProperty("gradeAurora"); if (ga != null) ga.objectReferenceValue = auImg;
+            var cb = sso.FindProperty("consumableBadge"); if (cb != null) cb.objectReferenceValue = cbImg;
             sso.ApplyModifiedProperties();
         }
 
@@ -521,7 +537,7 @@ public static class InventoryUIBuilder
         var newBadge = t.Find("NewBedge") as RectTransform;
         if (newBadge != null)
         {
-            // NEW 배지 = 좌상단 안쪽 (우상단 수량칩과 안 겹치고, 슬롯 밖으로 안 삐져나가 옆칸에 안 가림)
+            // NEW 배지 = 좌상단 코너 (소모품 마커와 같은 자리). 둘은 상호배타라 안 겹침: NEW 먼저, 사라지면 마커.
             newBadge.anchorMin = newBadge.anchorMax = new Vector2(0, 1); newBadge.pivot = new Vector2(0, 1);
             newBadge.anchoredPosition = new Vector2(4, -4); newBadge.sizeDelta = new Vector2(32, 16);
         }
@@ -537,6 +553,7 @@ public static class InventoryUIBuilder
         if (chipGo != null) chipGo.transform.SetAsLastSibling();
         if (at != null) at.SetAsLastSibling();
         if (newBadge != null) newBadge.SetAsLastSibling();
+        if (consumable != null) consumable.SetAsLastSibling();   // 소모품 배지 = 최상단(좌상단 코너)
 
         PrefabUtility.SaveAsPrefabAsset(root, SlotPrefabPath);
         PrefabUtility.UnloadPrefabContents(root);
