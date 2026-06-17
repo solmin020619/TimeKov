@@ -118,6 +118,13 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleFollow()
     {
+        // 일시정지(영상 팝업/설정 등 timeScale=0) 가드.
+        // deltaTime=0 에서 Mathf.SmoothDamp 는 current==target 일 때 내부 속도를 0/0=NaN 으로 만든다
+        // (Unity 내부 overshoot 보정이 /deltaTime 를 함). 그 NaN 속도가 정지 해제 후 카메라 Y 를
+        // 영구 NaN 으로 오염시켜 'transform.position ... NaN' 에러가 매 프레임 떴다.
+        // 정지 중엔 따라갈 것도 없으니 보간 자체를 생략.
+        if (Time.deltaTime <= 0f) return;
+
         Vector3 cur = transform.position;
         Vector3 desired = FollowTarget.position + FollowOffset;
 
@@ -158,7 +165,19 @@ public class ThirdPersonCamera : MonoBehaviour
         float nx = Mathf.SmoothDamp(cur.x, desired.x, ref _followVelocity.x, FollowSmoothTime);
         float nz = Mathf.SmoothDamp(cur.z, desired.z, ref _followVelocity.z, FollowSmoothTime);
         float ny = Mathf.SmoothDamp(cur.y, desired.y, ref _followVelocity.y, FollowVerticalSmoothTime);
-        transform.position = new Vector3(nx, ny, nz);
+        Vector3 next = new Vector3(nx, ny, nz);
+
+        // 방어: 속도 오염/타겟 위치 비정상 등으로 NaN/Inf 가 생기면 즉시 스냅+속도 리셋해 자가복구.
+        // (한 번 NaN 이 되면 cur 로 되먹임돼 매 프레임 NaN 이 유지되므로 끊어줘야 함.)
+        if (float.IsNaN(next.x) || float.IsNaN(next.y) || float.IsNaN(next.z) ||
+            float.IsInfinity(next.x) || float.IsInfinity(next.y) || float.IsInfinity(next.z))
+        {
+            next = FollowTarget.position + FollowOffset;
+            _followVelocity = Vector3.zero;
+            _lookAheadOffset = Vector3.zero;
+            _lookAheadVel = Vector3.zero;
+        }
+        transform.position = next;
 
         _lastTargetPos = FollowTarget.position;
         _hasLastTargetPos = true;
