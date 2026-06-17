@@ -55,7 +55,19 @@ public class BuildManager : MonoBehaviour
     public AudioClip demolishClip;
     [Range(0f, 1f)] public float demolishVolume = 1f;
 
-    private bool isDemolishMode = false;
+    private bool _isDemolishMode = false;
+    // 해제 모드 on/off 가 바뀔 때마다 BeltSegment 에 알려 모든 벨트를 흰색으로 띄운다.
+    // (설치 모드의 SuppressConnectionColor 와 동일한 방식 — 진입 시 전부 흰색, 호버만 빨강)
+    private bool isDemolishMode
+    {
+        get => _isDemolishMode;
+        set
+        {
+            if (_isDemolishMode == value) return;
+            _isDemolishMode = value;
+            TIMEKOV.Factory.BeltSegment.DemolishModeActive = value;
+        }
+    }
     private BuildDemolisher demolisher;
     private BuildPlacementValidator validator;
     private FacilityPlacer placer;

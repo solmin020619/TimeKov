@@ -2,8 +2,8 @@
 // BuildDemolisher.cs
 // 해제(Demolish) 모드의 실행 전담 클래스.
 // 모드 on/off 와 입력 토글은 BuildManager 가 소유(모드 책임)하고,
-// 실제 해제 동작(레이캐스트/호버 하이라이트/건물.레일 제거/레일 오버레이)은 여기가 담당.
-// 설정값(마스크/오디오/오버레이)은 BuildManager 인스펙터에 남겨두고 owner 통해 읽는다
+// 실제 해제 동작(레이캐스트/호버 하이라이트/건물.레일 제거)은 여기가 담당.
+// 설정값(마스크/오디오)은 BuildManager 인스펙터에 남겨두고 owner 통해 읽는다
 // (RailBuildManager 가 owner.mainCam 등을 읽는 것과 동일 패턴 -> 인스펙터 재연결 불필요).
 // =====================================================================
 
@@ -21,14 +21,13 @@ public class BuildDemolisher
 
     // 레일 해제용 hover 상태
     private RailPiece hoveredRailPiece;
+    private BeltSegment hoveredBeltSegment;
     private bool hasHoveredRail = false;
 
     // Shift 드래그 연속 해제 상태
     private bool isDragDemolishing = false;
     private readonly HashSet<PlacedBuilding> dragDemolishedBuildings = new HashSet<PlacedBuilding>();
     private readonly HashSet<Vector2Int> dragDemolishedRailCells = new HashSet<Vector2Int>();
-
-    private GameObject _railOverlayGO;
 
     public BuildDemolisher(BuildManager owner, GridOccupancy occupancy)
     {
@@ -221,69 +220,19 @@ public class BuildDemolisher
         hoveredRailPiece = rail;
         hasHoveredRail = true;
 
-        ShowRailOverlay(rail);
+        // 네모 칸 오버레이 대신 벨트 자체 텍스처를 강한 빨강으로 칠해 철거 대상을 표시.
+        hoveredBeltSegment = rail.GetComponentInChildren<BeltSegment>(true);
+        hoveredBeltSegment?.SetDemolishHighlight(true);
     }
 
     private void ClearHoveredRail()
     {
         if (!hasHoveredRail) return;
 
-        HideRailOverlay();
+        hoveredBeltSegment?.SetDemolishHighlight(false);
+        hoveredBeltSegment = null;
         hoveredRailPiece = null;
         hasHoveredRail = false;
-    }
-
-    private void ShowRailOverlay(RailPiece rail)
-    {
-        if (_railOverlayGO == null)
-            _railOverlayGO = CreateRailOverlay();
-
-        float cs = owner.RailManager != null ? owner.RailManager.CellSizeRail : owner.cellSize;
-        float y = owner.RailManager != null ? owner.RailManager.FixedYRail : owner.fixedY;
-        Vector3 center = rail.transform.position;
-        center.y = y + 0.02f;
-
-        _railOverlayGO.transform.position = center;
-        _railOverlayGO.transform.rotation = Quaternion.identity;
-        _railOverlayGO.transform.localScale = new Vector3(cs * 0.95f, Mathf.Max(0.01f, owner.railDemolishOverlayHeight), cs * 0.95f);
-        _railOverlayGO.SetActive(true);
-    }
-
-    private void HideRailOverlay()
-    {
-        if (_railOverlayGO != null)
-            _railOverlayGO.SetActive(false);
-    }
-
-    private GameObject CreateRailOverlay()
-    {
-        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        go.name = "_RailDemolishOverlay";
-        var col = go.GetComponent<Collider>();
-        if (col != null) Object.Destroy(col);
-
-        var rend = go.GetComponent<MeshRenderer>();
-        if (rend != null)
-        {
-            if (owner.railDemolishOverlayMaterial != null)
-            {
-                rend.sharedMaterial = owner.railDemolishOverlayMaterial;
-            }
-            else
-            {
-                Shader shader = Shader.Find("Unlit/Color");
-                if (shader != null)
-                {
-                    var mat = new Material(shader);
-                    mat.color = new Color(1f, 0.2f, 0.2f, 0.5f);
-                    rend.sharedMaterial = mat;
-                }
-            }
-            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            rend.receiveShadows = false;
-        }
-        go.SetActive(false);
-        return go;
     }
 
     private void PlayDemolishSound()

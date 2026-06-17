@@ -113,6 +113,10 @@ public class RailBuildManager : MonoBehaviour
         ClearHoverSourcePreview();
         isRailModeActive = false;
         BeltSegment.SuppressConnectionColor = false;  // 보류 해제 → 다음 프레임부터 정상 판정
+
+        // 레일 모드에서 한 모든 편집 결과를 반영해 벨트 연결을 최종 재감지(안전망).
+        // 라우팅 중 포트에 안 닿은 채 모드를 끝내도 이은 벨트가 빨강으로 안 남게 한다.
+        BeltSegment.ReconnectAll();
         CancelCurrentRouteStateOnly();
         ResetPreviewCache();
         ClearPathPreviewInstances();
@@ -644,6 +648,10 @@ public class RailBuildManager : MonoBehaviour
         // C 한 칸만 세팅하면 기존 체인과 어긋나 접합부 화살표가 뒤집힌다.
         ReflowConnectedChain(cell);
 
+        // gap-fill 로 레일 형상은 이어졌으니 벨트 연결(파랑/운송)도 다시 감지하게 한다.
+        // (CompleteRoute 와 동일 — 이게 없으면 새로 생긴 벨트가 빨강으로 남는다)
+        BeltSegment.ReconnectAll();
+
         RefreshIndicators();
         Log($"[Rail] Gap-filled at {cell} ({a} <-> {b})");
         return true;
@@ -924,6 +932,20 @@ public class RailBuildManager : MonoBehaviour
             // 각 칸의 증분 flowFrom 이 남아 화살표가 군데군데 반대로 향할 수 있다.
             // 매 커밋마다 체인 전체 flow 를 일관되게 재계산해 방향을 정규화한다.
             ReflowConnectedChain(currentEndCell);
+
+            // 포트에 안 닿아도 이 커밋으로 기존 레일/벨트와 형상이 이어졌을 수 있으니
+            // 벨트 연결(파랑/운송)도 다시 감지하게 한다. (안 하면 이은 벨트가 빨강으로 남음)
+            BeltSegment.ReconnectAll();
+
+            // reachesPort 가 true 인데 currentEndCell 이 포트가 아니면 = 기존 레일에 '합류'해 끝난 경우.
+            // 기존 네트워크에 연결됐으니 라우팅을 종료한다 (드래그 중간 커밋과 구분).
+            if (reachesPort)
+            {
+                CancelCurrentRouteStateOnly();
+                ResetPreviewCache();
+                ClearPathPreviewInstances();
+                RefreshIndicators();
+            }
         }
     }
 
@@ -1160,8 +1182,21 @@ public class RailBuildManager : MonoBehaviour
             return false;
         }
 
-        // 이미 깔린 레일 칸은 경로 후보에서 제외 (allowExisting:false) — 자동 경로가
-        // 기존 레일 위로 겹쳐 계산되지 않게 한다. (포트로의 마무리는 위에서 별도 처리)
+        // 진행 방향에 이미 깔린 레일이 있으면 그 레일에 '합류'하고 경로를 끝낸다.
+        // 기존 레일 위를 계속 따라가며 겹치는 것은 막되(여기서 finish 로 종료),
+        // 인접 레일과의 합류는 허용해 끊긴 벨트가 자동으로 다시 이어지게 한다.
+        // (합류 칸은 빈 연결 슬롯이 있어야 함 — head-on 으로 붙을 수 있을 때만)
+        if (railMap.TryGetValue(candidate, out RailPiece existing) && existing != null)
+        {
+            if (CanAddConnection(existing, simEnd))
+            {
+                isFinish = true;   // 합류 지점에서 종료 (기존 레일 위로 겹쳐 진행하지 않음)
+                return true;
+            }
+            return false;
+        }
+
+        // 빈 칸만 여기까지 온다 (기존 레일은 위에서 합류/제외 처리됨).
         return CanUseCellAsRail(candidate, simEnd, allowExisting: false);
     }
 

@@ -55,6 +55,14 @@ namespace TIMEKOV.Factory
                  "화살표가 과하게 빛난다. 1~2 정도로 낮추면 눈 안 아프게 부드러워짐.")]
         public float buildingIntensity = 1.5f;
 
+        [Tooltip("해제(철거) 모드에서 마우스를 올렸을 때의 글로우 색 (HDR). 매우 강한 빨강.\n" +
+                 "이미 빨강(미연결)인 벨트 위에서도 호버가 또렷이 구분되도록 미연결보다 훨씬 진하게.")]
+        [ColorUsage(true, true)]
+        public Color demolishHighlightColor = new Color(12f, 0f, 0f, 0f);
+
+        [Tooltip("해제 호버 글로우 밝기 배수(_intelsity). 미연결(8)보다 크게 잡아 더 강렬하게.")]
+        public float demolishHighlightIntensity = 18f;
+
         [Tooltip("연결이 끊긴 뒤 빨강으로 바꾸기까지의 유예 시간(초).\n" +
                  "다른 레일 철거 시 재감지로 잠깐 연결이 비는 동안 깜빡이지 않게 함.")]
         public float disconnectColorGrace = 0.3f;
@@ -86,15 +94,39 @@ namespace TIMEKOV.Factory
         /// 보류 중엔 연결된 건 파랑, 아직 안 된 건 빨강 대신 중립(흰색)으로 둔다.</summary>
         public static bool SuppressConnectionColor;
 
+        /// <summary>해제(철거) 모드 진입 여부. BuildManager 가 토글.
+        /// 진입 중엔 연결 상태와 무관하게 모든 벨트를 흰색(작업 중 색)으로 둔다.
+        /// 단, 마우스 호버한 벨트만 빨강(Demolish)으로 표시.</summary>
+        public static bool DemolishModeActive;
+
         // 벨트 색상 상태. Connected=파랑(원래색), Disconnected=빨강(확정 미연결),
-        // Building=흰색(작업 중 보류).
-        private enum ColorState { Connected, Disconnected, Building }
+        // Building=흰색(작업 중 보류), Demolish=강렬한 빨강(해제 모드 호버).
+        private enum ColorState { Connected, Disconnected, Building, Demolish }
+
+        // 해제(철거) 모드에서 마우스를 올렸을 때 — 연결 상태와 무관하게 강한 빨강으로 표시.
+        private bool _demolishHighlighted;
+
+        /// <summary>해제 모드 호버 시 BuildDemolisher 가 토글. true면 벨트 자체 텍스처를
+        /// 강한 빨강(미연결 색)으로 칠해 철거 대상을 표시한다. 호버 해제 시 원래 색 복귀.</summary>
+        public void SetDemolishHighlight(bool on) => _demolishHighlighted = on;
 
         // 연결 상태가 바뀌는 경로가 여러 곳(감지/전파/재연결/철거)이라
         // 매 프레임 IsReady 를 폴링해 색을 갱신한다. 상태가 그대로면 즉시 반환해 비용 거의 없음.
         private void Update()
         {
-            if (IsReady)
+            if (_demolishHighlighted)
+            {
+                // 해제 모드 호버 중 — 매우 강렬한 빨강 고정 (연결/미연결 판정 보류)
+                _disconnectTimer = 0f;
+                ApplyColorState(ColorState.Demolish);
+            }
+            else if (DemolishModeActive)
+            {
+                // 해제 모드 진입 — 호버 안 한 벨트는 전부 흰색(작업 중 색)으로
+                _disconnectTimer = 0f;
+                ApplyColorState(ColorState.Building);
+            }
+            else if (IsReady)
             {
                 // 연결됨 → 즉시 파랑
                 _disconnectTimer = 0f;
@@ -127,6 +159,9 @@ namespace TIMEKOV.Factory
         private static readonly int RailColorId     = Shader.PropertyToID("_rail_color");
         private static readonly int BaseColorId     = Shader.PropertyToID("_Base_Color");
         private static readonly int IntensityId     = Shader.PropertyToID("_intelsity");
+        // 코너(rail_turn) 전용 노이즈 스케일 — 직선 레일 셰이더엔 없음(무시됨).
+        // 흰색/빨강 등 오버라이드 상태에서 0으로 눌러 코너의 얼룩(노이즈)을 없애 직선과 같게 만든다.
+        private static readonly int NoiseScaleId    = Shader.PropertyToID("_noise_scale");
 
         // 빨강(미연결) 상태 밝기. 5~8 정도가 눈 안 아프면서 또렷하게 보임.
         private const float DisconnectedIntensity = 8f;
@@ -157,17 +192,31 @@ namespace TIMEKOV.Factory
                     continue;
                 }
 
-                Color glow = state == ColorState.Disconnected ? disconnectedColor : buildingColor;
-                Color rail = state == ColorState.Disconnected
-                    ? new Color(0.30f, 0.05f, 0.05f, 0f)  // 빨강 레일 바닥
-                    : buildingRailColor;                   // 중립 레일 바닥
-                // 작업 중(흰색)은 밝기를 크게 낮춰 블룸/눈부심 제거, 빨강은 또렷하게 유지.
-                float intensity = state == ColorState.Disconnected ? DisconnectedIntensity : buildingIntensity;
+                Color glow = state switch
+                {
+                    ColorState.Demolish     => demolishHighlightColor,
+                    ColorState.Disconnected => disconnectedColor,
+                    _                       => buildingColor,
+                };
+                Color rail = state switch
+                {
+                    ColorState.Demolish     => new Color(0.55f, 0.02f, 0.02f, 0f),  // 강렬한 빨강 레일 바닥
+                    ColorState.Disconnected => new Color(0.30f, 0.05f, 0.05f, 0f),  // 빨강 레일 바닥
+                    _                       => buildingRailColor,                    // 중립 레일 바닥
+                };
+                // 작업 중(흰색)은 밝기를 크게 낮춰 블룸/눈부심 제거, 빨강/해제는 또렷하게 유지.
+                float intensity = state switch
+                {
+                    ColorState.Demolish     => demolishHighlightIntensity,
+                    ColorState.Disconnected => DisconnectedIntensity,
+                    _                       => buildingIntensity,
+                };
 
                 _mpb.Clear();   // 이전 상태의 잔여 오버라이드 제거 후 깨끗이 설정
                 _mpb.SetColor(FresnelColorId, glow);   // 글로우/프레넬
                 _mpb.SetColor(RailColorId, rail);      // 레일 바닥 틴트
                 _mpb.SetFloat(IntensityId, intensity); // 밝기 배수 (화살표 눈부심 제어)
+                _mpb.SetFloat(NoiseScaleId, 0f);       // 코너 노이즈 제거 → 직선과 동일한 매끈한 색
                 r.SetPropertyBlock(_mpb);
             }
 
@@ -240,10 +289,9 @@ namespace TIMEKOV.Factory
 
         // ── 수동 재연결 (Inspector 우클릭 또는 인게임 호출) ──────────────
 
-        [ContextMenu("연결 재감지 (Reconnect)")]
-        public void Reconnect()
+        /// <summary>기존 연결/소스/타깃을 모두 끊고 셀 캐시를 무효화한다(감지 전 단계).</summary>
+        private void ClearConnections()
         {
-            // 기존 연결 초기화
             if (prevSegment != null && prevSegment.nextSegment == this) prevSegment.nextSegment = null;
             if (nextSegment != null && nextSegment.prevSegment == this) nextSegment.prevSegment = null;
             sourceM?.RemoveOutputBelt(this);
@@ -255,20 +303,54 @@ namespace TIMEKOV.Factory
             _localSource      = null;
             _localTarget      = null;
             _cellsInitialized = false;
+        }
 
-            // 재감지 → 재전파
+        [ContextMenu("연결 재감지 (Reconnect)")]
+        public void Reconnect()
+        {
+            ClearConnections();
+
+            // 단일 세그먼트 재연결(인스펙터/개별 호출): 다른 세그먼트가 준비될 시간을 위해 비동기.
             StartCoroutine(DetectNextFrame());
         }
 
         /// <summary>
         /// 씬의 모든 벨트 연결을 다시 감지한다.
         /// 설비를 짓거나 철거한 직후 호출 — 벨트를 먼저 깔고 설비를 나중에 지어도 연결된다.
+        ///
+        /// 한 프레임 뒤로 미뤄서(코얼레싱) 실제 감지를 수행한다. 레일을 새로 깔거나 철거하면
+        /// RailPiece.ApplyVisual 이 이웃 벨트의 비주얼을 Destroy 후 재생성하는데,
+        /// Destroy 는 프레임 끝에 반영되므로 호출 즉시점엔 같은 칸에 '곧 파괴될 옛 세그먼트'와
+        /// '새 세그먼트'가 All 에 함께 들어 있다. 이때 바로 감지하면 옛 세그먼트에 잘못 엮였다가
+        /// 프레임 끝 파괴로 체인이 끊겨, 끊었다 다시 이어도 연결이 안 되던(빨강 유지) 문제가 났다.
+        /// 한 프레임 기다린 뒤 죽은 세그먼트가 All 에서 빠지고 나서 감지하면 깔끔히 엮인다.
         /// </summary>
         public static void ReconnectAll()
         {
+            BeltReconnectRunner.Schedule();
+        }
+
+        /// <summary>실제 재감지 — 모든 셀을 먼저 초기화한 뒤 동기 3단계로 처리해
+        /// 실행 순서와 무관하게 항상 완전히 엮이게 한다. (BeltReconnectRunner 가 한 프레임 뒤 호출)</summary>
+        internal static void ReconnectAllNow()
+        {
             var snapshot = new List<BeltSegment>(All);
+
+            // 1) 전부 연결 해제 + 셀 재초기화
             foreach (var seg in snapshot)
-                if (seg != null) seg.Reconnect();
+            {
+                if (seg == null) continue;
+                seg.ClearConnections();
+                seg.InitCells();
+            }
+
+            // 2) 연결 감지 (모든 셀이 초기화된 상태라 실행 순서 무관)
+            foreach (var seg in snapshot)
+                if (seg != null) seg.DetectConnections();
+
+            // 3) 체인 전파 → source/target 확정
+            foreach (var seg in snapshot)
+                if (seg != null) seg.PropagateChain();
         }
 
         // ── 연결 감지 (그리드 기반) ──────────────────────────────────────
