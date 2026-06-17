@@ -136,10 +136,18 @@ public static class TutorialAssetBuilder
             CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
+        // [영상] 상자 (F 열기 / G 즉시) - 전리품 다음에 설명만
+        if (EnableVideoTutorials)
+            quests.Add(BuildChestVideoQuest());
+
         // ============================================================
         // 설비 해금 + 건설 (★건설구역 도착은 별 퀘로 유지 - 합치면 소프트락)
         // ============================================================
-        quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "설비 해금",
+        // [영상] 설비 해금 (F 해금 / G 즉시) - 해금 행동 직전 설명
+        if (EnableVideoTutorials)
+            quests.Add(BuildUnlockVideoQuest());
+
+        quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "생체 추출기 해금",
             CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1", BioExtractorId),
             CreateFacilityUnlock("obj_unlock_extractor", $"바닥의 {Y}생체 추출기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioExtractorId)));
 
@@ -237,7 +245,7 @@ public static class TutorialAssetBuilder
         if (EnableVideoTutorials)
             coreObjs.Add(CreateVideoTutorial("obj_core_video", "코어 강화 안내를 확인하세요.",
                 VPage("코어 강화란",
-                    $"{Y}코어 강화{E}로 {Y}최대 시간(체력){E}을 늘릴 수 있습니다. 단계가 오를수록 더 많은 {Y}코어 키트{E}가 필요하고({Y}코어 합성기{E}에서 제작), 강화는 {Y}성공·실패와 무관하게 키트를 소모{E}하니 {Y}성공 확률{E}을 꼭 확인하세요."),
+                    $"{Y}F{E}로 연 {Y}코어 강화 단말{E}입니다. {Y}코어 강화{E}로 {Y}최대 시간(체력){E}을 늘리며, 단계가 오를수록 더 많은 {Y}코어 키트{E}가 필요합니다({Y}코어 합성기{E}에서 제작). 강화는 {Y}성공·실패와 무관하게 키트를 소모{E}하니 {Y}성공 확률{E}을 꼭 확인하세요."),
                 VPage("코어 강화 방법",
                     $"{Y}강화 시작{E}을 누르면 코어가 {Y}시계{E}로 바뀝니다. 바늘이 {Y}초록 성공존{E}에 올 때 {Y}정지! 버튼(또는 Space){E}으로 멈추면 성공 확률이 오릅니다. {Y}강화 버튼{E}과 {Y}성공 확률 바{E}는 코어 강화 창에 있습니다.")));
         coreObjs.Add(CreateCoreUpgrade("obj_core_upgrade", $"{Y}강화 시작{E}을 누르고 {Y}정지! 버튼{E}으로 멈춰 코어를 강화해 보세요.", 0));
@@ -317,14 +325,28 @@ public static class TutorialAssetBuilder
     // 영상 팝업 퀘 빌더 (페이지 제목 == 영상 파일명)
     // ============================================================
     static QuestSO BuildLootVideoQuest()
-        => BuildQuest("quest_tut_02v_loot_video", "전리품과 가방",
-            CreateVideoTutorial("obj_loot_video", "전리품과 가방 안내를 확인하세요.",
+        => BuildQuest("quest_tut_02v_loot_video", "전리품",
+            CreateVideoTutorial("obj_loot_video", "전리품 안내를 확인하세요.",
                 VPage("아이템 줍기",
-                    $"적이나 오브젝트를 처치하면 {Y}아이템{E}이 떨어집니다. 가까이 가면 {Y}자동으로 줍습니다{E}. 등급이 높은 건 {Y}상자{E}로 나오기도 하며, {Y}F{E}로 열 수 있습니다."),
-                VPage("가방",
-                    $"{Y}TAB{E}으로 {Y}가방(인벤토리){E}을 엽니다. 칸의 {Y}테두리 색{E}이 아이템 {Y}등급{E}을 나타냅니다."),
-                VPage("창고와 연료",
-                    $"가방이 가득 차면 {Y}창고{E}로 자동 보관되고, 창고에서 다시 꺼내 쓸 수 있습니다. 설비 연료인 {Y}나뭇가지{E}는 {Y}오크 트리{E}에서 얻습니다.")));
+                    $"적이나 오브젝트를 처치하면 {Y}아이템{E}이 떨어집니다. 가까이 가면 {Y}자동으로 줍습니다{E}."),
+                VPage("창고",
+                    $"{Y}가방{E}이 가득 차면 아이템이 {Y}창고{E}로 자동 보관됩니다. 창고를 열어 필요한 아이템을 {Y}꺼내 쓸 수 있어요{E}.")));
+
+    static QuestSO BuildChestVideoQuest()
+        => BuildQuest("quest_tut_03v_chest_video", "상자",
+            CreateVideoTutorial("obj_chest_video", "상자 안내를 확인하세요.",
+                VPage("상자파밍",
+                    $"맵에서 발견한 {Y}상자{E}는 {Y}F{E}로 엽니다. {Y}등급 높은{E} 아이템이 들어 있어요."),
+                VPage("즉시완료",
+                    $"기다리지 않고 {Y}G{E}를 눌러 상자를 {Y}즉시{E} 열 수도 있습니다.")));
+
+    static QuestSO BuildUnlockVideoQuest()
+        => BuildQuest("quest_tut_04v_unlock_video", "설비 해금",
+            CreateVideoTutorial("obj_unlock_video", "설비 해금 안내를 확인하세요.",
+                VPage("설비해금",
+                    $"맵에 떨어진 {Y}설비{E}는 {Y}F{E}로 {Y}해금{E}합니다. 해금하면 {Y}건설 퀵슬롯{E}에 추가돼요."),
+                VPage("즉시해금",
+                    $"기다리지 않고 {Y}G{E}를 눌러 설비를 {Y}즉시 해금{E}할 수도 있습니다.")));
 
     static QuestSO BuildFactoryVideoQuest()
         => BuildQuest("quest_tut_07v_factory_video", "설비 가공",
@@ -334,7 +356,9 @@ public static class TutorialAssetBuilder
                 VPage("재료 투입과 가공",
                     $"{Y}가방이나 창고{E}의 재료를 {Y}재료 슬롯{E}으로 드래그하면, 맞는 {Y}조합 공식{E}이 있을 때 {Y}가공{E}이 시작됩니다. 설비당 한 번에 {Y}하나의 공식{E}만 가능합니다."),
                 VPage("생산품 수령",
-                    $"{Y}가공이 완료{E}되면 {Y}모두 받기{E}로 생산품을 가방이나 창고로 {Y}수령{E}할 수 있습니다.")));
+                    $"{Y}가공이 완료{E}되면 {Y}모두 받기{E}로 생산품을 가방이나 창고로 {Y}수령{E}할 수 있습니다."),
+                VPage("레시피 변경",
+                    $"한 설비가 여러 {Y}조합 공식{E}을 만들 수 있을 때, {Y}화살표 버튼{E}으로 원하는 공식으로 {Y}바꿀 수 있습니다{E}. (한 번에 하나의 공식만 가동)")));
 
     static QuestSO BuildRailVideoQuest()
         => BuildQuest("quest_tut_15v_rail_video", "레일 자동화",
