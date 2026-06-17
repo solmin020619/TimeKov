@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Video;
 
 /// <summary>
 /// 튜토리얼 SO 자산 일괄 생성 (최종 시트 데이터 기준 전면 재작성).
@@ -58,6 +59,17 @@ public static class TutorialAssetBuilder
     const string Y = "<color=#FFCC00>";  // 강조 색 열기
     const string E = "</color>";          // 닫기
 
+    // ── 영상 팝업 튜토리얼 (엔드필드식) ──────────────────────────────────
+    // false 로 두고 재생성하면 영상 단계가 빠진 "기존 튜토리얼 그대로" 복원된다(안전 토글).
+    // 영상 단계는 순수 추가형 - 끄면 흔적 없이 사라짐.
+    const bool EnableVideoTutorials = true;
+    // 영상 클립은 이 폴더에서 파일명으로 자동 로드(있으면 연결, 없으면 텍스트만). 종욱이 mp4 를 여기 넣으면 됨.
+    const string VideoFolder = "Assets/12.Video/Tutorial";
+
+    // [임시 테스트용] true 면 영상 팝업을 튜토 맨 앞(인트로 UI 투어 자리)에 넣어 Play 즉시 확인.
+    // 인트로 투어(Q0)는 그동안 건너뛴다. 영상 확정하면 false 로 되돌리고 재생성 -> 정상 순서 복원.
+    const bool VideoTutorialTestFirst = false;
+
     [MenuItem("Tools/Quest/Generate Tutorial Assets")]
     public static void Generate()
     {
@@ -82,9 +94,23 @@ public static class TutorialAssetBuilder
         EnsureFolder(RootFolder, "Categories");
         EnsureFolder(RootFolder, "Tutorials");
 
+        // 영상 클립을 떨궈둘 폴더 보장 (종욱이 여기에 mp4 넣으면 빌더가 파일명으로 자동 연결)
+        if (EnableVideoTutorials)
+        {
+            EnsureFolder("Assets", "12.Video");
+            EnsureFolder("Assets/12.Video", "Tutorial");
+            EnsureVideoUiSprites();   // 인벤 강조 프레임을 Resources로 복사(런타임 로드용, 9-slice 보존)
+        }
+
         var quests = new List<QuestSO>();
 
+        // [임시 테스트] 영상 팝업을 맨 앞에 (인트로 투어 대신) — Play 즉시 확인용. 테스트 끝나면 VideoTutorialTestFirst=false.
+        if (EnableVideoTutorials && VideoTutorialTestFirst)
+            quests.Add(BuildFactoryVideoQuest());
+
         // Q0. [시작 안내] 가이드 투어 — 한 오버레이에서 클릭으로 연속 진행(끊김 없음). 시간/메뉴아이콘/스탯.
+        // [임시 테스트] VideoTutorialTestFirst 면 인트로 투어를 건너뛴다(그 자리에 위 영상 팝업).
+        if (!VideoTutorialTestFirst)
         quests.Add(BuildQuest("quest_tut_00_intro", "시작 안내",
             CreateGuidedTour("obj_intro_tour",
                 TourStep($"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. {Y}결계(기지) 안{E}에서는 시간이 줄지 않지만({Y}DECAY OFF{E}), {Y}결계 밖{E}에선 시간이 계속 {Y}줄어들어{E} 0이 되면 쓰러집니다. 시간은 {Y}회복 앰플{E}로 채우고 {Y}코어 강화{E}로 최대치를 늘려요.", TargetTimeBar),
@@ -159,6 +185,10 @@ public static class TutorialAssetBuilder
         // Q7c. 연료 투입 (게이트)
         quests.Add(BuildQuest("quest_tut_07c_fuel_add", "연료 투입",
             CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId)));
+
+        // Q8v. [영상 팝업] 설비 가공 — 평소엔 여기(재료 투입 직전). 테스트 모드면 맨 앞으로 옮겼으니 여기선 생략.
+        if (EnableVideoTutorials && !VideoTutorialTestFirst)
+            quests.Add(BuildFactoryVideoQuest());
 
         // Q8. [안내 + 스포트라이트] 재료 슬롯 강조
         quests.Add(BuildQuest("quest_tut_08_input_info", "재료 투입 안내",
@@ -422,6 +452,60 @@ public static class TutorialAssetBuilder
 
     static GuidedTourObjective.Step TourStep(string label, string spotlightId = "", KeyCode advanceKey = KeyCode.None)
         => new GuidedTourObjective.Step { stepLabel = label, spotlightTargetId = spotlightId, advanceKey = advanceKey };
+
+    // 공장 영상 팝업 퀘 (맨 앞 테스트/제자리 양쪽에서 같은 정의 사용). 2페이지: 설비 가공 + 생산품 수령.
+    // 본문 강조는 기존 튜토와 동일한 노란색({Y}) 유지 (폰트/텍스트 톤 그대로). 흰색은 영상 테두리에만 적용.
+    static QuestSO BuildFactoryVideoQuest()
+        => BuildQuest("quest_tut_08v_factory_video", "설비가공2",
+            CreateVideoTutorial("obj_factory_video", "설비 가공 안내를 확인하세요.",
+                VPage("tut_factory_process", "설비 가공",
+                    $"{Y}가방이나 창고{E}에 있는 아이템을 설비에 {Y}넣을 수 있으며{E}, 해당 설비에 맞는 {Y}조합 공식{E}이 있을 경우 정상적으로 작동합니다.\n각 설비는 한 번에 {Y}하나의 조합 공식{E}으로만 생산할 수 있습니다."),
+                VPage("tut_factory_process2", "생산품 수령",
+                    $"설비의 {Y}가공이 완료{E}되면 가방이나 창고로 {Y}생산품을 수령{E}할 수 있습니다.")));
+
+    // ── 영상 팝업 Objective ───────────────────────────────────────────
+    static TutorialVideoObjective CreateVideoTutorial(string name, string label, params VideoTutorialPage[] pages)
+    {
+        var o = ScriptableObject.CreateInstance<TutorialVideoObjective>();
+        o.label = label;   // 팝업이 화면을 덮어 트래커엔 거의 안 보이지만 일관성 위해 지정
+        o.pages = pages;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    // 한 페이지 = 영상 + 제목 + 본문. videoFile(확장자 제외)이 VideoFolder 에 있으면 클립 자동 연결.
+    static VideoTutorialPage VPage(string videoFile, string title, string body)
+        => new VideoTutorialPage { clip = LoadVideoClip(videoFile), title = title, body = body };
+
+    // 영상 팝업이 런타임에 쓸 스프라이트를 Resources 로 복사(원본은 11.UI/New 라 Resources.Load 불가).
+    // CopyAsset 이 9-slice 보더/스프라이트 설정을 그대로 보존한다. 이미 있으면 스킵.
+    static void EnsureVideoUiSprites()
+    {
+        EnsureFolder("Assets", "Resources");
+        EnsureFolder("Assets/Resources", "TutorialVideo");
+        // 영상 테두리 = 인벤 "슬롯" 강조 프레임(네모 닫힌 형). 아래 뚫린 region 프레임 아님.
+        CopySpriteToResources("Assets/11.UI/New/hl_slot_frame@2x.png",
+                              "Assets/Resources/TutorialVideo/vid_frame.png");
+    }
+
+    static void CopySpriteToResources(string src, string dst)
+    {
+        if (AssetDatabase.LoadAssetAtPath<Texture2D>(src) == null) return;     // 원본 없음 -> 런타임 폴백
+        if (AssetDatabase.LoadAssetAtPath<Sprite>(dst) != null)
+            AssetDatabase.DeleteAsset(dst);                                    // 소스 바뀌면 갈아끼우게 기존 것 삭제
+        AssetDatabase.CopyAsset(src, dst);                                     // 9-slice/sprite 설정 보존
+    }
+
+    static VideoClip LoadVideoClip(string fileName)
+    {
+        // 흔한 확장자 순서로 탐색 (mp4 권장)
+        foreach (var ext in new[] { "mp4", "webm", "mov" })
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<VideoClip>($"{VideoFolder}/{fileName}.{ext}");
+            if (clip != null) return clip;
+        }
+        return null;   // 아직 클립 없음 - 팝업은 텍스트 + '영상 준비 중' 으로 정상 동작
+    }
 
     static FacilityUnlockObjective CreateFacilityUnlock(string name, string label, int facilityId, int count = 1)
     {
