@@ -197,7 +197,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
 
     private void OnDisable()
     {
-        ChestPromptUI.GetOrCreate().HideIfOwner(this);
+        // 씬 종료/비활성 중엔 GetOrCreate 로 새로 만들지 말 것(정리 안 됨 에러). 있을 때만 숨김.
+        ChestPromptUI.Instance?.HideIfOwner(this);
         if (_outline != null) _outline.enabled = false;
     }
 
