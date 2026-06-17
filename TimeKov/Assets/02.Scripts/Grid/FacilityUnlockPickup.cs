@@ -421,7 +421,8 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     {
         // 인디케이터는 픽업의 자식이 아니므로(스케일 비상속) 직접 파괴해 잔존 방지
         if (_indRoot != null) Destroy(_indRoot.gameObject);
-        FacilityPromptUI.GetOrCreate().HideIfOwner(this);
+        // 씬 종료 중엔 GetOrCreate 로 새로 만들지 말 것(정리 안 됨 에러). 있을 때만 숨김.
+        FacilityPromptUI.Instance?.HideIfOwner(this);
     }
 
     // ── 시야 체크 ────────────────────────────────────────────────
