@@ -212,7 +212,7 @@ public class EnemySpawnPoint : MonoBehaviour
 
     private IEnumerator RespawnAfterDelay()
     {
-        yield return new WaitForSeconds(respawnDelay);
+        yield return new WaitForSeconds(respawnDelay + Random.Range(0f, 2f));
         if (aliveEnemies.Count + pendingRespawns - 1 < maxAlive)
             SpawnOne();
         pendingRespawns--;
