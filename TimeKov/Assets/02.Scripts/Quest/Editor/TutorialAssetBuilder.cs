@@ -120,15 +120,17 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_01b_reach_hunt", "사냥터로 이동",
             CreateReachTrigger("obj_reach_enemy", $"결계 밖 {Y}사냥터{E}로 {Y}이동{E}하세요. (결계 밖에선 {Y}시간{E}이 줄기 시작합니다)", "enemy")));
 
-        quests.Add(BuildQuest("quest_tut_02_combat", "전투",
-            CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
-            CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "tutorial_enemy", 1)));
-
         // ============================================================
-        // 전리품 - [영상] 드롭/상자/가방/창고 개념을 한 큐로, 실제 줍기는 행동 퀘
+        // [영상] 전리품 + 상자 - 사냥터 '도착 직후'(곧 전투 직전)에 발화하도록 도착 퀘 바로 뒤 독립 퀘.
+        //   ★도착 퀘 '안' 병렬 objective로 넣지 말 것 - present 즉시 활성이라 출발 전(이동 지시)에 터진다.
+        //   독립 퀘여야 도착 완료=present=발화. 드롭/창고/상자를 한 묶음으로(전투 직후 하드컷이던 걸 도착 beat로).
         // ============================================================
         if (EnableVideoTutorials)
             quests.Add(BuildLootVideoQuest());
+
+        quests.Add(BuildQuest("quest_tut_02_combat", "전투",
+            CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
+            CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "tutorial_enemy", 1)));
 
         quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
             CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 {Y}획득{E}하세요.", ItemSpiderVenom, 1),
@@ -136,20 +138,20 @@ public static class TutorialAssetBuilder
             CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
-        // [영상] 상자 (F 열기 / G 즉시) - 전리품 다음에 설명만
-        if (EnableVideoTutorials)
-            quests.Add(BuildChestVideoQuest());
-
         // ============================================================
         // 설비 해금 + 건설 (★건설구역 도착은 별 퀘로 유지 - 합치면 소프트락)
         // ============================================================
-        // [영상] 설비 해금 (F 해금 / G 즉시) - 해금 행동 직전 설명
+        // 추출기 '도착' 퀘 (해금과 분리 - 도착 직후에 해금 영상이 뜨게 하려고).
+        //   satisfiedIfFacilityUnlocked=추출기: 이미 해금돼 있으면 트리거 무관 즉시완료(헛걸음 방지).
+        quests.Add(BuildQuest("quest_tut_05a_reach_extractor", "생체 추출기로 이동",
+            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1", BioExtractorId)));
+
+        // [영상] 설비 해금 (F 해금 / G 즉시) - 추출기 '도착 직후' 발화 -> 닫고 눈앞 설비 바로 F해금(설명-행동 밀착).
         if (EnableVideoTutorials)
             quests.Add(BuildUnlockVideoQuest());
 
         quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "생체 추출기 해금",
-            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1", BioExtractorId),
-            CreateFacilityUnlock("obj_unlock_extractor", $"바닥의 {Y}생체 추출기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioExtractorId)));
+            CreateFacilityUnlock("obj_unlock_extractor", $"{Y}F{E}를 눌러 바닥의 {Y}생체 추출기{E}를 {Y}해금{E}하세요.", BioExtractorId)));
 
         // ★건설구역 도착 - 별 퀘. EnterBuildMode/투어 앞에서 '존 안' 진입을 선행 보장.
         quests.Add(BuildQuest("quest_tut_05b_reach_build", "건설 구역으로 이동",
@@ -197,7 +199,7 @@ public static class TutorialAssetBuilder
         // ============================================================
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
             CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2", BioCultivatorId),
-            CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}생체 배양기{E}를 {Y}F{E}로 주워 {Y}해금{E}하세요.", BioCultivatorId),
+            CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}F{E}를 눌러 {Y}생체 배양기{E}를 {Y}해금{E}하세요.", BioCultivatorId),
             CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 {Y}설치{E}하세요.", BioCultivatorId, 1)));
 
         quests.Add(BuildQuestRewarded("quest_tut_12_cultivate", "회복 젤 가공",
@@ -229,7 +231,7 @@ public static class TutorialAssetBuilder
 
         quests.Add(BuildQuest("quest_tut_16b_rail_move", "레일 자동화 확인",
             CreateRailItemMove("obj_rail_move",
-                $"{Y}생체 추출기{E}에 재료를 넣어 가공하고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}자동 이동{E}하는지 확인하세요. (추출기 연료가 없으면 {Y}나뭇가지{E}를 다시 넣으세요)", 1)));
+                $"{Y}생체 추출기{E}에 재료를 넣어 가공하고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}자동 이동{E}하는지 확인하세요.", 1)));
 
         // ============================================================
         // 코어 강화 - 이동(보상 키트) -> [영상 안내 + 열기 + 강화] -> 결과/마무리
@@ -239,23 +241,21 @@ public static class TutorialAssetBuilder
             new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } },
             CreateReachTrigger("obj_reach_core", $"{Y}코어 강화 단말{E}이 있는 곳으로 {Y}이동{E}하세요.", "core")));
 
-        // 코어 강화: 열기(행동) + 영상2p(설명) + 강화 시도(행동) 한 퀘. 미니게임은 움직임이라 영상이 직관적.
+        // 코어 강화: 영상2p(설명) + 열기(행동) + 강화 시도(행동) 한 퀘.
+        //   영상을 CoreOpen '앞'에 둬 '설명 보고 -> F로 열고 -> 강화' 순(코어 UI 먼저 열렸다 영상이 덮는 겹침 제거).
+        //   같은 퀘 내 objective 는 영상이 화면을 덮어 입력차단되므로 CoreOpen 입력은 영상 닫은 뒤 받음.
         var coreObjs = new List<ObjectiveSO>();
-        coreObjs.Add(CreateCoreOpen("obj_open_core", $"{Y}F{E}로 {Y}코어 강화 단말{E}을 여세요."));
         if (EnableVideoTutorials)
             coreObjs.Add(CreateVideoTutorial("obj_core_video", "코어 강화 안내를 확인하세요.",
                 VPage("코어 강화란",
-                    $"{Y}F{E}로 연 {Y}코어 강화 단말{E}입니다. {Y}코어 강화{E}로 {Y}최대 시간(체력){E}을 늘리며, 단계가 오를수록 더 많은 {Y}코어 키트{E}가 필요합니다({Y}코어 합성기{E}에서 제작). 강화는 {Y}성공·실패와 무관하게 키트를 소모{E}하니 {Y}성공 확률{E}을 꼭 확인하세요."),
+                    $"{Y}F{E}로 여는 {Y}코어 강화 단말{E}입니다. {Y}코어 강화{E}로 {Y}최대 시간(체력){E}을 늘리며, 단계가 오를수록 더 많은 {Y}코어 키트{E}가 필요합니다({Y}코어 합성기{E}에서 제작). 강화는 {Y}성공·실패와 무관하게 키트를 소모{E}하니 {Y}성공 확률{E}을 꼭 확인하세요."),
                 VPage("코어 강화 방법",
                     $"{Y}강화 시작{E}을 누르면 코어가 {Y}시계{E}로 바뀝니다. 바늘이 {Y}초록 성공존{E}에 올 때 {Y}정지! 버튼(또는 Space){E}으로 멈추면 성공 확률이 오릅니다. {Y}강화 버튼{E}과 {Y}성공 확률 바{E}는 코어 강화 창에 있습니다.")));
+        coreObjs.Add(CreateCoreOpen("obj_open_core", $"{Y}F{E}로 {Y}코어 강화 단말{E}을 여세요."));
         coreObjs.Add(CreateCoreUpgrade("obj_core_upgrade", $"{Y}강화 시작{E}을 누르고 {Y}정지! 버튼{E}으로 멈춰 코어를 강화해 보세요.", 0));
         quests.Add(BuildQuest("quest_tut_18_core", "코어 강화", coreObjs.ToArray()));
 
-        // 결과 확인 + 마무리 (시간바 스포트라이트 하나로 합침)
-        quests.Add(BuildQuest("quest_tut_20_finish", "강화 결과",
-            CreateContinue("obj_finish",
-                $"{Y}최대 시간{E}이 늘었습니다! 코어를 계속 {Y}강화{E}하려면 {Y}코어 키트{E}가 필요한데, {Y}코어 합성기{E}를 찾아 해금하면 직접 만들 수 있어요. 이제 {Y}자유롭게{E} 기지를 키워보세요!",
-                TargetTimeBar)));
+        // (강화 결과/마무리 안내 팝업 제거 - 코어 UI 위에 또 뜨는 게 불필요. 아래 상시 목표가 다음 방향 제시.)
 
         // 상시 목표 - 튜토 끝나도 막연하지 않게 남기는 목표 하나 (facilityId=0=아무거나, 상태조회형이라 갭안전)
         quests.Add(BuildQuest("quest_tut_22_unlock_all", "설비 해금하기",
@@ -324,17 +324,14 @@ public static class TutorialAssetBuilder
     // ============================================================
     // 영상 팝업 퀘 빌더 (페이지 제목 == 영상 파일명)
     // ============================================================
+    // 전리품 = 줍기/창고 + 상자(F열기/G즉시) 페이지 흡수. 사냥터 도착 순간 한 묶음으로 1회 발화(단독 상자팝업 제거).
     static QuestSO BuildLootVideoQuest()
         => BuildQuest("quest_tut_02v_loot_video", "전리품",
             CreateVideoTutorial("obj_loot_video", "전리품 안내를 확인하세요.",
                 VPage("아이템 줍기",
                     $"적이나 오브젝트를 처치하면 {Y}아이템{E}이 떨어집니다. 가까이 가면 {Y}자동으로 줍습니다{E}."),
                 VPage("창고",
-                    $"{Y}가방{E}이 가득 차면 아이템이 {Y}창고{E}로 자동 보관됩니다. 창고를 열어 필요한 아이템을 {Y}꺼내 쓸 수 있어요{E}.")));
-
-    static QuestSO BuildChestVideoQuest()
-        => BuildQuest("quest_tut_03v_chest_video", "상자",
-            CreateVideoTutorial("obj_chest_video", "상자 안내를 확인하세요.",
+                    $"{Y}가방{E}이 가득 차면 아이템이 {Y}창고{E}로 자동 보관됩니다. 창고를 열어 필요한 아이템을 {Y}꺼내 쓸 수 있어요{E}."),
                 VPage("상자파밍",
                     $"맵에서 발견한 {Y}상자{E}는 {Y}F{E}로 엽니다. {Y}등급 높은{E} 아이템이 들어 있어요."),
                 VPage("즉시완료",
@@ -364,7 +361,7 @@ public static class TutorialAssetBuilder
         => BuildQuest("quest_tut_15v_rail_video", "레일 자동화",
             CreateVideoTutorial("obj_rail_video", "레일 자동화 안내를 확인하세요.",
                 VPage("레일 자동화란",
-                    $"설비를 {Y}레일{E}로 이으면, 아이템이 {Y}자동으로{E} 다음 설비로 이동합니다. 더 이상 {Y}직접 회수{E}하지 않아도 됩니다."),
+                    $"이제 {Y}자동화{E}를 배워봅시다. 설비를 {Y}레일{E}로 이으면, 아이템이 {Y}자동으로{E} 다음 설비로 이동해 {Y}직접 회수{E}할 필요가 없어집니다. (레일은 {Y}건설 모드(B){E}에서 깝니다)"),
                 VPage("레일 까는 법",
                     $"{Y}건설 모드(B){E}에서 {Y}E(레일){E}을 고른 뒤, 설비의 {Y}출구(E 표시){E}를 클릭해 다음 설비까지 이어 주세요. {Y}공격·방어·스태미나{E} 앰플도 같은 방식으로 다른 설비에서 만들 수 있습니다.")));
 
