@@ -704,16 +704,33 @@ namespace TIMEKOV.Factory
             }
 
             // ── 경로 웨이포인트 사전 계산 ────────────────────────────────────
-            // back → transform(코너 경유) → front 순으로 각 세그먼트 추가
+            // 경로는 각 세그먼트 중심(transform.position = 벨트 정중앙)을 기준으로 만든다.
+            // endpoint 는 벨트 중앙에서 좌우로 살짝 치우쳐 있어 직선이 한쪽으로 쏠려 보이므로,
+            // 세그먼트 경계는 이웃 중심의 중점(=중심선 위의 edge midpoint)으로 잡는다. 그러면
+            // 직선은 정중앙을 지나고, 코너도 올바른 중심선 기준으로 둥글게 돈다.
+            int n = chain.Count;
             var waypoints = new List<Vector3>();
-            var seg0 = chain[0];
-            waypoints.Add(seg0.endpointBack != null ? seg0.endpointBack.position : seg0.transform.position);
-            foreach (var seg in chain)
+
+            Vector3 c0 = chain[0].transform.position;
+            Vector3 cN = chain[n - 1].transform.position;
+
+            // 시작/끝 stub: 방향은 endpoint(설비 쪽 진입/진출 방향) 기준, 길이·기준점은 중심.
+            float startLen = (n >= 2) ? Vector3.Distance(c0, chain[1].transform.position) * 0.5f : 0.5f;
+            float endLen   = (n >= 2) ? Vector3.Distance(cN, chain[n - 2].transform.position) * 0.5f : 0.5f;
+            Vector3 startDir = chain[0].endpointBack != null
+                ? (chain[0].endpointBack.position - c0).normalized : -chain[0].transform.forward;
+            Vector3 endDir = chain[n - 1].endpointFront != null
+                ? (chain[n - 1].endpointFront.position - cN).normalized : chain[n - 1].transform.forward;
+            Vector3 startStub = c0 + startDir * startLen;
+            Vector3 endStub   = cN + endDir   * endLen;
+
+            waypoints.Add(startStub);
+            for (int i = 0; i < n; i++)
             {
-                waypoints.Add(seg.transform.position);
-                waypoints.Add(seg.endpointFront != null
-                    ? seg.endpointFront.position
-                    : seg.transform.position + seg.transform.forward);
+                Vector3 ci     = chain[i].transform.position;
+                Vector3 backI  = (i == 0)     ? startStub : (chain[i - 1].transform.position + ci) * 0.5f;
+                Vector3 frontI = (i == n - 1) ? endStub   : (ci + chain[i + 1].transform.position) * 0.5f;
+                AppendSegmentWaypoints(waypoints, backI, ci, frontI);
             }
 
             // 구간별 거리 사전 계산 (매 프레임 계산 방지)
@@ -809,6 +826,56 @@ namespace TIMEKOV.Factory
 
             CleanupVisual(visual);
             _inFlightItems.Remove(token);
+        }
+
+        /// <summary>한 세그먼트 구간(back→front)을 경로에 추가한다. 직전 점이 back 이라고 가정하므로
+        /// back 은 다시 넣지 않고, 코너면 벨트 중심선을 따르는 원호 샘플들을, 직선이면 front 만 추가한다.</summary>
+        private static void AppendSegmentWaypoints(List<Vector3> pts, Vector3 back, Vector3 center, Vector3 front)
+        {
+            // 평면(XZ)에서 안쪽 모서리(코너 중심)를 기준으로 호를 그린다. 직선이면 vertex≈center.
+            Vector2 b = new Vector2(back.x,   back.z);
+            Vector2 c = new Vector2(center.x, center.z);
+            Vector2 f = new Vector2(front.x,  front.z);
+
+            // 안쪽 모서리 = 두 endpoint 가 셀 중심에서 뻗은 방향의 합 → 코너의 회전 중심.
+            Vector2 vertex = b + f - c;
+            Vector2 rb = b - vertex;
+            Vector2 rf = f - vertex;
+
+            float angB     = Mathf.Atan2(rb.y, rb.x);
+            float angF     = Mathf.Atan2(rf.y, rf.x);
+            float sweepDeg = Mathf.DeltaAngle(angB * Mathf.Rad2Deg, angF * Mathf.Rad2Deg); // 최단 회전(±90°)
+
+            // 진짜 ~90° 코너일 때만 호로 돈다. 직선(스윕 ~0)·축퇴(스윕 ~180, 예전 '원 그리기' 원인)는
+            // 곧은 직선으로 처리해 루프를 원천 차단.
+            if (rb.sqrMagnitude < 1e-6f || rf.sqrMagnitude < 1e-6f
+                || Mathf.Abs(sweepDeg) < 30f || Mathf.Abs(sweepDeg) > 150f)
+            {
+                pts.Add(front);   // back 은 이미 들어가 있으므로 front 만 — 곧은 직선
+                return;
+            }
+
+            // 코너: 3차 베지에로 돈다. 양 끝 접선을 들어오는(dirIn)·나가는(dirOut) 직선 방향에
+            // 정확히 맞춰, 직선↔코너 양쪽 이음새가 모두 매끄럽고 출구에서 바깥으로 밀리지 않는다.
+            // 핸들 길이는 1/4원 근사 상수(0.5523·r)로 잡아 곡선이 벨트 중심선을 그대로 따라간다.
+            // Y는 endpoint 기준 보간해 뜨는 현상도 없앤다.
+            const float kCircle = 0.5523f;
+            Vector2 dirIn  = (c - b).normalized;   // 입구 진행 방향(들어오는 직선과 일치)
+            Vector2 dirOut = (f - c).normalized;   // 출구 진행 방향(나가는 직선과 일치)
+            Vector2 P1 = b + dirIn  * (kCircle * (c - b).magnitude);
+            Vector2 P2 = f - dirOut * (kCircle * (f - c).magnitude);
+
+            const int samples = 8;
+            for (int i = 1; i <= samples; i++)
+            {
+                float t = (float)i / samples;
+                float u = 1f - t;
+                float w0 = u * u * u, w1 = 3f * u * u * t, w2 = 3f * u * t * t, w3 = t * t * t;
+                float x = w0 * b.x + w1 * P1.x + w2 * P2.x + w3 * f.x;
+                float z = w0 * b.y + w1 * P1.y + w2 * P2.y + w3 * f.y;
+                float y = Mathf.Lerp(back.y, front.y, t);
+                pts.Add(new Vector3(x, y, z));
+            }
         }
 
         /// <summary>웨이포인트 목록 위에서 t(0~1) 비율에 해당하는 위치를 반환한다.</summary>

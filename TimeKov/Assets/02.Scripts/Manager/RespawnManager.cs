@@ -64,10 +64,11 @@ public class RespawnManager : MonoBehaviour
         _player.Anim.PlayDie();
         _player.Movement.LockMovement(true);
 
-        // 2. 사망 즉시 아이템 드롭 — 단, 튜토리얼 진행 중에는 OFF
-        //    (주운 재료를 흘려 후속 투입/강화 퀘가 막히는 소프트락 방지)
-        bool tutorialActive = QuestManager.Instance != null && QuestManager.Instance.IsTutorialActive;
-        if (DropItemsOnDeath && !tutorialActive)
+        // 2. 사망 즉시 아이템 드롭.
+        //    예전엔 튜토리얼 진행 중(IsTutorialActive)엔 드롭을 막았으나, 그게 튜토리얼
+        //    기간 내내 OFF가 돼 "죽어도 안 떨군다"로 보였음. LootBox는 회수 가능하고
+        //    (가방 못 담으면 창고로 넘어감) 소멸도 없어 하드 소프트락이 안 나므로 게이트 제거.
+        if (DropItemsOnDeath)
             DropInventoryItems();
 
         // 3. DEFEAT 오버레이 표시 + 카운트다운 후 버튼 활성화
