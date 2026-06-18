@@ -24,6 +24,7 @@ public class DemolishModeOverlay : MonoBehaviour
     private Image image;
     private Texture2D borderTex;
     private float currentAlpha;
+    private GameObject _canvasGO;
 
     private int builtW = -1;
     private int builtH = -1;
@@ -59,15 +60,12 @@ public class DemolishModeOverlay : MonoBehaviour
 
     private void ApplyAlpha(float t)
     {
-        if (canvasGroup == null)
-            return;
-
-        canvasGroup.alpha = t * maxAlpha;
+        if (canvasGroup != null) canvasGroup.alpha = t * maxAlpha;
 
         // 안 보일 땐 캔버스 자체를 꺼서 렌더 비용 0
         bool active = t > 0.001f;
-        if (canvasGroup.gameObject.activeSelf != active)
-            canvasGroup.gameObject.SetActive(active);
+        if (_canvasGO != null && _canvasGO.activeSelf != active)
+            _canvasGO.SetActive(active);
     }
 
     private void BuildOverlayUI()
@@ -75,16 +73,18 @@ public class DemolishModeOverlay : MonoBehaviour
         var canvasGO = new GameObject("DemolishBorderCanvas");
         canvasGO.transform.SetParent(transform, false);
 
+        _canvasGO = canvasGO;
+
         var canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 9000; // 다른 UI 위로
 
-        canvasGroup = canvasGO.AddComponent<CanvasGroup>();
-        canvasGroup.interactable = false;
-        canvasGroup.blocksRaycasts = false; // 클릭이 통과해야 해제 클릭을 막지 않음
-
         var imgGO = new GameObject("Border");
         imgGO.transform.SetParent(canvasGO.transform, false);
+
+        canvasGroup = imgGO.AddComponent<CanvasGroup>();
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = false; // 클릭이 통과해야 해제 클릭을 막지 않음
 
         image = imgGO.AddComponent<Image>();
         image.raycastTarget = false;

@@ -257,6 +257,9 @@ public class PlayerHudUI : MonoBehaviour
         TMP_FontAsset hudFont = timeValueText != null ? timeValueText.font : null;
         bar.Setup(parent, player, icons, qsKey, hudFont);
 
+        // 표시/숨김(다른 UI 열림 시 숨김 + 결계 안 자동 페이드)은 SkillBarUI가 스스로 관리한다.
+        // (HudAutoFader 외부 등록에 의존하지 않게 - 등록 타이밍/그리는 순서 취약성 제거)
+
         // 구버전 스킬 슬롯 숨김(새 바로 대체). 토글 끄면 원복.
         HideOldSkillSlot(skill1IconImage);
         HideOldSkillSlot(skill2IconImage);
@@ -319,6 +322,9 @@ public class PlayerHudUI : MonoBehaviour
         RegisterKeyBox("tab_icon", "TAB_Text", "TAB_Icon");
         RegisterKeyBox("b_icon", "B_Text", "B_Icon");
         RegisterKeyBox("esc_icon", "ESC_Text", "Esc_Icon");
+
+        // 인트로에서 메뉴 전체(TAB/B/C/ESC)를 한 번에 강조하기 위한 합집합 타깃(같은 id의 rect들을 한 박스로).
+        RegisterKeyBox("menu_icons", "TAB_Text", "TAB_Icon", "B_Text", "B_Icon", "C_Text", "C_Icon", "ESC_Text", "Esc_Icon");
 
         // 우하단 스킬 슬롯 Q/E/R → 스포트라이트 (인트로 투어에서 충전 조건 설명).
         // 직렬화된 아이콘 참조의 부모(슬롯)를 등록 — 게이지 링까지 포함된 슬롯 전체를 강조.

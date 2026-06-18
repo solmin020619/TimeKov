@@ -101,6 +101,7 @@ public class CoreUpgradeUI : MonoBehaviour
     // 부가 스탯(부활/흡수) 행 — 런타임 생성(빌더 재실행 불필요, 현재 패널 위에 얹음)
     private bool _extraStatsBuilt;
     private TextMeshProUGUI _curRespawnText, _curLifestealText, _nextRespawnText, _nextLifestealText;
+    private static readonly Color NextStatColor = new Color(0.68f, 0.89f, 1f);   // 강화 후 스탯 강조색(흡수 New 해금 시 골드로 덮음)
 
     // ── 내부 ──────────────────────────────────────────────────────────
     private enum CatchPhase { Idle, Spin, Judge, Result }
@@ -232,7 +233,9 @@ public class CoreUpgradeUI : MonoBehaviour
         if (_curRespawnText != null)
         {
             _curRespawnText.text   = $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv))}";
-            _curLifestealText.text = $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv))}";
+            _curLifestealText.text = mgr.IsLifestealUnlockedAt(lv)
+                ? $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv))}"
+                : "체력 흡수   잠김";
         }
 
         if (isMax) return;
@@ -244,8 +247,22 @@ public class CoreUpgradeUI : MonoBehaviour
 
             if (_nextRespawnText != null)
             {
-                _nextRespawnText.text   = $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv + 1))}";
-                _nextLifestealText.text = $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv + 1))}";
+                _nextRespawnText.text = $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv + 1))}";
+
+                // 이번 강화로 흡수가 해금되면 "New!" 강조(궁금증 유발), 아니면 평소 흡수율/잠김
+                bool unlocksNow = mgr.IsLifestealUnlockedAt(lv + 1) && !mgr.IsLifestealUnlockedAt(lv);
+                if (unlocksNow)
+                {
+                    _nextLifestealText.text  = "New!  몬스터 체력 흡수";
+                    _nextLifestealText.color = perfectColor;
+                }
+                else
+                {
+                    _nextLifestealText.text  = mgr.IsLifestealUnlockedAt(lv + 1)
+                        ? $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv + 1))}"
+                        : "체력 흡수   잠김";
+                    _nextLifestealText.color = NextStatColor;
+                }
             }
         }
         RefreshKitPanel(mgr, next);

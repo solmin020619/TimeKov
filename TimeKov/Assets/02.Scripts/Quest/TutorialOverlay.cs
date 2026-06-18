@@ -291,7 +291,7 @@ public class TutorialOverlay : MonoBehaviour
     {
         if (_bannerBg == null) return;
         if (top) SetAnchors(_bannerBg, 0.12f, 0.84f, 0.88f, 0.93f);
-        else     SetAnchors(_bannerBg, 0.12f, 0.16f, 0.88f, 0.27f);
+        else     SetAnchors(_bannerBg, 0.12f, 0.27f, 0.88f, 0.38f);   // "클릭하여 계속"(하단)과 겹치지 않게 위로
     }
 
     // "클릭하여 계속" 라벨 위치 - 한 코치 세션(=한 영역) 동안 고정. 첫 계산값을 잠그고 Hide서 해제.
