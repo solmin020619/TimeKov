@@ -122,8 +122,10 @@ public class SkillBarUI : MonoBehaviour
         frame.color = frameColor;
         frame.raycastTarget = false;
 
-        // 아이콘
-        var icon = NewImage("Icon", circle, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 0.58f, size * 0.58f));
+        // 아이콘. 스킬 아트는 꽉 차서 0.58로 충분하지만, 퀵슬롯(소모품)/대쉬 아이콘은 스프라이트
+        // 내부 여백이 커서 같은 비율이면 작아 보인다 -> 더 키워 스킬과 시각 크기를 맞춤.
+        float iconScale = (kind == Kind.Skill) ? 0.58f : 0.82f;
+        var icon = NewImage("Icon", circle, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * iconScale, size * iconScale));
         icon.preserveAspect = true;
         if (iconSp != null)
         {
