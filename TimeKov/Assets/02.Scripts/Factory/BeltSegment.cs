@@ -80,11 +80,12 @@ namespace TIMEKOV.Factory
         {
             All.Add(this);
 
-            // 새로 생성/활성화될 때 빌드 중이면 즉시 흰색을 적용한다.
+            // 새로 생성/활성화될 때 빌드 중(또는 해제 모드)이면 즉시 흰색을 적용한다.
             // OnEnable 은 Instantiate 중 렌더 전에 동기 실행되므로, 첫 프레임에 기본 머티리얼
             // (파랑)이 잠깐 비쳐 깜빡이는 것을 막는다 — 특히 경로 끝 코너(rail_turn)가
-            // 매 경로계산마다 재생성될 때 파랑으로 깜빡이던 문제 해결.
-            if (SuppressConnectionColor)
+            // 매 경로계산마다 재생성될 때, 또는 해제 시 양옆 벨트가 재생성될 때 파랑으로
+            // 깜빡이던 문제 해결.
+            if (SuppressConnectionColor || DemolishModeActive)
                 ApplyColorState(ColorState.Building);
         }
 
@@ -450,10 +451,14 @@ namespace TIMEKOV.Factory
             RailPiece rp = RailPieceRef;
             if (rp == null) return true;
 
-            if (dir == Vector2Int.up)    return rp.up;
-            if (dir == Vector2Int.down)  return rp.down;
-            if (dir == Vector2Int.left)  return rp.left;
-            if (dir == Vector2Int.right) return rp.right;
+            // 포트 축 방향으로 연결돼 있어야 하고(스쳐 지나감 제외), 동시에 포트 축에
+            // 수직으로 꺾이면(코너) 안 된다. front cell 이 직선이어야 설비(포트) 쪽을 향한
+            // endpoint 가 생겨 head-on 으로 물린다. front cell 에서 바로 꺾이는 코너는
+            // 설비를 관통/우회하는 잘못된 연결이라 제외한다. (출력에서 옆으로 새는 버그 방지)
+            if (dir == Vector2Int.up)    return rp.up    && !rp.left && !rp.right;
+            if (dir == Vector2Int.down)  return rp.down  && !rp.left && !rp.right;
+            if (dir == Vector2Int.left)  return rp.left  && !rp.up   && !rp.down;
+            if (dir == Vector2Int.right) return rp.right && !rp.up   && !rp.down;
             return false;
         }
 

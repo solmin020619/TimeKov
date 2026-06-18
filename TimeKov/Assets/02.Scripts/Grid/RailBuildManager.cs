@@ -87,6 +87,11 @@ public class RailBuildManager : MonoBehaviour
     // 자기 자신(같은 빌딩) 연결을 막는 데 사용. 포트에서 시작한 경우엔 startPort 로 판정.
     private PlacedBuilding _cellStartSourceBuilding;
 
+    // cell-start 라우팅에서 출발 체인이 거슬러 닿는 source 포트(Output 우선). 흐름 극성 검사용.
+    // Output 에 닿으면 Input 으로 끝낼 수 있고, Input 에만 닿으면(끊긴 입력 측 라인 등)
+    // 다른 Input 으로 끝낼 수 없다(= Input-Input 연결 차단).
+    private BuildPort _cellStartSourcePort;
+
     private readonly Dictionary<BuildPort, GameObject> portIndicatorMap = new();
 
     private enum PortIndicatorState { Arrow, X, Hidden }
@@ -582,6 +587,10 @@ public class RailBuildManager : MonoBehaviour
         if (IsSameBuildingAsSource(port))
             return PortIndicatorState.X;
 
+        // Input 측 라인에서 이어 시작한 경우 다른 Input 포트는 연결 불가 → X 표시.
+        if (!CellStartFlowAllowsInputDestination())
+            return PortIndicatorState.X;
+
         return port.CanEndConnection() ? PortIndicatorState.Arrow : PortIndicatorState.X;
     }
 
@@ -871,8 +880,10 @@ public class RailBuildManager : MonoBehaviour
         currentPathCells.Clear();
         currentPathCells.Add(cell);
 
-        // 이 레일 체인이 거슬러 닿는 출발 빌딩 추적 → 같은 빌딩 도착(자기 자신) 차단용
-        _cellStartSourceBuilding = TraceChainSourceBuilding(cell);
+        // 이 레일 체인이 거슬러 닿는 출발 포트 추적 → 같은 빌딩 도착(자기 자신) 차단 +
+        // 흐름 극성(Output→Input) 검사용. 빌딩은 그 포트에서 파생.
+        _cellStartSourcePort = TraceChainSourcePort(cell);
+        _cellStartSourceBuilding = _cellStartSourcePort != null ? _cellStartSourcePort.OwnerBuilding : null;
 
         // 기존 셀에 connection 이 1개 있으면 그 방향을 incoming flow 로 둠
         piece.flowFrom = ComputeStartCellFlowFrom(piece);
@@ -1041,9 +1052,9 @@ public class RailBuildManager : MonoBehaviour
         return src != null && port != null && port.OwnerBuilding == src;
     }
 
-    // 기존 레일 셀에서 시작할 때, 그 체인이 거슬러 닿는 출발 포트의 빌딩을 찾는다.
-    // (Output 포트 우선 — 실제 출발지. 없으면 닿는 아무 포트의 빌딩.)
-    private PlacedBuilding TraceChainSourceBuilding(Vector2Int startCell)
+    // 기존 레일 셀에서 시작할 때, 그 체인이 거슬러 닿는 출발 포트를 찾는다.
+    // (Output 포트 우선 — 실제 출발지. 없으면 닿는 아무 포트.) 빌딩/극성 판정 공용.
+    private BuildPort TraceChainSourcePort(Vector2Int startCell)
     {
         if (!railMap.ContainsKey(startCell)) return null;
 
@@ -1052,15 +1063,15 @@ public class RailBuildManager : MonoBehaviour
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
         queue.Enqueue(startCell);
 
-        PlacedBuilding fallback = null;
+        BuildPort fallback = null;
         while (queue.Count > 0)
         {
             Vector2Int c = queue.Dequeue();
 
             if (cachedPortByFrontCell.TryGetValue(c, out BuildPort p) && p != null && p.OwnerBuilding != null)
             {
-                if (p.portType == PortType.Output) return p.OwnerBuilding;  // 출발지 확정
-                if (fallback == null) fallback = p.OwnerBuilding;
+                if (p.portType == PortType.Output) return p;  // 출발지 확정
+                if (fallback == null) fallback = p;
             }
 
             if (!railMap.TryGetValue(c, out RailPiece piece) || piece == null) continue;
@@ -1076,6 +1087,17 @@ public class RailBuildManager : MonoBehaviour
         return fallback;
     }
 
+    // cell-start 라우팅에서 Input 포트로 끝내도 되는지(흐름 극성 검사).
+    // 포트 시작은 항상 Output→Input 이라 OK. cell-start 는 출발 체인이 Output 포트에
+    // 닿을 때만 OK — Input 포트에만 닿는(끊긴 입력 측) 체인을 다른 Input 으로 끝내면
+    // Input-Input 연결이 되므로 막는다. 어떤 포트에도 안 닿은 dangling 체인은 허용.
+    private bool CellStartFlowAllowsInputDestination()
+    {
+        if (startPort != null) return true;
+        if (_cellStartSourcePort == null) return true;
+        return _cellStartSourcePort.portType == PortType.Output;
+    }
+
     private bool IsCandidateDestination(BuildPort port)
     {
         if (!isRouting || port == null) return false;
@@ -1085,6 +1107,9 @@ public class RailBuildManager : MonoBehaviour
         // 출발 빌딩과 같은 설비면 연결 불가 (자기 자신 연결 방지).
         // cell-start 라우팅(startPort==null)도 추적한 출발 빌딩으로 막는다.
         if (IsSameBuildingAsSource(port))
+            return false;
+        // 흐름 극성: Input 측 라인에서 이어 시작한 경우 다른 Input 으로 끝낼 수 없음(Input-Input 차단).
+        if (!CellStartFlowAllowsInputDestination())
             return false;
         return true;
     }
@@ -1220,6 +1245,10 @@ public class RailBuildManager : MonoBehaviour
         if (IsSameBuildingAsSource(port))
             return false;
 
+        // 흐름 극성: Input 측 라인에서 이어 시작한 경우 다른 Input 으로 끝낼 수 없음(Input-Input 차단).
+        if (!CellStartFlowAllowsInputDestination())
+            return false;
+
         Vector2Int frontCell = port.GetFrontCell();
         Vector2Int requiredApproachCell = frontCell + port.GetWorldDirection();
 
@@ -1307,6 +1336,7 @@ public class RailBuildManager : MonoBehaviour
         currentEndCell = default;
         currentPathCells.Clear();
         _cellStartSourceBuilding = null;
+        _cellStartSourcePort = null;
     }
 
     private bool CanUseCellAsRail(Vector2Int cell, Vector2Int previousCell, bool allowExisting)
