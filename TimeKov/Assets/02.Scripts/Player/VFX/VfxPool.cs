@@ -46,7 +46,8 @@ public class VfxPool : MonoBehaviour
     }
 
     private readonly Dictionary<GameObject, Stack<Item>> _free = new();   // prefab -> 비활성 재고
-    private readonly Dictionary<GameObject, Item> _active = new();        // 활성 인스턴스 -> Item (반납 키)
+    // 활성 인스턴스는 반납 코루틴이 Item을 직접 들고 있어 별도 추적 딕셔너리가 필요 없다
+    // (예전 _active 딕셔너리는 시전자 파괴 시 stale 엔트리가 남는 누수가 있어 제거).
 
     /// <summary>풀에서 꺼내 배치/재생. lifeTime 후 자동 반납. VfxUtils.Spawn 전용.</summary>
     public GameObject Spawn(GameObject prefab, Vector3 pos, Quaternion rot, Transform parent, float lifeTime)
@@ -60,7 +61,7 @@ public class VfxPool : MonoBehaviour
         item.go.SetActive(true);
         Restart(item);
 
-        if (lifeTime > 0f) StartCoroutine(ReturnAfter(item.go, lifeTime));
+        if (lifeTime > 0f) StartCoroutine(ReturnAfter(item, lifeTime));
         return item.go;
     }
 
@@ -85,13 +86,11 @@ public class VfxPool : MonoBehaviour
             while (stack.Count > 0)
             {
                 var it = stack.Pop();
-                if (it != null && it.go != null) { _active[it.go] = it; return it; }
+                if (it != null && it.go != null) return it;
                 // 파괴된 재고(부모 따라 사라진 경우 등)는 버리고 계속
             }
         }
-        var fresh = Create(prefab);
-        _active[fresh.go] = fresh;
-        return fresh;
+        return Create(prefab);
     }
 
     private Item Create(GameObject prefab)
@@ -136,23 +135,18 @@ public class VfxPool : MonoBehaviour
         }
     }
 
-    private IEnumerator ReturnAfter(GameObject go, float lifeTime)
+    private IEnumerator ReturnAfter(Item item, float lifeTime)
     {
         yield return new WaitForSeconds(lifeTime);
-        Release(go);
+        Release(item);
     }
 
-    private void Release(GameObject go)
+    private void Release(Item item)
     {
-        if (go == null) return;
-        if (!_active.TryGetValue(go, out var item))
-        {
-            Destroy(go);   // 풀이 모르는 객체면 방어적으로 파괴
-            return;
-        }
-        _active.Remove(go);
-        go.SetActive(false);
-        go.transform.SetParent(transform, false);
+        // item.go 가 외부에서 파괴됐으면(부모 시전자 사망 등) 재고로 안 넣는다 -> 누수 없음(Item은 GC됨).
+        if (item == null || item.go == null) return;
+        item.go.SetActive(false);
+        item.go.transform.SetParent(transform, false);
         GetStack(item.prefab).Push(item);
     }
 

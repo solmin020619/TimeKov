@@ -3,6 +3,9 @@ using UnityEngine;
 
 public abstract class ComboAttackBase : ScriptableObject
 {
+    // OverlapSphereNonAlloc 재사용 버퍼(타격마다 배열 할당 방지). 적 콜라이더 수 합보다 넉넉히 -> 광역 히트 누락 없음(자식 콜라이더 다수여도 여유).
+    private static readonly Collider[] _hitBuffer = new Collider[64];
+
     [Header("Combo")]
     public int   ComboIndex  = 0;
     public float ComboWindow = 1.2f;
@@ -100,16 +103,18 @@ public abstract class ComboAttackBase : ScriptableObject
         var stat  = caster.GetComponent<PlayerStatComponent>();
         var skill = caster.GetComponent<PlayerSkillComponent>();
 
-        Collider[] hits = Physics.OverlapSphere(
+        int count = Physics.OverlapSphereNonAlloc(
             caster.transform.position + Vector3.up * HitHeight,
             HitRadius,
+            _hitBuffer,
             EnemyLayer
         );
 
         bool hitAny = false;
 
-        foreach (var hit in hits)
+        for (int i = 0; i < count; i++)
         {
+            var hit = _hitBuffer[i];
             if (!hit.TryGetComponent<EnemyHealth>(out var enemy)) continue;
 
             float enemyDef   = 0f;

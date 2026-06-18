@@ -42,6 +42,37 @@ public class PlayerSkillComponent : MonoBehaviour
 
         foreach (var attack in ComboAttackAssets)
             RegisterComboAttack(attack);
+
+        PrewarmVfx();
+    }
+
+    // 로딩(스폰) 시점에 스킬/평타/히트 VFX prefab을 풀에 미리 적재 -> 첫 시전 때의
+    // 셰이더/머티리얼 첫 인스턴스화 hitch를 로딩으로 옮긴다. 중복 prefab(공유 히트VFX 등)은 1회만.
+    private void PrewarmVfx()
+    {
+        var pool = VfxPool.I;
+        if (pool == null) return;
+
+        var prefabs = new HashSet<GameObject>();
+        void Add(GameObject p) { if (p != null) prefabs.Add(p); }
+
+        foreach (var s in new[] { Skill1Asset, Skill2Asset, Skill3Asset })
+        {
+            if (s == null) continue;
+            Add(s.CastVfxPrefab);
+            Add(s.HitVfxPrefab);
+        }
+        if (ComboAttackAssets != null)
+            foreach (var a in ComboAttackAssets)
+            {
+                if (a == null) continue;
+                Add(a.AttackVfxPrefab);
+                Add(a.HitVfxPrefab);
+            }
+
+        const int warmCount = 3;   // 셰이더 워밍 + 약간의 동시 재고. 광역으로 더 필요하면 풀이 알아서 증가.
+        foreach (var p in prefabs)
+            pool.Prewarm(p, warmCount);
     }
 
     void Update()
