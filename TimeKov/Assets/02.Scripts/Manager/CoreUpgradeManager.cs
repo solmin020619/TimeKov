@@ -36,6 +36,9 @@ public class CoreUpgradeManager : MonoBehaviour
     [Tooltip("몬스터 처치 흡수 비율 — 최대 레벨일 때 값.")]
     [Range(0f, 1f)][SerializeField] private float lifestealPercentAtMax = 0.10f;
 
+    [Tooltip("몬스터 체력 흡수가 해금되는 코어 레벨. 이 레벨 미만이면 흡수 0(처음엔 막혀 있다가 코어 강화로 해금). 초반 생존 위해 1 권장.")]
+    [SerializeField] private int lifestealUnlockLevel = 1;
+
     [Tooltip("부활 시 회복 체력 비율 — 레벨 0일 때 (0.5 = 반피).")]
     [Range(0f, 1f)][SerializeField] private float respawnHpPercentAtLv0 = 0.5f;
     [Tooltip("부활 시 회복 체력 비율 — 최대 레벨일 때 (1.0 = 풀피).")]
@@ -211,8 +214,14 @@ public class CoreUpgradeManager : MonoBehaviour
     /// <summary>부활 시 회복할 체력 비율. 코어 레벨이 오를수록 증가(최종 레벨 = 풀피).</summary>
     public float GetRespawnHpPercent() => GetRespawnHpPercentAt(CurrentCoreLevel);
 
-    /// <summary>특정 레벨의 흡수율 (UI에서 현재/강화후 비교용).</summary>
-    public float GetLifestealPercentAt(int level) => Mathf.Lerp(lifestealPercentAtLv0, lifestealPercentAtMax, LevelProgressAt(level));
+    /// <summary>특정 레벨의 흡수율 (UI에서 현재/강화후 비교용). 해금 레벨 미만이면 0(아직 잠김).</summary>
+    public float GetLifestealPercentAt(int level)
+        => level < lifestealUnlockLevel ? 0f : Mathf.Lerp(lifestealPercentAtLv0, lifestealPercentAtMax, LevelProgressAt(level));
+
+    /// <summary>몬스터 체력 흡수 해금 여부(코어 강화로 해금). 적 흡수 게이트 / UI New 표시에 사용.</summary>
+    public bool IsLifestealUnlocked => CurrentCoreLevel >= lifestealUnlockLevel;
+    public bool IsLifestealUnlockedAt(int level) => level >= lifestealUnlockLevel;
+    public int LifestealUnlockLevel => lifestealUnlockLevel;
 
     /// <summary>특정 레벨의 부활 체력 비율 (UI에서 현재/강화후 비교용).</summary>
     public float GetRespawnHpPercentAt(int level) => Mathf.Lerp(respawnHpPercentAtLv0, respawnHpPercentAtMax, LevelProgressAt(level));
