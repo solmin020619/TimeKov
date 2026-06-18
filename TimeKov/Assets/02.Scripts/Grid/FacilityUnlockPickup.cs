@@ -24,7 +24,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     [Header("해금 대기 / 즉시완료 (파밍 상자와 동일)")]
     [Tooltip("F로 걸어두면 이 시간(초) 뒤 '해금 가능'이 된다. 자리를 비워도 카운트됨.")]
     [SerializeField] private float openTimeSeconds = 20f;
-    [Tooltip("즉시완료(G) 시 소모 HP = openTime * 이 배율. 2면 20초 설비에 40HP(=40초) 소모.")]
+    [Tooltip("즉시완료(G) 시 소모 HP = 해금까지 '남은 시간' * 이 배율. 배율 2면 20초 남았을 때 40HP(=40초) 소모, 시간이 줄면 비용도 함께 줄어든다.")]
     [SerializeField] private float instantHpCostMultiplier = 2f;
 
     [Header("깜빡임 효과")]
@@ -61,7 +61,12 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     private Transform         _playerTransform;
     private Player            _player;
 
-    private float InstantCost => Mathf.Max(0f, openTimeSeconds * instantHpCostMultiplier);
+    // 즉시완료까지 '남은' 대기 시간(초). Idle=아직 안 걸어둠 → 전체 시간, Opening=현재 타이머 잔여.
+    // 매초 단위(올림)로 계산 — 0.5초 같은 소수 단위가 아니라 정수 초 기준으로만 비용이 바뀐다.
+    private float RemainingSeconds =>
+        Mathf.Ceil(_state == State.Opening ? _timer : openTimeSeconds);
+    // 즉시완료 비용 = 남은 시간 * 배율. 타이머가 줄면 비용도 비례해서 줄어든다(매 프레임 재계산).
+    private float InstantCost => Mathf.Max(0f, RemainingSeconds * instantHpCostMultiplier);
 
     // 진행 상태 표시 UI (런타임 생성)
     private RectTransform _indRoot;

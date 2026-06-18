@@ -20,6 +20,7 @@ public class SkillBarUI : MonoBehaviour
         public TMP_Text seconds, count;
         public Image countBadge;
         public int shownItemId = int.MinValue;
+        public bool wasReady = true;   // 직전 프레임 준비완료 여부 (쿨 완료 순간 감지용)
     }
 
     private Player _player;
@@ -92,7 +93,11 @@ public class SkillBarUI : MonoBehaviour
         BuildSlot(Kind.Skill, SkillSheetId.Skill3, SkillSize, frameSp, ringSp, Pick(skillIcons, 2), null, keyBadge, "R", Color.white, "skill_r");
 
         _quickSlot = _slots.Find(s => s.kind == Kind.Quick);
-        if (player.QuickSlot != null) player.QuickSlot.OnUsed += HandleQuickUsed;
+        if (player.QuickSlot != null)
+        {
+            player.QuickSlot.OnUsed += HandleQuickUsed;
+            player.QuickSlot.OnChanged += HandleQuickChanged;   // 등록/해제/재등록 시 바를 잠깐 띄움
+        }
     }
 
     static Sprite Pick(Sprite[] arr, int i) => (arr != null && i < arr.Length) ? arr[i] : null;
@@ -117,8 +122,10 @@ public class SkillBarUI : MonoBehaviour
         frame.color = frameColor;
         frame.raycastTarget = false;
 
-        // 아이콘
-        var icon = NewImage("Icon", circle, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 0.58f, size * 0.58f));
+        // 아이콘. 스킬 아트는 꽉 차서 0.58로 충분하지만, 퀵슬롯(소모품)/대쉬 아이콘은 스프라이트
+        // 내부 여백이 커서 같은 비율이면 작아 보인다 -> 더 키워 스킬과 시각 크기를 맞춤.
+        float iconScale = (kind == Kind.Skill) ? 0.58f : 0.82f;
+        var icon = NewImage("Icon", circle, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * iconScale, size * iconScale));
         icon.preserveAspect = true;
         if (iconSp != null)
         {
@@ -232,6 +239,8 @@ public class SkillBarUI : MonoBehaviour
             if (_player.Skill == null) return;
             float readiness = Mathf.Clamp01(_player.Skill.GetGauge(s.skillId) / 100f);
             bool ready = readiness >= 0.999f;
+            if (ready && !s.wasReady) _showTimer = ShowHold;   // 쿨다운 완료 순간 띄움(모션<쿨 스킬도 READY 알림)
+            s.wasReady = ready;
             if (s.ring != null) s.ring.fillAmount = readiness;
             if (s.icon != null && s.icon.enabled) SetAlpha(s.icon, ready ? 1f : 0.22f);
             if (s.seconds != null)
@@ -247,6 +256,8 @@ public class SkillBarUI : MonoBehaviour
             float rem = _player.Dash.CooldownRemaining;
             float readiness = max > 0f ? Mathf.Clamp01(1f - rem / max) : 1f;
             bool ready = !_player.Dash.IsOnCooldown && !_player.Dash.IsDashing;
+            if (ready && !s.wasReady) _showTimer = ShowHold;   // 대쉬 쿨 완료 순간(쿨>표시시간으로 커져도 안전)
+            s.wasReady = ready;
             if (s.ring != null) s.ring.fillAmount = readiness;
             if (s.icon != null && s.icon.enabled) SetAlpha(s.icon, ready ? 1f : 0.4f);
         }
@@ -287,7 +298,11 @@ public class SkillBarUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_player != null && _player.QuickSlot != null) _player.QuickSlot.OnUsed -= HandleQuickUsed;
+        if (_player != null && _player.QuickSlot != null)
+        {
+            _player.QuickSlot.OnUsed -= HandleQuickUsed;
+            _player.QuickSlot.OnChanged -= HandleQuickChanged;
+        }
         foreach (var (id, rt) in _spotlights) TutorialOverlay.UnregisterTarget(id, rt);
         _spotlights.Clear();
     }
@@ -300,6 +315,9 @@ public class SkillBarUI : MonoBehaviour
         if (_flashCo != null) StopCoroutine(_flashCo);
         _flashCo = StartCoroutine(FlashRoutine(_quickSlot));
     }
+
+    // 퀵슬롯 등록/해제 등 내용 변경 시 바를 잠깐 띄움(아이콘/배지 변화를 보이게).
+    void HandleQuickChanged() => _showTimer = ShowHold;
 
     IEnumerator FlashRoutine(Slot s)
     {

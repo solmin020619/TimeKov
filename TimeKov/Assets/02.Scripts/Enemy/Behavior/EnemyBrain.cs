@@ -79,6 +79,16 @@ public class EnemyBrain : MonoBehaviour
         SyncAllFromData();
     }
 
+#if UNITY_EDITOR
+    // Play 중 인스펙터에서 EnemyBrain 값을 바꾸면 즉시 반영(에디터 디버그 편의). 매 프레임 동기화 대체.
+    private void OnValidate()
+    {
+        if (!Application.isPlaying) return;
+        SyncAllFromData();
+        if (feedback != null && data != null) feedback.SetData(data);
+    }
+#endif
+
     private void Start()
     {
         btAgent.SetVariableValue(selfAgentVarName, gameObject);
@@ -112,8 +122,8 @@ public class EnemyBrain : MonoBehaviour
 
     private void Update()
     {
-        // SO → 모든 컴포넌트/Blackboard 매 프레임 동기화. Play 모드 중 SO 변경 즉시 반영.
-        SyncAllFromData();
+        // SO -> 컴포넌트 동기화는 Awake에서 1회만 한다(매 프레임 호출은 적 수만큼 낭비라 제거).
+        // Play 중 인스펙터에서 SO 값을 바꿔 즉시 반영하려면 아래 OnValidate가 처리.
 
         // NavMeshAgent 속도 → Animator Speed (Idle ↔ Locomotion 전이용)
         if (animator != null && navAgent != null)
@@ -129,7 +139,10 @@ public class EnemyBrain : MonoBehaviour
         if (targetObj != null && playerStat != null && (playerStat.IsDead || playerStat.IsInBase))
             targetObj = null;
 
-        btAgent.SetVariableValue(targetVarName, targetObj);
+        // 타깃이 바뀐 프레임에만 블랙보드에 쓴다(안 바뀌면 같은 값 재기록 = 낭비). 22마리 x 60fps 절약.
+        // EnemyBrain이 Target의 유일 작성자라 재기록 생략해도 BT가 읽는 값은 동일.
+        if (targetObj != lastTarget)
+            btAgent.SetVariableValue(targetVarName, targetObj);
 
         if (lastTarget == null && targetObj != null)
         {
