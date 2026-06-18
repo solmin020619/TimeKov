@@ -23,6 +23,8 @@ public static class GameEvents
     public static event Action OnBuildModeEntered;                    // 건설 모드 실제 진입 성공 (존 게이트 통과 후)
     public static event Action OnCoreUIOpened;                        // 코어 강화 단말(UI) 열림
     public static event Action<int, int, int> OnRailItemMoved;        // 레일(벨트)로 아이템이 다음 설비에 전달됨 (facilityId, itemId, count)
+    public static event Action<int> OnQuickSlotRegistered;            // itemId — 소모품을 퀵슬롯(V)에 등록
+    public static event Action<int> OnQuickSlotUsed;                  // itemId — 등록 소모품을 V로 사용 시도(만피로 막혀도 시도는 발생)
 
     public static void RaiseMovedDelta(float d) => OnPlayerMovedDelta?.Invoke(d);
     public static void RaiseTriggerEnter(string id) => OnTriggerEntered?.Invoke(id);
@@ -43,6 +45,8 @@ public static class GameEvents
     public static void RaiseCoreUIOpened() { Record(KeyCoreOpen, 1); OnCoreUIOpened?.Invoke(); }
     public static void RaiseCoreUpgradeAttempt() => Record(KeyCoreUpgrade, 1);   // 강화 시도 기록 (lookback 갭 인정용)
     public static void RaiseRailItemMoved(int facilityId, int itemId, int count) { Record(KeyRailMove, count); OnRailItemMoved?.Invoke(facilityId, itemId, count); }
+    public static void RaiseQuickSlotRegistered(int itemId) { Record(KeyQuickRegister, 1); OnQuickSlotRegistered?.Invoke(itemId); }
+    public static void RaiseQuickSlotUsed(int itemId) { Record(KeyQuickUse, 1); OnQuickSlotUsed?.Invoke(itemId); }
 
     // ── 일회성 이벤트 lookback 캐시 ───────────────────────────────────────
     // 문제: 퀘↔퀘 사이 ~1.15초 갭 동안엔 활성 objective가 없어, 이때 플레이어가 다음 퀘가 시킬 행동을
@@ -82,6 +86,8 @@ public static class GameEvents
     public const string KeyCoreOpen = "core_open";
     public const string KeyCoreUpgrade = "core_upgrade";   // 강화 시도 (성공/실패 무관)
     public const string KeyRailMove = "rail_move";         // 레일로 아이템 1회 전달
+    public const string KeyQuickRegister = "quick_register"; // 소모품 퀵슬롯 등록 1회
+    public const string KeyQuickUse = "quick_use";           // 퀵슬롯(V) 사용 시도 1회
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset()
@@ -103,6 +109,8 @@ public static class GameEvents
         OnBuildModeEntered = null;
         OnCoreUIOpened = null;
         OnRailItemMoved = null;
+        OnQuickSlotRegistered = null;
+        OnQuickSlotUsed = null;
         _recent.Clear();
     }
 }

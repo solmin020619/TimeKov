@@ -192,6 +192,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
             case State.Idle:
                 _state = State.Opening;   // F로 걸어두기
                 _timer = openTimeSeconds;
+                ToastManager.Info("해금을 시작합니다.");
                 RefreshIndicator();
                 break;
 
