@@ -369,11 +369,15 @@ public class PlayerHudUI : MonoBehaviour
         UpdateSkillGauge();
     }
 
+    // 시간(체력) 표시 정수화 = CeilToInt(0 가드). 양수면 최소 1로 보이고 진짜 0일 때만 0.
+    // -> "보이는 0 = 사망" 보장(사망 임계값 <=0 은 안 건드림). 바텍스트/토스트가 같은 함수를 써 어긋남 방지.
+    static int TimeDisplay(float hp) => hp <= 0f ? 0 : Mathf.CeilToInt(hp);
+
     // 시간(HP)이 10 이하로 떨어지면 매 정수마다 경고 토스트. 피격으로 점프해도 그 지점부터 다시.
     void CheckLowTimeWarning()
     {
         if (playerStat.IsDead) return;
-        int t = Mathf.FloorToInt(playerStat.CurrentHp);
+        int t = TimeDisplay(playerStat.CurrentHp);
         if (t > 10) { _lastTimeWarn = int.MaxValue; return; }   // 10 초과로 회복하면 리셋
         if (t >= 1 && t < _lastTimeWarn)
         {
@@ -439,7 +443,7 @@ public class PlayerHudUI : MonoBehaviour
     {
         if (timeValueText == null || playerStat == null) return;
 
-        int currentTime = Mathf.RoundToInt(playerStat.CurrentHp);
+        int currentTime = TimeDisplay(playerStat.CurrentHp);
         int maxTime = Mathf.RoundToInt(playerStat.MaxHp);
 
         timeValueText.text = $"{timeTextPrefix}{currentTime}s/{maxTime}s";
