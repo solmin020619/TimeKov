@@ -29,6 +29,7 @@ public class EnemyWorldUI : MonoBehaviour
 
     private float _headWorldOffset;   // 몬스터 pivot -> 메쉬 top 까지 높이 + headGap (스폰 시 1회 계산)
     private bool _headOffsetReady;
+    private bool _scaleReady;          // 부모 스케일 상쇄값 1회 계산 여부 (스폰 후 부모 스케일 불변 가정)
 
     private void Awake()
     {
@@ -69,25 +70,37 @@ public class EnemyWorldUI : MonoBehaviour
 
         if (cam == null)
             cam = Camera.main;
+        if (cam == null)
+            return;
 
-        // 부모(몬스터) 스케일을 상쇄해서 체력바/이름 크기를 모든 몬스터 동일하게 유지
-        NormalizeScale();
+        // 거리 컬링: showDistance 밖이면 어차피 안 보이므로(alpha 0) 빌보드/스케일/위치 계산을 통째로 스킵.
+        // (안 보이는 HP바는 시각 차이 없음. 22마리 매 프레임 연산 절약. Distance 대신 sqr 비교로 sqrt 제거.)
+        if (!alwaysShowBossLike)
+        {
+            float sqrDist = (cam.transform.position - targetTransform.position).sqrMagnitude;
+            if (sqrDist > showDistance * showDistance)
+            {
+                if (canvasGroup != null && canvasGroup.alpha != 0f) canvasGroup.alpha = 0f;
+                return;
+            }
+        }
+        if (canvasGroup != null && canvasGroup.alpha != 1f) canvasGroup.alpha = 1f;
+
+        // 부모(몬스터) 스케일 상쇄 — 스폰 후 스케일이 안 변하므로 1회만 계산해 캐싱.
+        if (!_scaleReady) NormalizeScale();
 
         // 머리 위 통일 배치: 몬스터 실제 메쉬 윗부분 + headGap. 스케일/기본키 달라도 항상 머리 바로 위.
         if (!_headOffsetReady) CacheHeadOffset();
         Vector3 p = targetTransform.position;
         transform.position = new Vector3(p.x + worldOffset.x, p.y + _headWorldOffset, p.z + worldOffset.z);
 
-        if (cam != null)
-        {
-            transform.forward = cam.transform.forward;
-            UpdateVisibilityByDistance();
-        }
+        transform.forward = cam.transform.forward;
     }
 
     // 월드 기준 lossyScale 을 worldScale 로 고정 (부모 스케일이 얼마든 결과 동일)
     private void NormalizeScale()
     {
+        _scaleReady = true;   // 부모 스케일은 스폰 후 불변 가정 -> 1회만 계산
         var parent = transform.parent;
         if (parent == null)
         {
@@ -125,21 +138,6 @@ public class EnemyWorldUI : MonoBehaviour
 
         if (has)
             _headWorldOffset = (b.max.y - targetTransform.position.y) + headGap;
-    }
-
-    private void UpdateVisibilityByDistance()
-    {
-        if (canvasGroup == null || cam == null || targetTransform == null)
-            return;
-
-        if (alwaysShowBossLike)
-        {
-            canvasGroup.alpha = 1f;
-            return;
-        }
-
-        float distance = Vector3.Distance(cam.transform.position, targetTransform.position);
-        canvasGroup.alpha = distance <= showDistance ? 1f : 0f;
     }
 
     private void RefreshHP()
