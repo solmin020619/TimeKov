@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: slash 03
+  m_Name: line
   m_Shader: {fileID: -6465566751694194690, guid: 53c21051ceb3c4b40b07bef94f7546a3, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -58,7 +58,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Dist_Tex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: e199ee8112362864f831425463b09fda, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
@@ -70,7 +70,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Main_Tex:
-        m_Texture: {fileID: 2800000, guid: c204c39db5290d848879b80d0c216556, type: 3}
+        m_Texture: {fileID: 2800000, guid: 50dc14a4f23fc094c812f3d939617aa2, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -90,7 +90,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Tex:
-        m_Texture: {fileID: 2800000, guid: dfb4734485aa8314d9d34692567833d8, type: 3}
+        m_Texture: {fileID: 2800000, guid: 6cb74582b22f7ba41b014a6329cf968a, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
@@ -128,7 +128,7 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _Initensity: 15
+    - _Initensity: 7
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005
@@ -143,9 +143,9 @@ Material:
     - _Surface: 0
     - _WorkflowMode: 1
     - _ZWrite: 1
-    - _alpha: 2
+    - _alpha: 1
     - _depth_fade: 0.5
-    - _intensity: 1
+    - _intensity: 0.5
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
@@ -153,7 +153,7 @@ Material:
     - _Dist_Tiling: {r: 1, g: 1, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _Main_Flow: {r: 0, g: 0, b: 0, a: 0}
-    - _Main_Offset: {r: 0, g: -0.11, b: 0, a: 0}
+    - _Main_Offset: {r: 1, g: 1, b: 0, a: 0}
     - _Main_Tiling: {r: 1, g: 1, b: 0, a: 0}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
   m_BuildTextureStacks: []
