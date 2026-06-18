@@ -139,7 +139,10 @@ public class EnemyBrain : MonoBehaviour
         if (targetObj != null && playerStat != null && (playerStat.IsDead || playerStat.IsInBase))
             targetObj = null;
 
-        btAgent.SetVariableValue(targetVarName, targetObj);
+        // 타깃이 바뀐 프레임에만 블랙보드에 쓴다(안 바뀌면 같은 값 재기록 = 낭비). 22마리 x 60fps 절약.
+        // EnemyBrain이 Target의 유일 작성자라 재기록 생략해도 BT가 읽는 값은 동일.
+        if (targetObj != lastTarget)
+            btAgent.SetVariableValue(targetVarName, targetObj);
 
         if (lastTarget == null && targetObj != null)
         {
