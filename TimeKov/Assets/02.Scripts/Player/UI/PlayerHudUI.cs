@@ -221,6 +221,23 @@ public class PlayerHudUI : MonoBehaviour
         playerStat.OnDead += ForceHpSliderEmpty;
         playerStat.OnDamaged += ShowDamageText;
         playerStat.OnHealed += ShowHealText;
+
+        BuildQuickSlotWidget();
+    }
+
+    // 소모품 퀵슬롯 HUD 위젯 런타임 생성 (스킨/위치는 디자인 확정 후 교체).
+    void BuildQuickSlotWidget()
+    {
+        var player = playerStat != null ? playerStat.GetComponent<Player>() : null;
+        if (player == null || player.QuickSlot == null) return;
+
+        var canvas = GetComponentInParent<Canvas>();
+        RectTransform parent = canvas != null ? (RectTransform)canvas.transform : (RectTransform)transform;
+
+        var go = new GameObject("QuickSlotWidget", typeof(RectTransform));
+        var widget = go.AddComponent<PlayerQuickSlotHudUI>();
+        KeyCode key = player.Input != null ? player.Input.QuickSlotKey : KeyCode.V;
+        widget.Setup(parent, player.QuickSlot, key);
     }
 
     void OnDestroy()

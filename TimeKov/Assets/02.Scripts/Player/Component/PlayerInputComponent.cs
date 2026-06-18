@@ -17,6 +17,10 @@ public class PlayerInputComponent : MonoBehaviour
     public bool    Skill3Pressed { get; private set; }  // R 스킬 입력
     public bool    InteractPressed { get; private set; } // 상호작용 입력 (F키, 누른 순간)
     public bool    InstantPressed  { get; private set; } // 즉시완료 입력 (G키, 누른 순간)
+    public bool    QuickSlotPressed { get; private set; } // 퀵슬롯 소모품 사용 (기본 V, 전투 중에도 가능)
+
+    [SerializeField] private KeyCode quickSlotKey = KeyCode.V; // 퀵슬롯 사용 키 (인스펙터에서 변경 가능)
+    public KeyCode QuickSlotKey => quickSlotKey;
 
     public static bool IsBlocked = false; // UI가 열림
 
@@ -47,6 +51,7 @@ public class PlayerInputComponent : MonoBehaviour
             Skill3Pressed   = false;
             InteractPressed = false;
             InstantPressed  = false;
+            QuickSlotPressed = false;
             return;
         }
 
@@ -59,6 +64,8 @@ public class PlayerInputComponent : MonoBehaviour
         Skill3Pressed   = Input.GetKeyDown(KeyCode.R);
         InteractPressed = Input.GetKeyDown(KeyCode.F);
         InstantPressed  = Input.GetKeyDown(KeyCode.G);
+        // 퀵슬롯은 전투 중(스킬/대시)에도 써야 하므로 아래 차단 블록에서 0으로 만들지 않는다.
+        QuickSlotPressed = Input.GetKeyDown(quickSlotKey);
 
         // 스킬/콤보 실행 중 모든 행동 입력 차단 (이동/점프/공격/대시/스킬 전부).
         // 스킬은 끝까지 재생되어야 하며, 끝나는 순간(IsExecuting=false) 다시 입력을 받아

@@ -34,6 +34,17 @@ public static class ConsumableEffectApplier
         return true;
     }
 
+    // 체력(시간) 회복 계열인지. 퀵슬롯은 회복 앰플 전용이라 등록 가능 여부 판단에 쓴다.
+    // Heal(즉시) / SustainHeal(지속)만 회복 -> 스탯 앰플(Buff/PermanentStat 등)은 제외.
+    public static bool IsRecovery(string itemId)
+    {
+        if (string.IsNullOrEmpty(itemId)) return false;
+        if (GameDataHolder.I == null) return false;
+        if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var e)) return false;
+        return e.consumableType == ConsumableType.Heal
+            || e.consumableType == ConsumableType.SustainHeal;
+    }
+
     private static bool ApplyInternal(string itemId, Player player)
     {
         if (player == null)
@@ -189,5 +200,61 @@ public static class ConsumableEffectApplier
             EffectTarget.Stamina => player.Stat.MaxStamina,
             _ => 0f
         };
+    }
+
+    // 우클릭 메뉴 "사용 효과" 한 줄 설명. 데이터 없으면 빈 문자열.
+    public static string Describe(string itemId)
+    {
+        if (string.IsNullOrEmpty(itemId)) return "";
+        if (GameDataHolder.I == null) return "";
+        if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var e)) return "";
+
+        string target = TargetName(e.effectTarget);
+        string val = ValueText(e);
+        string sec = SecText(e.duration);
+
+        switch (e.consumableType)
+        {
+            case ConsumableType.Heal:
+                return $"즉시 {target} {val} 회복";
+            case ConsumableType.SustainHeal:
+                return $"{sec}초 동안 {target} {val} 회복";
+            case ConsumableType.Buff:
+                return $"{target} +{val} ({sec}초)";
+            case ConsumableType.PermanentStat:
+                return $"{target} 영구 +{val}";
+            default:
+                return "";
+        }
+    }
+
+    private static string TargetName(EffectTarget t) => t switch
+    {
+        EffectTarget.Time        => "시간",
+        EffectTarget.ATK         => "공격력",
+        EffectTarget.DEF         => "방어력",
+        EffectTarget.MoveSpeed   => "이동속도",
+        EffectTarget.Stamina     => "스태미나",
+        EffectTarget.SkillGauge  => "스킬 게이지",
+        EffectTarget.TimeDecay   => "시간 감소율",
+        EffectTarget.DashStamina => "대시 소모",
+        EffectTarget.AllStats    => "전체 능력치",
+        _ => ""
+    };
+
+    private static string ValueText(ConsumableEffectSheetData e)
+    {
+        float v = e.effectValue;
+        string n = Mathf.Approximately(v, Mathf.Round(v))
+            ? Mathf.RoundToInt(v).ToString()
+            : v.ToString("0.#");
+        return e.effectValueType == EffectValueType.Flat ? n : n + "%";
+    }
+
+    private static string SecText(float duration)
+    {
+        return Mathf.Approximately(duration, Mathf.Round(duration))
+            ? Mathf.RoundToInt(duration).ToString()
+            : duration.ToString("0.#");
     }
 }

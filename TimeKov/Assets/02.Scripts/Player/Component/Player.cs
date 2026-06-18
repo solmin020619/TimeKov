@@ -10,6 +10,7 @@ public class Player : MonoBehaviour
     public PlayerDashComponent Dash { get; private set; }
     public PlayerInteractComponent Interact { get; private set; }
     public PlayerAudioComponent Audio { get; private set; }
+    public PlayerQuickSlotComponent QuickSlot { get; private set; }
 
     void Awake()
     {
@@ -21,5 +22,10 @@ public class Player : MonoBehaviour
         Dash = GetComponent<PlayerDashComponent>();
         Interact = GetComponent<PlayerInteractComponent>();
         Audio = GetComponent<PlayerAudioComponent>();
+
+        // 소모품 퀵슬롯 - 프리팹에 없으면 런타임 추가(수동 부착 불필요).
+        // 프리팹에 직접 붙이면 인스펙터에서 쿨다운 등 튜닝 가능.
+        QuickSlot = GetComponent<PlayerQuickSlotComponent>();
+        if (QuickSlot == null) QuickSlot = gameObject.AddComponent<PlayerQuickSlotComponent>();
     }
 }
