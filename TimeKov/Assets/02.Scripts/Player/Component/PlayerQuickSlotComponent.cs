@@ -13,6 +13,7 @@ public class PlayerQuickSlotComponent : MonoBehaviour
 
     // 등록/해제/사용 시 발생 (HUD 갱신용). 개수 변화는 InventoryManager.OnInventoryChanged 로 따로 추적.
     public event Action OnChanged;
+    public event Action OnUsed;   // 실제 사용 성공 시 (HUD 슬롯 피드백용)
 
     private Player _player;
     private PlayerInputComponent _input;
@@ -40,10 +41,11 @@ public class PlayerQuickSlotComponent : MonoBehaviour
     // 우클릭 메뉴의 "퀵슬롯 등록" 에서 호출.
     public void Register(int itemId)
     {
-        // 퀵슬롯은 체력(시간) 회복 앰플 전용 - 스탯 앰플 등은 등록 불가.
-        if (!ConsumableEffectApplier.IsRecovery(itemId.ToString()))
+        // 퀵슬롯은 소모품(전술 소모품) 전용. 회복/스탯 앰플 등 소모품이면 모두 등록 가능.
+        var data = ItemDatabase.GetItem(itemId);
+        if (data == null || data.itemCategory != ItemCategory.TacticalConsumable)
         {
-            ToastManager.Warning("체력 회복 앰플만 퀵슬롯에 등록할 수 있습니다.");
+            ToastManager.Warning("소모품만 퀵슬롯에 등록할 수 있습니다.");
             return;
         }
 
@@ -92,5 +94,6 @@ public class PlayerQuickSlotComponent : MonoBehaviour
 
         _lastUseTime = Time.unscaledTime;
         OnChanged?.Invoke();
+        if (applied) OnUsed?.Invoke();   // 사용 성공 -> HUD 슬롯 플래시
     }
 }

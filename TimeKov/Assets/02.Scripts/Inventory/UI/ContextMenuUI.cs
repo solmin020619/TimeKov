@@ -233,11 +233,9 @@ public class ContextMenuUI : MonoBehaviour
         if (_effectBox != null) _effectBox.SetActive(showEffect);
         if (showEffect && _effectText != null) _effectText.text = eff;
 
-        // 버튼: 사용 행은 소모품만, 퀵슬롯 등록은 회복 앰플만, 분할은 2개 이상일 때만
+        // 버튼: 사용/퀵슬롯 등록 행은 소모품만(회복/스탯 앰플 다 등록 가능), 분할은 2개 이상일 때만
         if (_consumableRow != null) _consumableRow.SetActive(isConsumable);
-        if (_quickBtn != null)
-            _quickBtn.gameObject.SetActive(isConsumable
-                && ConsumableEffectApplier.IsRecovery(slot.SlotData.itemId.ToString()));
+        if (_quickBtn != null) _quickBtn.gameObject.SetActive(isConsumable);
         if (_splitBtn != null) _splitBtn.interactable = slot.SlotData.amount > 1;
 
         gameObject.SetActive(true);
