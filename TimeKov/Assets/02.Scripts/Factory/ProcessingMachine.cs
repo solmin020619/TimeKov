@@ -105,14 +105,19 @@ namespace TIMEKOV.Factory
         }
 
         /// <summary>
-        /// 고정 레시피의 입력 재료이면 true. 레시피가 없으면 false.
+        /// 이 설비의 레시피 중 "하나라도" 이 아이템을 입력 재료로 쓰면 true.
+        /// 레시피가 여러 개인 설비는 선택된 레시피뿐 아니라 모든 레시피의 재료를 받아야
+        /// (다른 레시피용 재료가 창고로 빠지지 않음) 하므로 전체 레시피를 검사한다.
         /// </summary>
         public override bool CanReceive(int itemId)
         {
-            var recipe = GetLockedRecipe();
-            if (recipe == null || recipe.inputs == null) return false;
-            foreach (var slot in recipe.inputs)
-                if (slot.itemId == itemId) return true;
+            if (recipes == null) return false;
+            foreach (var recipe in recipes)
+            {
+                if (recipe?.inputs == null) continue;
+                foreach (var slot in recipe.inputs)
+                    if (slot.itemId == itemId) return true;
+            }
             return false;
         }
 
