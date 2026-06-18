@@ -67,10 +67,16 @@ public class TutorialVideoUI : MonoBehaviour
     private const float CloseCooldown = 0.35f;     // 표시 직후 잔여 입력으로 즉시 닫히는 것 방지
     private const int   VideoW = 1280, VideoH = 720;
 
+    // 페이드(하드컷 완화). 정지(timeScale=0)는 즉시, 시각(블러+틴트+콘텐츠)만 unscaled 로 ease.
+    private const float FadeInTime  = 0.16f;       // 팝업 떠오름
+    private const float FadeOutTime = 0.13f;       // 닫힐 때(게임플레이는 즉시 재개, 화면만 페이드)
+    private CanvasGroup _group;                    // 루트 전체 알파 보간용
+    private Coroutine   _fadeCo;
+
     // ── 배경 연출 조절값 (여기 숫자만 바꾸면 됨) ─────────────────────
     // "기존 화면 위에 살짝 떠오르는" 느낌 목표 = 약한 블러 + 옅은 어둡기.
     // 더 약하게: BlurStrength/DimAlpha 낮추기. 더 세게: 올리기. (인벤 패널 블러는 6)
-    private const float BlurStrength       = 2.2f;  // 블러 강도(낮을수록 배경 또렷). 화면 전환 느낌 나면 더 낮춰라.
+    private const float BlurStrength       = 1.5f;  // 블러 강도(낮을수록 배경 또렷). 화면 전환 느낌 나면 더 낮춰라.
     private const int   BlurIterations     = 3;     // 반복(낮을수록 덜 뭉갬)
     private const float BlurSampleDistance = 1.1f;  // 샘플 간격
     private const float DimAlpha           = 0.28f; // 블러 위 어둡기(낮을수록 기존 화면 느낌)
@@ -130,20 +136,42 @@ public class TutorialVideoUI : MonoBehaviour
             _blur.Common.ValidateBlur();
         }
 
-        GameUIController.Instance?.SetTutorialCoachActive(true);   // 이동/공격/J·C 등 차단
+        GameUIController.Instance?.SetTutorialCoachActive(true);   // 이동/공격/J·C 등 차단(키보드)
+        // ★영상 팝업은 마우스로 닫는다(확인/아무곳 클릭). GameUIController.RefreshCursorState가 매 프레임
+        //   커서를 숨기므로(영상은 UIState가 아님) 플래그로 알려 강제 표시하게 함(LateUpdate 순서 경합 제거).
+        if (GameUIController.Instance != null) GameUIController.Instance.TutorialVideoCursor = true;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        if (_group != null) _group.alpha = 0f;   // 페이드 인 시작점(스냅 인 방지)
         SetVisible(true);
         RenderPage();
+        StartFade(1f, FadeInTime);               // 정지는 이미 즉시, 시각만 부드럽게 떠오름
     }
 
-    public void Hide()
+    // 즉시 숨김(씬 전환/Deactivate 등 teardown 경로). 게임 재개 + 캔버스 즉시 off.
+    public void Hide() => HideInternal(false);
+
+    private void HideInternal(bool fade)
     {
         bool wasOpen = _open;
         _open = false;
         _suppressed = false;
         if (_vp != null) _vp.Stop();
-        if (wasOpen) Time.timeScale = _resumeTimeScale;   // 게임 재개
+        if (wasOpen) Time.timeScale = _resumeTimeScale;   // 게임 즉시 재개(완료 콜백/입력 지연 없음)
+        if (GameUIController.Instance != null) GameUIController.Instance.TutorialVideoCursor = false;
         GameUIController.Instance?.SetTutorialCoachActive(false);
-        SetVisible(false);
+
+        // fade=true(유저가 닫음): 게임은 즉시 재개하고 화면만 페이드 아웃. 그 외(teardown)엔 즉시 off.
+        if (fade && wasOpen && isActiveAndEnabled && _group != null)
+        {
+            if (_raycaster != null) _raycaster.enabled = false;   // 입력 즉시 게임으로 통과, 화면만 페이드
+            StartFade(0f, FadeOutTime, hideAtEnd: true);
+        }
+        else
+        {
+            if (_fadeCo != null) { StopCoroutine(_fadeCo); _fadeCo = null; }
+            SetVisible(false);
+        }
     }
 
     // ── 내부 ──────────────────────────────────────────────────────────
@@ -154,6 +182,35 @@ public class TutorialVideoUI : MonoBehaviour
     {
         if (_canvas != null) _canvas.enabled = v;
         if (_raycaster != null) _raycaster.enabled = v;
+    }
+
+    // 알파 페이드 시작(중첩 방지). 비활성/그룹 없으면 즉시 적용.
+    private void StartFade(float target, float duration, bool hideAtEnd = false)
+    {
+        if (_fadeCo != null) { StopCoroutine(_fadeCo); _fadeCo = null; }
+        if (!isActiveAndEnabled || _group == null)
+        {
+            if (_group != null) _group.alpha = target;
+            if (hideAtEnd) SetVisible(false);
+            return;
+        }
+        _fadeCo = StartCoroutine(FadeRoutine(target, duration, hideAtEnd));
+    }
+
+    // 정지(timeScale=0) 중에도 도는 unscaled 알파 보간. 게임 정지/재개와 무관하게 시각만 ease.
+    private System.Collections.IEnumerator FadeRoutine(float target, float duration, bool hideAtEnd)
+    {
+        float start = _group.alpha;
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            _group.alpha = Mathf.Lerp(start, target, duration > 0f ? Mathf.Clamp01(t / duration) : 1f);
+            yield return null;
+        }
+        _group.alpha = target;
+        if (hideAtEnd) SetVisible(false);
+        _fadeCo = null;
     }
 
     private void LateUpdate()
@@ -176,6 +233,10 @@ public class TutorialVideoUI : MonoBehaviour
             }
         }
         if (_suppressed) return;
+
+        // 코치모드/게임이 매 프레임 커서를 숨길 수 있으니, 팝업 떠 있는 동안 커서를 계속 보이게 재고정(마우스로 닫음).
+        if (!Cursor.visible) Cursor.visible = true;
+        if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
 
         // 설정창이 닫히며 timeScale 을 1 로 되돌릴 수 있어, 팝업이 떠 있는 동안엔 0 으로 고정.
         if (Time.timeScale != 0f) Time.timeScale = 0f;
@@ -213,7 +274,7 @@ public class TutorialVideoUI : MonoBehaviour
     {
         var cb = _onClosed;
         _onClosed = null;
-        Hide();
+        HideInternal(true);   // 화면은 페이드 아웃, 게임플레이는 즉시 재개(완료 콜백 지연 없음)
         cb?.Invoke();
     }
 
@@ -306,6 +367,7 @@ public class TutorialVideoUI : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         _raycaster = gameObject.AddComponent<GraphicRaycaster>();
+        _group = gameObject.AddComponent<CanvasGroup>();   // 페이드 인/아웃용(블러+틴트+콘텐츠 통째 알파)
 
         var root = (RectTransform)transform;
 

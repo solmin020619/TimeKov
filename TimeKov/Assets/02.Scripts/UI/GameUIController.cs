@@ -529,8 +529,19 @@ public class GameUIController : MonoBehaviour
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
     }
 
+    /// <summary>튜토리얼 영상 팝업이 떠 있는 동안 true — 마우스로 닫으므로 커서 강제 표시. TutorialVideoUI가 세팅.</summary>
+    public bool TutorialVideoCursor { get; set; }
+
     private void RefreshCursorState()
     {
+        // 튜토리얼 영상 팝업은 마우스로 닫는다(확인/아무곳 클릭) -> 매 프레임 커서 강제 표시(다른 분기보다 우선).
+        if (TutorialVideoCursor)
+        {
+            if (!Cursor.visible) Cursor.visible = true;
+            if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
+            return;
+        }
+
         // 사망 오버레이가 열려있으면 커서 강제 표시 (부활 버튼 클릭 필요)
         if (DeathOverlayUI.IsOpen)
         {
