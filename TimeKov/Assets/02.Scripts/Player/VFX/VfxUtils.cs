@@ -82,11 +82,14 @@ public static class VfxUtils
     {
         if (prefab == null) return null;
 
-        GameObject obj = Object.Instantiate(prefab, position, rotation, parent);
+        // 풀 경유(시전마다 Instantiate/Destroy 제거). 풀 부재(앱 종료 등)면 기존 방식 폴백.
+        var pool = VfxPool.I;
+        if (pool != null)
+            return pool.Spawn(prefab, position, rotation, parent, lifeTime);
 
+        GameObject obj = Object.Instantiate(prefab, position, rotation, parent);
         if (lifeTime > 0f)
             Object.Destroy(obj, lifeTime);
-
         return obj;
     }
 
