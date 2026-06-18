@@ -55,6 +55,7 @@ public class PlayerMovementComponent : MonoBehaviour
     private bool       _deathAligned;            // 이번 사망에서 목표 회전을 이미 잡았는지
     private Quaternion _deathTargetRot;          // 지면 법선에 정렬된 목표 회전
     private const float CORPSE_ALIGN_SPEED = 8f; // 경사 정렬 슬러프 속도
+    private bool       _deathPendingGround;      // 공중에서 죽었을 때 착지 전까지 true (착지하면 그때 얼림 — 떠서 죽는 것 방지)
 
     // Slash
     private bool _isSlashing;
@@ -105,9 +106,21 @@ public class PlayerMovementComponent : MonoBehaviour
     /// <summary>사망 시 Rigidbody를 Kinematic으로 전환 — 경사면 미끄러짐 및 피격 밀림 방지</summary>
     private void FreezeOnDeath()
     {
-        _rb.linearVelocity = Vector3.zero;
         _rb.angularVelocity = Vector3.zero;
-        _rb.isKinematic = true;
+
+        // 공중에서 죽으면 즉시 kinematic으로 얼릴 경우 그 위치에 떠서 죽는다.
+        // 접지 상태에서만 바로 얼리고, 공중이면 착지할 때까지 떨어지게 둔다(FixedUpdate에서 처리).
+        if (_isGrounded)
+        {
+            _rb.linearVelocity = Vector3.zero;
+            _rb.isKinematic = true;
+            _deathPendingGround = false;
+        }
+        else
+        {
+            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);   // 수평만 정지, 낙하(Y)는 유지
+            _deathPendingGround = true;
+        }
     }
 
     /// <summary>부활 시 Rigidbody 복구 (PlayerStatComponent.Respawn에서 호출됨)</summary>
@@ -121,6 +134,7 @@ public class PlayerMovementComponent : MonoBehaviour
         if (flatFwd.sqrMagnitude < 1e-4f) flatFwd = Vector3.forward;
         transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
         _deathAligned = false;
+        _deathPendingGround = false;
     }
 
     // 사망 시 시체를 지면 경사면을 따라 눕힌다 (경사에서 누운 메시가 지형에 파묻히는 것 방지).
@@ -167,16 +181,35 @@ public class PlayerMovementComponent : MonoBehaviour
         // 다시 만들 수 있어, 핸들러 진입 전에 여기서 확실히 차단한다.
         if (_player.Stat.IsDead)
         {
+            _currentSpeed = 0f;
+
+            // 공중에서 죽음 -> 착지할 때까지 중력으로 낙하(수평 정지). 닿으면 그때 얼린다(떠서 죽는 것 방지).
+            if (_deathPendingGround)
+            {
+                _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+                float mult = _rb.linearVelocity.y < 0f ? FallMultiplier : 1f;
+                _rb.AddForce(Vector3.up * Gravity * mult, ForceMode.Acceleration);
+
+                if (_isGrounded && _rb.linearVelocity.y <= 0f)
+                {
+                    _rb.linearVelocity  = Vector3.zero;
+                    _rb.angularVelocity = Vector3.zero;
+                    _rb.isKinematic     = true;
+                    _deathPendingGround = false;
+                }
+                return;   // 낙하 중엔 경사 정렬 안 함(착지 후 다음 프레임에 정렬)
+            }
+
             if (!_rb.isKinematic)
             {
                 _rb.linearVelocity  = Vector3.zero;
                 _rb.angularVelocity = Vector3.zero;
             }
-            _currentSpeed = 0f;
             AlignCorpseToSlope();
             return;
         }
-        _deathAligned = false;  // 살아있으면 다음 사망 때 다시 정렬하도록 리셋
+        _deathAligned       = false;  // 살아있으면 다음 사망 때 다시 정렬하도록 리셋
+        _deathPendingGround = false;
 
         HandleJump();
         HandleSlash();
