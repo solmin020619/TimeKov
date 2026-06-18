@@ -607,8 +607,11 @@ namespace TIMEKOV.Factory
             }
             src.AddOutputBelt(chain[0]);
 
-            // 벨트가 연결될 때 OutputBuffer에 이미 대기 중인 아이템이 있으면 즉시 첫 발송 시작
-            if (changed)
+            // 벨트가 연결될 때 OutputBuffer에 이미 대기 중인 아이템이 있으면 즉시 첫 발송 시작.
+            // 단, 이미 배출 루프가 돌고 있으면(ReconnectAll 이 여러 프레임에 걸쳐 다시 불려
+            // changed 가 또 true 가 되는 경우) 중복 킥 금지 — 첫·둘째 아이템이 한꺼번에
+            // 나가는 버그 방지. 진행 중인 루프가 1.5초 간격으로 이어서 비워준다.
+            if (changed && !src.HasPendingDispatch)
                 src.TryDispatchPendingOutput();
         }
 
@@ -679,8 +682,12 @@ namespace TIMEKOV.Factory
 
         private IEnumerator ScheduleNextDispatch()
         {
+            // 출발 시점의 소스를 고정 캡처 — 대기 중 연결이 바뀌어도 같은 설비의 배출 루프로 동작.
+            var src = sourceM;
+            src?.MarkDispatchScheduled();
             yield return new WaitForSeconds(dispatchInterval);
-            sourceM?.TryDispatchPendingOutput();
+            src?.MarkDispatchFired();
+            src?.TryDispatchPendingOutput();
         }
 
         private IEnumerator ChainTransportRoutine(int itemId, int amount)

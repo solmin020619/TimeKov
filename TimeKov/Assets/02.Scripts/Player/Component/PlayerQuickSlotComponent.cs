@@ -51,6 +51,7 @@ public class PlayerQuickSlotComponent : MonoBehaviour
 
         RegisteredItemId = itemId;
         OnChanged?.Invoke();
+        GameEvents.RaiseQuickSlotRegistered(itemId);   // 튜토리얼 등록 퀘스트용
         ToastManager.Success("퀵슬롯에 등록했습니다.");
     }
 
@@ -78,6 +79,9 @@ public class PlayerQuickSlotComponent : MonoBehaviour
             ToastManager.Warning("소모품이 없습니다.");
             return;
         }
+
+        // 등록됨 + 아이템 보유 상태로 V를 누름 = '사용 시도'. 튜토 사용 퀘스트용(만피로 막혀도 시도는 인정).
+        GameEvents.RaiseQuickSlotUsed(itemId);
 
         // 만피 회복 앰플 등 의미 없는 사용은 막고 아이템 보존 (우클릭 메뉴와 동일 규칙).
         if (!ConsumableEffectApplier.CanApply(itemId.ToString(), _player))

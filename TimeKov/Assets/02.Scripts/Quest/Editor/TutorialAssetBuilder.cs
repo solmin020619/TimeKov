@@ -48,11 +48,13 @@ public static class TutorialAssetBuilder
     const string TargetStatPanel    = "status_panel";    // C 스탯 창
     const string TargetStatButton   = "stat_button";     // 우측 상단 C 스탯 아이콘(C_Icon)
     const string TargetTabIcon      = "tab_icon";        // 우측 상단 TAB(인벤) 아이콘
+    const string TargetMenuIcons    = "menu_icons";      // 우측 상단 메뉴 전체(TAB/B/C/ESC) 합집합
     const string TargetQuickSlots    = "quick_slots";    // 건설 퀵슬롯 바
     const string TargetRailSlot      = "rail_slot";      // E 레일 슬롯
     const string TargetBuildDemolish = "build_demolish"; // X 일괄조작 힌트
     const string TargetBuildRotate   = "build_rotate";   // R 설비회전 힌트
     const string TargetSkillQ        = "skill_q";        // 우하단 스킬 슬롯 Q
+    const string TargetSkillsAll     = "skills_qer";     // 우하단 스킬 3칸(Q/E/R) 합집합
 
     const string Y = "<color=#FFCC00>";  // 강조 색 열기
     const string E = "</color>";          // 닫기
@@ -103,11 +105,11 @@ public static class TutorialAssetBuilder
         // ============================================================
         quests.Add(BuildQuest("quest_tut_00_intro", "시작 안내",
             CreateGuidedTour("obj_intro_tour",
-                TourStep($"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. {Y}결계(기지) 안{E}에선 시간이 줄지 않지만({Y}DECAY OFF{E}), {Y}결계 밖{E}에선 시간이 계속 {Y}줄어{E} 0이 되면 쓰러집니다. {Y}회복 앰플{E}로 채우고 {Y}코어 강화{E}로 최대치를 늘려요.", TargetTimeBar),
-                TourStep($"우상단 메뉴 - {Y}TAB{E}: 인벤토리 / {Y}B{E}: 건설 모드 / {Y}ESC{E}: 설정.", TargetTabIcon),
+                TourStep($"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. 시간이 {Y}0{E}이 되면 사망합니다.", TargetTimeBar),
+                TourStep($"우상단 메뉴 - {Y}TAB{E}: 인벤토리 / {Y}B{E}: 건설 모드 / {Y}ESC{E}: 설정.", TargetMenuIcons),
                 TourStep($"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.", TargetStatButton, KeyCode.C),
                 TourStep($"여기서 {Y}최대 시간{E}·{Y}스태미나{E}·{Y}공격력{E}·{Y}방어력{E}을 확인합니다. {Y}코어 강화{E}로 최대 시간을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있어요. {Y}C{E}로 언제든 여닫을 수 있습니다.", TargetStatPanel),
-                TourStep($"우하단 {Y}스킬{E} 3개 - {Y}Q·E·R{E}로 사용하고, 쓰고 나면 {Y}쿨타임{E}이 끝나야 다시 쓸 수 있어요. {Y}R{E}은 쿨타임이 길지만 강력합니다.", TargetSkillQ))));
+                TourStep($"우하단 {Y}스킬{E} 3개 - {Y}Q·E·R{E}로 사용하고, 쓰고 나면 {Y}쿨타임{E}이 끝나야 다시 쓸 수 있어요.", TargetSkillsAll))));
 
         // ============================================================
         // 조작 - 자명한 입력은 좌측 텍스트만
@@ -146,10 +148,7 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_05a_reach_extractor", "생체 추출기로 이동",
             CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1", BioExtractorId)));
 
-        // [영상] 설비 해금 (F 해금 / G 즉시) - 추출기 '도착 직후' 발화 -> 닫고 눈앞 설비 바로 F해금(설명-행동 밀착).
-        if (EnableVideoTutorials)
-            quests.Add(BuildUnlockVideoQuest());
-
+        // (설비 해금 영상 제거 - F로 해금하면 자물쇠 풀리는 연출로 자명. 텍스트 지시만 둠.)
         quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "생체 추출기 해금",
             CreateFacilityUnlock("obj_unlock_extractor", $"{Y}F{E}를 눌러 바닥의 {Y}생체 추출기{E}를 {Y}해금{E}하세요.", BioExtractorId)));
 
@@ -161,15 +160,9 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_06_enter_build", "건설 모드 진입",
             CreateEnterBuildMode("obj_build_mode", $"{Y}B{E}로 {Y}건설 모드{E}에 진입하세요.")));
 
-        // 건설 조작 안내 (스포트라이트 투어). ensureBuildMode: 갭에 B 토글로 나가도 항상 건설 모드에서 뜨게.
-        var buildTour = CreateGuidedTour("obj_build_tour",
-            TourStep($"{Y}퀵 슬롯{E}에서 지을 설비를 고릅니다. 방금 {Y}해금한 설비{E}가 여기 있고, 빈 칸은 다른 설비가 맵에 {Y}숨겨져{E} 있어서예요 - {Y}찾아 F로 해금{E}하면 채워집니다.", TargetQuickSlots),
-            TourStep($"{Y}X{E} - 설치한 설비를 {Y}해제{E} (클릭 제거 / {Y}Shift 드래그{E}로 여러 개 한 번에).", TargetBuildDemolish),
-            TourStep($"{Y}E{E} - {Y}레일{E}을 깔아 설비를 이으면 아이템이 {Y}자동{E}으로 이동합니다.", TargetRailSlot),
-            TourStep($"{Y}R{E} - 설치할 설비를 {Y}회전{E}시켜 방향을 바꿉니다. (회전 가능한 설비만)", TargetBuildRotate),
-            TourStep($"{Y}우클릭{E} - {Y}건설 모드{E}를 {Y}빠져나갑니다{E}. ({Y}B{E}로 다시 들어올 수 있어요)"));
-        buildTour.ensureBuildMode = true;
-        quests.Add(BuildQuest("quest_tut_06a_build_tour", "건설 조작 안내", buildTour));
+        // [영상] 설비 설치/해제 (Shift 일괄해제 포함) - B로 건설 진입 직후 바로 영상으로 안내(스포트라이트 투어 대체).
+        if (EnableVideoTutorials)
+            quests.Add(BuildBuildingVideoQuest());
 
         quests.Add(BuildQuest("quest_tut_06b_place_extractor", "생체 추출기 설치",
             CreateFacilityPlace("obj_place_extractor", $"{Y}생체 추출기{E}를 {Y}설치{E}하세요.", BioExtractorId, 1)));
@@ -211,8 +204,22 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_13_collect_ampoule", "회복 앰플 완성",
             CreateItemAcquire("obj_collect_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}회수{E}하세요.", ItemHealAmpoule, 1)));
 
-        quests.Add(BuildQuest("quest_tut_13b_use_ampoule", "회복 앰플 사용",
+        // 사용 학습 + 보상으로 앰플 1개 더 지급 -> 다음 퀵슬롯 등록 퀘에서 가방에 둘 게 있어 바로 등록 시도 가능.
+        quests.Add(BuildQuestRewarded("quest_tut_13b_use_ampoule", "회복 앰플 사용",
+            new[] { new QuestSO.QuestReward { itemId = ItemHealAmpoule, amount = 1 } },
             CreateItemUse("obj_use_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}사용{E}해 시간을 회복하세요.", ItemHealAmpoule, 1)));
+
+        // [영상] 퀵슬롯 등록 안내 -> 곧바로 실제 등록 퀘(레일 영상으로 바로 넘어가 읽다 마는 느낌 방지).
+        if (EnableVideoTutorials)
+            quests.Add(BuildQuickslotVideoQuest());
+
+        // 등록만 하면 바로 끝나 어색하니 사용까지(V) 한 번 해보게 2단계. 사용 단계는 'V로 시도'라
+        // 만피 상태(회복 막힘)에서도 완료된다(소프트락 방지). 둘은 병렬이지만 V 사용은 등록 후에만 발생.
+        quests.Add(BuildQuest("quest_tut_14b_quickslot_register", "퀵슬롯 등록과 사용",
+            CreateQuickSlotRegister("obj_quickslot_register",
+                $"인벤토리에서 {Y}회복 앰플{E}을 {Y}우클릭 -> 퀵슬롯 등록{E}으로 {Y}V 슬롯{E}에 등록하세요."),
+            CreateQuickSlotUse("obj_quickslot_use",
+                $"{Y}V{E}를 눌러 등록한 소모품을 {Y}사용{E}해보세요.")));
 
         // ============================================================
         // 자동화 - [영상] 레일 개념/까는 법, 실제 연결/이동은 별 행동 퀘
@@ -332,6 +339,8 @@ public static class TutorialAssetBuilder
                     $"적이나 오브젝트를 처치하면 {Y}아이템{E}이 떨어집니다. 가까이 가면 {Y}자동으로 줍습니다{E}."),
                 VPage("창고",
                     $"{Y}가방{E}이 가득 차면 아이템이 {Y}창고{E}로 자동 보관됩니다. 창고를 열어 필요한 아이템을 {Y}꺼내 쓸 수 있어요{E}."),
+                VPage("결계 안과 밖",
+                    $"{Y}결계(기지) 안{E}에선 {Y}TAB{E}으로 {Y}창고{E}까지 함께 열려 아이템을 옮길 수 있고, {Y}결계 밖{E}에선 {Y}창고가 열리지 않습니다{E}. 또 결계 밖에선 {Y}시간이 계속 줄어드니{E} 아이템 정리는 안에서 하세요."),
                 VPage("상자파밍",
                     $"맵에서 발견한 {Y}상자{E}는 {Y}F{E}로 엽니다. {Y}등급 높은{E} 아이템이 들어 있어요."),
                 VPage("즉시완료",
@@ -364,6 +373,22 @@ public static class TutorialAssetBuilder
                     $"이제 {Y}자동화{E}를 배워봅시다. 설비를 {Y}레일{E}로 이으면, 아이템이 {Y}자동으로{E} 다음 설비로 이동해 {Y}직접 회수{E}할 필요가 없어집니다. (레일은 {Y}건설 모드(B){E}에서 깝니다)"),
                 VPage("레일 까는 법",
                     $"{Y}건설 모드(B){E}에서 {Y}E(레일){E}을 고른 뒤, 설비의 {Y}출구(E 표시){E}를 클릭해 다음 설비까지 이어 주세요. {Y}공격·방어·스태미나{E} 앰플도 같은 방식으로 다른 설비에서 만들 수 있습니다.")));
+
+    // 설비 설치 + 해제 (Shift 일괄해제 포함). 건설 조작 투어 뒤에 발화.
+    static QuestSO BuildBuildingVideoQuest()
+        => BuildQuest("quest_tut_06v_building_video", "건설하기",
+            CreateVideoTutorial("obj_building_video", "건설 안내를 확인하세요.",
+                VPage("설비 설치",
+                    $"{Y}건설 모드(B){E}에서 {Y}퀵슬롯{E}의 설비를 고른 뒤 {Y}건설 구역{E} 바닥을 클릭해 설치합니다. 놓을 수 있으면 {Y}초록{E}, 안 되면 {Y}빨강{E}으로 표시돼요. ({Y}R{E}로 회전)"),
+                VPage("설비 해제",
+                    $"{Y}X{E}로 {Y}해제 모드{E}에 들어가 설비를 {Y}클릭{E}하면 철거됩니다. {Y}Shift{E}를 누른 채 {Y}드래그{E}하면 {Y}여러 개를 한 번에{E} 해제할 수 있어요.")));
+
+    // 퀵슬롯 등록 - 소모품을 우클릭으로 V 퀵슬롯에 등록해 전투 중 즉시 사용.
+    static QuestSO BuildQuickslotVideoQuest()
+        => BuildQuest("quest_tut_14v_quickslot_video", "퀵슬롯 등록",
+            CreateVideoTutorial("obj_quickslot_video", "퀵슬롯 안내를 확인하세요.",
+                VPage("퀵슬롯 등록",
+                    $"{Y}소모품 표시{E}가 있는 아이템(회복 앰플 등)은 인벤토리에서 {Y}우클릭 -> 퀵슬롯 등록{E}으로 등록하면, 전투 중 {Y}V{E}로 바로 쓸 수 있습니다. 단 {Y}가방에 있을 때만{E} 사용되니(창고에 넣어두면 0), 쓸 소모품은 가방에 두세요.")));
 
     // ============================================================
     // Objective 빌더
@@ -444,6 +469,22 @@ public static class TutorialAssetBuilder
     {
         var o = ScriptableObject.CreateInstance<ItemUseObjective>();
         o.label = label; o.itemId = itemId; o.requiredCount = count;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static QuickSlotRegisterObjective CreateQuickSlotRegister(string name, string label)
+    {
+        var o = ScriptableObject.CreateInstance<QuickSlotRegisterObjective>();
+        o.label = label;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static QuickSlotUseObjective CreateQuickSlotUse(string name, string label)
+    {
+        var o = ScriptableObject.CreateInstance<QuickSlotUseObjective>();
+        o.label = label;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }

@@ -1,6 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-// 엔드필드식 HUD 자동 페이드 - TimeKov 규칙(시간=체력):
+// HUD 자동 페이드 - TimeKov 규칙(시간=체력):
 //   - 결계 밖 = 매 순간 시간이 줄어 위험 -> HUD 항상 표시.
 //   - 결계 안 = 안전(시간 안 줆) -> 평화로운 탐험 중 플레이어 HUD(체력/시간바)+스킬바를 스르르 숨겨
 //     화면을 깔끔하게. 평타/스킬/피격/C 스탯창 열림 시 잠깐 떴다가 몇 초 뒤 다시 숨김.
@@ -33,6 +34,9 @@ public class HudAutoFader : MonoBehaviour
     private float _alpha = 1f;
     private float _lastHp = float.NaN;     // 직전 프레임 체력(시간) - 변화 감지용
     private float _lastMaxHp = float.NaN;  // 직전 프레임 최대 체력 - 코어강화 등 변화 감지용
+    private PlayerDashComponent _dash;                        // 대쉬(우클릭) 시 HUD 표시용
+    private PlayerQuickSlotComponent _quickSlotRef;           // 퀵슬롯(V) 사용 시 표시 (구독 해제용)
+    private readonly List<CanvasGroup> _extraGroups = new();  // 런타임 추가 페이드 묶음(범용)
 
     private void Start()
     {
@@ -45,6 +49,7 @@ public class HudAutoFader : MonoBehaviour
         {
             _stat  = player.Stat;
             _skill = player.Skill;
+            _dash  = player.Dash;
             if (_stat != null)
             {
                 _stat.OnHurt += PulseShow;            // 피격 시 표시
@@ -52,6 +57,8 @@ public class HudAutoFader : MonoBehaviour
                 _lastHp    = _stat.CurrentHp;
                 _lastMaxHp = _stat.MaxHp;
             }
+            _quickSlotRef = player.QuickSlot;
+            if (_quickSlotRef != null) _quickSlotRef.OnUsed += PulseShow;  // 퀵슬롯(V) 사용 시 표시
         }
 
         _showTimer = showHoldSeconds;   // 시작은 보이게
@@ -64,6 +71,16 @@ public class HudAutoFader : MonoBehaviour
             _stat.OnHurt -= PulseShow;
             _stat.OnDamaged -= OnDamagedPulse;
         }
+        if (_quickSlotRef != null) _quickSlotRef.OnUsed -= PulseShow;
+    }
+
+    /// <summary>런타임 생성된 HUD 묶음(예: 새 스킬바)을 페이드 대상에 추가. CanvasGroup get-or-add.</summary>
+    public void AddFadeRoot(GameObject root)
+    {
+        if (root == null) return;
+        var cg = root.GetComponent<CanvasGroup>();
+        if (cg == null) cg = root.AddComponent<CanvasGroup>();
+        if (!_extraGroups.Contains(cg)) _extraGroups.Add(cg);
     }
 
     private void PulseShow() => _showTimer = showHoldSeconds;
@@ -84,8 +101,9 @@ public class HudAutoFader : MonoBehaviour
 
     private void Update()
     {
-        // 결계 안에서의 잠깐 표시용 타이머 (평타/스킬 시)
+        // 결계 안에서의 잠깐 표시용 타이머 (평타/스킬/대쉬 시)
         if (_skill != null && _skill.IsExecuting) _showTimer = showHoldSeconds;
+        if (_dash != null && _dash.IsDashing) _showTimer = showHoldSeconds;   // 대쉬(우클릭) 시 표시
 
         // 시간바 값이 조금이라도 바뀌면 표시 — 힐/딜/소모/코어강화(최대치) 전부 한 곳에서 커버.
         // (결계 밖 드레인은 매 프레임 바뀌지만 그땐 outside로 이미 표시 중이라 무해)
@@ -104,23 +122,35 @@ public class HudAutoFader : MonoBehaviour
         // (튜토 전체가 아니라 설명 코치마크 표시 중에만. 일반 퀘로 넘어가면 정상 페이드)
         bool coachmark = TutorialOverlay.HasInstance && TutorialOverlay.I.IsActive;
 
-        // 결계 밖 / 스탯창 / 코치마크 설명 중 / 결계 안에서 방금 평타,피격 -> 표시
-        bool show = outside || statOpen || coachmark || _showTimer > 0f;
+        // 건축(탑뷰) 모드 = 전투 HUD(스킬바 등) 숨김. GameUIController 상태로 판정(BuildManager 탐색 누락 방지).
+        bool building = GameUIController.Instance != null
+            && GameUIController.Instance.GetCurrentState() == GameUIController.UIState.Build;
+
+        // 결계 밖 / 스탯창 / 코치마크 설명 중 / 결계 안에서 방금 평타,피격 -> 표시. 단 건축모드면 숨김.
+        bool show = !building && (outside || statOpen || coachmark || _showTimer > 0f);
 
         float target = show ? 1f : hiddenAlpha;
         _alpha = Mathf.MoveTowards(_alpha, target, fadeSpeed * Time.deltaTime);
 
         // 페이드 묶음 (전투 외 숨김)
+        bool fadeInteractable = _alpha > 0.5f;
         if (_groups != null)
         {
-            bool interactable = _alpha > 0.5f;
             foreach (var g in _groups)
             {
                 if (g == null) continue;
                 g.alpha = _alpha;
-                g.blocksRaycasts = interactable;
-                g.interactable   = interactable;
+                g.blocksRaycasts = fadeInteractable;
+                g.interactable   = fadeInteractable;
             }
+        }
+        // 런타임 추가 묶음(새 스킬바)도 동일 페이드
+        foreach (var g in _extraGroups)
+        {
+            if (g == null) continue;
+            g.alpha = _alpha;
+            g.blocksRaycasts = fadeInteractable;
+            g.interactable   = fadeInteractable;
         }
 
         // 항상 표시 묶음 (체력/시간바) - 결계 안에서도 안 숨김. 표시 전용이라 클릭 가로채지 않게 raycast 끔.

@@ -39,6 +39,17 @@ namespace TIMEKOV.Factory
         // 라운드 로빈 인덱스 — 다음에 사용할 outputBelt 순번
         private int _nextBeltIndex = 0;
 
+        // 예약(대기) 중인 자동 배출 횟수. 0보다 크면 이미 배출 루프(ScheduleNextDispatch)가
+        // 돌고 있다는 뜻. 연결 시점에 ReconnectAll 이 여러 프레임에 걸쳐 두 번 이상 불려
+        // 연결 상태가 매번 새로 잡히면(첫·둘째 아이템이 한꺼번에 나가는 버그) 중복 킥을 막는다.
+        private int _pendingDispatchSchedules = 0;
+
+        /// <summary>이미 예약된 자동 배출이 있는지 여부 (연결 시 중복 발송 방지용).</summary>
+        public bool HasPendingDispatch => _pendingDispatchSchedules > 0;
+
+        internal void MarkDispatchScheduled() => _pendingDispatchSchedules++;
+        internal void MarkDispatchFired()     => _pendingDispatchSchedules = Mathf.Max(0, _pendingDispatchSchedules - 1);
+
         [Header("입출구 포트")]
         public Transform outputPort;
         public Transform inputPort;
