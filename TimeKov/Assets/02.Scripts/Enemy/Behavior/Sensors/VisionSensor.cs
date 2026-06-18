@@ -23,6 +23,7 @@ public class VisionSensor : MonoBehaviour
     private float scanTimer;
     private Transform lastSeen;
     private float lostTimer;
+    private readonly Collider[] _hitBuffer = new Collider[8];   // OverlapSphereNonAlloc 재사용 버퍼(매 스캔 힙 할당 방지). targetMask=Player라 8개면 충분.
 
     public void ApplyVisionParameters(float range, float angle)
     {
@@ -58,14 +59,14 @@ public class VisionSensor : MonoBehaviour
     private void Scan()
     {
         Vector3 origin = transform.position + Vector3.up * eyeHeight;
-        Collider[] hits = Physics.OverlapSphere(origin, visionRange, targetMask);
+        int count = Physics.OverlapSphereNonAlloc(origin, visionRange, _hitBuffer, targetMask);
 
         Transform best = null;
         float bestSqr = float.MaxValue;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < count; i++)
         {
-            Transform t = hits[i].transform;
+            Transform t = _hitBuffer[i].transform;
             Vector3 toTarget = (t.position + Vector3.up * eyeHeight) - origin;
 
             float angle = Vector3.Angle(transform.forward, toTarget);
