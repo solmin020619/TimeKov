@@ -59,6 +59,11 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         _outline.enabled      = false;
     }
 
+    private void Start()
+    {
+        _player = FindAnyObjectByType<Player>();
+    }
+
     // 인벤토리 UI 열려있을 때만 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
     public bool CanInteract
     {
@@ -99,7 +104,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
                     ReopenPanel();           // 아이템 남아있을 때만 다시 열기
                 break;
         }
-        RefreshIndicator();
+        RefreshIndicator(IsPlayerNear());
     }
 
     // ── G 즉시완료 (IInstantInteractable) ───────────────────────────────
@@ -131,8 +136,9 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
             if (_timer <= 0f) { _timer = 0f; _state = State.Ready; }
         }
         // Opened(잠금해제)는 절대 Idle로 안 돌아간다 = 재굴림 없음(다 비우면 빈 채로 유지).
-        RefreshIndicator();
-        UpdateOutline();
+        bool near = IsPlayerNear();
+        RefreshIndicator(near);
+        UpdateOutline(near);
     }
 
     // ── 수령: 자물쇠 따서 전리품 1회만 굴림 + 패널. 이후 이 상자는 잠금해제(재굴림 없음). ──
@@ -203,7 +209,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     }
 
     // ── 프롬프트 / 상태 표시 ─────────────────────────────────────────────
-    private void RefreshIndicator()
+    private void RefreshIndicator(bool near)
     {
         // GameUIController.IsUIBlocking() = 설정/인벤/퀘스트/팩토리/빌드 등 모든 UI 상태 포함
         bool anyUIOpen = (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
@@ -215,22 +221,22 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         switch (_state)
         {
             case State.Opening:
-                if (!IsPlayerNear()) { ui.HideIfOwner(this); return; }
+                if (!near) { ui.HideIfOwner(this); return; }
                 float prog = openTimeSeconds > 0f ? 1f - _timer / openTimeSeconds : 1f;
                 ui.ShowOpening(this, prog, _timer, InstantCost, () => OnInstantComplete(_player));
                 break;
             case State.Ready:
-                if (!IsPlayerNear()) { ui.HideIfOwner(this); return; }
+                if (!near) { ui.HideIfOwner(this); return; }
                 ui.ShowReady(this, () => Interact(_player));
                 break;
             case State.Idle:
-                if (!IsPlayerNear()) { ui.HideIfOwner(this); return; }
+                if (!near) { ui.HideIfOwner(this); return; }
                 ui.ShowIdle(this, InstantCost,
                     () => Interact(_player),
                     () => OnInstantComplete(_player));
                 break;
             case State.Opened:
-                if (!IsPlayerNear() || !HasItems()) { ui.HideIfOwner(this); return; }
+                if (!near || !HasItems()) { ui.HideIfOwner(this); return; }
                 ui.ShowOpened(this, () => Interact(_player));
                 break;
             default:
@@ -239,17 +245,15 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         }
     }
 
-    private void UpdateOutline()
+    private void UpdateOutline(bool near)
     {
         if (_outline == null) return;
-        bool near = IsPlayerNear();
         bool show = near && !(_state == State.Opened && !HasItems());
         if (_outline.enabled != show) _outline.enabled = show;
     }
 
     private bool IsPlayerNear()
     {
-        if (_player == null) _player = FindAnyObjectByType<Player>();
         if (_player == null) return false;
         return (_player.transform.position - transform.position).sqrMagnitude <= promptRange * promptRange;
     }
