@@ -75,6 +75,18 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 592508339822526650, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 592508339822526650, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 592508339822526650, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 592508339822526650, guid: 94710a36b7b61a44fbe5cf8cd0566cfa, type: 3}
       propertyPath: m_LocalPosition.x
       value: 12.53
       objectReference: {fileID: 0}
@@ -176,7 +188,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   absorbVfxPrefab: {fileID: 1652120292757738852, guid: 4ad361e05246d6d4eb78bae170440ae5, type: 3}
   flyTime: 0.55
-  targetHeight: 1
+  centerYTweak: 0
   spawnHeight: 1
   fallbackLifestealPercent: 0.03
 --- !u!4 &7370058003892653795 stripped

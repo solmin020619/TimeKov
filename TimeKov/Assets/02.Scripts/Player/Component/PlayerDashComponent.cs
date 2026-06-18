@@ -23,6 +23,10 @@ public class PlayerDashComponent : MonoBehaviour
     public bool IsDashing { get; private set; }
     public bool IsOnCooldown => _cooldownTimer > 0;
 
+    // HUD 대쉬 슬롯용 - 스킬 슬롯처럼 쿨다운 표시(테두리 링 + 남은 초)에 쓴다.
+    public float CooldownRemaining => Mathf.Max(0f, _cooldownTimer);
+    public float MaxCooldown => DashCooldown;
+
     void Awake()
     {
         _player = GetComponent<Player>();

@@ -79,6 +79,10 @@ public class PlayerHudUI : MonoBehaviour
     [SerializeField] private Image skill2IconImage;
     [SerializeField] private Image skill3IconImage;
 
+    [Header("New Skill Bar (명조식 5칸)")]
+    [Tooltip("켜면 Q/E/R + 대쉬 + 퀵슬롯을 한 줄 명조식 바로 새로 그린다(기존 스킬 슬롯은 숨김). 끄면 구버전 HUD로 즉시 복귀.")]
+    [SerializeField] private bool useNewSkillBar = true;
+
     [Tooltip("스킬 아이콘 크기 배율 (1=원래, 작게 하려면 0.7 등)")]
     [SerializeField, Range(0.3f, 1f)] private float skillIconScale = 0.72f;
 
@@ -207,14 +211,18 @@ public class PlayerHudUI : MonoBehaviour
         UpdateBaseState();
 
         // 스킬 슬롯 셋업: 바닥 게이지 바 제거 / 아이콘 축소 / 회색 베이스 + 시계방향 컬러 레이어 구성
-        SetupSkillSlot(skill1GaugeImage, skill1GaugeText, skill1IconImage, SkillSheetId.Skill1);
-        SetupSkillSlot(skill2GaugeImage, skill2GaugeText, skill2IconImage, SkillSheetId.Skill2);
-        SetupSkillSlot(skill3GaugeImage, skill3GaugeText, skill3IconImage, SkillSheetId.Skill3);
+        // 새 스킬바(명조식)를 쓰면 구버전 슬롯 셋업은 건너뛴다(아래 BuildSkillBar에서 숨김).
+        if (!useNewSkillBar)
+        {
+            SetupSkillSlot(skill1GaugeImage, skill1GaugeText, skill1IconImage, SkillSheetId.Skill1);
+            SetupSkillSlot(skill2GaugeImage, skill2GaugeText, skill2IconImage, SkillSheetId.Skill2);
+            SetupSkillSlot(skill3GaugeImage, skill3GaugeText, skill3IconImage, SkillSheetId.Skill3);
 
-        // 구버전 쿨다운 fill 이미지는 새 시계방향 방식과 겹치므로 끔
-        if (skill1CooldownImage != null) skill1CooldownImage.enabled = false;
-        if (skill2CooldownImage != null) skill2CooldownImage.enabled = false;
-        if (skill3CooldownImage != null) skill3CooldownImage.enabled = false;
+            // 구버전 쿨다운 fill 이미지는 새 시계방향 방식과 겹치므로 끔
+            if (skill1CooldownImage != null) skill1CooldownImage.enabled = false;
+            if (skill2CooldownImage != null) skill2CooldownImage.enabled = false;
+            if (skill3CooldownImage != null) skill3CooldownImage.enabled = false;
+        }
 
         // 이벤트 구독
         playerStat.OnHurt += TriggerHurtVignette;
@@ -222,10 +230,48 @@ public class PlayerHudUI : MonoBehaviour
         playerStat.OnDamaged += ShowDamageText;
         playerStat.OnHealed += ShowHealText;
 
-        BuildQuickSlotWidget();
+        if (useNewSkillBar) BuildSkillBar();
+        else BuildQuickSlotWidget();
     }
 
-    // 소모품 퀵슬롯 HUD 위젯 런타임 생성 (스킨/위치는 디자인 확정 후 교체).
+    // 명조식 5칸 스킬바 생성 + 구버전 스킬 슬롯 숨김. (퀵슬롯은 바에 포함되므로 구 위젯 안 만듦)
+    void BuildSkillBar()
+    {
+        var player = playerStat != null ? playerStat.GetComponent<Player>() : null;
+        if (player == null) { BuildQuickSlotWidget(); return; }
+
+        var canvas = GetComponentInParent<Canvas>();
+        RectTransform parent = canvas != null ? (RectTransform)canvas.transform : (RectTransform)transform;
+
+        // 스킬 아이콘 스프라이트는 기존 직렬화 슬롯에서 가져온다(별도 에셋 배선 불필요).
+        Sprite[] icons =
+        {
+            skill1IconImage != null ? skill1IconImage.sprite : null,
+            skill2IconImage != null ? skill2IconImage.sprite : null,
+            skill3IconImage != null ? skill3IconImage.sprite : null,
+        };
+
+        var go = new GameObject("SkillBar", typeof(RectTransform));
+        var bar = go.AddComponent<SkillBarUI>();
+        KeyCode qsKey = player.Input != null ? player.Input.QuickSlotKey : KeyCode.V;
+        TMP_FontAsset hudFont = timeValueText != null ? timeValueText.font : null;
+        bar.Setup(parent, player, icons, qsKey, hudFont);
+
+        // 구버전 스킬 슬롯 숨김(새 바로 대체). 토글 끄면 원복.
+        HideOldSkillSlot(skill1IconImage);
+        HideOldSkillSlot(skill2IconImage);
+        HideOldSkillSlot(skill3IconImage);
+    }
+
+    void HideOldSkillSlot(Image iconImage)
+    {
+        if (iconImage == null) return;
+        var card = iconImage.transform.parent;   // Skill_N
+        if (card != null) card.gameObject.SetActive(false);
+        else iconImage.gameObject.SetActive(false);
+    }
+
+    // 소모품 퀵슬롯 HUD 위젯 런타임 생성 (구버전 — useNewSkillBar=false 일 때만).
     void BuildQuickSlotWidget()
     {
         var player = playerStat != null ? playerStat.GetComponent<Player>() : null;
@@ -276,9 +322,13 @@ public class PlayerHudUI : MonoBehaviour
 
         // 우하단 스킬 슬롯 Q/E/R → 스포트라이트 (인트로 투어에서 충전 조건 설명).
         // 직렬화된 아이콘 참조의 부모(슬롯)를 등록 — 게이지 링까지 포함된 슬롯 전체를 강조.
-        RegisterSkillSlot(skill1IconImage, "skill_q");
-        RegisterSkillSlot(skill2IconImage, "skill_e");
-        RegisterSkillSlot(skill3IconImage, "skill_r");
+        // 새 스킬바를 쓰면 스킬 스포트라이트(skill_q/e/r)는 SkillBarUI가 등록한다(여기선 skip).
+        if (!useNewSkillBar)
+        {
+            RegisterSkillSlot(skill1IconImage, "skill_q");
+            RegisterSkillSlot(skill2IconImage, "skill_e");
+            RegisterSkillSlot(skill3IconImage, "skill_r");
+        }
     }
 
     [Tooltip("스킬 강조 박스를 아이콘 하단에서 아래로 더 내리는 양(px). 0% 바 쪽까지 살짝 덮되, 카드 밑(화면 가장자리)까진 안 가게.")]
@@ -383,7 +433,8 @@ public class PlayerHudUI : MonoBehaviour
 
         if (playerSkill == null) return;
 
-        UpdateSkillGauge();
+        // 새 스킬바를 쓰면 SkillBarUI가 자체 갱신하므로 구버전 게이지 갱신은 skip.
+        if (!useNewSkillBar) UpdateSkillGauge();
     }
 
     // 시간(체력) 표시 정수화 = CeilToInt(0 가드). 양수면 최소 1로 보이고 진짜 0일 때만 0.
