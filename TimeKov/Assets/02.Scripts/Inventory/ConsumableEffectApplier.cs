@@ -22,6 +22,18 @@ public static class ConsumableEffectApplier
         return result;
     }
 
+    // 소비 전 검사: 지금 사용해도 의미가 있는지. false면 소비/효과 적용을 막아야 함(아이템 안 닳게).
+    // 즉시 회복(Heal) 타입이 이미 만피(시간 최대)일 때만 막는다. 스탯/지속회복 앰플은 안 막음.
+    public static bool CanApply(string itemId, Player player)
+    {
+        if (player == null) return true;   // 플레이어 못 찾으면 막지 않음(정상 흐름에 맡김)
+        if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var effect)) return true;
+        if (effect.consumableType == ConsumableType.Heal
+            && player.Stat.CurrentHp >= player.Stat.MaxHp)
+            return false;   // 시간(체력)이 이미 가득 - 회복 앰플 무의미
+        return true;
+    }
+
     private static bool ApplyInternal(string itemId, Player player)
     {
         if (player == null)

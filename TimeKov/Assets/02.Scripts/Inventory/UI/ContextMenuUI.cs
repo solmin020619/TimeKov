@@ -91,12 +91,21 @@ public class ContextMenuUI : MonoBehaviour
         // slotData.itemId가 -1로 바뀌기 때문에 반드시 소비 전에 저장해야 함
         int itemId = _currentSlot.SlotData.itemId;
 
+        var player = FindAnyObjectByType<Player>();
+
+        // 소비 전 검사: 회복 앰플이 만피면 토스트만 띄우고 소비 안 함(아이템 보존)
+        if (!ConsumableEffectApplier.CanApply(itemId.ToString(), player))
+        {
+            ToastManager.Warning("시간이 이미 가득 찼습니다.");
+            Close();
+            return;
+        }
+
         // 아이템 소비 시도
         bool consumed = owner != null && owner.TryConsumeItem(itemId, 1);
         if (!consumed) { Close(); return; }
 
         // 효과 적용
-        var player = FindAnyObjectByType<Player>();
         bool applied = ConsumableEffectApplier.Apply(itemId.ToString(), player);
 
         // 효과 적용 실패 시 아이템 복구
