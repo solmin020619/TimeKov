@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *{ -webkit-font-smoothing:antialiased; }
+  ::selection{ background:rgba(95,196,255,0.3); }
+</style>
+</helmet>
+
+<div style="--accent:{{accent}};min-width:100%;min-height:100vh;width:max-content;box-sizing:border-box;padding:56px;background:#c8ccd0;font-family:Pretendard,-apple-system,sans-serif;">
+
+  <!-- INTRO -->
+  <div style="max-width:1120px;margin-bottom:40px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.34em;color:#6f767d;margin-bottom:14px;">TIMEKOV · CODEX · v2 (LIGHT)</div>
+    <div style="font-size:30px;font-weight:700;color:#242a31;letter-spacing:0.01em;margin-bottom:16px;">도감 — 해금 상태 + 잠금 조건</div>
+    <div style="font-size:15px;color:#4c545d;line-height:1.85;text-wrap:pretty;">
+      잠긴 자리는 빈칸이 아니라 <b>"?" / 검정 실루엣 / 흐린 면 + 조건 한 줄</b>로 — 플레이어가 푸는 법을 알 수 있게. 탭별 해금 단계: <b>튜토리얼</b> 2단계(미시청/공개) · <b>몬스터</b> 3단계(???→실루엣→공개)+요소별 잠금 · <b>설비</b> 2단계(실루엣→해금). 3컬럼 프레임은 공통.
+    </div>
+    <div style="margin-top:16px;padding:13px 18px;background:rgba(95,196,255,0.10);border:1px solid rgba(95,196,255,0.32);border-radius:10px;font-size:13px;color:#3a4148;line-height:1.7;">
+      <b>몬스터 탭 = 중간 상태 mock</b>: 얼굴·이름 공개 + 스탯 "10마리 처치 시 공개" 잠금 + 드랍 재료 일부만 채워짐(실루엣) + 획득률 "모든 드랍 재료 획득 시 공개" 잠금. (탭/항목 클릭 동작 · 색·톤은 에셋 교체 예정)
+    </div>
+  </div>
+
+  <!-- FULLSCREEN FRAME -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.2em;color:#5f666d;margin-bottom:18px;">01 · 전체화면 (1920×1080 · 0.66배)</div>
+  <div style="width:1267px;height:713px;overflow:hidden;border-radius:6px;box-shadow:0 14px 44px rgba(40,55,75,0.28);margin-bottom:60px;">
+    <div style="width:1920px;height:1080px;transform:scale(0.66);transform-origin:top left;position:relative;overflow:hidden;background:linear-gradient(165deg,#eef1f3 0%,#dde1e5 60%,#d3d8dc 100%);">
+      <sc-if value="{{sceneTexture}}" hint-placeholder-val="{{true}}">
+        <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+          <div style="position:absolute;left:50%;bottom:-6%;transform:translateX(-50%);width:760px;height:680px;clip-path:polygon(50% 0,100% 100%,0 100%);background:rgba(120,140,160,0.05);"></div>
+          <div style="position:absolute;left:0;bottom:0;width:100%;height:34%;background:radial-gradient(120% 100% at 50% 130%,rgba(255,255,255,0.5),transparent 70%);"></div>
+        </div>
+      </sc-if>
+
+      <!-- UNIFIED PANEL -->
+      <div style="position:absolute;inset:40px;background:rgba(248,250,252,0.60);backdrop-filter:blur(22px) saturate(1.05);-webkit-backdrop-filter:blur(22px) saturate(1.05);border:1px solid rgba(255,255,255,0.7);border-radius:22px;box-shadow:0 20px 64px rgba(40,55,75,0.16),inset 0 1px 0 rgba(255,255,255,0.85);display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;">
+
+        <!-- BASE TEXTURE -->
+        <sc-if value="{{sceneTexture}}" hint-placeholder-val="{{true}}">
+          <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;">
+            <div style="position:absolute;inset:0;opacity:0.6;background:repeating-radial-gradient(circle at 80% 32%,transparent 0 44px,rgba(70,92,112,0.05) 44px 45px,transparent 45px 90px),repeating-radial-gradient(circle at 18% 88%,transparent 0 52px,rgba(70,92,112,0.045) 52px 53px,transparent 53px 106px),repeating-radial-gradient(circle at 62% 72%,transparent 0 60px,rgba(70,92,112,0.03) 60px 61px,transparent 61px 122px);"></div>
+            <div style="position:absolute;right:5%;top:50%;transform:translateY(-50%);width:560px;height:560px;opacity:0.05;">
+              <div style="position:absolute;inset:0;border:2px solid #1f2e3d;border-radius:50%;"></div>
+              <div style="position:absolute;inset:72px;border:2px solid #1f2e3d;border-radius:50%;"></div>
+              <div style="position:absolute;left:50%;top:16%;width:300px;height:300px;transform:translateX(-50%);clip-path:polygon(50% 0,100% 100%,0 100%);background:#1f2e3d;"></div>
+              <div style="position:absolute;inset:208px;border:2px solid #1f2e3d;transform:rotate(45deg);"></div>
+            </div>
+            <div style="position:absolute;left:33%;top:16%;width:9px;height:9px;clip-path:polygon(50% 0,100% 100%,0 100%);background:rgba(70,92,112,0.13);"></div>
+            <div style="position:absolute;left:48%;top:30%;width:5px;height:5px;border-radius:50%;background:rgba(70,92,112,0.16);"></div>
+            <div style="position:absolute;left:27%;top:62%;width:7px;height:7px;clip-path:polygon(50% 0,100% 100%,0 100%);background:rgba(70,92,112,0.1);transform:rotate(28deg);"></div>
+            <div style="position:absolute;left:86%;top:64%;width:8px;height:8px;clip-path:polygon(50% 0,100% 100%,0 100%);background:rgba(70,92,112,0.1);"></div>
+            <div style="position:absolute;left:40%;top:84%;width:6px;height:6px;border-radius:50%;background:rgba(70,92,112,0.13);"></div>
+            <div style="position:absolute;left:22%;top:34%;width:14px;height:14px;border-left:1.5px solid rgba(70,92,112,0.14);border-top:1.5px solid rgba(70,92,112,0.14);"></div>
+          </div>
+        </sc-if>
+
+        <!-- HEADER -->
+        <div style="position:relative;z-index:1;display:flex;align-items:center;height:72px;padding:24px 34px 0;box-sizing:border-box;flex:none;">
+          <div style="display:flex;align-items:baseline;gap:14px;">
+            <span style="font-size:36px;font-weight:700;color:#242a31;letter-spacing:0.01em;">도감</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.32em;color:var(--accent,#5fc4ff);">CODEX</span>
+          </div>
+          <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:6px;padding:7px;background:rgba(255,255,255,0.55);border:1px solid rgba(120,140,160,0.22);border-radius:16px;box-shadow:0 4px 16px rgba(40,55,75,0.08);">
+            <div onClick="{{tab0.onClick}}" style="position:relative;display:flex;align-items:center;gap:10px;padding:11px 22px;border-radius:11px;cursor:pointer;color:{{tab0.color}};">
+              <sc-if value="{{tab0.active}}" hint-placeholder-val="{{true}}"><div style="position:absolute;inset:0;border-radius:11px;background:var(--accent,#5fc4ff);box-shadow:0 4px 16px rgba(95,196,255,0.5),inset 0 1px 0 rgba(255,255,255,0.4);"></div></sc-if>
+              <span style="position:relative;width:18px;height:18px;border:2px solid currentColor;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;"><span style="width:4px;height:4px;border-radius:50%;background:currentColor;"></span></span>
+              <span style="position:relative;font-size:18px;font-weight:600;letter-spacing:0.01em;">튜토리얼</span>
+            </div>
+            <div onClick="{{tab1.onClick}}" style="position:relative;display:flex;align-items:center;gap:10px;padding:11px 22px;border-radius:11px;cursor:pointer;color:{{tab1.color}};">
+              <sc-if value="{{tab1.active}}" hint-placeholder-val="{{false}}"><div style="position:absolute;inset:0;border-radius:11px;background:var(--accent,#5fc4ff);box-shadow:0 4px 16px rgba(95,196,255,0.5),inset 0 1px 0 rgba(255,255,255,0.4);"></div></sc-if>
+              <span style="position:relative;width:15px;height:15px;border:2px solid currentColor;transform:rotate(45deg);box-sizing:border-box;"></span>
+              <span style="position:relative;font-size:18px;font-weight:600;letter-spacing:0.01em;">몬스터</span>
+            </div>
+            <div onClick="{{tab2.onClick}}" style="position:relative;display:flex;align-items:center;gap:10px;padding:11px 22px;border-radius:11px;cursor:pointer;color:{{tab2.color}};">
+              <sc-if value="{{tab2.active}}" hint-placeholder-val="{{false}}"><div style="position:absolute;inset:0;border-radius:11px;background:var(--accent,#5fc4ff);box-shadow:0 4px 16px rgba(95,196,255,0.5),inset 0 1px 0 rgba(255,255,255,0.4);"></div></sc-if>
+              <span style="position:relative;width:18px;height:18px;background:currentColor;clip-path:polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0 50%);"></span>
+              <span style="position:relative;font-size:18px;font-weight:600;letter-spacing:0.01em;">설비</span>
+            </div>
+            <sc-if value="{{showGuides}}" hint-placeholder-val="{{true}}">
+              <div style="position:relative;display:flex;align-items:center;justify-content:center;width:42px;border-radius:11px;border:1.5px dashed rgba(120,140,160,0.4);color:rgba(120,140,160,0.7);font-size:22px;font-weight:300;">+</div>
+            </sc-if>
+          </div>
+          <div onClick="{{closeFn}}" style="margin-left:auto;width:54px;height:54px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.6);border:1px solid rgba(120,140,160,0.24);border-radius:14px;cursor:pointer;">
+            <img src="uploads/ic_close.png" style="width:22px;height:22px;filter:brightness(0);opacity:0.42;" />
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;height:1px;background:rgba(120,140,160,0.24);margin:22px 30px 0;flex:none;"></div>
+
+        <!-- CONTENT -->
+        <div style="position:relative;z-index:1;flex:1;display:flex;min-height:0;">
+
+          <!-- LEFT LIST -->
+          <div style="flex:0 0 430px;padding:20px 14px 22px 30px;display:flex;flex-direction:column;min-height:0;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.2em;color:#7c848c;padding:2px 8px 12px;display:flex;align-items:center;gap:8px;">목록 · LIST<span style="flex:1;height:1px;background:rgba(120,140,160,0.18);"></span></div>
+            <div style="position:relative;flex:1;overflow:hidden;padding-right:14px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <sc-for list="{{items}}" as="item" hint-placeholder-count="9">
+                  <div onClick="{{item.onClick}}" style="position:relative;display:flex;align-items:center;gap:13px;height:54px;padding:0 12px;border-radius:10px;cursor:pointer;" style-hover="background:rgba(120,140,160,0.08)">
+                    <sc-if value="{{item.selected}}" hint-placeholder-val="{{false}}">
+                      <div style="position:absolute;inset:0;border-radius:10px;background:rgba(95,196,255,0.14);border:1px solid rgba(95,196,255,0.4);box-shadow:0 2px 12px rgba(95,196,255,0.18);"></div>
+                      <div style="position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:3px;background:var(--accent,#5fc4ff);box-shadow:0 0 10px rgba(95,196,255,0.8);"></div>
+                    </sc-if>
+                    <div style="position:relative;width:40px;height:40px;flex:none;border-radius:9px;overflow:hidden;background:linear-gradient(135deg,#1d242d,#11151c);border:1px solid rgba(0,0,0,0.25);box-shadow:inset 0 1px 1px rgba(255,255,255,0.06);">
+                      <sc-if value="{{item.isPublic}}" hint-placeholder-val="{{true}}"><div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(120,150,180,0.1) 0 4px,transparent 4px 8px);"></div><div style="position:absolute;top:4px;left:4px;display:flex;gap:2px;"><span style="width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,0.3);"></span><span style="width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,0.16);"></span></div></sc-if>
+                      <sc-if value="{{item.isSilhouette}}" hint-placeholder-val="{{false}}"><div style="position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:22px;height:24px;border-radius:50% 50% 44% 44%/58% 58% 42% 42%;background:#000;"></div></sc-if>
+                      <sc-if value="{{item.isHidden}}" hint-placeholder-val="{{false}}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(150,165,180,0.4);font-size:16px;font-weight:600;">?</div></sc-if>
+                      <sc-if value="{{item.selected}}" hint-placeholder-val="{{false}}"><div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(95,196,255,0.2) 0 4px,transparent 4px 8px);"></div><div style="position:absolute;inset:0;border-radius:9px;border:1.5px solid var(--accent,#5fc4ff);"></div></sc-if>
+                    </div>
+                    <sc-if value="{{item.pubSel}}" hint-placeholder-val="{{false}}"><span style="position:relative;font-size:18px;font-weight:600;color:#242a31;">{{item.name}}</span></sc-if>
+                    <sc-if value="{{item.pubNorm}}" hint-placeholder-val="{{true}}"><span style="position:relative;font-size:18px;font-weight:500;color:#3c444c;">{{item.name}}</span></sc-if>
+                    <sc-if value="{{item.unknown}}" hint-placeholder-val="{{false}}"><span style="position:relative;font-size:18px;font-weight:500;letter-spacing:0.12em;color:#aab2bb;">{{item.name}}</span><span style="position:relative;margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.06em;color:#bcc3cb;">{{item.status}}</span></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="position:absolute;top:2px;right:0;bottom:2px;width:6px;border-radius:3px;background:rgba(120,140,160,0.14);">
+                <div style="position:absolute;top:0;left:0;right:0;height:36%;border-radius:3px;background:rgba(90,108,124,0.4);"></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="width:1px;background:rgba(120,140,160,0.24);margin:20px 0;flex:none;"></div>
+
+          <!-- RIGHT MAIN -->
+          <div style="flex:1;display:flex;flex-direction:column;padding:20px 30px 24px 30px;min-width:0;position:relative;">
+
+            <!-- ===== TUTORIAL ===== -->
+            <sc-if value="{{isTutorial}}" hint-placeholder-val="{{false}}">
+              <div style="display:flex;align-items:center;gap:12px;height:34px;flex:none;">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;color:#7c848c;">튜토리얼 · GUIDE</span>
+                <span style="flex:1;"></span>
+                <div style="display:flex;gap:6px;align-items:center;"><span style="width:18px;height:4px;border-radius:2px;background:var(--accent,#5fc4ff);"></span><span style="width:8px;height:4px;border-radius:2px;background:rgba(120,140,160,0.3);"></span><span style="width:8px;height:4px;border-radius:2px;background:rgba(120,140,160,0.3);"></span></div>
+              </div>
+              <div style="height:1px;background:rgba(120,140,160,0.22);margin:14px 0 0;flex:none;"></div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding-top:18px;min-height:0;">
+                <div style="flex:1;min-height:0;position:relative;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#1e2731,#0e1219);border:1px solid rgba(0,0,0,0.3);">
+                  <div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(120,150,180,0.06) 0 6px,transparent 6px 12px);"></div>
+                  <div style="position:absolute;top:14px;left:14px;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;color:rgba(255,255,255,0.4);">MEDIA · 영상</div>
+                  <div style="position:absolute;top:12px;left:12px;width:16px;height:16px;border-top:2px solid rgba(255,255,255,0.22);border-left:2px solid rgba(255,255,255,0.22);"></div>
+                  <div style="position:absolute;bottom:12px;right:12px;width:16px;height:16px;border-bottom:2px solid rgba(255,255,255,0.22);border-right:2px solid rgba(255,255,255,0.22);"></div>
+                  <div style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;border:2px solid rgba(255,255,255,0.45);display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-left:19px solid rgba(255,255,255,0.65);border-top:12px solid transparent;border-bottom:12px solid transparent;margin-left:5px;"></div></div>
+                  <div style="position:absolute;left:18px;right:18px;bottom:18px;height:4px;border-radius:2px;background:rgba(255,255,255,0.16);"><div style="width:34%;height:100%;border-radius:2px;background:var(--accent,#5fc4ff);"></div></div>
+                </div>
+                <div style="flex:none;">
+                  <div style="font-size:26px;font-weight:700;color:#242a31;margin-bottom:14px;">{{selName}}</div>
+                  <div style="font-size:16px;line-height:1.85;color:#4c545d;max-width:760px;">이 항목의 가이드 설명이 여기에 들어갑니다. 핵심은 <span style="color:var(--accent,#5fc4ff);font-weight:600;">시간 자원</span> 관리이며, 단계별 안내·이미지·주의사항이 본문에 배치됩니다.</div>
+                  <div style="height:11px;border-radius:5px;background:rgba(120,140,160,0.18);margin-top:14px;width:88%;"></div>
+                  <div style="height:11px;border-radius:5px;background:rgba(120,140,160,0.14);margin-top:9px;width:64%;"></div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- ===== MONSTER ===== -->
+            <sc-if value="{{isMonster}}" hint-placeholder-val="{{true}}">
+              <div style="display:flex;align-items:center;gap:12px;height:34px;flex:none;">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;color:#7c848c;">몬스터 · THREAT</span>
+                <span style="flex:1;"></span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#9aa2aa;">위협도</span>
+                <div style="display:flex;gap:4px;align-items:center;"><span style="width:9px;height:9px;border-radius:50%;background:var(--accent,#5fc4ff);"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--accent,#5fc4ff);"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--accent,#5fc4ff);"></span><span style="width:9px;height:9px;border-radius:50%;background:rgba(120,140,160,0.3);"></span><span style="width:9px;height:9px;border-radius:50%;background:rgba(120,140,160,0.3);"></span></div>
+              </div>
+              <div style="height:1px;background:rgba(120,140,160,0.22);margin:14px 0 0;flex:none;"></div>
+              <div style="flex:1;display:flex;flex-direction:column;padding-top:18px;min-height:0;">
+                <!-- TOP: small face + compact stats -->
+                <div style="display:flex;gap:20px;flex:none;align-items:center;">
+                  <div style="width:150px;height:150px;flex:none;position:relative;border-radius:10px;overflow:hidden;background:radial-gradient(120% 120% at 50% 20%,#222c37,#0d1118);border:1px solid rgba(0,0,0,0.3);">
+                    <div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(120,150,180,0.05) 0 6px,transparent 6px 12px);"></div>
+                    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:74px;height:84px;border-radius:50% 50% 44% 44%/58% 58% 42% 42%;background:rgba(40,70,96,0.5);"></div>
+                    <div style="position:absolute;top:9px;left:9px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:rgba(255,255,255,0.4);">RENDER</div>
+                    <div style="position:absolute;top:8px;left:8px;width:12px;height:12px;border-top:2px solid rgba(255,255,255,0.22);border-left:2px solid rgba(255,255,255,0.22);"></div>
+                    <div style="position:absolute;bottom:8px;right:8px;width:12px;height:12px;border-bottom:2px solid rgba(255,255,255,0.22);border-right:2px solid rgba(255,255,255,0.22);"></div>
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0;">
+                    <div style="font-size:24px;font-weight:700;color:#242a31;">{{selName}}</div>
+                    <div style="display:flex;gap:40px;flex-wrap:wrap;row-gap:16px;">
+                      <div style="display:flex;flex-direction:column;gap:5px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#7c848c;">체력</span><span style="font-size:21px;font-weight:700;color:#242a31;">1,240</span></div>
+                      <div style="display:flex;flex-direction:column;gap:5px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#7c848c;">공격력</span><span style="font-size:21px;font-weight:700;color:#242a31;">86</span></div>
+                      <div style="display:flex;flex-direction:column;gap:5px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#7c848c;">공격속도</span><span style="font-size:21px;font-weight:700;color:#242a31;">1.2<span style="font-size:12px;font-weight:500;color:#9aa2aa;margin-left:2px;">/s</span></span></div>
+                      <div style="display:flex;flex-direction:column;gap:5px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#7c848c;">이동속도</span><span style="font-size:21px;font-weight:700;color:#242a31;">4.5<span style="font-size:12px;font-weight:500;color:#9aa2aa;margin-left:2px;">m/s</span></span></div>
+                    </div>
+                  </div>
+                </div>
+                <!-- hairline -->
+                <div style="height:1px;background:rgba(120,140,160,0.22);margin:20px 0 0;flex:none;"></div>
+                <!-- DROPS = main -->
+                <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding-top:16px;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;color:#7c848c;margin-bottom:14px;display:flex;align-items:center;gap:8px;">드랍 아이템 · DROPS<span style="flex:1;height:1px;background:rgba(120,140,160,0.18);"></span><span style="font-size:11px;letter-spacing:0.1em;color:#9aa2aa;">확률 낮은순</span></div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;">
+                    <sc-for list="{{drops}}" as="d" hint-placeholder-count="4">
+                      <div style="display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:10px;border:1px solid rgba(120,140,160,0.16);background:rgba(255,255,255,0.4);">
+                        <div style="position:relative;width:50px;height:50px;flex:none;border-radius:9px;overflow:hidden;background:linear-gradient(135deg,#1c232c,#0e1218);border:1px solid rgba(0,0,0,0.28);">
+                          <sc-if value="{{d.got}}" hint-placeholder-val="{{true}}"><div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(120,150,180,0.12) 0 5px,transparent 5px 10px);"></div><div style="position:absolute;top:5px;left:5px;width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,0.35);"></div></sc-if>
+                          <sc-if value="{{d.locked}}" hint-placeholder-val="{{false}}"><div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:28px;border-radius:50% 50% 44% 44%/58% 58% 42% 42%;background:#000;"></div></sc-if>
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                          <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">
+                            <span style="width:7px;height:7px;border-radius:50%;flex:none;background:{{d.rc}};"></span>
+                            <sc-if value="{{d.got}}" hint-placeholder-val="{{true}}"><span style="font-size:15px;font-weight:600;color:#242a31;">{{d.name}}</span></sc-if>
+                            <sc-if value="{{d.locked}}" hint-placeholder-val="{{false}}"><span style="font-size:15px;font-weight:600;letter-spacing:0.08em;color:#aab2bb;">{{d.name}}</span></sc-if>
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;color:#9aa2aa;">{{d.rarity}}</span>
+                          </div>
+                          <div style="font-size:12px;color:#8a929b;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{d.desc}}</div>
+                        </div>
+                        <div style="flex:none;text-align:right;">
+                          <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:#3c444c;">{{d.pct}}</div>
+                          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;color:#aab2bb;">확률</div>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- ===== FACILITY ===== -->
+            <sc-if value="{{isFacility}}" hint-placeholder-val="{{false}}">
+              <div style="display:flex;align-items:center;gap:12px;height:34px;flex:none;">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;color:#7c848c;">설비 · FACILITY</span>
+                <span style="flex:1;"></span>
+                <span style="font-size:20px;font-weight:700;color:#242a31;">{{selName}}</span>
+              </div>
+              <div style="height:1px;background:rgba(120,140,160,0.22);margin:14px 0 0;flex:none;"></div>
+              <div style="flex:1;padding-top:8px;min-height:0;overflow:hidden;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;color:#7c848c;padding:10px 0;">제작 가능 레시피 · RECIPES</div>
+                <sc-for list="{{facRecipes}}" as="rc" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;gap:16px;padding:16px 4px;border-top:1px solid rgba(120,140,160,0.18);">
+                    <div style="position:relative;width:54px;height:54px;flex:none;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#1d242d,#11151c);border:1px solid rgba(0,0,0,0.25);"><div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(120,150,180,0.1) 0 5px,transparent 5px 10px);"></div></div>
+                    <span style="font-size:18px;font-weight:600;color:#242a31;width:150px;">{{rc.name}}</span>
+                    <span style="font-size:20px;color:#9aa2aa;font-weight:300;">=</span>
+                    <sc-for list="{{rc.mats}}" as="m" hint-placeholder-count="2">
+                      <sc-if value="{{m.sep}}" hint-placeholder-val="{{false}}"><span style="font-size:16px;color:#9aa2aa;">+</span></sc-if>
+                      <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#1d242d,#11151c);border:1px solid rgba(0,0,0,0.22);"></div>
+                        <span style="font-size:15px;color:#4c545d;">{{m.name}}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPECS -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.2em;color:#5f666d;margin-bottom:18px;">02 · 해금 단계 & 잠금 UI</div>
+  <div style="display:flex;gap:44px;align-items:flex-start;flex-wrap:wrap;margin-bottom:48px;">
+
+    <!-- unlock stages -->
+    <div style="flex:none;width:430px;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;color:#6b7178;">컬럼별 해금 단계</div>
+      <div style="background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:18px 20px;font-size:13px;color:#4c545d;line-height:1.85;">
+        <div style="margin-bottom:8px;"><b style="color:#242a31;">튜토리얼</b> — ??? (미시청) → 공개 (시청). 2단계</div>
+        <div style="margin-bottom:8px;"><b style="color:#242a31;">몬스터</b> — ??? (미발견) → 실루엣 (포착) → 공개+이름 (처치). 우측 요소별 추가 잠금</div>
+        <div><b style="color:#242a31;">설비</b> — 실루엣 (미해금) → 공개 (해금). 우측 = 레시피 나열(잠금 없음)</div>
+      </div>
+    </div>
+
+    <!-- list states -->
+    <div style="flex:none;width:440px;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;color:#6b7178;">좌측 행 상태 · 공개 / 실루엣 / ???</div>
+      <div style="background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden;">
+        <div style="background:rgba(120,140,160,0.06);padding:22px;display:flex;flex-direction:column;gap:5px;">
+          <div style="position:relative;display:flex;align-items:center;gap:13px;height:54px;padding:0 12px;border-radius:10px;background:rgba(95,196,255,0.14);border:1px solid rgba(95,196,255,0.4);">
+            <div style="position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:3px;background:var(--accent,#5fc4ff);box-shadow:0 0 10px rgba(95,196,255,0.8);"></div>
+            <div style="position:relative;width:40px;height:40px;flex:none;border-radius:9px;background:linear-gradient(135deg,#1d242d,#11151c);border:1.5px solid var(--accent,#5fc4ff);overflow:hidden;"></div>
+            <span style="position:relative;font-size:18px;font-weight:600;color:#242a31;">사구 포식자</span>
+          </div>
+          <div style="position:relative;display:flex;align-items:center;gap:13px;height:54px;padding:0 12px;border-radius:10px;">
+            <div style="position:relative;width:40px;height:40px;flex:none;border-radius:9px;background:linear-gradient(135deg,#1d242d,#11151c);border:1px solid rgba(0,0,0,0.25);overflow:hidden;"><div style="position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:22px;height:24px;border-radius:50% 50% 44% 44%/58% 58% 42% 42%;background:#000;"></div></div>
+            <span style="font-size:18px;letter-spacing:0.12em;color:#aab2bb;">???</span>
+            <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:#bcc3cb;">포착</span>
+          </div>
+          <div style="position:relative;display:flex;align-items:center;gap:13px;height:54px;padding:0 12px;border-radius:10px;">
+            <div style="width:40px;height:40px;flex:none;border-radius:9px;background:linear-gradient(135deg,#161b22,#0c0f14);border:1px solid rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:rgba(150,165,180,0.4);font-size:16px;font-weight:600;">?</div>
+            <span style="font-size:18px;letter-spacing:0.12em;color:#aab2bb;">???</span>
+            <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:#bcc3cb;">미발견</span>
+          </div>
+        </div>
+        <div style="padding:14px 18px;font-size:12.5px;color:#4c545d;line-height:1.8;">
+          공개=채움+이름+선택 시 시안 / 실루엣=검정+우측 상태 / ???=검정+? · 우측 보조라벨로 단계 표기
+        </div>
+      </div>
+    </div>
+
+    <!-- lock UI -->
+    <div style="flex:none;width:360px;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;color:#6b7178;">요소 잠금 + 조건 텍스트</div>
+      <div style="background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden;">
+        <div style="background:rgba(248,250,252,0.8);padding:22px;display:flex;flex-direction:column;gap:12px;">
+          <div style="border-radius:10px;border:1px dashed rgba(120,140,160,0.4);background:rgba(120,140,160,0.07);padding:18px;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;">
+            <span style="display:inline-flex;flex-direction:column;align-items:center;color:#9aa2aa;"><span style="width:13px;height:9px;border:2px solid currentColor;border-bottom:none;border-radius:6px 6px 0 0;"></span><span style="width:19px;height:13px;border-radius:2px;background:currentColor;margin-top:-1px;"></span></span>
+            <div style="font-size:14px;color:#6b727a;font-weight:600;">스탯 잠금</div>
+            <div style="font-size:13px;color:#4c545d;">10마리 처치 시 공개</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent,#5fc4ff);">3 / 10</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;border-radius:10px;border:1px dashed rgba(120,140,160,0.4);background:rgba(120,140,160,0.07);padding:12px 14px;">
+            <span style="display:inline-flex;flex-direction:column;align-items:center;color:#9aa2aa;"><span style="width:10px;height:7px;border:2px solid currentColor;border-bottom:none;border-radius:5px 5px 0 0;"></span><span style="width:15px;height:10px;border-radius:2px;background:currentColor;margin-top:-1px;"></span></span>
+            <div style="font-size:12px;color:#5b636d;">모든 드랍 재료 획득 시 공개</div>
+            <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent,#5fc4ff);">2 / 6</span>
+          </div>
+        </div>
+        <div style="padding:14px 18px;font-size:12.5px;color:#4c545d;line-height:1.8;">
+          잠금 = 빈칸 X · 흐린 면(점선) + 자물쇠 + <b>조건 한 줄</b> + 진행도. 드랍 칸은 ??? 아닌 <b>실루엣</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HANDOFF -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.2em;color:#5f666d;margin-bottom:18px;">03 · 핸드오프</div>
+  <div style="display:flex;gap:44px;align-items:flex-start;flex-wrap:wrap;">
+    <div style="flex:none;width:430px;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:22px 24px;">
+      <div style="font-size:14px;font-weight:700;color:#242a31;margin-bottom:16px;">색상 토큰</div>
+      <div style="display:flex;flex-direction:column;gap:11px;font-size:13px;color:#4c545d;font-family:'JetBrains Mono',monospace;">
+        <div style="display:flex;align-items:center;gap:12px;"><div style="width:26px;height:26px;border-radius:6px;background:rgba(248,250,252,0.9);border:1px solid #c9c6bf;flex:none;"></div>패널 간유리 +blur · 배경 #e6e9ec~#d4d8dc</div>
+        <div style="display:flex;align-items:center;gap:12px;"><div style="width:26px;height:26px;border-radius:6px;background:#1a212b;flex:none;"></div>슬롯/미디어/실루엣 #11151c~#1d242d · 실루엣 #000</div>
+        <div style="display:flex;align-items:center;gap:12px;"><div style="width:26px;height:26px;border-radius:6px;background:#5fc4ff;flex:none;"></div>시안 #5fc4ff (선택/진행도)</div>
+        <div style="display:flex;align-items:center;gap:12px;"><div style="width:26px;height:26px;border-radius:6px;background:rgba(120,140,160,0.4);border:1px solid #c9c6bf;flex:none;"></div>잠금 면 rgba(120,140,160,.06)+점선 · 조건글 #4c545d</div>
+        <div style="display:flex;align-items:center;gap:12px;"><div style="width:26px;height:26px;border-radius:6px;background:#242a31;flex:none;"></div>글자 #242a31 · 보조 #4c545d · 비활성 #aab2bb</div>
+      </div>
+    </div>
+    <div style="flex:none;width:560px;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:22px 24px;">
+      <div style="font-size:14px;font-weight:700;color:#242a31;margin-bottom:6px;">에셋 · 9-slice</div>
+      <div style="font-size:12px;color:#8a929b;margin-bottom:16px;">최종 경로 Assets/Resources/Codex/ · 기존 New/ 참조</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#4c545d;line-height:1.9;">
+        <div>panel_ash_a78.png — 9-slice <b>56</b> (밝은 톤 확인 필요)</div>
+        <div>hl_slot_frame<span>@</span>2x.png — 보더 <b>44</b> (다크 셀 hover)</div>
+        <div>scrollbar_track / scrollbar_handle.png — 보더 <b>0,8,0,8</b></div>
+        <div>ic_close.png — 닫기 (밝은 배경: filter brightness(0))</div>
+        <div style="margin-top:8px;color:#9aa0a6;">탭/행/카드/잠금면/텍스처 = 코드 · 아이콘·자물쇠 = 플레이스홀더 · Inven_Ash 금지</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#5fc4ff&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#5fc4ff&quot;,&quot;#54d6c4&quot;,&quot;#8aa9ff&quot;]},&quot;showGuides&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;sceneTexture&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { tab: 1, sel: 0 };
+
+  tutorial() {
+    return [ {n:'기본 이동',w:1},{n:'시간 자원',w:1},{n:'근접 전투',w:1},{n:'조립대 사용',w:1},{n:'컨베이어 연결',w:0},{n:'전력 공급',w:0},{n:'위험 지대',w:0} ];
+  }
+  monsters() {
+    return [ {n:'사구 포식자',s:'kill'},{n:'강철 진드기',s:'kill'},{n:'시간 포자',s:'seen'},{n:'부식 군체',s:'seen'},{s:'unknown'},{s:'unknown'},{s:'unknown'},{s:'unknown'} ];
+  }
+  facilities() {
+    return [ {n:'정련로',u:1},{n:'분쇄기',u:1},{n:'성형기',u:1},{n:'재배기',u:0},{n:'씨앗 추출기',u:0},{n:'오염수 처리기',u:0} ];
+  }
+  facilityRecipes() {
+    return {
+      '정련로': [ {r:'합금 판재', m:['정제 금속','시간 분말']}, {r:'강화 합금', m:['합금 판재','촉매']} ],
+      '분쇄기': [ {r:'정제 금속', m:['원광석','용제']}, {r:'정제 연료', m:['원유','촉매']} ],
+      '성형기': [ {r:'시간 분말', m:['시간 결정']}, {r:'냉각 코어', m:['냉매','합금 판재']} ],
+    };
+  }
+  drops() {
+    return [
+      { got:true,  name:'갑각 파편', rarity:'일반', rc:'#9aa6b2', desc:'흔한 외피 조각', pct:'42%' },
+      { got:true,  name:'부식 점액', rarity:'일반', rc:'#9aa6b2', desc:'산성 체액 응결물', pct:'35%' },
+      { got:false, rarity:'고급', rc:'#5fc4ff' },
+      { got:false, rarity:'희귀', rc:'#8aa9ff' },
+    ].map(d => ({
+      ...d, locked: !d.got,
+      name: d.got ? d.name : '???',
+      desc: d.got ? d.desc : '미획득 — 처치하여 획득',
+      pct: d.got ? d.pct : '?',
+    }));
+  }
+  mk(state, rawName, status, i) {
+    const isPublic = state === 'public';
+    const selected = isPublic && i === this.state.sel;
+    return {
+      isPublic, isSilhouette: state === 'silhouette', isHidden: state === 'hidden',
+      name: isPublic ? rawName : '???',
+      status, selected,
+      pubSel: isPublic && selected, pubNorm: isPublic && !selected, unknown: !isPublic,
+      onClick: isPublic ? () => this.setState({ sel: i }) : () => {},
+    };
+  }
+  buildItems(tab) {
+    if (tab === 0) return this.tutorial().map((it, i) => this.mk(it.w ? 'public' : 'hidden', it.n, it.w ? '' : '미시청', i));
+    if (tab === 1) return this.monsters().map((it, i) => {
+      const st = it.s === 'kill' ? 'public' : it.s === 'seen' ? 'silhouette' : 'hidden';
+      const status = st === 'public' ? '' : st === 'silhouette' ? '포착' : '미발견';
+      return this.mk(st, it.n, status, i);
+    });
+    return this.facilities().map((it, i) => this.mk(it.u ? 'public' : 'silhouette', it.n, it.u ? '' : '미해금', i));
+  }
+  tabBtn(i) {
+    const active = i === this.state.tab;
+    return { active, color: active ? '#16333f' : '#5b636d', onClick: () => this.setState({ tab: i, sel: 0 }) };
+  }
+  renderVals() {
+    const tab = this.state.tab;
+    const items = this.buildItems(tab);
+    const selName = (items.find(x => x.selected) || items.find(x => x.isPublic) || {}).name || '—';
+    const facRecipes = (this.facilityRecipes()[selName] || []).map(rc => ({
+      name: rc.r,
+      mats: rc.m.map((m, i) => ({ name: m, sep: i > 0 })),
+    }));
+    return {
+      accent: this.props.accent || '#5fc4ff',
+      showGuides: this.props.showGuides !== false,
+      sceneTexture: this.props.sceneTexture !== false,
+      tab0: this.tabBtn(0), tab1: this.tabBtn(1), tab2: this.tabBtn(2),
+      isTutorial: tab === 0, isMonster: tab === 1, isFacility: tab === 2,
+      items, selName,
+      drops: this.drops(),
+      facRecipes,
+      closeFn: () => {},
+    };
+  }
+}
+</script>
+</body>
+</html>

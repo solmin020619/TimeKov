@@ -25,7 +25,8 @@ public class GameUIController : MonoBehaviour
         Inventory,    // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
         PlayerStat,   // 플레이어 스탯창 (C키)
         CoreUpgrade,  // 코어 강화 UI (터미널 상호작용)
-        ChestOpen     // 상자 오픈 팝업
+        ChestOpen,    // 상자 오픈 팝업
+        Codex         // 도감 (K키, 전체화면 정지) - 지금은 골격 placeholder
     }
 
     [Header("Settings Panel")]
@@ -138,6 +139,9 @@ public class GameUIController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.C))
             TogglePlayerStat();
+
+        if (Input.GetKeyDown(KeyCode.K))
+            ToggleCodex();
     }
 
     // LateUpdate에서 커서 상태를 강제 적용
@@ -291,6 +295,15 @@ public class GameUIController : MonoBehaviour
         if (_currentState == UIState.Quest) { CloseAll(); return; }
         if (_currentState != UIState.None) return;
         SetState(UIState.Quest);
+    }
+
+    // ── 도감 (K키, 전체화면 정지) ──
+    // 지금은 골격 placeholder. 실제 비주얼/내용/인터랙션은 클로드디자인 확정 후.
+    public void ToggleCodex()
+    {
+        if (_currentState == UIState.Codex) { SetState(UIState.None); return; }
+        if (_currentState != UIState.None) return;   // 다른 UI 열려있으면 무시(겹침 방지)
+        SetState(UIState.Codex);
     }
 
     // ── 플레이어 스탯창 ──────────────────────────────────────────────
@@ -475,6 +488,9 @@ public class GameUIController : MonoBehaviour
         // 퀘스트 팝업 — Quest 상태에서만 표시
         SetPanelActive(questPanel, _currentState == UIState.Quest);
 
+        // 도감 — Codex 상태에서만 표시 (런타임 생성 placeholder, 한 번도 안 열면 생성 안 함)
+        CodexUI.SetVisible(_currentState == UIState.Codex);
+
         // 플레이어 스탯창은 _currentState와 독립이라 여기서 안 건드림 (TogglePlayerStat이 직접 관리)
 
         // 퀘스트 HUD 알파 (코치마크/상태 기준) — Build 모드에서도 퀘스트는 계속 보임(튜토 안내용)
@@ -499,8 +515,8 @@ public class GameUIController : MonoBehaviour
         bool gameplay = _currentState == UIState.None && !_tutorialCoachActive;
         SetGameplayInputEnabled(gameplay);
 
-        // 설정창이 열릴 때만 시간 정지
-        Time.timeScale = (_currentState == UIState.Settings) ? 0f : 1f;
+        // 설정창 또는 도감이 열릴 때 시간 정지
+        Time.timeScale = (_currentState == UIState.Settings || _currentState == UIState.Codex) ? 0f : 1f;
     }
 
     // ── 패널 활성/비활성 헬퍼 ────────────────────────────────────────
