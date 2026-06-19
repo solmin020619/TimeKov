@@ -655,15 +655,28 @@ namespace TIMEKOV.Factory
             }
             _activeVisuals.Clear();
 
-            // 아직 전달/구조되지 않은 아이템 → 창고(Storage)로 이동
+            // 아직 전달/구조되지 않은 아이템 -> 창고(Storage)로 이동
             foreach (var token in _inFlightItems)
             {
                 if (token.isDelivered || token.isRescued) continue;
                 token.isRescued = true;
-                InventoryManager.StorageInstance?.AddItem(token.itemId, token.amount);
-                Debug.Log($"[Belt] 벨트 삭제 → 아이템 {token.itemId} x{token.amount} 창고로 이동");
+                RescueToStorage(token.itemId, token.amount, "벨트 삭제");
             }
             _inFlightItems.Clear();
+        }
+
+        // 운송 중 아이템을 창고로 구조 + (notify면) 안내 토스트. 플레이어가 "템 증발"로 오해하지 않게.
+        // notify=true 는 철거로 벨트/경로가 사라진 경우만. 정상 작동 중 반복될 수 있는 경우
+        // (목표 설비 없음/레시피 불일치 - 라인 설정 실수)는 notify=false 로 토스트 nag 방지.
+        // 한 번에 여러 개가 구조돼도(체인 철거 등) ToastManager 디바운스가 하나로 합쳐 흔들기만 함(스팸 방지).
+        // 설비 철거(BuildDemolisher) 토스트와 메시지를 통일해 같은 철거 동작에서 한 토스트로 합쳐진다.
+        private static void RescueToStorage(int itemId, int amount, string reason, bool notify = true)
+        {
+            var storage = InventoryManager.StorageInstance;
+            if (storage == null) return;
+            storage.AddItem(itemId, amount);
+            Debug.Log($"[Belt] {reason} -> 아이템 {itemId} x{amount} 창고 이동");
+            if (notify) ToastManager.Info("아이템을 창고에 보관했습니다");
         }
 
         // =====================================================================
@@ -705,7 +718,7 @@ namespace TIMEKOV.Factory
             if (chain.Count == 0)
             {
                 token.isRescued = true;
-                InventoryManager.StorageInstance?.AddItem(itemId, amount);
+                RescueToStorage(itemId, amount, "체인 없음", notify: false);
                 _inFlightItems.Remove(token);
                 yield break;
             }
@@ -805,14 +818,12 @@ namespace TIMEKOV.Factory
             if (pathBroken)
             {
                 token.isRescued = true;
-                InventoryManager.StorageInstance?.AddItem(itemId, amount);
-                Debug.Log($"[Belt] 경로 파괴 → 아이템 {itemId} x{amount} 즉시 창고 이동");
+                RescueToStorage(itemId, amount, "경로 파괴");
             }
             else if (targetM == null)
             {
                 token.isRescued = true;
-                InventoryManager.StorageInstance?.AddItem(itemId, amount);
-                Debug.Log($"[Belt] 목표 설비 없음 → 아이템 {itemId} x{amount} 창고 이동");
+                RescueToStorage(itemId, amount, "목표 설비 없음", notify: false);
             }
             else if (!targetM.CanReceive(itemId))
             {
@@ -820,8 +831,7 @@ namespace TIMEKOV.Factory
                 if (!token.isRescued)
                 {
                     token.isRescued = true;
-                    InventoryManager.StorageInstance?.AddItem(itemId, amount);
-                    Debug.Log($"[Belt] 레시피 불일치 → 아이템 {itemId} x{amount} 창고 이동");
+                    RescueToStorage(itemId, amount, "레시피 불일치", notify: false);
                 }
             }
             else

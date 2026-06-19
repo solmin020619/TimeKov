@@ -175,8 +175,9 @@ public class BuildDemolisher
         }
 
         // 내부 아이템이 사라진 게 아니라 창고로 갔음을 명확히 안내
+        // (벨트 운송 중 아이템 구조 토스트와 메시지 통일 -> 같은 철거 동작이면 한 토스트로 합쳐짐)
         if (returnedAny)
-            ToastManager.Info("설비 내부 아이템을 창고에 보관했습니다");
+            ToastManager.Info("아이템을 창고에 보관했습니다");
     }
 
     private void DemolishRail(Vector2Int cell)
