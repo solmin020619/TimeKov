@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using TMPro;
 
@@ -9,7 +10,7 @@ public class TitleManager : MonoBehaviour
     public TextMeshProUGUI startText;
     public float blinkSpeed = 2f;
 
-    [Header("���� ����")]
+    [Header("���� ����")]
     public AudioSource audioSource;
     public AudioClip clickSound;
 
@@ -24,11 +25,18 @@ public class TitleManager : MonoBehaviour
             startText.color = c;
         }
 
-        if (!_isStarting && Input.anyKeyDown)
+        // UI 버튼(게임 종료 등) 위를 클릭한 경우엔 게임을 시작하지 않는다.
+        if (!_isStarting && Input.anyKeyDown && !IsPointerOverUI())
         {
             _isStarting = true;
             StartCoroutine(StartGameRoutine());
         }
+    }
+
+    private static bool IsPointerOverUI()
+    {
+        var es = EventSystem.current;
+        return es != null && es.IsPointerOverGameObject();
     }
 
     private IEnumerator StartGameRoutine()
@@ -36,7 +44,7 @@ public class TitleManager : MonoBehaviour
         if (startText != null)
         {
             startText.color = new Color(1, 1, 1, 1);
-            startText.text = "�ε� ��...";
+            startText.text = "�ε� ��...";
         }
 
         if (audioSource != null && clickSound != null)

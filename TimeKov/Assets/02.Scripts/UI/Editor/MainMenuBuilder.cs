@@ -100,12 +100,14 @@ public static class MainMenuBuilder
         var bgImg = bg.gameObject.AddComponent<Image>();
         bgImg.sprite = sprite;
         bgImg.preserveAspect = false;
+        bgImg.raycastTarget = false;   // 장식용 — 클릭은 통과시켜 "화면 클릭 시작" 유지
         StretchFull(bg);
 
         // 5. Scrim (어두운 비넷)
         var scrim = CreateUIChild(canvasGo.transform, "Scrim");
         var scrimImg = scrim.gameObject.AddComponent<Image>();
         scrimImg.color = new Color(0.03f, 0.05f, 0.08f, 0.35f);
+        scrimImg.raycastTarget = false;
         StretchFull(scrim);
 
         // 6. (Letterbox 제거 — 디자인 의도상 풀스크린 BG 유지)
@@ -126,6 +128,7 @@ public static class MainMenuBuilder
         logoTmp.color = Color.white;
         logoTmp.characterSpacing = 13;
         logoTmp.fontStyle = FontStyles.Bold;
+        logoTmp.raycastTarget = false;
         if (cinzelSdf != null) logoTmp.font = cinzelSdf;
 
         // 세로 그라데이션 (SPEC: 흰색→#bfe4ff→#7ea8c4→흰색 4-stop).
@@ -152,6 +155,7 @@ public static class MainMenuBuilder
         var underline = CreateUIChild(canvasGo.transform, "Logo_Underline");
         var underImg = underline.gameObject.AddComponent<Image>();
         underImg.color = new Color(0.749f, 0.894f, 1f, 0.85f);
+        underImg.raycastTarget = false;
         underline.anchorMin = underline.anchorMax = new Vector2(0.5f, 0.5f);
         underline.pivot = new Vector2(0.5f, 0.5f);
         underline.anchoredPosition = new Vector2(0, -50);
@@ -166,6 +170,7 @@ public static class MainMenuBuilder
         taglineTmp.alignment = TextAlignmentOptions.Center;
         taglineTmp.color = new Color(0.86f, 0.92f, 1f, 0.65f);
         taglineTmp.characterSpacing = 13;
+        taglineTmp.raycastTarget = false;
         if (rajdhaniRegSdf != null) taglineTmp.font = rajdhaniRegSdf;
         tagline.anchorMin = tagline.anchorMax = new Vector2(0.5f, 0.5f);
         tagline.pivot = new Vector2(0.5f, 0.5f);
@@ -205,6 +210,7 @@ public static class MainMenuBuilder
         promptTmp.color = new Color(0.9f, 0.94f, 1f, 0.92f);
         promptTmp.characterSpacing = 13;
         promptTmp.fontStyle = FontStyles.UpperCase;
+        promptTmp.raycastTarget = false;
         if (rajdhaniRegSdf != null) promptTmp.font = rajdhaniRegSdf;
         var promptFitter = promptText.gameObject.AddComponent<ContentSizeFitter>();
         promptFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -222,12 +228,42 @@ public static class MainMenuBuilder
         versionTmp.color = new Color(0.86f, 0.92f, 1f, 0.55f);
         versionTmp.characterSpacing = 8;
         versionTmp.lineSpacing = 6;
+        versionTmp.raycastTarget = false;
         if (rajdhaniRegSdf != null) versionTmp.font = rajdhaniRegSdf;
         version.anchorMin = new Vector2(0, 1);
         version.anchorMax = new Vector2(0, 1);
         version.pivot = new Vector2(0, 1);
         version.anchoredPosition = new Vector2(56, -47);
         version.sizeDelta = new Vector2(400, 60);
+
+        // 13. 게임 종료 버튼 (우하단) — 전원 아이콘의 작은 버튼.
+        //     유일하게 클릭(레이캐스트)을 받는 요소. 나머지 장식 요소는 raycastTarget=false 이므로
+        //     빈 화면 클릭 시작은 그대로 동작.
+        var powerIcon = AssetDatabase.LoadAssetAtPath<Sprite>(
+            "Assets/SilentOutbreak_UIKIT/PNG/Icons/T_icon_poweroff.png");
+        if (powerIcon == null)
+            Debug.LogWarning("[MainMenuBuilder] 전원 아이콘 로드 실패: T_icon_poweroff.png");
+
+        var quit = CreateUIChild(canvasGo.transform, "Btn_Quit");
+        var quitImg = quit.gameObject.AddComponent<Image>();
+        quitImg.sprite        = powerIcon;
+        quitImg.preserveAspect = true;
+        quitImg.color         = powerIcon != null ? Color.white : new Color(0.9f, 0.3f, 0.3f, 0.9f);
+        quitImg.raycastTarget = true;
+        quit.anchorMin = quit.anchorMax = new Vector2(1, 0);
+        quit.pivot = new Vector2(1, 0);
+        quit.anchoredPosition = new Vector2(-40, 40);   // 우하단 여백
+        quit.sizeDelta = new Vector2(52, 52);           // 작은 아이콘 버튼
+
+        var quitBtn = quit.gameObject.AddComponent<Button>();
+        quitBtn.targetGraphic = quitImg;
+        var quitColors = quitBtn.colors;
+        quitColors.normalColor      = new Color(0.85f, 0.89f, 0.95f, 0.9f); // 평소 살짝 흐린 흰색
+        quitColors.highlightedColor = new Color(0.98f, 0.85f, 0.25f, 1f);   // hover 노란 강조
+        quitColors.pressedColor     = new Color(0.8f, 0.7f, 0.2f, 1f);
+        quitColors.fadeDuration     = 0.12f;
+        quitBtn.colors = quitColors;
+        quit.gameObject.AddComponent<MainMenuQuitButton>();
 
         Selection.activeGameObject = canvasGo;
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
@@ -402,6 +438,7 @@ public static class MainMenuBuilder
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = new Color(0.745f, 0.863f, 1f, 0.7f);  // SPEC: rgba(190,220,255,0.7)
         tmp.characterSpacing = 10;
+        tmp.raycastTarget = false;
         if (font != null) tmp.font = font;
         var fitter = rt.gameObject.AddComponent<ContentSizeFitter>();
         fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
