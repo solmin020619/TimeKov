@@ -28,6 +28,10 @@ public class FuelDropSlot : MonoBehaviour,
     [SerializeField] private Color noFuelTextColor   = new Color(1f, 0.3f, 0.3f, 1f);
     [SerializeField] private Color normalTextColor   = new Color(1f, 1f, 1f, 1f);
 
+    [Header("빈 슬롯 미리보기")]
+    [Tooltip("연료가 없을 때 연료 아이템을 검은색 실루엣으로 미리 표시하는 색상.")]
+    [SerializeField] private Color emptySilhouetteColor = new Color(0f, 0f, 0f, 0.6f);
+
     // ── 드래그 아웃 static 상태 (InventoryPanelDropZone이 읽어감) ──────
     public static bool             IsFuelDragging { get; private set; }
     public static MachineBase      DragMachine   { get; private set; }
@@ -147,15 +151,31 @@ public class FuelDropSlot : MonoBehaviour,
     {
         if (iconImage == null) return;
 
-        // 연료가 없으면 아이콘 숨김
-        if (_machine == null || _machine.FuelTimeRemaining <= 0f)
+        var cfg = FuelConfig.Instance;
+
+        // 연료 아이템 아이콘 미리 로드 (빈 슬롯 실루엣 표시용으로도 사용)
+        Sprite sprite = null;
+        if (cfg != null)
         {
-            iconImage.enabled = false;
-            return;
+            var itemData = GameDataUtility.GetItem(cfg.fuelItemId);
+            sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
         }
 
-        var cfg = FuelConfig.Instance;
-        if (cfg == null) { iconImage.enabled = false; return; }
+        // 연료가 없으면 연료 아이템을 검은색 실루엣으로 미리 표시 (연료가 들어가면 원래 아이콘)
+        if (cfg == null || _machine == null || _machine.FuelTimeRemaining <= 0f)
+        {
+            if (sprite != null)
+            {
+                iconImage.sprite  = sprite;
+                iconImage.color   = emptySilhouetteColor;
+                iconImage.enabled = true;
+            }
+            else
+            {
+                iconImage.enabled = false;
+            }
+            return;
+        }
 
         // 현재 연소 중인 1개를 제외한 대기 아이템 수
         // queued == 0 이면 마지막 1개가 타는 중 → 아이콘 숨김, 시간만 표시
@@ -168,9 +188,6 @@ public class FuelDropSlot : MonoBehaviour,
             iconImage.enabled = false;
             return;
         }
-
-        var itemData = GameDataUtility.GetItem(cfg.fuelItemId);
-        Sprite sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
 
         iconImage.sprite  = sprite;
         iconImage.color   = Color.white;

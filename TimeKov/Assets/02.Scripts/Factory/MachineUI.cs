@@ -395,9 +395,11 @@ public class MachineUI : MonoBehaviour
             slotIndex++;
         }
 
-        if (slotIndex == 0) // 현재 레시피 결과물이 버퍼에 없음
+        if (slotIndex == 0) // 현재 레시피 결과물이 버퍼에 없음 → 결과물을 흐리게 미리보기
         {
-            outputSlot.gameObject.SetActive(false);
+            outputSlot.gameObject.SetActive(true);
+            outputSlot.SetupPreview(outputs[0].itemId);
+            outputSlot.SetDoubleClickAction(null);
             inventoryDropZone?.SetDropCallback(null);
             TimeKov.UI.HintArrowManager.I?.Hide("machine_output");
         }

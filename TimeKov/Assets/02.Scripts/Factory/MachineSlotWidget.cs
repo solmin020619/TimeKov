@@ -94,6 +94,44 @@ namespace TIMEKOV.Factory
                 amountText.text = amount > 1 ? $"x{amount}" : "";
         }
 
+        /// <summary>
+        /// 아직 생산되지 않은 결과물 아이콘을 흐리게(낮은 투명도) 미리 보여준다.
+        /// 드래그/클릭/툴팁이 비활성인 미리보기 상태 (_hasItem = false).
+        /// </summary>
+        public void SetupPreview(int itemId)
+        {
+            _currentItemId = itemId;
+            _currentAmount = 0;
+            _hasItem = false; // 미리보기 — 가져가기/드래그/툴팁 모두 비활성
+
+            var itemData = GameDataUtility.GetItem(itemId);
+
+            Sprite sprite = null;
+            if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
+                sprite = ItemDatabase.GetIcon(itemData.iconKey);
+
+            if (iconImage != null)
+            {
+                iconImage.sprite = sprite;
+                iconImage.color  = sprite != null
+                    ? new Color(1f, 1f, 1f, 0.3f)
+                    : new Color(1f, 1f, 1f, 0.12f);
+                iconImage.enabled = true;
+            }
+
+            if (rarityBorder != null)
+            {
+                int gradeIndex = itemData != null ? (int)itemData.itemGrade : 0;
+                Color c = GradeVisual.GetColor(gradeIndex);
+                c.a *= 0.3f; // 테두리도 흐리게
+                rarityBorder.color = c;
+            }
+
+            // 미리보기에는 이름/수량 표시 안 함
+            if (itemNameText != null) itemNameText.text = "";
+            if (amountText != null)   amountText.text   = "";
+        }
+
         public void SetClickAction(Action a) => _onClick = a;
         public void SetDoubleClickAction(Action a) => _onDoubleClick = a;
 
