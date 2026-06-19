@@ -243,21 +243,18 @@ public static class PlayerStatHUDBuilder
         var bgGo = MakeImage("Background", go.transform, size, Vector2.zero, trough);
         StretchFull(bgGo.GetComponent<RectTransform>());
 
-        // 채움
+        // 채움 — Image.Type.Simple(기본). Slider가 값에 맞춰 fillRect의 anchor를 리사이즈한다.
+        // (Type.Filled + 스프라이트 없음 조합은 fillAmount가 시각적으로 안 먹어 바가 안 움직임)
         var fillGo = MakeImage("Fill", go.transform, size, Vector2.zero, fill);
         var fillRt = fillGo.GetComponent<RectTransform>();
         StretchFull(fillRt);
         var fillImg = fillGo.GetComponent<Image>();
-        fillImg.type       = Image.Type.Filled;
-        fillImg.fillMethod = Image.FillMethod.Horizontal;
-        fillImg.fillOrigin = (int)Image.OriginHorizontal.Left;
-        fillImg.fillAmount = 1f;
 
         var slider = go.GetComponent<Slider>();
         slider.transition   = Selectable.Transition.None;
         slider.interactable = false;
         slider.direction    = Slider.Direction.LeftToRight;
-        slider.fillRect     = fillRt;     // Filled 이미지면 Slider가 fillAmount만 갱신
+        slider.fillRect     = fillRt;     // Filled 아님 → Slider가 앵커로 fill 폭을 조절
         slider.handleRect   = null;
         slider.targetGraphic = fillImg;
         slider.minValue = 0f; slider.maxValue = 1f; slider.value = 1f;

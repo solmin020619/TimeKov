@@ -67,6 +67,10 @@ public class MachineUI : MonoBehaviour
 
     private ProcessingMachine _machine;
     private int _selectedRecipeIndex = 0;
+
+    // statusText(연료 부족 — 연료 칸 위)와 분리된 제작 시간 표시용.
+    // statusText를 복제해 원래 중앙(진행바 위) 위치에 배치한다.
+    private TextMeshProUGUI _processTimeText;
     private readonly List<InventorySlotUI> _invSlots = new();
     /// <summary>outputSlot 외에 동적으로 생성된 추가 출력 슬롯들.</summary>
     private readonly List<MachineSlotWidget> _extraOutputSlots = new();
@@ -82,6 +86,24 @@ public class MachineUI : MonoBehaviour
         if (takeOutputBtn != null)  takeOutputBtn.onClick.AddListener(TakeAll);
 
         SetupDropZone();
+        SetupProcessTimeText();
+    }
+
+    // ── 제작 시간 텍스트 분리 ───────────────────────────────────────────
+    // statusText는 연료 칸 위로 옮겨져 "연료 부족" 전용이 됐으므로,
+    // 제작 시간("N초")은 statusText를 복제해 원래 위치(진행바 위, 중앙)에 따로 띄운다.
+    private void SetupProcessTimeText()
+    {
+        if (_processTimeText != null) return;       // 이미 생성됨
+        if (statusText == null) return;
+
+        var clone = Instantiate(statusText.gameObject, statusText.transform.parent);
+        clone.name = "ProcessTimeText";
+        _processTimeText = clone.GetComponent<TextMeshProUGUI>();
+
+        // statusText가 원래 있던 중앙(진행바 위) 위치로 복귀.
+        _processTimeText.rectTransform.anchoredPosition = new Vector2(-14.001f, 98f);
+        _processTimeText.text = "";
     }
 
     // ── 드롭존 자동 설정 ────────────────────────────────────────
@@ -516,16 +538,20 @@ public class MachineUI : MonoBehaviour
 
         if (_machine.Status == MachineStatus.NoFuel)
         {
-            statusText.text = "⚠ 연료 부족";
+            statusText.text = "⚠ 연료 부족";                              // 연료 칸 위
+            if (_processTimeText != null) _processTimeText.text = "";
         }
         else if (isSelectedRecipeActive)
         {
+            statusText.text = "";                                         // 연료 부족 칸은 비움
             float remaining = _machine.processingTime * (1f - _machine.Progress);
-            statusText.text = $"{remaining:F0}초";
+            if (_processTimeText != null)
+                _processTimeText.text = $"{remaining:F0}초";              // 제작 시간은 중앙(진행바 위)
         }
         else
         {
             statusText.text = "";
+            if (_processTimeText != null) _processTimeText.text = "";
         }
     }
 
