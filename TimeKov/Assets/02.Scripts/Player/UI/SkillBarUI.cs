@@ -89,8 +89,9 @@ public class SkillBarUI : MonoBehaviour
         BuildSlot(Kind.Quick, default, UtilSize, frameSp, ringSp, null, countBadge, keyBadge, KeyLabel(quickKey), QuickTint, null);
         BuildSlot(Kind.Dash,  default, UtilSize, frameSp, ringSp, dashIcon, null, keyBadge, "RMB", Color.white, null);
         BuildSlot(Kind.Skill, SkillSheetId.Skill1, SkillSize, frameSp, ringSp, Pick(skillIcons, 0), null, keyBadge, "Q", Color.white, "skill_q");
-        BuildSlot(Kind.Skill, SkillSheetId.Skill2, SkillSize, frameSp, ringSp, Pick(skillIcons, 1), null, keyBadge, "E", Color.white, "skill_e");
-        BuildSlot(Kind.Skill, SkillSheetId.Skill3, SkillSize, frameSp, ringSp, Pick(skillIcons, 2), null, keyBadge, "R", Color.white, "skill_r");
+        // E/R 스왑: E슬롯 = Skill3(아이콘 idx2), R슬롯 = Skill2(궁극기, 아이콘 idx1). 키 라벨은 위치 그대로 E/R.
+        BuildSlot(Kind.Skill, SkillSheetId.Skill3, SkillSize, frameSp, ringSp, Pick(skillIcons, 2), null, keyBadge, "E", Color.white, "skill_e");
+        BuildSlot(Kind.Skill, SkillSheetId.Skill2, SkillSize, frameSp, ringSp, Pick(skillIcons, 1), null, keyBadge, "R", Color.white, "skill_r");
 
         _quickSlot = _slots.Find(s => s.kind == Kind.Quick);
         if (player.QuickSlot != null)

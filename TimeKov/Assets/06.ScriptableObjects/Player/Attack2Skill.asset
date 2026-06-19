@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ComboIndex: 1
   ComboWindow: 1.2
-  Damage: 10
+  Damage: 7
   HitRadius: 2
   HitHeight: 1
   EnemyLayer:
     serializedVersion: 2
     m_Bits: 64
   GaugeTarget: 1
-  GaugeAmount: 100
+  CdReducePerHit: 2
   AttackVfxPrefab: {fileID: 1294101409476956, guid: 231e3be01ac50c047bb16d07fd8d2ba5, type: 3}
   AttackVfxBone: 18
   AttackVfxOffset: {x: 0, y: 1, z: 0.3}

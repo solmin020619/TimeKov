@@ -82,8 +82,10 @@ public class PlayerSkillComponent : MonoBehaviour
 
         if (_player.Input.AttackPressed) TryComboAttack();
         if (_player.Input.Skill1Pressed) TryExecute(SkillSheetId.Skill1);
-        if (_player.Input.Skill2Pressed) TryExecute(SkillSheetId.Skill2);
-        if (_player.Input.Skill3Pressed) TryExecute(SkillSheetId.Skill3);
+        // E/R 스왑: E키(Skill2Pressed)는 Skill3을, R키(Skill3Pressed)는 Skill2(궁극기)를 실행한다.
+        // 스킬 식별은 SkillSheetId 기준이라 사운드/쿨/데미지는 그대로 따라간다(여기 디스패치만 교차).
+        if (_player.Input.Skill2Pressed) TryExecute(SkillSheetId.Skill3);
+        if (_player.Input.Skill3Pressed) TryExecute(SkillSheetId.Skill2);
     }
 
     // 평타 적중 시 해당 콤보의 대상 스킬 쿨다운 감소 (ComboAttackBase에서 호출)

@@ -9,13 +9,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b07c5425c416d63468adfedb3a37a1ec, type: 3}
-  m_Name: Skill2_CycloneBreak
+  m_Script: {fileID: 11500000, guid: 476993cc060d7934cbfbb5b3876715f1, type: 3}
+  m_Name: Skill2_ExecutionFall
   m_EditorClassIdentifier: 
-  SkillSheetId: 1
+  SkillSheetId: 2
   SkillIcon: {fileID: 0}
-  CoolTime: 60
-  CastVfxPrefab: {fileID: 6810844234100877735, guid: 88dd9c4a8854b804186fda4318305ba0, type: 3}
+  CoolTime: 20
+  CastVfxPrefab: {fileID: 1210069404974878, guid: fbab27c98b168764eb295cfff1e9f61f, type: 3}
   CastVfxBone: 18
   CastVfxOffset: {x: 0, y: 0, z: 0.3}
   CastVfxRotation: {x: 0, y: 0, z: 0}
@@ -24,21 +24,18 @@ MonoBehaviour:
   HitVfxPrefab: {fileID: 1893033738566276, guid: 3e04efdf8ee665d48962b33b06e8e3d3, type: 3}
   HitVfxOffset: {x: 0, y: 1, z: 0}
   HitVfxLifeTime: 1.5
-  RotationDamage: 5
-  RotationRadius: 2.5
-  Hit1Time: 0.31
-  Hit2Time: 0.46
-  Hit3Time: 0.62
-  Hit4Time: 0.77
-  JumpDamage: 10
-  JumpRadius: 3.5
-  JumpHitTime: 1.23
+  Hit1Delay: 0.54
+  Hit1Damage: 30
+  Hit1Radius: 2.5
+  Hit2Delay: 0.92
+  Hit2Damage: 60
+  Hit2Radius: 3
   TotalDuration: 1.6
   HitHeight: 1
   EnemyLayer:
     serializedVersion: 2
     m_Bits: 64
-  RotationShakeDuration: 0.08
-  RotationShakeMagnitude: 0.04
-  JumpShakeDuration: 0.18
-  JumpShakeMagnitude: 0.1
+  Hit1ShakeDuration: 0.1
+  Hit1ShakeMagnitude: 0.05
+  Hit2ShakeDuration: 0.2
+  Hit2ShakeMagnitude: 0.12
