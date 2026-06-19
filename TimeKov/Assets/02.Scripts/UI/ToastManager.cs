@@ -1,7 +1,8 @@
 // =====================================================================
 // ToastManager.cs
 // 공통 토스트(알림) — 전역 싱글톤. 클로드디자인 웹 프로토타입(Resources/toast)을
-// Unity uGUI 로 이식. 화면 하단 중앙 pill, 스타일별 색/글리프, 큐/디바운스/카운트.
+// Unity uGUI 로 이식. 화면 상단 중앙 pill, 스타일별 색/글리프, 큐/디바운스.
+// 같은 메시지가 또 오면 새로 쌓지 않고 떠 있는 토스트를 살짝 흔들고 유지시간만 갱신.
 //
 // 호출(어디서든): ToastManager.Show("메시지", ToastStyle.Warning);
 //   또는 ToastManager.Info/Success/Warning/Error("메시지");
@@ -50,7 +51,7 @@ public class ToastManager : MonoBehaviour
     const float Hold = 1.6f;          // 표시 유지
     const float DebounceSec = 2.5f;   // 같은 메시지 병합 창
     const int   MaxVisible = 3;       // 동시 표시 최대
-    const float LayerBottomPx = 150f; // 스킬바 위
+    const float LayerTopPx = 90f;     // 화면 상단에서 내려온 거리 (상단 HUD 아래)
     const float SpacingPx = 10f;
 
     // 스타일 색 (info/success(gold)/warning/error)
@@ -80,7 +81,6 @@ public class ToastManager : MonoBehaviour
         public int id;
         public string message;
         public ToastStyle style;
-        public int count;
         public Action onHideStart;
         public float lastShown;
         public bool leaving;
@@ -89,7 +89,6 @@ public class ToastManager : MonoBehaviour
         public CanvasGroup cg;
         public Image icon;
         public TMP_Text msgText;
-        public TMP_Text countText;
         public Tween hideTween;
     }
 
@@ -115,14 +114,14 @@ public class ToastManager : MonoBehaviour
         var layerGo = new GameObject("ToastLayer", typeof(RectTransform));
         _layer = (RectTransform)layerGo.transform;
         _layer.SetParent(transform, false);
-        _layer.anchorMin = new Vector2(0.5f, 0f);
-        _layer.anchorMax = new Vector2(0.5f, 0f);
-        _layer.pivot = new Vector2(0.5f, 0f);
-        _layer.anchoredPosition = new Vector2(0f, LayerBottomPx);
+        _layer.anchorMin = new Vector2(0.5f, 1f);
+        _layer.anchorMax = new Vector2(0.5f, 1f);
+        _layer.pivot = new Vector2(0.5f, 1f);
+        _layer.anchoredPosition = new Vector2(0f, -LayerTopPx);
 
         var vlg = layerGo.AddComponent<VerticalLayoutGroup>();
         vlg.spacing = SpacingPx;
-        vlg.childAlignment = TextAnchor.LowerCenter;
+        vlg.childAlignment = TextAnchor.UpperCenter;
         vlg.childControlWidth = false;
         vlg.childControlHeight = false;
         vlg.childForceExpandWidth = false;
@@ -139,24 +138,24 @@ public class ToastManager : MonoBehaviour
         if (string.IsNullOrEmpty(message)) return;
         float now = Time.unscaledTime;
 
-        // 같은 메시지가 아직 살아있으면(디바운스 창 내) 새로 띄우지 않고 ×N 카운트만 갱신
+        // 같은 메시지가 아직 떠 있으면(디바운스 창 내) 새로 쌓지 않고
+        // 떠 있는 토스트를 살짝 흔들어 다시 강조 + 유지시간만 갱신 (x2,x3 카운트 폐기)
         for (int k = 0; k < _items.Count; k++)
         {
             var it = _items[k];
             if (it.leaving || it.message != message) continue;
             if (now - it.lastShown > DebounceSec) continue;
-            it.count++;
             it.style = style;
             it.lastShown = now;
             ApplyStyle(it);
-            UpdateCount(it);
+            PunchRepeat(it);
             ScheduleHide(it);
             return;
         }
 
         var item = new Item
         {
-            id = ++_seq, message = message, style = style, count = 1,
+            id = ++_seq, message = message, style = style,
             onHideStart = onHideStart, lastShown = now,
         };
 
@@ -199,6 +198,16 @@ public class ToastManager : MonoBehaviour
         item.cg.DOFade(0f, InOut).SetUpdate(true).SetEase(Ease.InCubic);
         item.rt.DOScale(0.98f, InOut).SetUpdate(true).SetEase(Ease.InCubic)
             .OnComplete(() => Remove(item));
+    }
+
+    // 같은 메시지가 또 왔을 때: 떠 있는 토스트를 살짝 튕겨 반응을 준다(스케일 punch).
+    // VerticalLayoutGroup 이 위치/크기는 잡지만 localScale 은 안 건드려서 안전.
+    private void PunchRepeat(Item item)
+    {
+        if (item.rt == null) return;
+        item.rt.DOKill();
+        item.rt.localScale = Vector3.one;
+        item.rt.DOPunchScale(Vector3.one * 0.06f, 0.28f, 1, 0.6f).SetUpdate(true);
     }
 
     private void Remove(Item item)
@@ -272,33 +281,13 @@ public class ToastManager : MonoBehaviour
         item.msgText.overflowMode = TextOverflowModes.Overflow;
         item.msgText.raycastTarget = false;
 
-        // 카운트(×N) — 1개일 땐 숨김
-        var cntGo = new GameObject("Count", typeof(RectTransform));
-        cntGo.transform.SetParent(item.rt, false);
-        item.countText = cntGo.AddComponent<TextMeshProUGUI>();
-        item.countText.fontSize = 18f;
-        item.countText.fontStyle = FontStyles.Bold;
-        item.countText.alignment = TextAlignmentOptions.Midline;
-        item.countText.enableWordWrapping = false;
-        item.countText.raycastTarget = false;
-
         ApplyStyle(item);
-        UpdateCount(item);
     }
 
     private void ApplyStyle(Item item)
     {
         var c = StyleColor(item.style);
         if (item.icon != null) { item.icon.sprite = GetGlyph(item.style); item.icon.color = c; }
-        if (item.countText != null) item.countText.color = c;
-    }
-
-    private void UpdateCount(Item item)
-    {
-        if (item.countText == null) return;
-        bool show = item.count > 1;
-        item.countText.gameObject.SetActive(show);
-        if (show) item.countText.text = $"×{item.count}";
     }
 
     private Sprite GetGlyph(ToastStyle style)
