@@ -19,7 +19,11 @@ public class LootBoxHighlight : MonoBehaviour
         {
             if (outlineComponent != null)
             {
-                outlineComponent.enabled = true;
+                // 통일된 노란색 강조 아웃라인 적용 (QuickOutline일 때만 색/두께 통일)
+                if (outlineComponent is Outline outline)
+                    InteractOutline.Enable(outline);
+                else
+                    outlineComponent.enabled = true;
             }
         }
     }

@@ -244,8 +244,8 @@ namespace TIMEKOV.Factory
             _outlinedMachine = machine;
             if (machine == null) return;
 
-            var outline = machine.GetComponent<Outline>();
-            if (outline != null) outline.enabled = true;
+            // 통일된 노란색 강조 아웃라인 적용
+            InteractOutline.Enable(machine.GetComponent<Outline>());
         }
 
         // ── 깜빡임 후 설비 열기 ──────────────────────────────────────────

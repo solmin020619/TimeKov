@@ -53,20 +53,30 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     private Player  _player;
     private Outline _outline;
 
+    [Header("강조 발광 (가까이 가면 상자가 노랗게 맥동 — 큰 오브젝트용)")]
+    [SerializeField] private Color glowColor        = new Color(1f, 0.85f, 0.1f);
+    [SerializeField] private float glowMinIntensity = 0.12f;
+    [SerializeField] private float glowMaxIntensity = 0.9f;
+    [SerializeField] private float glowPulseSpeed   = 3.5f;
+
+    private Material[] _glowMats;
+    private Color[]    _glowOrigEmission;
+    private bool       _glowOn;
+
     private void Awake()
     {
         _outline = GetComponentInChildren<Outline>(true);
         if (_outline == null)
             _outline = gameObject.AddComponent<Outline>();
-        _outline.OutlineMode  = Outline.Mode.OutlineVisible;
-        _outline.OutlineColor = new Color(1f, 0.85f, 0.35f);
-        _outline.OutlineWidth = 5f;
+        // 통일된 아웃라인 스타일(노란색·OutlineAll·두께) 적용 — 풀에 가려도 보이도록.
+        InteractOutline.Apply(_outline);
         _outline.enabled      = false;
     }
 
     private void Start()
     {
         _player = FindAnyObjectByType<Player>();
+        SetupGlow();
     }
 
     // 인벤토리 UI 열려있을 때만 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
@@ -143,7 +153,9 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         // Opened(잠금해제)는 절대 Idle로 안 돌아간다 = 재굴림 없음(다 비우면 빈 채로 유지).
         bool near = IsPlayerNear();
         RefreshIndicator(near);
-        UpdateOutline(near);
+        bool highlight = near && !(_state == State.Opened && !HasItems());
+        UpdateOutline(highlight);
+        UpdateGlow(highlight);
     }
 
     // ── 수령: 자물쇠 따서 전리품 1회만 굴림 + 패널. 이후 이 상자는 잠금해제(재굴림 없음). ──
@@ -211,6 +223,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         // 씬 종료/비활성 중엔 GetOrCreate 로 새로 만들지 말 것(정리 안 됨 에러). 있을 때만 숨김.
         ChestPromptUI.Instance?.HideIfOwner(this);
         if (_outline != null) _outline.enabled = false;
+        if (_glowOn) UpdateGlow(false);   // 발광 켜진 채 남지 않도록 원복
     }
 
     // ── 프롬프트 / 상태 표시 ─────────────────────────────────────────────
@@ -250,11 +263,55 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         }
     }
 
-    private void UpdateOutline(bool near)
+    private void UpdateOutline(bool show)
     {
         if (_outline == null) return;
-        bool show = near && !(_state == State.Opened && !HasItems());
-        if (_outline.enabled != show) _outline.enabled = show;
+        if (show) InteractOutline.Enable(_outline);   // 통일 스타일 재적용 + 켜기
+        else if (_outline.enabled) _outline.enabled = false;
+    }
+
+    // ── 강조 발광 (B 방안) ────────────────────────────────────────────────
+    // 가까이 가면 상자 메시가 노란빛으로 은은하게 맥동 → 큰 오브젝트에서 확실히 보임.
+
+    private void SetupGlow()
+    {
+        var rends = GetComponentsInChildren<Renderer>(true);
+        var mats  = new List<Material>();
+        var orig  = new List<Color>();
+        foreach (var r in rends)
+        {
+            if (r is ParticleSystemRenderer) continue;
+            foreach (var m in r.materials)   // 인스턴스화 — 공유 재질/다른 상자에 영향 없음
+            {
+                if (m == null) continue;
+                m.EnableKeyword("_EMISSION");
+                mats.Add(m);
+                orig.Add(m.HasProperty("_EmissionColor") ? m.GetColor("_EmissionColor") : Color.black);
+            }
+        }
+        _glowMats         = mats.ToArray();
+        _glowOrigEmission = orig.ToArray();
+    }
+
+    private void UpdateGlow(bool show)
+    {
+        if (_glowMats == null || _glowMats.Length == 0) return;
+
+        if (show)
+        {
+            float t         = (Mathf.Sin(Time.time * glowPulseSpeed) + 1f) * 0.5f;   // 0~1 맥동
+            float intensity = Mathf.Lerp(glowMinIntensity, glowMaxIntensity, t);
+            Color add       = glowColor * intensity;
+            for (int i = 0; i < _glowMats.Length; i++)
+                _glowMats[i].SetColor("_EmissionColor", _glowOrigEmission[i] + add);
+            _glowOn = true;
+        }
+        else if (_glowOn)
+        {
+            for (int i = 0; i < _glowMats.Length; i++)
+                _glowMats[i].SetColor("_EmissionColor", _glowOrigEmission[i]);
+            _glowOn = false;
+        }
     }
 
     private bool IsPlayerNear()
