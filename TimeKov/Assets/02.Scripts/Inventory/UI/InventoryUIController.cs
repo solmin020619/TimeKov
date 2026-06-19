@@ -471,6 +471,16 @@ public class InventoryUIController : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// 우클릭 컨텍스트 메뉴가 열려 있으면 닫는다. 열려 있었으면 true.
+    /// GameUIController가 ESC/상태전환 시 호출 - 공장/인벤이 닫힐 때 이 메뉴가 화면에 남지 않게.
+    /// </summary>
+    public bool TryCloseContextMenu()
+    {
+        if (contextMenu != null && contextMenu.IsOpen) { contextMenu.Close(); return true; }
+        return false;
+    }
+
     // 용량 텍스트 + 게이지 갱신
     public void RefreshCapacityText()
     {

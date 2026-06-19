@@ -160,6 +160,12 @@ public class GameUIController : MonoBehaviour
 
     public void HandleEscape()
     {
+        // 우클릭 컨텍스트 메뉴가 떠 있으면 ESC 1번은 그 메뉴부터 닫는다 (공장/인벤 어디서든).
+        // 두 번째 ESC가 부모 UI(공장/인벤 등)를 닫음. (메뉴가 부모 닫힌 뒤 화면에 남던 버그 수정)
+        if (InventoryUIController.Instance != null
+            && InventoryUIController.Instance.TryCloseContextMenu())
+            return;
+
         // 인벤 내부 팝업이 우선 (인벤 폴더 비침습 약속 — 외부에서 처리)
         if (_currentState == UIState.Inventory)
         {
@@ -322,6 +328,10 @@ public class GameUIController : MonoBehaviour
         var oldState = _currentState;
         _currentState = newState;
         ApplyState();
+
+        // 상태가 바뀌면 우클릭 컨텍스트 메뉴는 항상 닫는다 (F로 공장 닫기 등 ESC 외 경로에서도 메뉴가 안 남게).
+        if (oldState != newState)
+            InventoryUIController.Instance?.TryCloseContextMenu();
 
         // WindowManager mirror
         var wm = TimeKov.UI.WindowManager.I;
