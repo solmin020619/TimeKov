@@ -314,6 +314,17 @@ public class PlayerHudUI : MonoBehaviour
         if (_timeBarRoot != null)
             TutorialOverlay.RegisterTarget("time_bar", _timeBarRoot);
 
+        // stamina_bar = HUD 스태미나 막대. 인트로 투어에서 스태미나 로직(소모/회복) 강조용.
+        // staminaSlider(uGUI) 우선, 없으면 셰이더 기반 StaminaBarUI 로 폴백. 둘 다 없으면 투어는 텍스트만.
+        RectTransform staminaRt = staminaSlider != null ? (RectTransform)staminaSlider.transform : null;
+        if (staminaRt == null)
+        {
+            var sb = FindAnyObjectByType<StaminaBarUI>();
+            if (sb != null) staminaRt = sb.transform as RectTransform;
+        }
+        if (staminaRt != null)
+            RegisterRectTarget(staminaRt, "stamina_bar");
+
         // 우측 상단 키 안내 박스 4개 → 스포트라이트 타깃.
         // 각 키는 라벨(*_Text)+아이콘(*_Icon)이 KeyGuide 바로 아래 평면 구조로 흩어져 있으므로
         // 같은 id에 둘 다 등록한다. TutorialOverlay가 같은 id의 rect들을 합집합으로 묶어

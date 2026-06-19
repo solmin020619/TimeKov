@@ -45,6 +45,7 @@ public static class TutorialAssetBuilder
 
     // -- 스포트라이트 타깃 id (씬 UI 요소의 TutorialHighlightTarget 와 매칭) --
     const string TargetTimeBar      = "time_bar";        // 좌하단 시간/DECAY 막대
+    const string TargetStaminaBar   = "stamina_bar";     // 스태미나 막대 (인트로에서 로직 설명)
     const string TargetStatPanel    = "status_panel";    // C 스탯 창
     const string TargetStatButton   = "stat_button";     // 우측 상단 C 스탯 아이콘(C_Icon)
     const string TargetTabIcon      = "tab_icon";        // 우측 상단 TAB(인벤) 아이콘
@@ -106,6 +107,7 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_00_intro", "시작 안내",
             CreateGuidedTour("obj_intro_tour",
                 TourStep($"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. 시간이 {Y}0{E}이 되면 사망합니다.", TargetTimeBar),
+                TourStep($"{Y}스태미나{E}입니다. {Y}달리기{E}나 {Y}대시{E}를 쓰면 줄고, {Y}멈추거나 걸으면{E} 다시 찹니다. 바닥나면 잠시 달리기나 대시를 쓸 수 없어요.", TargetStaminaBar),
                 TourStep($"우상단 메뉴 - {Y}TAB{E}: 인벤토리 / {Y}B{E}: 건설 모드 / {Y}ESC{E}: 설정.", TargetMenuIcons),
                 TourStep($"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.", TargetStatButton, KeyCode.C),
                 TourStep($"여기서 {Y}최대 시간{E}·{Y}스태미나{E}·{Y}공격력{E}·{Y}방어력{E}을 확인합니다. {Y}코어 강화{E}로 최대 시간을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있어요. {Y}C{E}로 언제든 여닫을 수 있습니다.", TargetStatPanel),
@@ -117,8 +119,8 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
             CreateMoveDistance("obj_move", $"{Y}WASD{E}로 {Y}이동{E}하세요.", 3f),
             CreatePressKey("obj_jump", $"{Y}Space{E}로 {Y}점프{E}하세요.", KeyCode.Space, 1),
-            CreatePressKey("obj_run", $"{Y}Shift{E}를 누른 채 {Y}달리기{E} - 빨라지지만 {Y}스태미나{E}를 쓰고, 멈추거나 걸으면 다시 회복돼요.", KeyCode.LeftShift, 1),
-            CreatePressKey("obj_dash", $"{Y}우클릭{E}으로 {Y}대시{E}하세요. (대시도 {Y}스태미나{E} 소모)", KeyCode.Mouse1, 1)));
+            CreatePressKey("obj_run", $"{Y}Shift{E}로 {Y}달리기{E} (스태미나를 소모합니다)", KeyCode.LeftShift, 1),
+            CreatePressKey("obj_dash", $"{Y}우클릭{E}으로 {Y}대시{E} (스태미나를 소모합니다)", KeyCode.Mouse1, 1)));
 
         quests.Add(BuildQuest("quest_tut_01b_reach_hunt", "사냥터로 이동",
             CreateReachTrigger("obj_reach_enemy", $"결계 밖 {Y}사냥터{E}로 {Y}이동{E}하세요. (결계 밖에선 {Y}시간{E}이 줄기 시작합니다)", "enemy")));
@@ -306,7 +308,7 @@ public static class TutorialAssetBuilder
             $"3. 'build' 트리거가 BuildManager.buildZoneCollider 와 정확히 겹쳐야(ReachTrigger는 되는데 EnterBuildMode가 안 되는 모순 방지)\n" +
             $"4. 드롭/스폰: tutorial_enemy 무한리스폰 + 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive} 드롭, OakTreeEnt 가 나뭇가지{ItemTwig} 떨굼(스폰풀에 OakTreeEnt 포함, NavMesh 베이크)\n" +
             $"5. 스포트라이트(코드 자동등록 외 수동 부착): time_bar/status_panel/stat_button(C_Icon)/tab_icon + 건설투어 타깃. 코어는 영상이라 코어 스포트 불필요\n" +
-            $"6. PlayerMovementWatcher.watchedKeys 에 Space/LeftShift/Mouse0/Mouse1/Tab/B 포함 (C는 GameUIController 자동발화). 달리기(obj_run) 감지하려면 LeftShift 필수\n" +
+            $"6. PlayerMovementWatcher: 이동/점프/달리기(Shift)/대시/Tab/B 등 필수 키는 코드에서 자동 감지(watchedKeys 인스펙터 설정 불필요). C는 GameUIController 자동발화\n" +
             $"7. 영상 클립: Assets/12.Video/Tutorial/ 에 '페이지 제목'과 같은 파일명 mp4. 없으면 '영상 준비 중' 폴백\n" +
             $"8. 레일 자동화: 추출기 출구->배양기 입구 포트정렬 + 다른 연결가능 포트 차단 사전 플레이테스트\n" +
             $"9. 코어: 단말이 BaseZone 콜라이더 안 + 코어키트 보상 증발 방지(가방/창고 여유). 시트 코어레벨1 키트={CoreKitId}/필요수<={CoreKitAmount}");
