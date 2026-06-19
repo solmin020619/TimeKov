@@ -562,6 +562,43 @@ public class RailBuildManager : MonoBehaviour
         return indicator;
     }
 
+    // 설비 배치 프리뷰(고스트)에 입구/출구 화살표를 붙인다(고스트의 자식 -> 이동/회전을 자동으로 따라감).
+    // 프리뷰엔 연결 판정(레일)이 없으므로 X는 안 쓰고 방향 화살표만. 위치/방향은 배치된 포트 화살표와 동일 규칙.
+    // 고스트는 그리드 originCell 이 없으므로 셀 좌표 대신 고스트 로컬 좌표(중심 기준)로 계산한다.
+    public void ShowGhostPortArrows(GameObject ghost)
+    {
+        if (ghost == null || portArrowPrefab == null) return;
+
+        BuildPort[] ports = ghost.GetComponentsInChildren<BuildPort>(true);
+        for (int i = 0; i < ports.Length; i++)
+        {
+            BuildPort port = ports[i];
+            Vector2Int d = port.localDirection;
+            if (d == Vector2Int.zero) continue;
+
+            Vector3 localDir = new Vector3(d.x, 0f, d.y).normalized;
+            // 포트 셀 중심(중심 기준 오프셋) -> 방향으로 1.5칸 바깥 = 배치된 화살표와 같은 위치.
+            Vector3 localPos = new Vector3(port.localCellOffset.x, 0f, port.localCellOffset.y) * cellSize
+                             + localDir * cellSize * 1.5f;
+            localPos.y += indicatorYOffset;
+
+            // 방향: 배치 화살표와 동일(헤드가 시설 안쪽 모델 -> Output 은 +180 으로 바깥을 가리킴).
+            float yAngle = Mathf.Atan2(d.x, d.y) * Mathf.Rad2Deg;
+            if (port.portType == PortType.Output) yAngle += 180f;
+            Quaternion localRot = Quaternion.Euler(90f, yAngle, 0f);
+
+            GameObject arrow = Instantiate(portArrowPrefab);
+            arrow.transform.SetParent(ghost.transform, false);
+            arrow.transform.localPosition = localPos;
+            arrow.transform.localRotation = localRot;
+            arrow.name = $"GhostPortArrow_{port.portType}";
+
+            // 프리뷰 화살표 콜라이더는 배치 레이캐스트에 안 걸리게 비활성(혹시 콜라이더가 있어도 안전).
+            foreach (var col in arrow.GetComponentsInChildren<Collider>())
+                col.enabled = false;
+        }
+    }
+
     private PortIndicatorState GetIndicatorState(BuildPort port)
     {
         if (!isRouting)

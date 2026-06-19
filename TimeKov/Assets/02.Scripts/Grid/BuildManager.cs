@@ -141,6 +141,8 @@ public class BuildManager : MonoBehaviour
 
     [Header("Preview")]
     public GameObject previewMarker;
+    // 프리뷰 틴트(초록/빨강) 대상 = 시설 렌더러만 캐시. 입출구 화살표는 이 캐시 이후 추가돼 틴트에서 제외(고유색 유지).
+    private Renderer[] previewRenderers;
 
     [Header("Raycast")]
     public LayerMask groundMask;
@@ -754,10 +756,12 @@ public class BuildManager : MonoBehaviour
         previewMarker.transform.rotation = rotation;
 
         Color tint = canBuild ? Color.green : Color.red;
-        Renderer[] renderers = previewMarker.GetComponentsInChildren<Renderer>();
+        // 시설 렌더러만 틴트(화살표 제외 - 캐시는 화살표 추가 전에 잡음). 폴백으로 캐시 없으면 재쿼리.
+        Renderer[] renderers = previewRenderers ?? previewMarker.GetComponentsInChildren<Renderer>();
 
         for (int i = 0; i < renderers.Length; i++)
         {
+            if (renderers[i] == null) continue;
             Material mat = renderers[i].material;
             // URP 는 _BaseColor, 빌트인은 _Color 를 쓴다. 셰이더에 있는 쪽을 칠해야 색이 먹는다.
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);
@@ -779,6 +783,13 @@ public class BuildManager : MonoBehaviour
         previewMarker.name = GetCurrentFacilityName() + "_Preview";
 
         FacilityPlacer.DisableGhostComponents(previewMarker, this);
+
+        // 시설 렌더러만 캐시(틴트 대상). 화살표는 이 다음에 추가 -> 틴트 제외(고유색 유지).
+        previewRenderers = previewMarker.GetComponentsInChildren<Renderer>();
+
+        // 프리뷰에 입구/출구 화살표 표시 - 놓기 전에 방향을 보고 맞춰 놓게(잘못 놓고 지우는 과정 제거).
+        // 프리뷰엔 연결 판정이 없어 X는 안 뜸. 화살표는 고스트 자식이라 이동/회전을 따라감.
+        railBuildManager?.ShowGhostPortArrows(previewMarker);
 
         previewMarker.SetActive(false);
     }

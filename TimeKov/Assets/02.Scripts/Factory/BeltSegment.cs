@@ -676,7 +676,7 @@ namespace TIMEKOV.Factory
             if (storage == null) return;
             storage.AddItem(itemId, amount);
             Debug.Log($"[Belt] {reason} -> 아이템 {itemId} x{amount} 창고 이동");
-            if (notify) ToastManager.Info("아이템을 창고에 보관했습니다");
+            if (notify) ToastManager.Warning("가동 중 철거 - 아이템 창고로 회수");
         }
 
         // =====================================================================
