@@ -74,11 +74,12 @@ public class FacilitySelectPanel : MonoBehaviour
         FacilitySelectRow row = _rows[_selectedIndex];
         float interval = totalDuration / (flashCount * 2f);
 
+        // 선택된 큰 크기는 유지하고 색만 깜빡인다 (크기 깜빡임 방지).
         for (int i = 0; i < flashCount; i++)
         {
-            row.SetSelected(false);
+            row.SetFlashHighlight(false);
             yield return new WaitForSecondsRealtime(interval);
-            row.SetSelected(true);
+            row.SetFlashHighlight(true);
             yield return new WaitForSecondsRealtime(interval);
         }
     }
