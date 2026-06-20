@@ -216,27 +216,38 @@ public class SkillBarUI : MonoBehaviour
         var ov = NewChild("DashLock", circle, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size, size));
         ov.SetAsLastSibling();   // 아이콘/링 위에
 
-        // 잠금 강조용 어두운 덮개
-        var dim = NewImage("Dim", ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 0.96f, size * 0.96f));
-        dim.sprite = UISpriteFactory.Circle(96);
-        dim.color = new Color(0.04f, 0.05f, 0.07f, 0.5f);
-
-        // 쇠사슬 2개 X자(금속 그라디언트 바)
-        Color32 chainTop = new Color32(158, 166, 176, 255);
-        Color32 chainBot = new Color32(74, 80, 88, 255);
-        for (int i = 0; i < 2; i++)
+        var designed = Load("dash_lock_chain");   // 디자인된 잠금 오버레이(자물쇠+쇠사슬 PNG). 있으면 통째 교체.
+        if (designed != null)
         {
-            var ch = NewImage("Chain" + i, ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 1.18f, size * 0.22f));
-            ch.sprite = UISpriteFactory.RoundedRectVGrad(chainTop, chainBot, 48, 10);
-            ch.type = Image.Type.Simple;
-            ch.rectTransform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 34f : -34f);
+            var img = ov.gameObject.AddComponent<Image>();
+            img.sprite = designed;
+            img.preserveAspect = true;
+            img.raycastTarget = false;
         }
+        else
+        {
+            // 폴백(절차 생성) — Resources/SkillBar/dash_lock PNG 들어오면 위 분기가 대체.
+            var dim = NewImage("Dim", ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 0.96f, size * 0.96f));
+            dim.sprite = UISpriteFactory.Circle(96);
+            dim.color = new Color(0.04f, 0.05f, 0.07f, 0.5f);
 
-        // 자물쇠(중앙)
-        var lk = NewImage("Lock", ov, new Vector2(0.5f, 0.5f), new Vector2(0f, 2f), new Vector2(size * 0.5f, size * 0.5f));
-        lk.sprite = UISpriteFactory.Lock(96);
-        lk.color = new Color32(236, 233, 227, 255);
-        lk.preserveAspect = true;
+            // 쇠사슬 2개 X자(금속 그라디언트 바)
+            Color32 chainTop = new Color32(158, 166, 176, 255);
+            Color32 chainBot = new Color32(74, 80, 88, 255);
+            for (int i = 0; i < 2; i++)
+            {
+                var ch = NewImage("Chain" + i, ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 1.18f, size * 0.22f));
+                ch.sprite = UISpriteFactory.RoundedRectVGrad(chainTop, chainBot, 48, 10);
+                ch.type = Image.Type.Simple;
+                ch.rectTransform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 34f : -34f);
+            }
+
+            // 자물쇠(중앙)
+            var lk = NewImage("Lock", ov, new Vector2(0.5f, 0.5f), new Vector2(0f, 2f), new Vector2(size * 0.5f, size * 0.5f));
+            lk.sprite = UISpriteFactory.Lock(96);
+            lk.color = new Color32(236, 233, 227, 255);
+            lk.preserveAspect = true;
+        }
 
         ov.gameObject.SetActive(!PlayerDashComponent.IsDashUnlocked);
         _dashLockOverlay = ov;
@@ -483,7 +494,7 @@ public class SkillBarUI : MonoBehaviour
         if (old != null) Destroy(old.gameObject);
 
         // 슬롯 위로 띄움. pivot 아래중앙 -> 슬롯 상단 기준 위로 자람. 꼬리는 아래 중앙.
-        var bubble = NewChild("DashUnlockBubble", circle, new Vector2(0.5f, 1f), new Vector2(0f, 24f), new Vector2(300f, 58f));
+        var bubble = NewChild("DashUnlockBubble", circle, new Vector2(0.5f, 1f), new Vector2(0f, 14f), new Vector2(300f, 58f));
         bubble.pivot = new Vector2(0.5f, 0f);
         var cg = bubble.gameObject.AddComponent<CanvasGroup>();
 
@@ -496,15 +507,7 @@ public class SkillBarUI : MonoBehaviour
         outline.effectColor = DashRing;
         outline.effectDistance = new Vector2(2f, -2f);
 
-        // 꼬리(아래 중앙 다이아몬드)
-        var tail = NewChild("Tail", bubble, new Vector2(0.5f, 0f), new Vector2(0f, 3f), new Vector2(18f, 18f));
-        var tImg = tail.gameObject.AddComponent<Image>();
-        tImg.sprite = UISpriteFactory.RoundedRect(32, 6);
-        tImg.type = Image.Type.Sliced;
-        tImg.color = bg.color;
-        tImg.raycastTarget = false;
-        tail.localRotation = Quaternion.Euler(0f, 0f, 45f);
-
+        // 꼬리(tail)는 절차 생성으론 테두리가 안 따라붙어 어두운 자국처럼 보여 제거. 깔끔한 꼬리는 디자인 스프라이트로 대체 예정.
         var msg = NewText("Msg", bubble, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(282f, 50f), 17f);
         msg.text = "이제 대쉬를 사용할 수 있습니다!";
         msg.fontStyle = FontStyles.Bold;

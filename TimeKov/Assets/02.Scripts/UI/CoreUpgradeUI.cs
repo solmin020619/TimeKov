@@ -241,7 +241,7 @@ public class CoreUpgradeUI : MonoBehaviour
         {
             SetStatRow(_curRows[0], true,                          $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv))}", OwnedStatColor);
             SetStatRow(_curRows[1], lv >= dashLv,                  "우클릭 대쉬", OwnedStatColor);
-            SetStatRow(_curRows[2], mgr.IsLifestealUnlockedAt(lv), $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv))}", OwnedStatColor);
+            SetStatRow(_curRows[2], mgr.IsLifestealUnlockedAt(lv), $"흡수율   {PctF(mgr.GetLifestealPercentAt(lv))}", OwnedStatColor);
         }
 
         if (isMax) return;
@@ -249,15 +249,16 @@ public class CoreUpgradeUI : MonoBehaviour
         if (next != null && cur != null)
         {
             int dt = next.maxTime - cur.maxTime;
-            string dStr = dt > 0 ? $"  <size=66%><color=#46E08A>+{dt}s ↑</color></size>" : "";
-            SetText(nextTimeText, $"체력  {next.maxTime}s{dStr}");   // 강화후 = 한 줄 + 증가분 인라인(초록)
+            string dStr = dt > 0 ? DeltaTag($"+{dt}s") : "";
+            SetText(nextTimeText, $"체력  {next.maxTime}s{dStr}");   // 강화후 = 값 + 증가분 인라인(초록)
 
             if (_nextRows != null)
             {
-                // 부활 체력 — 강화로 오르면 ↑
+                // 부활 체력 — 체력과 동일 포맷: 값 + (+증가분) ↑
+                float cResp = mgr.GetRespawnHpPercentAt(lv);
                 float nResp = mgr.GetRespawnHpPercentAt(lv + 1);
-                bool respUp = nResp > mgr.GetRespawnHpPercentAt(lv) + 0.0001f;
-                SetStatRow(_nextRows[0], true, $"부활 체력   {Pct(nResp)}{(respUp ? "  ↑" : "")}", NextStatColor);
+                int dResp = Mathf.RoundToInt((nResp - cResp) * 100f);
+                SetStatRow(_nextRows[0], true, $"부활 체력   {Pct(nResp)}{(dResp > 0 ? DeltaTag($"+{dResp}%") : "")}", NextStatColor);
 
                 // 우클릭 대쉬 — 다음 레벨에 새로 해금되면 New, 이미 보유면 그대로 표시, 미해금이면 숨김(스포 방지)
                 bool dashNow  = (lv < dashLv) && (lv + 1 >= dashLv);
@@ -271,9 +272,11 @@ public class CoreUpgradeUI : MonoBehaviour
                 bool lifeHave = mgr.IsLifestealUnlockedAt(lv + 1);
                 if (lifeHave && !lifeNow)
                 {
+                    // 체력과 동일 포맷: 값 + (+증가분) ↑. 흡수는 0.5% 단위라 소수 1자리.
+                    float cLife = mgr.GetLifestealPercentAt(lv);
                     float nLife = mgr.GetLifestealPercentAt(lv + 1);
-                    bool lifeUp = nLife > mgr.GetLifestealPercentAt(lv) + 0.0001f;
-                    SetStatRow(_nextRows[2], true, $"흡수율   {Pct(nLife)}{(lifeUp ? "  ↑" : "")}", NextStatColor);
+                    float dLife = (nLife - cLife) * 100f;
+                    SetStatRow(_nextRows[2], true, $"흡수율   {PctF(nLife)}{(dLife > 0.001f ? DeltaTag($"+{dLife:0.#}%") : "")}", NextStatColor);
                 }
                 else
                 {
@@ -680,15 +683,19 @@ public class CoreUpgradeUI : MonoBehaviour
     private bool IsPanelOpen() => panelRoot != null && panelRoot.activeSelf;
 
     private static string Pct(float f) => $"{Mathf.RoundToInt(f * 100f)}%";
+    private static string PctF(float f) => $"{f * 100f:0.#}%";   // 소수 1자리(흡수 0.5% 단위 등)
+
+    // 강화 후 증가분 인라인 태그 — 체력/부활/흡수 공통(작게 + 초록 + 화살표). 모든 스탯 같은 표현 통일.
+    private static string DeltaTag(string text) => $"  <size=66%><color=#46E08A>{text} ↑</color></size>";
 
     // 현재/강화후 카드에 부활·흡수 두 줄을 런타임 생성 (빌더 재실행 없이 현재 패널 위에 얹음)
     // 카드 레이아웃 상수 (현재/강화후 박스. 헤더는 박스 밖 위쪽, 스탯은 한 줄씩 균형있게).
-    const float CardH   = 200f;   // 박스 높이(헤더가 밖으로 빠져 콘텐츠만 담음)
-    const float CardY   = 25f;    // 박스 중심 Y(코어 근처, 아래 재료 바와 안 겹침)
-    const float HeadY   = 126f;   // 현재/강화후 = 박스 위 바깥
-    const float ValRowY = 50f;    // 체력 (한 줄 "체력 100s")
-    // 부가 스탯 행 Y — 위에서부터 부활/대쉬/흡수 순으로 쌓임(보유한 것만 켜져 빈칸 없이 차례 추가)
-    static readonly float[] StatRowY = { 14f, -18f, -50f };
+    const float CardH   = 280f;   // 박스 높이 - 길게(앞으로 New 스탯 늘어도 여유 + 빈 공간 채움)
+    const float CardY   = -6f;    // 박스 중심 Y(아래로 늘림. 바닥 -146, 재료 바 top -160 위로 14px 여유)
+    const float HeadY   = 160f;   // 현재/강화후 = 박스 위 바깥
+    const float ValRowY = 86f;    // 체력 (한 줄 "체력 100s")
+    // 부가 스탯 행 Y — 위에서부터 부활/대쉬/흡수 순. 간격 ~48px로 넓혀 답답함 해소 + 아래로 추가 여유(-108, -140까지).
+    static readonly float[] StatRowY = { 36f, -12f, -60f };
 
     private void BuildExtraStatRows()
     {

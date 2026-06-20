@@ -116,11 +116,11 @@ public static class TutorialAssetBuilder
         // ============================================================
         // 조작 - 자명한 입력은 좌측 텍스트만
         // ============================================================
+        // 대시(우클릭)는 코어 1강에 해금되므로 초반 기본조작 튜토에선 제외(0강엔 잠겨있어 안내가 모순).
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
             CreateMoveDistance("obj_move", $"{Y}WASD{E}로 {Y}이동{E}하세요.", 3f),
             CreatePressKey("obj_jump", $"{Y}Space{E}로 {Y}점프{E}하세요.", KeyCode.Space, 1),
-            CreatePressKey("obj_run", $"{Y}Shift{E}로 {Y}달리기{E} (스태미나를 소모합니다)", KeyCode.LeftShift, 1),
-            CreatePressKey("obj_dash", $"{Y}우클릭{E}으로 {Y}대시{E} (스태미나를 소모합니다)", KeyCode.Mouse1, 1)));
+            CreatePressKey("obj_run", $"{Y}Shift{E}로 {Y}달리기{E} (스태미나를 소모합니다)", KeyCode.LeftShift, 1)));
 
         quests.Add(BuildQuest("quest_tut_01b_reach_hunt", "사냥터로 이동",
             CreateReachTrigger("obj_reach_enemy", $"결계 밖 {Y}사냥터{E}로 {Y}이동{E}하세요. (결계 밖에선 {Y}시간{E}이 줄기 시작합니다)", "enemy")));

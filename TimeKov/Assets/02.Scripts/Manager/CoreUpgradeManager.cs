@@ -78,6 +78,29 @@ public class CoreUpgradeManager : MonoBehaviour
         DataBoot.OnDataLoaded -= OnDataReady;
     }
 
+    private void Update()
+    {
+        // [Dev/테스트] F10 = 코어 레벨 +1 (재료/확률 무시). 출시 전 제거.
+        if (Input.GetKeyDown(KeyCode.F10))
+            DevForceLevelUp();
+    }
+
+    /// <summary>[테스트용] 코어 레벨을 1 강제 상승 — 스탯 적용 + OnLevelChanged/해금 트리거를 정상 발생시킨다.</summary>
+    public void DevForceLevelUp()
+    {
+        if (CurrentCoreLevel >= MAX_LEVEL)
+        {
+            ToastManager.Warning("이미 최대 코어 레벨");
+            return;
+        }
+        CurrentCoreLevel++;
+        ApplyStatsForLevel(CurrentCoreLevel);
+        SaveLevel();
+        OnLevelChanged?.Invoke(CurrentCoreLevel);
+        GameEvents.RaiseCoreUpgraded(CurrentCoreLevel);   // 튜토/구독자 통지(대쉬 해금 등)
+        ToastManager.Success($"[테스트] 코어 레벨 {CurrentCoreLevel}");
+    }
+
     // ── 외부 API ──────────────────────────────────────────────────────
 
     /// <summary>
