@@ -401,7 +401,7 @@ public class TutorialOverlay : MonoBehaviour
         _banner.alignment = TextAlignmentOptions.Center;
         _banner.fontSize = 30f;
         _banner.enableAutoSizing = true; _banner.fontSizeMin = 16f; _banner.fontSizeMax = 32f;
-        _banner.enableWordWrapping = true;
+        _banner.textWrappingMode = TextWrappingModes.Normal;
         _banner.color = Color.white;
         _banner.margin = new Vector4(24f, 8f, 24f, 8f);
 

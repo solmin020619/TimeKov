@@ -198,7 +198,7 @@ public static class ChestOpenUIBuilder
         nameTMP.fontSize  = 17f;
         nameTMP.color     = Color.white;
         nameTMP.alignment = TextAlignmentOptions.MidlineLeft;
-        nameTMP.enableWordWrapping = false;
+        nameTMP.textWrappingMode = TextWrappingModes.NoWrap;
         var nameLE = nameGo.AddComponent<LayoutElement>();
         nameLE.flexibleWidth = 1f;
 
@@ -211,7 +211,7 @@ public static class ChestOpenUIBuilder
         countTMP.color     = Hex("7DD4FC");
         countTMP.alignment = TextAlignmentOptions.MidlineRight;
         countTMP.fontStyle = FontStyles.Bold;
-        countTMP.enableWordWrapping = false;
+        countTMP.textWrappingMode = TextWrappingModes.NoWrap;
         var countLE = countGo.AddComponent<LayoutElement>();
         countLE.minWidth      = 55f;
         countLE.preferredWidth = 55f;
@@ -265,7 +265,7 @@ public static class ChestOpenUIBuilder
         tmp.fontSize = fontSize;
         tmp.color = color;
         tmp.alignment = align;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         return tmp;
     }
 

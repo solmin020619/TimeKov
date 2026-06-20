@@ -484,7 +484,7 @@ public static class CoreUpgradeUIBuilder
         tmp.fontSize = fontSize;
         tmp.color = color;
         tmp.alignment = align;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         return tmp;
     }
 

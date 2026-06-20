@@ -369,7 +369,7 @@ public class SkillBarUI : MonoBehaviour
         t.alignment = TextAlignmentOptions.Center;
         t.color = TextMain;
         t.raycastTarget = false;
-        t.enableWordWrapping = false;
+        t.textWrappingMode = TextWrappingModes.NoWrap;
         t.overflowMode = TextOverflowModes.Overflow;
         return t;
     }

@@ -706,7 +706,7 @@ public static class InventoryUIBuilder
         go.transform.SetParent(parent, false);
         var tmp = go.AddComponent<TextMeshProUGUI>();
         tmp.text = text; tmp.fontSize = fontSize; tmp.color = color; tmp.alignment = align;
-        tmp.enableWordWrapping = false; tmp.raycastTarget = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap; tmp.raycastTarget = false;
         return tmp;
     }
 
@@ -1276,7 +1276,7 @@ public static class InventoryUIBuilder
             var lrt = lbl.rectTransform;
             lrt.anchorMin = lrt.anchorMax = new Vector2(0f, 0.5f); lrt.pivot = new Vector2(0f, 0.5f);
             lrt.anchoredPosition = new Vector2(56f, 0f); lrt.sizeDelta = new Vector2(140f, 30f);   // 아이콘(10+38)+간격8 우측
-            lbl.raycastTarget = false; lbl.enableWordWrapping = false; lbl.fontStyle = FontStyles.Bold;
+            lbl.raycastTarget = false; lbl.textWrappingMode = TextWrappingModes.NoWrap; lbl.fontStyle = FontStyles.Bold;
             buttons[i] = b;
         }
 

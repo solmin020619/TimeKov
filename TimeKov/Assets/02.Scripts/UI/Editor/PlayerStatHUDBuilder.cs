@@ -300,7 +300,7 @@ public static class PlayerStatHUDBuilder
         tmp.fontSize = fontSize;
         tmp.color = color;
         tmp.alignment = align;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.raycastTarget = false;
         return tmp;
     }

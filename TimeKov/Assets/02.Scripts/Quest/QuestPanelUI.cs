@@ -9,7 +9,6 @@ public class QuestPanelUI : MonoBehaviour
     [SerializeField] Transform categoryRoot;
     [SerializeField] CategoryWidget categoryWidgetPrefab;
     [SerializeField] CanvasGroup panelGroup;
-    [SerializeField] KeyCode toggleKey = KeyCode.Tab;
     [SerializeField] float completionTimeoutSec = 3f;
     [SerializeField] float toggleDuration = 0.2f;
 

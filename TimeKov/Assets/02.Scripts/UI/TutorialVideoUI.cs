@@ -460,7 +460,7 @@ public class TutorialVideoUI : MonoBehaviour
         TopCentered(_body.rectTransform, 820f, 150f, -610f);
         _body.alignment = TextAlignmentOptions.TopLeft;
         _body.fontSize = 22f;
-        _body.enableWordWrapping = true;
+        _body.textWrappingMode = TextWrappingModes.Normal;
         _body.color = new Color(0.92f, 0.94f, 0.98f, 1f);
 
         // 하단 힌트 (콘텐츠 맨 아래) = [Q][E] 키캡 + 설명. 키캡은 화살표 옆과 동일 디자인.
@@ -577,7 +577,7 @@ public class TutorialVideoUI : MonoBehaviour
         var txt = NewText("HintText", rt);
         txt.alignment = TextAlignmentOptions.MidlineLeft;
         txt.fontSize = 17f;
-        txt.enableWordWrapping = false;
+        txt.textWrappingMode = TextWrappingModes.NoWrap;
         txt.color = new Color(0.72f, 0.76f, 0.82f, 1f);
         txt.text = "를 누르거나 좌우 화살표를 눌러 페이지를 넘길 수 있으며, 모두 읽은 후에는 창을 닫을 수 있습니다.";
 

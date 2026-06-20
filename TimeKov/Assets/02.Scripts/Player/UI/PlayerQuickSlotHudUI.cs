@@ -151,7 +151,7 @@ public class PlayerQuickSlotHudUI : MonoBehaviour
         t.color = TextMain;
         t.raycastTarget = false;
         t.alignment = align;
-        t.enableWordWrapping = false;
+        t.textWrappingMode = TextWrappingModes.NoWrap;
         t.overflowMode = TextOverflowModes.Overflow;
         return t;
     }

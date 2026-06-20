@@ -277,7 +277,7 @@ public class ToastManager : MonoBehaviour
         item.msgText.fontSize = 22f;
         item.msgText.color = CText;
         item.msgText.alignment = TextAlignmentOptions.MidlineLeft;
-        item.msgText.enableWordWrapping = false;
+        item.msgText.textWrappingMode = TextWrappingModes.NoWrap;
         item.msgText.overflowMode = TextOverflowModes.Overflow;
         item.msgText.raycastTarget = false;
 

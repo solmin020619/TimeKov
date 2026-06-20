@@ -30,9 +30,6 @@ namespace TIMEKOV.Factory
 
         // ── 내부 상태 ────────────────────────────────────────────────────
 
-        private MachineBase _nearMachine;
-        private string      _nearMachineName;
-
         private readonly List<(MachineBase machine, string name)> _nearMachines     = new();
         private readonly List<(MachineBase machine, string name)> _prevNearMachines = new();
 
@@ -165,16 +162,11 @@ namespace TIMEKOV.Factory
 
             if (_nearMachines.Count == 0)
             {
-                _nearMachine     = null;
-                _nearMachineName = "";
                 HideSelectPanel();
                 if (hintText != null) hintText.text = "";
             }
             else
             {
-                _nearMachine     = null;
-                _nearMachineName = "";
-
                 if (NearMachinesChanged())
                     ShowSelectPanel();
 

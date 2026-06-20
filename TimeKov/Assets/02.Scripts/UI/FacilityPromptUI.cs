@@ -388,7 +388,7 @@ public class FacilityPromptUI : MonoBehaviour
         lbl.fontSize           = 13f;
         lbl.color              = kText;
         lbl.alignment          = TextAlignmentOptions.MidlineLeft;
-        lbl.enableWordWrapping = false;
+        lbl.textWrappingMode = TextWrappingModes.NoWrap;
         lbl.richText           = true;
         lbl.raycastTarget      = false;
         var lblRT = (RectTransform)lblGo.transform;

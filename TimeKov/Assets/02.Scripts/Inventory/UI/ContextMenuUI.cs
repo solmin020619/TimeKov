@@ -398,7 +398,7 @@ public class ContextMenuUI : MonoBehaviour
         var t = NewText(go.transform, "Label", 14f, FontStyles.Bold, TextColor);
         t.text = label;
         t.alignment = TextAlignmentOptions.Center;
-        t.enableWordWrapping = false;
+        t.textWrappingMode = TextWrappingModes.NoWrap;
         var trt = t.rectTransform;
         trt.anchorMin = Vector2.zero;
         trt.anchorMax = Vector2.one;
@@ -419,7 +419,7 @@ public class ContextMenuUI : MonoBehaviour
         t.richText = true;
         t.raycastTarget = false;
         t.alignment = TextAlignmentOptions.MidlineLeft;
-        t.enableWordWrapping = true;
+        t.textWrappingMode = TextWrappingModes.Normal;
         t.overflowMode = TextOverflowModes.Overflow;
         return t;
     }
