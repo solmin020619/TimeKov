@@ -18,6 +18,11 @@ public class KeyBindingData
     public KeyCode interact  = KeyCode.F;
     public KeyCode instant   = KeyCode.G;
     public KeyCode quickSlot = KeyCode.V;
+    public KeyCode attack    = KeyCode.Mouse0;
+    public KeyCode dash      = KeyCode.Mouse1;
+    public KeyCode inventory = KeyCode.Tab;
+    public KeyCode stat      = KeyCode.C;
+    public KeyCode codex     = KeyCode.K;
 }
 
 [Serializable]

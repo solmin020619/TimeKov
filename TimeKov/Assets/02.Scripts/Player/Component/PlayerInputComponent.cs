@@ -84,8 +84,8 @@ public class PlayerInputComponent : MonoBehaviour
         }
         else
         {
-            AttackPressed = Input.GetMouseButtonDown(0);
-            DashPressed   = Input.GetMouseButtonDown(1);
+            AttackPressed = Input.GetKeyDown(KeyBindings.Attack);
+            DashPressed   = Input.GetKeyDown(KeyBindings.Dash);
         }
 
         // 대시 중에는 공격·스킬 입력만 차단한다.

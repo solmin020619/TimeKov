@@ -154,6 +154,8 @@ public static class SettingsPanelRebuilder
         Slider sensitivitySlider = CreateSliderRow(controlsContent, "마우스 감도", Load("SettingsPanel_Icon_Mouse.png"));
         var rebindSlots = new List<GlobalSettingsManager.RebindSlot>
         {
+            CreateRebindRow(controlsContent, "기본 공격", "Attack"),
+            CreateRebindRow(controlsContent, "대시",     "Dash"),
             CreateRebindRow(controlsContent, "점프",     "Jump"),
             CreateRebindRow(controlsContent, "스킬 1",   "Skill1"),
             CreateRebindRow(controlsContent, "스킬 2",   "Skill2"),
@@ -161,6 +163,9 @@ public static class SettingsPanelRebuilder
             CreateRebindRow(controlsContent, "상호작용", "Interact"),
             CreateRebindRow(controlsContent, "즉시완료", "Instant"),
             CreateRebindRow(controlsContent, "퀵슬롯",   "QuickSlot"),
+            CreateRebindRow(controlsContent, "인벤토리", "Inventory"),
+            CreateRebindRow(controlsContent, "스탯창",   "Stat"),
+            CreateRebindRow(controlsContent, "도감",     "Codex"),
         };
         tabContents[2] = controlsRoot;
 
@@ -433,6 +438,15 @@ public static class SettingsPanelRebuilder
 
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
         if (itemLabel != null) { itemLabel.color = TextPrimary; itemLabel.fontSize = 24f; }
+
+        // 항목 행 높이가 기본값(20)에 묶여 있어 24pt 폰트가 한 줄을 다 못 채우고
+        // 다음 행과 겹쳐 보임 — 행 높이를 키워 글자가 자연스럽게 들어가게 한다.
+        // (TMP_Dropdown은 표시 시점에 이 Item의 sizeDelta.y를 행 간격으로 그대로 사용한다.)
+        var item = template.Find("Viewport/Content/Item") as RectTransform;
+        if (item != null) item.sizeDelta = new Vector2(item.sizeDelta.x, 44f);
+
+        var checkmark = template.Find("Viewport/Content/Item/Item Checkmark") as RectTransform;
+        if (checkmark != null) checkmark.sizeDelta = new Vector2(22f, 22f);
     }
 
     // 엔드필드 스타일 섹션 헤더: ■ 노란 막대 + 굵은 노란 글씨 + 우측으로 뻗는 얇은 선

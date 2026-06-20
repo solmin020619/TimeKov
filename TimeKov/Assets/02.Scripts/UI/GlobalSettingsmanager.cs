@@ -33,7 +33,7 @@ public class GlobalSettingsManager : MonoBehaviour
     [Serializable]
     public class RebindSlot
     {
-        public string  actionId;   // "Jump","Skill1","Skill2","Skill3","Interact","Instant","QuickSlot"
+        public string  actionId;   // "Jump","Skill1","Skill2","Skill3","Interact","Instant","QuickSlot","Attack","Dash","Inventory","Stat","Codex"
         public string  displayName; // "점프", "스킬 1" 등 — 리바인딩 모달에 표시용
         public Button  button;
         public TMP_Text keyLabel;
@@ -504,6 +504,11 @@ public class GlobalSettingsManager : MonoBehaviour
         "Interact"  => KeyBindings.Interact,
         "Instant"   => KeyBindings.Instant,
         "QuickSlot" => KeyBindings.QuickSlot,
+        "Attack"    => KeyBindings.Attack,
+        "Dash"      => KeyBindings.Dash,
+        "Inventory" => KeyBindings.Inventory,
+        "Stat"      => KeyBindings.Stat,
+        "Codex"     => KeyBindings.Codex,
         _           => KeyCode.None
     };
 
@@ -518,12 +523,19 @@ public class GlobalSettingsManager : MonoBehaviour
             case "Interact":  KeyBindings.Interact  = code; _data.keyBindings.interact  = code; break;
             case "Instant":   KeyBindings.Instant   = code; _data.keyBindings.instant   = code; break;
             case "QuickSlot": KeyBindings.QuickSlot = code; _data.keyBindings.quickSlot = code; break;
+            case "Attack":    KeyBindings.Attack    = code; _data.keyBindings.attack    = code; break;
+            case "Dash":      KeyBindings.Dash      = code; _data.keyBindings.dash      = code; break;
+            case "Inventory": KeyBindings.Inventory = code; _data.keyBindings.inventory = code; break;
+            case "Stat":      KeyBindings.Stat      = code; _data.keyBindings.stat      = code; break;
+            case "Codex":     KeyBindings.Codex     = code; _data.keyBindings.codex     = code; break;
             default: return;
         }
         _data.Save();
     }
 
-    // 키보드 키만 후보로 사용 (마우스/조이스틱 버튼 제외)
+    // 키보드 키 + 마우스 좌/우/휠클릭만 후보로 사용 (조이스틱·기타 마우스 버튼 제외)
+    // 기본 공격/대시가 마우스 좌/우클릭이라 리바인딩 후보에 Mouse0~2를 포함해야
+    // 사용자가 키보드로 옮긴 뒤 다시 마우스로 되돌릴 수 있다.
     private static KeyCode[] GetRebindCandidates()
     {
         if (_rebindCandidates != null) return _rebindCandidates;
@@ -533,7 +545,8 @@ public class GlobalSettingsManager : MonoBehaviour
         {
             if (kc == KeyCode.None) continue;
             string n = kc.ToString();
-            if (n.StartsWith("Mouse") || n.StartsWith("Joystick")) continue;
+            if (n.StartsWith("Joystick")) continue;
+            if (n.StartsWith("Mouse") && kc != KeyCode.Mouse0 && kc != KeyCode.Mouse1 && kc != KeyCode.Mouse2) continue;
             list.Add(kc);
         }
         _rebindCandidates = list.ToArray();

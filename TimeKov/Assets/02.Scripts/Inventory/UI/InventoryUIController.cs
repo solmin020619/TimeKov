@@ -221,8 +221,8 @@ public class InventoryUIController : MonoBehaviour
         if (DeathOverlayUI.IsOpen)
             return;
 
-        // TAB 키로 인벤토리 토글 (DataBoot 완료 여부와 무관하게 항상 열 수 있음)
-        if (Input.GetKeyDown(KeyCode.Tab))
+        // 인벤토리 토글 (DataBoot 완료 여부와 무관하게 항상 열 수 있음)
+        if (Input.GetKeyDown(KeyBindings.Inventory))
         {
             Toggle();
             return;
