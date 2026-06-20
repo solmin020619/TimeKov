@@ -706,8 +706,8 @@ public class CodexUI : MonoBehaviour
 
         var face = Make("Face", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
         face.sizeDelta = new Vector2(176f, 176f); face.anchoredPosition = new Vector2(88f, -106f);   // 큼직하게(가독성)
-        Img(face, RoundedFallback(10), C32(72, 84, 100));   // 렌더 배경과 동일(밝은 슬레이트)
-        Line(face, new Color32(0, 0, 0, 76));
+        Img(face, RoundedFallback(10), C32(208, 218, 230));   // 렌더 배경과 동일 톤(밝은 쿨 글래스)
+        Line(face, new Color32(120, 140, 160, 90));   // 카드 가족 쿨 슬레이트 테두리
         // 설정(프리팹)이 있으면 라이브 흉상, 없으면 실루엣 폴백
         if (!TryRenderPortrait(face, SelectedEntry()))
         {
@@ -715,16 +715,16 @@ public class CodexUI : MonoBehaviour
             blob.sizeDelta = new Vector2(74f, 84f);
             Img(blob, UISpriteFactory.Disc(96), new Color32(40, 70, 96, 128));
         }
-        DecorateDarkViewport(face, false);   // 코너 브래킷을 포트레이트 위에 얹음
-        Txt(Make("rl", face, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(9f, -24f), new Vector2(0f, -6f)), "RENDER", 10f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.4f), TextAlignmentOptions.Left);
+        DecorateDarkViewport(face, false, new Color(0.40f, 0.47f, 0.57f, 0.62f));   // 밝은 배경용 어두운 쿨 브래킷
+        Txt(Make("rl", face, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(9f, -24f), new Vector2(0f, -6f)), "RENDER", 10f, FontStyles.Normal, new Color(0.40f, 0.47f, 0.57f, 0.72f), TextAlignmentOptions.Left);
 
         var statArea = Make("Stats", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(200f, -150f), new Vector2(0f, -18f));
         Txt(Make("nm", statArea, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, 0f)), selName, 28f, FontStyles.Bold, TxtMain, TextAlignmentOptions.TopLeft);
         var statRow = Make("StatRow", statArea, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -50f));
         var hlg = statRow.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 42f; hlg.childAlignment = TextAnchor.UpperLeft;
-        hlg.childControlWidth = false; hlg.childControlHeight = false;
-        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        hlg.spacing = 8f; hlg.childAlignment = TextAnchor.UpperLeft;
+        hlg.childControlWidth = true; hlg.childControlHeight = true;       // flexibleWidth 균등분배 적용되게 control=true
+        hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
         // 실제 스탯(MeleeEnemyData). 값 없으면 "?".
         string atkSpd = data != null && data.attackCooldown > 0.01f ? (1f / data.attackCooldown).ToString("0.0") : "?";
         AddStat(statRow, "체력", data != null ? Mathf.RoundToInt(data.maxHP).ToString("N0") : "?", "");
@@ -813,13 +813,15 @@ public class CodexUI : MonoBehaviour
     {
         var col = NewChild("stat", parent);
         var le = col.gameObject.AddComponent<LayoutElement>();
-        le.preferredWidth = 140f; le.minWidth = 110f; le.preferredHeight = 76f;
+        le.minWidth = 92f; le.flexibleWidth = 1f; le.preferredHeight = 76f;   // 6칸 동일 폭으로 균등분배(간격 일정)
         var vlg = col.gameObject.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 7f; vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.spacing = 6f; vlg.childAlignment = TextAnchor.UpperLeft;
         vlg.childControlWidth = true; vlg.childControlHeight = true;
-        vlg.childForceExpandWidth = false; vlg.childForceExpandHeight = false;
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
         Txt(NewChild("l", col), label, 14f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
-        Txt(NewChild("v", col), value + (string.IsNullOrEmpty(unit) ? "" : " " + unit), 30f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+        // 숫자는 크게, 단위는 작게 인라인 -> 칸 폭 절약하면서 숫자 강조
+        string v = string.IsNullOrEmpty(unit) ? value : value + "<size=60%> " + unit + "</size>";
+        Txt(NewChild("v", col), v, 28f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
     }
 
     private void BuildDropCard(RectTransform parent, Drop d)
@@ -848,8 +850,8 @@ public class CodexUI : MonoBehaviour
         dotR.sizeDelta = new Vector2(9f, 9f); dotR.anchoredPosition = new Vector2(5f, 0f);
         Img(dotR, UISpriteFactory.Disc(16), d.rc);
         Txt(Make("nm", nameRow, new Vector2(0f, 0f), new Vector2(0.7f, 1f), new Vector2(20f, 0f), new Vector2(0f, 0f)), d.name, 19f, FontStyles.Bold, d.got ? TxtMain : TxtDim, TextAlignmentOptions.Left);
-        Txt(Make("ra", nameRow, new Vector2(0.55f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), d.rarity, 13f, FontStyles.Normal, C32(154, 162, 170), TextAlignmentOptions.Left);
-        Txt(Make("ds", info, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 26f)), d.desc, 14f, FontStyles.Normal, C32(138, 146, 155), TextAlignmentOptions.BottomLeft);
+        Txt(Make("ra", nameRow, new Vector2(0.55f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), d.rarity, 16f, FontStyles.Bold, C32(92, 100, 112), TextAlignmentOptions.Left);
+        Txt(Make("ds", info, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 26f)), d.desc, 17f, FontStyles.Bold, C32(84, 92, 104), TextAlignmentOptions.BottomLeft);
         var pct = Make("pct", card, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
         pct.sizeDelta = new Vector2(80f, 52f); pct.anchoredPosition = new Vector2(-44f, 0f);
         Txt(pct, d.pct, 26f, FontStyles.Bold, C32(60, 68, 76), TextAlignmentOptions.Right);
@@ -880,13 +882,18 @@ public class CodexUI : MonoBehaviour
         var selE = SelectedEntry();
         var recipes = (selE != null && selE.facilityId > 0) ? GameDataUtility.GetRecipesByFacilityId(selE.facilityId) : null;
         if (recipes != null && recipes.Count > 0)
-            foreach (var r in recipes) BuildRecipeRowReal(rows, r);
+        {
+            // 설비 내 최대 재료수 -> 재료 영역 폭을 행마다 동일하게(= 와 결과물 열 정렬)
+            int maxIn = 1;
+            foreach (var r in recipes) maxIn = Mathf.Max(maxIn, GameDataUtility.GetRecipeInputs(r.SheetId).Count);
+            foreach (var r in recipes) BuildRecipeRowReal(rows, r, maxIn);
+        }
         else
             Txt(NewChild("none", rows), "표시할 레시피가 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
     }
 
-    // 실제 레시피 데이터로 행 구성 (출력 아이템 = 재료들, 전부 실제 아이템 아이콘)
-    private void BuildRecipeRowReal(RectTransform parent, RecipeDataSheetData r)
+    // 실제 레시피 데이터로 행 구성 (재료 + 재료 = 결과물, 전부 실제 아이템 아이콘)
+    private void BuildRecipeRowReal(RectTransform parent, RecipeDataSheetData r, int maxInputs)
     {
         var row = NewChild("recipe", parent);
         var le = row.gameObject.AddComponent<LayoutElement>();
@@ -900,21 +907,48 @@ public class CodexUI : MonoBehaviour
         hlg.childControlWidth = true; hlg.childControlHeight = true;
         hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;   // 안 늘려서 좌측 패킹(재료 안 퍼짐)
 
+        // 입력 재료(왼쪽). 플레이어 직관 = 재료 + 재료 = 결과물. 재료 영역을 (설비 최대 재료수 기준)
+        // 고정폭으로 묶어 -> 재료 개수가 행마다 달라도 = 와 결과물이 같은 x에 정렬된다.
+        var ins = NewChild("ins", row);
+        var insLe = ins.gameObject.AddComponent<LayoutElement>();
+        float insW = 372f * Mathf.Max(1, maxInputs) - 164f;   // 372*N-178 = 재료 N개 콘텐츠폭(이름112/+150 기준), +14 우측여백(=/결과물 위치 고정)
+        insLe.preferredWidth = insW; insLe.minWidth = insW;
+        var ihlg = ins.gameObject.AddComponent<HorizontalLayoutGroup>();
+        ihlg.spacing = 14f; ihlg.childAlignment = TextAnchor.MiddleLeft;
+        ihlg.childControlWidth = true; ihlg.childControlHeight = true;
+        ihlg.childForceExpandWidth = false; ihlg.childForceExpandHeight = false;
+
+        var inputs = GameDataUtility.GetRecipeInputs(r.SheetId);
+        for (int m = 0; m < inputs.Count; m++)
+        {
+            if (m > 0)
+            {
+                var pl = NewChild("plus", ins);
+                pl.gameObject.AddComponent<LayoutElement>().preferredWidth = 150f;   // 넓은 거터(2번째 재료만 우측으로)
+                Txt(pl, "+", 24f, FontStyles.Bold, C32(96, 106, 120), TextAlignmentOptions.Left).margin = new Vector4(32f, 0f, 0f, 0f);   // 좌측 패딩 = + 좌우 위치(왼쪽쏠림 완화)
+            }
+            var it = ItemDatabase.GetItem(inputs[m].itemId);
+            AddItemCell(ins, 68f, it, inputs[m].count);
+            var mn = NewChild("mn", ins);
+            mn.gameObject.AddComponent<LayoutElement>().preferredWidth = 112f;   // 이름 고정폭(타이트) -> 열 정렬 + 트레일링 여백 축소
+            Txt(mn, it != null ? it.itemName : inputs[m].itemId.ToString(), 15f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        }
+
+        // = 거터(고정폭 -> 행마다 동일 위치)
+        var eq = NewChild("eq", row);
+        eq.gameObject.AddComponent<LayoutElement>().preferredWidth = 40f;   // 넓은 거터 + 가운데
+        Txt(eq, "=", 28f, FontStyles.Bold, C32(96, 106, 120), TextAlignmentOptions.Center);
+
+        // = 와 결과물 사이 간격(너무 붙지 않게). = 는 그대로, 결과물만 우측으로.
+        var ogap = NewChild("ogap", row);
+        ogap.gameObject.AddComponent<LayoutElement>().preferredWidth = 42f;
+
+        // 결과물(오른쪽). 굵게 + 큰 아이콘이라 끝에 와도 눈에 띔(제품 스캔용).
         var outItem = GetItemById(r.outputItemId);
         AddItemCell(row, 76f, outItem, r.outputCount);
         var oName = NewChild("on", row);
         oName.gameObject.AddComponent<LayoutElement>().preferredWidth = 150f;
         Txt(oName, outItem != null ? outItem.itemName : (string)r.outputItemId, 18f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
-        Txt(NewChild("eq", row), "=", 20f, FontStyles.Normal, C32(154, 162, 170), TextAlignmentOptions.Center);
-
-        var inputs = GameDataUtility.GetRecipeInputs(r.SheetId);
-        for (int m = 0; m < inputs.Count; m++)
-        {
-            if (m > 0) Txt(NewChild("plus", row), "+", 16f, FontStyles.Normal, C32(154, 162, 170), TextAlignmentOptions.Center);
-            var it = ItemDatabase.GetItem(inputs[m].itemId);
-            AddItemCell(row, 68f, it, inputs[m].count);
-            Txt(NewChild("mn", row), it != null ? it.itemName : inputs[m].itemId.ToString(), 15f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
-        }
     }
 
     // 인벤 슬롯과 동일 구성: 각진 반투명 다크 + 4변 얇은 쿨슬레이트 테두리(격자). 라운드/sheen 없음.
@@ -1038,9 +1072,9 @@ public class CodexUI : MonoBehaviour
 
     // 어두운 뷰포트(영상/렌더 박스) 틀 - 내부 코너 브래킷 + (옵션)REC readout.
     // 실제 영상/렌더가 박스를 덮으므로 내부 텍스처(스캔라인)는 안 넣음(무의미).
-    private void DecorateDarkViewport(RectTransform media, bool withReadout)
+    private void DecorateDarkViewport(RectTransform media, bool withReadout, Color? bracketColor = null)
     {
-        Color b = new Color(1f, 1f, 1f, 0.22f);
+        Color b = bracketColor ?? new Color(1f, 1f, 1f, 0.22f);
         Bracket(media, 0, 1, 10f, 10f, 22f, 2f, b);
         Bracket(media, 1, 1, 10f, 10f, 22f, 2f, b);
         Bracket(media, 0, 0, 10f, 10f, 22f, 2f, b);

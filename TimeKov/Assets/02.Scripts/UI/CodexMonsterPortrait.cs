@@ -31,7 +31,7 @@ public class CodexMonsterPortrait : MonoBehaviour
         camGo.transform.SetParent(_stage, false);
         _cam = camGo.AddComponent<Camera>();
         _cam.clearFlags = CameraClearFlags.SolidColor;
-        _cam.backgroundColor = new Color(72f / 255f, 84f / 255f, 100f / 255f, 1f);   // 밝은 슬레이트 배경(검정 보이드 X)
+        _cam.backgroundColor = new Color(208f / 255f, 218f / 255f, 230f / 255f, 1f);   // 밝은 쿨 글래스 톤(패널 가족, 어두운 덩어리 X)
         _cam.fieldOfView = 30f;
         _cam.nearClipPlane = 0.03f;
         _cam.farClipPlane = 100f;
