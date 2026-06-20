@@ -36,6 +36,8 @@ public class PlayerDashComponent : MonoBehaviour
     }
     /// <summary>대쉬가 해금되는 순간 1회 발생 — HUD 아이콘 연출 트리거(SkillBarUI 구독).</summary>
     public static event System.Action OnDashUnlocked;
+    /// <summary>잠긴 대쉬를 시도한 순간 발생(스로틀) — HUD 바를 띄워 잠금 슬롯을 보게(SkillBarUI 구독).</summary>
+    public static event System.Action OnDashBlocked;
 
     // 코어 레벨이 오를수록 대쉬 스태미나 소모가 조금씩 줄어든다(레벨당 -3%, 최대 -30%).
     public float EffectiveDashCost
@@ -97,6 +99,7 @@ public class PlayerDashComponent : MonoBehaviour
             {
                 ToastManager.Warning($"우클릭 대쉬는 코어 {DashUnlockCoreLevel}강에 해금됩니다");
                 _lockedToastTimer = 2.5f;
+                OnDashBlocked?.Invoke();   // HUD 바 띄우고 잠금 슬롯 덜컹(왜 안 되는지 보게)
             }
             return;
         }

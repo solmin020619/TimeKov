@@ -108,6 +108,7 @@ public class SkillBarUI : MonoBehaviour
 
         _dashSlot = _slots.Find(s => s.kind == Kind.Dash);
         PlayerDashComponent.OnDashUnlocked += HandleDashUnlocked;   // 코어 1강 대쉬 해금 순간 아이콘 팝
+        PlayerDashComponent.OnDashBlocked += HandleDashBlocked;     // 잠긴 대쉬 시도 시 바 띄우고 잠금 덜컹
     }
 
     static Sprite Pick(Sprite[] arr, int i) => (arr != null && i < arr.Length) ? arr[i] : null;
@@ -383,6 +384,7 @@ public class SkillBarUI : MonoBehaviour
             _player.QuickSlot.OnChanged -= HandleQuickChanged;
         }
         PlayerDashComponent.OnDashUnlocked -= HandleDashUnlocked;
+        PlayerDashComponent.OnDashBlocked -= HandleDashBlocked;
         foreach (var (id, rt) in _spotlights) TutorialOverlay.UnregisterTarget(id, rt);
         _spotlights.Clear();
     }
@@ -402,6 +404,28 @@ public class SkillBarUI : MonoBehaviour
     // 코어 1강으로 우클릭 대쉬가 해금되는 순간 — 즉시 연출하지 않고 대기 플래그만 세움.
     // 보통 이 순간 코어 패널이 떠 있어 바가 가려지므로, 패널 닫혀 바가 보일 때 Update가 발동(트리거).
     void HandleDashUnlocked() => _dashUnlockPending = true;
+
+    // 잠긴 대쉬를 시도한 순간 — 바를 잠깐 띄우고 잠금 오버레이를 덜컹(왜 안 되는지=잠김을 보게).
+    void HandleDashBlocked()
+    {
+        _showTimer = Mathf.Max(_showTimer, 2.5f);
+        if (_dashLockOverlay != null && _dashLockOverlay.gameObject.activeSelf && !_dashUnlocking)
+            StartCoroutine(LockNudge(_dashLockOverlay));
+    }
+
+    IEnumerator LockNudge(RectTransform ov)
+    {
+        Vector2 basePos = ov.anchoredPosition;
+        float t = 0f; const float dur = 0.3f;
+        while (t < dur && ov != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float dx = Mathf.Sin(t * 58f) * 4f * (1f - t / dur);
+            ov.anchoredPosition = basePos + new Vector2(dx, 0f);
+            yield return null;
+        }
+        if (ov != null) ov.anchoredPosition = basePos;
+    }
 
     // 잠금 풀림 풀세트: 쇠사슬 흔들 -> 팡(버스트 링 + 오버레이 스케일/페이드) -> 아이콘 팝 -> 말풍선.
     IEnumerator DashUnlockCelebration()

@@ -334,8 +334,8 @@ public class PlayerHudUI : MonoBehaviour
         RegisterKeyBox("b_icon", "B_Text", "B_Icon");
         RegisterKeyBox("esc_icon", "ESC_Text", "Esc_Icon");
 
-        // 인트로에서 메뉴 전체(TAB/B/C/ESC)를 한 번에 강조하기 위한 합집합 타깃(같은 id의 rect들을 한 박스로).
-        RegisterKeyBox("menu_icons", "TAB_Text", "TAB_Icon", "B_Text", "B_Icon", "C_Text", "C_Icon", "ESC_Text", "Esc_Icon");
+        // 인트로에서 메뉴 전체(K/TAB/B/C/ESC)를 한 번에 강조하기 위한 합집합 타깃(같은 id의 rect들을 한 박스로). 도감(K) 포함.
+        RegisterKeyBox("menu_icons", "K_Text", "K_Icon", "TAB_Text", "TAB_Icon", "B_Text", "B_Icon", "C_Text", "C_Icon", "ESC_Text", "Esc_Icon");
 
         // 우하단 스킬 슬롯 Q/E/R → 스포트라이트 (인트로 투어에서 충전 조건 설명).
         // 직렬화된 아이콘 참조의 부모(슬롯)를 등록 — 게이지 링까지 포함된 슬롯 전체를 강조.
