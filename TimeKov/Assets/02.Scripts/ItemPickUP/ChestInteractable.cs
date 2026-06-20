@@ -42,6 +42,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     private State _state = State.Idle;
     private float _timer;
     private Collider[] _colliders;   // 리젠 동안 사라진 자리 통과 가능하게 토글
+    private Renderer[] _renderers;   // 소멸 시 메시 숨김(closedVisual/openedVisual 미할당이어도 확실히 사라지게)
 
     // 공용 상자 인벤(ChestInstance)을 현재 점유한 상자. 다른 상자를 열면 소유권이 넘어간다.
     private static ChestInteractable _activeChest;
@@ -77,6 +78,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         InteractOutline.Apply(_outline);
         _outline.enabled      = false;
         _colliders = GetComponentsInChildren<Collider>(true);
+        _renderers = GetComponentsInChildren<Renderer>(true);
     }
 
     private void Start()
@@ -247,6 +249,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         if (openedVisual != null) openedVisual.SetActive(false);
         if (_colliders != null)
             foreach (var c in _colliders) if (c != null) c.enabled = false;
+        if (_renderers != null)
+            foreach (var r in _renderers) if (r != null) r.enabled = false;   // 메시 숨김(비주얼 미할당이어도 확실히 사라지게)
         UpdateOutline(false);
         UpdateGlow(false);
         ChestPromptUI.Instance?.HideIfOwner(this);
@@ -260,6 +264,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         _contents = null;
         if (_colliders != null)
             foreach (var c in _colliders) if (c != null) c.enabled = true;
+        if (_renderers != null)
+            foreach (var r in _renderers) if (r != null) r.enabled = true;   // 메시 복귀
         SetVisual(false);   // closedVisual on(잠긴 새 상자), openedVisual off
     }
 
