@@ -176,6 +176,8 @@ public class CodexUI : MonoBehaviour
 
     private void SetOpenInternal(bool on)
     {
+        bool wasOpen = _root != null && _root.gameObject.activeSelf;
+        if (on != wasOpen) GameSfx.Play(on ? SfxId.CodexOpen : SfxId.CodexClose);   // 패널 열기/닫기음(상태 변할 때만)
         if (on)
         {
             // 열 때마다 최신 설정 반영(populate 메뉴를 플레이 중 돌려도 잡히게)
@@ -1814,12 +1816,13 @@ public class CodexUI : MonoBehaviour
         cb.disabledColor = new Color(1f, 1f, 1f, 0f);
         cb.colorMultiplier = 1f; cb.fadeDuration = 0.12f;
         btn.colors = cb;
+        btn.onClick.AddListener(() => GameSfx.Play(SfxId.CodexClick));   // 이미지/항목 클릭음
         btn.onClick.AddListener(onClick);
 
         // 호버 툴팁("자세히 보기 / 좌클릭") - 마우스 올리면 셀 위에 표시
         var et = cell.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
         var enter = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
-        enter.callback.AddListener(e => ShowTooltip(cell));
+        enter.callback.AddListener(e => { ShowTooltip(cell); GameSfx.Play(SfxId.CodexHover); });   // 이미지/항목 호버음
         et.triggers.Add(enter);
         var exit = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
         exit.callback.AddListener(e => HideTooltip());

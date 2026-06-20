@@ -153,6 +153,8 @@ public class ToastManager : MonoBehaviour
             return;
         }
 
+        GameSfx.Play(SfxId.ToastShow);   // 새 토스트 알림음(중복 디바운스는 위에서 return되어 제외)
+
         var item = new Item
         {
             id = ++_seq, message = message, style = style,
