@@ -57,7 +57,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     private float InstantCost => Mathf.Max(0f, RemainingSeconds * instantHpCostMultiplier);
 
     private Player  _player;
-    private Outline _outline;
 
     [Header("강조 발광 (가까이 가면 상자가 노랗게 맥동 — 큰 오브젝트용)")]
     [SerializeField] private Color glowColor        = new Color(1f, 0.85f, 0.1f);
@@ -71,12 +70,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
 
     private void Awake()
     {
-        _outline = GetComponentInChildren<Outline>(true);
-        if (_outline == null)
-            _outline = gameObject.AddComponent<Outline>();
-        // 통일된 아웃라인 스타일(노란색·OutlineAll·두께) 적용 — 풀에 가려도 보이도록.
-        InteractOutline.Apply(_outline);
-        _outline.enabled      = false;
         _colliders = GetComponentsInChildren<Collider>(true);
         _renderers = GetComponentsInChildren<Renderer>(true);
     }
@@ -174,8 +167,9 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         bool near = IsPlayerNear();
         RefreshIndicator(near);
         bool highlight = near && _state != State.Depleted && !(_state == State.Opened && !HasItems());
-        UpdateOutline(highlight);
-        UpdateGlow(highlight);
+        // 해금 중엔 범위 밖이어도 연한 펄스로 표시 유지.
+        bool openingRemote = _state == State.Opening && !near;
+        UpdateGlow(highlight, openingRemote);
     }
 
     // ── 수령: 자물쇠 따서 전리품 1회만 굴림 + 패널. 이후 이 상자는 잠금해제(재굴림 없음). ──
@@ -251,7 +245,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
             foreach (var c in _colliders) if (c != null) c.enabled = false;
         if (_renderers != null)
             foreach (var r in _renderers) if (r != null) r.enabled = false;   // 메시 숨김(비주얼 미할당이어도 확실히 사라지게)
-        UpdateOutline(false);
         UpdateGlow(false);
         ChestPromptUI.Instance?.HideIfOwner(this);
     }
@@ -273,7 +266,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     {
         // 씬 종료/비활성 중엔 GetOrCreate 로 새로 만들지 말 것(정리 안 됨 에러). 있을 때만 숨김.
         ChestPromptUI.Instance?.HideIfOwner(this);
-        if (_outline != null) _outline.enabled = false;
         if (_glowOn) UpdateGlow(false);   // 발광 켜진 채 남지 않도록 원복
     }
 
@@ -314,13 +306,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         }
     }
 
-    private void UpdateOutline(bool show)
-    {
-        if (_outline == null) return;
-        if (show) InteractOutline.Enable(_outline);   // 통일 스타일 재적용 + 켜기
-        else if (_outline.enabled) _outline.enabled = false;
-    }
-
     // ── 강조 발광 (B 방안) ────────────────────────────────────────────────
     // 가까이 가면 상자 메시가 노란빛으로 은은하게 맥동 → 큰 오브젝트에서 확실히 보임.
 
@@ -344,7 +329,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         _glowOrigEmission = orig.ToArray();
     }
 
-    private void UpdateGlow(bool show)
+    private void UpdateGlow(bool show, bool pale = false)
     {
         if (_glowMats == null || _glowMats.Length == 0) return;
 
@@ -353,6 +338,14 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
             float t         = (Mathf.Sin(Time.time * glowPulseSpeed) + 1f) * 0.5f;   // 0~1 맥동
             float intensity = Mathf.Lerp(glowMinIntensity, glowMaxIntensity, t);
             Color add       = glowColor * intensity;
+            for (int i = 0; i < _glowMats.Length; i++)
+                _glowMats[i].SetColor("_EmissionColor", _glowOrigEmission[i] + add);
+            _glowOn = true;
+        }
+        else if (pale)
+        {
+            // 해금 중 범위 밖 — 맥동 없이 연하게 고정 발광.
+            Color add = glowColor * (glowMinIntensity * 0.6f);
             for (int i = 0; i < _glowMats.Length; i++)
                 _glowMats[i].SetColor("_EmissionColor", _glowOrigEmission[i] + add);
             _glowOn = true;
