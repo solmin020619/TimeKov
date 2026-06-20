@@ -10,7 +10,8 @@ public static class CodexNotice
     public const int Tutorial = 0;
     public const int Monster  = 1;
     public const int Facility = 2;
-    public const int CategoryCount = 3;
+    public const int Item     = 3;
+    public const int CategoryCount = 4;
 
     private static readonly bool[] _unseen = new bool[CategoryCount];
 

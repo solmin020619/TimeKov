@@ -69,7 +69,7 @@ public class CodexUI : MonoBehaviour
     class Entry { public string name; public St state; public string status; public CodexPreviewConfig.MonsterEntry preview; public Sprite icon; public int facilityId; public VideoTutorialPage tutPage; public string monsterSourceId; }
     class Drop  { public string name; public string rarity; public Color rc; public string desc; public string pct; public bool got; public Sprite icon; public int grade; }
 
-    static readonly string[] TabNames = { "튜토리얼", "몬스터", "설비" };
+    static readonly string[] TabNames = { "튜토리얼", "몬스터", "설비", "아이템" };
 
     static readonly Entry[] Tutorial =
     {
@@ -113,6 +113,11 @@ public class CodexUI : MonoBehaviour
     private int _tab = 1;   // 시작 = 몬스터(중간 상태 mock 확인용)
     private int _sel = 0;
     private int _highlightOutputItemId;   // 출처점프 시 강조할 결과물 아이템(그 레시피 행을 지속 강조). 0=없음
+    private RectTransform _vLine;         // 좌/우 구분선(아이템 탭에선 숨김)
+    private RectTransform _panel;         // 패널 루트(아이템 박스 부모)
+    private RectTransform _itemBox;       // 아이템 도감 전체폭 컨테이너(7분류 헤더 + 그리드)
+    private RectTransform _itemGrid;      // 아이템 카드 그리드 콘텐츠
+    private int _itemCatIndex = 0;        // 아이템 분류 필터(0=전체, 1~6=카테고리)
 
     private CodexPreviewConfig _cfg;        // Resources/Codex/CodexPreviewConfig (있으면 몬스터탭 구동)
     private CodexTutorialConfig _tutCfg;    // Resources/Codex/CodexTutorialConfig (있으면 튜토탭 구동)
@@ -183,9 +188,11 @@ public class CodexUI : MonoBehaviour
             _highlightOutputItemId = 0;   // 새로 열면 출처점프 강조 초기화
             Refresh();
             CodexNotice.MarkSeen(_tab);   // 열 때 현재 탭은 본 것으로(HUD 배지 즉시 갱신)
-            RebuildTabs();                // 탭 배지 최신화
         }
         if (_root != null) _root.gameObject.SetActive(on);
+        // 탭 재빌드(배지 반영)는 반드시 루트 활성화 뒤에 — 비활성 중 빌드하면 탭 ContentSizeFitter가
+        // 레이아웃을 못 잡아 첫 오픈에 탭이 퍼져 보인다(클릭하면 활성상태 재빌드라 정상화되던 버그).
+        if (on) RebuildTabs();
         if (!on) CloseSourcePopup();                               // 닫으면 떠 있던 출처 팝업 정리
         if (!on) HideTooltip();
         if (!on && _portrait != null) _portrait.ClearInstance();   // 닫으면 림보 인스턴스/카메라 정리
@@ -229,8 +236,9 @@ public class CodexUI : MonoBehaviour
 
         _listBox = Make("ListBox", panel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(30f, 22f), new Vector2(460f, -108f));
 
-        var vLine = Make("VLine", panel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(467f, 30f), new Vector2(468f, -118f));
-        Img(vLine, null, Divider);
+        _panel = panel;   // 아이템 도감 전체폭 박스의 부모로 사용
+        _vLine = Make("VLine", panel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(467f, 30f), new Vector2(468f, -118f));
+        Img(_vLine, null, Divider);
 
         _mainBox = Make("MainBox", panel, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(480f, 24f), new Vector2(-30f, -108f));
 
@@ -284,12 +292,26 @@ public class CodexUI : MonoBehaviour
     // 개발자 전부해금(F9/_devUnlockAll)이면 전부 Public이라 100%로 뜬다(실제 해금 붙이면 자동 반영).
     private (int got, int total) CurrentCompletion()
     {
+        if (_tab == 3)   // 아이템 = 획득 수 / 전체 아이템 수
+        {
+            int g = 0, t = 0;
+            foreach (var it in GameDataHolder.I.ItemData.All)
+            {
+                t++;
+                if (_devUnlockAll || ItemDiscovery.IsObtained(ItemIdOf(it))) g++;
+            }
+            return (g, t);
+        }
         var list = CurList;
         int got = 0, total = 0;
         if (list != null)
             foreach (var e in list) { total++; if (e.state == St.Public) got++; }
         return (got, total);
     }
+
+    // ItemDataSheetData 의 정수 itemId (SheetId 문자열 파싱). 실패 시 0.
+    private static int ItemIdOf(ItemDataSheetData it)
+        => (it != null && int.TryParse((string)it.SheetId, out int id)) ? id : 0;
 
     private void RebuildCompletion()
     {
@@ -343,9 +365,21 @@ public class CodexUI : MonoBehaviour
     private void RebuildTabs()
     {
         if (_tabRow == null) return;
-        for (int i = _tabRow.childCount - 1; i >= 0; i--) Destroy(_tabRow.GetChild(i).gameObject);
+        // 옛 탭은 즉시 비활성(Destroy는 지연 -> 안 빼면 옛 4개+새 4개가 같이 레이아웃돼 퍼짐).
+        for (int i = _tabRow.childCount - 1; i >= 0; i--)
+        {
+            var c = _tabRow.GetChild(i).gameObject;
+            c.SetActive(false);
+            Destroy(c);
+        }
         for (int i = 0; i < TabNames.Length; i++) BuildTab(i);
-        BuildAddTabButton();
+        // 중첩 ContentSizeFitter + TMP는 한 프레임에 안 잡혀 첫 오픈에 탭이 퍼져 보였다.
+        // TMP 메시 갱신 후 레이아웃을 즉시 확정해 항상 동일 배치(사진1 고정).
+        if (_tabRow.gameObject.activeInHierarchy)
+        {
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_tabRow);
+        }
     }
 
     private void BuildTab(int index)
@@ -371,7 +405,8 @@ public class CodexUI : MonoBehaviour
         icoLe.preferredWidth = 18f; icoLe.minWidth = 18f; icoLe.preferredHeight = 18f; icoLe.minHeight = 18f;
         BuildTabIcon(index, ico, icCol);
 
-        Txt(NewChild("lbl", tab), TabNames[index], 18f, FontStyles.Bold, icCol, TextAlignmentOptions.Center);
+        var lbl = Txt(NewChild("lbl", tab), TabNames[index], 18f, FontStyles.Bold, icCol, TextAlignmentOptions.Center);
+        lbl.ForceMeshUpdate();   // 프리퍼드폭 즉시 확정(첫 오픈 탭 퍼짐 방지)
 
         // 안 본 새 항목이 있는 카테고리(비활성 탭)면 우상단 알림(!) 배지. 활성 탭은 열며 MarkSeen 되어 안 뜸.
         if (CodexNotice.IsUnseen(index)) AddTabNotice(tab);
@@ -385,8 +420,8 @@ public class CodexUI : MonoBehaviour
         le.ignoreLayout = true;
         badge.anchorMin = badge.anchorMax = new Vector2(1f, 1f);
         badge.pivot = new Vector2(0.5f, 0.5f);
-        badge.sizeDelta = new Vector2(28f, 28f);
-        badge.anchoredPosition = new Vector2(1f, 2f);   // 우상단 모서리에 걸치게(크게)
+        badge.sizeDelta = new Vector2(36f, 36f);
+        badge.anchoredPosition = new Vector2(-2f, 3f);   // 우상단 모서리에 크게 걸치게(잘 보이게)
         var sprite = Resources.Load<Sprite>("Image/UI_Icon/HUD/Alert_amber");
         var img = badge.gameObject.AddComponent<Image>();
         if (sprite != null) { img.sprite = sprite; img.preserveAspect = true; }
@@ -398,19 +433,8 @@ public class CodexUI : MonoBehaviour
     {
         if (index == 0)        Img(parent, UISpriteFactory.Ring(48, 4f), col).preserveAspect = true;   // 원
         else if (index == 1) { Img(parent, RoundedFallback(2), col); parent.localRotation = Quaternion.Euler(0f, 0f, 45f); parent.localScale = Vector3.one * 0.72f; } // 다이아
-        else                   Img(parent, UISpriteFactory.Disc(48), col).preserveAspect = true;       // 육각(폴백 디스크)
-    }
-
-    private void BuildAddTabButton()
-    {
-        var add = NewChild("AddTab", _tabRow);
-        var le = add.gameObject.AddComponent<LayoutElement>();
-        le.minWidth = 42f; le.preferredWidth = 42f; le.minHeight = 42f; le.preferredHeight = 42f;
-        Img(add, RoundedFallback(11), new Color(0f, 0f, 0f, 0f));
-        Line(add, new Color32(120, 140, 160, 102));
-        // 텍스트는 별도 자식에(한 GameObject에 Image+TMP_Text 같이 두면 그래픽 충돌로 NRE)
-        var plus = Make("plus", add, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        Txt(plus, "+", 24f, FontStyles.Normal, new Color32(120, 140, 160, 178), TextAlignmentOptions.Center);
+        else if (index == 2)   Img(parent, UISpriteFactory.Disc(48), col).preserveAspect = true;       // 육각(폴백 디스크)
+        else                   Img(parent, RoundedFallback(4), col);                                    // 네모(아이템)
     }
 
     // ── 리스트 + 메인 재빌드 ───────────────────────────────────────
@@ -418,8 +442,24 @@ public class CodexUI : MonoBehaviour
     {
         CloseSourcePopup();   // 뷰 재생성 시 떠 있던 출처 팝업 정리(스크롤/탭/네비게이션 등)
         HideTooltip();
-        BuildList();
-        BuildMain();
+        bool itemTab = _tab == 3;
+        // 아이템 탭은 전체폭 그리드 -> 좌측 목록/구분선/우측 메인 숨기고 아이템 박스 사용.
+        _listBox.gameObject.SetActive(!itemTab);
+        if (_vLine != null) _vLine.gameObject.SetActive(!itemTab);
+        _mainBox.gameObject.SetActive(!itemTab);
+        EnsureItemBox();
+        _itemBox.gameObject.SetActive(itemTab);
+        if (itemTab)
+        {
+            if (_portrait != null) _portrait.ClearInstance();   // 몬스터 프리뷰/영상 정리
+            if (_video != null) _video.Stop();
+            BuildItemMain();
+        }
+        else
+        {
+            BuildList();
+            BuildMain();
+        }
         RebuildCompletion();   // 현재 카테고리 달성률 갱신(탭/해금 변화 반영)
     }
 
@@ -570,6 +610,115 @@ public class CodexUI : MonoBehaviour
         if (_tab == 0) BuildTutorialMain(selName);
         else if (_tab == 1) BuildMonsterMain(selName);
         else BuildFacilityMain(selName);
+    }
+
+    // ── 아이템 도감 (4번째 탭) ──────────────────────────────────────
+    // 전체폭: 상단 7분류 헤더(창고와 동일) + 아래 아이템 그리드. 미획득=어두운 실루엣, 획득=풀+클릭 상세(출처팝업).
+    static readonly string[] ItemCatNames = { "전체", "원재료", "1차 가공품", "2차 가공품", "전술 소모품", "핵심 강화", "특수" };
+    static readonly ItemCategory?[] ItemCatMap =
+    {
+        null, ItemCategory.RawMaterial, ItemCategory.ProcessedTier1, ItemCategory.ProcessedTier2,
+        ItemCategory.TacticalConsumable, ItemCategory.CoreUpgrade, ItemCategory.Special
+    };
+
+    private void EnsureItemBox()
+    {
+        if (_itemBox != null || _panel == null) return;
+        // 좌측 목록 + 우측 메인을 합친 전체폭 (x30 ~ panel-right, y22 ~ -108).
+        _itemBox = Make("ItemBox", _panel, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 22f), new Vector2(-30f, -108f));
+        _itemBox.gameObject.SetActive(false);
+    }
+
+    private void BuildItemMain()
+    {
+        ClearChildren(_itemBox);
+
+        // 상단 분류 헤더(7개 가로 pill)
+        var head = Make("ItemHead", _itemBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -46f), new Vector2(0f, -2f));
+        var hhlg = head.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hhlg.spacing = 8f; hhlg.childAlignment = TextAnchor.MiddleLeft;
+        hhlg.childControlWidth = true; hhlg.childControlHeight = true;
+        hhlg.childForceExpandWidth = false; hhlg.childForceExpandHeight = false;
+        for (int i = 0; i < ItemCatNames.Length; i++) BuildItemCatPill(head, i);
+
+        // 그리드 영역(스크롤)
+        var vp = Make("ItemViewport", _itemBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -54f));
+        var vpImg = vp.gameObject.AddComponent<Image>(); vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true;
+        vp.gameObject.AddComponent<RectMask2D>();
+        _itemGrid = Make("ItemGrid", vp, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+        _itemGrid.pivot = new Vector2(0.5f, 1f);
+        var grid = _itemGrid.gameObject.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(124f, 150f); grid.spacing = new Vector2(12f, 12f);
+        grid.padding = new RectOffset(2, 12, 4, 10);
+        grid.startCorner = GridLayoutGroup.Corner.UpperLeft; grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+        grid.childAlignment = TextAnchor.UpperLeft; grid.constraint = GridLayoutGroup.Constraint.Flexible;
+        _itemGrid.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var scroll = _itemBox.gameObject.GetComponent<ScrollRect>();
+        if (scroll == null) scroll = _itemBox.gameObject.AddComponent<ScrollRect>();
+        scroll.content = _itemGrid; scroll.viewport = vp;
+        scroll.horizontal = false; scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 36f;
+
+        // 카드(분류 필터 적용)
+        var cat = ItemCatMap[Mathf.Clamp(_itemCatIndex, 0, ItemCatMap.Length - 1)];
+        int shown = 0;
+        foreach (var it in GameDataHolder.I.ItemData.All)
+        {
+            if (it == null) continue;
+            if (cat != null && it.itemCategory != cat.Value) continue;
+            BuildItemCard(_itemGrid, it);
+            shown++;
+        }
+        if (shown == 0)
+            Txt(NewChild("none", _itemGrid), "표시할 아이템이 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
+    }
+
+    private void BuildItemCatPill(RectTransform head, int index)
+    {
+        bool active = index == _itemCatIndex;
+        var pill = NewChild("cat_" + index, head);
+        var le = pill.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = 38f; le.preferredHeight = 38f;
+        var hlg = pill.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.childAlignment = TextAnchor.MiddleCenter; hlg.padding = new RectOffset(16, 16, 0, 0);
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        pill.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        Img(pill, RoundedFallback(9), active ? Accent : new Color(1f, 1f, 1f, 0.5f));
+        if (!active) Line(pill, TabPillBd);
+        int idx = index;
+        Btn(pill, () => { _itemCatIndex = idx; BuildItemMain(); });
+        Txt(NewChild("l", pill), ItemCatNames[index], 15f, FontStyles.Bold, active ? TabActiveTxt : TabInactiveTxt, TextAlignmentOptions.Center);
+    }
+
+    private void BuildItemCard(RectTransform parent, ItemDataSheetData it)
+    {
+        int id = ItemIdOf(it);
+        bool got = _devUnlockAll || ItemDiscovery.IsObtained(id);
+        var card = NewChild("item_" + id, parent);
+
+        // 아이콘 슬롯(위)
+        var slot = Make("slot", card, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -120f), new Vector2(0f, 0f));
+        SlotBg(slot);
+        if (got) GradeAurora(slot, (int)it.itemGrade, 26f);
+        var iconRt = Make("ic", slot, Vector2.zero, Vector2.one, new Vector2(12f, 12f), new Vector2(-12f, -12f));
+        Sprite isp = ItemDatabase.GetIcon(it.iconKey);
+        if (isp != null)
+        {
+            // 미획득 = 어두운 실루엣(공장 결과물 슬롯의 흐림 느낌 차용, 더 어둡게).
+            var im = Img(iconRt, isp, got ? Color.white : new Color(0.12f, 0.14f, 0.18f, 0.55f));
+            im.preserveAspect = true; im.raycastTarget = false;
+        }
+        else if (!got)
+            Txt(iconRt, "?", 30f, FontStyles.Bold, new Color(0.4f, 0.45f, 0.5f, 0.5f), TextAlignmentOptions.Center);
+
+        // 이름(아래) — 미획득은 ???
+        var nameRt = Make("nm", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(0f, 28f));
+        Txt(nameRt, got ? it.itemName : "???", 14f, got ? FontStyles.Bold : FontStyles.Normal, got ? TxtMain : TxtDim, TextAlignmentOptions.Center);
+
+        // 획득품만 클릭 -> 상세(출처 팝업 재사용: 이름/등급/획득처)
+        if (got) HoverButton(slot, () => ShowSourcePopup(id));
     }
 
     private string SelectedName()
@@ -1075,7 +1224,8 @@ public class CodexUI : MonoBehaviour
         else if (crafts >= RecipeProgress.CraftsToMaster)
         {
             var pill = Make("jp", box, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
-            pill.sizeDelta = new Vector2(138f, 40f); pill.anchoredPosition = new Vector2(-2f, 0f);
+            pill.pivot = new Vector2(1f, 0.5f);   // 우측 정렬 -> 박스 안에 들어와 안 잘림(기본 0.5피벗이면 오른쪽 절반이 밖으로 삐져 클리핑)
+            pill.sizeDelta = new Vector2(138f, 40f); pill.anchoredPosition = new Vector2(-6f, 0f);
             string rid = recipeId;
             RedActivateButton(pill, "잭팟 활성화", () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success("잭팟 활성화! 제작마다 10% 확률로 2배 생산"); Refresh(); });
         }
@@ -1318,6 +1468,16 @@ public class CodexUI : MonoBehaviour
             var gr = NewChild("gr", head);
             gr.gameObject.AddComponent<LayoutElement>().preferredWidth = 66f;
             Txt(gr, GradeVisual.GetName((int)item.itemGrade), 16f, FontStyles.Bold, GradeVisual.GetColor((int)item.itemGrade), TextAlignmentOptions.Right);
+        }
+
+        // [효과] 소모품이면 효과 한 줄(ConsumableEffect 데이터). 재료 등 효과 없는 아이템은 생략.
+        string effectDesc = ConsumableEffectApplier.Describe(itemId.ToString());
+        if (!string.IsNullOrEmpty(effectDesc))
+        {
+            Txt(NewChild("efflbl", card), "효과", 13f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+            var effRow = NewChild("eff", card);
+            effRow.gameObject.AddComponent<LayoutElement>().minHeight = 28f;
+            Txt(effRow, effectDesc, 16f, FontStyles.Bold, C32(56, 140, 92), TextAlignmentOptions.Left);
         }
 
         var div = NewChild("div", card);
