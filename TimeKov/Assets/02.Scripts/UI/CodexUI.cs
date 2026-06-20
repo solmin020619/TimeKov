@@ -1,14 +1,17 @@
 // =====================================================================
 // CodexUI.cs
-// 도감(엔드필드 백과 풍) - 임시 골격(placeholder).
-// K로 열고 게임 정지(전체화면). 상태/정지/입력차단/커서는 GameUIController(UIState.Codex)가 관리,
-// 여기선 패널 표시/숨김만.
+// 도감(엔드필드 백과 풍) - 전체화면 정지 UI. K로 열고 닫음(상태/정지/입력/커서는
+// GameUIController UIState.Codex가 관리, 여기선 패널 표시/빌드만).
 //
-// 틀만: 상단 컬럼 탭(튜토리얼/몬스터/레시피) + 좌측 항목 리스트 + 메인 내용 영역.
-// 실제 비주얼/내용/인터랙션은 클로드디자인 확정 후 교체 예정. (지금은 절차생성 회색 박스)
-// 씬 세팅 불필요 - 최초 표시 시 런타임 자동 생성.
+// 디자인 = Assets/11.UI/Codex/Codex Frame.dc.html (라이트 간유리 풍).
+// 틀(프레임)만 구현 - 데이터는 placeholder(실제 게임데이터/해금상태 연동은 다음 단계).
+//   탭: 튜토리얼 / 몬스터 / 설비 (상단 중앙). 좌측 항목 리스트. 우측은 탭마다 레이아웃 다름.
+//   리스트 상태: 공개 / 실루엣 / ???(미발견).
+// PNG = Resources/Codex/ 에서 로드(없으면 절차생성 폴백). 종욱이 11.UI/Codex 의 PNG를
+//   Resources/Codex 로 옮기면 자동 반영(9-slice .meta 같이). Inven_Ash 금지.
 // =====================================================================
 
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -33,110 +36,1158 @@ public class CodexUI : MonoBehaviour
         }
     }
 
-    // 켜질 때만 생성(한 번도 안 열면 비용 0). GameUIController.ApplyState에서 매 상태전환 호출.
+    // 켜질 때만 생성(한 번도 안 열면 비용 0). GameUIController.ApplyState에서 호출.
     public static void SetVisible(bool on)
     {
-        if (!on && _i == null) return;   // 안 열렸으면 숨김 호출은 무시(생성 방지)
+        if (!on && _i == null) return;
         I.SetOpenInternal(on);
     }
 
-    // 임시 색(인벤 간유리 톤 대충 맞춤 - 최종은 디자인 교체)
-    private static readonly Color BgColor    = new Color32(10, 13, 18, 235);
-    private static readonly Color PanelColor = new Color32(26, 30, 38, 240);
-    private static readonly Color TabColor    = new Color32(40, 46, 58, 255);
-    private static readonly Color TabSelColor = new Color32(64, 116, 150, 255);
-    private static readonly Color TextColor  = new Color32(225, 232, 240, 255);
-    private static readonly Color DimText    = new Color32(140, 150, 165, 255);
+    // ── 색 토큰 (dc.html 핸드오프) ──────────────────────────────────
+    static readonly Color Bg        = C32(216, 221, 226);   // 라이트 그레이 배경(패널이 더 밝게 떠 보이도록 살짝 어둡게)
+    static readonly Color PanelLight = C32(248, 250, 252);  // 패널 = 거의 흰 라이트 면(엔필식). 회색 panel_ash는 인벤용이라 안 씀.
+    static readonly Color PanelBd   = new Color32(120, 140, 160, 40); // 패널 얇은 테두리
+    static readonly Color Divider   = new Color32(120, 140, 160, 60);
+    static readonly Color TabPillBg  = new Color(1f, 1f, 1f, 0.55f);
+    static readonly Color TabPillBd  = new Color32(120, 140, 160, 56);
+    static readonly Color Accent    = C32(95, 196, 255);
+    static readonly Color TabActiveTxt   = C32(22, 51, 63);
+    static readonly Color TabInactiveTxt = C32(91, 99, 109);
+    static readonly Color TxtMain  = C32(36, 42, 49);
+    static readonly Color TxtSub   = C32(76, 84, 93);
+    static readonly Color TxtDim   = C32(170, 178, 187);
+    static readonly Color TxtMono  = C32(124, 132, 140);
+    // 인벤 슬롯과 동일 소스(InventoryUIBuilder). 각진 반투명 다크 + 4변 쿨슬레이트 테두리.
+    static readonly Color SlotFill = new Color(12f / 255f, 16f / 255f, 24f / 255f, 0.10f);   // 칸 = 살짝만 어둡게(테두리가 정의)
+    static readonly Color SlotLine = new Color(40f / 255f, 54f / 255f, 74f / 255f, 0.45f);   // 4변 균일 테두리(쿨 슬레이트)
+    static readonly Color CloseBg  = new Color(1f, 1f, 1f, 0.60f);
+    static readonly Color CardBg   = new Color(1f, 1f, 1f, 0.40f);
+    static readonly Color CardBd   = new Color32(120, 140, 160, 41);
 
-    private static readonly string[] Columns = { "튜토리얼", "몬스터", "레시피" };
+    // ── 데이터 모델 (placeholder) ──────────────────────────────────
+    enum St { Public, Silhouette, Hidden }
+    class Entry { public string name; public St state; public string status; public CodexPreviewConfig.MonsterEntry preview; public Sprite icon; public int facilityId; public VideoTutorialPage tutPage; }
+    class Drop  { public string name; public string rarity; public Color rc; public string desc; public string pct; public bool got; public Sprite icon; public int grade; }
 
-    private GameObject _root;
+    static readonly string[] TabNames = { "튜토리얼", "몬스터", "설비" };
+
+    static readonly Entry[] Tutorial =
+    {
+        new Entry{ name="기본 이동",     state=St.Public },
+        new Entry{ name="시간 자원",     state=St.Public },
+        new Entry{ name="근접 전투",     state=St.Public },
+        new Entry{ name="조립대 사용",   state=St.Public },
+        new Entry{ name="컨베이어 연결", state=St.Hidden, status="미시청" },
+        new Entry{ name="전력 공급",     state=St.Hidden, status="미시청" },
+        new Entry{ name="위험 지대",     state=St.Hidden, status="미시청" },
+    };
+    static readonly Entry[] Monsters =
+    {
+        new Entry{ name="사구 포식자", state=St.Public },
+        new Entry{ name="강철 진드기", state=St.Public },
+        new Entry{ name="시간 포자",   state=St.Silhouette, status="포착" },
+        new Entry{ name="부식 군체",   state=St.Silhouette, status="포착" },
+        new Entry{ state=St.Hidden, status="미발견" },
+        new Entry{ state=St.Hidden, status="미발견" },
+        new Entry{ state=St.Hidden, status="미발견" },
+        new Entry{ state=St.Hidden, status="미발견" },
+    };
+    static readonly Entry[] Facilities =
+    {
+        new Entry{ name="정련로",        state=St.Public },
+        new Entry{ name="분쇄기",        state=St.Public },
+        new Entry{ name="성형기",        state=St.Public },
+        new Entry{ name="재배기",        state=St.Silhouette, status="미해금" },
+        new Entry{ name="씨앗 추출기",   state=St.Silhouette, status="미해금" },
+        new Entry{ name="오염수 처리기", state=St.Silhouette, status="미해금" },
+    };
+    Entry[] CurList => _tab == 0 ? (_tutorial ?? Tutorial) : _tab == 1 ? (_monsters ?? Monsters) : (_facilities ?? Facilities);
+
+    // ── 런타임 상태 ────────────────────────────────────────────────
+    private RectTransform _root;
+    private RectTransform _tabRow;
+    private RectTransform _listBox;
+    private RectTransform _mainBox;
+    private TMP_FontAsset _font;
+    private int _tab = 1;   // 시작 = 몬스터(중간 상태 mock 확인용)
+    private int _sel = 0;
+
+    private CodexPreviewConfig _cfg;        // Resources/Codex/CodexPreviewConfig (있으면 몬스터탭 구동)
+    private CodexTutorialConfig _tutCfg;    // Resources/Codex/CodexTutorialConfig (있으면 튜토탭 구동)
+    private CodexMonsterPortrait _portrait; // 흉상 라이브 렌더러(지연 생성)
+    private CodexVideoScreen _video;        // 튜토 인라인 영상 재생기(지연 생성)
+    private Entry[] _tutorial;              // 런타임 리스트(개발자 해금 적용)
+    private Entry[] _monsters;              // 플레이스홀더 + 설정 병합(인덱스 매칭)
+    private Entry[] _facilities;
+    private static bool _devUnlockAll = true;   // 개발자모드: 전부 해금(테스트용). 도감에서 F9로 토글.
 
     private void OnApplicationQuit() => _quitting = true;
-    private void OnDestroy() { if (_i == this) _i = null; }
+    private void OnDestroy()
+    {
+        if (_i == this) _i = null;
+        DataBoot.OnDataLoaded -= HandleDataLoaded;
+    }
 
+    private bool _dataLoading;
+
+    // 게임 데이터(설비/레시피/아이템)는 Loading 씬의 DataBoot가 구글시트서 로드한다.
+    // World에서 바로 Play하면 비어 있으니, 정상 부팅(DataBoot)이 없을 때만 직접 로드(테스트 편의).
+    private void EnsureGameData()
+    {
+        if (_dataLoading) return;
+        if (GameDataUtility.GetFacility(1) != null) return;   // 이미 로드됨
+        if (DataBoot.Instance != null) return;                // 정상 부팅 경로 있으면 그쪽에 맡김(이중 다운로드 방지)
+        _dataLoading = true;
+        GameDataHolder.I.LoadAllFromGoogle(this, ok =>
+        {
+            _dataLoading = false;
+            HandleDataLoaded();
+        });
+    }
+
+    // 데이터 로드 완료 시(정상 부팅이 늦게 끝나도) 리스트/본문 갱신
+    private void HandleDataLoaded()
+    {
+        RebuildLists();
+        if (_root != null && _root.gameObject.activeSelf) Refresh();
+    }
+
+    // 도감 열려있을 때 F9 = 개발자 전부해금 토글(테스트용)
+    private void Update()
+    {
+        if (_root == null || !_root.gameObject.activeSelf) return;
+        if (Input.GetKeyDown(KeyCode.F9))
+        {
+            _devUnlockAll = !_devUnlockAll;
+            RebuildLists();
+            _sel = 0;
+            if (_portrait != null) _portrait.ClearInstance();
+            Refresh();
+        }
+    }
+
+    private void SetOpenInternal(bool on)
+    {
+        if (on)
+        {
+            // 열 때마다 최신 설정 반영(populate 메뉴를 플레이 중 돌려도 잡히게)
+            _cfg = Resources.Load<CodexPreviewConfig>("Codex/CodexPreviewConfig");
+            _tutCfg = Resources.Load<CodexTutorialConfig>("Codex/CodexTutorialConfig");
+            EnsureGameData();   // 게임 데이터(구글시트) 안 떠 있으면 로드 시도
+            RebuildLists();
+            _sel = 0;
+            Refresh();
+        }
+        if (_root != null) _root.gameObject.SetActive(on);
+        if (!on && _portrait != null) _portrait.ClearInstance();   // 닫으면 림보 인스턴스/카메라 정리
+        if (!on && _video != null) _video.Stop();                  // 닫으면 영상 정지
+    }
+
+    // ── 빌드 ───────────────────────────────────────────────────────
     private void Build()
     {
         var canvas = gameObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 5000;   // HUD 위, 토스트(5500) 아래
+        canvas.sortingOrder = 5000;
 
         var scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 0.5f;
-
         gameObject.AddComponent<GraphicRaycaster>();
 
-        // 전체화면 배경(뒤 클릭 차단)
-        _root = NewRect("Root", (RectTransform)transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-        _root.AddComponent<Image>().color = BgColor;
+        _font = TMP_Settings.defaultFontAsset;
 
-        // 상단 컬럼 탭 (breadcrumb 대신 - 튜토리얼/몬스터/레시피)
-        var tabBar = NewRect("Columns", (RectTransform)_root.transform,
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(40f, -110f), new Vector2(-40f, -40f));
-        var hlg = tabBar.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 12f;
-        hlg.childAlignment = TextAnchor.MiddleLeft;
+        DataBoot.OnDataLoaded += HandleDataLoaded;   // 데이터가 나중에 로드돼도 갱신되게
+        _cfg = Resources.Load<CodexPreviewConfig>("Codex/CodexPreviewConfig");   // 없으면 플레이스홀더로 폴백
+        _tutCfg = Resources.Load<CodexTutorialConfig>("Codex/CodexTutorialConfig");
+        RebuildLists();
+
+        _root = Make("Root", transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Img(_root, null, Bg);
+
+        var panel = Make("Panel", _root, Vector2.zero, Vector2.one, new Vector2(40f, 40f), new Vector2(-40f, -40f));
+        Img(panel, RoundedFallback(22), PanelLight);   // 라이트 면(엔필식). 회색 panel_ash 안 씀.
+        Line(panel, PanelBd);
+        BuildPanelDecor(panel);   // 빈 흰면 -> 등고선/그라데이션/코너 브래킷으로 장치 화면 느낌
+
+        var header = Make("Header", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(34f, -96f), new Vector2(-30f, 0f));
+        BuildHeader(header);
+
+        var hLine = Make("HeaderLine", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, -98f), new Vector2(-30f, -97f));
+        Img(hLine, null, Divider);
+
+        _listBox = Make("ListBox", panel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(30f, 22f), new Vector2(460f, -108f));
+
+        var vLine = Make("VLine", panel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(467f, 30f), new Vector2(468f, -118f));
+        Img(vLine, null, Divider);
+
+        _mainBox = Make("MainBox", panel, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(480f, 24f), new Vector2(-30f, -108f));
+
+        Refresh();
+        _root.gameObject.SetActive(false);
+    }
+
+    // ── 헤더 (타이틀 + 중앙 탭 + 닫기) ─────────────────────────────
+    private void BuildHeader(RectTransform header)
+    {
+        var title = Make("Title", header, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+        title.sizeDelta = new Vector2(300f, 56f); title.anchoredPosition = new Vector2(150f, 8f);
+        var thlg = title.gameObject.AddComponent<HorizontalLayoutGroup>();
+        thlg.childAlignment = TextAnchor.LowerLeft; thlg.spacing = 12f;
+        thlg.childControlWidth = true; thlg.childControlHeight = true;
+        thlg.childForceExpandWidth = false; thlg.childForceExpandHeight = false;
+        Txt(NewChild("도감", title), "도감", 36f, FontStyles.Bold, TxtMain, TextAlignmentOptions.BottomLeft);
+        Txt(NewChild("CODEX", title), "CODEX", 13f, FontStyles.Normal, Accent, TextAlignmentOptions.BottomLeft);
+
+        _tabRow = Make("Tabs", header, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        _tabRow.sizeDelta = new Vector2(560f, 56f); _tabRow.anchoredPosition = new Vector2(0f, 8f);
+        Img(_tabRow, RoundedFallback(16), TabPillBg);
+        Line(_tabRow, TabPillBd);
+        var hlg = _tabRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.childAlignment = TextAnchor.MiddleCenter; hlg.spacing = 6f;
+        hlg.padding = new RectOffset(7, 7, 7, 7);
         hlg.childControlWidth = false; hlg.childControlHeight = true;
         hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = true;
-        for (int i = 0; i < Columns.Length; i++)
-            MakeTab(tabBar.transform, Columns[i], i == 0);
+        var fit = _tabRow.gameObject.AddComponent<ContentSizeFitter>();
+        fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        RebuildTabs();
 
-        // 좌측 항목 리스트 (사진5 빨강 영역)
-        var left = NewRect("EntryList", (RectTransform)_root.transform,
-            new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(40f, 40f), new Vector2(360f, -130f));
-        left.AddComponent<Image>().color = PanelColor;
-        AddLabel(left.transform, "항목 리스트\n(미발견 = ???)", DimText, 22f);
+        var close = Make("Close", header, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+        close.sizeDelta = new Vector2(54f, 54f); close.anchoredPosition = new Vector2(-27f, 8f);
+        Img(close, RoundedFallback(14), CloseBg);
+        Line(close, TabPillBd);
+        Btn(close, () => GameUIController.Instance?.ToggleCodex());
+        var ci = Make("X", close, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        ci.sizeDelta = new Vector2(22f, 22f);
+        var icon = Codex("ic_close");
+        if (icon != null) { var im = Img(ci, icon, new Color(0f, 0f, 0f, 0.45f)); im.preserveAspect = true; }
+        else Txt(ci, "X", 22f, FontStyles.Bold, new Color(0f, 0f, 0f, 0.45f), TextAlignmentOptions.Center);
 
-        // 메인 내용 (사진5 파랑 영역)
-        var main = NewRect("Content", (RectTransform)_root.transform,
-            new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(376f, 40f), new Vector2(-40f, -130f));
-        main.AddComponent<Image>().color = PanelColor;
-        AddLabel(main.transform, "내용 영역 (디자인/내용 대기 중)\n\nK 또는 ESC로 닫기", DimText, 26f);
-
-        _root.SetActive(false);
+        // 닫기 왼쪽에 장치 readout(이퀄라이저 바 + 주파수 + REC 점) - 헤더 빈공간 채움
+        var tele = Make("Tele", header, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+        tele.sizeDelta = new Vector2(186f, 40f); tele.anchoredPosition = new Vector2(-176f, 8f);
+        BuildTelemetry(tele);
     }
 
-    private void SetOpenInternal(bool on)
+    private void BuildTelemetry(RectTransform tele)
     {
-        if (_root != null) _root.SetActive(on);
+        // 하단 행: 모노 주파수 (우측정렬)
+        Txt(Make("freq", tele, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 16f)),
+            "FREQ 432.500MHz", 11f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Right);
+        // 상단 행: 미니 이퀄라이저 바
+        var bar = Make("seg", tele, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-104f, -16f), new Vector2(-20f, 0f));
+        BuildSegBar(bar);
+        // REC 점
+        var dot = Make("recdot", tele, new Vector2(1f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+        dot.sizeDelta = new Vector2(7f, 7f); dot.anchoredPosition = new Vector2(-9f, -8f);
+        Deco(dot, UISpriteFactory.Disc(16), C32(224, 96, 96));
     }
 
-    // ── 생성 헬퍼 ──
-    private static GameObject NewRect(string name, RectTransform parent, Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax)
+    private void BuildSegBar(RectTransform parent)
+    {
+        var hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 2f; hlg.childAlignment = TextAnchor.LowerRight;
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        int[] hs = { 5, 8, 6, 11, 7, 9, 13, 6, 10, 7, 12, 8 };
+        for (int i = 0; i < hs.Length; i++)
+        {
+            var s = NewChild("s", parent);
+            var le = s.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = 3f; le.minWidth = 3f; le.preferredHeight = hs[i]; le.minHeight = hs[i];
+            Deco(s, null, new Color32(96, 150, 196, (byte)(90 + i * 8)));
+        }
+    }
+
+    private void RebuildTabs()
+    {
+        if (_tabRow == null) return;
+        for (int i = _tabRow.childCount - 1; i >= 0; i--) Destroy(_tabRow.GetChild(i).gameObject);
+        for (int i = 0; i < TabNames.Length; i++) BuildTab(i);
+        BuildAddTabButton();
+    }
+
+    private void BuildTab(int index)
+    {
+        bool active = index == _tab;
+        var tab = NewChild("Tab_" + TabNames[index], _tabRow);
+        var le = tab.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = 42f; le.preferredHeight = 42f;
+        var hlg = tab.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.childAlignment = TextAnchor.MiddleCenter; hlg.spacing = 10f;
+        hlg.padding = new RectOffset(22, 22, 0, 0);
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        var fit = tab.gameObject.AddComponent<ContentSizeFitter>();
+        fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        Img(tab, active ? RoundedFallback(11) : null, active ? Accent : new Color(0f, 0f, 0f, 0f));
+        Btn(tab, () => { _tab = index; _sel = 0; RebuildTabs(); Refresh(); });
+
+        Color icCol = active ? TabActiveTxt : TabInactiveTxt;
+        var ico = NewChild("ico", tab);
+        var icoLe = ico.gameObject.AddComponent<LayoutElement>();
+        icoLe.preferredWidth = 18f; icoLe.minWidth = 18f; icoLe.preferredHeight = 18f; icoLe.minHeight = 18f;
+        BuildTabIcon(index, ico, icCol);
+
+        Txt(NewChild("lbl", tab), TabNames[index], 18f, FontStyles.Bold, icCol, TextAlignmentOptions.Center);
+    }
+
+    private void BuildTabIcon(int index, RectTransform parent, Color col)
+    {
+        if (index == 0)        Img(parent, UISpriteFactory.Ring(48, 4f), col).preserveAspect = true;   // 원
+        else if (index == 1) { Img(parent, RoundedFallback(2), col); parent.localRotation = Quaternion.Euler(0f, 0f, 45f); parent.localScale = Vector3.one * 0.72f; } // 다이아
+        else                   Img(parent, UISpriteFactory.Disc(48), col).preserveAspect = true;       // 육각(폴백 디스크)
+    }
+
+    private void BuildAddTabButton()
+    {
+        var add = NewChild("AddTab", _tabRow);
+        var le = add.gameObject.AddComponent<LayoutElement>();
+        le.minWidth = 42f; le.preferredWidth = 42f; le.minHeight = 42f; le.preferredHeight = 42f;
+        Img(add, RoundedFallback(11), new Color(0f, 0f, 0f, 0f));
+        Line(add, new Color32(120, 140, 160, 102));
+        // 텍스트는 별도 자식에(한 GameObject에 Image+TMP_Text 같이 두면 그래픽 충돌로 NRE)
+        var plus = Make("plus", add, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Txt(plus, "+", 24f, FontStyles.Normal, new Color32(120, 140, 160, 178), TextAlignmentOptions.Center);
+    }
+
+    // ── 리스트 + 메인 재빌드 ───────────────────────────────────────
+    private void Refresh()
+    {
+        BuildList();
+        BuildMain();
+    }
+
+    private int _lastBuiltTab = -1;
+
+    private void BuildList()
+    {
+        // 같은 탭에서 항목 클릭 시(리스트 재생성) 스크롤 위치 보존. 탭 바뀌면 맨 위로.
+        var oldScroll = _listBox.GetComponent<ScrollRect>();
+        float prevY = (_tab == _lastBuiltTab && oldScroll != null && oldScroll.content != null)
+            ? oldScroll.content.anchoredPosition.y : 0f;
+        _lastBuiltTab = _tab;
+
+        ClearChildren(_listBox);
+
+        var label = Make("Label", _listBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(8f, -28f), new Vector2(-14f, -4f));
+        Txt(label, "목록 - LIST", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+
+        // 항목이 많으면(튜토 영상 16개 등) 패널 밖으로 넘치니 스크롤. 뷰포트(마스크)+콘텐츠(VLG+Fitter).
+        var viewport = Make("Viewport", _listBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 2f), new Vector2(-12f, -32f));
+        var vpImg = viewport.gameObject.AddComponent<Image>();
+        vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true;   // 휠/드래그 받기
+        viewport.gameObject.AddComponent<RectMask2D>();
+
+        var rows = Make("Rows", viewport, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+        rows.pivot = new Vector2(0.5f, 1f);
+        var vlg = rows.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 8f; vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true; vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+        var fit = rows.gameObject.AddComponent<ContentSizeFitter>();
+        fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var list = CurList;
+        for (int i = 0; i < list.Length; i++) BuildListRow(rows, list[i], i);
+
+        var scroll = _listBox.gameObject.GetComponent<ScrollRect>();
+        if (scroll == null) scroll = _listBox.gameObject.AddComponent<ScrollRect>();
+        scroll.content = rows; scroll.viewport = viewport;
+        scroll.horizontal = false; scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 30f;
+
+        // 장식용 스크롤바 트랙(실제 스크롤은 휠/드래그)
+        var sb = Make("Scrollbar", viewport, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-6f, 2f), new Vector2(0f, -2f));
+        Img(sb, Codex("scrollbar_track") ?? RoundedFallback(3), new Color32(120, 140, 160, 36)).raycastTarget = false;
+
+        // 레이아웃 즉시 계산 후 스크롤 위치 복원(클릭해도 맨 위로 안 튀게)
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(rows);
+        float maxY = Mathf.Max(0f, rows.rect.height - viewport.rect.height);
+        var ap = rows.anchoredPosition; ap.y = Mathf.Clamp(prevY, 0f, maxY); rows.anchoredPosition = ap;
+    }
+
+    private void BuildListRow(RectTransform parent, Entry e, int index)
+    {
+        bool selected = e.state == St.Public && index == _sel;
+        bool textOnly = _tab != 2;   // 설비만 아이콘 썸네일. 튜토(영상제목)/몬스터(얼굴은 본문 3D)는 텍스트 전용.
+        var row = NewChild("Row_" + index, parent);
+        var le = row.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = 92f; le.preferredHeight = 92f;   // 헤더 큼직하게 - 컬럼 꽉 채움(스크롤 있어 길어도 OK)
+
+        if (selected)
+        {
+            Img(row, RoundedFallback(10), new Color32(95, 196, 255, 50));   // 선택 = 뚜렷한 강조(조금 더 세게)
+            Line(row, new Color32(95, 196, 255, 130));
+            var bar = Make("Bar", row, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 8f), new Vector2(4f, -8f));
+            Img(bar, RoundedFallback(3), Accent);
+        }
+        else
+        {
+            // 비선택 헤더도 기본 카드로 어느정도 강조(엔필처럼). 미발견은 더 흐리게.
+            byte a = e.state == St.Public ? (byte)32 : (byte)16;
+            Img(row, RoundedFallback(10), new Color32(120, 140, 160, a));
+            if (e.state == St.Public) Line(row, new Color32(120, 140, 160, 42));
+        }
+
+        if (e.state == St.Public) Btn(row, () => { _sel = index; Refresh(); });
+
+        float textLeft = 96f;
+        if (!textOnly)
+        {
+            var thumb = Make("Thumb", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            thumb.sizeDelta = new Vector2(68f, 68f); thumb.anchoredPosition = new Vector2(48f, 0f);   // 큼직하게
+            SlotBg(thumb);
+            if (e.state == St.Public && e.icon != null)
+            {
+                var ic = Make("ic", thumb, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+                var im = Img(ic, e.icon, Color.white); im.preserveAspect = true; im.raycastTarget = false;
+            }
+            else BuildThumbContent(thumb, e.state, selected);
+        }
+        else textLeft = 28f;   // 아이콘 없으니 왼쪽 패딩만
+
+        var nameRt = Make("Name", row, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(textLeft, 0f), new Vector2(-12f, 0f));
+        if (e.state == St.Public)
+        {
+            Txt(nameRt, e.name, 20f, selected ? FontStyles.Bold : FontStyles.Normal, selected ? TxtMain : C32(60, 68, 76), TextAlignmentOptions.Left);
+            if (!selected) Hatch(row);   // 엔필식 미세 해칭 - 세 카테고리 공개행 통일(선택행 제외)
+        }
+        else
+        {
+            Txt(nameRt, "???", 20f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
+            if (!string.IsNullOrEmpty(e.status))
+            {
+                var st = Make("Status", row, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-72f, 0f), new Vector2(-10f, 0f));
+                Txt(st, e.status, 11f, FontStyles.Normal, C32(188, 195, 203), TextAlignmentOptions.Right);
+            }
+        }
+    }
+
+    // 엔필식 미세 해칭(행 우측 짧은 대각선 3개)
+    private void Hatch(RectTransform row)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            var s = Make("hk", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            s.sizeDelta = new Vector2(2f, 13f);
+            s.anchoredPosition = new Vector2(-16f - i * 6f, 0f);
+            s.localRotation = Quaternion.Euler(0f, 0f, 24f);
+            Deco(s, null, new Color32(120, 140, 160, 55));
+        }
+    }
+
+    private void BuildThumbContent(RectTransform thumb, St state, bool selected)
+    {
+        if (state == St.Silhouette)
+        {
+            var blob = Make("Sil", thumb, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            blob.sizeDelta = new Vector2(22f, 24f);
+            Img(blob, UISpriteFactory.Disc(48), Color.black);
+        }
+        else if (state == St.Hidden)
+        {
+            var q = Make("q", thumb, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Txt(q, "?", 16f, FontStyles.Bold, new Color32(150, 165, 180, 102), TextAlignmentOptions.Center);
+        }
+        if (selected) Line(thumb, Accent, 1.5f);
+    }
+
+    // ── 우측 메인 (탭별) ───────────────────────────────────────────
+    private void BuildMain()
+    {
+        ClearChildren(_mainBox);
+        if (_tab != 1 && _portrait != null) _portrait.ClearInstance();   // 몬스터탭 아니면 라이브 프리뷰 정리
+        if (_tab != 0 && _video != null) _video.Stop();                  // 튜토탭 아니면 영상 정지
+        string selName = SelectedName();
+        if (_tab == 0) BuildTutorialMain(selName);
+        else if (_tab == 1) BuildMonsterMain(selName);
+        else BuildFacilityMain(selName);
+    }
+
+    private string SelectedName()
+    {
+        var list = CurList;
+        if (_sel >= 0 && _sel < list.Length && list[_sel].state == St.Public) return list[_sel].name;
+        foreach (var e in list) if (e.state == St.Public) return e.name;
+        return "-";
+    }
+
+    private Entry SelectedEntry()
+    {
+        var list = CurList;
+        if (_sel >= 0 && _sel < list.Length && list[_sel].state == St.Public) return list[_sel];
+        foreach (var e in list) if (e.state == St.Public) return e;
+        return (_sel >= 0 && _sel < list.Length) ? list[_sel] : null;
+    }
+
+    // 런타임 리스트 3개 재생성(개발자 해금/설정 반영). F9 토글 시 다시 호출.
+    private void RebuildLists()
+    {
+        _tutorial = BuildTutorialEntries();
+        _monsters = BuildMonsterEntries();
+        _facilities = BuildFacilityEntries();
+    }
+
+    // 기존 영상 튜토(TutorialVideoObjective)의 페이지를 복붙한 설정으로 구성. 없으면 placeholder.
+    private Entry[] BuildTutorialEntries()
+    {
+        if (_tutCfg == null || _tutCfg.pages == null || _tutCfg.pages.Count == 0)
+            return CloneDev(Tutorial);
+        var list = new Entry[_tutCfg.pages.Count];
+        for (int i = 0; i < _tutCfg.pages.Count; i++)
+        {
+            var p = _tutCfg.pages[i];
+            var e = new Entry
+            {
+                name = (p != null && !string.IsNullOrEmpty(p.title)) ? p.title : ("영상 " + (i + 1)),
+                state = St.Hidden, status = "미시청", tutPage = p
+            };
+            if (_devUnlockAll) { e.state = St.Public; e.status = null; }   // 시청여부는 나중에 - 지금은 전부 해금
+            list[i] = e;
+        }
+        return list;
+    }
+
+    private void EnsureVideo()
+    {
+        if (_video != null) return;
+        var go = new GameObject("[CodexVideo]");
+        go.transform.SetParent(transform, false);
+        _video = go.AddComponent<CodexVideoScreen>();
+    }
+
+    // 실제 설비 데이터(1..8)로 헤더 구성 + 아이콘(FacilityIconDatabase). 데이터 못 읽으면 placeholder 폴백.
+    private Entry[] BuildFacilityEntries()
+    {
+        var list = new List<Entry>();
+        for (int id = 1; id <= 8; id++)
+        {
+            var fd = GameDataUtility.GetFacility(id);
+            if (fd == null) continue;
+            var e = new Entry { name = fd.facilityName, state = St.Silhouette, status = "미해금", facilityId = id };
+            if (FacilityIconDatabase.Instance != null) e.icon = FacilityIconDatabase.Instance.GetIcon(id);
+            if (_devUnlockAll) { e.state = St.Public; e.status = null; }   // 해금은 나중에 - 지금은 개발자 전부해금
+            list.Add(e);
+        }
+        return list.Count > 0 ? list.ToArray() : CloneDev(Facilities);
+    }
+
+    // 정적 플레이스홀더 복제 + 개발자 해금 적용(튜토/설비용. 둘 다 이름 있음).
+    private Entry[] CloneDev(Entry[] src)
+    {
+        var list = new Entry[src.Length];
+        for (int i = 0; i < src.Length; i++)
+        {
+            var b = src[i];
+            var e = new Entry { name = b.name, state = b.state, status = b.status };
+            if (_devUnlockAll) { e.state = St.Public; e.status = null; }
+            list[i] = e;
+        }
+        return list;
+    }
+
+    // 플레이스홀더 몬스터 + 설정(CodexPreviewConfig)을 인덱스로 병합.
+    // 설정이 없으면 플레이스홀더 그대로(디자인 확인용). 프리팹 연결된 슬롯만 라이브 프리뷰.
+    private Entry[] BuildMonsterEntries()
+    {
+        var list = new Entry[Monsters.Length];
+        for (int i = 0; i < Monsters.Length; i++)
+        {
+            var b = Monsters[i];
+            var e = new Entry { name = b.name, state = b.state, status = b.status };
+            if (_cfg != null && i < _cfg.monsters.Count && _cfg.monsters[i] != null)
+            {
+                var c = _cfg.monsters[i];
+                if (!string.IsNullOrEmpty(c.displayName)) e.name = c.displayName;
+                e.state = MapState(c.state);
+                e.status = e.state == St.Public ? null : (e.state == St.Silhouette ? "포착" : "미발견");
+                if (c.prefab != null) e.preview = c;
+            }
+            if (_devUnlockAll) { e.state = St.Public; e.status = null; }
+            if (e.state == St.Public && string.IsNullOrEmpty(e.name)) e.name = "몬스터 " + (i + 1);
+            list[i] = e;
+        }
+        return list;
+    }
+
+    private static St MapState(CodexPreviewConfig.RevealState s)
+        => s == CodexPreviewConfig.RevealState.Revealed ? St.Public
+         : s == CodexPreviewConfig.RevealState.Silhouette ? St.Silhouette : St.Hidden;
+
+    private void EnsurePortrait()
+    {
+        if (_portrait != null) return;
+        var go = new GameObject("[CodexPortrait]");
+        go.transform.SetParent(transform, false);
+        _portrait = go.AddComponent<CodexMonsterPortrait>();
+    }
+
+    // 페이스 칸에 라이브 흉상 렌더(가능하면). 못 하면 false -> 호출부서 실루엣 폴백.
+    private bool TryRenderPortrait(RectTransform face, Entry e)
+    {
+        if (e == null || e.state != St.Public || e.preview == null || e.preview.prefab == null) return false;
+        EnsurePortrait();
+        var tex = _portrait.Render(e.preview, 256);
+        if (tex == null) return false;
+        var raw = Make("portrait", face, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+        var ri = raw.gameObject.AddComponent<RawImage>();
+        ri.texture = tex; ri.raycastTarget = false;
+        return true;
+    }
+
+    private RectTransform MainHeader(string monoLabel, string rightText, Color rightCol, bool rightBig)
+    {
+        var hdr = Make("MHeader", _mainBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -34f), new Vector2(0f, 0f));
+        Txt(Make("l", hdr, new Vector2(0f, 0f), new Vector2(0.6f, 1f), Vector2.zero, Vector2.zero), monoLabel, 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        if (!string.IsNullOrEmpty(rightText))
+            Txt(Make("r", hdr, new Vector2(0.4f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), rightText, rightBig ? 20f : 11f, rightBig ? FontStyles.Bold : FontStyles.Normal, rightCol, TextAlignmentOptions.Right);
+        var line = Make("MLine", _mainBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -49f), new Vector2(0f, -48f));
+        Img(line, null, Divider);
+        return Make("MBody", _mainBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -58f));
+    }
+
+    private void BuildTutorialMain(string selName)
+    {
+        var body = MainHeader("튜토리얼 - GUIDE", "", TxtMono, false);
+        var page = SelectedEntry()?.tutPage;
+
+        // 영상은 꽉 채우지 않고 여백 넉넉히(좌우 90 / 상 28 / 하 184) - 엔필처럼 여유있게 가운데로.
+        var media = Make("Media", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(90f, 184f), new Vector2(-90f, -28f));
+        Img(media, RoundedFallback(10), C32(20, 26, 33));
+        Line(media, new Color32(0, 0, 0, 76));
+
+        // 클립 있으면 인라인 재생(다시보기), 없으면 재생 링 placeholder
+        bool playing = false;
+        if (page != null && page.clip != null)
+        {
+            EnsureVideo();
+            var tex = _video.Play(page.clip);
+            if (tex != null)
+            {
+                var raw = Make("vid", media, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
+                var ri = raw.gameObject.AddComponent<RawImage>(); ri.texture = tex; ri.raycastTarget = false;
+                playing = true;
+            }
+        }
+        if (!playing)
+        {
+            _video?.Stop();
+            var play = Make("Play", media, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            play.sizeDelta = new Vector2(70f, 70f);
+            Img(play, UISpriteFactory.Ring(96, 3f), new Color(1f, 1f, 1f, 0.5f));
+        }
+        DecorateDarkViewport(media, true);   // 코너+REC 틀(영상 위에)
+        Txt(Make("ml", media, new Vector2(0f, 1f), new Vector2(0.5f, 1f), new Vector2(14f, -30f), new Vector2(0f, -10f)), "MEDIA - 영상", 12f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.4f), TextAlignmentOptions.Left);
+
+        // 제목/설명도 영상과 같은 좌우 폭으로(센터 컬럼처럼 정렬). 본문은 기존 튜토 텍스트 복붙(강조색만 라이트용 치환).
+        var title = Make("T", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(90f, 116f), new Vector2(-90f, 156f));
+        Txt(title, page != null ? page.title : selName, 26f, FontStyles.Bold, TxtMain, TextAlignmentOptions.TopLeft);
+        var desc = Make("D", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(90f, 24f), new Vector2(-90f, 110f));
+        string descText = (page != null && !string.IsNullOrEmpty(page.body))
+            ? AdaptEmphasis(page.body)
+            : "이 항목의 가이드 설명이 여기에 들어갑니다. 핵심은 시간 자원 관리이며, 단계별 안내와 이미지, 주의사항이 본문에 배치됩니다.";
+        Txt(desc, descText, 16f, FontStyles.Normal, TxtSub, TextAlignmentOptions.TopLeft).enableWordWrapping = true;
+    }
+
+    private void BuildMonsterMain(string selName)
+    {
+        var selE = SelectedEntry();
+        var data = MonsterData(selE);   // 프리팹의 MeleeEnemyData (실제 스탯)
+
+        var thr = Make("ThreatDots", _mainBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-120f, -32f), new Vector2(0f, -8f));
+        var body = MainHeader("몬스터 - THREAT", "위협도", C32(154, 162, 170), false);
+        int threat = data != null ? Mathf.Clamp(Mathf.RoundToInt(data.maxHP / 300f + data.attackDamage / 20f), 1, 5) : 3;
+        BuildThreatDots(thr, threat, 5);   // 기존 스탯서 산출
+
+        var face = Make("Face", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+        face.sizeDelta = new Vector2(176f, 176f); face.anchoredPosition = new Vector2(88f, -106f);   // 큼직하게(가독성)
+        Img(face, RoundedFallback(10), C32(72, 84, 100));   // 렌더 배경과 동일(밝은 슬레이트)
+        Line(face, new Color32(0, 0, 0, 76));
+        // 설정(프리팹)이 있으면 라이브 흉상, 없으면 실루엣 폴백
+        if (!TryRenderPortrait(face, SelectedEntry()))
+        {
+            var blob = Make("blob", face, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            blob.sizeDelta = new Vector2(74f, 84f);
+            Img(blob, UISpriteFactory.Disc(96), new Color32(40, 70, 96, 128));
+        }
+        DecorateDarkViewport(face, false);   // 코너 브래킷을 포트레이트 위에 얹음
+        Txt(Make("rl", face, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(9f, -24f), new Vector2(0f, -6f)), "RENDER", 10f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.4f), TextAlignmentOptions.Left);
+
+        var statArea = Make("Stats", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(200f, -150f), new Vector2(0f, -18f));
+        Txt(Make("nm", statArea, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, 0f)), selName, 28f, FontStyles.Bold, TxtMain, TextAlignmentOptions.TopLeft);
+        var statRow = Make("StatRow", statArea, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -50f));
+        var hlg = statRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 42f; hlg.childAlignment = TextAnchor.UpperLeft;
+        hlg.childControlWidth = false; hlg.childControlHeight = false;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        // 실제 스탯(MeleeEnemyData). 값 없으면 "?".
+        string atkSpd = data != null && data.attackCooldown > 0.01f ? (1f / data.attackCooldown).ToString("0.0") : "?";
+        AddStat(statRow, "체력", data != null ? Mathf.RoundToInt(data.maxHP).ToString("N0") : "?", "");
+        AddStat(statRow, "공격력", data != null ? Mathf.RoundToInt(data.attackDamage).ToString() : "?", "");
+        AddStat(statRow, "공격속도", atkSpd, "/s");
+        AddStat(statRow, "이동속도", data != null ? data.moveSpeed.ToString("0.0") : "?", "m/s");
+        AddStat(statRow, "사거리", data != null ? data.attackRange.ToString("0.0") : "?", "m");
+        AddStat(statRow, "시야", data != null ? Mathf.RoundToInt(data.visionRange).ToString() : "?", "m");
+
+        var line = Make("MidLine", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -204f), new Vector2(0f, -203f));
+        Img(line, null, Divider);
+
+        Txt(Make("dl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -236f), new Vector2(0f, -212f)), "드랍 아이템 - DROPS", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        var grid = Make("DropGrid", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -244f));
+        var glg = grid.gameObject.AddComponent<GridLayoutGroup>();
+        glg.cellSize = new Vector2(540f, 104f);   // 한 줄에 2개, 큼직하게
+        glg.spacing = new Vector2(22f, 16f);
+        glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        glg.constraintCount = 2;
+
+        // 실제 드롭 + 확률(가중치 비율, 처음부터 표시). 흔한 것부터.
+        var drops = BuildMonsterDrops(selE);
+        if (drops.Count > 0)
+            foreach (var d in drops) BuildDropCard(grid, d);
+        else
+            Txt(Make("nd", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, -244f)), "드롭 정보가 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.TopLeft);
+    }
+
+    // 프리팹 -> MeleeEnemyData(스탯)
+    private static MeleeEnemyData MonsterData(Entry e)
+    {
+        var pf = e?.preview != null ? e.preview.prefab : null;
+        if (pf == null) return null;
+        var brain = pf.GetComponentInChildren<EnemyBrain>(true);
+        return brain != null ? brain.Data : null;
+    }
+
+    // 프리팹의 드롭 출처 ID -> DropTable 조회 -> 확률(가중치 비율) 계산해 Drop 목록
+    private List<Drop> BuildMonsterDrops(Entry e)
+    {
+        var list = new List<Drop>();
+        var pf = e?.preview != null ? e.preview.prefab : null;
+        if (pf == null) return list;
+        var dod = pf.GetComponentInChildren<EnemyDropOnDeath>(true);
+        string srcId = dod != null ? dod.SourceId : null;
+        var rows = GameDataUtility.GetMonsterDrops(srcId);
+        if (rows.Count == 0) return list;
+
+        rows.Sort((a, b) => b.weight.CompareTo(a.weight));
+        int totalW = 0;
+        foreach (var r in rows) totalW += Mathf.Max(0, r.weight);
+
+        foreach (var r in rows)
+        {
+            var item = GameDataUtility.GetItem(r.itemId);
+            if (item == null) continue;
+            int gi = (int)item.itemGrade;
+            float pct = totalW > 0 ? r.weight * 100f / totalW : 0f;
+            string cnt = r.minCount == r.maxCount ? $"{r.minCount}개" : $"{r.minCount}~{r.maxCount}개";
+            list.Add(new Drop
+            {
+                name = item.itemName, rarity = GradeVisual.GetName(gi), rc = GradeVisual.GetColor(gi),
+                grade = gi, desc = cnt, pct = pct.ToString("0") + "%", got = true,
+                icon = ItemDatabase.GetIcon(item.iconKey)
+            });
+        }
+        return list;
+    }
+
+    private void BuildThreatDots(RectTransform parent, int filled, int total)
+    {
+        var hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 4f; hlg.childAlignment = TextAnchor.MiddleRight;
+        hlg.childControlWidth = false; hlg.childControlHeight = false;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        for (int i = 0; i < total; i++)
+        {
+            var dot = NewChild("dot", parent);
+            var le = dot.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = 9f; le.preferredHeight = 9f; le.minWidth = 9f; le.minHeight = 9f;
+            Img(dot, UISpriteFactory.Disc(32), i < filled ? Accent : new Color32(120, 140, 160, 76));
+        }
+    }
+
+    private void AddStat(RectTransform parent, string label, string value, string unit)
+    {
+        var col = NewChild("stat", parent);
+        var le = col.gameObject.AddComponent<LayoutElement>();
+        le.preferredWidth = 140f; le.minWidth = 110f; le.preferredHeight = 76f;
+        var vlg = col.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 7f; vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true; vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = false; vlg.childForceExpandHeight = false;
+        Txt(NewChild("l", col), label, 14f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        Txt(NewChild("v", col), value + (string.IsNullOrEmpty(unit) ? "" : " " + unit), 30f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+    }
+
+    private void BuildDropCard(RectTransform parent, Drop d)
+    {
+        var card = NewChild("drop", parent);
+        Img(card, RoundedFallback(10), CardBg);
+        Line(card, CardBd);
+        var thumb = Make("t", card, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+        thumb.sizeDelta = new Vector2(78f, 78f); thumb.anchoredPosition = new Vector2(56f, 0f);
+        SlotBg(thumb);
+        GradeAurora(thumb, d.grade, 40f);   // 등급 표현(바+오로라, 인벤 슬롯과 동일)
+        if (d.icon != null)
+        {
+            var ic = Make("ic", thumb, Vector2.zero, Vector2.one, new Vector2(5f, 5f), new Vector2(-5f, -5f));
+            var im = Img(ic, d.icon, Color.white); im.preserveAspect = true; im.raycastTarget = false;
+        }
+        else if (!d.got)
+        {
+            var blob = Make("sil", thumb, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            blob.sizeDelta = new Vector2(40f, 44f);
+            Img(blob, UISpriteFactory.Disc(48), Color.black);
+        }
+        var info = Make("i", card, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(108f, 8f), new Vector2(-78f, -8f));
+        var nameRow = Make("nr", info, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -32f), new Vector2(0f, 0f));
+        var dotR = Make("rcdot", nameRow, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+        dotR.sizeDelta = new Vector2(9f, 9f); dotR.anchoredPosition = new Vector2(5f, 0f);
+        Img(dotR, UISpriteFactory.Disc(16), d.rc);
+        Txt(Make("nm", nameRow, new Vector2(0f, 0f), new Vector2(0.7f, 1f), new Vector2(20f, 0f), new Vector2(0f, 0f)), d.name, 19f, FontStyles.Bold, d.got ? TxtMain : TxtDim, TextAlignmentOptions.Left);
+        Txt(Make("ra", nameRow, new Vector2(0.55f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), d.rarity, 13f, FontStyles.Normal, C32(154, 162, 170), TextAlignmentOptions.Left);
+        Txt(Make("ds", info, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 26f)), d.desc, 14f, FontStyles.Normal, C32(138, 146, 155), TextAlignmentOptions.BottomLeft);
+        var pct = Make("pct", card, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+        pct.sizeDelta = new Vector2(80f, 52f); pct.anchoredPosition = new Vector2(-44f, 0f);
+        Txt(pct, d.pct, 26f, FontStyles.Bold, C32(60, 68, 76), TextAlignmentOptions.Right);
+    }
+
+    private void BuildFacilityMain(string selName)
+    {
+        var body = MainHeader("설비 - FACILITY", selName, TxtMain, true);
+        Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), "제작 가능 레시피 - RECIPES", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+
+        // 레시피 많은 설비(용해로 등)는 패널 밖으로 넘치니 스크롤. 뷰포트(마스크)+콘텐츠.
+        var vp = Make("RecipeViewport", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -40f));
+        var vpImg = vp.gameObject.AddComponent<Image>(); vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true;
+        vp.gameObject.AddComponent<RectMask2D>();
+        var rows = Make("RecipeRows", vp, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+        rows.pivot = new Vector2(0.5f, 1f);
+        var vlg = rows.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 0f; vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true; vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+        rows.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        var scroll = body.gameObject.AddComponent<ScrollRect>();
+        scroll.content = rows; scroll.viewport = vp;
+        scroll.horizontal = false; scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 30f;
+
+        var selE = SelectedEntry();
+        var recipes = (selE != null && selE.facilityId > 0) ? GameDataUtility.GetRecipesByFacilityId(selE.facilityId) : null;
+        if (recipes != null && recipes.Count > 0)
+            foreach (var r in recipes) BuildRecipeRowReal(rows, r);
+        else
+            Txt(NewChild("none", rows), "표시할 레시피가 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
+    }
+
+    // 실제 레시피 데이터로 행 구성 (출력 아이템 = 재료들, 전부 실제 아이템 아이콘)
+    private void BuildRecipeRowReal(RectTransform parent, RecipeDataSheetData r)
+    {
+        var row = NewChild("recipe", parent);
+        var le = row.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = 86f; le.preferredHeight = 86f;   // 위아래 공백 타이트하게(셀은 큼직)
+        var top = Make("top", row, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -1f), new Vector2(0f, 0f));
+        top.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;   // 구분선은 레이아웃 흐름서 제외(overlay)
+        Img(top, null, new Color32(120, 140, 160, 46));
+        var hlg = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 14f; hlg.childAlignment = TextAnchor.MiddleLeft;
+        hlg.padding = new RectOffset(4, 4, 0, 0);
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;   // 안 늘려서 좌측 패킹(재료 안 퍼짐)
+
+        var outItem = GetItemById(r.outputItemId);
+        AddItemCell(row, 76f, outItem, r.outputCount);
+        var oName = NewChild("on", row);
+        oName.gameObject.AddComponent<LayoutElement>().preferredWidth = 150f;
+        Txt(oName, outItem != null ? outItem.itemName : (string)r.outputItemId, 18f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+        Txt(NewChild("eq", row), "=", 20f, FontStyles.Normal, C32(154, 162, 170), TextAlignmentOptions.Center);
+
+        var inputs = GameDataUtility.GetRecipeInputs(r.SheetId);
+        for (int m = 0; m < inputs.Count; m++)
+        {
+            if (m > 0) Txt(NewChild("plus", row), "+", 16f, FontStyles.Normal, C32(154, 162, 170), TextAlignmentOptions.Center);
+            var it = ItemDatabase.GetItem(inputs[m].itemId);
+            AddItemCell(row, 68f, it, inputs[m].count);
+            Txt(NewChild("mn", row), it != null ? it.itemName : inputs[m].itemId.ToString(), 15f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        }
+    }
+
+    // 인벤 슬롯과 동일 구성: 각진 반투명 다크 + 4변 얇은 쿨슬레이트 테두리(격자). 라운드/sheen 없음.
+    private void SlotBg(RectTransform cell)
+    {
+        Img(cell, null, SlotFill);
+        SlotEdge(cell, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, 2f));   // 상
+        SlotEdge(cell, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 2f));   // 하
+        SlotEdge(cell, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(2f, 0f));   // 좌
+        SlotEdge(cell, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(2f, 0f));   // 우
+    }
+
+    private void SlotEdge(RectTransform cell, Vector2 aMin, Vector2 aMax, Vector2 pivot, Vector2 size)
+    {
+        var e = Make("edge", cell, aMin, aMax, Vector2.zero, Vector2.zero);
+        e.pivot = pivot; e.sizeDelta = size; e.anchoredPosition = Vector2.zero;
+        Img(e, null, SlotLine).raycastTarget = false;
+    }
+
+    // 인벤 슬롯과 동일한 등급 표현: 하단 등급 언더라인 바(또렷) + 위로 번지는 오로라(소프트).
+    // Common도 은은한 은청색이 들어감(인벤과 동일 - 최하위 재료도 "약간 색").
+    private void GradeAurora(RectTransform cell, int grade, float height)
+    {
+        var c = GradeVisual.GetColor(grade);
+        // 소프트 오로라(아래->위 번짐) - UIFrostGradient(top투명/bottom불투명) × 등급색
+        var a = Make("aurora", cell, new Vector2(0f, 0f), new Vector2(1f, 0f), Vector2.zero, Vector2.zero);
+        a.pivot = new Vector2(0.5f, 0f); a.sizeDelta = new Vector2(0f, height); a.anchoredPosition = new Vector2(0f, 2f);
+        Img(a, null, new Color(c.r, c.g, c.b, c.a * 0.5f)).raycastTarget = false;
+        var g = a.gameObject.AddComponent<UIFrostGradient>();
+        g.topColor = new Color(1f, 1f, 1f, 0f); g.bottomColor = new Color(1f, 1f, 1f, 1f);
+        // 등급 언더라인 바(또렷, 인벤 GradeBorder)
+        var bar = Make("gradebar", cell, new Vector2(0f, 0f), new Vector2(1f, 0f), Vector2.zero, Vector2.zero);
+        bar.pivot = new Vector2(0.5f, 0f); bar.sizeDelta = new Vector2(0f, 4f); bar.anchoredPosition = Vector2.zero;
+        Img(bar, null, new Color(c.r, c.g, c.b, 0.85f)).raycastTarget = false;
+    }
+
+    // 레시피 셀(슬롯 배경 + 아이템 아이콘 + 수량 배지). HLG 행에 LayoutElement로 추가.
+    private void AddItemCell(RectTransform row, float size, ItemDataSheetData item, int count)
+    {
+        var cell = NewChild("cell", row);
+        var le = cell.gameObject.AddComponent<LayoutElement>();
+        le.preferredWidth = size; le.minWidth = size; le.preferredHeight = size; le.minHeight = size;
+        SlotBg(cell);
+        if (item != null) GradeAurora(cell, (int)item.itemGrade, size * 0.5f);   // 등급 표현(바+오로라, 아이콘 밑)
+        Sprite icon = item != null ? ItemDatabase.GetIcon(item.iconKey) : null;
+        if (icon != null)
+        {
+            var ic = Make("ic", cell, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+            var im = Img(ic, icon, Color.white); im.preserveAspect = true; im.raycastTarget = false;
+        }
+        if (count > 1)   // 수량 배지(1은 생략). 시트에서 개수 바꾸면 자동 반영.
+        {
+            float bw = count > 9 ? 24f : 20f;
+            var badge = Make("badge", cell, new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, Vector2.zero);
+            badge.sizeDelta = new Vector2(bw, 16f);
+            badge.anchoredPosition = new Vector2(-bw * 0.5f - 3f, 15f);   // 마스크 라운드 모서리 피해 살짝 안쪽
+            Img(badge, RoundedFallback(7), new Color(0f, 0f, 0f, 0.62f));
+            Txt(badge, "x" + count, 11f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
+        }
+    }
+
+    private static ItemDataSheetData GetItemById(string itemId)
+    {
+        if (string.IsNullOrEmpty(itemId)) return null;
+        return GameDataHolder.I.ItemData.TryGet(itemId, out var d) ? d : null;
+    }
+
+    // 기존 튜토 본문 강조는 어두운 팝업용 골드(#FFCC00)라 라이트 패널선 안 읽힘.
+    // 강조 위치/구조는 그대로 두고 색만 라이트 배경서 읽히는 블루로 치환(복붙 유지).
+    private static string AdaptEmphasis(string s)
+        => string.IsNullOrEmpty(s) ? s : s.Replace("#FFCC00", "#1E78C8").Replace("#ffcc00", "#1E78C8");
+
+    // ── 패널 데코 (불투명 흰면 위에 직접 - 빈 느낌 제거) ───────────
+    // 패널이 불투명이라 뒤 배경이 안 비침 -> root에 깔던 emblem/speck은 죽은 코드였음.
+    // 등고선/그라데이션/코너 브래킷을 패널 자식(index 앞)으로 둬서 내용 밑에 깔리게 함.
+    private void BuildPanelDecor(RectTransform panel)
+    {
+        var decor = Make("Decor", panel, Vector2.zero, Vector2.one, new Vector2(16f, 16f), new Vector2(-16f, -16f));
+
+        // 1) 하단 음영 그라데이션 - 평평한 흰면에 깊이감
+        var grad = Make("Grad", decor, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Deco(grad, GradSprite(), new Color32(96, 112, 132, 255));
+
+        // 2) 등고선 텍스처(엔필 시그니처) - 좌하단 크게 + 우상단 작게
+        var c1 = Make("ContourBL", decor, new Vector2(0f, 0f), new Vector2(0f, 0f), Vector2.zero, Vector2.zero);
+        c1.sizeDelta = new Vector2(680f, 680f); c1.anchoredPosition = new Vector2(150f, 150f);
+        Deco(c1, ContourSprite(), new Color32(96, 150, 196, 52));
+        var c2 = Make("ContourTR", decor, new Vector2(1f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+        c2.sizeDelta = new Vector2(460f, 460f); c2.anchoredPosition = new Vector2(-150f, -150f);
+        Deco(c2, ContourSprite(), new Color32(96, 150, 196, 34));
+
+        // 3) 본문 영역 코너 브래킷 4개 - 헤더선 아래부터 (헤더 텍스트와 안 겹치게)
+        Color brk = new Color32(96, 150, 196, 120);
+        CornerBracket(panel, 0, 1, brk);
+        CornerBracket(panel, 1, 1, brk);
+        CornerBracket(panel, 0, 0, brk);
+        CornerBracket(panel, 1, 0, brk);
+    }
+
+    // cx: 0=좌 1=우, cy: 0=하 1=상. ix/iy = 코너서 안쪽 여백, arm = 팔 길이.
+    private void Bracket(RectTransform parent, int cx, int cy, float ix, float iy, float arm, float thick, Color col)
+    {
+        var anchor = new Vector2(cx, cy);
+        float px = cx == 0 ? ix : -ix;
+        float py = cy == 1 ? -iy : iy;
+
+        var h = Make("brkH", parent, anchor, anchor, Vector2.zero, Vector2.zero);
+        h.sizeDelta = new Vector2(arm, thick);
+        h.anchoredPosition = new Vector2(px + (cx == 0 ? arm * 0.5f : -arm * 0.5f), py);
+        Deco(h, null, col);
+
+        var v = Make("brkV", parent, anchor, anchor, Vector2.zero, Vector2.zero);
+        v.sizeDelta = new Vector2(thick, arm);
+        v.anchoredPosition = new Vector2(px, py + (cy == 1 ? -arm * 0.5f : arm * 0.5f));
+        Deco(v, null, col);
+    }
+
+    // 본문 영역 코너(헤더선 아래부터)
+    private void CornerBracket(RectTransform panel, int cx, int cy, Color col)
+        => Bracket(panel, cx, cy, 20f, cy == 1 ? 104f : 18f, 38f, 2f, col);
+
+    // 어두운 뷰포트(영상/렌더 박스) 틀 - 내부 코너 브래킷 + (옵션)REC readout.
+    // 실제 영상/렌더가 박스를 덮으므로 내부 텍스처(스캔라인)는 안 넣음(무의미).
+    private void DecorateDarkViewport(RectTransform media, bool withReadout)
+    {
+        Color b = new Color(1f, 1f, 1f, 0.22f);
+        Bracket(media, 0, 1, 10f, 10f, 22f, 2f, b);
+        Bracket(media, 1, 1, 10f, 10f, 22f, 2f, b);
+        Bracket(media, 0, 0, 10f, 10f, 22f, 2f, b);
+        Bracket(media, 1, 0, 10f, 10f, 22f, 2f, b);
+
+        if (withReadout)
+        {
+            var dot = Make("rdot", media, new Vector2(1f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            dot.sizeDelta = new Vector2(6f, 6f); dot.anchoredPosition = new Vector2(-92f, -19f);
+            Deco(dot, UISpriteFactory.Disc(16), C32(224, 96, 96));
+            Txt(Make("rtx", media, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-84f, -27f), new Vector2(-14f, -11f)),
+                "REC 432.500", 10f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.45f), TextAlignmentOptions.Right);
+        }
+    }
+
+    // ── 헬퍼 (전부 RectTransform 받음) ─────────────────────────────
+    static Color C32(byte r, byte g, byte b) => new Color32(r, g, b, 255);
+
+    static RectTransform Make(string name, Transform parent, Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax)
     {
         var go = new GameObject(name, typeof(RectTransform));
         var rt = (RectTransform)go.transform;
         rt.SetParent(parent, false);
         rt.anchorMin = aMin; rt.anchorMax = aMax;
         rt.offsetMin = offMin; rt.offsetMax = offMax;
-        return go;
+        return rt;
     }
 
-    private void MakeTab(Transform parent, string label, bool selected)
+    static RectTransform NewChild(string name, Transform parent)
     {
-        var go = new GameObject("Tab_" + label, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        go.AddComponent<Image>().color = selected ? TabSelColor : TabColor;
-        var le = go.AddComponent<LayoutElement>();
-        le.preferredWidth = 160f; le.minWidth = 160f;
-        AddLabel(go.transform, label, selected ? TextColor : DimText, 24f);
-    }
-
-    private void AddLabel(Transform parent, string text, Color color, float size)
-    {
-        var go = new GameObject("Label", typeof(RectTransform));
+        var go = new GameObject(name, typeof(RectTransform));
         var rt = (RectTransform)go.transform;
         rt.SetParent(parent, false);
-        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
-        var t = go.AddComponent<TextMeshProUGUI>();
-        t.text = text;
-        t.color = color;
-        t.fontSize = size;
-        t.alignment = TextAlignmentOptions.Center;
-        t.raycastTarget = false;
-        t.enableWordWrapping = true;
+        return rt;
+    }
+
+    static Image Img(RectTransform rt, Sprite spr, Color col)
+    {
+        var img = rt.gameObject.GetComponent<Image>();
+        if (img == null) img = rt.gameObject.AddComponent<Image>();
+        img.sprite = spr;
+        img.color = col;
+        // 9-slice 보더가 있는 스프라이트(RoundedRect/panel_ash/scrollbar 등)는 Sliced -> 늘려도 모서리 안 깨짐.
+        bool hasBorder = spr != null && (spr.border.x + spr.border.y + spr.border.z + spr.border.w) > 0f;
+        img.type = hasBorder ? Image.Type.Sliced : Image.Type.Simple;
+        img.raycastTarget = true;
+        return img;
+    }
+
+    TMP_Text Txt(RectTransform rt, string txt, float size, FontStyles style, Color col, TextAlignmentOptions align)
+    {
+        // 한 GameObject에 Image + TMP_Text 를 같이 두면 그래픽 충돌로 NRE. 이미 그래픽 있으면 자식에 생성.
+        if (rt.GetComponent<Graphic>() != null)
+            rt = Make("txt", rt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
+        if (_font != null) t.font = _font;
+        t.text = txt; t.fontSize = size; t.fontStyle = style; t.color = col;
+        t.alignment = align; t.raycastTarget = false; t.enableWordWrapping = false;
+        t.overflowMode = TextOverflowModes.Overflow;
+        return t;
+    }
+
+    static void Btn(RectTransform rt, UnityEngine.Events.UnityAction onClick)
+    {
+        var img = rt.gameObject.GetComponent<Image>();
+        if (img != null) img.raycastTarget = true;
+        var btn = rt.gameObject.AddComponent<Button>();
+        btn.transition = Selectable.Transition.None;
+        btn.onClick.AddListener(onClick);
+    }
+
+    static void Line(RectTransform rt, Color col, float width = 1f)
+    {
+        // 프로젝트에 3D용 커스텀 Outline(QuickOutline)이 있어 이름 충돌 -> uGUI 외곽선은 풀네임으로.
+        var o = rt.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        o.effectColor = col;
+        o.effectDistance = new Vector2(width, -width);
+    }
+
+    static void ClearChildren(RectTransform rt)
+    {
+        if (rt == null) return;
+        for (int i = rt.childCount - 1; i >= 0; i--) Destroy(rt.GetChild(i).gameObject);
+    }
+
+    static Sprite Codex(string name) => Resources.Load<Sprite>("Codex/" + name);
+    static Sprite RoundedFallback(int radius) => UISpriteFactory.RoundedRect(Mathf.Max(16, radius * 3), radius);
+
+    // 데코용 Img(클릭 안 막게 raycast 끔)
+    static Image Deco(RectTransform rt, Sprite spr, Color col)
+    {
+        var im = Img(rt, spr, col);
+        im.raycastTarget = false;
+        return im;
+    }
+
+    // ── 절차생성 텍스처 (런타임 1회 생성 후 캐시. 흰색으로 그려 Image.color로 틴트) ──
+    static Sprite _contour;
+    static Sprite _grad;
+
+    // 등고선(지형도 풍) - 중심에서 방사 + 각도 웨이브로 물결치는 동심 라인
+    static Sprite ContourSprite()
+    {
+        if (_contour != null) return _contour;
+        const int N = 256;
+        var tex = new Texture2D(N, N, TextureFormat.RGBA32, false)
+        { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+        var px = new Color32[N * N];
+        float c = N * 0.5f;
+        for (int y = 0; y < N; y++)
+        {
+            for (int x = 0; x < N; x++)
+            {
+                float dx = (x - c) / c, dy = (y - c) / c;
+                float ang = Mathf.Atan2(dy, dx);
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float warp = 0.06f * Mathf.Sin(ang * 3f) + 0.04f * Mathf.Sin(ang * 5f + 1.3f);
+                float v = (dist + warp) * 7f;                 // 동심 밴드 수
+                float band = Mathf.Abs(v - Mathf.Round(v));   // 밴드 경계서 0
+                float lineA = Mathf.Clamp01(1f - band / 0.07f);
+                float fade = Mathf.Clamp01(1f - dist);        // 텍스처 가장자리서 사라지게
+                byte a = (byte)(lineA * fade * 255f);
+                px[y * N + x] = new Color32(255, 255, 255, a);
+            }
+        }
+        tex.SetPixels32(px); tex.Apply();
+        _contour = Sprite.Create(tex, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f));
+        return _contour;
+    }
+
+    // 세로 그라데이션 - 아래로 갈수록 진해짐(하단 음영용). 흰색 a값만 그라데이션.
+    static Sprite GradSprite()
+    {
+        if (_grad != null) return _grad;
+        const int H = 64;
+        var tex = new Texture2D(2, H, TextureFormat.RGBA32, false)
+        { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+        var px = new Color32[2 * H];
+        for (int y = 0; y < H; y++)
+        {
+            float t = 1f - y / (float)(H - 1);   // y=0(텍스처 하단)서 1
+            byte a = (byte)(t * t * 70f);
+            var col = new Color32(255, 255, 255, a);
+            px[y * 2] = col; px[y * 2 + 1] = col;
+        }
+        tex.SetPixels32(px); tex.Apply();
+        _grad = Sprite.Create(tex, new Rect(0, 0, 2, H), new Vector2(0.5f, 0.5f));
+        return _grad;
     }
 }

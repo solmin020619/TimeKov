@@ -49,6 +49,29 @@ public static class GameDataUtility
         return null;
     }
 
+    // 몬스터(sourceId)의 드롭 목록 반환. itemId 는 DropTable 복합키 SheetId("dropId_itemId")서 파싱.
+    // 확률 = dropWeight 비율(호출부서 합산해 계산).
+    public static List<(int itemId, int weight, int tier, int minCount, int maxCount)> GetMonsterDrops(string sourceId)
+    {
+        var result = new List<(int, int, int, int, int)>();
+        if (string.IsNullOrEmpty(sourceId)) return result;
+        string id = sourceId.Trim();
+
+        foreach (var row in GameDataHolder.I.DropTable.All)
+        {
+            if (row.sourceType != SourceType.Monster) continue;
+            string rowId = row.sourceId != null ? row.sourceId.Trim() : "";
+            if (rowId != id) continue;
+
+            string key = row.SheetId;
+            int u = string.IsNullOrEmpty(key) ? -1 : key.LastIndexOf('_');
+            if (u < 0 || u + 1 >= key.Length) continue;
+            if (int.TryParse(key.Substring(u + 1), out int itemId) && itemId > 0)
+                result.Add((itemId, row.dropWeight, row.dropTier, row.minCount, row.maxCount));
+        }
+        return result;
+    }
+
     // recipeId 의 입력 재료를 (itemId, count) 목록으로 반환.
     // RecipeInputData 는 개별 필드 없이 복합키 SheetId("recipeId_inputItemId")만 가지므로
     // 복합키 파싱을 이 메서드 한 곳에 집중한다 (recipeId/itemId 자체엔 '_' 없음).

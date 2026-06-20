@@ -7,6 +7,9 @@ public class EnemyDropOnDeath : MonoBehaviour
     [Tooltip("DropTable의 sourceId — 이 몬스터의 드롭 출처 ID (예: MeleeBot_Ghoul)")]
     [SerializeField] private string sourceId;
 
+    /// <summary>도감 등 외부에서 이 몬스터의 드롭 출처 ID 조회용</summary>
+    public string SourceId => sourceId;
+
     [Tooltip("스폰할 박스 프리팹 (LootBox 컴포넌트 포함)")]
     [SerializeField] private GameObject boxPrefab;
 
