@@ -241,11 +241,22 @@ namespace TIMEKOV.Factory
             _loopSound?.StopProduction(playDoneSound: true);   // 생산 완료 → 루프 OFF + 완료음 1회
             _animEffect?.StopProduction();                     // 생산 완료 → 애니메이션·이펙트 부드럽게 OFF
 
+            // 레시피 제작 진행도 +1 (한 번 제작 = +1, 출력 개수 무관). 마스터(10회) 후 도감서 잭팟 활성화해야 발동.
+            RecipeProgress.RecordCraft(recipe.recipeId);
+            bool jackpotOn = RecipeProgress.IsJackpotActive(recipe.recipeId);
+
             foreach (var output in recipe.outputs)
             {
-                // 퀘스트 시스템 통지 (Dispatch 전 = 가공 완료 시점)
-                GameEvents.RaiseFacilityProcessComplete(FacilityId, output.itemId, output.amount);
-                Dispatch(output.itemId, output.amount);
+                int amount = output.amount;
+                // 잭팟: 활성화된 레시피는 일정 확률로 2배 제작
+                if (jackpotOn && Random.value < RecipeProgress.JackpotChance)
+                {
+                    amount *= 2;
+                    RecipeProgress.RaiseJackpot(FacilityId, output.itemId, transform.position);
+                }
+                // 퀘스트 시스템 통지 (Dispatch 전 = 가공 완료 시점). 실제 산출 개수로 통지.
+                GameEvents.RaiseFacilityProcessComplete(FacilityId, output.itemId, amount);
+                Dispatch(output.itemId, amount);
             }
 
             // 같은 레시피 output이면 쌓아두면서 계속 생산, 다른 아이템이면 대기

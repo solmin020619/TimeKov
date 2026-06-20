@@ -20,6 +20,8 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     [SerializeField] private GameObject hintUI;
     [Tooltip("힌트 UI / 아웃라인 표시 거리 (m)")]
     [SerializeField] private float hintRadius = 3f;
+    [Tooltip("범위 경계에서 들어왔다 나갔다 할 때 깜빡이는 것을 막기 위한 여유 거리(m). 한 번 '근접'으로 판정되면 hintRadius + 이 값을 벗어나야 '근접 해제'로 바뀜.")]
+    [SerializeField] private float nearExitBuffer = 0.4f;
 
     [Header("해금 대기 / 즉시완료 (파밍 상자와 동일)")]
     [Tooltip("F로 걸어두면 이 시간(초) 뒤 '해금 가능'이 된다. 자리를 비워도 카운트됨.")]
@@ -147,8 +149,10 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
                        && GameUIController.Instance.IsUIBlocking();
 
         float distToPlayer = Vector3.Distance(transform.position, _playerTransform.position);
+        // 경계에서 미세하게 들어왔다 나갔다 해도 깜빡이지 않도록 히스테리시스 적용.
+        float effectiveRadius = _playerNearby ? hintRadius + nearExitBuffer : hintRadius;
         bool nearby = !uiBlocking
-                   && distToPlayer <= hintRadius
+                   && distToPlayer <= effectiveRadius
                    // 아주 가까우면 시야 체크 생략 (근접 시 레이가 막혀 힌트가 꺼지는 문제 방지)
                    && (distToPlayer <= lineOfSightSkipDistance || HasLineOfSight());
 
@@ -183,6 +187,8 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
 
     // ── IInteractable (F 상호작용) ────────────────────────────────
     // 해금 안 됐고 해금 연출 중이 아니면 항상 상호작용 가능 (Opening 중에도 G 디스패치 위해 true 유지)
+    // 주의: 퀘스트 화살표(UpdateUnlockArrow)도 이 값을 쓰며 "거리 무관 — 멀리서도 찾게" 동작해야
+    // 하므로 여기엔 거리 조건을 넣지 않는다. F/G의 실제 거리 게이트는 Interact/OnInstantComplete에서 처리.
     public bool CanInteract =>
         !_collected && !_interacting
         && FacilityUnlockManager.Instance != null
@@ -191,6 +197,9 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     public void Interact(Player player)
     {
         if (!CanInteract || player == null) return;
+        // F가 통하는 거리와 힌트 UI가 뜨는 거리를 일치시킨다(물리 콜라이더 형태 때문에
+        // PlayerInteractComponent의 OverlapSphere가 hintRadius 밖에서도 감지하는 경우 방지).
+        if (!_playerNearby) return;
 
         switch (_state)
         {
@@ -198,6 +207,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
                 _state = State.Opening;   // F로 걸어두기
                 _timer = openTimeSeconds;
                 ToastManager.Info("해금을 시작합니다.");
+                GameSfx.Play(SfxId.FacilityUnlockStart);   // 설비 해금 시작음
                 RefreshIndicator();
                 break;
 
@@ -216,6 +226,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     {
         if (player == null) return false;
         if (_state != State.Idle && _state != State.Opening) return false;
+        if (!_playerNearby) return false;   // F와 동일하게 힌트 UI 표시 거리에 맞춰 게이트
         return player.Stat.CurrentHp > InstantCost; // 비용보다 많아야 (즉시완료로 죽지 않게)
     }
 
@@ -235,6 +246,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     {
         if (_interacting) return;
         _interacting = true;
+        GameSfx.Play(SfxId.FacilityUnlockComplete);   // 설비 해금 완료음(F/G 둘 다 여기 경유)
         _arrowShown = false;
         TimeKov.UI.HintArrowManager.I?.Hide("facility_pickup_" + facilityId);
         HideIndicator();

@@ -29,14 +29,22 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     [Tooltip("즉시완료(G) 시 소모 HP = 해금까지 '남은 시간' * 이 배율. 배율 2면 20초 남았을 때 40HP(=40초) 소모, 시간이 줄면 비용도 함께 줄어든다.")]
     [SerializeField] private float instantHpCostMultiplier = 2f;
 
+    [Header("리젠 (파밍 후 사라졌다 재등장)")]
+    [Tooltip("다 비운 상자가 사라진 뒤 이 시간(초) 후 새 상자로 재등장(Idle 복귀 - 처음부터 다시 까야 함).")]
+    [SerializeField] private float respawnSeconds = 300f;
+
     [Header("프롬프트")]
     [SerializeField] private float promptRange = 2.6f;
+    [Tooltip("범위 경계에서 들어왔다 나갔다 할 때 깜빡이는 것을 막기 위한 여유 거리(m). 한 번 '근접'으로 판정되면 promptRange + 이 값을 벗어나야 '근접 해제'로 바뀜.")]
+    [SerializeField] private float nearExitBuffer = 0.4f;
 
     // ── 상태 ──────────────────────────────────────────────────────────
-    // Idle=잠김(걸어두기 전) / Opening=자물쇠 따는 중 / Ready=수령 가능 / Opened=잠금해제(자유 개폐, 재굴림 안 함)
-    private enum State { Idle, Opening, Ready, Opened }
+    // Idle=잠김(걸어두기 전) / Opening=자물쇠 따는 중 / Ready=수령 가능 / Opened=잠금해제(자유 개폐, 재굴림 안 함) / Depleted=다 비워 사라짐(리젠 대기)
+    private enum State { Idle, Opening, Ready, Opened, Depleted }
     private State _state = State.Idle;
     private float _timer;
+    private Collider[] _colliders;   // 리젠 동안 사라진 자리 통과 가능하게 토글
+    private Renderer[] _renderers;   // 소멸 시 메시 숨김(closedVisual/openedVisual 미할당이어도 확실히 사라지게)
 
     // 공용 상자 인벤(ChestInstance)을 현재 점유한 상자. 다른 상자를 열면 소유권이 넘어간다.
     private static ChestInteractable _activeChest;
@@ -51,7 +59,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     private float InstantCost => Mathf.Max(0f, RemainingSeconds * instantHpCostMultiplier);
 
     private Player  _player;
-    private Outline _outline;
 
     [Header("강조 발광 (가까이 가면 상자가 노랗게 맥동 — 큰 오브젝트용)")]
     [SerializeField] private Color glowColor        = new Color(1f, 0.85f, 0.1f);
@@ -65,12 +72,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
 
     private void Awake()
     {
-        _outline = GetComponentInChildren<Outline>(true);
-        if (_outline == null)
-            _outline = gameObject.AddComponent<Outline>();
-        // 통일된 아웃라인 스타일(노란색·OutlineAll·두께) 적용 — 풀에 가려도 보이도록.
-        InteractOutline.Apply(_outline);
-        _outline.enabled      = false;
+        _colliders = GetComponentsInChildren<Collider>(true);
+        _renderers = GetComponentsInChildren<Renderer>(true);
     }
 
     private void Start()
@@ -79,13 +82,16 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         SetupGlow();
     }
 
-    // 인벤토리 UI 열려있을 때만 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
+    // 인벤토리 UI가 열려있거나 promptRange 밖이면 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
     public bool CanInteract
     {
         get
         {
             var inv = InventoryUIController.Instance;
-            return inv == null || !inv.IsOpen;
+            if (inv != null && inv.IsOpen) return false;
+            // 프롬프트 UI가 뜨는 거리와 F가 통하는 거리를 일치시킨다(물리 콜라이더 형태 때문에
+            // OverlapSphere가 promptRange 밖에서도 감지하는 경우가 있어, 여기서 최종 거리 검증).
+            return IsPlayerNear();
         }
     }
 
@@ -105,6 +111,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
                 _state = State.Opening;       // F로 걸어두기
                 _timer = openTimeSeconds;
                 SetVisual(false);
+                GameSfx.Play(SfxId.ChestOpenStart);   // 상자 열기 시작음
                 break;
 
             case State.Opening:
@@ -148,14 +155,26 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         if (_state == State.Opening)
         {
             _timer -= Time.deltaTime;
-            if (_timer <= 0f) { _timer = 0f; _state = State.Ready; }
+            if (_timer <= 0f) { _timer = 0f; _state = State.Ready; GameSfx.Play(SfxId.ChestOpenComplete); }   // 상자 열기 완료음(잠금 풀림)
         }
-        // Opened(잠금해제)는 절대 Idle로 안 돌아간다 = 재굴림 없음(다 비우면 빈 채로 유지).
+        else if (_state == State.Opened && !HasItems()
+                 && !(InventoryUIController.IsChestOpen && _activeChest == this))
+        {
+            // 다 비운 상자 -> 패널 닫은 뒤 사라지고 리젠 대기(한 번 판 상자는 그 자리서 소멸).
+            EnterDepleted();
+        }
+        else if (_state == State.Depleted)
+        {
+            _timer -= Time.deltaTime;
+            if (_timer <= 0f) Respawn();   // 새 상자로 재등장(Idle)
+        }
+
         bool near = IsPlayerNear();
         RefreshIndicator(near);
-        bool highlight = near && !(_state == State.Opened && !HasItems());
-        UpdateOutline(highlight);
-        UpdateGlow(highlight);
+        bool highlight = near && _state != State.Depleted && !(_state == State.Opened && !HasItems());
+        // 해금 중엔 범위 밖이어도 연한 펄스로 표시 유지.
+        bool openingRemote = _state == State.Opening && !near;
+        UpdateGlow(highlight, openingRemote);
     }
 
     // ── 수령: 자물쇠 따서 전리품 1회만 굴림 + 패널. 이후 이 상자는 잠금해제(재굴림 없음). ──
@@ -218,11 +237,40 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         if (openedVisual != null) openedVisual.SetActive(opened);
     }
 
+    // 다 비운 상자: 사라짐(비주얼 둘 다 숨김 + 콜라이더 off로 자리 통과 가능) + 리젠 타이머 시작.
+    private void EnterDepleted()
+    {
+        _state = State.Depleted;
+        _timer = respawnSeconds;
+        _contents = null;
+        if (_activeChest == this) _activeChest = null;
+        if (closedVisual != null) closedVisual.SetActive(false);
+        if (openedVisual != null) openedVisual.SetActive(false);
+        if (_colliders != null)
+            foreach (var c in _colliders) if (c != null) c.enabled = false;
+        if (_renderers != null)
+            foreach (var r in _renderers) if (r != null) r.enabled = false;   // 메시 숨김(비주얼 미할당이어도 확실히 사라지게)
+        UpdateGlow(false);
+        ChestPromptUI.Instance?.HideIfOwner(this);
+    }
+
+    // 리젠: 새 상자로 다시 등장(Idle = 잠김). 처음부터 다시 까야 함 = 새로운 상자 개념.
+    private void Respawn()
+    {
+        _state = State.Idle;
+        _timer = 0f;
+        _contents = null;
+        if (_colliders != null)
+            foreach (var c in _colliders) if (c != null) c.enabled = true;
+        if (_renderers != null)
+            foreach (var r in _renderers) if (r != null) r.enabled = true;   // 메시 복귀
+        SetVisual(false);   // closedVisual on(잠긴 새 상자), openedVisual off
+    }
+
     private void OnDisable()
     {
         // 씬 종료/비활성 중엔 GetOrCreate 로 새로 만들지 말 것(정리 안 됨 에러). 있을 때만 숨김.
         ChestPromptUI.Instance?.HideIfOwner(this);
-        if (_outline != null) _outline.enabled = false;
         if (_glowOn) UpdateGlow(false);   // 발광 켜진 채 남지 않도록 원복
     }
 
@@ -263,13 +311,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         }
     }
 
-    private void UpdateOutline(bool show)
-    {
-        if (_outline == null) return;
-        if (show) InteractOutline.Enable(_outline);   // 통일 스타일 재적용 + 켜기
-        else if (_outline.enabled) _outline.enabled = false;
-    }
-
     // ── 강조 발광 (B 방안) ────────────────────────────────────────────────
     // 가까이 가면 상자 메시가 노란빛으로 은은하게 맥동 → 큰 오브젝트에서 확실히 보임.
 
@@ -293,7 +334,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         _glowOrigEmission = orig.ToArray();
     }
 
-    private void UpdateGlow(bool show)
+    private void UpdateGlow(bool show, bool pale = false)
     {
         if (_glowMats == null || _glowMats.Length == 0) return;
 
@@ -306,6 +347,14 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
                 _glowMats[i].SetColor("_EmissionColor", _glowOrigEmission[i] + add);
             _glowOn = true;
         }
+        else if (pale)
+        {
+            // 해금 중 범위 밖 — 맥동 없이 연하게 고정 발광.
+            Color add = glowColor * (glowMinIntensity * 0.6f);
+            for (int i = 0; i < _glowMats.Length; i++)
+                _glowMats[i].SetColor("_EmissionColor", _glowOrigEmission[i] + add);
+            _glowOn = true;
+        }
         else if (_glowOn)
         {
             for (int i = 0; i < _glowMats.Length; i++)
@@ -314,10 +363,16 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         }
     }
 
+    // 경계에서 미세하게 들어왔다 나갔다 해도 깜빡이지 않도록 히스테리시스 적용.
+    // 이미 근접 상태면 promptRange + nearExitBuffer를 벗어나야 비로소 해제된다.
+    private bool _near;
+
     private bool IsPlayerNear()
     {
-        if (_player == null) return false;
-        return (_player.transform.position - transform.position).sqrMagnitude <= promptRange * promptRange;
+        if (_player == null) { _near = false; return false; }
+        float range = _near ? promptRange + nearExitBuffer : promptRange;
+        _near = (_player.transform.position - transform.position).sqrMagnitude <= range * range;
+        return _near;
     }
 
     // 현재 이 상자에 남아있는 아이템이 있는지 확인

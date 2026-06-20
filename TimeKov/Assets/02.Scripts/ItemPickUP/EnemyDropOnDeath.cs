@@ -40,6 +40,8 @@ public class EnemyDropOnDeath : MonoBehaviour
 
     private void HandleDeath()
     {
+        CodexDiscovery.DiscoverMonster(sourceId);   // 도감: 처치 시 발견 기록(드롭 유무와 무관)
+
         if (boxPrefab == null)
         {
             Debug.LogWarning("[Drop] boxPrefab이 비어 있음");

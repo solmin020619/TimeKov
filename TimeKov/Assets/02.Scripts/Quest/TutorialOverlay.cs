@@ -107,6 +107,7 @@ public class TutorialOverlay : MonoBehaviour
     /// <summary>안내 단계 표시: 배너 + 스포트라이트 + 계속(클릭 또는 지정 키).</summary>
     public void ShowContinueStep(string banner, string spotlightTargetId, Action onContinue, KeyCode advanceKey = KeyCode.None)
     {
+        GameSfx.Play(SfxId.TutorialHighlight);   // 특정 부분 강조(코치마크/스포트라이트) 등장음
         _spotlightId = spotlightTargetId;
         _onContinue = onContinue;
         _advanceKey = advanceKey;

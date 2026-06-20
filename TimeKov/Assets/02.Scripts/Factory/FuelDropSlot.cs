@@ -30,7 +30,7 @@ public class FuelDropSlot : MonoBehaviour,
 
     [Header("빈 슬롯 미리보기")]
     [Tooltip("연료가 없을 때 연료 아이템을 검은색 실루엣으로 미리 표시하는 색상.")]
-    [SerializeField] private Color emptySilhouetteColor = new Color(0f, 0f, 0f, 0.6f);
+    [SerializeField] private Color emptySilhouetteColor = new Color(0f, 0f, 0f, 1f);
 
     // ── 드래그 아웃 static 상태 (InventoryPanelDropZone이 읽어감) ──────
     public static bool             IsFuelDragging { get; private set; }

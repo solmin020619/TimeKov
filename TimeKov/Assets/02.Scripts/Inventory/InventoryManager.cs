@@ -30,6 +30,10 @@ public class InventoryManager : MonoBehaviour
     // static — 구독자(AcquireLogUI 등)가 Instance 생성 타이밍에 의존하지 않게.
     public static event Action<int, int> OnItemAddedToInventory;
 
+    // [창고 입고] 아이템이 창고(Storage)에 들어왔을 때 발생 (itemId, 실제 추가된 수량).
+    // 벨트->창고 자동입고/철거 환급 등 가방 안 거치고 창고로 직행하는 경로. 아이템 도감(ItemDiscovery)이 구독.
+    public static event Action<int, int> OnItemAddedToStorage;
+
     // Player 인벤토리 싱글톤
     public static InventoryManager Instance { get; private set; }
 
@@ -142,6 +146,9 @@ public class InventoryManager : MonoBehaviour
             // [획득 로그] Player 인벤에 실제로 들어온 분량만 통지. Storage(창고)는 제외.
             if (ownerType == InventoryOwnerType.Player)
                 OnItemAddedToInventory?.Invoke(itemId, added);
+            // [창고 입고] 창고로 직행한 분량 통지(아이템 도감 획득 추적용).
+            else if (ownerType == InventoryOwnerType.Storage)
+                OnItemAddedToStorage?.Invoke(itemId, added);
         }
 
         return remaining;

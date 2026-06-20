@@ -285,6 +285,7 @@ public class TutorialVideoUI : MonoBehaviour
     {
         if (_pages == null || _pages.Length == 0) return;
         var p = _pages[_page];
+        CodexDiscovery.WatchTutorial(p.title);   // 도감: 이 영상 페이지를 봤다고 기록(제목 기준)
         int n = _pages.Length;
 
         if (_pageCount != null)

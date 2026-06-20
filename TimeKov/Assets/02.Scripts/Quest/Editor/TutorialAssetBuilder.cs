@@ -108,7 +108,7 @@ public static class TutorialAssetBuilder
             CreateGuidedTour("obj_intro_tour",
                 TourStep($"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. 시간이 {Y}0{E}이 되면 사망합니다.", TargetTimeBar),
                 TourStep($"{Y}스태미나{E}입니다. {Y}달리기{E}나 {Y}대시{E}를 쓰면 줄고, {Y}멈추거나 걸으면{E} 다시 찹니다. 바닥나면 잠시 달리기나 대시를 쓸 수 없어요.", TargetStaminaBar),
-                TourStep($"우상단 메뉴 - {Y}TAB{E}: 인벤토리 / {Y}B{E}: 건설 모드 / {Y}ESC{E}: 설정.", TargetMenuIcons),
+                TourStep($"우상단 메뉴 - {Y}K{E}: 도감 / {Y}TAB{E}: 인벤토리 / {Y}B{E}: 건설 모드 / {Y}ESC{E}: 설정.", TargetMenuIcons),
                 TourStep($"{Y}C{E} 키를 눌러 {Y}스탯 창{E}을 열어보세요.", TargetStatButton, KeyCode.C),
                 TourStep($"여기서 {Y}최대 시간{E}·{Y}스태미나{E}·{Y}공격력{E}·{Y}방어력{E}을 확인합니다. {Y}코어 강화{E}로 최대 시간을, {Y}앰플 제작{E}으로 나머지 스탯을 올릴 수 있어요. {Y}C{E}로 언제든 여닫을 수 있습니다.", TargetStatPanel),
                 TourStep($"우하단 {Y}스킬{E} 3개 - {Y}Q·E·R{E}로 사용하고, 쓰고 나면 {Y}쿨타임{E}이 끝나야 다시 쓸 수 있어요.", TargetSkillsAll))));
@@ -116,11 +116,11 @@ public static class TutorialAssetBuilder
         // ============================================================
         // 조작 - 자명한 입력은 좌측 텍스트만
         // ============================================================
+        // 대시(우클릭)는 코어 1강에 해금되므로 초반 기본조작 튜토에선 제외(0강엔 잠겨있어 안내가 모순).
         quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
             CreateMoveDistance("obj_move", $"{Y}WASD{E}로 {Y}이동{E}하세요.", 3f),
             CreatePressKey("obj_jump", $"{Y}Space{E}로 {Y}점프{E}하세요.", KeyCode.Space, 1),
-            CreatePressKey("obj_run", $"{Y}Shift{E}로 {Y}달리기{E} (스태미나를 소모합니다)", KeyCode.LeftShift, 1),
-            CreatePressKey("obj_dash", $"{Y}우클릭{E}으로 {Y}대시{E} (스태미나를 소모합니다)", KeyCode.Mouse1, 1)));
+            CreatePressKey("obj_run", $"{Y}Shift{E}로 {Y}달리기{E} (스태미나를 소모합니다)", KeyCode.LeftShift, 1)));
 
         quests.Add(BuildQuest("quest_tut_01b_reach_hunt", "사냥터로 이동",
             CreateReachTrigger("obj_reach_enemy", $"결계 밖 {Y}사냥터{E}로 {Y}이동{E}하세요. (결계 밖에선 {Y}시간{E}이 줄기 시작합니다)", "enemy")));
