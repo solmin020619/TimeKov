@@ -111,6 +111,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
                 _state = State.Opening;       // F로 걸어두기
                 _timer = openTimeSeconds;
                 SetVisual(false);
+                GameSfx.Play(SfxId.ChestOpenStart);   // 상자 열기 시작음
                 break;
 
             case State.Opening:
@@ -154,7 +155,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         if (_state == State.Opening)
         {
             _timer -= Time.deltaTime;
-            if (_timer <= 0f) { _timer = 0f; _state = State.Ready; }
+            if (_timer <= 0f) { _timer = 0f; _state = State.Ready; GameSfx.Play(SfxId.ChestOpenComplete); }   // 상자 열기 완료음(잠금 풀림)
         }
         else if (_state == State.Opened && !HasItems()
                  && !(InventoryUIController.IsChestOpen && _activeChest == this))

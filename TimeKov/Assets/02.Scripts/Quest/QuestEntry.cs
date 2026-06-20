@@ -216,6 +216,8 @@ public class QuestEntry : MonoBehaviour
     // 높이는 CSF chain이 자동 결정.
     void SlideInAndActivate()
     {
+        GameSfx.Play(SfxId.QuestStart);   // 퀘스트 시작음(새 퀘스트 슬라이드 등장 시)
+
         // root는 항상 보임 (페이드 X)
         var rootCg = GetComponent<CanvasGroup>();
         if (rootCg != null) rootCg.alpha = 1f;

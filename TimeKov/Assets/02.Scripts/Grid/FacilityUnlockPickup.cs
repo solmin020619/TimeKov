@@ -198,6 +198,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
                 _state = State.Opening;   // F로 걸어두기
                 _timer = openTimeSeconds;
                 ToastManager.Info("해금을 시작합니다.");
+                GameSfx.Play(SfxId.FacilityUnlockStart);   // 설비 해금 시작음
                 RefreshIndicator();
                 break;
 
@@ -235,6 +236,7 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     {
         if (_interacting) return;
         _interacting = true;
+        GameSfx.Play(SfxId.FacilityUnlockComplete);   // 설비 해금 완료음(F/G 둘 다 여기 경유)
         _arrowShown = false;
         TimeKov.UI.HintArrowManager.I?.Hide("facility_pickup_" + facilityId);
         HideIndicator();
