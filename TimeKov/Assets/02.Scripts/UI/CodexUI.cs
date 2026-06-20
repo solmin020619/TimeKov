@@ -113,9 +113,7 @@ public class CodexUI : MonoBehaviour
     private int _tab = 1;   // 시작 = 몬스터(중간 상태 mock 확인용)
     private int _sel = 0;
     private int _highlightOutputItemId;   // 출처점프 시 강조할 결과물 아이템(그 레시피 행을 지속 강조). 0=없음
-    private RectTransform _vLine;         // 좌/우 구분선(아이템 탭에선 숨김)
-    private RectTransform _panel;         // 패널 루트(아이템 박스 부모)
-    private RectTransform _itemBox;       // 아이템 도감 전체폭 컨테이너(7분류 헤더 + 그리드)
+    private RectTransform _vLine;         // 좌/우 구분선(모든 탭 공통)
     private RectTransform _itemGrid;      // 아이템 카드 그리드 콘텐츠
     private int _itemCatIndex = 0;        // 아이템 분류 필터(0=전체, 1~6=카테고리)
 
@@ -238,7 +236,6 @@ public class CodexUI : MonoBehaviour
 
         _listBox = Make("ListBox", panel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(30f, 22f), new Vector2(460f, -108f));
 
-        _panel = panel;   // 아이템 도감 전체폭 박스의 부모로 사용
         _vLine = Make("VLine", panel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(467f, 30f), new Vector2(468f, -118f));
         Img(_vLine, null, Divider);
 
@@ -445,17 +442,16 @@ public class CodexUI : MonoBehaviour
         CloseSourcePopup();   // 뷰 재생성 시 떠 있던 출처 팝업 정리(스크롤/탭/네비게이션 등)
         HideTooltip();
         bool itemTab = _tab == 3;
-        // 아이템 탭은 전체폭 그리드 -> 좌측 목록/구분선/우측 메인 숨기고 아이템 박스 사용.
-        _listBox.gameObject.SetActive(!itemTab);
-        if (_vLine != null) _vLine.gameObject.SetActive(!itemTab);
-        _mainBox.gameObject.SetActive(!itemTab);
-        EnsureItemBox();
-        _itemBox.gameObject.SetActive(itemTab);
+        // 아이템 탭도 다른 탭과 동일하게 좌측 리스트 + 우측 메인 레이아웃 사용(통일).
+        _listBox.gameObject.SetActive(true);
+        if (_vLine != null) _vLine.gameObject.SetActive(true);
+        _mainBox.gameObject.SetActive(true);
         if (itemTab)
         {
             if (_portrait != null) _portrait.ClearInstance();   // 몬스터 프리뷰/영상 정리
             if (_video != null) _video.Stop();
-            BuildItemMain();
+            BuildItemCatList();   // 좌측 = 7분류 리스트
+            BuildItemMain();      // 우측 = 선택 분류의 아이템 그리드
         }
         else
         {
@@ -623,41 +619,86 @@ public class CodexUI : MonoBehaviour
         ItemCategory.TacticalConsumable, ItemCategory.CoreUpgrade, ItemCategory.Special
     };
 
-    private void EnsureItemBox()
+    // 좌측 = 7분류 리스트(설비/몬스터 탭의 목록과 같은 좌우 레이아웃). 선택 시 우측 그리드 갱신.
+    private void BuildItemCatList()
     {
-        if (_itemBox != null || _panel == null) return;
-        // 좌측 목록 + 우측 메인을 합친 전체폭 (x30 ~ panel-right, y22 ~ -108).
-        _itemBox = Make("ItemBox", _panel, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(30f, 22f), new Vector2(-30f, -108f));
-        _itemBox.gameObject.SetActive(false);
+        ClearChildren(_listBox);
+
+        var label = Make("Label", _listBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(8f, -28f), new Vector2(-14f, -4f));
+        Txt(label, "분류 - CATEGORY", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+
+        var viewport = Make("Viewport", _listBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 2f), new Vector2(-12f, -32f));
+        var vpImg = viewport.gameObject.AddComponent<Image>();
+        vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true;
+        viewport.gameObject.AddComponent<RectMask2D>();
+
+        var rows = Make("Rows", viewport, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+        rows.pivot = new Vector2(0.5f, 1f);
+        var vlg = rows.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 8f; vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true; vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+        rows.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        for (int i = 0; i < ItemCatNames.Length; i++) BuildItemCatRow(rows, i);
+
+        var scroll = _listBox.gameObject.GetComponent<ScrollRect>();
+        if (scroll == null) scroll = _listBox.gameObject.AddComponent<ScrollRect>();
+        scroll.content = rows; scroll.viewport = viewport;
+        scroll.horizontal = false; scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 30f;
     }
 
+    // 분류 한 줄(설비/몬스터 목록 행과 같은 카드 룩). 전 분류 항상 선택 가능.
+    private void BuildItemCatRow(RectTransform parent, int index)
+    {
+        bool selected = index == _itemCatIndex;
+        var row = NewChild("cat_" + index, parent);
+        var le = row.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = 76f; le.preferredHeight = 76f;
+
+        if (selected)
+        {
+            Img(row, RoundedFallback(10), new Color32(95, 196, 255, 74));
+            Line(row, new Color32(95, 196, 255, 130));
+            var bar = Make("Bar", row, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 8f), new Vector2(4f, -8f));
+            Img(bar, RoundedFallback(3), Accent);
+        }
+        else
+        {
+            Img(row, RoundedFallback(10), new Color32(120, 140, 160, 46));
+            Line(row, new Color32(120, 140, 160, 42));
+        }
+
+        int idx = index;
+        Btn(row, () => { _itemCatIndex = idx; Refresh(); });
+
+        var nameRt = Make("Name", row, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(28f, 0f), new Vector2(-12f, 0f));
+        Txt(nameRt, ItemCatNames[index], 20f, selected ? FontStyles.Bold : FontStyles.Normal, selected ? TxtMain : C32(60, 68, 76), TextAlignmentOptions.Left);
+        if (!selected) Hatch(row);
+    }
+
+    // 우측 메인 = 선택 분류의 아이템 그리드(미획득=어두운 실루엣, 획득=풀+클릭 상세).
     private void BuildItemMain()
     {
-        ClearChildren(_itemBox);
-
-        // 상단 분류 헤더(7개 가로 pill)
-        var head = Make("ItemHead", _itemBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -46f), new Vector2(0f, -2f));
-        var hhlg = head.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hhlg.spacing = 8f; hhlg.childAlignment = TextAnchor.MiddleLeft;
-        hhlg.childControlWidth = true; hhlg.childControlHeight = true;
-        hhlg.childForceExpandWidth = false; hhlg.childForceExpandHeight = false;
-        for (int i = 0; i < ItemCatNames.Length; i++) BuildItemCatPill(head, i);
+        ClearChildren(_mainBox);
+        string catName = ItemCatNames[Mathf.Clamp(_itemCatIndex, 0, ItemCatNames.Length - 1)];
+        var body = MainHeader("아이템 - ITEM", catName, TxtMain, true);
 
         // 그리드 영역(스크롤)
-        var vp = Make("ItemViewport", _itemBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -54f));
+        var vp = Make("ItemViewport", body, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
         var vpImg = vp.gameObject.AddComponent<Image>(); vpImg.color = new Color(0f, 0f, 0f, 0f); vpImg.raycastTarget = true;
         vp.gameObject.AddComponent<RectMask2D>();
         _itemGrid = Make("ItemGrid", vp, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
         _itemGrid.pivot = new Vector2(0.5f, 1f);
         var grid = _itemGrid.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(124f, 150f); grid.spacing = new Vector2(12f, 12f);
+        grid.cellSize = new Vector2(118f, 146f); grid.spacing = new Vector2(12f, 12f);
         grid.padding = new RectOffset(2, 12, 4, 10);
         grid.startCorner = GridLayoutGroup.Corner.UpperLeft; grid.startAxis = GridLayoutGroup.Axis.Horizontal;
         grid.childAlignment = TextAnchor.UpperLeft; grid.constraint = GridLayoutGroup.Constraint.Flexible;
         _itemGrid.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        var scroll = _itemBox.gameObject.GetComponent<ScrollRect>();
-        if (scroll == null) scroll = _itemBox.gameObject.AddComponent<ScrollRect>();
+        var scroll = body.gameObject.AddComponent<ScrollRect>();
         scroll.content = _itemGrid; scroll.viewport = vp;
         scroll.horizontal = false; scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 36f;
@@ -674,24 +715,6 @@ public class CodexUI : MonoBehaviour
         }
         if (shown == 0)
             Txt(NewChild("none", _itemGrid), "표시할 아이템이 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
-    }
-
-    private void BuildItemCatPill(RectTransform head, int index)
-    {
-        bool active = index == _itemCatIndex;
-        var pill = NewChild("cat_" + index, head);
-        var le = pill.gameObject.AddComponent<LayoutElement>();
-        le.minHeight = 38f; le.preferredHeight = 38f;
-        var hlg = pill.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hlg.childAlignment = TextAnchor.MiddleCenter; hlg.padding = new RectOffset(16, 16, 0, 0);
-        hlg.childControlWidth = true; hlg.childControlHeight = true;
-        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
-        pill.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        Img(pill, RoundedFallback(9), active ? Accent : new Color(1f, 1f, 1f, 0.5f));
-        if (!active) Line(pill, TabPillBd);
-        int idx = index;
-        Btn(pill, () => { _itemCatIndex = idx; BuildItemMain(); });
-        Txt(NewChild("l", pill), ItemCatNames[index], 15f, FontStyles.Bold, active ? TabActiveTxt : TabInactiveTxt, TextAlignmentOptions.Center);
     }
 
     private void BuildItemCard(RectTransform parent, ItemDataSheetData it)

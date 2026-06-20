@@ -32,6 +32,11 @@ public class SkillBarUI : MonoBehaviour
     private Coroutine _flashCo;
     private Sprite _quickEmptyIcon;   // 빈 퀵슬롯에 흐릿하게 깔 소모품 표시 아이콘
 
+    // 대쉬 잠금/해금 연출. 0강=자물쇠+쇠사슬 오버레이, 1강 되는 순간 흔들 -> 팡 풀림 + 말풍선.
+    private RectTransform _dashLockOverlay;
+    private bool _dashUnlockPending;   // 해금 이벤트 수신 -> 막는 UI 닫힌 순간 연출 발동(트리거)
+    private bool _dashUnlocking;       // 풀림 연출 진행 중(중복/재표시 방지)
+
     // 표시/숨김 자가 관리(외부 페이더 의존 X). HUD와 동일 규칙: state==None일 때만 표시,
     // 결계 안에선 전투/대쉬/퀵슬롯/피격 시 잠깐 떴다가 다시 숨김, 결계 밖이면 항상.
     private CanvasGroup _cg;
@@ -200,7 +205,41 @@ public class SkillBarUI : MonoBehaviour
             _spotlights.Add(("skills_qer", circle));
         }
 
+        if (kind == Kind.Dash) BuildDashLockOverlay(circle, size);
+
         _slots.Add(new Slot { kind = kind, skillId = skillId, circle = circle, icon = icon, ring = ring, flash = flashImg, seconds = seconds, count = count, countBadge = countBadgeImg });
+    }
+
+    // 대쉬 슬롯 위에 얹는 잠금 오버레이 — 어두운 디스크 + 쇠사슬 X자 + 자물쇠. 해금되면 코루틴이 팡 풀고 끈다.
+    void BuildDashLockOverlay(RectTransform circle, float size)
+    {
+        var ov = NewChild("DashLock", circle, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size, size));
+        ov.SetAsLastSibling();   // 아이콘/링 위에
+
+        // 잠금 강조용 어두운 덮개
+        var dim = NewImage("Dim", ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 0.96f, size * 0.96f));
+        dim.sprite = UISpriteFactory.Circle(96);
+        dim.color = new Color(0.04f, 0.05f, 0.07f, 0.5f);
+
+        // 쇠사슬 2개 X자(금속 그라디언트 바)
+        Color32 chainTop = new Color32(158, 166, 176, 255);
+        Color32 chainBot = new Color32(74, 80, 88, 255);
+        for (int i = 0; i < 2; i++)
+        {
+            var ch = NewImage("Chain" + i, ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 1.18f, size * 0.22f));
+            ch.sprite = UISpriteFactory.RoundedRectVGrad(chainTop, chainBot, 48, 10);
+            ch.type = Image.Type.Simple;
+            ch.rectTransform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 34f : -34f);
+        }
+
+        // 자물쇠(중앙)
+        var lk = NewImage("Lock", ov, new Vector2(0.5f, 0.5f), new Vector2(0f, 2f), new Vector2(size * 0.5f, size * 0.5f));
+        lk.sprite = UISpriteFactory.Lock(96);
+        lk.color = new Color32(236, 233, 227, 255);
+        lk.preserveAspect = true;
+
+        ov.gameObject.SetActive(!PlayerDashComponent.IsDashUnlocked);
+        _dashLockOverlay = ov;
     }
 
     private void Update()
@@ -208,6 +247,19 @@ public class SkillBarUI : MonoBehaviour
         if (_player == null) return;
         UpdateVisibility();
         for (int i = 0; i < _slots.Count; i++) UpdateSlot(_slots[i]);
+
+        // 대쉬 해금 연출 — 막는 UI(코어 패널 등) 없는 순간 바를 띄우며 발동. 코어 패널 닫힌 직후 인지.
+        if (_dashUnlockPending && !_dashUnlocking)
+        {
+            var gui = GameUIController.Instance;
+            bool anyUI = gui != null && gui.GetCurrentState() != GameUIController.UIState.None;
+            if (!anyUI)
+            {
+                _dashUnlockPending = false;
+                _showTimer = Mathf.Max(_showTimer, 5f);   // 말풍선 동안 바 유지
+                StartCoroutine(DashUnlockCelebration());
+            }
+        }
     }
 
     // 플레이어 HUD와 동일하게: 다른 UI(인벤/공장/건축/퀘스트/설정/코어/상자)가 열리면 숨김.
@@ -258,11 +310,13 @@ public class SkillBarUI : MonoBehaviour
         {
             if (_player.Dash == null) return;
 
-            // 코어 0강 = 우클릭 대쉬 잠김: 회색 흐림 + 링 가득(쿨 아님). 해금되면 아래 정상 갱신.
+            // 코어 0강 = 우클릭 대쉬 잠김: 자물쇠+쇠사슬 오버레이로 표시(회색처리 대신). 아이콘은 살짝만 어둡게.
             if (!PlayerDashComponent.IsDashUnlocked)
             {
-                if (s.ring != null) { s.ring.color = new Color(0.45f, 0.47f, 0.5f, 0.5f); s.ring.fillAmount = 1f; }
-                if (s.icon != null && s.icon.enabled) s.icon.color = new Color(0.5f, 0.52f, 0.56f, 0.45f);
+                if (_dashLockOverlay != null && !_dashUnlocking && !_dashLockOverlay.gameObject.activeSelf)
+                    _dashLockOverlay.gameObject.SetActive(true);
+                if (s.ring != null) { s.ring.color = new Color(0.5f, 0.52f, 0.56f, 0.5f); s.ring.fillAmount = 1f; }
+                if (s.icon != null && s.icon.enabled) s.icon.color = new Color(0.62f, 0.64f, 0.68f, 0.85f);
                 return;
             }
 
@@ -334,12 +388,158 @@ public class SkillBarUI : MonoBehaviour
     // 퀵슬롯 등록/해제 등 내용 변경 시 바를 잠깐 띄움(아이콘/배지 변화를 보이게).
     void HandleQuickChanged() => _showTimer = ShowHold;
 
-    // 코어 1강으로 우클릭 대쉬가 해금되는 순간 — 바를 잠깐 띄우고 대쉬 아이콘을 팝(즉시 인지).
-    void HandleDashUnlocked()
+    // 코어 1강으로 우클릭 대쉬가 해금되는 순간 — 즉시 연출하지 않고 대기 플래그만 세움.
+    // 보통 이 순간 코어 패널이 떠 있어 바가 가려지므로, 패널 닫혀 바가 보일 때 Update가 발동(트리거).
+    void HandleDashUnlocked() => _dashUnlockPending = true;
+
+    // 잠금 풀림 풀세트: 쇠사슬 흔들 -> 팡(버스트 링 + 오버레이 스케일/페이드) -> 아이콘 팝 -> 말풍선.
+    IEnumerator DashUnlockCelebration()
     {
-        _showTimer = Mathf.Max(_showTimer, 3f);
-        if (_dashSlot != null && _dashSlot.circle != null)
-            StartCoroutine(DashUnlockPop(_dashSlot.circle));
+        _dashUnlocking = true;
+        var circle = _dashSlot != null ? _dashSlot.circle : null;
+
+        if (_dashLockOverlay != null && _dashLockOverlay.gameObject.activeSelf)
+        {
+            var ov = _dashLockOverlay;
+
+            // 1) 쇠사슬 흔들림(잠깐 덜컹)
+            Vector2 basePos = ov.anchoredPosition;
+            float t = 0f; const float shakeDur = 0.34f;
+            while (t < shakeDur && ov != null)
+            {
+                t += Time.unscaledDeltaTime;
+                float dx = Mathf.Sin(t * 72f) * 5f * (1f - t / shakeDur);
+                ov.anchoredPosition = basePos + new Vector2(dx, 0f);
+                yield return null;
+            }
+            if (ov != null) ov.anchoredPosition = basePos;
+
+            // 2) 팡 풀림 — 버스트 링 + 오버레이 스케일업/페이드아웃
+            if (circle != null) SpawnBurstRing(circle);
+            var cg = ov.GetComponent<CanvasGroup>();
+            if (cg == null) cg = ov.gameObject.AddComponent<CanvasGroup>();
+            float u = 0f; const float popDur = 0.36f;
+            while (u < popDur && ov != null)
+            {
+                u += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(u / popDur);
+                float sc = 1f + 0.5f * k;
+                ov.localScale = new Vector3(sc, sc, 1f);
+                cg.alpha = 1f - k;
+                yield return null;
+            }
+            if (ov != null)
+            {
+                ov.gameObject.SetActive(false);
+                ov.localScale = Vector3.one;
+                cg.alpha = 1f;
+            }
+        }
+
+        // 3) 대쉬 아이콘 팝(강조)
+        if (circle != null) StartCoroutine(DashUnlockPop(circle));
+
+        // 4) 말풍선 안내
+        ShowDashUnlockBubble();
+
+        _dashUnlocking = false;
+    }
+
+    // 대쉬 슬롯 둘레로 퍼지는 버스트 링(해금 임팩트). 한 번 커지며 사라지고 제거.
+    void SpawnBurstRing(RectTransform circle)
+    {
+        var rt = NewChild("UnlockBurst", circle, new Vector2(0.5f, 0.5f), Vector2.zero, circle.sizeDelta);
+        rt.SetAsLastSibling();
+        var img = rt.gameObject.AddComponent<Image>();
+        img.sprite = UISpriteFactory.Ring(96, 5f);
+        img.color = DashRing;
+        img.raycastTarget = false;
+        StartCoroutine(BurstRoutine(img));
+    }
+
+    IEnumerator BurstRoutine(Image img)
+    {
+        var rt = img.rectTransform;
+        float t = 0f; const float dur = 0.5f;
+        while (t < dur && img != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            float sc = 0.6f + 1.8f * k;
+            rt.localScale = new Vector3(sc, sc, 1f);
+            var c = img.color; c.a = 1f - k; img.color = c;
+            yield return null;
+        }
+        if (img != null) Destroy(img.gameObject);
+    }
+
+    // 대쉬 슬롯 위 말풍선 "이제 대쉬를 사용할 수 있습니다!" — 페이드인 -> 유지 -> 페이드아웃 -> 제거.
+    void ShowDashUnlockBubble()
+    {
+        if (_dashSlot == null || _dashSlot.circle == null) return;
+        var circle = _dashSlot.circle;
+
+        var old = circle.Find("DashUnlockBubble");
+        if (old != null) Destroy(old.gameObject);
+
+        // 슬롯 위로 띄움. pivot 아래중앙 -> 슬롯 상단 기준 위로 자람. 꼬리는 아래 중앙.
+        var bubble = NewChild("DashUnlockBubble", circle, new Vector2(0.5f, 1f), new Vector2(0f, 24f), new Vector2(300f, 58f));
+        bubble.pivot = new Vector2(0.5f, 0f);
+        var cg = bubble.gameObject.AddComponent<CanvasGroup>();
+
+        var bg = bubble.gameObject.AddComponent<Image>();
+        bg.sprite = UISpriteFactory.RoundedRect(64, 18);
+        bg.type = Image.Type.Sliced;
+        bg.color = new Color(0.10f, 0.13f, 0.17f, 0.96f);
+        bg.raycastTarget = false;
+        var outline = bubble.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = DashRing;
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        // 꼬리(아래 중앙 다이아몬드)
+        var tail = NewChild("Tail", bubble, new Vector2(0.5f, 0f), new Vector2(0f, 3f), new Vector2(18f, 18f));
+        var tImg = tail.gameObject.AddComponent<Image>();
+        tImg.sprite = UISpriteFactory.RoundedRect(32, 6);
+        tImg.type = Image.Type.Sliced;
+        tImg.color = bg.color;
+        tImg.raycastTarget = false;
+        tail.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+        var msg = NewText("Msg", bubble, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(282f, 50f), 17f);
+        msg.text = "이제 대쉬를 사용할 수 있습니다!";
+        msg.fontStyle = FontStyles.Bold;
+        msg.color = TextMain;
+
+        StartCoroutine(BubbleRoutine(bubble, cg));
+    }
+
+    IEnumerator BubbleRoutine(RectTransform bubble, CanvasGroup cg)
+    {
+        cg.alpha = 0f;
+        bubble.localScale = new Vector3(0.85f, 0.85f, 1f);
+
+        float t = 0f; const float inDur = 0.25f;
+        while (t < inDur && bubble != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / inDur);
+            cg.alpha = k;
+            float s = 0.85f + 0.15f * k;
+            bubble.localScale = new Vector3(s, s, 1f);
+            yield return null;
+        }
+        if (bubble != null) { cg.alpha = 1f; bubble.localScale = Vector3.one; }
+
+        yield return new WaitForSecondsRealtime(3.2f);
+
+        t = 0f; const float outDur = 0.5f;
+        while (t < outDur && bubble != null)
+        {
+            t += Time.unscaledDeltaTime;
+            cg.alpha = 1f - Mathf.Clamp01(t / outDur);
+            yield return null;
+        }
+        if (bubble != null) Destroy(bubble.gameObject);
     }
 
     IEnumerator DashUnlockPop(RectTransform rt)
