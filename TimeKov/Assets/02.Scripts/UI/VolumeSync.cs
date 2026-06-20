@@ -51,7 +51,7 @@ public class VolumeSync : MonoBehaviour
         if (!_active) return;
 
         // 씬 시작 시 저장된 SFX 볼륨 즉시 적용
-        UpdateVolume(PlayerPrefs.GetFloat("SFXVolume", 1.0f));
+        UpdateVolume(GlobalSettingsManager.CurrentSFXVolume);
 
         GlobalSettingsManager.OnSFXVolumeChanged += UpdateVolume;
     }
