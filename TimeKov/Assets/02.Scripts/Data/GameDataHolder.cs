@@ -42,28 +42,32 @@ public partial class GameDataHolder
         monoBehaviour.StartCoroutine(LoadAllCoroutine(onComplete));
     }
 
+    // 한 번에 띄울 동시 다운로드 상한. 시트 8장 기준 넉넉. 구글 throttle 걸리면 낮춰라.
+    private const int MaxConcurrentDownloads = 6;
+
     private IEnumerator LoadAllCoroutine(Action<bool> onComplete)
     {
         var schemas = AllTableSchemas.GetAll();
-        var tables = new Dictionary<string, CsvTable>();
-        bool allSuccess = true;
 
-        // 스키마 순서대로 구글 시트 다운로드
+        // 시트별 (이름, URL) 목록 구성
+        var sources = new List<(string name, string url)>(schemas.Count);
         foreach (var schema in schemas)
+            sources.Add((schema.TableName, schema.GoogleSheetUrl));
+
+        // 병렬 다운로드 (직렬 대비 왕복지연 합 -> 가장 느린 한 개 수준으로 단축)
+        Dictionary<string, CsvTable> tables = null;
+        List<string> failed = null;
+        yield return CsvReader.DownloadAllAsync(
+            sources,
+            MaxConcurrentDownloads,
+            (res, fail) => { tables = res; failed = fail; });
+
+        if (failed != null && failed.Count > 0)
         {
-            CsvTable downloaded = null;
-            yield return CsvReader.DownloadAsync(schema.GoogleSheetUrl, t => downloaded = t);
-
-            if (downloaded == null)
-            {
-                Debug.LogError($"[GameDataHolder] 다운로드 실패: {schema.TableName}");
-                allSuccess = false;
-                break;
-            }
-            tables[schema.TableName] = downloaded;
+            Debug.LogError($"[GameDataHolder] 다운로드 실패: {string.Join(", ", failed)}");
+            onComplete?.Invoke(false);
+            yield break;
         }
-
-        if (!allSuccess) { onComplete?.Invoke(false); yield break; }
 
         // 검증 실패 시 로드 중단
         if (!TableValidator.ValidateAll(schemas, tables))
