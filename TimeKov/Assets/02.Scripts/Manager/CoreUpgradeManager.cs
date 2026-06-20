@@ -80,8 +80,8 @@ public class CoreUpgradeManager : MonoBehaviour
 
     private void Update()
     {
-        // [Dev/테스트] F10 = 코어 레벨 +1 (재료/확률 무시). 출시 전 제거.
-        if (Input.GetKeyDown(KeyCode.F10))
+        // [Dev/테스트] F7 = 코어 레벨 +1 (재료/확률 무시). 출시 전 제거.
+        if (Input.GetKeyDown(KeyCode.F7))
             DevForceLevelUp();
     }
 
