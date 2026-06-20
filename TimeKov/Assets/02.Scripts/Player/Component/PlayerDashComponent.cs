@@ -27,10 +27,48 @@ public class PlayerDashComponent : MonoBehaviour
     public float CooldownRemaining => Mathf.Max(0f, _cooldownTimer);
     public float MaxCooldown => DashCooldown;
 
+    // ── 코어 해금 게이트 ──────────────────────────────────────────────
+    // 우클릭 대쉬 = 코어 0강이면 잠김, 1강 되면 해금(레벨은 안 내려가므로 한 번 풀리면 유지).
+    public const int DashUnlockCoreLevel = 1;
+    public static bool IsDashUnlocked
+    {
+        get { var m = CoreUpgradeManager.Instance; return m == null || m.CurrentCoreLevel >= DashUnlockCoreLevel; }
+    }
+    /// <summary>대쉬가 해금되는 순간 1회 발생 — HUD 아이콘 연출 트리거(SkillBarUI 구독).</summary>
+    public static event System.Action OnDashUnlocked;
+
+    // 코어 레벨이 오를수록 대쉬 스태미나 소모가 조금씩 줄어든다(레벨당 -3%, 최대 -30%).
+    public float EffectiveDashCost
+    {
+        get
+        {
+            var m = CoreUpgradeManager.Instance;
+            int lv = m != null ? m.CurrentCoreLevel : 0;
+            return DashCost * Mathf.Clamp01(1f - lv * 0.03f);
+        }
+    }
+
+    private float _lockedToastTimer;
+    private bool  _wasUnlocked;
+
     void Awake()
     {
         _player = GetComponent<Player>();
         _rb = GetComponent<Rigidbody>();
+        CoreUpgradeManager.OnLevelChanged += OnCoreLevelChanged;
+    }
+
+    void Start() => _wasUnlocked = IsDashUnlocked;   // 매니저 준비된 뒤 초기 해금 상태 기록(로드값 대비)
+
+    void OnDestroy() => CoreUpgradeManager.OnLevelChanged -= OnCoreLevelChanged;
+
+    // 코어 레벨 변동 — 잠김 -> 해금으로 넘어가는 순간 토스트 + 아이콘 연출(1회).
+    void OnCoreLevelChanged(int level)
+    {
+        if (_wasUnlocked || !IsDashUnlocked) return;
+        _wasUnlocked = true;
+        ToastManager.Success("우클릭 대쉬 해금!");
+        OnDashUnlocked?.Invoke();
     }
 
     void Update()
@@ -45,11 +83,24 @@ public class PlayerDashComponent : MonoBehaviour
     {
         if (_cooldownTimer > 0)
             _cooldownTimer -= Time.deltaTime;
+        if (_lockedToastTimer > 0)
+            _lockedToastTimer -= Time.deltaTime;
     }
 
     void TryDash()
     {
         // ������Dead��Hurt ���� ����
+        // 코어 0강이면 우클릭 대쉬 잠김 — 시도 시 안내(스팸 방지 스로틀).
+        if (!IsDashUnlocked)
+        {
+            if (_lockedToastTimer <= 0f)
+            {
+                ToastManager.Warning($"우클릭 대쉬는 코어 {DashUnlockCoreLevel}강에 해금됩니다");
+                _lockedToastTimer = 2.5f;
+            }
+            return;
+        }
+
         if (_player.Movement.IsJumping) return;
         if (_player.Stat.IsDead) return;
         if (_player.Stat.IsHurt) return;
@@ -57,7 +108,7 @@ public class PlayerDashComponent : MonoBehaviour
         // 제자리(이동입력 없음)에서도 우클릭하면 정면으로 대시한다 (#20).
         // GetDashDirection()이 입력 없으면 transform.forward 를 반환하므로 방향은 안전.
         if (IsOnCooldown) return;
-        if (_player.Stat.CurrentStamina < DashCost) return;
+        if (_player.Stat.CurrentStamina < EffectiveDashCost) return;
         if (_player.Skill.IsExecuting) return;
 
         StartCoroutine(DashRoutine());
@@ -67,7 +118,7 @@ public class PlayerDashComponent : MonoBehaviour
     {
         IsDashing = true;
 
-        _player.Stat.UseStamina(DashCost);
+        _player.Stat.UseStamina(EffectiveDashCost);
         _cooldownTimer = DashCooldown;
         // LockMovement이 X/Z velocity를 0으로 박지만, 같은 frame 직후 dashForce 적용 → 정상
         // HandleSlopeStabilize는 actualXZ < 0.5f 가드가 있어서 dashForce(15)는 보존됨

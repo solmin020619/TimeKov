@@ -28,6 +28,7 @@ public class SkillBarUI : MonoBehaviour
     private readonly List<(string id, RectTransform rt)> _spotlights = new();
     private TMP_FontAsset _font;   // HUD 폰트 (PlayerHudUI에서 넘겨받아 통일)
     private Slot _quickSlot;
+    private Slot _dashSlot;
     private Coroutine _flashCo;
     private Sprite _quickEmptyIcon;   // 빈 퀵슬롯에 흐릿하게 깔 소모품 표시 아이콘
 
@@ -99,6 +100,9 @@ public class SkillBarUI : MonoBehaviour
             player.QuickSlot.OnUsed += HandleQuickUsed;
             player.QuickSlot.OnChanged += HandleQuickChanged;   // 등록/해제/재등록 시 바를 잠깐 띄움
         }
+
+        _dashSlot = _slots.Find(s => s.kind == Kind.Dash);
+        PlayerDashComponent.OnDashUnlocked += HandleDashUnlocked;   // 코어 1강 대쉬 해금 순간 아이콘 팝
     }
 
     static Sprite Pick(Sprite[] arr, int i) => (arr != null && i < arr.Length) ? arr[i] : null;
@@ -253,14 +257,23 @@ public class SkillBarUI : MonoBehaviour
         else if (s.kind == Kind.Dash)
         {
             if (_player.Dash == null) return;
+
+            // 코어 0강 = 우클릭 대쉬 잠김: 회색 흐림 + 링 가득(쿨 아님). 해금되면 아래 정상 갱신.
+            if (!PlayerDashComponent.IsDashUnlocked)
+            {
+                if (s.ring != null) { s.ring.color = new Color(0.45f, 0.47f, 0.5f, 0.5f); s.ring.fillAmount = 1f; }
+                if (s.icon != null && s.icon.enabled) s.icon.color = new Color(0.5f, 0.52f, 0.56f, 0.45f);
+                return;
+            }
+
             float max = _player.Dash.MaxCooldown;
             float rem = _player.Dash.CooldownRemaining;
             float readiness = max > 0f ? Mathf.Clamp01(1f - rem / max) : 1f;
             bool ready = !_player.Dash.IsOnCooldown && !_player.Dash.IsDashing;
             if (ready && !s.wasReady) _showTimer = ShowHold;   // 대쉬 쿨 완료 순간(쿨>표시시간으로 커져도 안전)
             s.wasReady = ready;
-            if (s.ring != null) s.ring.fillAmount = readiness;
-            if (s.icon != null && s.icon.enabled) SetAlpha(s.icon, ready ? 1f : 0.4f);
+            if (s.ring != null) { s.ring.color = DashRing; s.ring.fillAmount = readiness; }   // 해금 후 색 복구
+            if (s.icon != null && s.icon.enabled) { Color c = DashIcon; c.a = ready ? 1f : 0.4f; s.icon.color = c; }
         }
         else // Quick
         {
@@ -304,6 +317,7 @@ public class SkillBarUI : MonoBehaviour
             _player.QuickSlot.OnUsed -= HandleQuickUsed;
             _player.QuickSlot.OnChanged -= HandleQuickChanged;
         }
+        PlayerDashComponent.OnDashUnlocked -= HandleDashUnlocked;
         foreach (var (id, rt) in _spotlights) TutorialOverlay.UnregisterTarget(id, rt);
         _spotlights.Clear();
     }
@@ -319,6 +333,28 @@ public class SkillBarUI : MonoBehaviour
 
     // 퀵슬롯 등록/해제 등 내용 변경 시 바를 잠깐 띄움(아이콘/배지 변화를 보이게).
     void HandleQuickChanged() => _showTimer = ShowHold;
+
+    // 코어 1강으로 우클릭 대쉬가 해금되는 순간 — 바를 잠깐 띄우고 대쉬 아이콘을 팝(즉시 인지).
+    void HandleDashUnlocked()
+    {
+        _showTimer = Mathf.Max(_showTimer, 3f);
+        if (_dashSlot != null && _dashSlot.circle != null)
+            StartCoroutine(DashUnlockPop(_dashSlot.circle));
+    }
+
+    IEnumerator DashUnlockPop(RectTransform rt)
+    {
+        float t = 0f; const float dur = 0.55f;
+        while (t < dur && rt != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            float scale = 1f + 0.4f * Mathf.Sin(k * Mathf.PI);   // 1 -> 1.4 -> 1 한 번 팝
+            rt.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+        if (rt != null) rt.localScale = Vector3.one;
+    }
 
     IEnumerator FlashRoutine(Slot s)
     {

@@ -30,14 +30,13 @@ public class CoreUpgradeManager : MonoBehaviour
 
     // ── 코어 부가 스탯 (레벨 0 → 최대레벨 선형 보간) ────────────────────
     // maxTime/successRate는 시트 데이터, 아래 둘은 코어에 어울리는 부가 능력으로 여기서 직접 튜닝.
-    [Header("코어 부가 스탯 (레벨 0 → 최대 선형 보간)")]
-    [Tooltip("몬스터 처치 시 흡수하는 체력(시간) = 최대HP × 이 비율. 레벨 0일 때 값.")]
-    [Range(0f, 1f)][SerializeField] private float lifestealPercentAtLv0 = 0.03f;
-    [Tooltip("몬스터 처치 흡수 비율 — 최대 레벨일 때 값.")]
-    [Range(0f, 1f)][SerializeField] private float lifestealPercentAtMax = 0.10f;
-
-    [Tooltip("몬스터 체력 흡수가 해금되는 코어 레벨. 이 레벨 미만이면 흡수 0(처음엔 막혀 있다가 코어 강화로 해금). 초반 생존 위해 1 권장.")]
-    [SerializeField] private int lifestealUnlockLevel = 1;
+    [Header("코어 부가 스탯")]
+    [Tooltip("몬스터 체력 흡수가 해금되는 코어 레벨(이 레벨부터 흡수 가능, 미만이면 0).")]
+    [SerializeField] private int lifestealUnlockCoreLevel = 2;
+    [Tooltip("해금 레벨일 때 흡수율(최대HP 대비). 0.01 = 1%.")]
+    [Range(0f, 1f)][SerializeField] private float lifestealStartPercent = 0.01f;
+    [Tooltip("해금 이후 코어 레벨이 1 오를 때마다 흡수율 증가량. 0.005 = +0.5%.")]
+    [Range(0f, 0.1f)][SerializeField] private float lifestealPerLevelPercent = 0.005f;
 
     [Tooltip("부활 시 회복 체력 비율 — 레벨 0일 때 (0.5 = 반피).")]
     [Range(0f, 1f)][SerializeField] private float respawnHpPercentAtLv0 = 0.5f;
@@ -216,12 +215,13 @@ public class CoreUpgradeManager : MonoBehaviour
 
     /// <summary>특정 레벨의 흡수율 (UI에서 현재/강화후 비교용). 해금 레벨 미만이면 0(아직 잠김).</summary>
     public float GetLifestealPercentAt(int level)
-        => level < lifestealUnlockLevel ? 0f : Mathf.Lerp(lifestealPercentAtLv0, lifestealPercentAtMax, LevelProgressAt(level));
+        => level < lifestealUnlockCoreLevel ? 0f
+           : lifestealStartPercent + (level - lifestealUnlockCoreLevel) * lifestealPerLevelPercent;
 
     /// <summary>몬스터 체력 흡수 해금 여부(코어 강화로 해금). 적 흡수 게이트 / UI New 표시에 사용.</summary>
-    public bool IsLifestealUnlocked => CurrentCoreLevel >= lifestealUnlockLevel;
-    public bool IsLifestealUnlockedAt(int level) => level >= lifestealUnlockLevel;
-    public int LifestealUnlockLevel => lifestealUnlockLevel;
+    public bool IsLifestealUnlocked => CurrentCoreLevel >= lifestealUnlockCoreLevel;
+    public bool IsLifestealUnlockedAt(int level) => level >= lifestealUnlockCoreLevel;
+    public int LifestealUnlockLevel => lifestealUnlockCoreLevel;
 
     /// <summary>특정 레벨의 부활 체력 비율 (UI에서 현재/강화후 비교용).</summary>
     public float GetRespawnHpPercentAt(int level) => Mathf.Lerp(respawnHpPercentAtLv0, respawnHpPercentAtMax, LevelProgressAt(level));

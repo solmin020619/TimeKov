@@ -225,7 +225,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (upgradeInfoGroup != null) upgradeInfoGroup.SetActive(!isMax);
         if (maxLevelGroup    != null) maxLevelGroup.SetActive(isMax);
 
-        if (cur != null) SetText(currentTimeText, $"{cur.maxTime}s");
+        if (cur != null) SetText(currentTimeText, $"체력  {cur.maxTime}s");
 
         // 부가 스탯(부활/흡수) — 현재 레벨 값
         BuildExtraStatRows();
@@ -242,25 +242,34 @@ public class CoreUpgradeUI : MonoBehaviour
 
         if (next != null && cur != null)
         {
-            SetText(nextTimeText, $"{next.maxTime}s");
-            SetDelta(deltaTimeText, next.maxTime - cur.maxTime, "s");
+            int dt = next.maxTime - cur.maxTime;
+            string dStr = dt > 0 ? $"  <size=66%><color=#46E08A>+{dt}s ↑</color></size>" : "";
+            SetText(nextTimeText, $"체력  {next.maxTime}s{dStr}");   // 강화후 = 한 줄 + 증가분 인라인(초록)
 
             if (_nextRespawnText != null)
             {
-                _nextRespawnText.text = $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv + 1))}";
+                // 부활 체력 — 강화로 오르면 ↑ (현재 대비 증가 구분)
+                float nResp = mgr.GetRespawnHpPercentAt(lv + 1);
+                bool respUp = nResp > mgr.GetRespawnHpPercentAt(lv) + 0.0001f;
+                _nextRespawnText.text = $"부활 체력   {Pct(nResp)}{(respUp ? "  ↑" : "")}";
 
-                // 이번 강화로 흡수가 해금되면 "New!" 강조(궁금증 유발), 아니면 평소 흡수율/잠김
+                // 이번 강화로 흡수가 해금되면 "New!" 강조(궁금증 유발), 아니면 흡수율(증가 시 ↑)/잠김
                 bool unlocksNow = mgr.IsLifestealUnlockedAt(lv + 1) && !mgr.IsLifestealUnlockedAt(lv);
                 if (unlocksNow)
                 {
                     _nextLifestealText.text  = "New!  몬스터 체력 흡수";
                     _nextLifestealText.color = perfectColor;
                 }
+                else if (mgr.IsLifestealUnlockedAt(lv + 1))
+                {
+                    float nLife = mgr.GetLifestealPercentAt(lv + 1);
+                    bool lifeUp = nLife > mgr.GetLifestealPercentAt(lv) + 0.0001f;
+                    _nextLifestealText.text  = $"흡수율   {Pct(nLife)}{(lifeUp ? "  ↑" : "")}";
+                    _nextLifestealText.color = NextStatColor;
+                }
                 else
                 {
-                    _nextLifestealText.text  = mgr.IsLifestealUnlockedAt(lv + 1)
-                        ? $"흡수율   {Pct(mgr.GetLifestealPercentAt(lv + 1))}"
-                        : "체력 흡수   잠김";
+                    _nextLifestealText.text  = "체력 흡수   잠김";
                     _nextLifestealText.color = NextStatColor;
                 }
             }
@@ -666,6 +675,14 @@ public class CoreUpgradeUI : MonoBehaviour
     private static string Pct(float f) => $"{Mathf.RoundToInt(f * 100f)}%";
 
     // 현재/강화후 카드에 부활·흡수 두 줄을 런타임 생성 (빌더 재실행 없이 현재 패널 위에 얹음)
+    // 카드 레이아웃 상수 (현재/강화후 박스. 헤더는 박스 밖 위쪽, 스탯은 한 줄씩 균형있게).
+    const float CardH   = 200f;   // 박스 높이(헤더가 밖으로 빠져 콘텐츠만 담음)
+    const float CardY   = 25f;    // 박스 중심 Y(코어 근처, 아래 재료 바와 안 겹침)
+    const float HeadY   = 126f;   // 현재/강화후 = 박스 위 바깥
+    const float ValRowY = 40f;    // 체력 (한 줄 "체력 100s")
+    const float Row1Y   = -6f;    // 부활 체력
+    const float Row2Y   = -40f;   // 체력 흡수
+
     private void BuildExtraStatRows()
     {
         if (_extraStatsBuilt) return;
@@ -677,22 +694,36 @@ public class CoreUpgradeUI : MonoBehaviour
 
         _extraStatsBuilt = true;
 
-        EnlargeCard(leftCard);
-        EnlargeCard(rightCard);
+        ArrangeCard(leftCard,  currentTimeText, "CurHead", "CurLbl");
+        ArrangeCard(rightCard, nextTimeText,    "NxtHead", "NxtLbl");
+        if (deltaTimeText != null) deltaTimeText.gameObject.SetActive(false);   // 델타는 강화후 체력줄에 인라인 합침
 
-        Color sub = new Color(0.68f, 0.75f, 0.82f);   // 현재(보조)
-        Color hi  = new Color(0.68f, 0.89f, 1f);      // 강화 후(강조)
+        Color sub = new Color(0.56f, 0.62f, 0.69f);   // 현재(활성) = 차분한 회색
+        Color hi  = new Color(0.76f, 0.93f, 1f);      // 강화 후 = 밝은 시안(증가/구분 강조)
 
-        _curRespawnText    = MakeStatRow(leftCard,  -92f,  sub);
-        _curLifestealText  = MakeStatRow(leftCard,  -120f, sub);
-        _nextRespawnText   = MakeStatRow(rightCard, -92f,  hi);
-        _nextLifestealText = MakeStatRow(rightCard, -120f, hi);
+        _curRespawnText    = MakeStatRow(leftCard,  Row1Y, sub);
+        _curLifestealText  = MakeStatRow(leftCard,  Row2Y, sub);
+        _nextRespawnText   = MakeStatRow(rightCard, Row1Y, hi);
+        _nextLifestealText = MakeStatRow(rightCard, Row2Y, hi);
     }
 
-    private static void EnlargeCard(RectTransform card)
+    // 카드 정리: 박스 크기/위치 + 헤더(현재/강화후)를 박스 위 바깥으로 + "체력" 라벨 숨김(값에 합침) + 값 크기/위치.
+    private void ArrangeCard(RectTransform card, TextMeshProUGUI valueText, string headName, string lblName)
     {
-        var s = card.sizeDelta;
-        if (s.y < 280f) card.sizeDelta = new Vector2(s.x, 290f);
+        card.sizeDelta        = new Vector2(card.sizeDelta.x, CardH);
+        card.anchoredPosition = new Vector2(card.anchoredPosition.x, CardY);
+
+        var head = card.Find(headName) as RectTransform;
+        if (head != null) head.anchoredPosition = new Vector2(0f, HeadY);   // 박스 밖 위쪽으로
+
+        var lbl = card.Find(lblName);
+        if (lbl != null) lbl.gameObject.SetActive(false);                   // "체력" 라벨은 값 텍스트에 합침
+
+        if (valueText != null)
+        {
+            valueText.fontSize = 24f;                                        // 엄청 크게(56) -> 적당히
+            valueText.rectTransform.anchoredPosition = new Vector2(0f, ValRowY);
+        }
     }
 
     private TextMeshProUGUI MakeStatRow(RectTransform parent, float y, Color color)
