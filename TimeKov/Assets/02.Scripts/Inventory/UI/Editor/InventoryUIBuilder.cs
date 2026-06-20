@@ -1400,7 +1400,9 @@ public static class InventoryUIBuilder
         var scrollGo = MakeEmpty(name, body.transform, Vector2.zero, Vector2.zero);
         var srt = scrollGo.GetComponent<RectTransform>();
         srt.anchorMin = aMin; srt.anchorMax = aMax;
-        srt.offsetMin = new Vector2(14, 8); srt.offsetMax = new Vector2(-rightInset, -76);   // 우측 인셋 클수록 스크롤바가 seam에서 멀어짐
+        // 스크롤 없는 컴팩트(파밍상자, 패널 300px)는 top inset을 줄여 슬롯 행을 위로 -> 하단/푸터 겹침 방지.
+        float topInset = withScroll ? 76f : 50f;
+        srt.offsetMin = new Vector2(14, 8); srt.offsetMax = new Vector2(-rightInset, -topInset);   // 우측 인셋 클수록 스크롤바가 seam에서 멀어짐
         var scrollImg = scrollGo.AddComponent<Image>(); scrollImg.color = Color.clear;
         var scrollMask = scrollGo.AddComponent<RectMask2D>();
         // 마스크 클립 영역을 살짝 넓힌다(음수 padding=확장) -> 가장자리(맨윗줄/좌/우) 칸의 강조 프레임+팝이 안 잘리게.
