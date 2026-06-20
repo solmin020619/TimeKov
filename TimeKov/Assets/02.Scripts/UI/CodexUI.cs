@@ -66,7 +66,7 @@ public class CodexUI : MonoBehaviour
 
     // ── 데이터 모델 (placeholder) ──────────────────────────────────
     enum St { Public, Silhouette, Hidden }
-    class Entry { public string name; public St state; public string status; public CodexPreviewConfig.MonsterEntry preview; public Sprite icon; public int facilityId; public VideoTutorialPage tutPage; }
+    class Entry { public string name; public St state; public string status; public CodexPreviewConfig.MonsterEntry preview; public Sprite icon; public int facilityId; public VideoTutorialPage tutPage; public string monsterSourceId; }
     class Drop  { public string name; public string rarity; public Color rc; public string desc; public string pct; public bool got; public Sprite icon; public int grade; }
 
     static readonly string[] TabNames = { "튜토리얼", "몬스터", "설비" };
@@ -108,6 +108,7 @@ public class CodexUI : MonoBehaviour
     private RectTransform _tabRow;
     private RectTransform _listBox;
     private RectTransform _mainBox;
+    private RectTransform _completionBox;   // 헤더 우측: 현재 카테고리 도감 달성률
     private TMP_FontAsset _font;
     private int _tab = 1;   // 시작 = 몬스터(중간 상태 mock 확인용)
     private int _sel = 0;
@@ -179,6 +180,8 @@ public class CodexUI : MonoBehaviour
             Refresh();
         }
         if (_root != null) _root.gameObject.SetActive(on);
+        if (!on) CloseSourcePopup();                               // 닫으면 떠 있던 출처 팝업 정리
+        if (!on) HideTooltip();
         if (!on && _portrait != null) _portrait.ClearInstance();   // 닫으면 림보 인스턴스/카메라 정리
         if (!on && _video != null) _video.Stop();                  // 닫으면 영상 정지
     }
@@ -264,10 +267,40 @@ public class CodexUI : MonoBehaviour
         if (icon != null) { var im = Img(ci, icon, new Color(0f, 0f, 0f, 0.45f)); im.preserveAspect = true; }
         else Txt(ci, "X", 22f, FontStyles.Bold, new Color(0f, 0f, 0f, 0.45f), TextAlignmentOptions.Center);
 
-        // 닫기 왼쪽에 장치 readout(이퀄라이저 바 + 주파수 + REC 점) - 헤더 빈공간 채움
-        var tele = Make("Tele", header, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
-        tele.sizeDelta = new Vector2(186f, 40f); tele.anchoredPosition = new Vector2(-176f, 8f);
-        BuildTelemetry(tele);
+        // 닫기 왼쪽: 현재 카테고리 도감 달성률(탭 전환 시 갱신). 기존 장식 telemetry 자리를 의미있게 대체.
+        _completionBox = Make("Completion", header, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+        _completionBox.sizeDelta = new Vector2(216f, 42f); _completionBox.anchoredPosition = new Vector2(-192f, 8f);
+        RebuildCompletion();
+    }
+
+    // 현재 탭(카테고리)의 도감 달성률 = 해금(St.Public) 수 / 전체.
+    // 개발자 전부해금(F9/_devUnlockAll)이면 전부 Public이라 100%로 뜬다(실제 해금 붙이면 자동 반영).
+    private (int got, int total) CurrentCompletion()
+    {
+        var list = CurList;
+        int got = 0, total = 0;
+        if (list != null)
+            foreach (var e in list) { total++; if (e.state == St.Public) got++; }
+        return (got, total);
+    }
+
+    private void RebuildCompletion()
+    {
+        if (_completionBox == null) return;
+        ClearChildren(_completionBox);
+        var (got, total) = CurrentCompletion();
+        float ratio = total > 0 ? (float)got / total : 0f;
+        int pct = Mathf.RoundToInt(ratio * 100f);
+
+        // 상단: 카테고리 + 수치(모노, 우측정렬)
+        Txt(Make("ctxt", _completionBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -17f), new Vector2(0f, 0f)),
+            TabNames[_tab] + " 도감  " + got + " / " + total + "  ·  " + pct + "%", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Right);
+
+        // 하단: 진행 바(트랙 + 채움)
+        var track = Make("track", _completionBox, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 3f), new Vector2(0f, 9f));
+        Img(track, RoundedFallback(3), new Color32(120, 140, 160, 46)).raycastTarget = false;
+        var fill = Make("fill", track, new Vector2(0f, 0f), new Vector2(Mathf.Clamp01(ratio), 1f), Vector2.zero, Vector2.zero);
+        Img(fill, RoundedFallback(3), Accent).raycastTarget = false;
     }
 
     private void BuildTelemetry(RectTransform tele)
@@ -356,8 +389,11 @@ public class CodexUI : MonoBehaviour
     // ── 리스트 + 메인 재빌드 ───────────────────────────────────────
     private void Refresh()
     {
+        CloseSourcePopup();   // 뷰 재생성 시 떠 있던 출처 팝업 정리(스크롤/탭/네비게이션 등)
+        HideTooltip();
         BuildList();
         BuildMain();
+        RebuildCompletion();   // 현재 카테고리 달성률 갱신(탭/해금 변화 반영)
     }
 
     private int _lastBuiltTab = -1;
@@ -606,7 +642,11 @@ public class CodexUI : MonoBehaviour
                 if (!string.IsNullOrEmpty(c.displayName)) e.name = c.displayName;
                 e.state = MapState(c.state);
                 e.status = e.state == St.Public ? null : (e.state == St.Silhouette ? "포착" : "미발견");
-                if (c.prefab != null) e.preview = c;
+                if (c.prefab != null)
+                {
+                    e.preview = c;
+                    e.monsterSourceId = c.prefab.GetComponentInChildren<EnemyDropOnDeath>(true)?.SourceId;
+                }
             }
             if (_devUnlockAll) { e.state = St.Public; e.status = null; }
             if (e.state == St.Public && string.IsNullOrEmpty(e.name)) e.name = "몬스터 " + (i + 1);
@@ -691,7 +731,7 @@ public class CodexUI : MonoBehaviour
         string descText = (page != null && !string.IsNullOrEmpty(page.body))
             ? AdaptEmphasis(page.body)
             : "이 항목의 가이드 설명이 여기에 들어갑니다. 핵심은 시간 자원 관리이며, 단계별 안내와 이미지, 주의사항이 본문에 배치됩니다.";
-        Txt(desc, descText, 16f, FontStyles.Normal, TxtSub, TextAlignmentOptions.TopLeft).enableWordWrapping = true;
+        Txt(desc, descText, 16f, FontStyles.Normal, TxtSub, TextAlignmentOptions.TopLeft).textWrappingMode = TextWrappingModes.Normal;
     }
 
     private void BuildMonsterMain(string selName)
@@ -861,6 +901,8 @@ public class CodexUI : MonoBehaviour
     {
         var body = MainHeader("설비 - FACILITY", selName, TxtMain, true);
         Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), "제작 가능 레시피 - RECIPES", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        // 재료가 클릭 가능하다는 상시 힌트(호버 발광/툴팁과 함께 발견성 확보). RECIPES 라벨 바로 옆.
+        Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), "·  재료를 누르면 출처 보기", 12f, FontStyles.Normal, Accent, TextAlignmentOptions.Left);
 
         // 레시피 많은 설비(용해로 등)는 패널 밖으로 넘치니 스크롤. 뷰포트(마스크)+콘텐츠.
         var vp = Make("RecipeViewport", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -40f));
@@ -928,7 +970,9 @@ public class CodexUI : MonoBehaviour
                 Txt(pl, "+", 24f, FontStyles.Bold, C32(96, 106, 120), TextAlignmentOptions.Left).margin = new Vector4(32f, 0f, 0f, 0f);   // 좌측 패딩 = + 좌우 위치(왼쪽쏠림 완화)
             }
             var it = ItemDatabase.GetItem(inputs[m].itemId);
-            AddItemCell(ins, 68f, it, inputs[m].count);
+            int srcItemId = inputs[m].itemId;   // 루프 변수 m 캡처 방지(람다서 마지막 값으로 고정되는 것)
+            var cell = AddItemCell(ins, 68f, it, inputs[m].count);
+            HoverButton(cell, () => ShowSourcePopup(srcItemId));   // 재료 클릭 -> 출처 팝업(+호버 발광으로 발견성)
             var mn = NewChild("mn", ins);
             mn.gameObject.AddComponent<LayoutElement>().preferredWidth = 112f;   // 이름 고정폭(타이트) -> 열 정렬 + 트레일링 여백 축소
             Txt(mn, it != null ? it.itemName : inputs[m].itemId.ToString(), 15f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
@@ -949,6 +993,179 @@ public class CodexUI : MonoBehaviour
         var oName = NewChild("on", row);
         oName.gameObject.AddComponent<LayoutElement>().preferredWidth = 150f;
         Txt(oName, outItem != null ? outItem.itemName : (string)r.outputItemId, 18f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+    }
+
+    // ── 재료 출처 팝업 + 도감 내 네비게이션 ───────────────────────────
+    private RectTransform _popup;
+
+    private void CloseSourcePopup()
+    {
+        if (_popup != null) { Destroy(_popup.gameObject); _popup = null; }
+    }
+
+    // 재료 클릭 -> 이 아이템의 모든 획득 경로(제작/상자/몬스터)를 팝업으로.
+    // 가공템이면 제작 설비로 이동, 몬스터 드롭이면 해금 시 이름+도감이동, 미해금이면 ???.
+    private void ShowSourcePopup(int itemId)
+    {
+        CloseSourcePopup();
+        HideTooltip();
+        var item = GameDataUtility.GetItem(itemId);
+
+        // 백드롭(바깥 클릭 시 닫힘)
+        _popup = Make("SourcePopup", _root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        Img(_popup, null, new Color(0f, 0f, 0f, 0.45f));
+        Btn(_popup, CloseSourcePopup);
+
+        // 카드(가운데). 높이는 ContentSizeFitter.
+        var card = Make("card", _popup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        card.pivot = new Vector2(0.5f, 0.5f); card.sizeDelta = new Vector2(500f, 0f);
+        Img(card, RoundedFallback(14), PanelLight);
+        Line(card, PanelBd);
+        Btn(card, () => { });   // 카드 안쪽 클릭은 닫힘 막기(이벤트 소비)
+        var vlg = card.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.padding = new RectOffset(24, 24, 20, 22); vlg.spacing = 12f;
+        vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true; vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+        card.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // 헤더: 아이콘 + 이름 + 등급
+        var head = NewChild("head", card);
+        head.gameObject.AddComponent<LayoutElement>().minHeight = 56f;
+        var hhlg = head.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hhlg.spacing = 14f; hhlg.childAlignment = TextAnchor.MiddleLeft;
+        hhlg.childControlWidth = true; hhlg.childControlHeight = true;
+        hhlg.childForceExpandWidth = false; hhlg.childForceExpandHeight = false;
+        var hicon = NewChild("hi", head);
+        var hil = hicon.gameObject.AddComponent<LayoutElement>();
+        hil.preferredWidth = 56f; hil.minWidth = 56f; hil.preferredHeight = 56f; hil.minHeight = 56f;
+        SlotBg(hicon);
+        if (item != null) GradeAurora(hicon, (int)item.itemGrade, 28f);
+        Sprite isp = item != null ? ItemDatabase.GetIcon(item.iconKey) : null;
+        if (isp != null)
+        {
+            var ic = Make("ic", hicon, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+            var im = Img(ic, isp, Color.white); im.preserveAspect = true; im.raycastTarget = false;
+        }
+        var htxt = NewChild("ht", head);
+        htxt.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+        Txt(htxt, item != null ? item.itemName : itemId.ToString(), 24f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+        if (item != null)
+        {
+            var gr = NewChild("gr", head);
+            gr.gameObject.AddComponent<LayoutElement>().preferredWidth = 66f;
+            Txt(gr, GradeVisual.GetName((int)item.itemGrade), 16f, FontStyles.Bold, GradeVisual.GetColor((int)item.itemGrade), TextAlignmentOptions.Right);
+        }
+
+        var div = NewChild("div", card);
+        div.gameObject.AddComponent<LayoutElement>().minHeight = 1f;
+        Img(div, null, Divider);
+        Txt(NewChild("hint", card), "획득 방법", 13f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+
+        int rowCount = 0;
+        // 제작 출처(가공템) -> 설비로 이동
+        var recipe = GameDataUtility.GetRecipeByOutputItem(itemId);
+        if (recipe != null && int.TryParse((string)recipe.facilityId, out int fid))
+        {
+            var fac = GameDataUtility.GetFacility(fid);
+            string fname = fac != null ? fac.facilityName : ("설비 " + fid);
+            AddSourceRow(card, "제작", Accent, fname + " 에서 제작", "이동", () => JumpToFacility(fid));
+            rowCount++;
+        }
+        // 드롭 출처(상자/몬스터)
+        bool chestShown = false;
+        foreach (var d in GameDataUtility.GetItemDropSources(itemId))
+        {
+            if (d.type == SourceType.Chest)
+            {
+                if (chestShown) continue;
+                chestShown = true;
+                AddSourceRow(card, "상자", C32(150, 162, 178), "상자 파밍에서 획득", null, null);
+                rowCount++;
+            }
+            else   // Monster
+            {
+                int mi = FindMonsterIndexBySourceId(d.sourceId);
+                var mlist = _monsters ?? Monsters;
+                if (mi >= 0 && mlist[mi].state == St.Public)
+                {
+                    string mn = string.IsNullOrEmpty(mlist[mi].name) ? "몬스터" : mlist[mi].name;
+                    int idx = mi;
+                    AddSourceRow(card, "처치", C32(214, 120, 120), mn + " 처치", "도감", () => JumpToMonster(idx));
+                }
+                else
+                {
+                    AddSourceRow(card, "처치", C32(150, 156, 164), "??? (미발견 몬스터)", null, null);
+                }
+                rowCount++;
+            }
+        }
+        if (rowCount == 0)
+            AddSourceRow(card, "정보", C32(150, 156, 164), "출처 정보가 없습니다", null, null);
+    }
+
+    // 출처 한 줄: [태그 칩][라벨][액션 버튼?]
+    private void AddSourceRow(RectTransform card, string tag, Color tagColor, string label, string actionText, UnityEngine.Events.UnityAction action)
+    {
+        var row = NewChild("srow", card);
+        row.gameObject.AddComponent<LayoutElement>().minHeight = 46f;
+        Img(row, RoundedFallback(8), CardBg);
+        Line(row, CardBd);
+        var hlg = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 12f; hlg.childAlignment = TextAnchor.MiddleLeft;
+        hlg.padding = new RectOffset(12, 12, 0, 0);
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+
+        var chip = NewChild("chip", row);
+        var cl = chip.gameObject.AddComponent<LayoutElement>();
+        cl.preferredWidth = 52f; cl.minWidth = 52f; cl.preferredHeight = 26f; cl.minHeight = 26f;
+        Img(chip, RoundedFallback(6), new Color(tagColor.r, tagColor.g, tagColor.b, 0.18f));
+        Txt(chip, tag, 13f, FontStyles.Bold, tagColor, TextAlignmentOptions.Center);
+
+        var lab = NewChild("lab", row);
+        lab.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+        Txt(lab, label, 16f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+
+        if (!string.IsNullOrEmpty(actionText) && action != null)
+        {
+            var btn = NewChild("act", row);
+            var bl = btn.gameObject.AddComponent<LayoutElement>();
+            bl.preferredWidth = 74f; bl.minWidth = 74f; bl.preferredHeight = 30f; bl.minHeight = 30f;
+            Img(btn, RoundedFallback(7), Accent);
+            Txt(btn, actionText, 14f, FontStyles.Bold, C32(22, 51, 63), TextAlignmentOptions.Center);
+            Btn(btn, action);
+        }
+    }
+
+    private int FindMonsterIndexBySourceId(string sourceId)
+    {
+        if (string.IsNullOrEmpty(sourceId)) return -1;
+        var list = _monsters ?? Monsters;
+        for (int i = 0; i < list.Length; i++)
+            if (!string.IsNullOrEmpty(list[i].monsterSourceId) && list[i].monsterSourceId == sourceId)
+                return i;
+        return -1;
+    }
+
+    private void JumpToFacility(int facilityId)
+    {
+        CloseSourcePopup();
+        var list = _facilities ?? Facilities;
+        for (int i = 0; i < list.Length; i++)
+            if (list[i].facilityId == facilityId && list[i].state == St.Public)
+            {
+                _tab = 2; _sel = i; RebuildTabs(); Refresh();
+                return;
+            }
+    }
+
+    private void JumpToMonster(int monsterIndex)
+    {
+        CloseSourcePopup();
+        var list = _monsters ?? Monsters;
+        if (monsterIndex < 0 || monsterIndex >= list.Length || list[monsterIndex].state != St.Public) return;
+        _tab = 1; _sel = monsterIndex; RebuildTabs(); Refresh();
     }
 
     // 인벤 슬롯과 동일 구성: 각진 반투명 다크 + 4변 얇은 쿨슬레이트 테두리(격자). 라운드/sheen 없음.
@@ -986,7 +1203,7 @@ public class CodexUI : MonoBehaviour
     }
 
     // 레시피 셀(슬롯 배경 + 아이템 아이콘 + 수량 배지). HLG 행에 LayoutElement로 추가.
-    private void AddItemCell(RectTransform row, float size, ItemDataSheetData item, int count)
+    private RectTransform AddItemCell(RectTransform row, float size, ItemDataSheetData item, int count)
     {
         var cell = NewChild("cell", row);
         var le = cell.gameObject.AddComponent<LayoutElement>();
@@ -1005,9 +1222,10 @@ public class CodexUI : MonoBehaviour
             var badge = Make("badge", cell, new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, Vector2.zero);
             badge.sizeDelta = new Vector2(bw, 16f);
             badge.anchoredPosition = new Vector2(-bw * 0.5f - 3f, 15f);   // 마스크 라운드 모서리 피해 살짝 안쪽
-            Img(badge, RoundedFallback(7), new Color(0f, 0f, 0f, 0.62f));
+            Img(badge, RoundedFallback(7), new Color(0f, 0f, 0f, 0.62f)).raycastTarget = false;
             Txt(badge, "x" + count, 11f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
         }
+        return cell;
     }
 
     private static ItemDataSheetData GetItemById(string itemId)
@@ -1132,7 +1350,7 @@ public class CodexUI : MonoBehaviour
         var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
         if (_font != null) t.font = _font;
         t.text = txt; t.fontSize = size; t.fontStyle = style; t.color = col;
-        t.alignment = align; t.raycastTarget = false; t.enableWordWrapping = false;
+        t.alignment = align; t.raycastTarget = false; t.textWrappingMode = TextWrappingModes.NoWrap;
         t.overflowMode = TextOverflowModes.Overflow;
         return t;
     }
@@ -1144,6 +1362,74 @@ public class CodexUI : MonoBehaviour
         var btn = rt.gameObject.AddComponent<Button>();
         btn.transition = Selectable.Transition.None;
         btn.onClick.AddListener(onClick);
+    }
+
+    // 클릭 가능한 셀: 클릭 + 호버 시 발광 + 툴팁(발견성 확보). 평소엔 클릭 신호가 없어 아무도 안 눌러보는 문제 해결.
+    void HoverButton(RectTransform cell, UnityEngine.Events.UnityAction onClick)
+    {
+        var hl = Make("hover", cell, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        var hlImg = Img(hl, null, Color.white); hlImg.raycastTarget = false;   // 호버 글로우 오버레이(평소 투명)
+        var cellImg = cell.gameObject.GetComponent<Image>();
+        if (cellImg != null) cellImg.raycastTarget = true;
+        var btn = cell.gameObject.AddComponent<Button>();
+        btn.targetGraphic = hlImg;
+        btn.transition = Selectable.Transition.ColorTint;
+        var cb = btn.colors;
+        cb.normalColor = new Color(1f, 1f, 1f, 0f);
+        cb.highlightedColor = new Color(Accent.r, Accent.g, Accent.b, 0.18f);
+        cb.pressedColor = new Color(Accent.r, Accent.g, Accent.b, 0.30f);
+        cb.selectedColor = new Color(1f, 1f, 1f, 0f);
+        cb.disabledColor = new Color(1f, 1f, 1f, 0f);
+        cb.colorMultiplier = 1f; cb.fadeDuration = 0.12f;
+        btn.colors = cb;
+        btn.onClick.AddListener(onClick);
+
+        // 호버 툴팁("자세히 보기 / 좌클릭") - 마우스 올리면 셀 위에 표시
+        var et = cell.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+        var enter = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
+        enter.callback.AddListener(e => ShowTooltip(cell));
+        et.triggers.Add(enter);
+        var exit = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
+        exit.callback.AddListener(e => HideTooltip());
+        et.triggers.Add(exit);
+    }
+
+    private RectTransform _tooltip;
+
+    private void EnsureTooltip()
+    {
+        if (_tooltip != null) return;
+        _tooltip = Make("HoverTip", _root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        _tooltip.pivot = new Vector2(0.5f, 0f); _tooltip.sizeDelta = new Vector2(128f, 54f);
+        Img(_tooltip, RoundedFallback(10), new Color(0.10f, 0.13f, 0.18f, 0.96f)).raycastTarget = false;
+        Line(_tooltip, new Color32(120, 140, 160, 80));
+        Txt(Make("t1", _tooltip, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -26f), new Vector2(0f, -6f)),
+            "자세히 보기", 14f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
+        Txt(Make("t2", _tooltip, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 6f), new Vector2(0f, 24f)),
+            "좌클릭", 12f, FontStyles.Normal, new Color(0.62f, 0.78f, 0.95f, 1f), TextAlignmentOptions.Center);
+        _tooltip.gameObject.SetActive(false);
+    }
+
+    // 셀 상단 중앙 위에 툴팁 배치(마스크 밖 _root 자식이라 스크롤 영역에 안 잘림)
+    private void ShowTooltip(RectTransform cell)
+    {
+        if (cell == null || _root == null) return;
+        EnsureTooltip();
+        var corners = new Vector3[4];
+        cell.GetWorldCorners(corners);   // 0 BL, 1 TL, 2 TR, 3 BR
+        Vector3 topCenter = (corners[1] + corners[2]) * 0.5f;
+        Vector2 screen = RectTransformUtility.WorldToScreenPoint(null, topCenter);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, screen, null, out Vector2 local))
+        {
+            _tooltip.anchoredPosition = local + new Vector2(0f, 12f);
+            _tooltip.SetAsLastSibling();
+            _tooltip.gameObject.SetActive(true);
+        }
+    }
+
+    private void HideTooltip()
+    {
+        if (_tooltip != null) _tooltip.gameObject.SetActive(false);
     }
 
     static void Line(RectTransform rt, Color col, float width = 1f)

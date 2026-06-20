@@ -95,4 +95,38 @@ public static class GameDataUtility
         }
         return result;
     }
+
+    // 이 아이템을 "제작하는" 레시피(outputItemId == itemId) 첫 번째 반환. 없으면 null.
+    // 도감 출처 추적에서 가공템이 어느 설비서 나오는지 역추적용.
+    public static RecipeDataSheetData GetRecipeByOutputItem(int itemId)
+    {
+        string idStr = itemId.ToString();
+        foreach (var r in GameDataHolder.I.RecipeData.All)
+            if ((string)r.outputItemId == idStr)
+                return r;
+        return null;
+    }
+
+    // 이 아이템의 드롭 출처(상자/몬스터) 목록. (sourceType, sourceId) 중복 제거.
+    // itemId 는 DropTable 복합키 SheetId("source_itemId")의 뒷부분.
+    public static List<(SourceType type, string sourceId)> GetItemDropSources(int itemId)
+    {
+        var result = new List<(SourceType, string)>();
+        string idStr = itemId.ToString();
+        foreach (var row in GameDataHolder.I.DropTable.All)
+        {
+            string key = row.SheetId;
+            if (string.IsNullOrEmpty(key)) continue;
+            int u = key.LastIndexOf('_');
+            if (u < 0 || u + 1 >= key.Length) continue;
+            if (key.Substring(u + 1) != idStr) continue;
+
+            string sid = row.sourceId != null ? row.sourceId.Trim() : "";
+            bool dup = false;
+            for (int i = 0; i < result.Count; i++)
+                if (result[i].Item1 == row.sourceType && result[i].Item2 == sid) { dup = true; break; }
+            if (!dup) result.Add((row.sourceType, sid));
+        }
+        return result;
+    }
 }
