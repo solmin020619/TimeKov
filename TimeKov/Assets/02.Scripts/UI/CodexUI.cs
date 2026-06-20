@@ -44,8 +44,8 @@ public class CodexUI : MonoBehaviour
     }
 
     // ── 색 토큰 (dc.html 핸드오프) ──────────────────────────────────
-    static readonly Color Bg        = C32(216, 221, 226);   // 라이트 그레이 배경(패널이 더 밝게 떠 보이도록 살짝 어둡게)
-    static readonly Color PanelLight = C32(248, 250, 252);  // 패널 = 거의 흰 라이트 면(엔필식). 회색 panel_ash는 인벤용이라 안 씀.
+    static readonly Color Bg        = C32(199, 205, 214);   // 맨뒤 배경(더 어둡게 톤다운). 게임서 K 눌러도 눈 안 부시게
+    static readonly Color PanelLight = C32(233, 238, 244);  // 패널 면(순백 248 -> 톤다운). 좌측 리스트 강조는 행 알파로 보강(묻힘 방지).
     static readonly Color PanelBd   = new Color32(120, 140, 160, 40); // 패널 얇은 테두리
     static readonly Color Divider   = new Color32(120, 140, 160, 60);
     static readonly Color TabPillBg  = new Color(1f, 1f, 1f, 0.55f);
@@ -112,15 +112,17 @@ public class CodexUI : MonoBehaviour
     private TMP_FontAsset _font;
     private int _tab = 1;   // 시작 = 몬스터(중간 상태 mock 확인용)
     private int _sel = 0;
+    private int _highlightOutputItemId;   // 출처점프 시 강조할 결과물 아이템(그 레시피 행을 지속 강조). 0=없음
 
     private CodexPreviewConfig _cfg;        // Resources/Codex/CodexPreviewConfig (있으면 몬스터탭 구동)
     private CodexTutorialConfig _tutCfg;    // Resources/Codex/CodexTutorialConfig (있으면 튜토탭 구동)
+    private CodexRecipeRewardConfig _rewardCfg;   // Resources/Codex/CodexRecipeRewardConfig (설비별 보상 개수)
     private CodexMonsterPortrait _portrait; // 흉상 라이브 렌더러(지연 생성)
     private CodexVideoScreen _video;        // 튜토 인라인 영상 재생기(지연 생성)
     private Entry[] _tutorial;              // 런타임 리스트(개발자 해금 적용)
     private Entry[] _monsters;              // 플레이스홀더 + 설정 병합(인덱스 매칭)
     private Entry[] _facilities;
-    private static bool _devUnlockAll = true;   // 개발자모드: 전부 해금(테스트용). 도감에서 F9로 토글.
+    private static bool _devUnlockAll = false;   // 기본 = 실제 발견/해금 게이팅. F9로 "전부 해금"(개발 확인용) 토글.
 
     private void OnApplicationQuit() => _quitting = true;
     private void OnDestroy()
@@ -174,10 +176,14 @@ public class CodexUI : MonoBehaviour
             // 열 때마다 최신 설정 반영(populate 메뉴를 플레이 중 돌려도 잡히게)
             _cfg = Resources.Load<CodexPreviewConfig>("Codex/CodexPreviewConfig");
             _tutCfg = Resources.Load<CodexTutorialConfig>("Codex/CodexTutorialConfig");
+            _rewardCfg = Resources.Load<CodexRecipeRewardConfig>("Codex/CodexRecipeRewardConfig");
             EnsureGameData();   // 게임 데이터(구글시트) 안 떠 있으면 로드 시도
             RebuildLists();
             _sel = 0;
+            _highlightOutputItemId = 0;   // 새로 열면 출처점프 강조 초기화
             Refresh();
+            CodexNotice.MarkSeen(_tab);   // 열 때 현재 탭은 본 것으로(HUD 배지 즉시 갱신)
+            RebuildTabs();                // 탭 배지 최신화
         }
         if (_root != null) _root.gameObject.SetActive(on);
         if (!on) CloseSourcePopup();                               // 닫으면 떠 있던 출처 팝업 정리
@@ -204,6 +210,7 @@ public class CodexUI : MonoBehaviour
         DataBoot.OnDataLoaded += HandleDataLoaded;   // 데이터가 나중에 로드돼도 갱신되게
         _cfg = Resources.Load<CodexPreviewConfig>("Codex/CodexPreviewConfig");   // 없으면 플레이스홀더로 폴백
         _tutCfg = Resources.Load<CodexTutorialConfig>("Codex/CodexTutorialConfig");
+        _rewardCfg = Resources.Load<CodexRecipeRewardConfig>("Codex/CodexRecipeRewardConfig");
         RebuildLists();
 
         _root = Make("Root", transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -294,7 +301,7 @@ public class CodexUI : MonoBehaviour
 
         // 상단: 카테고리 + 수치(모노, 우측정렬)
         Txt(Make("ctxt", _completionBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -17f), new Vector2(0f, 0f)),
-            TabNames[_tab] + " 도감  " + got + " / " + total + "  ·  " + pct + "%", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Right);
+            TabNames[_tab] + " 도감  " + got + " / " + total + "  ·  " + pct + "%", 14f, FontStyles.Bold, TxtSub, TextAlignmentOptions.Right);
 
         // 하단: 진행 바(트랙 + 채움)
         var track = Make("track", _completionBox, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 3f), new Vector2(0f, 9f));
@@ -356,7 +363,7 @@ public class CodexUI : MonoBehaviour
         fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         Img(tab, active ? RoundedFallback(11) : null, active ? Accent : new Color(0f, 0f, 0f, 0f));
-        Btn(tab, () => { _tab = index; _sel = 0; RebuildTabs(); Refresh(); });
+        Btn(tab, () => { _tab = index; _sel = 0; _highlightOutputItemId = 0; CodexNotice.MarkSeen(index); RebuildTabs(); Refresh(); });
 
         Color icCol = active ? TabActiveTxt : TabInactiveTxt;
         var ico = NewChild("ico", tab);
@@ -365,6 +372,26 @@ public class CodexUI : MonoBehaviour
         BuildTabIcon(index, ico, icCol);
 
         Txt(NewChild("lbl", tab), TabNames[index], 18f, FontStyles.Bold, icCol, TextAlignmentOptions.Center);
+
+        // 안 본 새 항목이 있는 카테고리(비활성 탭)면 우상단 알림(!) 배지. 활성 탭은 열며 MarkSeen 되어 안 뜸.
+        if (CodexNotice.IsUnseen(index)) AddTabNotice(tab);
+    }
+
+    // 탭 우상단 알림(!) 배지 - HUD K 아이콘과 같은 Alert_amber 사용. 레이아웃서 제외해 탭 크기 안 흔듦.
+    private void AddTabNotice(RectTransform tab)
+    {
+        var badge = NewChild("notice", tab);
+        var le = badge.gameObject.AddComponent<LayoutElement>();
+        le.ignoreLayout = true;
+        badge.anchorMin = badge.anchorMax = new Vector2(1f, 1f);
+        badge.pivot = new Vector2(0.5f, 0.5f);
+        badge.sizeDelta = new Vector2(28f, 28f);
+        badge.anchoredPosition = new Vector2(1f, 2f);   // 우상단 모서리에 걸치게(크게)
+        var sprite = Resources.Load<Sprite>("Image/UI_Icon/HUD/Alert_amber");
+        var img = badge.gameObject.AddComponent<Image>();
+        if (sprite != null) { img.sprite = sprite; img.preserveAspect = true; }
+        else img.color = new Color(0.96f, 0.62f, 0.12f, 1f);   // 절차 폴백(앰버 점)
+        img.raycastTarget = false;
     }
 
     private void BuildTabIcon(int index, RectTransform parent, Color col)
@@ -409,7 +436,7 @@ public class CodexUI : MonoBehaviour
         ClearChildren(_listBox);
 
         var label = Make("Label", _listBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(8f, -28f), new Vector2(-14f, -4f));
-        Txt(label, "목록 - LIST", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        Txt(label, "목록 - LIST", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
 
         // 항목이 많으면(튜토 영상 16개 등) 패널 밖으로 넘치니 스크롤. 뷰포트(마스크)+콘텐츠(VLG+Fitter).
         var viewport = Make("Viewport", _listBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 2f), new Vector2(-12f, -32f));
@@ -457,7 +484,7 @@ public class CodexUI : MonoBehaviour
 
         if (selected)
         {
-            Img(row, RoundedFallback(10), new Color32(95, 196, 255, 50));   // 선택 = 뚜렷한 강조(조금 더 세게)
+            Img(row, RoundedFallback(10), new Color32(95, 196, 255, 74));   // 선택 = 뚜렷한 강조(톤다운 패널서도 또렷하게 알파 보강)
             Line(row, new Color32(95, 196, 255, 130));
             var bar = Make("Bar", row, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 8f), new Vector2(4f, -8f));
             Img(bar, RoundedFallback(3), Accent);
@@ -465,12 +492,12 @@ public class CodexUI : MonoBehaviour
         else
         {
             // 비선택 헤더도 기본 카드로 어느정도 강조(엔필처럼). 미발견은 더 흐리게.
-            byte a = e.state == St.Public ? (byte)32 : (byte)16;
+            byte a = e.state == St.Public ? (byte)46 : (byte)24;   // 톤다운 패널서 카드 묻히지 않게 알파 보강
             Img(row, RoundedFallback(10), new Color32(120, 140, 160, a));
             if (e.state == St.Public) Line(row, new Color32(120, 140, 160, 42));
         }
 
-        if (e.state == St.Public) Btn(row, () => { _sel = index; Refresh(); });
+        if (e.state == St.Public) Btn(row, () => { _sel = index; _highlightOutputItemId = 0; Refresh(); });
 
         float textLeft = 96f;
         if (!textOnly)
@@ -558,7 +585,7 @@ public class CodexUI : MonoBehaviour
         var list = CurList;
         if (_sel >= 0 && _sel < list.Length && list[_sel].state == St.Public) return list[_sel];
         foreach (var e in list) if (e.state == St.Public) return e;
-        return (_sel >= 0 && _sel < list.Length) ? list[_sel] : null;
+        return null;   // 공개(Public) 엔트리가 없으면 선택 없음(미발견 데이터 누출 방지)
     }
 
     // 런타임 리스트 3개 재생성(개발자 해금/설정 반영). F9 토글 시 다시 호출.
@@ -583,7 +610,8 @@ public class CodexUI : MonoBehaviour
                 name = (p != null && !string.IsNullOrEmpty(p.title)) ? p.title : ("영상 " + (i + 1)),
                 state = St.Hidden, status = "미시청", tutPage = p
             };
-            if (_devUnlockAll) { e.state = St.Public; e.status = null; }   // 시청여부는 나중에 - 지금은 전부 해금
+            // 실제 시청: 인게임서 그 영상 봤으면(CodexDiscovery) Public, 아니면 Hidden(미시청).
+            if (_devUnlockAll || (p != null && CodexDiscovery.IsTutorialWatched(p.title))) { e.state = St.Public; e.status = null; }
             list[i] = e;
         }
         return list;
@@ -607,11 +635,16 @@ public class CodexUI : MonoBehaviour
             if (fd == null) continue;
             var e = new Entry { name = fd.facilityName, state = St.Silhouette, status = "미해금", facilityId = id };
             if (FacilityIconDatabase.Instance != null) e.icon = FacilityIconDatabase.Instance.GetIcon(id);
-            if (_devUnlockAll) { e.state = St.Public; e.status = null; }   // 해금은 나중에 - 지금은 개발자 전부해금
+            // 실제 해금(FacilityUnlockManager) 또는 개발자 F9. 미해금이면 Silhouette("미해금") -> 선택 불가 = 레시피 가려짐.
+            if (FacilityUnlocked(id)) { e.state = St.Public; e.status = null; }
             list.Add(e);
         }
         return list.Count > 0 ? list.ToArray() : CloneDev(Facilities);
     }
+
+    // 설비 해금 여부. 도감은 정지 UI라 열려있는 동안 해금이 안 일어나니 열 때마다 평가로 충분(라이브 구독 불필요).
+    private bool FacilityUnlocked(int id)
+        => _devUnlockAll || (FacilityUnlockManager.Instance != null && FacilityUnlockManager.Instance.IsUnlocked(id));
 
     // 정적 플레이스홀더 복제 + 개발자 해금 적용(튜토/설비용. 둘 다 이름 있음).
     private Entry[] CloneDev(Entry[] src)
@@ -635,29 +668,24 @@ public class CodexUI : MonoBehaviour
         for (int i = 0; i < Monsters.Length; i++)
         {
             var b = Monsters[i];
-            var e = new Entry { name = b.name, state = b.state, status = b.status };
+            var e = new Entry { name = b.name, state = St.Hidden, status = "미발견" };
             if (_cfg != null && i < _cfg.monsters.Count && _cfg.monsters[i] != null)
             {
                 var c = _cfg.monsters[i];
                 if (!string.IsNullOrEmpty(c.displayName)) e.name = c.displayName;
-                e.state = MapState(c.state);
-                e.status = e.state == St.Public ? null : (e.state == St.Silhouette ? "포착" : "미발견");
                 if (c.prefab != null)
                 {
                     e.preview = c;
                     e.monsterSourceId = c.prefab.GetComponentInChildren<EnemyDropOnDeath>(true)?.SourceId;
                 }
             }
-            if (_devUnlockAll) { e.state = St.Public; e.status = null; }
+            // 실제 발견: 처치(CodexDiscovery)했으면 Public, 아니면 Hidden(???). config RevealState(mock)는 무시.
+            if (_devUnlockAll || CodexDiscovery.IsMonsterDiscovered(e.monsterSourceId)) { e.state = St.Public; e.status = null; }
             if (e.state == St.Public && string.IsNullOrEmpty(e.name)) e.name = "몬스터 " + (i + 1);
             list[i] = e;
         }
         return list;
     }
-
-    private static St MapState(CodexPreviewConfig.RevealState s)
-        => s == CodexPreviewConfig.RevealState.Revealed ? St.Public
-         : s == CodexPreviewConfig.RevealState.Silhouette ? St.Silhouette : St.Hidden;
 
     private void EnsurePortrait()
     {
@@ -683,7 +711,7 @@ public class CodexUI : MonoBehaviour
     private RectTransform MainHeader(string monoLabel, string rightText, Color rightCol, bool rightBig)
     {
         var hdr = Make("MHeader", _mainBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -34f), new Vector2(0f, 0f));
-        Txt(Make("l", hdr, new Vector2(0f, 0f), new Vector2(0.6f, 1f), Vector2.zero, Vector2.zero), monoLabel, 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        Txt(Make("l", hdr, new Vector2(0f, 0f), new Vector2(0.6f, 1f), Vector2.zero, Vector2.zero), monoLabel, 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         if (!string.IsNullOrEmpty(rightText))
             Txt(Make("r", hdr, new Vector2(0.4f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), rightText, rightBig ? 20f : 11f, rightBig ? FontStyles.Bold : FontStyles.Normal, rightCol, TextAlignmentOptions.Right);
         var line = Make("MLine", _mainBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -49f), new Vector2(0f, -48f));
@@ -734,10 +762,37 @@ public class CodexUI : MonoBehaviour
         Txt(desc, descText, 16f, FontStyles.Normal, TxtSub, TextAlignmentOptions.TopLeft).textWrappingMode = TextWrappingModes.Normal;
     }
 
+    // 처치 수 기반 단계 공개 임계값 (실제 정의는 CodexDiscovery - 킬수 소유자, 드리프트 방지).
+    const int KillsForStats = CodexDiscovery.KillsForStats;        // 스탯 공개
+    const int KillsForDropRate = CodexDiscovery.KillsForDropRate;  // 드롭 확률 공개 (= 풀 해금, X/10 카운터 기준)
+
+    // 이 몬스터 처치 수(개발자 전부해금이면 풀로 간주).
+    private int MonsterKillCount(Entry e)
+        => _devUnlockAll ? KillsForDropRate : CodexDiscovery.MonsterKills(e?.monsterSourceId);
+
+    // 이름 옆 처치 진행도 배지 ("처치 X / 10").
+    private void AddKillBadge(RectTransform row, int kills)
+    {
+        bool full = kills >= KillsForDropRate;
+        // 풀해금(10) 전엔 진행도 "X / 10", 이후엔 누적 처치수만("처치 137" 같은 재미요소)
+        string label = full ? ("처치 " + kills) : ("처치 " + kills + " / " + KillsForDropRate);
+        var pill = NewChild("kc", row);
+        var le = pill.gameObject.AddComponent<LayoutElement>();
+        le.preferredWidth = 128f; le.minWidth = 128f; le.preferredHeight = 28f; le.minHeight = 28f;
+        var c = full ? Accent : C32(120, 140, 160);
+        Img(pill, RoundedFallback(8), new Color(c.r, c.g, c.b, 0.16f));
+        Txt(pill, label, 14f, FontStyles.Bold, full ? C32(40, 110, 150) : C32(92, 100, 112), TextAlignmentOptions.Center);
+    }
+
     private void BuildMonsterMain(string selName)
     {
         var selE = SelectedEntry();
         var data = MonsterData(selE);   // 프리팹의 MeleeEnemyData (실제 스탯)
+        string srcId = selE != null ? selE.monsterSourceId : null;
+        int kills = MonsterKillCount(selE);
+        // 자동 공개가 아니라 "도감서 직접 활성화". 조건(킬수) 충족하면 빨강 버튼 -> 클릭하면 공개.
+        bool statsOn = _devUnlockAll || CodexDiscovery.IsStatsActivated(srcId);
+        bool ratesOn = _devUnlockAll || CodexDiscovery.IsRatesActivated(srcId);
 
         var thr = Make("ThreatDots", _mainBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-120f, -32f), new Vector2(0f, -8f));
         var body = MainHeader("몬스터 - THREAT", "위협도", C32(154, 162, 170), false);
@@ -759,25 +814,64 @@ public class CodexUI : MonoBehaviour
         Txt(Make("rl", face, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(9f, -24f), new Vector2(0f, -6f)), "RENDER", 10f, FontStyles.Normal, new Color(0.40f, 0.47f, 0.57f, 0.72f), TextAlignmentOptions.Left);
 
         var statArea = Make("Stats", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(200f, -150f), new Vector2(0f, -18f));
-        Txt(Make("nm", statArea, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, 0f)), selName, 28f, FontStyles.Bold, TxtMain, TextAlignmentOptions.TopLeft);
-        var statRow = Make("StatRow", statArea, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -50f));
-        var hlg = statRow.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 8f; hlg.childAlignment = TextAnchor.UpperLeft;
-        hlg.childControlWidth = true; hlg.childControlHeight = true;       // flexibleWidth 균등분배 적용되게 control=true
-        hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
-        // 실제 스탯(MeleeEnemyData). 값 없으면 "?".
-        string atkSpd = data != null && data.attackCooldown > 0.01f ? (1f / data.attackCooldown).ToString("0.0") : "?";
-        AddStat(statRow, "체력", data != null ? Mathf.RoundToInt(data.maxHP).ToString("N0") : "?", "");
-        AddStat(statRow, "공격력", data != null ? Mathf.RoundToInt(data.attackDamage).ToString() : "?", "");
-        AddStat(statRow, "공격속도", atkSpd, "/s");
-        AddStat(statRow, "이동속도", data != null ? data.moveSpeed.ToString("0.0") : "?", "m/s");
-        AddStat(statRow, "사거리", data != null ? data.attackRange.ToString("0.0") : "?", "m");
-        AddStat(statRow, "시야", data != null ? Mathf.RoundToInt(data.visionRange).ToString() : "?", "m");
+        var nameRow = Make("nmrow", statArea, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -44f), new Vector2(0f, 0f));
+        var nhlg = nameRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        nhlg.spacing = 12f; nhlg.childAlignment = TextAnchor.LowerLeft;
+        nhlg.childControlWidth = true; nhlg.childControlHeight = true;
+        nhlg.childForceExpandWidth = false; nhlg.childForceExpandHeight = false;
+        Txt(NewChild("nm", nameRow), selName, 28f, FontStyles.Bold, TxtMain, TextAlignmentOptions.BottomLeft);
+        AddKillBadge(nameRow, kills);
+        if (statsOn)
+        {
+            var statRow = Make("StatRow", statArea, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -50f));
+            var hlg = statRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 8f; hlg.childAlignment = TextAnchor.UpperLeft;
+            hlg.childControlWidth = true; hlg.childControlHeight = true;
+            hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
+            // 실제 스탯(MeleeEnemyData). 값 없으면 "?".
+            string atkSpd = data != null && data.attackCooldown > 0.01f ? (1f / data.attackCooldown).ToString("0.0") : "?";
+            AddStat(statRow, "체력", data != null ? Mathf.RoundToInt(data.maxHP).ToString("N0") : "?", "");
+            AddStat(statRow, "공격력", data != null ? Mathf.RoundToInt(data.attackDamage).ToString() : "?", "");
+            AddStat(statRow, "공격속도", atkSpd, "/s");
+            AddStat(statRow, "이동속도", data != null ? data.moveSpeed.ToString("0.0") : "?", "m/s");
+            AddStat(statRow, "사거리", data != null ? data.attackRange.ToString("0.0") : "?", "m");
+            AddStat(statRow, "시야", data != null ? Mathf.RoundToInt(data.visionRange).ToString() : "?", "m");
+        }
+        else if (kills >= KillsForStats)
+        {
+            // 5마리 처치 완료 -> 빨강 [스탯 활성화] 버튼(클릭해 직접 해금)
+            var pill = Make("stact", statArea, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+            pill.sizeDelta = new Vector2(240f, 46f); pill.anchoredPosition = new Vector2(120f, -74f);
+            RedActivateButton(pill, "스탯 활성화 (" + KillsForStats + "마리 처치 완료)",
+                () => { CodexDiscovery.ActivateStats(srcId); ToastManager.Success("스탯 공개"); Refresh(); });
+        }
+        else
+        {
+            // 5마리 미만 -> 잠금 + 진행도
+            Txt(Make("stlock", statArea, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -84f), new Vector2(0f, -52f)),
+                "스탯 잠김 - " + KillsForStats + "마리 처치 시 활성화  (" + Mathf.Min(kills, KillsForStats) + " / " + KillsForStats + ")",
+                17f, FontStyles.Bold, C32(150, 158, 168), TextAlignmentOptions.Left);
+        }
 
         var line = Make("MidLine", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -204f), new Vector2(0f, -203f));
         Img(line, null, Divider);
 
-        Txt(Make("dl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -236f), new Vector2(0f, -212f)), "드랍 아이템 - DROPS", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        Txt(Make("dl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -236f), new Vector2(0f, -212f)), "드랍 아이템 - DROPS", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        if (!ratesOn)
+        {
+            if (kills >= KillsForDropRate)
+            {
+                // 10마리 처치 완료 -> 빨강 [드롭 확률 활성화]
+                var pill = Make("ratact", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+                pill.sizeDelta = new Vector2(196f, 40f); pill.anchoredPosition = new Vector2(282f, -225f);
+                RedActivateButton(pill, "드롭 확률 활성화",
+                    () => { CodexDiscovery.ActivateRates(srcId); ToastManager.Success("드롭 확률 공개"); Refresh(); });
+            }
+            else
+                Txt(Make("drlock", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(178f, -237f), new Vector2(0f, -211f)),
+                    "확률 잠김 - " + KillsForDropRate + "마리 처치 시 활성화  (" + Mathf.Min(kills, KillsForDropRate) + " / " + KillsForDropRate + ")",
+                    14f, FontStyles.Bold, C32(108, 120, 136), TextAlignmentOptions.Left);
+        }
         var grid = Make("DropGrid", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -244f));
         var glg = grid.gameObject.AddComponent<GridLayoutGroup>();
         glg.cellSize = new Vector2(540f, 104f);   // 한 줄에 2개, 큼직하게
@@ -788,7 +882,7 @@ public class CodexUI : MonoBehaviour
         // 실제 드롭 + 확률(가중치 비율, 처음부터 표시). 흔한 것부터.
         var drops = BuildMonsterDrops(selE);
         if (drops.Count > 0)
-            foreach (var d in drops) BuildDropCard(grid, d);
+            foreach (var d in drops) BuildDropCard(grid, d, ratesOn);
         else
             Txt(Make("nd", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, -244f)), "드롭 정보가 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.TopLeft);
     }
@@ -864,7 +958,7 @@ public class CodexUI : MonoBehaviour
         Txt(NewChild("v", col), v, 28f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
     }
 
-    private void BuildDropCard(RectTransform parent, Drop d)
+    private void BuildDropCard(RectTransform parent, Drop d, bool showRate)
     {
         var card = NewChild("drop", parent);
         Img(card, RoundedFallback(10), CardBg);
@@ -894,15 +988,18 @@ public class CodexUI : MonoBehaviour
         Txt(Make("ds", info, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 26f)), d.desc, 17f, FontStyles.Bold, C32(84, 92, 104), TextAlignmentOptions.BottomLeft);
         var pct = Make("pct", card, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
         pct.sizeDelta = new Vector2(80f, 52f); pct.anchoredPosition = new Vector2(-44f, 0f);
-        Txt(pct, d.pct, 26f, FontStyles.Bold, C32(60, 68, 76), TextAlignmentOptions.Right);
+        Txt(pct, showRate ? d.pct : "??%", showRate ? 26f : 24f, FontStyles.Bold, showRate ? C32(60, 68, 76) : C32(120, 128, 140), TextAlignmentOptions.Right);
     }
 
     private void BuildFacilityMain(string selName)
     {
         var body = MainHeader("설비 - FACILITY", selName, TxtMain, true);
-        Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), "제작 가능 레시피 - RECIPES", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), "제작 가능 레시피 - RECIPES", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         // 재료가 클릭 가능하다는 상시 힌트(호버 발광/툴팁과 함께 발견성 확보). RECIPES 라벨 바로 옆.
-        Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), "·  재료를 누르면 출처 보기", 12f, FontStyles.Normal, Accent, TextAlignmentOptions.Left);
+        Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), "·  재료를 누르면 출처 보기", 14f, FontStyles.Bold, Accent, TextAlignmentOptions.Left);
+        // 잭팟 설명(우측). 마스터한 레시피의 보너스 = 직관적 안내.
+        Txt(Make("jl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(-12f, -6f)),
+            "레시피 10회 제작 후 활성화 시 -> 제작마다 10% 확률로 2배 생산!", 13f, FontStyles.Normal, C32(165, 130, 60), TextAlignmentOptions.Right);
 
         // 레시피 많은 설비(용해로 등)는 패널 밖으로 넘치니 스크롤. 뷰포트(마스크)+콘텐츠.
         var vp = Make("RecipeViewport", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -40f));
@@ -922,16 +1019,68 @@ public class CodexUI : MonoBehaviour
         scroll.scrollSensitivity = 30f;
 
         var selE = SelectedEntry();
-        var recipes = (selE != null && selE.facilityId > 0) ? GameDataUtility.GetRecipesByFacilityId(selE.facilityId) : null;
+        // 해금된(Public) 설비만 레시피 공개. 전부 미해금이면 폴백이 잠긴 설비를 줄 수 있어 가드(레시피 누출 방지).
+        var recipes = (selE != null && selE.state == St.Public && selE.facilityId > 0) ? GameDataUtility.GetRecipesByFacilityId(selE.facilityId) : null;
         if (recipes != null && recipes.Count > 0)
         {
             // 설비 내 최대 재료수 -> 재료 영역 폭을 행마다 동일하게(= 와 결과물 열 정렬)
             int maxIn = 1;
             foreach (var r in recipes) maxIn = Mathf.Max(maxIn, GameDataUtility.GetRecipeInputs(r.SheetId).Count);
-            foreach (var r in recipes) BuildRecipeRowReal(rows, r, maxIn);
+            string targetIdStr = _highlightOutputItemId > 0 ? _highlightOutputItemId.ToString() : null;
+            int hlIndex = -1;
+            for (int k = 0; k < recipes.Count; k++)
+            {
+                if (targetIdStr != null && (string)recipes[k].outputItemId == targetIdStr) hlIndex = k;
+                BuildRecipeRowReal(rows, recipes[k], maxIn);
+            }
+            BuildRewardBox(rows, selE.facilityId);   // 맨 아래 보상 박스(전 레시피 마스터 시 코어키트)
+            if (hlIndex >= 0)   // 강조 레시피가 스크롤 밖이면 보이게 맞춤(86px 균일행 기준)
+            {
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rows);
+                float maxY = Mathf.Max(0f, rows.rect.height - vp.rect.height);
+                var ap = rows.anchoredPosition; ap.y = Mathf.Clamp(hlIndex * 86f - 16f, 0f, maxY); rows.anchoredPosition = ap;
+            }
         }
         else
             Txt(NewChild("none", rows), "표시할 레시피가 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
+    }
+
+    // 레시피 제작수/마스터 (F9 전부해금이면 마스터로 간주 - 테스트용)
+    private int RecipeCrafts(string recipeId)
+        => _devUnlockAll ? RecipeProgress.CraftsToMaster : RecipeProgress.Crafts(recipeId);
+    private bool RecipeMastered(string recipeId)
+        => _devUnlockAll || RecipeProgress.IsMastered(recipeId);
+
+    // 조건 달성 시 뜨는 "빨강 활성화 버튼"을 host(미리 배치된 RectTransform)에 만든다.
+    private void RedActivateButton(RectTransform host, string label, UnityEngine.Events.UnityAction onClick)
+    {
+        Img(host, RoundedFallback(9), C32(224, 96, 96));
+        Txt(host, label, 15f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
+        Btn(host, onClick);
+    }
+
+    // 레시피 제작 진행도(행 우측). 회색 N/10 -> (마스터)빨강[잭팟 활성화] -> (클릭)초록 잭팟 ON.
+    private void BuildRecipeProgress(RectTransform row, string recipeId)
+    {
+        int crafts = RecipeCrafts(recipeId);
+        // 잭팟은 보상느낌 -> F9(전부해금)여도 자동 ON 안 함. 마스터(10회/ F9) 후 직접 클릭해야 활성.
+        bool jackpotOn = RecipeProgress.IsJackpotActive(recipeId);
+        var box = NewChild("prog", row);
+        var le = box.gameObject.AddComponent<LayoutElement>();
+        le.preferredWidth = 172f; le.minWidth = 172f; le.preferredHeight = 56f;
+
+        if (jackpotOn)
+            Txt(box, crafts + " / " + RecipeProgress.CraftsToMaster + "  <color=#3FB46B>잭팟 ON</color>", 15f, FontStyles.Bold, C32(60, 68, 76), TextAlignmentOptions.Right);
+        else if (crafts >= RecipeProgress.CraftsToMaster)
+        {
+            var pill = Make("jp", box, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            pill.sizeDelta = new Vector2(138f, 40f); pill.anchoredPosition = new Vector2(-2f, 0f);
+            string rid = recipeId;
+            RedActivateButton(pill, "잭팟 활성화", () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success("잭팟 활성화! 제작마다 10% 확률로 2배 생산"); Refresh(); });
+        }
+        else
+            Txt(box, Mathf.Min(crafts, RecipeProgress.CraftsToMaster) + " / " + RecipeProgress.CraftsToMaster, 16f, FontStyles.Bold, C32(120, 128, 140), TextAlignmentOptions.Right);
     }
 
     // 실제 레시피 데이터로 행 구성 (재료 + 재료 = 결과물, 전부 실제 아이템 아이콘)
@@ -943,6 +1092,19 @@ public class CodexUI : MonoBehaviour
         var top = Make("top", row, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -1f), new Vector2(0f, 0f));
         top.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;   // 구분선은 레이아웃 흐름서 제외(overlay)
         Img(top, null, new Color32(120, 140, 160, 46));
+
+        // 출처점프로 도착한 "그 결과물을 만드는 레시피"면 지속 강조(화면 전환 전까지 유지, 반짝 아님).
+        if (_highlightOutputItemId > 0 && (string)r.outputItemId == _highlightOutputItemId.ToString())
+        {
+            var hl = Make("rowhl", row, Vector2.zero, Vector2.one, new Vector2(1f, 2f), new Vector2(-1f, -1f));
+            hl.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;   // 배경 강조는 레이아웃서 제외
+            Img(hl, RoundedFallback(8), new Color32(95, 196, 255, 56)).raycastTarget = false;
+            Line(hl, new Color32(95, 196, 255, 150));
+            var bar = Make("hlbar", row, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(2f, 5f), new Vector2(6f, -3f));
+            bar.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            Img(bar, RoundedFallback(2), Accent).raycastTarget = false;
+        }
+
         var hlg = row.gameObject.AddComponent<HorizontalLayoutGroup>();
         hlg.spacing = 14f; hlg.childAlignment = TextAnchor.MiddleLeft;
         hlg.padding = new RectOffset(4, 4, 0, 0);
@@ -993,6 +1155,107 @@ public class CodexUI : MonoBehaviour
         var oName = NewChild("on", row);
         oName.gameObject.AddComponent<LayoutElement>().preferredWidth = 150f;
         Txt(oName, outItem != null ? outItem.itemName : (string)r.outputItemId, 18f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+
+        // 우측으로 밀어내는 스페이서 + 제작 진행도(N/10, 마스터면 잭팟)
+        var spacer = NewChild("sp", row);
+        spacer.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+        BuildRecipeProgress(row, (string)r.SheetId);
+    }
+
+    // 이 설비의 (마스터한 레시피 수, 전체 레시피 수)
+    private (int mastered, int total) FacilityRecipeMastery(int facilityId)
+    {
+        var recipes = GameDataUtility.GetRecipesByFacilityId(facilityId);
+        int total = recipes != null ? recipes.Count : 0, m = 0;
+        if (recipes != null)
+            foreach (var r in recipes) if (RecipeMastered((string)r.SheetId)) m++;
+        return (m, total);
+    }
+
+    // 보상 지급: 가방 -> 창고 폴백(퀘스트 보상과 동일). 전부 들어가면 true.
+    private bool GrantReward(int itemId, int count)
+    {
+        if (itemId <= 0 || count <= 0) return true;
+        int leftover = count;
+        if (InventoryManager.Instance != null)
+            leftover = InventoryManager.Instance.TryAddItemFromLoot(itemId, leftover);
+        int afterBag = leftover;
+        if (leftover > 0 && InventoryManager.StorageInstance != null)
+            leftover = InventoryManager.StorageInstance.TryAddItemFromLoot(itemId, leftover);
+        if (afterBag > 0 && leftover < afterBag) ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+        if (leftover > 0) { ToastManager.Error("보상을 받지 못했습니다. 인벤토리를 비워주세요"); return false; }
+        return true;
+    }
+
+    private void ClaimFacilityReward(int facilityId, int itemId, int count)
+    {
+        if (RecipeProgress.IsFacilityRewardClaimed(facilityId)) return;
+        var (m, total) = FacilityRecipeMastery(facilityId);
+        if (!(total > 0 && m >= total)) return;   // 안전: 100% 아니면 무시
+        if (GrantReward(itemId, count))
+        {
+            RecipeProgress.MarkFacilityRewardClaimed(facilityId);
+            ToastManager.Success("보상 수령 - 코어 키트 " + count + "개");
+            Refresh();
+        }
+    }
+
+    // 설비별 보상 박스(레시피 목록 맨 아래). 100% 마스터 전엔 회색/미달성, 100%면 수령 버튼.
+    private void BuildRewardBox(RectTransform parent, int facilityId)
+    {
+        int rewardCount = _rewardCfg != null ? _rewardCfg.RewardCountFor(facilityId) : 0;
+        if (rewardCount <= 0) return;   // 보상 미설정 설비는 박스 안 띄움
+        int rewardItemId = _rewardCfg != null ? _rewardCfg.rewardItemId : 6101;
+        var (mastered, total) = FacilityRecipeMastery(facilityId);
+        bool complete = total > 0 && mastered >= total;
+        bool claimed = RecipeProgress.IsFacilityRewardClaimed(facilityId);
+        bool active = complete && !claimed;
+
+        var box = NewChild("rewardbox", parent);
+        var le = box.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = 124f; le.preferredHeight = 124f;
+        var pad = Make("rbpad", box, Vector2.zero, Vector2.one, new Vector2(2f, 16f), new Vector2(-2f, -8f));   // 위 여백(레시피와 분리)
+        Color tint = claimed ? new Color(0.31f, 0.70f, 0.43f, 0.12f) : (active ? new Color(0.88f, 0.38f, 0.38f, 0.12f) : CardBg);
+        Color edge = claimed ? new Color32(80, 180, 110, 120) : (active ? new Color32(224, 96, 96, 150) : CardBd);
+        Img(pad, RoundedFallback(12), tint);
+        Line(pad, edge);
+
+        // 보상 아이템 슬롯(왼쪽, 세로 가운데)
+        var item = GameDataUtility.GetItem(rewardItemId);
+        var slot = Make("rbslot", pad, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+        slot.sizeDelta = new Vector2(66f, 66f); slot.anchoredPosition = new Vector2(54f, 0f);
+        SlotBg(slot);
+        if (item != null) GradeAurora(slot, (int)item.itemGrade, 30f);
+        Sprite isp = item != null ? ItemDatabase.GetIcon(item.iconKey) : null;
+        if (isp != null) { var ic = Make("ic", slot, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f)); var im = Img(ic, isp, Color.white); im.preserveAspect = true; im.raycastTarget = false; }
+
+        // 텍스트 컬럼(슬롯 오른쪽 ~ 버튼 왼쪽). 캡션/이름/진행도를 세로로 분리해 안 겹치게.
+        Txt(Make("rblab", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -28f), new Vector2(-196f, -8f)),
+            "전 레시피 마스터 보상", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        string iname = item != null ? item.itemName : ("아이템 " + rewardItemId);
+        Txt(Make("rbnm", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -66f), new Vector2(-196f, -32f)),
+            iname + "  x" + rewardCount, 21f, FontStyles.Bold, complete ? TxtMain : TxtSub, TextAlignmentOptions.Left);
+        Txt(Make("rbpg", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -94f), new Vector2(-196f, -70f)),
+            "레시피 " + mastered + " / " + total + " 마스터", 14f, FontStyles.Bold, complete ? C32(40, 110, 150) : C32(124, 132, 142), TextAlignmentOptions.Left);
+
+        // 수령 버튼
+        var btn = Make("rbbtn", pad, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+        btn.sizeDelta = new Vector2(158f, 54f); btn.anchoredPosition = new Vector2(-96f, 0f);
+        if (claimed)
+        {
+            Img(btn, RoundedFallback(9), new Color(0.31f, 0.70f, 0.43f, 0.20f));
+            Txt(btn, "수령 완료", 16f, FontStyles.Bold, C32(60, 160, 95), TextAlignmentOptions.Center);
+        }
+        else if (complete)
+        {
+            int fid = facilityId, iid = rewardItemId, cnt = rewardCount;
+            RedActivateButton(btn, "보상 수령", () => ClaimFacilityReward(fid, iid, cnt));
+        }
+        else
+        {
+            Img(btn, RoundedFallback(9), new Color(0.5f, 0.55f, 0.6f, 0.14f));
+            Txt(btn, "미달성", 16f, FontStyles.Bold, C32(150, 156, 164), TextAlignmentOptions.Center);
+        }
     }
 
     // ── 재료 출처 팝업 + 도감 내 네비게이션 ───────────────────────────
@@ -1067,9 +1330,16 @@ public class CodexUI : MonoBehaviour
         var recipe = GameDataUtility.GetRecipeByOutputItem(itemId);
         if (recipe != null && int.TryParse((string)recipe.facilityId, out int fid))
         {
-            var fac = GameDataUtility.GetFacility(fid);
-            string fname = fac != null ? fac.facilityName : ("설비 " + fid);
-            AddSourceRow(card, "제작", Accent, fname + " 에서 제작", "이동", () => JumpToFacility(fid));
+            if (FacilityUnlocked(fid))
+            {
+                var fac = GameDataUtility.GetFacility(fid);
+                string fname = fac != null ? fac.facilityName : ("설비 " + fid);
+                AddSourceRow(card, "제작", Accent, fname + " 에서 제작", "이동", () => JumpToFacility(fid, itemId));
+            }
+            else   // 미해금 설비는 스포 방지 -> ???
+            {
+                AddSourceRow(card, "제작", C32(150, 156, 164), "??? (미해금 설비)", null, null);
+            }
             rowCount++;
         }
         // 드롭 출처(상자/몬스터)
@@ -1148,14 +1418,16 @@ public class CodexUI : MonoBehaviour
         return -1;
     }
 
-    private void JumpToFacility(int facilityId)
+    private void JumpToFacility(int facilityId, int outputItemId)
     {
         CloseSourcePopup();
         var list = _facilities ?? Facilities;
         for (int i = 0; i < list.Length; i++)
             if (list[i].facilityId == facilityId && list[i].state == St.Public)
             {
-                _tab = 2; _sel = i; RebuildTabs(); Refresh();
+                _tab = 2; _sel = i;
+                _highlightOutputItemId = outputItemId;   // 그 설비서 "이 아이템을 만드는 레시피"를 지속 강조
+                RebuildTabs(); Refresh();
                 return;
             }
     }
@@ -1165,7 +1437,7 @@ public class CodexUI : MonoBehaviour
         CloseSourcePopup();
         var list = _monsters ?? Monsters;
         if (monsterIndex < 0 || monsterIndex >= list.Length || list[monsterIndex].state != St.Public) return;
-        _tab = 1; _sel = monsterIndex; RebuildTabs(); Refresh();
+        _tab = 1; _sel = monsterIndex; _highlightOutputItemId = 0; RebuildTabs(); Refresh();
     }
 
     // 인벤 슬롯과 동일 구성: 각진 반투명 다크 + 4변 얇은 쿨슬레이트 테두리(격자). 라운드/sheen 없음.

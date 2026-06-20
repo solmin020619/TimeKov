@@ -29,14 +29,19 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     [Tooltip("즉시완료(G) 시 소모 HP = 해금까지 '남은 시간' * 이 배율. 배율 2면 20초 남았을 때 40HP(=40초) 소모, 시간이 줄면 비용도 함께 줄어든다.")]
     [SerializeField] private float instantHpCostMultiplier = 2f;
 
+    [Header("리젠 (파밍 후 사라졌다 재등장)")]
+    [Tooltip("다 비운 상자가 사라진 뒤 이 시간(초) 후 새 상자로 재등장(Idle 복귀 - 처음부터 다시 까야 함).")]
+    [SerializeField] private float respawnSeconds = 300f;
+
     [Header("프롬프트")]
     [SerializeField] private float promptRange = 2.6f;
 
     // ── 상태 ──────────────────────────────────────────────────────────
-    // Idle=잠김(걸어두기 전) / Opening=자물쇠 따는 중 / Ready=수령 가능 / Opened=잠금해제(자유 개폐, 재굴림 안 함)
-    private enum State { Idle, Opening, Ready, Opened }
+    // Idle=잠김(걸어두기 전) / Opening=자물쇠 따는 중 / Ready=수령 가능 / Opened=잠금해제(자유 개폐, 재굴림 안 함) / Depleted=다 비워 사라짐(리젠 대기)
+    private enum State { Idle, Opening, Ready, Opened, Depleted }
     private State _state = State.Idle;
     private float _timer;
+    private Collider[] _colliders;   // 리젠 동안 사라진 자리 통과 가능하게 토글
 
     // 공용 상자 인벤(ChestInstance)을 현재 점유한 상자. 다른 상자를 열면 소유권이 넘어간다.
     private static ChestInteractable _activeChest;
@@ -71,6 +76,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         // 통일된 아웃라인 스타일(노란색·OutlineAll·두께) 적용 — 풀에 가려도 보이도록.
         InteractOutline.Apply(_outline);
         _outline.enabled      = false;
+        _colliders = GetComponentsInChildren<Collider>(true);
     }
 
     private void Start()
@@ -150,10 +156,21 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
             _timer -= Time.deltaTime;
             if (_timer <= 0f) { _timer = 0f; _state = State.Ready; }
         }
-        // Opened(잠금해제)는 절대 Idle로 안 돌아간다 = 재굴림 없음(다 비우면 빈 채로 유지).
+        else if (_state == State.Opened && !HasItems()
+                 && !(InventoryUIController.IsChestOpen && _activeChest == this))
+        {
+            // 다 비운 상자 -> 패널 닫은 뒤 사라지고 리젠 대기(한 번 판 상자는 그 자리서 소멸).
+            EnterDepleted();
+        }
+        else if (_state == State.Depleted)
+        {
+            _timer -= Time.deltaTime;
+            if (_timer <= 0f) Respawn();   // 새 상자로 재등장(Idle)
+        }
+
         bool near = IsPlayerNear();
         RefreshIndicator(near);
-        bool highlight = near && !(_state == State.Opened && !HasItems());
+        bool highlight = near && _state != State.Depleted && !(_state == State.Opened && !HasItems());
         UpdateOutline(highlight);
         UpdateGlow(highlight);
     }
@@ -216,6 +233,33 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     {
         if (closedVisual != null) closedVisual.SetActive(!opened);
         if (openedVisual != null) openedVisual.SetActive(opened);
+    }
+
+    // 다 비운 상자: 사라짐(비주얼 둘 다 숨김 + 콜라이더 off로 자리 통과 가능) + 리젠 타이머 시작.
+    private void EnterDepleted()
+    {
+        _state = State.Depleted;
+        _timer = respawnSeconds;
+        _contents = null;
+        if (_activeChest == this) _activeChest = null;
+        if (closedVisual != null) closedVisual.SetActive(false);
+        if (openedVisual != null) openedVisual.SetActive(false);
+        if (_colliders != null)
+            foreach (var c in _colliders) if (c != null) c.enabled = false;
+        UpdateOutline(false);
+        UpdateGlow(false);
+        ChestPromptUI.Instance?.HideIfOwner(this);
+    }
+
+    // 리젠: 새 상자로 다시 등장(Idle = 잠김). 처음부터 다시 까야 함 = 새로운 상자 개념.
+    private void Respawn()
+    {
+        _state = State.Idle;
+        _timer = 0f;
+        _contents = null;
+        if (_colliders != null)
+            foreach (var c in _colliders) if (c != null) c.enabled = true;
+        SetVisual(false);   // closedVisual on(잠긴 새 상자), openedVisual off
     }
 
     private void OnDisable()
