@@ -35,6 +35,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
 
     [Header("프롬프트")]
     [SerializeField] private float promptRange = 2.6f;
+    [Tooltip("범위 경계에서 들어왔다 나갔다 할 때 깜빡이는 것을 막기 위한 여유 거리(m). 한 번 '근접'으로 판정되면 promptRange + 이 값을 벗어나야 '근접 해제'로 바뀜.")]
+    [SerializeField] private float nearExitBuffer = 0.4f;
 
     // ── 상태 ──────────────────────────────────────────────────────────
     // Idle=잠김(걸어두기 전) / Opening=자물쇠 따는 중 / Ready=수령 가능 / Opened=잠금해제(자유 개폐, 재굴림 안 함) / Depleted=다 비워 사라짐(리젠 대기)
@@ -80,13 +82,16 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         SetupGlow();
     }
 
-    // 인벤토리 UI 열려있을 때만 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
+    // 인벤토리 UI가 열려있거나 promptRange 밖이면 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
     public bool CanInteract
     {
         get
         {
             var inv = InventoryUIController.Instance;
-            return inv == null || !inv.IsOpen;
+            if (inv != null && inv.IsOpen) return false;
+            // 프롬프트 UI가 뜨는 거리와 F가 통하는 거리를 일치시킨다(물리 콜라이더 형태 때문에
+            // OverlapSphere가 promptRange 밖에서도 감지하는 경우가 있어, 여기서 최종 거리 검증).
+            return IsPlayerNear();
         }
     }
 
@@ -358,10 +363,16 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         }
     }
 
+    // 경계에서 미세하게 들어왔다 나갔다 해도 깜빡이지 않도록 히스테리시스 적용.
+    // 이미 근접 상태면 promptRange + nearExitBuffer를 벗어나야 비로소 해제된다.
+    private bool _near;
+
     private bool IsPlayerNear()
     {
-        if (_player == null) return false;
-        return (_player.transform.position - transform.position).sqrMagnitude <= promptRange * promptRange;
+        if (_player == null) { _near = false; return false; }
+        float range = _near ? promptRange + nearExitBuffer : promptRange;
+        _near = (_player.transform.position - transform.position).sqrMagnitude <= range * range;
+        return _near;
     }
 
     // 현재 이 상자에 남아있는 아이템이 있는지 확인
