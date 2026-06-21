@@ -1,9 +1,8 @@
 // =====================================================================
 // Schemas/DropTableSchema.cs
-// 드롭 테이블 스키마
-// 같은 dropId 를 가진 행들이 하나의 드롭 풀을 구성한다
-// dropId 는 그룹 식별자 — 몬스터/상자마다 dropId 1개가 할당된다
-// pickCount 개수만큼 가중치(dropWeight) 기반으로 아이템을 뽑는다
+// 드롭 테이블 스키마 (독립 확률 방식)
+// 같은 dropId 를 가진 행들 = 한 몬스터/상자의 드롭 목록
+// 각 아이템은 dropChance% 로 독립 판정(서로 영향 없음), 드롭 시 개수는 countChance 로 분포
 // =====================================================================
 
 public class DropTableSchema : SheetSchema
@@ -34,18 +33,12 @@ public class DropTableSchema : SheetSchema
         // 같은 dropId 의 모든 행은 반드시 동일한 dropTier 를 가져야 한다
         Add("dropTier", ColumnType.Int, required: true);
 
-        // 드롭 가중치 — 높을수록 자주 뽑힌다
-        // 동일 풀 내에서 상대적 비율로 계산한다
-        Add("dropWeight", ColumnType.Int, required: true);
+        // 드롭 확률 (0~100). 각 아이템이 독립적으로 이 확률로 드롭된다(다른 행과 무관)
+        Add("dropChance", ColumnType.Int, required: true);
 
-        // 드롭 최소 수량
-        Add("minCount", ColumnType.Int, required: true);
-
-        // 드롭 최대 수량
-        Add("maxCount", ColumnType.Int, required: true);
-
-        // 한 번 드롭 시 풀에서 뽑는 아이템 종류 수
-        // 예: pickCount == 2 → 가중치 기반으로 2종 아이템을 각각 1회씩 뽑는다
-        Add("pickCount", ColumnType.Int, required: true);
+        // 개수 분포. 파이프(|) 구분 = 1개|2개|3개... 의 확률(비율).
+        // 예: "70|30"=1개70%/2개30%, "100"=무조건1개, "0|40|30|30"=2개40%/3개30%/4개30%
+        // (구글시트가 / 를 날짜로 바꿔서 | 사용)
+        Add("countDist", ColumnType.String, required: true);
     }
 }

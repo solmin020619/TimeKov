@@ -132,7 +132,7 @@ public static class EliteVariantBuilder
             made++;
             summary.Add($"  {shortName} -> Enemy_{shortName}_Elite ('{eliteName}'  HP {eliteSo.maxHP} / 공격 {eliteSo.attackDamage} / sourceId={eliteSourceId})");
             if (!string.IsNullOrEmpty(eliteSourceId))
-                dropRows.Add($"    sourceType=Monster | sourceId={eliteSourceId} | dropTier=? | dropWeight=? | pickCount=? | itemId=?(엘리트 전용템)");
+                dropRows.Add($"    sourceType=Monster | sourceId={eliteSourceId} | dropTier=? | dropChance=? | minCount/maxCount/countChance=? | itemId=?(엘리트 전용템)");
         }
 
         if (cfg != null) EditorUtility.SetDirty(cfg);

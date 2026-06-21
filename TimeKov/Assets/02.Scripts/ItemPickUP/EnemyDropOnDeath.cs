@@ -77,48 +77,22 @@ public class EnemyDropOnDeath : MonoBehaviour
         string myId = sourceId != null ? sourceId.Trim() : "";
         if (myId.Length == 0) return result;
 
-        var pool = new List<DropTableSheetData>();
+        // 각 행(아이템)을 독립적으로 굴린다 - dropChance% 로 드롭 판정, 뜨면 개수 판정. 행끼리 서로 영향 없음.
         foreach (var row in GameDataHolder.I.DropTable.All)
         {
             string rowId = row.sourceId != null ? row.sourceId.Trim() : "";
-            if (row.sourceType == SourceType.Monster && rowId == myId)
-                pool.Add(row);
-        }
-        if (pool.Count == 0) return result;
+            if (row.sourceType != SourceType.Monster || rowId != myId) continue;
 
-        int pickCount = Mathf.Max(1, pool[0].pickCount);
+            if (Random.Range(0, 100) >= row.dropChance) continue;   // 드롭 실패
 
-        for (int p = 0; p < pickCount && pool.Count > 0; p++)
-        {
-            DropTableSheetData picked = WeightedPick(pool);
-            pool.Remove(picked);
-
-            int itemId = ExtractItemId(picked.SheetId);
+            int itemId = ExtractItemId(row.SheetId);
             if (itemId <= 0) continue;
 
-            int count = Random.Range(picked.minCount, picked.maxCount + 1);
+            int count = GameDataUtility.RollDropCount(row.countDist);
             if (count > 0) result.Add((itemId, count));
         }
 
         return result;
-    }
-
-    private DropTableSheetData WeightedPick(List<DropTableSheetData> pool)
-    {
-        int total = 0;
-        for (int i = 0; i < pool.Count; i++)
-            total += Mathf.Max(0, pool[i].dropWeight);
-
-        if (total <= 0) return pool[0];
-
-        int r = Random.Range(0, total);
-        int acc = 0;
-        for (int i = 0; i < pool.Count; i++)
-        {
-            acc += Mathf.Max(0, pool[i].dropWeight);
-            if (r < acc) return pool[i];
-        }
-        return pool[pool.Count - 1];
     }
 
     // SheetId 복합키 "dropId_itemId" 에서 itemId 추출

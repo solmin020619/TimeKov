@@ -1133,16 +1133,14 @@ public class CodexUI : MonoBehaviour
         var rows = GameDataUtility.GetMonsterDrops(srcId);
         if (rows.Count == 0) return list;
 
-        rows.Sort((a, b) => b.weight.CompareTo(a.weight));
-        int totalW = 0;
-        foreach (var r in rows) totalW += Mathf.Max(0, r.weight);
+        rows.Sort((a, b) => b.chance.CompareTo(a.chance));
 
         foreach (var r in rows)
         {
             var item = GameDataUtility.GetItem(r.itemId);
             if (item == null) continue;
             int gi = (int)item.itemGrade;
-            float pct = totalW > 0 ? r.weight * 100f / totalW : 0f;
+            float pct = r.chance;   // 독립 확률이라 그대로 %
             string cnt = r.minCount == r.maxCount ? $"{r.minCount}개" : $"{r.minCount}~{r.maxCount}개";
             list.Add(new Drop
             {

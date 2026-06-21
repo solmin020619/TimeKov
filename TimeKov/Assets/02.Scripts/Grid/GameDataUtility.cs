@@ -50,8 +50,8 @@ public static class GameDataUtility
     }
 
     // 몬스터(sourceId)의 드롭 목록 반환. itemId 는 DropTable 복합키 SheetId("dropId_itemId")서 파싱.
-    // 확률 = dropWeight 비율(호출부서 합산해 계산).
-    public static List<(int itemId, int weight, int tier, int minCount, int maxCount)> GetMonsterDrops(string sourceId)
+    // chance = dropChance(0~100, 독립 확률이라 그대로 %).
+    public static List<(int itemId, int chance, int tier, int minCount, int maxCount)> GetMonsterDrops(string sourceId)
     {
         var result = new List<(int, int, int, int, int)>();
         if (string.IsNullOrEmpty(sourceId)) return result;
@@ -67,9 +67,48 @@ public static class GameDataUtility
             int u = string.IsNullOrEmpty(key) ? -1 : key.LastIndexOf('_');
             if (u < 0 || u + 1 >= key.Length) continue;
             if (int.TryParse(key.Substring(u + 1), out int itemId) && itemId > 0)
-                result.Add((itemId, row.dropWeight, row.dropTier, row.minCount, row.maxCount));
+            {
+                var (mn, mx) = DropCountRange(row.countDist);
+                result.Add((itemId, row.dropChance, row.dropTier, mn, mx));
+            }
         }
         return result;
+    }
+
+    // countDist("70|30")를 굴려 개수 반환. 파이프 순서 = 1개,2개,3개... 의 가중치.
+    public static int RollDropCount(string countDist)
+    {
+        if (string.IsNullOrEmpty(countDist)) return 1;
+        string[] parts = countDist.Split('|');
+        int total = 0;
+        for (int i = 0; i < parts.Length; i++)
+            if (int.TryParse(parts[i].Trim(), out int w) && w > 0) total += w;
+        if (total <= 0) return 1;
+
+        int r = UnityEngine.Random.Range(0, total);
+        int acc = 0;
+        for (int i = 0; i < parts.Length; i++)
+            if (int.TryParse(parts[i].Trim(), out int w) && w > 0)
+            {
+                acc += w;
+                if (r < acc) return i + 1;   // 개수 = 자리(1부터)
+            }
+        return 1;
+    }
+
+    // countDist 에서 표시용 개수 범위(min~max) 추출. 가중치>0 인 첫/마지막 자리.
+    public static (int min, int max) DropCountRange(string countDist)
+    {
+        if (string.IsNullOrEmpty(countDist)) return (1, 1);
+        string[] parts = countDist.Split('|');
+        int min = 0, max = 0;
+        for (int i = 0; i < parts.Length; i++)
+            if (int.TryParse(parts[i].Trim(), out int w) && w > 0)
+            {
+                if (min == 0) min = i + 1;
+                max = i + 1;
+            }
+        return min == 0 ? (1, 1) : (min, max);
     }
 
     // recipeId 의 입력 재료를 (itemId, count) 목록으로 반환.

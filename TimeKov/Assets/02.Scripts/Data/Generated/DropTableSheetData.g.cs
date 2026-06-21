@@ -12,8 +12,6 @@ public class DropTableSheetData
     public SourceType sourceType;
     public string sourceId;
     public int dropTier;
-    public int dropWeight;
-    public int minCount;
-    public int maxCount;
-    public int pickCount;
+    public int dropChance;
+    public string countDist;
 }

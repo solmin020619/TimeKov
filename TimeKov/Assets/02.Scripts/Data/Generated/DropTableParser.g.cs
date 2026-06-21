@@ -14,10 +14,8 @@ public static class DropTableParser
         int idx_sourceId = table.GetColumnIndex("sourceId");
         int idx_itemId = table.GetColumnIndex("itemId");
         int idx_dropTier = table.GetColumnIndex("dropTier");
-        int idx_dropWeight = table.GetColumnIndex("dropWeight");
-        int idx_minCount = table.GetColumnIndex("minCount");
-        int idx_maxCount = table.GetColumnIndex("maxCount");
-        int idx_pickCount = table.GetColumnIndex("pickCount");
+        int idx_dropChance = table.GetColumnIndex("dropChance");
+        int idx_countDist = table.GetColumnIndex("countDist");
 
         foreach (var row in table.Rows)
         {
@@ -31,10 +29,8 @@ public static class DropTableParser
             data.sourceType = (SourceType)Enum.Parse(typeof(SourceType), row.Get(idx_sourceType));
             data.sourceId = row.Get(idx_sourceId);
             data.dropTier = int.Parse(row.Get(idx_dropTier));
-            data.dropWeight = int.Parse(row.Get(idx_dropWeight));
-            data.minCount = int.Parse(row.Get(idx_minCount));
-            data.maxCount = int.Parse(row.Get(idx_maxCount));
-            data.pickCount = int.Parse(row.Get(idx_pickCount));
+            data.dropChance = int.Parse(row.Get(idx_dropChance));
+            data.countDist = row.Get(idx_countDist);
 
             result[data.SheetId] = data;
         }

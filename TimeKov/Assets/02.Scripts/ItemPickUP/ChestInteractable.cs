@@ -397,55 +397,22 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         string myId = (sourceId ?? "").Trim();
         if (myId.Length == 0) return result;
 
-        var pool = new List<DropTableSheetData>();
+        // 각 행(아이템)을 독립적으로 굴린다 - dropChance% 로 드롭, 뜨면 개수 판정. 행끼리 서로 영향 없음.
         foreach (var row in GameDataHolder.I.DropTable.All)
         {
             string rowId = (row.sourceId ?? "").Trim();
-            if (row.sourceType == SourceType.Chest && rowId == myId)
-                pool.Add(row);
-        }
-        if (pool.Count == 0) return result;
+            if (row.sourceType != SourceType.Chest || rowId != myId) continue;
 
-        int pickCount = Mathf.Max(1, pool[0].pickCount);
-        var available = new List<DropTableSheetData>(pool);
+            if (Random.Range(0, 100) >= row.dropChance) continue;   // 드롭 실패
 
-        for (int p = 0; p < pickCount && available.Count > 0; p++)
-        {
-            DropTableSheetData picked = WeightedPick(available);
-            available.Remove(picked);
+            int itemId = ExtractItemId(row.SheetId);
+            if (itemId <= 0) continue;
+            if (GameDataUtility.GetItem(itemId) == null) continue;
 
-            int itemId = ExtractItemId(picked.SheetId);
-            if (itemId <= 0)
-            {
-                Debug.LogWarning($"[Chest] itemId 추출 실패 — SheetId='{picked.SheetId}'.");
-                continue;
-            }
-            if (GameDataUtility.GetItem(itemId) == null)
-            {
-                Debug.LogWarning($"[Chest] itemId={itemId} — ItemData에 없음.");
-                continue;
-            }
-
-            int count = Random.Range(picked.minCount, picked.maxCount + 1);
+            int count = GameDataUtility.RollDropCount(row.countDist);
             if (count > 0) result.Add((itemId, count));
         }
         return result;
-    }
-
-    private DropTableSheetData WeightedPick(List<DropTableSheetData> pool)
-    {
-        int total = 0;
-        foreach (var r in pool) total += Mathf.Max(0, r.dropWeight);
-        if (total <= 0) return pool[0];
-
-        int rand = Random.Range(0, total);
-        int acc  = 0;
-        foreach (var r in pool)
-        {
-            acc += Mathf.Max(0, r.dropWeight);
-            if (rand < acc) return r;
-        }
-        return pool[pool.Count - 1];
     }
 
     private int ExtractItemId(DropTableSheetId sheetId)
