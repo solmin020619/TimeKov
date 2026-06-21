@@ -24,6 +24,8 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private float rangedCooldown = 3.5f;
     [SerializeField] private float fireballWindup = 0.55f;
     [SerializeField] private float fireballRecover = 0.7f;
+    [SerializeField] private int fireballBurstCount = 3;       // 페이즈3 연속 발사 수(팡팡팡)
+    [SerializeField] private float fireballBurstGap = 0.18f;   // 연사 간격
 
     [Header("분출 공격 (라이트필러, 플레이어 위치 조준 - 브레스 대체)")]
     [SerializeField] private GameObject eruptionVfx;            // FX_LightPillar 래퍼
@@ -68,6 +70,12 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private float enrageCdMul = 0.8f;     // 포효마다 공격 쿨 x (누적, 빨라짐)
     [SerializeField] private float enrageSpeedMul = 1.15f; // 포효마다 이속 x (누적)
 
+    [Header("페이즈3 진입 체력 회복 (1회, 무적+웅크림)")]
+    [SerializeField] private float healDuration = 2.5f;    // 회복 지속(파바바박 차오름)
+    [SerializeField] private float healPercent = 0.25f;    // maxHP의 비율만큼 회복
+    [SerializeField] private string healState = "Heal";    // 웅크림/충전 애니(컨트롤러에 추가)
+    [SerializeField] private GameObject healVfx;           // 충전 연출(선택)
+
     [Header("애니메이터 (전용 컨트롤러 상태명)")]
     [SerializeField] private string speedParam = "Speed";
     [SerializeField] private string fireballState = "Fireball";
@@ -105,6 +113,7 @@ public class WyvernBossController : MonoBehaviour
     private float _eruptCd = 3f;        // 분출 쿨(초기 약간 지연 = 교전 직후 바로 안 나옴)
     private float _diveCd = 6f;         // 공중 다이브 쿨(초기 지연)
     private bool _diving;               // 다이브 중(에이전트 끈 상태) - 포효/사망 중단 시 복구 필요
+    private bool _healed;               // 페이즈3 회복 1회 사용 여부
     private float[] _atkCd;
     private bool[] _roared;
     private bool _engaged;              // 교전 시작(보스바 1회 표시)
@@ -159,6 +168,7 @@ public class WyvernBossController : MonoBehaviour
     private void HandleDeath()
     {
         _dead = true;
+        if (_health != null) _health.Invulnerable = false;   // 회복 중 사망 시 무적 잔존 방지
         if (_diving) EndDiveCleanup();   // 다이브 중 사망 시 공중에 멈추지 않게 복구
         StopAllCoroutines();
         StopMove();
@@ -200,8 +210,9 @@ public class WyvernBossController : MonoBehaviour
         if (_eruptCd <= 0f && eruptionVfx != null && dist <= eruptionRange)
         {
             int roars = RoarsDone();
-            int count = roars == 0 ? 1 : eruptionBarrageCount + (roars - 1) * 2;
-            StartCoroutine(EruptionBarrage(count));
+            int count = roars == 0 ? 1 : eruptionBarrageCount + (roars - 1) * 4;       // 페3 훨씬 많이
+            float gap = roars >= 2 ? eruptionBarrageGap * 0.6f : eruptionBarrageGap;   // 페3 더 빠르게(파파방)
+            StartCoroutine(EruptionBarrage(count, gap));
             return;
         }
 
@@ -334,7 +345,16 @@ public class WyvernBossController : MonoBehaviour
         _feedback?.PlayAttack();
 
         yield return new WaitForSeconds(fireballWindup);
-        if (!_dead) SpawnFireball();
+
+        // 페이즈3 = 연속 팡팡팡, 그 전엔 1발. 유도는 SpawnFireball서 페이즈2+면 켬.
+        int shots = RoarsDone() >= 2 ? Mathf.Max(1, fireballBurstCount) : 1;
+        for (int i = 0; i < shots; i++)
+        {
+            if (_dead) break;
+            if (i > 0 && _player != null) FaceInstant(_player.position);   // 연사 중 재조준
+            SpawnFireball();
+            if (i < shots - 1) yield return new WaitForSeconds(fireballBurstGap);
+        }
 
         yield return new WaitForSeconds(fireballRecover);
 
@@ -345,7 +365,7 @@ public class WyvernBossController : MonoBehaviour
 
     // 분출: 페이즈1 = 플레이어 자리 1발. 페이즈2+ = 플레이어 자리 + 주변 여기저기 순차 팡팡팡(피하기 어렵게).
     // 각 발은 SingleEruption(텔레그래프->팡)을 독립 코루틴으로 스태거 발생.
-    private IEnumerator EruptionBarrage(int count)
+    private IEnumerator EruptionBarrage(int count, float gap)
     {
         _attacking = true;
         StopMove();
@@ -360,7 +380,7 @@ public class WyvernBossController : MonoBehaviour
             Vector3 spot = (i == 0 && _player != null) ? _player.position : ChooseEruptSpot();
             spot.y = transform.position.y;   // 지면 높이(보스 발 기준)
             StartCoroutine(SingleEruption(spot));
-            if (i < count - 1) yield return new WaitForSeconds(eruptionBarrageGap);
+            if (i < count - 1) yield return new WaitForSeconds(gap);
         }
 
         // 마지막 발이 터지고 끝날 때까지 대기
@@ -509,12 +529,12 @@ public class WyvernBossController : MonoBehaviour
             if (_diving) EndDiveCleanup();   // 다이브 중이면 공중 보스 지면 복구(에이전트 재활성) 후 끊음
             StopAllCoroutines();   // 진행 중 공격 끊고 포효 우선
             _attacking = false;
-            StartCoroutine(RoarPhase());
+            StartCoroutine(RoarPhase(i));
             return;
         }
     }
 
-    private IEnumerator RoarPhase()
+    private IEnumerator RoarPhase(int idx)
     {
         _attacking = true;
         StopMove();
@@ -527,6 +547,44 @@ public class WyvernBossController : MonoBehaviour
         Enrage();
 
         yield return new WaitForSeconds(roarRecover);
+
+        // 마지막 포효(페이즈3 진입) = 체력 회복 1회로 이어짐
+        if (idx >= RoarThresholds.Length - 1 && !_healed)
+        {
+            _healed = true;
+            yield return HealPhase();
+            yield break;   // HealPhase가 _attacking/agent 정리
+        }
+
+        _attacking = false;
+        if (AgentReady()) _agent.isStopped = false;
+    }
+
+    // 페이즈3 진입 시 1회 체력 회복: 무적 + 웅크림 애니 + HP 파바바박 차오름(회복 중 딜 안 들어감).
+    private IEnumerator HealPhase()
+    {
+        _attacking = true;
+        StopMove();
+        if (_player != null) FaceInstant(_player.position);
+        PlayState(healState);
+        _feedback?.PlayAttack();
+        if (_health != null) _health.Invulnerable = true;
+
+        GameObject vfx = (healVfx != null) ? Instantiate(healVfx, transform.position, transform.rotation) : null;
+
+        float start = _health != null ? _health.currentHP : 0f;
+        float target = _health != null ? Mathf.Min(_health.maxHP, start + _health.maxHP * healPercent) : 0f;
+        float t = 0f;
+        while (t < healDuration)
+        {
+            t += Time.deltaTime;
+            if (_health != null) _health.currentHP = Mathf.Lerp(start, target, Mathf.Clamp01(t / healDuration));
+            yield return null;
+        }
+        if (_health != null) { _health.currentHP = target; _health.Invulnerable = false; }
+        if (vfx != null) Destroy(vfx);
+        PlayState("Idle");   // 웅크림 -> 평상
+
         _attacking = false;
         if (AgentReady()) _agent.isStopped = false;
     }
@@ -547,7 +605,11 @@ public class WyvernBossController : MonoBehaviour
         var go = Instantiate(fireballPrefab, origin, Quaternion.LookRotation(aim.sqrMagnitude > 0.0001f ? aim : transform.forward));
         var fb = go.GetComponent<WyvernFireball>();
         float dmg = data != null ? data.attackDamage : 20f;
-        if (fb != null) fb.Launch(aim, dmg, _player);
+        if (fb != null)
+        {
+            fb.Launch(aim, dmg, _player);
+            if (RoarsDone() >= 1) fb.SetHoming(true);   // 페이즈2+ = 유도탄
+        }
     }
 
     // 정면 호(arc) 안에 플레이어가 있는지 (range 이내 + 정면 halfAngle 이내). 회피 판정의 핵심.

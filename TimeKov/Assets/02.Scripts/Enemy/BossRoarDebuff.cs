@@ -43,27 +43,45 @@ public class BossRoarDebuff : MonoBehaviour
     private void OnApplicationQuit() => _quitting = true;
     private void OnDestroy() { if (_instance == this) _instance = null; }
 
+    const float DarkAlpha = 0.5f;   // 전체 화면 검정 오버레이 세기(중앙까지 어둡게). 더 어둡게=올려라(0~0.8).
+
     private void BuildVignette()
     {
         var canvasGo = new GameObject("RoarVignetteCanvas");
         canvasGo.transform.SetParent(transform, false);
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 100;   // 월드 위, 비네트는 가장자리만 어둡혀 HUD 중앙은 영향 적음
+        canvas.sortingOrder = 100;   // 월드 위(HUD 아래)
 
-        var imgGo = new GameObject("Vignette", typeof(RectTransform));
-        imgGo.transform.SetParent(canvasGo.transform, false);
-        var rt = (RectTransform)imgGo.transform;
+        // 전체를 한 그룹으로 묶어 알파 페이드
+        var groupGo = new GameObject("DarkGroup", typeof(RectTransform));
+        groupGo.transform.SetParent(canvasGo.transform, false);
+        Stretch((RectTransform)groupGo.transform);
+        _cg = groupGo.AddComponent<CanvasGroup>();
+        _cg.alpha = 0f; _cg.blocksRaycasts = false; _cg.interactable = false;
+
+        // 1) 전체 화면 검정 오버레이 = 중앙까지 확 어둡게(예전엔 가장자리 비네트만이라 미미했음)
+        var blackGo = new GameObject("Dark", typeof(RectTransform));
+        blackGo.transform.SetParent(groupGo.transform, false);
+        Stretch((RectTransform)blackGo.transform);
+        var blackImg = blackGo.AddComponent<Image>();
+        blackImg.color = new Color(0f, 0f, 0f, DarkAlpha);
+        blackImg.raycastTarget = false;
+
+        // 2) 가장자리 비네트(분위기 강화)
+        var vigGo = new GameObject("Vignette", typeof(RectTransform));
+        vigGo.transform.SetParent(groupGo.transform, false);
+        Stretch((RectTransform)vigGo.transform);
+        vigGo.AddComponent<RawImage>();                 // ScreenVignette RequireComponent
+        var vig = vigGo.AddComponent<ScreenVignette>();
+        vig.vignetteStrength = 0.95f;                   // 0.82 -> 0.95(가장자리 더 진하게)
+        vig.vignetteFalloff = 0.55f;
+    }
+
+    private static void Stretch(RectTransform rt)
+    {
         rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
         rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
-
-        imgGo.AddComponent<RawImage>();                 // ScreenVignette RequireComponent
-        var vig = imgGo.AddComponent<ScreenVignette>(); // 가장자리 어둠 텍스처 1회 생성
-        vig.vignetteStrength = 0.82f;
-        vig.vignetteFalloff = 0.5f;
-
-        _cg = imgGo.AddComponent<CanvasGroup>();
-        _cg.alpha = 0f; _cg.blocksRaycasts = false; _cg.interactable = false;
     }
 
     private void Run(float duration, float drainMult)

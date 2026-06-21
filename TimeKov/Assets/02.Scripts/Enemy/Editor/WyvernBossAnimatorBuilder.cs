@@ -68,6 +68,9 @@ public static class WyvernBossAnimatorBuilder
         foreach (var (stateName, clipName) in diveSeq)
             sm.AddState(stateName).motion = Clip(clipName);
 
+        // 페이즈3 회복(웅크림/충전) - 자동복귀X, 컨트롤러(HealPhase)가 끝나면 Idle로 CrossFade. 클립 바꾸려면 여기.
+        sm.AddState("Heal").motion = Clip("Wyvern_FlyStationaryRoar");
+
         var landing = sm.AddState("Landing");
         landing.motion = Clip("Wyvern_FlyStationaryToLanding");
         var landEx = landing.AddTransition(idle);
@@ -83,7 +86,7 @@ public static class WyvernBossAnimatorBuilder
 
         RelinkBossPrefab(ctrl);   // 재생성으로 guid 바뀜 -> 보스 프리팹 Animator 재연결(다른 배선 보존)
 
-        Debug.Log($"[WyvernBossAnimator] 생성 완료: {CtrlPath}\n  states: Idle/Locomotion/Bite/Fireball/SpreadFire/Stinger/FinishBite/Roar/TakeOff/FlyHover/DiveFall/Landing/Die");
+        Debug.Log($"[WyvernBossAnimator] 생성 완료: {CtrlPath}\n  states: Idle/Locomotion/Bite/Fireball/SpreadFire/Stinger/FinishBite/Roar/TakeOff/FlyHover/DiveFall/Heal/Landing/Die");
     }
 
     // 컨트롤러를 지우고 새로 만들면 guid가 바뀌어 보스 프리팹의 Animator 참조가 끊긴다.
