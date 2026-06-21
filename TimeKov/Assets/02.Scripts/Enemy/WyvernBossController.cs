@@ -26,6 +26,15 @@ public class WyvernBossController : MonoBehaviour
     [Header("화염방사 VFX (SpreadFire 시 정면 분사)")]
     [SerializeField] private GameObject spreadFireVfx;
 
+    [Header("포효 페이즈 (HP 66%/33%서 포효 -> 디버프 + 광폭화)")]
+    [SerializeField] private string roarState = "Roar";
+    [SerializeField] private float roarBuildup = 0.6f;     // 포효 시작~절규(디버프 발동) 시점
+    [SerializeField] private float roarRecover = 1.0f;
+    [SerializeField] private float debuffDuration = 6f;    // 화면 어둠 + 시간 가속 지속(초)
+    [SerializeField] private float debuffDrainMult = 2.5f; // 시간 드레인 배수
+    [SerializeField] private float enrageCdMul = 0.8f;     // 포효마다 공격 쿨 x (누적, 빨라짐)
+    [SerializeField] private float enrageSpeedMul = 1.15f; // 포효마다 이속 x (누적)
+
     [Header("애니메이터 (전용 컨트롤러 상태명)")]
     [SerializeField] private string speedParam = "Speed";
     [SerializeField] private string fireballState = "Fireball";
@@ -64,6 +73,10 @@ public class WyvernBossController : MonoBehaviour
     private float _rangedCd;
     private float _meleeGapCd;
     private float[] _atkCd;
+    private bool[] _roared;
+    private float _enrageCd = 1f;       // 누적 공격쿨 배수(<1 = 빨라짐)
+    private float _enrageSpeed = 1f;    // 누적 이속 배수
+    private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
 
     private void Awake()
     {
@@ -74,6 +87,7 @@ public class WyvernBossController : MonoBehaviour
         if (_animator == null) _animator = GetComponentInChildren<Animator>();
         _speedHash = Animator.StringToHash(speedParam);
         _atkCd = new float[MeleeAttacks.Length];
+        _roared = new bool[RoarThresholds.Length];
 
         if (_animator != null) _animator.applyRootMotion = false;
         if (_agent != null) _agent.updateRotation = false;   // 회전 직접 처리
@@ -132,6 +146,7 @@ public class WyvernBossController : MonoBehaviour
             _animator.SetFloat(_speedHash, _agent.velocity.magnitude);
 
         TickCooldowns();
+        CheckRoarPhase();
         if (_attacking) return;
 
         Transform target = ResolveTarget();
@@ -249,8 +264,8 @@ public class WyvernBossController : MonoBehaviour
         yield return new WaitForSeconds(a.recover);
 
         _attacking = false;
-        _atkCd[idx] = a.cd;
-        _meleeGapCd = MeleeGap;
+        _atkCd[idx] = a.cd * _enrageCd;
+        _meleeGapCd = MeleeGap * _enrageCd;
         if (AgentReady()) _agent.isStopped = false;
     }
 
@@ -269,8 +284,49 @@ public class WyvernBossController : MonoBehaviour
         yield return new WaitForSeconds(fireballRecover);
 
         _attacking = false;
-        _rangedCd = rangedCooldown;
+        _rangedCd = rangedCooldown * _enrageCd;
         if (AgentReady()) _agent.isStopped = false;
+    }
+
+    // HP 임계값(66%/33%) 도달 시 1회씩 포효 -> 디버프(화면 어둠+시간 가속) + 광폭화
+    private void CheckRoarPhase()
+    {
+        if (_health == null || _health.maxHP <= 0f) return;
+        float frac = _health.currentHP / _health.maxHP;
+        for (int i = 0; i < RoarThresholds.Length; i++)
+        {
+            if (_roared[i] || frac > RoarThresholds[i]) continue;
+            _roared[i] = true;
+            StopAllCoroutines();   // 진행 중 공격 끊고 포효 우선
+            _attacking = false;
+            StartCoroutine(RoarPhase());
+            return;
+        }
+    }
+
+    private IEnumerator RoarPhase()
+    {
+        _attacking = true;
+        StopMove();
+        if (_player != null) FaceInstant(_player.position);
+        PlayState(roarState);
+        _feedback?.PlayAttack();
+
+        yield return new WaitForSeconds(roarBuildup);
+        BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult);   // 화면 어둠 + 시간 가속
+        Enrage();
+
+        yield return new WaitForSeconds(roarRecover);
+        _attacking = false;
+        if (AgentReady()) _agent.isStopped = false;
+    }
+
+    // 포효마다 공격/이동이 빨라짐(누적)
+    private void Enrage()
+    {
+        _enrageCd *= enrageCdMul;
+        _enrageSpeed *= enrageSpeedMul;
+        if (_agent != null && data != null) _agent.speed = data.moveSpeed * _enrageSpeed;
     }
 
     private void SpawnFireball()
