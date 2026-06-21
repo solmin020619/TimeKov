@@ -8,8 +8,8 @@ public class InGameAudioManager : MonoBehaviour
     void Start()
     {
         // 저장된 볼륨 초기 적용
-        SetBGMVolume(PlayerPrefs.GetFloat("BGMVolume", 1.0f));
-        SetSFXVolume(PlayerPrefs.GetFloat("SFXVolume", 1.0f));
+        SetBGMVolume(GlobalSettingsManager.CurrentBGMVolume);
+        SetSFXVolume(GlobalSettingsManager.CurrentSFXVolume);
 
         // 설정창 슬라이더 변경 시 실시간 반영
         GlobalSettingsManager.OnBGMVolumeChanged += SetBGMVolume;

@@ -7,6 +7,8 @@ public class PlayerStatComponent : MonoBehaviour
     [Header("HP (= �ð�)")]
     public float MaxHp = 300f;
     public float HpDrainRate = 1f;
+    [Tooltip("시간(HP) 드레인 배수 - 보스 포효 등 디버프로 일시 가속(1=기본). 결계 밖에서만 적용.")]
+    public float HpDrainMultiplier = 1f;
 
     [Header("ATK / DEF")]
     public float ATK = 0f;
@@ -69,7 +71,7 @@ public class PlayerStatComponent : MonoBehaviour
         if (IsInBase) return;
         if (IsDead) return;
 
-        CurrentHp -= HpDrainRate * Time.deltaTime;
+        CurrentHp -= HpDrainRate * HpDrainMultiplier * Time.deltaTime;
 
         if (CurrentHp <= 0)
         {

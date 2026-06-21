@@ -42,7 +42,7 @@ public class MachineLoopSound : MonoBehaviour
 
         loopSource.loop        = true;
         loopSource.playOnAwake = false;
-        loopSource.volume      = PlayerPrefs.GetFloat("SFXVolume", 1f);
+        loopSource.volume      = GlobalSettingsManager.CurrentSFXVolume;
 
         // 3D 공간 설정 적용
         loopSource.spatialBlend  = 1f;              // 완전 3D

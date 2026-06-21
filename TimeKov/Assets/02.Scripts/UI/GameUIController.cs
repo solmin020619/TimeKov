@@ -137,10 +137,10 @@ public class GameUIController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.J))
             ToggleQuest();
 
-        if (Input.GetKeyDown(KeyCode.C))
+        if (Input.GetKeyDown(KeyBindings.Stat))
             TogglePlayerStat();
 
-        if (Input.GetKeyDown(KeyCode.K))
+        if (Input.GetKeyDown(KeyBindings.Codex))
             ToggleCodex();
     }
 

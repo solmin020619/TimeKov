@@ -32,8 +32,10 @@ public class PressKeyObjective : ObjectiveSO
         requiredCount = Mathf.Max(1, requiredCount);
         if (key == KeyCode.None)
             Debug.LogError($"[PressKey] '{name}' key=None. 어떤 키도 안 받음", this);
-        if (key == KeyCode.Tab || key == KeyCode.Escape)
-            Debug.LogWarning($"[PressKey] '{name}' Tab/Escape는 UI 토글/메뉴와 충돌 가능", this);
+        // Tab(인벤 토글)은 InputBus로 키 이벤트를 받아 튜토 감지엔 문제없음 -> 경고 제외(오탐).
+        // Escape(메뉴/설정 토글)만 PressKey 키로 쓰면 충돌 소지 있어 경고 유지.
+        if (key == KeyCode.Escape)
+            Debug.LogWarning($"[PressKey] '{name}' Escape는 메뉴/설정 토글과 충돌 가능", this);
     }
 #endif
 }
