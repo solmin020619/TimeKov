@@ -211,26 +211,11 @@ MonoBehaviour:
     fontStyleModifier: 0
     renderMode: 4169
     includeFontFeatures: 1
-  m_SourceFontFile: {fileID: 12800000, guid: e3265ab4bf004d28a9537516768c1c75, type: 3}
+  m_SourceFontFile: {fileID: 0}
   m_SourceFontFilePath: 
-  m_AtlasPopulationMode: 1
+  m_AtlasPopulationMode: 0
   InternalDynamicOS: 0
   m_GlyphTable:
-  - m_Index: 2103
-    m_Metrics:
-      m_Width: 21
-      m_Height: 51
-      m_HorizontalBearingX: 11
-      m_HorizontalBearingY: 48
-      m_HorizontalAdvance: 43
-    m_GlyphRect:
-      m_X: 10
-      m_Y: 10
-      m_Width: 21
-      m_Height: 51
-    m_Scale: 1
-    m_AtlasIndex: 0
-    m_ClassDefinitionType: 0
   - m_Index: 2102
     m_Metrics:
       m_Width: 52
@@ -246,14 +231,29 @@ MonoBehaviour:
     m_Scale: 1
     m_AtlasIndex: 0
     m_ClassDefinitionType: 0
-  m_CharacterTable:
-  - m_ElementType: 1
-    m_Unicode: 8593
-    m_GlyphIndex: 2103
+  - m_Index: 2103
+    m_Metrics:
+      m_Width: 21
+      m_Height: 51
+      m_HorizontalBearingX: 11
+      m_HorizontalBearingY: 48
+      m_HorizontalAdvance: 43
+    m_GlyphRect:
+      m_X: 10
+      m_Y: 10
+      m_Width: 21
+      m_Height: 51
     m_Scale: 1
+    m_AtlasIndex: 0
+    m_ClassDefinitionType: 0
+  m_CharacterTable:
   - m_ElementType: 1
     m_Unicode: 8592
     m_GlyphIndex: 2102
+    m_Scale: 1
+  - m_ElementType: 1
+    m_Unicode: 8593
+    m_GlyphIndex: 2103
     m_Scale: 1
   m_AtlasTextures:
   - {fileID: 28268798066460806}
@@ -838,7 +838,7 @@ Texture2D:
   m_MipsStripped: 0
   m_TextureFormat: 1
   m_MipCount: 1
-  m_IsReadable: 1
+  m_IsReadable: 0
   m_IsPreProcessed: 0
   m_IgnoreMipmapLimit: 0
   m_MipmapLimitGroupName: 
