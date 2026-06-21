@@ -1134,13 +1134,15 @@ public class CodexUI : MonoBehaviour
         if (rows.Count == 0) return list;
 
         rows.Sort((a, b) => b.chance.CompareTo(a.chance));
+        int totalW = 0;
+        foreach (var r in rows) totalW += Mathf.Max(0, r.chance);
 
         foreach (var r in rows)
         {
             var item = GameDataUtility.GetItem(r.itemId);
             if (item == null) continue;
             int gi = (int)item.itemGrade;
-            float pct = r.chance;   // 독립 확률이라 그대로 %
+            float pct = totalW > 0 ? r.chance * 100f / totalW : 0f;   // 한 종 뽑기(가중치) -> 정규화 %
             string cnt = r.minCount == r.maxCount ? $"{r.minCount}개" : $"{r.minCount}~{r.maxCount}개";
             list.Add(new Drop
             {

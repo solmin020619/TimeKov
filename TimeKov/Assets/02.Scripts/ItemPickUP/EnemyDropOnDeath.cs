@@ -77,22 +77,40 @@ public class EnemyDropOnDeath : MonoBehaviour
         string myId = sourceId != null ? sourceId.Trim() : "";
         if (myId.Length == 0) return result;
 
-        // 각 행(아이템)을 독립적으로 굴린다 - dropChance% 로 드롭 판정, 뜨면 개수 판정. 행끼리 서로 영향 없음.
+        // 몹 드롭 = 한 종만 뽑음(dropChance 를 가중치로). 합 100 맞추면 그게 곧 %, 빈손 없음.
+        var pool = new List<DropTableSheetData>();
         foreach (var row in GameDataHolder.I.DropTable.All)
         {
             string rowId = row.sourceId != null ? row.sourceId.Trim() : "";
-            if (row.sourceType != SourceType.Monster || rowId != myId) continue;
-
-            if (Random.Range(0, 100) >= row.dropChance) continue;   // 드롭 실패
-
-            int itemId = ExtractItemId(row.SheetId);
-            if (itemId <= 0) continue;
-
-            int count = GameDataUtility.RollDropCount(row.countDist);
-            if (count > 0) result.Add((itemId, count));
+            if (row.sourceType == SourceType.Monster && rowId == myId) pool.Add(row);
         }
+        if (pool.Count == 0) return result;
+
+        var picked = WeightedPickOne(pool);
+        int itemId = ExtractItemId(picked.SheetId);
+        if (itemId <= 0) return result;
+
+        int count = GameDataUtility.RollDropCount(picked.countDist);
+        if (count > 0) result.Add((itemId, count));
 
         return result;
+    }
+
+    // dropChance 를 가중치로 한 종 선택
+    private DropTableSheetData WeightedPickOne(List<DropTableSheetData> pool)
+    {
+        int total = 0;
+        for (int i = 0; i < pool.Count; i++) total += Mathf.Max(0, pool[i].dropChance);
+        if (total <= 0) return pool[0];
+
+        int r = Random.Range(0, total);
+        int acc = 0;
+        for (int i = 0; i < pool.Count; i++)
+        {
+            acc += Mathf.Max(0, pool[i].dropChance);
+            if (r < acc) return pool[i];
+        }
+        return pool[pool.Count - 1];
     }
 
     // SheetId 복합키 "dropId_itemId" 에서 itemId 추출
