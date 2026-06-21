@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d81f5cc58e962b549b569bfa8528110d, type: 3}
+  m_Name: EnemyData_EvilWatcher
+  m_EditorClassIdentifier: 
+  enemyName: "\uC544\uADC0 \uAD70\uC8FC"
+  enemyId: tutorial_enemy_elite
+  maxHP: 225
+  moveSpeed: 4
+  acceleration: 12
+  angularSpeed: 480
+  stoppingDistance: 0
+  visionRange: 27.599998
+  visionAngle: 280
+  attackDamage: 22
+  attackRange: 4
+  attackApproachRatio: 0.85
+  attackCooldown: 1.5
+  hitDelay: 0.5
+  animLength: 1.5
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 1.5
+  deathAnimDuration: 3.1
+  detectStunDuration: 0.3
+  spawnVFX: {fileID: 1902839626373450777, guid: 377bd8e4df08cc444b8742609e5ebd73, type: 3}
+  spawnSound: {fileID: 0}
+  detectVFX: {fileID: 0}
+  detectSound: {fileID: 8300000, guid: 3ab82deccabb1b74cb9f88f61943f799, type: 3}
+  hitVFX: {fileID: 0}
+  hitSound: {fileID: 8300000, guid: 33657a2d11516b94c8048e3c88f7144d, type: 3}
+  attackVFX: {fileID: 0}
+  attackSound: {fileID: 0}
+  deathVFX: {fileID: 0}
+  deathSound: {fileID: 8300000, guid: 33657a2d11516b94c8048e3c88f7144d, type: 3}
