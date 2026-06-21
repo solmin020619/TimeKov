@@ -1941,6 +1941,8 @@ GameObject:
   - component: {fileID: 5194477014193752418}
   - component: {fileID: 3257860293271817236}
   - component: {fileID: 9175553321838896112}
+  - component: {fileID: 3815243077134679219}
+  - component: {fileID: 3936268408131616068}
   m_Layer: 6
   m_Name: Enemy_Wyvern_Boss
   m_TagString: Untagged
@@ -1975,7 +1977,7 @@ Animator:
   m_GameObject: {fileID: 6818248523769167523}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: d5c39bee3007be043b818b51344b7d66, type: 3}
-  m_Controller: {fileID: 22100000, guid: d35319da98532c84f9a153e2ac1a1340, type: 2}
+  m_Controller: {fileID: 9100000, guid: f79eec6382822fa41b936dfd0e59616b, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -2199,8 +2201,57 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: ea89ed684a10a084b80519ea1152d4ed, type: 2}
+  bossSubtitle: "\uC2DC\uAC04\uC744 \uBE68\uC544\uBA39\uB294 \uD3EC\uC2DD\uC790"
+  fireballPrefab: {fileID: 2810929602637157982, guid: 282d21460e0b45f42a44928379ef4105, type: 3}
+  fireOffset: {x: 0, y: 2.5, z: 2.5}
+  rangedRange: 22
+  rangedCooldown: 3.5
+  fireballWindup: 0.55
+  fireballRecover: 0.7
+  spreadFireVfx: {fileID: 868468853075218060, guid: 28aa90600df2fd9479eb5ccbc39a3fc1, type: 3}
+  roarState: Roar
+  roarBuildup: 0.6
+  roarRecover: 1
+  debuffDuration: 6
+  debuffDrainMult: 2.5
+  enrageCdMul: 0.8
+  enrageSpeedMul: 1.15
   speedParam: Speed
-  attackTrigger: Attack
+  fireballState: Fireball
+--- !u!114 &3815243077134679219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6818248523769167523}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90301b544eec22c4bb9f231038ac8315, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sourceId: wyvern_boss
+  boxPrefab: {fileID: 0}
+  spawnHeightOffset: 0.5
+  scatterRadius: 1
+--- !u!114 &3936268408131616068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6818248523769167523}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b94666fba6d414dbb2eb6567d2a242, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbVfxPrefab: {fileID: 0}
+  flyTime: 0.55
+  centerYTweak: 0
+  spawnHeight: 1
+  fallbackLifestealPercent: 0.03
+  bonusHealPercent: 0.5
 --- !u!1 &6957452149009463019
 GameObject:
   m_ObjectHideFlags: 0
