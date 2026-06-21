@@ -68,6 +68,14 @@ namespace TIMEKOV.Factory
             }
         }
 
+        // 모든 설비에 엔드필드 스타일 월드 표시(이름/제작아이콘/막힘) 자동 부착.
+        // 서브클래스가 Start 를 가지면 base.Start() 를 호출해야 한다(ProcessingMachine 참고).
+        protected virtual void Start()
+        {
+            if (GetComponent<FacilityWorldDisplay>() == null)
+                gameObject.AddComponent<FacilityWorldDisplay>();
+        }
+
         /// <summary>
         /// 이 설비가 해당 아이템을 받을 수 있는지 확인한다.
         /// ProcessingMachine 등의 서브클래스에서 레시피 기반으로 오버라이드한다.

@@ -24,6 +24,19 @@ public class FacilityUnlockManager : MonoBehaviour
         Instance = this;
     }
 
+    private void Update()
+    {
+        // [임시 디버그] ~(백쿼트) 키 → 데이터에 존재하는 모든 설비(1~9) 즉시 해금. 테스트용 — 정식 빌드 전 제거.
+        if (Input.GetKeyDown(KeyCode.BackQuote))
+        {
+            for (int id = 1; id <= MaxSlots; id++)
+            {
+                if (GameDataHolder.I != null && GameDataHolder.I.FacilityData.TryGet(id.ToString(), out _))
+                    TryUnlock(id);
+            }
+        }
+    }
+
     // ── 조회 ─────────────────────────────────────────────────────
 
     /// <summary>이미 해금된 설비인지 확인.</summary>

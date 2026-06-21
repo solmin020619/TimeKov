@@ -165,6 +165,52 @@ public static class UISpriteFactory
         return 0f;
     }
 
+    // 금지 표시 (원형 테두리 + 대각선 슬래시). 흰색 → Image.color 로 빨강 등 틴트.
+    public static Sprite NoEntry(int size = 96, float thickness = -1f)
+    {
+        if (thickness < 0f) thickness = size * 0.11f;
+        string key = $"noentry_{size}_{thickness}";
+        if (_cache.TryGetValue(key, out var c)) return c;
+
+        var tex = NewTex(size, size);
+        var px = new Color32[size * size];
+        float cc = size * 0.5f;
+        float rOuter = size * 0.5f - 1f;
+        float ringMid = rOuter - thickness * 0.5f;   // 링 중심 반경
+        float rInner = rOuter - thickness;           // 링 안쪽 반경
+        // 대각선 막대 (좌상→우하, 45도). 막대 길이축/두께축 분리.
+        Vector2 dir = new Vector2(0.70710678f, 0.70710678f);
+        float barHalfLen = rInner;
+        float barHalfThick = thickness * 0.5f;
+
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float fx = x + 0.5f, fy = y + 0.5f;
+                float dx = fx - cc, dy = fy - cc;
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+
+                // 링 coverage
+                float ringCov = Mathf.Clamp01(thickness * 0.5f - Mathf.Abs(d - ringMid) + 0.5f);
+
+                // 대각선 막대 coverage (원 안쪽 한정)
+                float barCov = 0f;
+                if (d <= rInner + 0.5f)
+                {
+                    float along = dx * dir.x + dy * dir.y;            // 길이축
+                    float perp  = Mathf.Abs(-dx * dir.y + dy * dir.x); // 두께축
+                    if (Mathf.Abs(along) <= barHalfLen)
+                        barCov = Mathf.Clamp01(barHalfThick - perp + 0.5f);
+                }
+
+                float a = Mathf.Clamp01(Mathf.Max(ringCov, barCov));
+                px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+        tex.SetPixels32(px); tex.Apply();
+        var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        _cache[key] = s; return s;
+    }
+
     // 꽉 찬 원 (쿨다운 라디얼 등). 가장자리 AA.
     public static Sprite Circle(int size = 96)
     {
