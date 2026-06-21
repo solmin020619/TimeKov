@@ -70,6 +70,10 @@ public class GlobalSettingsManager : MonoBehaviour
     public Button[]     tabButtons;
     public GameObject[] tabContents;
     public GameObject[] tabHighlights;
+    public Image[]      tabIconImages; // 선택된 탭은 노란 하이라이트 위라 아이콘을 어둡게, 그 외엔 흰색
+
+    private static readonly Color TabIconSelected   = new Color(0.10f, 0.09f, 0.02f, 1f);
+    private static readonly Color TabIconUnselected = Color.white;
 
     [Header("Scene")]
     public string mainMenuSceneName = "MainMenu";
@@ -169,6 +173,10 @@ public class GlobalSettingsManager : MonoBehaviour
         if (tabHighlights != null)
             for (int i = 0; i < tabHighlights.Length; i++)
                 if (tabHighlights[i] != null) tabHighlights[i].SetActive(i == index);
+
+        if (tabIconImages != null)
+            for (int i = 0; i < tabIconImages.Length; i++)
+                if (tabIconImages[i] != null) tabIconImages[i].color = (i == index) ? TabIconSelected : TabIconUnselected;
     }
 
     // ── 설정창 열기 / 닫기 ───────────────────────────────────────────
@@ -309,7 +317,7 @@ public class GlobalSettingsManager : MonoBehaviour
     public void SetFullscreenOff() => SetFullscreen(false);
 
     private static readonly Color SegmentSelectedColor    = new Color(1f, 1f, 1f, 1f);            // 화이트 액센트
-    private static readonly Color SegmentUnselectedColor  = new Color(0.106f, 0.125f, 0.153f, 0.95f); // 다크 네이비
+    private static readonly Color SegmentUnselectedColor  = new Color(0.165f, 0.158f, 0.125f, 0.95f); // 다크 올리브 (SettingsPanelRebuilder.ControlBg와 동일하게)
     private static readonly Color SegmentSelectedText     = new Color(0.10f, 0.08f, 0.02f, 1f);  // 흰 배경 위 어두운 텍스트
     private static readonly Color SegmentUnselectedText   = new Color(0.60f, 0.63f, 0.67f, 1f);  // 다크 배경 위 밝은 회색 텍스트
 

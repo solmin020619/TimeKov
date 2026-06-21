@@ -12,6 +12,7 @@ using UnityEngine.UI;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using JeffGrawAssets.FlexibleUI;
 
 public static class SettingsPanelRebuilder
 {
@@ -142,13 +143,30 @@ public static class SettingsPanelRebuilder
         bgRect.offsetMin = Vector2.zero;
         bgRect.offsetMax = Vector2.zero;
 
+        // 엔드필드 레퍼런스처럼 뒤쪽 게임 화면이 블러로 비치게 — 프로젝트에 이미 설치된
+        // FlexibleUI 블러(URP Renderer Feature 등록까지 끝나있음)의 BlurredImage로 교체.
+        // BlurredImage 셰이더는 SourceImageFade=0일 때 항상 "블러 원본 그대로(불투명)"만 출력하고
+        // color/AlphaBlend는 그 경로에서 전혀 안 쓰임 — 즉 이 컴포넌트 자체로는 블러를 어둡게
+        // 틴트할 수 없다(둘 중 하나: 순수 블러 또는 순수 단색, 섞이지 않음). 그래서 블러는
+        // 그대로 보여주고, 그 위에 반투명 단색 DimOverlay를 따로 한 장 더 깔아서 어둡게 만든다.
         var bgImage = settingsBG.GetComponent<Image>();
-        if (bgImage != null)
-        {
-            Undo.RecordObject(bgImage, "Darken Settings Panel Background");
-            bgImage.sprite = null; // 작은 텍스처를 전체화면으로 늘리면 흐려지므로 단색으로 대체
-            bgImage.color = new Color(0.04f, 0.05f, 0.07f, 0.96f);
-        }
+        if (bgImage != null) Undo.DestroyObjectImmediate(bgImage);
+        var blurredBg = Undo.AddComponent<BlurredImage>(settingsBG.gameObject);
+        blurredBg.sprite = null;
+        blurredBg.color = Color.white;
+        blurredBg.Common.blurStrength = 1f;
+
+        var dimOverlay = CreateUIObject("DimOverlay", settingsBG);
+        var dimRect = dimOverlay.GetComponent<RectTransform>();
+        dimRect.anchorMin = Vector2.zero;
+        dimRect.anchorMax = Vector2.one;
+        dimRect.offsetMin = Vector2.zero;
+        dimRect.offsetMax = Vector2.zero;
+        var dimImg = dimOverlay.AddComponent<Image>();
+        dimImg.sprite = null;
+        dimImg.color = new Color(0.05f, 0.055f, 0.045f, 0.92f); // 레퍼런스만큼 어두운 올리브 틴트
+        dimImg.raycastTarget = false;
+        Undo.RegisterCreatedObjectUndo(dimOverlay, "Create DimOverlay");
 
         // Title / Title_en 좌상단으로 재배치 (전체화면 기준 절대 위치)
         if (title != null)
@@ -176,11 +194,11 @@ public static class SettingsPanelRebuilder
         tabBarRect.anchorMin = new Vector2(0.5f, 1f);
         tabBarRect.anchorMax = new Vector2(0.5f, 1f);
         tabBarRect.pivot     = new Vector2(0.5f, 1f);
-        tabBarRect.anchoredPosition = new Vector2(0f, -130f);
-        tabBarRect.sizeDelta = new Vector2(900f, 80f);
+        tabBarRect.anchoredPosition = new Vector2(0f, -50f);
+        tabBarRect.sizeDelta = new Vector2(340f, 80f);
         var tabHlg = tabBar.AddComponent<HorizontalLayoutGroup>();
         tabHlg.childAlignment = TextAnchor.MiddleCenter;
-        tabHlg.spacing = 30f;
+        tabHlg.spacing = 18f;
         tabHlg.childControlWidth  = true;  // false였던 게 버그 — LayoutElement 크기가 무시됨
         tabHlg.childControlHeight = true;
         tabHlg.childForceExpandWidth  = false;
@@ -191,12 +209,14 @@ public static class SettingsPanelRebuilder
         var tabIcons  = new[] { Load("SettingsPanel_Icon_Fullscreen.png"), Load("SettingsPanel_Icon_BGM.png"), Load("SettingsPanel_Icon_Mouse.png") };
         var tabButtons = new Button[3];
         var tabHighlights = new GameObject[3];
+        var tabIconImages = new Image[3];
 
         for (int i = 0; i < 3; i++)
         {
-            var (btn, highlight) = CreateTabButton(tabBar.transform, tabNames[i], tabIcons[i]);
+            var (btn, highlight, iconImg) = CreateTabButton(tabBar.transform, tabNames[i], tabIcons[i]);
             tabButtons[i] = btn;
             tabHighlights[i] = highlight;
+            tabIconImages[i] = iconImg;
         }
 
         // ── 3. 탭별 스크롤 콘텐츠 ─────────────────────────────────────────────
@@ -276,12 +296,18 @@ public static class SettingsPanelRebuilder
         settingsMgr.tabButtons              = tabButtons;
         settingsMgr.tabContents             = tabContents;
         settingsMgr.tabHighlights           = tabHighlights;
+        settingsMgr.tabIconImages           = tabIconImages;
         settingsMgr.rebindSlots             = rebindSlots;
         settingsMgr.rebindModal             = rebindModal;
         settingsMgr.rebindModalActionLabel  = rebindActionLabel;
         settingsMgr.rebindModalKeyDisplay   = rebindKeyDisplay;
         settingsMgr.applyWarningModal       = applyWarningModal;
         EditorUtility.SetDirty(settingsMgr);
+
+        // 새로 만든 Image/Text들의 CanvasRenderer가 색상을 한 번도 못 반영한 채로 비활성화되면
+        // (특히 Play 진입으로 도메인 리로드가 끼면) 생성 시점 기본값(흰색 불투명)으로 굳어버린다 —
+        // 체인을 다시 끄기 전에 강제로 한 번 갱신시켜서 실제 지정한 색이 반영되게 한다.
+        Canvas.ForceUpdateCanvases();
 
         // 임시로 활성화했던 체인 복원 (자식 → 부모 순서로 처리했으니 그대로 되돌림)
         foreach (var (go, wasActive) in activeChain)
@@ -321,57 +347,52 @@ public static class SettingsPanelRebuilder
         return created;
     }
 
-    private static (Button, GameObject) CreateTabButton(Transform parent, string label, Sprite icon)
+    // 엔드필드 레퍼런스처럼 텍스트 없이 아이콘만 + 선택된 탭은 아이콘 뒤에 노란 둥근 사각 하이라이트.
+    private static (Button, GameObject highlight, Image iconImg) CreateTabButton(Transform parent, string label, Sprite icon)
     {
-        var btnGO = CreateUIElementViaMenu("GameObject/UI/Button - TextMeshPro", parent);
-        btnGO.name = "Btn_Tab_" + label;
-        var rt = btnGO.GetComponent<RectTransform>();
+        var btnGO = CreateUIObject("Btn_Tab_" + label, parent);
+        Undo.RegisterCreatedObjectUndo(btnGO, "Create Tab Button");
         var le = btnGO.AddComponent<LayoutElement>();
-        le.preferredWidth  = 300f;
-        le.preferredHeight = 80f;
+        le.preferredWidth  = 72f;
+        le.preferredHeight = 72f;
 
-        var img = btnGO.GetComponent<Image>();
-        if (img != null) img.color = new Color(0.14f, 0.16f, 0.20f, 0.9f);
+        var btnImg = btnGO.AddComponent<Image>();
+        btnImg.color = new Color(0f, 0f, 0f, 0f); // 클릭 히트박스만 — 비주얼은 아래 Highlight가 담당
+        var btn = btnGO.AddComponent<Button>();
+        btn.targetGraphic = btnImg;
 
-        var tmp = btnGO.GetComponentInChildren<TextMeshProUGUI>();
-        if (tmp != null)
-        {
-            tmp.text = label;
-            tmp.fontSize = 26f;
-            tmp.color = Color.white;
-            ApplyFont(tmp);
-        }
+        // 선택 강조 — 아이콘 뒤에 깔리는 둥근 사각 하이라이트 (선택 안 됐을 때는 비활성)
+        var highlight = new GameObject("Highlight", typeof(RectTransform));
+        highlight.transform.SetParent(btnGO.transform, false);
+        var hImg = highlight.AddComponent<Image>();
+        hImg.sprite = RoundedPillSprite();
+        hImg.type = Image.Type.Sliced;
+        hImg.color = AccentColor;
+        var hRect = highlight.GetComponent<RectTransform>();
+        hRect.anchorMin = Vector2.zero;
+        hRect.anchorMax = Vector2.one;
+        hRect.offsetMin = Vector2.zero;
+        hRect.offsetMax = Vector2.zero;
+        highlight.SetActive(false);
 
-        // 임시 아이콘 (재사용 아트, 추후 교체 예정)
+        Image iconImg = null;
         if (icon != null)
         {
             var iconGO = new GameObject("Icon", typeof(RectTransform));
             iconGO.transform.SetParent(btnGO.transform, false);
-            var iconImg = iconGO.AddComponent<Image>();
+            iconImg = iconGO.AddComponent<Image>();
             iconImg.sprite = icon;
             iconImg.preserveAspect = true;
+            iconImg.color = Color.white; // 미선택 기본값 — 선택 시 GlobalSettingsManager.ShowTab이 어둡게 바꿈
             var iconRect = iconGO.GetComponent<RectTransform>();
-            iconRect.anchorMin = new Vector2(0f, 0.5f);
-            iconRect.anchorMax = new Vector2(0f, 0.5f);
-            iconRect.pivot     = new Vector2(0f, 0.5f);
-            iconRect.anchoredPosition = new Vector2(14f, 0f);
-            iconRect.sizeDelta = new Vector2(32f, 32f);
+            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+            iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+            iconRect.pivot     = new Vector2(0.5f, 0.5f);
+            iconRect.anchoredPosition = Vector2.zero;
+            iconRect.sizeDelta = new Vector2(36f, 36f);
         }
 
-        // 선택 강조 밑줄
-        var highlight = new GameObject("Highlight", typeof(RectTransform));
-        highlight.transform.SetParent(btnGO.transform, false);
-        var hImg = highlight.AddComponent<Image>();
-        hImg.color = AccentColor;
-        var hRect = highlight.GetComponent<RectTransform>();
-        hRect.anchorMin = new Vector2(0f, 0f);
-        hRect.anchorMax = new Vector2(1f, 0f);
-        hRect.pivot     = new Vector2(0.5f, 0f);
-        hRect.anchoredPosition = new Vector2(0f, 0f);
-        hRect.sizeDelta = new Vector2(0f, 4f);
-        highlight.SetActive(false);
-
-        return (btnGO.GetComponent<Button>(), highlight);
+        return (btn, highlight, iconImg);
     }
 
     private static (GameObject root, Transform content) CreateScrollTab(Transform parent, string name)
@@ -383,15 +404,17 @@ public static class SettingsPanelRebuilder
         rect.anchorMax = Vector2.one;
         rect.pivot     = new Vector2(0.5f, 0.5f);
         rect.offsetMin = new Vector2(90f, 110f);   // 좌, 하 여백
-        rect.offsetMax = new Vector2(-90f, -220f); // 우, 상(탭바 아래부터) 여백
+        rect.offsetMax = new Vector2(-90f, -140f); // 우, 상(탭바 아래부터) 여백 — 탭바가 타이틀과 같은 줄로 올라가서 줄임
 
         var scrollRect = scrollGO.GetComponent<ScrollRect>();
         scrollRect.horizontal = false;
 
+        // 패널 전체에 깔린 BlurredImage(블러+올리브 틴트)가 그대로 비치도록 투명하게 — raycast 차단용으로만 둠.
+        // (기존엔 PanelBg로 완전 불투명하게 채워서 탭 콘텐츠 영역에서는 블러가 전혀 안 보였음)
         var rootImg = scrollGO.GetComponent<Image>();
         if (rootImg == null) rootImg = scrollGO.AddComponent<Image>();
         rootImg.sprite = null;
-        rootImg.color = PanelBg;
+        rootImg.color = new Color(0f, 0f, 0f, 0f);
 
         var viewport = scrollGO.transform.Find("Viewport");
         var content  = viewport != null ? viewport.Find("Content") : null;
@@ -475,10 +498,10 @@ public static class SettingsPanelRebuilder
     private const float ControlWidth = 480f; // 드롭다운/세그먼트 컨트롤 표준 폭
     private const float ControlHeight = 56f; // 드롭다운/세그먼트 컨트롤 표준 높이
 
-    // 엔드필드 팔레트 — 다크 네이비 + 화이트 액센트
-    private static readonly Color PanelBg       = new Color(0.063f, 0.078f, 0.102f, 1f);
-    private static readonly Color ControlBg     = new Color(0.106f, 0.125f, 0.153f, 0.95f);
-    private static readonly Color AccentColor  = new Color(1f, 1f, 1f, 1f);
+    // 엔드필드 레퍼런스 팔레트 — 다크 올리브 + 옐로우 액센트
+    // (이전 값은 B>G>R인 네이비톤이라 올리브가 아니라 청록빛 다크였음 — R>=G>B로 수정)
+    private static readonly Color ControlBg     = new Color(0.165f, 0.158f, 0.125f, 0.95f);
+    private static readonly Color AccentColor  = new Color(0.85f, 0.78f, 0.24f, 1f);
     private static readonly Color TextPrimary   = new Color(0.929f, 0.937f, 0.949f, 1f);
     private static readonly Color TextMuted     = new Color(0.604f, 0.631f, 0.671f, 1f);
     private static readonly Color SliderLineGray = new Color(0.29f, 0.30f, 0.32f, 1f); // 얇은 트랙 라인 색
@@ -517,19 +540,20 @@ public static class SettingsPanelRebuilder
 
         var template = dd.transform.Find("Template");
         if (template == null) return;
+        // 펼침 목록은 레퍼런스처럼 라이트 그레이 — 닫힌 박스(다크)와 대비되는 톤.
         var templateImg = template.GetComponent<Image>();
         if (templateImg != null)
         {
-            templateImg.color = ControlBg;
+            templateImg.color = PillBg;
             templateImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
             templateImg.type = Image.Type.Sliced;
         }
 
         var itemBg = template.Find("Viewport/Content/Item/Item Background")?.GetComponent<Image>();
-        if (itemBg != null) itemBg.color = PanelBg;
+        if (itemBg != null) itemBg.color = PillBg;
 
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
-        if (itemLabel != null) { itemLabel.color = TextPrimary; itemLabel.fontSize = 24f; ApplyFont(itemLabel); }
+        if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; ApplyFont(itemLabel); }
         var itemLabelRect = itemLabel?.GetComponent<RectTransform>();
         if (itemLabelRect != null) itemLabelRect.offsetMin = new Vector2(itemLabelRect.offsetMin.x + 14f, itemLabelRect.offsetMin.y);
 
@@ -541,6 +565,8 @@ public static class SettingsPanelRebuilder
 
         var checkmark = template.Find("Viewport/Content/Item/Item Checkmark") as RectTransform;
         if (checkmark != null) checkmark.sizeDelta = new Vector2(22f, 22f);
+        var checkmarkImg = checkmark?.GetComponent<Image>();
+        if (checkmarkImg != null) checkmarkImg.color = PillText; // 라이트 배경 위라 체크 색도 어둡게
     }
 
     // 엔드필드 스타일 섹션 헤더: ■ 노란 막대 + 굵은 노란 글씨 + 우측으로 뻗는 얇은 선
@@ -865,13 +891,22 @@ public static class SettingsPanelRebuilder
         return slider;
     }
 
-    // 키 바인딩 칩: 다크 네이비 박스 + 얇은 노란 외곽선(Outline 컴포넌트로 테두리 흉내) + 볼드 키 라벨
+    // 키 바인딩 칩: 레퍼런스(단축키 화면)처럼 행 전체에 옅은 카드 배경 + 넓은 키 칩 + 얇은 중립색 외곽선
     private static GlobalSettingsManager.RebindSlot CreateRebindRow(Transform content, string label, string actionId)
     {
-        CreateRow(content, label, out var slot);
+        var row = CreateRow(content, label, out var slot);
+
+        var rowBg = row.AddComponent<Image>();
+        rowBg.sprite = RoundedPillSprite();
+        rowBg.type = Image.Type.Sliced;
+        // 이 프로젝트의 알파 블렌딩이 감마 보정된 듯 낮은 알파값도 훨씬 밝게 렌더링됨
+        // (alpha=0.045가 실제로는 ~0.2처럼 보임, alpha=0/0.5/1은 정상) — 육안으로 옅게
+        // 보이도록 코드값을 낮춰 보정.
+        rowBg.color = new Color(1f, 1f, 1f, 0.005f);
+        rowBg.raycastTarget = false;
 
         var btnGO = CreateUIElementViaMenu("GameObject/UI/Button - TextMeshPro", slot);
-        FillSlot(btnGO, slot, 140f, 48f);
+        FillSlot(btnGO, slot, 200f, 52f);
 
         var img = btnGO.GetComponent<Image>();
         if (img != null)
@@ -882,7 +917,7 @@ public static class SettingsPanelRebuilder
         }
 
         var outline = btnGO.AddComponent<UnityEngine.UI.Outline>();
-        outline.effectColor = AccentColor;
+        outline.effectColor = new Color(1f, 1f, 1f, 0.18f); // 레퍼런스는 칩마다 노랑 대신 옅은 중립색 테두리
         outline.effectDistance = new Vector2(2f, 2f);
         outline.useGraphicAlpha = false;
 
