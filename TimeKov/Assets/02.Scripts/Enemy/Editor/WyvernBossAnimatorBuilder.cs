@@ -68,8 +68,8 @@ public static class WyvernBossAnimatorBuilder
         foreach (var (stateName, clipName) in diveSeq)
             sm.AddState(stateName).motion = Clip(clipName);
 
-        // 페이즈3 회복(웅크림/충전) - 자동복귀X, 컨트롤러(HealPhase)가 끝나면 Idle로 CrossFade. 클립 바꾸려면 여기.
-        sm.AddState("Heal").motion = Clip("Wyvern_FlyStationaryRoar");
+        // 체공(FlyStationary)은 다이브 + 회복 호버에 길게 쓰여서 루프 보장.
+        EnsureLoop("Wyvern_FlyStationary");
 
         var landing = sm.AddState("Landing");
         landing.motion = Clip("Wyvern_FlyStationaryToLanding");
@@ -86,7 +86,7 @@ public static class WyvernBossAnimatorBuilder
 
         RelinkBossPrefab(ctrl);   // 재생성으로 guid 바뀜 -> 보스 프리팹 Animator 재연결(다른 배선 보존)
 
-        Debug.Log($"[WyvernBossAnimator] 생성 완료: {CtrlPath}\n  states: Idle/Locomotion/Bite/Fireball/SpreadFire/Stinger/FinishBite/Roar/TakeOff/FlyHover/DiveFall/Heal/Landing/Die");
+        Debug.Log($"[WyvernBossAnimator] 생성 완료: {CtrlPath}\n  states: Idle/Locomotion/Bite/Fireball/SpreadFire/Stinger/FinishBite/Roar/TakeOff/FlyHover/DiveFall/Landing/Die");
     }
 
     // 컨트롤러를 지우고 새로 만들면 guid가 바뀌어 보스 프리팹의 Animator 참조가 끊긴다.
@@ -112,5 +112,14 @@ public static class WyvernBossAnimatorBuilder
         var c = AssetDatabase.LoadAssetAtPath<AnimationClip>($"{ClipFolder}/{clipName}.anim");
         if (c == null) Debug.LogWarning($"[WyvernBossAnimator] 클립 없음: {clipName}.anim");
         return c;
+    }
+
+    // 표준 .anim의 Loop Time 켜기(호버처럼 길게 유지하는 클립이 1회 재생 후 멈추지 않게).
+    static void EnsureLoop(string clipName)
+    {
+        var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>($"{ClipFolder}/{clipName}.anim");
+        if (clip == null) return;
+        var s = AnimationUtility.GetAnimationClipSettings(clip);
+        if (!s.loopTime) { s.loopTime = true; AnimationUtility.SetAnimationClipSettings(clip, s); EditorUtility.SetDirty(clip); }
     }
 }
