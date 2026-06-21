@@ -16,6 +16,7 @@ public static class WyvernBossBuilder
     const string FireballPath  = "Assets/05.Prefabs/Enemy/Wyvern_Fireball.prefab";
     const string VfxFireball   = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Fireball.prefab";
     const string VfxExplosion  = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Explosion_Omni.prefab";
+    const string VfxFire       = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Fire.prefab";
 
     [MenuItem("Tools/Enemy/Build Wyvern Boss (prefab + SO)")]
     public static void Build()
@@ -111,6 +112,7 @@ public static class WyvernBossBuilder
         var sobj = new SerializedObject(ctrl);
         SetRef(sobj, "data", so);
         SetRef(sobj, "fireballPrefab", fireball);
+        SetRef(sobj, "spreadFireVfx", AssetDatabase.LoadAssetAtPath<GameObject>(VfxFire));
         sobj.ApplyModifiedProperties();
 
         PrefabUtility.SaveAsPrefabAsset(go, PrefabPath, out bool ok);
