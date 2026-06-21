@@ -35,4 +35,13 @@ public class SettingsModalAdapter : PanelWindowAdapter
         if (gui != null && gui.GetCurrentState() == GameUIController.UIState.Settings)
             gui.CloseSettings();
     }
+
+    // ESC(WindowManager.defaultEscapeWindowId)처럼 GlobalSettingsManager.OpenSettings()를
+    // 거치지 않고 패널이 열리는 경로도 있어, 여기서 항상 _pending 리셋 + UI 동기화를 보장한다.
+    // (안 하면 직전에 적용 안 하고 닫은 변경사항이 _pending/_isDirty에 그대로 남아있어
+    //  마치 저장 안 한 변경이 "적용된 것처럼" 다시 보이는 버그가 생김)
+    protected override void AfterOpen()
+    {
+        GlobalSettingsManager.Instance?.RefreshOnOpen();
+    }
 }

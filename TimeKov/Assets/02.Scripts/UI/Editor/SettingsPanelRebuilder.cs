@@ -549,12 +549,23 @@ public static class SettingsPanelRebuilder
         var template = dd.transform.Find("Template");
         if (template == null) return;
         // 펼침 목록은 레퍼런스처럼 라이트 그레이 — 닫힌 박스(다크)와 대비되는 톤.
+        // 닫힌 박스와 같은 RoundedPillSprite를 써서 펼침 목록도 위 버튼처럼 둥글게 보이도록 함
+        // (기존엔 각진 기본 UISprite라 닫힌 박스만 둥글고 펼침 목록은 사각형으로 어긋나 보였음).
         var templateImg = template.GetComponent<Image>();
         if (templateImg != null)
         {
             templateImg.color = PillBg;
-            templateImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            templateImg.sprite = RoundedPillSprite();
             templateImg.type = Image.Type.Sliced;
+        }
+
+        // Viewport의 Mask는 자기 Image의 스프라이트 모양대로 자식(Content/Item)을 잘라낸다 —
+        // 기본 각진 UIMask 그대로면 배경은 둥글어졌어도 목록 내용은 모서리가 각지게 잘려 어긋남.
+        var viewportImg = template.Find("Viewport")?.GetComponent<Image>();
+        if (viewportImg != null)
+        {
+            viewportImg.sprite = RoundedPillSprite();
+            viewportImg.type = Image.Type.Sliced;
         }
 
         var itemBg = template.Find("Viewport/Content/Item/Item Background")?.GetComponent<Image>();
@@ -795,7 +806,7 @@ public static class SettingsPanelRebuilder
 
     private const float SliderWidth = 480f; // 슬라이더 트랙 표준 폭(아이콘 제외)
 
-    private const float ValueLabelWidth = 34f;
+    private const float ValueLabelWidth = 46f; // 클릭해서 직접 입력하는 칸이라 살짝 넓힘
 
     // OS 볼륨 슬라이더 스타일: 얇은 회색 라인 트랙 + 흰 캡슐형 핸들 + 우측 숫자 값(0-10)
     private static Slider CreateSliderRow(Transform content, string label, Sprite icon)
@@ -875,7 +886,9 @@ public static class SettingsPanelRebuilder
         // 해결: Handle 자체(드래그 히트박스)는 투명하게 두고, 그 안에 절대 크기(16x9)로
         // point-anchor된 자식 Visual 하나를 따로 둬서 실제 캡슐 모양만 그건 담당하게 분리.
         var handleRt = sliderGO.transform.Find("Handle Slide Area/Handle")?.GetComponent<RectTransform>();
-        if (handleRt != null) handleRt.sizeDelta = new Vector2(16f, 24f);
+        // 드래그 히트박스가 16px로 너무 좁아 잡기 힘들다는 피드백 — 보이는 캡슐(Visual, 16x9)은
+        // 그대로 두고 클릭/드래그 가능한 히트박스 폭만 32px로 넓힘.
+        if (handleRt != null) handleRt.sizeDelta = new Vector2(32f, 24f);
         var handleImg = handleRt != null ? handleRt.GetComponent<Image>() : null;
         if (handleImg != null) handleImg.color = new Color(0f, 0f, 0f, 0f);
         if (handleRt != null)
@@ -895,17 +908,37 @@ public static class SettingsPanelRebuilder
             visualImg.raycastTarget = false;
         }
 
-        // 우측 숫자 값 라벨 (0~10 스케일로 표시)
-        var valueGO = new GameObject("Value", typeof(RectTransform));
-        valueGO.transform.SetParent(groupGO.transform, false);
-        var valueTmp = valueGO.AddComponent<TextMeshProUGUI>();
-        valueTmp.text = "10";
-        valueTmp.fontSize = 20f;
-        valueTmp.color = TextMuted;
-        valueTmp.alignment = TextAlignmentOptions.MidlineRight;
+        // 우측 숫자 값 입력칸 (0~100 스케일) — 평소엔 값만 보이고, 클릭하면 직접 숫자를 입력해 슬라이더를 바꿀 수 있음
+        var valueGO = CreateUIElementViaMenu("GameObject/UI/Input Field - TextMeshPro", groupGO.transform);
+        valueGO.name = "Value";
         var valueLE = valueGO.AddComponent<LayoutElement>();
         valueLE.preferredWidth = ValueLabelWidth; valueLE.minWidth = ValueLabelWidth; valueLE.flexibleWidth = 0f;
-        slider.onValueChanged.AddListener(v => valueTmp.text = Mathf.RoundToInt(v * 10f).ToString());
+        valueLE.preferredHeight = 40f; valueLE.minHeight = 40f;
+
+        var valueBgImg = valueGO.GetComponent<Image>();
+        if (valueBgImg != null) { valueBgImg.sprite = null; valueBgImg.color = new Color(0f, 0f, 0f, 0f); } // 평소엔 박스가 안 보이게
+
+        var valueInput = valueGO.GetComponent<TMP_InputField>();
+        valueInput.contentType = TMP_InputField.ContentType.IntegerNumber;
+        valueInput.characterLimit = 3;
+        valueInput.text = "100";
+
+        var valueText = valueGO.transform.Find("Text Area/Text")?.GetComponent<TextMeshProUGUI>();
+        if (valueText != null)
+        {
+            valueText.fontSize = 20f;
+            valueText.color = TextMuted;
+            valueText.alignment = TextAlignmentOptions.MidlineRight;
+        }
+        var valuePlaceholder = valueGO.transform.Find("Text Area/Placeholder")?.gameObject;
+        if (valuePlaceholder != null) valuePlaceholder.SetActive(false); // 항상 값이 채워져 있어 플레이스홀더 불필요
+
+        // 람다를 직접 AddListener하면 비영속 리스너라 씬을 새로 로드했을 때 사라짐 —
+        // 런타임에 OnEnable에서 다시 구독/입력값 반영하는 SliderValueInput 컴포넌트로 대체.
+        var valueInputComp = valueGO.AddComponent<SliderValueInput>();
+        valueInputComp.slider = slider;
+        valueInputComp.input = valueInput;
+        valueInputComp.scale = 100f;
 
         return slider;
     }

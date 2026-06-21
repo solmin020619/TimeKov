@@ -183,11 +183,19 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void OpenSettings()
     {
+        RefreshOnOpen();
+        GameUIController.Instance?.OpenSettings();
+    }
+
+    // 폼을 _data 기준으로 리셋(편집 중이던 _pending 폐기) + UI 동기화.
+    // OpenSettings()뿐 아니라, ESC 등 WindowManager가 패널을 직접 여는 경로에서도
+    // SettingsModalAdapter.AfterOpen()이 이걸 호출해 누락 없이 보장한다.
+    public void RefreshOnOpen()
+    {
         _pending = Clone(_data);
         _isDirty = false;
         HideApplyWarning();
         SyncUIValues();
-        GameUIController.Instance?.OpenSettings();
     }
 
     // 적용되지 않은 변경사항이 있으면 닫기를 거부하고 안내 메세지를 띄운다.

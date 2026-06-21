@@ -177,6 +177,14 @@ public class GameUIController : MonoBehaviour
             if (inv != null && inv.TryCloseTopPopup()) return;
         }
 
+        // 설정창이 열려있고 적용 안 한 변경사항이 있으면 ESC도 막아야 한다.
+        // WindowManager.HandleEscape()는 dirty 여부를 모르고 곧바로 패널을 닫아버리므로,
+        // 그보다 먼저 여기서 막아야 X 버튼/적용 경고창과 동일하게 동작한다.
+        if (_currentState == UIState.Settings
+            && GlobalSettingsManager.Instance != null
+            && !GlobalSettingsManager.Instance.RequestClose())
+            return;
+
         // WindowManager가 부착되어 있으면 통합 디스패치 위임
         // (Modal top → 최근 Window → defaultEscapeWindowId 순으로 처리)
         // 처리할 게 있었으면 true 반환 → 폴백 건너뜀
