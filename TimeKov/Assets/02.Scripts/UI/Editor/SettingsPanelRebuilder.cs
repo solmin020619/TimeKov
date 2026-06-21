@@ -256,6 +256,9 @@ public static class SettingsPanelRebuilder
         // ── 5b. 키 리바인딩 입력 모달 (항상 최상단, 기본 비활성) ───────────────
         var (rebindModal, rebindActionLabel, rebindKeyDisplay) = CreateRebindModal(settingsBG);
 
+        // ── 5c. 적용 안 한 변경사항 경고 팝업 (항상 최상단, 기본 비활성) ─────────
+        var applyWarningModal = CreateApplyWarningModal(settingsBG, settingsMgr);
+
         // ── 6. GlobalSettingsManager 필드 연결 ───────────────────────────────
         Undo.RecordObject(settingsMgr, "Wire GlobalSettingsManager Fields");
         settingsMgr.resolutionDropdown      = resolutionDropdown;
@@ -277,6 +280,7 @@ public static class SettingsPanelRebuilder
         settingsMgr.rebindModal             = rebindModal;
         settingsMgr.rebindModalActionLabel  = rebindActionLabel;
         settingsMgr.rebindModalKeyDisplay   = rebindKeyDisplay;
+        settingsMgr.applyWarningModal       = applyWarningModal;
         EditorUtility.SetDirty(settingsMgr);
 
         // 임시로 활성화했던 체인 복원 (자식 → 부모 순서로 처리했으니 그대로 되돌림)
@@ -1059,6 +1063,95 @@ public static class SettingsPanelRebuilder
 
         modal.SetActive(false);
         return (modal, actionTmp, keyTmp);
+    }
+
+    // 적용 안 한 변경사항이 있을 때 닫기를 막고 띄우는 안내 팝업 — 리바인딩 모달과 같은 톤(백드롭+라이트 패널).
+    // 기본 비활성, GlobalSettingsManager.ShowApplyWarning/HideApplyWarning에서 토글.
+    private static GameObject CreateApplyWarningModal(Transform parent, GlobalSettingsManager mgr)
+    {
+        var modal = CreateUIObject("ApplyWarningModal", parent);
+        var modalRect = modal.GetComponent<RectTransform>();
+        modalRect.anchorMin = Vector2.zero;
+        modalRect.anchorMax = Vector2.one;
+        modalRect.offsetMin = Vector2.zero;
+        modalRect.offsetMax = Vector2.zero;
+        var backdrop = modal.AddComponent<Image>();
+        backdrop.color = new Color(0f, 0f, 0f, 0.55f);
+
+        var panel = new GameObject("Panel", typeof(RectTransform));
+        panel.transform.SetParent(modal.transform, false);
+        var panelRect = panel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.pivot     = new Vector2(0.5f, 0.5f);
+        panelRect.sizeDelta = new Vector2(600f, 260f);
+        var panelImg = panel.AddComponent<Image>();
+        panelImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        panelImg.type = Image.Type.Sliced;
+        panelImg.color = PillBg;
+
+        var title = new GameObject("Title", typeof(RectTransform));
+        title.transform.SetParent(panel.transform, false);
+        var titleTmp = title.AddComponent<TextMeshProUGUI>();
+        titleTmp.text = "적용되지 않은 변경사항이 있습니다.";
+        titleTmp.fontSize = 26f;
+        titleTmp.fontStyle = FontStyles.Bold;
+        titleTmp.color = PillText;
+        titleTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(titleTmp);
+        var titleRect = title.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0f, 1f);
+        titleRect.anchorMax = new Vector2(1f, 1f);
+        titleRect.pivot     = new Vector2(0.5f, 1f);
+        titleRect.anchoredPosition = new Vector2(0f, -50f);
+        titleRect.sizeDelta = new Vector2(0f, 40f);
+
+        var subtitleGO = new GameObject("Subtitle", typeof(RectTransform));
+        subtitleGO.transform.SetParent(panel.transform, false);
+        var subtitleTmp = subtitleGO.AddComponent<TextMeshProUGUI>();
+        subtitleTmp.text = "'설정 적용'을 눌러야 변경사항이 저장됩니다.";
+        subtitleTmp.fontSize = 20f;
+        subtitleTmp.color = TextMuted;
+        subtitleTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(subtitleTmp);
+        var subtitleRect = subtitleGO.GetComponent<RectTransform>();
+        subtitleRect.anchorMin = new Vector2(0f, 1f);
+        subtitleRect.anchorMax = new Vector2(1f, 1f);
+        subtitleRect.pivot     = new Vector2(0.5f, 1f);
+        subtitleRect.anchoredPosition = new Vector2(0f, -100f);
+        subtitleRect.sizeDelta = new Vector2(0f, 30f);
+
+        var confirmGO = CreateUIObject("Btn_Confirm", panel.transform);
+        var confirmRect = confirmGO.GetComponent<RectTransform>();
+        confirmRect.anchorMin = new Vector2(0.5f, 0f);
+        confirmRect.anchorMax = new Vector2(0.5f, 0f);
+        confirmRect.pivot     = new Vector2(0.5f, 0f);
+        confirmRect.anchoredPosition = new Vector2(0f, 40f);
+        confirmRect.sizeDelta = new Vector2(180f, 56f);
+        var confirmImg = confirmGO.AddComponent<Image>();
+        confirmImg.sprite = RoundedPillSprite();
+        confirmImg.type = Image.Type.Sliced;
+        confirmImg.color = ControlBg;
+        var confirmBtn = confirmGO.AddComponent<Button>();
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(confirmBtn.onClick, mgr.DismissApplyWarning);
+
+        var confirmLabelGO = new GameObject("Label", typeof(RectTransform));
+        confirmLabelGO.transform.SetParent(confirmGO.transform, false);
+        var confirmTmp = confirmLabelGO.AddComponent<TextMeshProUGUI>();
+        confirmTmp.text = "확인";
+        confirmTmp.fontSize = 22f;
+        confirmTmp.fontStyle = FontStyles.Bold;
+        confirmTmp.color = TextPrimary;
+        confirmTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(confirmTmp);
+        var confirmLabelRect = confirmLabelGO.GetComponent<RectTransform>();
+        confirmLabelRect.anchorMin = Vector2.zero;
+        confirmLabelRect.anchorMax = Vector2.one;
+        confirmLabelRect.offsetMin = Vector2.zero;
+        confirmLabelRect.offsetMax = Vector2.zero;
+
+        modal.SetActive(false);
+        return modal;
     }
 }
 #endif

@@ -63,6 +63,9 @@ public class GlobalSettingsManager : MonoBehaviour
     public TMP_Text   rebindModalActionLabel;
     public TMP_Text   rebindModalKeyDisplay;
 
+    [Header("UI - 공통")]
+    public GameObject applyWarningModal; // 적용 안 한 변경사항이 있을 때 닫기를 막고 띄우는 안내 팝업
+
     [Header("UI - 탭 (순서: 0=그래픽 1=오디오 2=조작)")]
     public Button[]     tabButtons;
     public GameObject[] tabContents;
@@ -84,13 +87,6 @@ public class GlobalSettingsManager : MonoBehaviour
     private bool _isDirty;
     private string _rebindingActionId;
     private int _currentTab;
-
-    private TMP_Text _hintLabel;
-    private string _hintDefaultText;
-    private Color _hintDefaultColor;
-    private Coroutine _warningCoroutine;
-    private static readonly Color ApplyWarningColor = new Color(1f, 0.62f, 0.2f, 1f);
-    private const string ApplyWarningText = "변경된 설정이 있습니다. '설정 적용'을 눌러주세요.";
 
     private static KeyCode[] _rebindCandidates;
 
@@ -205,42 +201,18 @@ public class GlobalSettingsManager : MonoBehaviour
         GameUIController.Instance?.CloseSettings();
     }
 
-    private void CacheHintLabel()
-    {
-        if (_hintLabel != null) return;
-        _hintLabel = transform.Find("Option/BG/Settings/Hint")?.GetComponent<TMP_Text>();
-        if (_hintLabel != null)
-        {
-            _hintDefaultText  = _hintLabel.text;
-            _hintDefaultColor = _hintLabel.color;
-        }
-    }
-
     private void ShowApplyWarning()
     {
-        CacheHintLabel();
-        if (_hintLabel == null) return;
-        if (_warningCoroutine != null) StopCoroutine(_warningCoroutine);
-        _hintLabel.text  = ApplyWarningText;
-        _hintLabel.color = ApplyWarningColor;
-        _warningCoroutine = StartCoroutine(HideWarningAfterDelay());
+        if (applyWarningModal != null) applyWarningModal.SetActive(true);
     }
 
     private void HideApplyWarning()
     {
-        if (_warningCoroutine != null) { StopCoroutine(_warningCoroutine); _warningCoroutine = null; }
-        if (_hintLabel == null) return;
-        _hintLabel.text  = _hintDefaultText;
-        _hintLabel.color = _hintDefaultColor;
+        if (applyWarningModal != null) applyWarningModal.SetActive(false);
     }
 
-    // 설정창은 열려있는 동안 Time.timeScale = 0이라 WaitForSeconds는 절대 끝나지 않는다 — Realtime 사용.
-    private System.Collections.IEnumerator HideWarningAfterDelay()
-    {
-        yield return new WaitForSecondsRealtime(2.5f);
-        if (_hintLabel != null) { _hintLabel.text = _hintDefaultText; _hintLabel.color = _hintDefaultColor; }
-        _warningCoroutine = null;
-    }
+    // 경고 팝업의 "확인" 버튼에서 호출 (Editor가 persistent listener로 연결).
+    public void DismissApplyWarning() => HideApplyWarning();
 
     public void ToggleSettings()
     {
