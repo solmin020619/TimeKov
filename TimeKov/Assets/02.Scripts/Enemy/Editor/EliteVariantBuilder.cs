@@ -30,6 +30,7 @@ public static class EliteVariantBuilder
 
     // (베이스 shortName, 엘리트 한글 칭호). 오크트리/늑대인간(Werewolf) 제외.
     // 정확히 5종만 쓰려면 안 쓸 한 줄을 지우면 됨.
+    // ★'왕/군' 글자가 폴백 폰트(Pretendard SDF) 아틀라스에 있어야 □ 안 뜸 -> FontGlyphPatcher로 미리 구울 것.
     static readonly (string shortName, string eliteName)[] Elites =
     {
         ("EvilWatcher",    "아귀 군주"),

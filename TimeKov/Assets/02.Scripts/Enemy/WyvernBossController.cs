@@ -14,6 +14,7 @@ public class WyvernBossController : MonoBehaviour
 {
     [Header("데이터 (HP/속도/근접공격 기본 수치는 SO에서 튜닝)")]
     [SerializeField] private MeleeEnemyData data;
+    public MeleeEnemyData Data => data;   // 도감 등 외부서 보스 스탯 조회용(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "시간을 빨아먹는 포식자";   // 상단 보스바 부제
 
     [Header("원거리 파이어볼")]
