@@ -1,7 +1,6 @@
 // =====================================================================
 // ActiveBuffManager.cs
-// ÇÃ·¹ÀÌ¾î¿¡ Àû¿ë ÁßÀÎ ½ÃÇÑºÎ ¹öÇÁ ¸ñ·Ï °ü¸®
-// Player ¿ÀºêÁ§Æ®¿¡ ÄÄÆ÷³ÍÆ®·Î Ãß°¡
+// í”Œë ˆì´ì–´ì—ê²Œ ì ìš©ë˜ëŠ” ì¼ì‹œ ë²„í”„ ê´€ë¦¬ (Player ì˜¤ë¸Œì íŠ¸ì— ì»´í¬ë„ŒíŠ¸ë¡œ ì¶”ê°€)
 // =====================================================================
 
 using System.Collections;
@@ -12,10 +11,10 @@ public class ActiveBuffManager : MonoBehaviour
 {
     private Player _player;
 
-    // È°¼º ¹öÇÁ ¸ñ·Ï
+    // í™œì„± ë²„í”„ ëª©ë¡
     private readonly List<ActiveBuff> _activeBuffs = new List<ActiveBuff>();
 
-    // ¿ÜºÎ ÀĞ±â Àü¿ë (UI ¹öÇÁ ¾ÆÀÌÄÜ Ç¥½Ã¿ë)
+    // ì™¸ë¶€ ì½ê¸° ì „ìš© (UI ë²„í”„ ì•„ì´ì½˜ í‘œì‹œìš©)
     public IReadOnlyList<ActiveBuff> ActiveBuffs => _activeBuffs;
 
     private void Awake()
@@ -28,7 +27,7 @@ public class ActiveBuffManager : MonoBehaviour
         TickBuffs();
     }
 
-    // ¸Å ÇÁ·¹ÀÓ Å¸ÀÌ¸Ó °¨¼Ò ¹× ¸¸·á Ã³¸®
+    // ë§¤ í”„ë ˆì„ íƒ€ì´ë¨¸ ê°ì†Œ ë° ë§Œë£Œ ì²˜ë¦¬
     private void TickBuffs()
     {
         for (int i = _activeBuffs.Count - 1; i >= 0; i--)
@@ -40,18 +39,17 @@ public class ActiveBuffManager : MonoBehaviour
             {
                 RevertBuff(buff);
                 _activeBuffs.RemoveAt(i);
-                Debug.Log($"[BuffManager] ¹öÇÁ ¸¸·á: {buff.target} delta={buff.appliedDelta}");
+                Debug.Log($"[BuffManager] ë²„í”„ ë§Œë£Œ: {buff.target} delta={buff.appliedDelta}");
             }
         }
     }
 
-    // ½ÃÇÑºÎ ¹öÇÁ Àû¿ë
-    // µ¿ÀÏ itemId + target ÀÌ¸é ±âÁ¸ ¿øº¹ ÈÄ »õ·Î Àû¿ë (±³Ã¼)
-    // ´Ù¸¥ itemId + µ¿ÀÏ target ÀÌ¸é ÁßÃ¸
+    // ì¼ì‹œ ë²„í”„ ì ìš©
+    // ê°™ì€ itemId + ê°™ì€ target ì´ë©´ ê¸°ì¡´ ê²ƒ ì›ë³µ í›„ ê°±ì‹ (êµì²´), ë‹¤ë¥¸ itemId + ê°™ì€ target ì´ë©´ ì¤‘ì²©
     public void ApplyTimedBuff(EffectTarget target, float appliedDelta,
                                 float duration, string sourceItemId)
     {
-        // µ¿ÀÏ itemId + µ¿ÀÏ target ¹öÇÁ°¡ ÀÖÀ¸¸é ¿øº¹ ÈÄ Á¦°Å
+        // ê°™ì€ itemId + ê°™ì€ target ë²„í”„ê°€ ìˆìœ¼ë©´ ì›ë³µ í›„ ì œê±°
         for (int i = _activeBuffs.Count - 1; i >= 0; i--)
         {
             var existing = _activeBuffs[i];
@@ -63,10 +61,10 @@ public class ActiveBuffManager : MonoBehaviour
             }
         }
 
-        // ½ºÅÈ¿¡ µ¨Å¸ Àû¿ë
+        // ìŠ¤íƒ¯ì— ë¸íƒ€ ì ìš©
         ApplyDelta(target, appliedDelta);
 
-        // ¹öÇÁ µî·Ï
+        // ë²„í”„ ë“±ë¡
         _activeBuffs.Add(new ActiveBuff
         {
             target = target,
@@ -75,10 +73,10 @@ public class ActiveBuffManager : MonoBehaviour
             sourceItemId = sourceItemId
         });
 
-        Debug.Log($"[BuffManager] ¹öÇÁ Àû¿ë: {target} delta={appliedDelta} / {duration}ÃÊ");
+        Debug.Log($"[BuffManager] ë²„í”„ ì ìš©: {target} delta={appliedDelta} / {duration}ì´ˆ");
     }
 
-    // Áö¼Ó È¸º¹ : ÃÊ´ç healPerSecond ¾¿ duration ÃÊ µ¿¾È È¸º¹
+    // ì§€ì† íšŒë³µ: ì´ˆë‹¹ healPerSecond ë¥¼ duration ë™ì•ˆ ëˆ„ì  íšŒë³µ
     public void ApplySustainHeal(float healPerSecond, float duration, bool isMaxPercent)
     {
         StartCoroutine(SustainHealRoutine(healPerSecond, duration, isMaxPercent));
@@ -93,10 +91,10 @@ public class ActiveBuffManager : MonoBehaviour
             yield return new WaitForSeconds(1f);
             elapsed += 1f;
 
-            // ÄÚ·çÆ¾ ÁøÇà Áß Player °¡ null ÀÌ¸é ÀÌ¹Ì ÁøÇàµÈ È¿°ú´Â º¹±¸ ¾øÀÌ Á¾·á
+            // ì½”ë£¨í‹´ ë„ì¤‘ Player ê°€ null ì´ë©´ ì´ë¯¸ íŒŒê´´ëœ ê²ƒìœ¼ë¡œ ë³´ê³  ì¤‘ë‹¨
             if (_player == null)
             {
-                Debug.LogWarning("[BuffManager] SustainHeal: Player null : ÄÚ·çÆ¾ Á¾·á");
+                Debug.LogWarning("[BuffManager] SustainHeal: Player null, ì½”ë£¨í‹´ ì¤‘ë‹¨");
                 yield break;
             }
 
@@ -107,7 +105,7 @@ public class ActiveBuffManager : MonoBehaviour
         }
     }
 
-    // ½ºÅÈ¿¡ µ¨Å¸ Àû¿ë (¾ç¼ö=Áõ°¡, À½¼ö=°¨¼Ò)
+    // ë²„í”„ì— ë”°ë¼ ìŠ¤íƒ¯ ë¸íƒ€ ì ìš© (ì–‘ìˆ˜=ê°•í™”, ìŒìˆ˜=ì›ë³µ)
     private void ApplyDelta(EffectTarget target, float delta)
     {
         if (_player == null) return;
@@ -118,13 +116,17 @@ public class ActiveBuffManager : MonoBehaviour
                 _player.Stat.ATK += delta;
                 break;
 
+            case EffectTarget.DEF:
+                _player.Stat.DEF += delta;
+                break;
+
             case EffectTarget.MoveSpeed:
                 _player.Movement.MoveSpeed += delta;
                 _player.Movement.SprintSpeed += delta;
                 break;
 
             case EffectTarget.TimeDecay:
-                // delta °¡ À½¼ö¸é °¨¼Ò (ÇÊµå ½Ã°£ ¼Õ½Ç ¾ïÁ¦)
+                // delta ìŒìˆ˜ë©´ ë“œë ˆì¸ ê°ì†Œ (í•„ë“œ ì‹œê°„ ì†ì‹¤ ì™„í™”)
                 _player.Stat.HpDrainRate =
                     Mathf.Max(0f, _player.Stat.HpDrainRate + delta);
                 break;
@@ -134,26 +136,26 @@ public class ActiveBuffManager : MonoBehaviour
                     Mathf.Max(0f, _player.Dash.DashCost + delta);
                 break;
 
-            // ÀÌ¹ø ¹üÀ§ Á¦¿Ü Ç×¸ñ
+            // ì•„ì§ ë¯¸êµ¬í˜„ í•­ëª©
             case EffectTarget.Stamina:
-                Debug.LogWarning("[BuffManager] Stamina ¹öÇÁ : ÈÄ¼Ó ±¸Çö ´ë»ó");
+                Debug.LogWarning("[BuffManager] Stamina ë²„í”„: ì¶”í›„ êµ¬í˜„ ì˜ˆì •");
                 break;
 
             case EffectTarget.SkillGauge:
-                Debug.LogWarning("[BuffManager] SkillGauge : ÈÄ¼Ó ±¸Çö ´ë»ó");
+                Debug.LogWarning("[BuffManager] SkillGauge: ì¶”í›„ êµ¬í˜„ ì˜ˆì •");
                 break;
 
             case EffectTarget.AllStats:
-                Debug.LogWarning("[BuffManager] AllStats : ÈÄ¼Ó ±¸Çö ´ë»ó");
+                Debug.LogWarning("[BuffManager] AllStats: ì¶”í›„ êµ¬í˜„ ì˜ˆì •");
                 break;
 
             default:
-                Debug.LogWarning($"[BuffManager] Ã³¸®µÇÁö ¾ÊÀº EffectTarget={target}");
+                Debug.LogWarning($"[BuffManager] ì²˜ë¦¬ë˜ì§€ ì•Šì€ EffectTarget={target}");
                 break;
         }
     }
 
-    // ¹öÇÁ ¸¸·á ½Ã ¿øº¹
+    // ë²„í”„ ë§Œë£Œ ì‹œ ì›ë³µ
     private void RevertBuff(ActiveBuff buff)
     {
         ApplyDelta(buff.target, -buff.appliedDelta);
