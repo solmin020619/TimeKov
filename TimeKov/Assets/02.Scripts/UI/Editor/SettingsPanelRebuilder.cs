@@ -6,6 +6,7 @@
 
 #if UNITY_EDITOR
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -18,6 +19,78 @@ public static class SettingsPanelRebuilder
     private const string IconDir  = "Assets/Resources/Image/UI_Icon/Setting/";
 
     private static Sprite Load(string fileName) => AssetDatabase.LoadAssetAtPath<Sprite>(IconDir + fileName);
+
+    // 흰 실루엣 PNG 아이콘 세트(체크/새로고침/닫기) — TMP 유니코드 글리프(✓,↻)는 프로젝트의
+    // 모든 폰트 에셋이 Static 아틀라스라 해당 글자가 없으면 그냥 깨져버려서(□) 아이콘 대신
+    // 실제 스프라이트를 쓴다. 폰트 교체로는 못 고치는 문제.
+    private const string IconKitDir = "Assets/SilentOutbreak_UIKIT/PNG/Icons/";
+    private static Sprite LoadKitIcon(string fileName) => AssetDatabase.LoadAssetAtPath<Sprite>(IconKitDir + fileName);
+
+    // 기본 TMP 폰트(LiberationSans SDF)는 Static 아틀라스라 이 패널에서 처음 쓰는 한글
+    // 글자(그래픽/오디오/볼륨 등)가 깨져 나온다(□). 한글이 전부 포함된 폰트로 통일.
+    private static TMP_FontAsset _koreanFont;
+    private static TMP_FontAsset KoreanFont =>
+        _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/남양주고딕Light (OTF) SDF.asset");
+
+    // 버튼을 엔드필드처럼 확실하게 둥글게 만드는 전용 스프라이트.
+    // Unity 기본 제공 UI/Skin/UISprite.psd는 모서리가 텍스처 10px / PPU 200이라
+    // 화면에선 5px밖에 안 나와서 우리 컨트롤 높이(48~64)에서는 거의 안 보였다 —
+    // 반경을 충분히 크게 준 라운드 사각형 텍스처를 직접 만들어 9-slice로 쓴다.
+    private static Sprite _roundedPillSprite;
+    private const string RoundedPillPath = "Assets/Resources/Image/UI_Icon/Setting/Generated_RoundedPill.png";
+
+    private static Sprite RoundedPillSprite()
+    {
+        if (_roundedPillSprite != null) return _roundedPillSprite;
+
+        var existing = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedPillPath);
+        if (existing != null) { _roundedPillSprite = existing; return existing; }
+
+        const int size = 64;
+        const int radius = 28;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var pixels = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = Mathf.Max(Mathf.Abs(x + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
+                float dy = Mathf.Max(Mathf.Abs(y + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float alpha = Mathf.Clamp01(radius - dist + 0.5f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        tex.SetPixels32(pixels);
+        tex.Apply();
+
+        var pngBytes = tex.EncodeToPNG();
+        Directory.CreateDirectory(Path.GetDirectoryName(RoundedPillPath));
+        File.WriteAllBytes(RoundedPillPath, pngBytes);
+        AssetDatabase.ImportAsset(RoundedPillPath);
+
+        var importer = AssetImporter.GetAtPath(RoundedPillPath) as TextureImporter;
+        if (importer != null)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 100f;
+            importer.spriteBorder = new Vector4(radius, radius, radius, radius);
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Bilinear;
+            EditorUtility.SetDirty(importer);
+            importer.SaveAndReimport();
+        }
+
+        _roundedPillSprite = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedPillPath);
+        return _roundedPillSprite;
+    }
+
+    private static void ApplyFont(TMP_Text t)
+    {
+        if (t != null && KoreanFont != null) t.font = KoreanFont;
+    }
 
     [MenuItem(MenuPath)]
     static void Rebuild()
@@ -143,7 +216,7 @@ public static class SettingsPanelRebuilder
         // 오디오
         var (audioRoot, audioContent) = CreateScrollTab(settingsBG, "AudioTab");
         CreateSectionHeader(audioContent, "오디오 설정");
-        Slider masterSlider = CreateSliderRow(audioContent, "마스터 볼륨", null);
+        Slider masterSlider = CreateSliderRow(audioContent, "마스터 볼륨", LoadKitIcon("T_icon_volume_on.png"));
         Slider bgmSlider = CreateSliderRow(audioContent, "배경음(BGM)", Load("SettingsPanel_Icon_BGM.png"));
         Slider sfxSlider = CreateSliderRow(audioContent, "효과음(SFX)", Load("SettingsPanel_Icon_SFX.png"));
         tabContents[1] = audioRoot;
@@ -262,6 +335,7 @@ public static class SettingsPanelRebuilder
             tmp.text = label;
             tmp.fontSize = 26f;
             tmp.color = Color.white;
+            ApplyFont(tmp);
         }
 
         // 임시 아이콘 (재사용 아트, 추후 교체 예정)
@@ -280,11 +354,11 @@ public static class SettingsPanelRebuilder
             iconRect.sizeDelta = new Vector2(32f, 32f);
         }
 
-        // 선택 강조 밑줄 (노란선)
+        // 선택 강조 밑줄
         var highlight = new GameObject("Highlight", typeof(RectTransform));
         highlight.transform.SetParent(btnGO.transform, false);
         var hImg = highlight.AddComponent<Image>();
-        hImg.color = new Color(1f, 0.82f, 0.1f, 1f);
+        hImg.color = AccentColor;
         var hRect = highlight.GetComponent<RectTransform>();
         hRect.anchorMin = new Vector2(0f, 0f);
         hRect.anchorMax = new Vector2(1f, 0f);
@@ -366,6 +440,7 @@ public static class SettingsPanelRebuilder
         tmp.fontSize = 26f;
         tmp.color = new Color(0.9f, 0.93f, 0.96f);
         tmp.alignment = TextAlignmentOptions.MidlineLeft;
+        ApplyFont(tmp);
         var labelLE = labelGO.AddComponent<LayoutElement>();
         labelLE.preferredWidth = 380f;
         labelLE.minWidth = 380f;
@@ -396,10 +471,10 @@ public static class SettingsPanelRebuilder
     private const float ControlWidth = 480f; // 드롭다운/세그먼트 컨트롤 표준 폭
     private const float ControlHeight = 56f; // 드롭다운/세그먼트 컨트롤 표준 높이
 
-    // 엔드필드 팔레트 — 다크 네이비 + 노란 액센트
+    // 엔드필드 팔레트 — 다크 네이비 + 화이트 액센트
     private static readonly Color PanelBg       = new Color(0.063f, 0.078f, 0.102f, 1f);
     private static readonly Color ControlBg     = new Color(0.106f, 0.125f, 0.153f, 0.95f);
-    private static readonly Color AccentYellow  = new Color(1f, 0.82f, 0.10f, 1f);
+    private static readonly Color AccentColor  = new Color(1f, 1f, 1f, 1f);
     private static readonly Color TextPrimary   = new Color(0.929f, 0.937f, 0.949f, 1f);
     private static readonly Color TextMuted     = new Color(0.604f, 0.631f, 0.671f, 1f);
     private static readonly Color SliderLineGray = new Color(0.29f, 0.30f, 0.32f, 1f); // 얇은 트랙 라인 색
@@ -418,10 +493,15 @@ public static class SettingsPanelRebuilder
     private static void StyleDropdown(TMP_Dropdown dd)
     {
         var rootImg = dd.GetComponent<Image>();
-        if (rootImg != null) rootImg.color = ControlBg;
+        if (rootImg != null)
+        {
+            rootImg.color = ControlBg;
+            rootImg.sprite = RoundedPillSprite();
+            rootImg.type = Image.Type.Sliced;
+        }
 
         var label = dd.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
-        if (label != null) { label.color = TextPrimary; label.fontSize = 24f; }
+        if (label != null) { label.color = TextPrimary; label.fontSize = 24f; ApplyFont(label); }
 
         var arrowRt = dd.transform.Find("Arrow")?.GetComponent<RectTransform>();
         if (arrowRt != null) arrowRt.sizeDelta = new Vector2(24f, 24f);
@@ -431,13 +511,18 @@ public static class SettingsPanelRebuilder
         var template = dd.transform.Find("Template");
         if (template == null) return;
         var templateImg = template.GetComponent<Image>();
-        if (templateImg != null) templateImg.color = ControlBg;
+        if (templateImg != null)
+        {
+            templateImg.color = ControlBg;
+            templateImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            templateImg.type = Image.Type.Sliced;
+        }
 
         var itemBg = template.Find("Viewport/Content/Item/Item Background")?.GetComponent<Image>();
         if (itemBg != null) itemBg.color = PanelBg;
 
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
-        if (itemLabel != null) { itemLabel.color = TextPrimary; itemLabel.fontSize = 24f; }
+        if (itemLabel != null) { itemLabel.color = TextPrimary; itemLabel.fontSize = 24f; ApplyFont(itemLabel); }
 
         // 항목 행 높이가 기본값(20)에 묶여 있어 24pt 폰트가 한 줄을 다 못 채우고
         // 다음 행과 겹쳐 보임 — 행 높이를 키워 글자가 자연스럽게 들어가게 한다.
@@ -467,7 +552,7 @@ public static class SettingsPanelRebuilder
         var bar = new GameObject("Bar", typeof(RectTransform));
         bar.transform.SetParent(header.transform, false);
         var barImg = bar.AddComponent<Image>();
-        barImg.color = new Color(1f, 0.82f, 0.1f, 1f);
+        barImg.color = AccentColor;
         var barLE = bar.AddComponent<LayoutElement>();
         barLE.preferredWidth = 6f; barLE.minWidth = 6f; barLE.flexibleWidth = 0f;
 
@@ -477,8 +562,9 @@ public static class SettingsPanelRebuilder
         tmp.text = text;
         tmp.fontSize = 24f;
         tmp.fontStyle = FontStyles.Bold;
-        tmp.color = new Color(1f, 0.82f, 0.1f, 1f);
+        tmp.color = AccentColor;
         tmp.alignment = TextAlignmentOptions.MidlineLeft;
+        ApplyFont(tmp);
         var labelLE = labelGO.AddComponent<LayoutElement>();
         labelLE.preferredWidth = 220f; labelLE.minWidth = 220f; labelLE.flexibleWidth = 0f;
 
@@ -516,9 +602,14 @@ public static class SettingsPanelRebuilder
         var onLE = onBtnGO.AddComponent<LayoutElement>();
         onLE.flexibleWidth = 1f; onLE.preferredHeight = ControlHeight; onLE.minHeight = ControlHeight;
         var onTmp = onBtnGO.GetComponentInChildren<TextMeshProUGUI>();
-        if (onTmp != null) { onTmp.text = onText; onTmp.fontSize = 24f; }
+        if (onTmp != null) { onTmp.text = onText; onTmp.fontSize = 24f; ApplyFont(onTmp); }
         var onImg = onBtnGO.GetComponent<Image>();
-        if (onImg != null) onImg.color = ControlBg;
+        if (onImg != null)
+        {
+            onImg.color = ControlBg;
+            onImg.sprite = RoundedPillSprite();
+            onImg.type = Image.Type.Sliced;
+        }
         var onBtn = onBtnGO.GetComponent<Button>();
         UnityEditor.Events.UnityEventTools.AddPersistentListener(onBtn.onClick, onClickOn);
 
@@ -527,9 +618,14 @@ public static class SettingsPanelRebuilder
         var offLE = offBtnGO.AddComponent<LayoutElement>();
         offLE.flexibleWidth = 1f; offLE.preferredHeight = ControlHeight; offLE.minHeight = ControlHeight;
         var offTmp = offBtnGO.GetComponentInChildren<TextMeshProUGUI>();
-        if (offTmp != null) { offTmp.text = offText; offTmp.fontSize = 24f; }
+        if (offTmp != null) { offTmp.text = offText; offTmp.fontSize = 24f; ApplyFont(offTmp); }
         var offImg = offBtnGO.GetComponent<Image>();
-        if (offImg != null) offImg.color = ControlBg;
+        if (offImg != null)
+        {
+            offImg.color = ControlBg;
+            offImg.sprite = RoundedPillSprite();
+            offImg.type = Image.Type.Sliced;
+        }
         var offBtn = offBtnGO.GetComponent<Button>();
         UnityEditor.Events.UnityEventTools.AddPersistentListener(offBtn.onClick, onClickOff);
 
@@ -555,11 +651,12 @@ public static class SettingsPanelRebuilder
         hintTmp.fontSize = 20f;
         hintTmp.color = TextMuted;
         hintTmp.alignment = TextAlignmentOptions.MidlineLeft;
+        ApplyFont(hintTmp);
 
         // 우측 알약 버튼 2개 (안쪽이 적용, 바깥쪽이 초기화)
-        CreateFooterButton(parent, "Btn_Apply", "설정 적용", "✓",
+        CreateFooterButton(parent, "Btn_Apply", "설정 적용", LoadKitIcon("T_icon_check.png"),
             -edgePad, y, btnWidth, btnHeight, mgr.ApplySettings);
-        CreateFooterButton(parent, "Btn_Reset", "설정 초기화", "↻",
+        CreateFooterButton(parent, "Btn_Reset", "설정 초기화", LoadKitIcon("T_icon_refresh.png"),
             -edgePad - btnWidth - spacing, y, btnWidth, btnHeight, mgr.ResetGraphicsToDefault);
     }
 
@@ -567,9 +664,9 @@ public static class SettingsPanelRebuilder
     private static readonly Color PillText     = new Color(0.12f, 0.12f, 0.14f, 1f);
     private static readonly Color PillCircleBg = new Color(0.16f, 0.17f, 0.19f, 0.95f);
 
-    // 알약형 버튼: 가운데 텍스트 + 오른쪽 안쪽에 들어간 원형 아이콘(rightGlyph로 버튼마다
+    // 알약형 버튼: 가운데 텍스트 + 오른쪽 안쪽에 들어간 원형 아이콘(rightIcon으로 버튼마다
     // 구분: 새로고침/체크 등). 좌측 아이콘은 제거 — 흰 버튼 밖으로 삐져나오지 않게 전부 안쪽에 배치.
-    private static void CreateFooterButton(Transform parent, string name, string text, string rightGlyph,
+    private static void CreateFooterButton(Transform parent, string name, string text, Sprite rightIcon,
         float x, float y, float width, float height, UnityEngine.Events.UnityAction onClick)
     {
         var btnGO = CreateUIObject(name, parent);
@@ -581,7 +678,7 @@ public static class SettingsPanelRebuilder
         rt.anchoredPosition = new Vector2(x, y);
 
         var pillImg = btnGO.AddComponent<Image>();
-        pillImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        pillImg.sprite = RoundedPillSprite();
         pillImg.type = Image.Type.Sliced;
         pillImg.color = PillBg;
 
@@ -599,6 +696,7 @@ public static class SettingsPanelRebuilder
         tmp.fontStyle = FontStyles.Bold;
         tmp.color = PillText;
         tmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(tmp);
         var labelRt = labelGO.GetComponent<RectTransform>();
         labelRt.anchorMin = Vector2.zero;
         labelRt.anchorMax = Vector2.one;
@@ -606,11 +704,13 @@ public static class SettingsPanelRebuilder
         labelRt.offsetMax = new Vector2(-(circleSize + circlePad * 2f), 0f);
 
         // 오른쪽 원형 아이콘 — 버튼 안쪽에 완전히 들어가도록 중심을 안으로 당김(삐져나오지 않음)
-        CreateGlyphCircle(btnGO.transform, rightGlyph, new Vector2(1f, 0.5f),
+        CreateIconCircle(btnGO.transform, rightIcon, new Vector2(1f, 0.5f),
             new Vector2(-(circleSize * 0.5f + circlePad), 0f), circleSize);
     }
 
-    private static void CreateGlyphCircle(Transform parent, string glyph, Vector2 anchor, Vector2 anchoredPos, float size)
+    // ✓/↻ 같은 유니코드 글리프는 프로젝트의 모든 TMP 폰트 에셋이 Static 아틀라스라
+    // 글자가 없으면 그냥 깨져버린다(□) — 폰트로는 못 고치는 문제라 스프라이트로 대체.
+    private static void CreateIconCircle(Transform parent, Sprite icon, Vector2 anchor, Vector2 anchoredPos, float size)
     {
         var circleGO = new GameObject("Circle", typeof(RectTransform));
         circleGO.transform.SetParent(parent, false);
@@ -630,16 +730,12 @@ public static class SettingsPanelRebuilder
         var grt = glyphGO.GetComponent<RectTransform>();
         grt.anchorMin = Vector2.zero;
         grt.anchorMax = Vector2.one;
-        grt.offsetMin = new Vector2(3f, 3f);
-        grt.offsetMax = new Vector2(-3f, -3f);
-        var gtmp = glyphGO.AddComponent<TextMeshProUGUI>();
-        gtmp.text = glyph;
-        gtmp.enableAutoSizing = true;
-        gtmp.fontSizeMin = 10f;
-        gtmp.fontSizeMax = size * 0.75f;
-        gtmp.fontStyle = FontStyles.Bold;
-        gtmp.color = TextPrimary;
-        gtmp.alignment = TextAlignmentOptions.Center;
+        grt.offsetMin = new Vector2(7f, 7f);
+        grt.offsetMax = new Vector2(-7f, -7f);
+        var gimg = glyphGO.AddComponent<Image>();
+        gimg.sprite = icon;
+        gimg.preserveAspect = true;
+        gimg.color = TextPrimary;
     }
 
 
@@ -661,7 +757,7 @@ public static class SettingsPanelRebuilder
         groupRect.pivot     = new Vector2(1f, 0.5f);
         groupRect.anchoredPosition = Vector2.zero;
         float groupWidth = SliderWidth + ValueLabelWidth + 12f + (icon != null ? 60f : 0f);
-        groupRect.sizeDelta = new Vector2(groupWidth, 40f);
+        groupRect.sizeDelta = new Vector2(groupWidth, 56f);
         var groupHlg = groupGO.AddComponent<HorizontalLayoutGroup>();
         groupHlg.childAlignment = TextAnchor.MiddleLeft;
         groupHlg.spacing = 12f;
@@ -678,8 +774,8 @@ public static class SettingsPanelRebuilder
             iconImg.sprite = icon;
             iconImg.preserveAspect = true;
             var iconLE = iconGO.AddComponent<LayoutElement>();
-            iconLE.preferredWidth = 48f; iconLE.minWidth = 48f; iconLE.flexibleWidth = 0f;
-            iconLE.preferredHeight = 48f;
+            iconLE.preferredWidth = 56f; iconLE.minWidth = 56f; iconLE.flexibleWidth = 0f;
+            iconLE.preferredHeight = 56f; iconLE.minHeight = 56f;
         }
 
         var sliderGO = CreateUIElementViaMenu("GameObject/UI/Slider", groupGO.transform);
@@ -719,15 +815,30 @@ public static class SettingsPanelRebuilder
         var fillImg = sliderGO.transform.Find("Fill Area/Fill")?.GetComponent<Image>();
         if (fillImg != null) { fillImg.sprite = null; fillImg.color = SliderLineGray; }
 
-        // 핸들: 작은 원형 대신 가로로 긴 흰색 캡슐(둥근 모서리 스프라이트를 늘려서 표현)
+        // 핸들: Slider가 매 프레임 Handle의 anchorMin/Max.y를 (0,1)로 스트레치해버려서
+        // sizeDelta.y는 "절대 높이"가 아니라 "풀스트레치에 더해지는 여분"이 된다 — 그래서
+        // (16,9)를 줘도 실제로는 슬라이드 영역 높이(40)+9 = 49px짜리 거대한 막대로 보임.
+        // 해결: Handle 자체(드래그 히트박스)는 투명하게 두고, 그 안에 절대 크기(16x9)로
+        // point-anchor된 자식 Visual 하나를 따로 둬서 실제 캡슐 모양만 그건 담당하게 분리.
         var handleRt = sliderGO.transform.Find("Handle Slide Area/Handle")?.GetComponent<RectTransform>();
-        if (handleRt != null) handleRt.sizeDelta = new Vector2(16f, 9f);
+        if (handleRt != null) handleRt.sizeDelta = new Vector2(16f, 24f);
         var handleImg = handleRt != null ? handleRt.GetComponent<Image>() : null;
-        if (handleImg != null)
+        if (handleImg != null) handleImg.color = new Color(0f, 0f, 0f, 0f);
+        if (handleRt != null)
         {
-            handleImg.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            handleImg.type = Image.Type.Sliced;
-            handleImg.color = TextPrimary;
+            var visualGO = new GameObject("Visual", typeof(RectTransform));
+            visualGO.transform.SetParent(handleRt, false);
+            var visualRt = visualGO.GetComponent<RectTransform>();
+            visualRt.anchorMin = new Vector2(0.5f, 0.5f);
+            visualRt.anchorMax = new Vector2(0.5f, 0.5f);
+            visualRt.pivot     = new Vector2(0.5f, 0.5f);
+            visualRt.anchoredPosition = Vector2.zero;
+            visualRt.sizeDelta = new Vector2(16f, 9f);
+            var visualImg = visualGO.AddComponent<Image>();
+            visualImg.sprite = RoundedPillSprite();
+            visualImg.type = Image.Type.Sliced;
+            visualImg.color = TextPrimary;
+            visualImg.raycastTarget = false;
         }
 
         // 우측 숫자 값 라벨 (0~10 스케일로 표시)
@@ -754,10 +865,15 @@ public static class SettingsPanelRebuilder
         FillSlot(btnGO, slot, 140f, 48f);
 
         var img = btnGO.GetComponent<Image>();
-        if (img != null) { img.sprite = null; img.color = ControlBg; }
+        if (img != null)
+        {
+            img.color = ControlBg;
+            img.sprite = RoundedPillSprite();
+            img.type = Image.Type.Sliced;
+        }
 
         var outline = btnGO.AddComponent<UnityEngine.UI.Outline>();
-        outline.effectColor = AccentYellow;
+        outline.effectColor = AccentColor;
         outline.effectDistance = new Vector2(2f, 2f);
         outline.useGraphicAlpha = false;
 
@@ -779,26 +895,37 @@ public static class SettingsPanelRebuilder
         };
     }
 
+    // 기존 SettingsPanel_Button_Close_BG.png는 다른 톤(시안 네온 SF 패널)이라 지금의
+    // 다크 네이비+화이트 톤 레이아웃과 안 맞았다 — 풋터 원형 아이콘과 같은 톤으로 통일.
     private static Button CreateCloseButton(Transform parent, GlobalSettingsManager mgr)
     {
-        var btnGO = CreateUIElementViaMenu("GameObject/UI/Button - TextMeshPro", parent);
-        btnGO.name = "Btn_Close";
+        var btnGO = CreateUIObject("Btn_Close", parent);
         var rect = btnGO.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(1f, 1f);
         rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot     = new Vector2(1f, 1f);
         rect.anchoredPosition = new Vector2(-45f, -45f);
-        rect.sizeDelta = new Vector2(70f, 70f);
+        rect.sizeDelta = new Vector2(56f, 56f);
 
-        var img = btnGO.GetComponent<Image>();
-        var closeBg = Load("SettingsPanel_Button_Close_BG.png");
-        if (img != null && closeBg != null) img.sprite = closeBg;
+        var img = btnGO.AddComponent<Image>();
+        img.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+        img.color = ControlBg;
 
-        var tmp = btnGO.GetComponentInChildren<TextMeshProUGUI>();
-        if (tmp != null) { tmp.text = "X"; tmp.fontSize = 28f; }
-
-        var btn = btnGO.GetComponent<Button>();
+        var btn = btnGO.AddComponent<Button>();
         UnityEditor.Events.UnityEventTools.AddPersistentListener(btn.onClick, mgr.CloseSettings);
+
+        var iconGO = new GameObject("Icon", typeof(RectTransform));
+        iconGO.transform.SetParent(btnGO.transform, false);
+        var iconRt = iconGO.GetComponent<RectTransform>();
+        iconRt.anchorMin = Vector2.zero;
+        iconRt.anchorMax = Vector2.one;
+        iconRt.offsetMin = new Vector2(16f, 16f);
+        iconRt.offsetMax = new Vector2(-16f, -16f);
+        var iconImg = iconGO.AddComponent<Image>();
+        iconImg.sprite = LoadKitIcon("T_icon_close.png");
+        iconImg.preserveAspect = true;
+        iconImg.color = TextPrimary;
+
         return btn;
     }
 

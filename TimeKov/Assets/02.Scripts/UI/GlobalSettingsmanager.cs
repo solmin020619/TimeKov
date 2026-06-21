@@ -18,6 +18,8 @@ using TMPro;
 
 public class GlobalSettingsManager : MonoBehaviour
 {
+    public static GlobalSettingsManager Instance { get; private set; }
+
     public static event Action<float> OnBGMVolumeChanged;
     public static event Action<float> OnSFXVolumeChanged;
     public static event Action<float> OnSensitivityChanged;
@@ -73,26 +75,47 @@ public class GlobalSettingsManager : MonoBehaviour
     private static readonly string[] TextureQualityLabels = { "매우 높음", "높음", "보통", "낮음" };
 
     private List<Resolution> _resolutions = new();
+
+    // _data = 마지막으로 "설정 적용"을 눌러 엔진에 반영 + 저장된 상태.
+    // _pending = 지금 UI에서 편집 중인 임시값 — 슬라이더/드롭다운을 바꿔도 여기만 바뀌고,
+    // "설정 적용"을 눌러야 _data로 커밋되어 실제로 엔진에 반영/저장된다.
     private SettingsData _data;
+    private SettingsData _pending;
+    private bool _isDirty;
     private string _rebindingActionId;
     private int _currentTab;
+
+    private TMP_Text _hintLabel;
+    private string _hintDefaultText;
+    private Color _hintDefaultColor;
+    private Coroutine _warningCoroutine;
+    private static readonly Color ApplyWarningColor = new Color(1f, 0.62f, 0.2f, 1f);
+    private const string ApplyWarningText = "변경된 설정이 있습니다. '설정 적용'을 눌러주세요.";
 
     private static KeyCode[] _rebindCandidates;
 
     // ── 초기화 ───────────────────────────────────────────────────────
 
+    void Awake()
+    {
+        Instance = this;
+    }
+
     void Start()
     {
         _data = SettingsData.Load();
-        KeyBindings.Apply(_data.keyBindings);
+        _pending = Clone(_data);
 
-        ApplyLoadedSettings();
+        ApplyToEngine(_data);
         InitResolutionOptions();
         InitQualityDropdowns();
         SyncUIValues();
         WireListeners();
         ShowTab(0);
     }
+
+    private static SettingsData Clone(SettingsData src) =>
+        JsonUtility.FromJson<SettingsData>(JsonUtility.ToJson(src));
 
     void Update()
     {
@@ -156,14 +179,67 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void OpenSettings()
     {
+        _pending = Clone(_data);
+        _isDirty = false;
+        HideApplyWarning();
         SyncUIValues();
         GameUIController.Instance?.OpenSettings();
     }
 
-    public void CloseSettings()
+    // 적용되지 않은 변경사항이 있으면 닫기를 거부하고 안내 메세지를 띄운다.
+    // GameUIController가 X 버튼(CloseSettings)과 ESC(HandleEscape) 양쪽에서 호출.
+    public bool RequestClose()
     {
         if (_rebindingActionId != null) CancelRebind();
+        if (_isDirty)
+        {
+            ShowApplyWarning();
+            return false;
+        }
+        return true;
+    }
+
+    public void CloseSettings()
+    {
+        if (!RequestClose()) return;
         GameUIController.Instance?.CloseSettings();
+    }
+
+    private void CacheHintLabel()
+    {
+        if (_hintLabel != null) return;
+        _hintLabel = transform.Find("Option/BG/Settings/Hint")?.GetComponent<TMP_Text>();
+        if (_hintLabel != null)
+        {
+            _hintDefaultText  = _hintLabel.text;
+            _hintDefaultColor = _hintLabel.color;
+        }
+    }
+
+    private void ShowApplyWarning()
+    {
+        CacheHintLabel();
+        if (_hintLabel == null) return;
+        if (_warningCoroutine != null) StopCoroutine(_warningCoroutine);
+        _hintLabel.text  = ApplyWarningText;
+        _hintLabel.color = ApplyWarningColor;
+        _warningCoroutine = StartCoroutine(HideWarningAfterDelay());
+    }
+
+    private void HideApplyWarning()
+    {
+        if (_warningCoroutine != null) { StopCoroutine(_warningCoroutine); _warningCoroutine = null; }
+        if (_hintLabel == null) return;
+        _hintLabel.text  = _hintDefaultText;
+        _hintLabel.color = _hintDefaultColor;
+    }
+
+    // 설정창은 열려있는 동안 Time.timeScale = 0이라 WaitForSeconds는 절대 끝나지 않는다 — Realtime 사용.
+    private System.Collections.IEnumerator HideWarningAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(2.5f);
+        if (_hintLabel != null) { _hintLabel.text = _hintDefaultText; _hintLabel.color = _hintDefaultColor; }
+        _warningCoroutine = null;
     }
 
     public void ToggleSettings()
@@ -187,48 +263,59 @@ public class GlobalSettingsManager : MonoBehaviour
 
     // ── 설정값 적용 ───────────────────────────────────────────────────
 
-    // "설정 적용" 버튼 — 각 항목은 변경 즉시 저장/반영되지만, 해상도 등 한 번에 다시
-    // 밀어넣고 싶을 때를 위해 현재 _data를 엔진에 재적용한다.
-    public void ApplySettings() => ApplyLoadedSettings();
-
-    private void ApplyLoadedSettings()
+    // "설정 적용" 버튼 — 그동안 폼에서 편집한 _pending을 _data로 커밋하고 저장 + 엔진에 반영.
+    // 이 버튼을 누르기 전까지는 슬라이더/드롭다운을 움직여도 실제로 아무 효과가 없다.
+    public void ApplySettings()
     {
-        if (_data.resolutionWidth > 0 && _data.resolutionHeight > 0)
-            Screen.SetResolution(_data.resolutionWidth, _data.resolutionHeight, _data.fullscreen);
+        _data = Clone(_pending);
+        _data.Save();
+        ApplyToEngine(_data);
+        _isDirty = false;
+        HideApplyWarning();
+    }
+
+    private void ApplyToEngine(SettingsData data)
+    {
+        if (data.resolutionWidth > 0 && data.resolutionHeight > 0)
+            Screen.SetResolution(data.resolutionWidth, data.resolutionHeight, data.fullscreen);
         else
-            Screen.fullScreen = _data.fullscreen;
+            Screen.fullScreen = data.fullscreen;
 
-        QualitySettings.SetQualityLevel(_data.qualityLevel, true);
-        ApplyShadowQuality(_data.shadowQualityLevel);
-        ApplyTextureQuality(_data.textureQualityLevel);
+        QualitySettings.SetQualityLevel(data.qualityLevel, true);
+        ApplyShadowQuality(data.shadowQualityLevel);
+        ApplyTextureQuality(data.textureQualityLevel);
+        KeyBindings.Apply(data.keyBindings);
 
-        SetMasterVolume(_data.masterVolume);
-        SetBGMVolume(_data.bgmVolume);
-        SetSFXVolume(_data.sfxVolume);
-        SetSensitivity(_data.sensitivity);
+        _currentBGM = data.bgmVolume * data.masterVolume;
+        _currentSFX = data.sfxVolume * data.masterVolume;
+        OnBGMVolumeChanged?.Invoke(_currentBGM);
+        OnSFXVolumeChanged?.Invoke(_currentSFX);
+
+        _currentSensitivity = data.sensitivity;
+        OnSensitivityChanged?.Invoke(data.sensitivity);
     }
 
     private void SyncUIValues()
     {
-        if (bgmSlider != null)         bgmSlider.SetValueWithoutNotify(_data.bgmVolume);
-        if (sfxSlider != null)         sfxSlider.SetValueWithoutNotify(_data.sfxVolume);
-        if (masterSlider != null)      masterSlider.SetValueWithoutNotify(_data.masterVolume);
-        if (sensitivitySlider != null) sensitivitySlider.SetValueWithoutNotify(_data.sensitivity);
-        UpdateFullscreenButtonVisual(Screen.fullScreen);
+        if (bgmSlider != null)         bgmSlider.SetValueWithoutNotify(_pending.bgmVolume);
+        if (sfxSlider != null)         sfxSlider.SetValueWithoutNotify(_pending.sfxVolume);
+        if (masterSlider != null)      masterSlider.SetValueWithoutNotify(_pending.masterVolume);
+        if (sensitivitySlider != null) sensitivitySlider.SetValueWithoutNotify(_pending.sensitivity);
+        UpdateFullscreenButtonVisual(_pending.fullscreen);
 
         if (qualityDropdown != null)
         {
-            qualityDropdown.SetValueWithoutNotify(_data.qualityLevel);
+            qualityDropdown.SetValueWithoutNotify(_pending.qualityLevel);
             qualityDropdown.RefreshShownValue();
         }
         if (shadowQualityDropdown != null)
         {
-            shadowQualityDropdown.SetValueWithoutNotify(_data.shadowQualityLevel);
+            shadowQualityDropdown.SetValueWithoutNotify(_pending.shadowQualityLevel);
             shadowQualityDropdown.RefreshShownValue();
         }
         if (textureQualityDropdown != null)
         {
-            textureQualityDropdown.SetValueWithoutNotify(_data.textureQualityLevel);
+            textureQualityDropdown.SetValueWithoutNotify(_pending.textureQualityLevel);
             textureQualityDropdown.RefreshShownValue();
         }
 
@@ -241,18 +328,17 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void SetFullscreen(bool isFullscreen)
     {
-        _data.fullscreen = isFullscreen;
-        _data.Save();
-        Screen.fullScreen = isFullscreen;
+        _pending.fullscreen = isFullscreen;
+        _isDirty = true;
         UpdateFullscreenButtonVisual(isFullscreen);
     }
 
     public void SetFullscreenOn()  => SetFullscreen(true);
     public void SetFullscreenOff() => SetFullscreen(false);
 
-    private static readonly Color SegmentSelectedColor    = new Color(1f, 0.82f, 0.10f, 1f);     // 노란 액센트
+    private static readonly Color SegmentSelectedColor    = new Color(1f, 1f, 1f, 1f);            // 화이트 액센트
     private static readonly Color SegmentUnselectedColor  = new Color(0.106f, 0.125f, 0.153f, 0.95f); // 다크 네이비
-    private static readonly Color SegmentSelectedText     = new Color(0.10f, 0.08f, 0.02f, 1f);  // 노란 배경 위 어두운 텍스트
+    private static readonly Color SegmentSelectedText     = new Color(0.10f, 0.08f, 0.02f, 1f);  // 흰 배경 위 어두운 텍스트
     private static readonly Color SegmentUnselectedText   = new Color(0.60f, 0.63f, 0.67f, 1f);  // 다크 배경 위 밝은 회색 텍스트
 
     private void UpdateFullscreenButtonVisual(bool isFullscreen)
@@ -263,22 +349,18 @@ public class GlobalSettingsManager : MonoBehaviour
         if (fullscreenOffLabel != null) fullscreenOffLabel.color = isFullscreen ? SegmentUnselectedText : SegmentSelectedText;
     }
 
-    // 그래픽 탭 전체를 기본값으로 초기화 ("설정 초기화" 버튼)
+    // 그래픽 탭 전체를 기본값으로 초기화 ("설정 초기화" 버튼) — 폼만 기본값으로 되돌리고,
+    // 실제 엔진 반영/저장은 다른 항목들처럼 "설정 적용"을 눌러야 이루어진다.
     public void ResetGraphicsToDefault()
     {
         var res = Screen.currentResolution;
-        _data.resolutionWidth  = res.width;
-        _data.resolutionHeight = res.height;
-        _data.fullscreen       = true;
-        _data.qualityLevel        = Mathf.Clamp(1, 0, QualitySettings.names.Length - 1);
-        _data.shadowQualityLevel  = 2; // 높음
-        _data.textureQualityLevel = 0; // 매우 높음
-        _data.Save();
-
-        Screen.SetResolution(res.width, res.height, true);
-        QualitySettings.SetQualityLevel(_data.qualityLevel, true);
-        ApplyShadowQuality(_data.shadowQualityLevel);
-        ApplyTextureQuality(_data.textureQualityLevel);
+        _pending.resolutionWidth  = res.width;
+        _pending.resolutionHeight = res.height;
+        _pending.fullscreen       = true;
+        _pending.qualityLevel        = Mathf.Clamp(1, 0, QualitySettings.names.Length - 1);
+        _pending.shadowQualityLevel  = 2; // 높음
+        _pending.textureQualityLevel = 0; // 매우 높음
+        _isDirty = true;
 
         int idx = _resolutions.FindIndex(r => r.width == res.width && r.height == res.height);
         if (idx < 0) idx = 0;
@@ -295,31 +377,27 @@ public class GlobalSettingsManager : MonoBehaviour
     {
         if (index < 0 || index >= _resolutions.Count) return;
         Resolution res = _resolutions[index];
-        _data.resolutionWidth  = res.width;
-        _data.resolutionHeight = res.height;
-        _data.Save();
-        Screen.SetResolution(res.width, res.height, Screen.fullScreen);
+        _pending.resolutionWidth  = res.width;
+        _pending.resolutionHeight = res.height;
+        _isDirty = true;
     }
 
     public void SetQualityLevel(int index)
     {
-        _data.qualityLevel = index;
-        _data.Save();
-        QualitySettings.SetQualityLevel(index, true);
+        _pending.qualityLevel = index;
+        _isDirty = true;
     }
 
     public void SetShadowQuality(int level)
     {
-        _data.shadowQualityLevel = level;
-        _data.Save();
-        ApplyShadowQuality(level);
+        _pending.shadowQualityLevel = level;
+        _isDirty = true;
     }
 
     public void SetTextureQuality(int level)
     {
-        _data.textureQualityLevel = level;
-        _data.Save();
-        ApplyTextureQuality(level);
+        _pending.textureQualityLevel = level;
+        _isDirty = true;
     }
 
     private void ApplyShadowQuality(int level)
@@ -396,41 +474,28 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void SetMasterVolume(float master)
     {
-        _data.masterVolume = master;
-        _data.Save();
-        BroadcastVolumes();
+        _pending.masterVolume = master;
+        _isDirty = true;
     }
 
     public void SetBGMVolume(float volume)
     {
-        _data.bgmVolume = volume;
-        _data.Save();
-        BroadcastVolumes();
+        _pending.bgmVolume = volume;
+        _isDirty = true;
     }
 
     public void SetSFXVolume(float volume)
     {
-        _data.sfxVolume = volume;
-        _data.Save();
-        BroadcastVolumes();
-    }
-
-    private void BroadcastVolumes()
-    {
-        _currentBGM = _data.bgmVolume * _data.masterVolume;
-        _currentSFX = _data.sfxVolume * _data.masterVolume;
-        OnBGMVolumeChanged?.Invoke(_currentBGM);
-        OnSFXVolumeChanged?.Invoke(_currentSFX);
+        _pending.sfxVolume = volume;
+        _isDirty = true;
     }
 
     // ── 조작 ───────────────────────────────────────────────────────
 
     public void SetSensitivity(float sens)
     {
-        _data.sensitivity = sens;
-        _data.Save();
-        _currentSensitivity = sens;
-        OnSensitivityChanged?.Invoke(sens);
+        _pending.sensitivity = sens;
+        _isDirty = true;
     }
 
     // ── 키 리바인딩 ───────────────────────────────────────────────────
@@ -451,9 +516,23 @@ public class GlobalSettingsManager : MonoBehaviour
         HideRebindModal();
     }
 
+    // 정적 KeyBindings(현재 적용 중인 값)가 아니라 _pending.keyBindings(아직 적용 안 한 폼 값) 기준으로
+    // 충돌을 검사한다 — 같은 세션에서 먼저 바꾼 키(아직 미적용)와 충돌하는 것도 잡아야 하기 때문.
+    private bool IsPendingConflict(KeyCode code, string excludeAction, out string conflictAction)
+    {
+        conflictAction = null;
+        if (rebindSlots == null) return false;
+        foreach (var slot in rebindSlots)
+        {
+            if (slot == null || slot.actionId == excludeAction) continue;
+            if (GetKeyForAction(slot.actionId) == code) { conflictAction = slot.displayName; return true; }
+        }
+        return false;
+    }
+
     private void CompleteRebind(KeyCode code)
     {
-        if (KeyBindings.IsConflict(code, _rebindingActionId, out string conflictAction))
+        if (IsPendingConflict(code, _rebindingActionId, out string conflictAction))
         {
             Debug.LogWarning($"[Settings] '{code}' 키는 이미 '{conflictAction}'에 사용 중입니다.");
             RestoreLabel(_rebindingActionId);
@@ -495,20 +574,21 @@ public class GlobalSettingsManager : MonoBehaviour
         return null;
     }
 
+    // _pending.keyBindings(폼에서 편집 중인 값) 기준 — "설정 적용"을 눌러야 KeyBindings(static)에 반영된다.
     private KeyCode GetKeyForAction(string actionId) => actionId switch
     {
-        "Jump"      => KeyBindings.Jump,
-        "Skill1"    => KeyBindings.Skill1,
-        "Skill2"    => KeyBindings.Skill2,
-        "Skill3"    => KeyBindings.Skill3,
-        "Interact"  => KeyBindings.Interact,
-        "Instant"   => KeyBindings.Instant,
-        "QuickSlot" => KeyBindings.QuickSlot,
-        "Attack"    => KeyBindings.Attack,
-        "Dash"      => KeyBindings.Dash,
-        "Inventory" => KeyBindings.Inventory,
-        "Stat"      => KeyBindings.Stat,
-        "Codex"     => KeyBindings.Codex,
+        "Jump"      => _pending.keyBindings.jump,
+        "Skill1"    => _pending.keyBindings.skill1,
+        "Skill2"    => _pending.keyBindings.skill2,
+        "Skill3"    => _pending.keyBindings.skill3,
+        "Interact"  => _pending.keyBindings.interact,
+        "Instant"   => _pending.keyBindings.instant,
+        "QuickSlot" => _pending.keyBindings.quickSlot,
+        "Attack"    => _pending.keyBindings.attack,
+        "Dash"      => _pending.keyBindings.dash,
+        "Inventory" => _pending.keyBindings.inventory,
+        "Stat"      => _pending.keyBindings.stat,
+        "Codex"     => _pending.keyBindings.codex,
         _           => KeyCode.None
     };
 
@@ -516,21 +596,21 @@ public class GlobalSettingsManager : MonoBehaviour
     {
         switch (actionId)
         {
-            case "Jump":      KeyBindings.Jump      = code; _data.keyBindings.jump      = code; break;
-            case "Skill1":    KeyBindings.Skill1    = code; _data.keyBindings.skill1    = code; break;
-            case "Skill2":    KeyBindings.Skill2    = code; _data.keyBindings.skill2    = code; break;
-            case "Skill3":    KeyBindings.Skill3    = code; _data.keyBindings.skill3    = code; break;
-            case "Interact":  KeyBindings.Interact  = code; _data.keyBindings.interact  = code; break;
-            case "Instant":   KeyBindings.Instant   = code; _data.keyBindings.instant   = code; break;
-            case "QuickSlot": KeyBindings.QuickSlot = code; _data.keyBindings.quickSlot = code; break;
-            case "Attack":    KeyBindings.Attack    = code; _data.keyBindings.attack    = code; break;
-            case "Dash":      KeyBindings.Dash      = code; _data.keyBindings.dash      = code; break;
-            case "Inventory": KeyBindings.Inventory = code; _data.keyBindings.inventory = code; break;
-            case "Stat":      KeyBindings.Stat      = code; _data.keyBindings.stat      = code; break;
-            case "Codex":     KeyBindings.Codex     = code; _data.keyBindings.codex     = code; break;
+            case "Jump":      _pending.keyBindings.jump      = code; break;
+            case "Skill1":    _pending.keyBindings.skill1    = code; break;
+            case "Skill2":    _pending.keyBindings.skill2    = code; break;
+            case "Skill3":    _pending.keyBindings.skill3    = code; break;
+            case "Interact":  _pending.keyBindings.interact  = code; break;
+            case "Instant":   _pending.keyBindings.instant   = code; break;
+            case "QuickSlot": _pending.keyBindings.quickSlot = code; break;
+            case "Attack":    _pending.keyBindings.attack    = code; break;
+            case "Dash":      _pending.keyBindings.dash      = code; break;
+            case "Inventory": _pending.keyBindings.inventory = code; break;
+            case "Stat":      _pending.keyBindings.stat      = code; break;
+            case "Codex":     _pending.keyBindings.codex     = code; break;
             default: return;
         }
-        _data.Save();
+        _isDirty = true;
     }
 
     // 키보드 키 + 마우스 좌/우/휠클릭만 후보로 사용 (조이스틱·기타 마우스 버튼 제외)
