@@ -506,6 +506,9 @@ public static class SettingsPanelRebuilder
 
         var label = dd.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
         if (label != null) { label.color = TextPrimary; label.fontSize = 24f; ApplyFont(label); }
+        // 둥근 필 모양이 되면서 텍스트가 곡선 시작점에 너무 붙어 보여 왼쪽 여백을 한 칸 더 띄움.
+        var labelRect = label?.GetComponent<RectTransform>();
+        if (labelRect != null) labelRect.offsetMin = new Vector2(labelRect.offsetMin.x + 14f, labelRect.offsetMin.y);
 
         var arrowRt = dd.transform.Find("Arrow")?.GetComponent<RectTransform>();
         if (arrowRt != null) arrowRt.sizeDelta = new Vector2(24f, 24f);
@@ -527,6 +530,8 @@ public static class SettingsPanelRebuilder
 
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
         if (itemLabel != null) { itemLabel.color = TextPrimary; itemLabel.fontSize = 24f; ApplyFont(itemLabel); }
+        var itemLabelRect = itemLabel?.GetComponent<RectTransform>();
+        if (itemLabelRect != null) itemLabelRect.offsetMin = new Vector2(itemLabelRect.offsetMin.x + 14f, itemLabelRect.offsetMin.y);
 
         // 항목 행 높이가 기본값(20)에 묶여 있어 24pt 폰트가 한 줄을 다 못 채우고
         // 다음 행과 겹쳐 보임 — 행 높이를 키워 글자가 자연스럽게 들어가게 한다.
