@@ -14,11 +14,20 @@ public class WyvernFireball : MonoBehaviour
     [Header("연출")]
     [SerializeField] private GameObject explodeVfx;     // 착탄 VFX (WyvernBossBuilder가 할당)
 
+    [Header("지형 충돌")]
+    [SerializeField] private LayerMask groundMask = 1 << 7;   // 기본 Ground(7). 터레인이 다른 레이어면 인스펙터서 조정.
+    [SerializeField] private float terrainHitRadius = 0.4f;   // 지형 충돌 판정 두께(SphereCast 반경)
+
+    [Header("유도 (보스가 페이즈2+에서 켬)")]
+    [SerializeField] private float homingTurnRate = 80f;     // 초당 회전(deg). 클수록 잘 따라옴
+    [SerializeField] private float homingDuration = 2.5f;    // 이 시간만 유도(그 후 직선 = 회피 가능)
+
     private float _damage;
     private Vector3 _dir;
     private Transform _target;
     private float _timer;
     private bool _done;
+    private bool _homing;
 
     // 보스 발사 시 호출: 방향 + 데미지 + 추적 대상(명중 판정용)
     public void Launch(Vector3 dir, float damage, Transform target)
@@ -29,12 +38,38 @@ public class WyvernFireball : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(_dir);
     }
 
+    // 보스가 페이즈2+ 발사 시 켬: 일정 시간 플레이어 쪽으로 곡선 추적(직선이라 걸어서 피하던 것 보완)
+    public void SetHoming(bool on) => _homing = on;
+
     private void Update()
     {
         if (_done) return;
         float dt = Time.deltaTime;
-        transform.position += _dir * (speed * dt);
+
+        // 유도: 일정 시간 동안 방향을 플레이어 쪽으로 점진 회전
+        if (_homing && _timer < homingDuration && _target != null)
+        {
+            Vector3 desired = (_target.position + Vector3.up) - transform.position;
+            if (desired.sqrMagnitude > 0.0001f)
+            {
+                _dir = Vector3.RotateTowards(_dir, desired.normalized, homingTurnRate * Mathf.Deg2Rad * dt, 0f).normalized;
+                transform.rotation = Quaternion.LookRotation(_dir);
+            }
+        }
+
+        Vector3 prev = transform.position;
+        Vector3 next = prev + _dir * (speed * dt);
+        transform.position = next;
         _timer += dt;
+
+        // 지형(터레인/건물 등) 충돌 -> 그 자리서 폭발(뚫고 지나가지 않게). 이번 프레임 이동구간을 SphereCast.
+        float step = (next - prev).magnitude;
+        if (step > 0f && Physics.SphereCast(prev, terrainHitRadius, _dir, out var hit, step, groundMask, QueryTriggerInteraction.Ignore))
+        {
+            transform.position = hit.point;
+            Explode();
+            return;
+        }
 
         // 플레이어 직격
         if (_target != null)

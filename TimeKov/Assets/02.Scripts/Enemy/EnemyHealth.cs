@@ -12,6 +12,9 @@ public class EnemyHealth : MonoBehaviour
     public event Action OnDeath;
     public event Action OnDamage;
 
+    // 무적(보스 회복 페이즈 등에서 켬). 시그니처 변경 없이 본문서 가드.
+    public bool Invulnerable { get; set; }
+
     private bool isDead = false;
     public Vector3 LastHitPoint { get; private set; }
 
@@ -53,7 +56,7 @@ public class EnemyHealth : MonoBehaviour
 
     public void TakeDamage(float amount, bool isCritical, Vector3 hitPoint)
     {
-        if (isDead) return;
+        if (isDead || Invulnerable) return;
 
         LastHitPoint = hitPoint;
 

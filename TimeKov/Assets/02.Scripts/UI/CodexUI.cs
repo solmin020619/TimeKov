@@ -838,12 +838,17 @@ public class CodexUI : MonoBehaviour
     // 설정이 없으면 플레이스홀더 그대로(디자인 확인용). 프리팹 연결된 슬롯만 라이브 프리뷰.
     private Entry[] BuildMonsterEntries()
     {
-        var list = new Entry[Monsters.Length];
-        for (int i = 0; i < Monsters.Length; i++)
+        // 리스트 길이를 config(CodexPreviewConfig) 개수 기준으로. 그래야 placeholder 배열(8개)
+        // 너머에 들어간 Wyvern/보스/엘리트 엔트리도 전부 뜬다. config 없으면 placeholder로 폴백.
+        bool hasCfg = _cfg != null && _cfg.monsters != null && _cfg.monsters.Count > 0;
+        int count = hasCfg ? _cfg.monsters.Count : Monsters.Length;
+        var list = new Entry[count];
+        for (int i = 0; i < count; i++)
         {
-            var b = Monsters[i];
-            var e = new Entry { name = b.name, state = St.Hidden, status = "미발견" };
-            if (_cfg != null && i < _cfg.monsters.Count && _cfg.monsters[i] != null)
+            // placeholder 이름은 인덱스가 placeholder 범위 안일 때만 기본값으로
+            string baseName = i < Monsters.Length ? Monsters[i].name : null;
+            var e = new Entry { name = baseName, state = St.Hidden, status = "미발견" };
+            if (hasCfg && i < _cfg.monsters.Count && _cfg.monsters[i] != null)
             {
                 var c = _cfg.monsters[i];
                 if (!string.IsNullOrEmpty(c.displayName)) e.name = c.displayName;
@@ -858,7 +863,48 @@ public class CodexUI : MonoBehaviour
             if (e.state == St.Public && string.IsNullOrEmpty(e.name)) e.name = "몬스터 " + (i + 1);
             list[i] = e;
         }
-        return list;
+        return SortMonsters(list);
+    }
+
+    // 도감 몬스터 정렬: 베이스+엘리트 묶음(베이스 먼저), 늑대인간/와이번은 맨 뒤(와이번 최후미).
+    // sourceId 기준 - 엘리트는 "..._Elite", 묶음 키(family)는 _Elite 떼낸 베이스 id.
+    private static Entry[] SortMonsters(Entry[] src)
+    {
+        var famFirst = new Dictionary<string, int>();
+        for (int i = 0; i < src.Length; i++)
+        {
+            string fam = MonsterFamily(src[i]);
+            if (!famFirst.ContainsKey(fam)) famFirst[fam] = i;
+        }
+        var order = new int[src.Length];
+        for (int i = 0; i < src.Length; i++) order[i] = i;
+        System.Array.Sort(order, (a, b) =>
+        {
+            long ka = MonsterSortKey(src[a], famFirst), kb = MonsterSortKey(src[b], famFirst);
+            if (ka != kb) return ka.CompareTo(kb);
+            return a.CompareTo(b);   // 동률은 원래 순서 유지(안정)
+        });
+        var outp = new Entry[src.Length];
+        for (int i = 0; i < src.Length; i++) outp[i] = src[order[i]];
+        return outp;
+    }
+
+    private static string MonsterFamily(Entry e)
+    {
+        string sid = e != null && e.monsterSourceId != null ? e.monsterSourceId : "";
+        return sid.ToLowerInvariant().EndsWith("_elite") ? sid.Substring(0, sid.Length - 6) : sid;
+    }
+
+    private static long MonsterSortKey(Entry e, Dictionary<string, int> famFirst)
+    {
+        string sid = e != null && e.monsterSourceId != null ? e.monsterSourceId : "";
+        string low = sid.ToLowerInvariant();
+        bool isElite = low.EndsWith("_elite");
+        string fam = isElite ? sid.Substring(0, sid.Length - 6) : sid;
+        int endRank = low.Contains("wyvern") ? 2 : low.Contains("werewolf") ? 1 : 0;  // 와이번 최후미, 늑대인간 그 앞
+        int famOrder = famFirst.TryGetValue(fam, out int fo) ? fo : 9999;
+        int eliteRank = isElite ? 1 : 0;   // 같은 묶음서 베이스 먼저, 엘리트 뒤
+        return (long)endRank * 1000000L + (long)famOrder * 100L + eliteRank;
     }
 
     private void EnsurePortrait()
@@ -968,15 +1014,19 @@ public class CodexUI : MonoBehaviour
         bool statsOn = _devUnlockAll || CodexDiscovery.IsStatsActivated(srcId);
         bool ratesOn = _devUnlockAll || CodexDiscovery.IsRatesActivated(srcId);
 
-        var thr = Make("ThreatDots", _mainBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-120f, -32f), new Vector2(0f, -8f));
-        var body = MainHeader("몬스터 - THREAT", "위협도", C32(154, 162, 170), false);
-        int threat = data != null ? Mathf.Clamp(Mathf.RoundToInt(data.maxHP / 300f + data.attackDamage / 20f), 1, 5) : 3;
-        BuildThreatDots(thr, threat, 5);   // 기존 스탯서 산출
+        int tier = ThreatTier(data);
+        Color tierCol = ThreatColor(tier);
+        var thr = Make("ThreatBadge", _mainBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-184f, -34f), new Vector2(-16f, -12f));
+        var body = MainHeader("몬스터 - THREAT", "", C32(154, 162, 170), false);
+        BuildThreatBadge(thr, tier);
 
         var face = Make("Face", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
         face.sizeDelta = new Vector2(176f, 176f); face.anchoredPosition = new Vector2(88f, -106f);   // 큼직하게(가독성)
         Img(face, RoundedFallback(10), C32(208, 218, 230));   // 렌더 배경과 동일 톤(밝은 쿨 글래스)
-        Line(face, new Color32(120, 140, 160, 90));   // 카드 가족 쿨 슬레이트 테두리
+        // 위험도 등급 색 테두리 - 엘리트/보스는 크기 외 식별점 없으니 테두리 '색'으로 구분.
+        // 두께는 전 몬스터 통일(중간값). 위험도 표현은 색만, 두께 차등 없음.
+        const float bw = 4f;
+        Line(face, new Color(tierCol.r, tierCol.g, tierCol.b, 1f), bw);
         // 설정(프리팹)이 있으면 라이브 흉상, 없으면 실루엣 폴백
         if (!TryRenderPortrait(face, SelectedEntry()))
         {
@@ -1067,7 +1117,9 @@ public class CodexUI : MonoBehaviour
         var pf = e?.preview != null ? e.preview.prefab : null;
         if (pf == null) return null;
         var brain = pf.GetComponentInChildren<EnemyBrain>(true);
-        return brain != null ? brain.Data : null;
+        if (brain != null && brain.Data != null) return brain.Data;
+        var boss = pf.GetComponentInChildren<WyvernBossController>(true);   // 보스는 EnemyBrain 없이 전용 컨트롤러
+        return boss != null ? boss.Data : null;
     }
 
     // 프리팹의 드롭 출처 ID -> DropTable 조회 -> 확률(가중치 비율) 계산해 Drop 목록
@@ -1102,18 +1154,57 @@ public class CodexUI : MonoBehaviour
         return list;
     }
 
-    private void BuildThreatDots(RectTransform parent, int filled, int total)
+    // 위험도: 여러 스탯 가중합 -> 점수 -> 1~5 등급. 일반/엘리트/보스가 자연스럽게 분리되도록 임계 설정.
+    // (일반 HP50~200/공15, 엘리트 HP x2.5/공x1.5, 보스 HP800/공30 기준. 임계는 조절 가능.)
+    private static int ThreatTier(MeleeEnemyData d)
     {
-        var hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 4f; hlg.childAlignment = TextAnchor.MiddleRight;
-        hlg.childControlWidth = false; hlg.childControlHeight = false;
-        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
-        for (int i = 0; i < total; i++)
+        if (d == null) return 1;
+        // 실제 스탯 기반: 체력(생존) + 초당데미지(화력) + 이동속도(추격). 실측 SO 값으로 임계 보정.
+        // 일반 HP50~200/공15(쿨1.5,일부0.5) / 엘리트 HP x2.5,공22 / 보스 HP800,공30,쿨2.5.
+        float dps = d.attackCooldown > 0.01f ? d.attackDamage / d.attackCooldown : d.attackDamage;
+        float score = d.maxHP + dps * 5f + d.moveSpeed * 8f;
+        if (score >= 500f) return 5;   // 치명: 보스(~888)
+        if (score >= 330f) return 4;   // 위험: 강한 엘리트(EvilWatcher/Skeleton/FantasyWolf 정예)
+        if (score >= 240f) return 3;   // 주의: 약한 엘리트 / 강한 일반(Werewolf, FantasyWolf)
+        if (score >= 150f) return 2;   // 보통: 일반 잡몹
+        return 1;                       // 낮음: 약체(OakTree/Mummy/Undead)
+    }
+
+    private static readonly string[] ThreatLabels = { "낮음", "보통", "주의", "위험", "치명" };
+
+    // 위험도 등급색(액자 테두리/뱃지 공용). 1=연두 -> 5=빨강.
+    private static Color ThreatColor(int tier)
+    {
+        switch (Mathf.Clamp(tier, 1, 5))
         {
-            var dot = NewChild("dot", parent);
-            var le = dot.gameObject.AddComponent<LayoutElement>();
-            le.preferredWidth = 9f; le.preferredHeight = 9f; le.minWidth = 9f; le.minHeight = 9f;
-            Img(dot, UISpriteFactory.Disc(32), i < filled ? Accent : new Color32(120, 140, 160, 76));
+            case 5:  return new Color32(236, 40, 40, 255);    // 강렬한 빨강(치명/최종보스)
+            case 4:  return new Color32(240, 138, 40, 255);   // 주황(위험)
+            case 3:  return new Color32(236, 198, 46, 255);   // 노랑(주의)
+            case 2:  return new Color32(150, 200, 70, 255);   // 라임(보통)
+            default: return new Color32(92, 182, 120, 255);   // 초록(낮음)
+        }
+    }
+
+    // 위험도 표시: "위험도" 라벨 + 뚫린 칸 5개(테두리). 등급만큼 등급색으로 채움(치명=5칸, 낮음=1칸).
+    // 명시적 좌표 배치(HorizontalLayoutGroup이 한 덩어리로 뭉치던 버그 회피).
+    private void BuildThreatBadge(RectTransform parent, int tier)
+    {
+        tier = Mathf.Clamp(tier, 1, 5);
+
+        var lbl = Make("tl", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0f), new Vector2(52f, 0f));
+        Txt(lbl, "위험도", 12f, FontStyles.Bold, C32(120, 130, 142), TextAlignmentOptions.Right);
+
+        // 칸은 전 몬스터 동일 색(통일). 위험도 '단계'는 채운 칸 수로만, '색' 구분은 액자 테두리가 담당.
+        Color fillCol = Accent;
+        const float cw = 16f, gap = 4f, x0 = 60f;
+        for (int i = 0; i < 5; i++)
+        {
+            var cell = Make("c" + i, parent, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            cell.sizeDelta = new Vector2(cw, 16f);
+            cell.anchoredPosition = new Vector2(x0 + i * (cw + gap) + cw * 0.5f, 0f);
+            bool fill = i < tier;
+            Img(cell, RoundedFallback(3), fill ? fillCol : new Color(fillCol.r, fillCol.g, fillCol.b, 0.06f));
+            Line(cell, new Color32(120, 140, 160, (byte)(fill ? 205 : 90)), 1.5f);
         }
     }
 

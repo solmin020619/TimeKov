@@ -1,0 +1,477 @@
+// =====================================================================
+// FacilityWorldDisplay.cs
+// 엔드필드 스타일 설비 월드 표시 (플레이어 3인칭 카메라 뷰 기준).
+//  1) 제작 중 아이템 아이콘 — 설비 가운데에 BG와 함께, 항상 카메라를 향함(빌보드).
+//  2) 설비 이름 — 플레이어 근접 시에만, 사각형 4면 중 카메라가 보는 면에 납작하게 고정 표시(빌보드 아님).
+//  3) 금지 표시 — 벨트에서 아이템이 막혔을 때(OutputReady) 출력 포트(벨트 연결 칸) 위에 표시.
+// ProcessingMachine 이 런타임에 자동 부착한다(프리팹 편집 불필요).
+// =====================================================================
+
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace TIMEKOV.Factory
+{
+    [DisallowMultipleComponent]
+    public class FacilityWorldDisplay : MonoBehaviour
+    {
+        [Header("공통")]
+        [Tooltip("월드 캔버스 스케일 (픽셀→월드 변환 배수). 0.01이면 100px = 1m.")]
+        public float worldScale = 0.01f;
+        [Tooltip("이 거리(m)보다 멀면 모두 숨김. 0이면 무제한.")]
+        public float maxVisibleDistance = 60f;
+        [Tooltip("요소를 설비 표면보다 카메라 쪽으로 살짝 당겨 가림(occlusion) 방지하는 거리(m).")]
+        public float cameraPullOffset = 0.15f;
+
+        [Header("제작 아이템 아이콘 (설비 정중앙, 안쪽)")]
+        [Tooltip("아이템 이미지 크기(px). BG와 비슷하게 두면 아이콘이 배지 밖으로 살짝 튀어나와 입체적으로 보인다.")]
+        public float craftIconPixels = 86f;
+        [Tooltip("원형 BG 크기(px). 아이템보다 약간 작게 두면 아이콘이 튀어나온 느낌.")]
+        public float craftBgPixels   = 78f;
+        [Tooltip("설비 정중앙에서 위로 미세 조정(m). 0이면 정확히 중심.")]
+        public float craftYOffset = 0f;
+        [Tooltip("원형 BG 채움색 (탑뷰 설비 배지와 동일한 어두운 색).")]
+        public Color craftBgColor = new Color(0.05f, 0.06f, 0.08f, 0.85f);
+        [Tooltip("원형 BG 테두리(링) 두께(px, 128 스프라이트 기준). 테두리 색은 아이템 레어도색.")]
+        public float craftRingThickness = 4f;
+
+        [Header("설비 이름 (정면 고정, 텍스트만)")]
+        public float nameFontSize = 30f;
+        public Color nameTextColor = Color.white;
+        [Tooltip("설비(몸체) 높이 대비 이름 높이 비율(0=바닥, 1=상단). 벨트 연결 검은 받침 위로 올리려면 키운다.")]
+        [Range(0f, 1f)] public float nameHeightFrac = 0.34f;
+        [Tooltip("설비 시각 표면에서 바깥으로 더 띄우는 거리(m). 텍스트가 몸체에 묻히면 키운다.")]
+        public float nameOutwardOffset = 0.3f;
+        [Tooltip("플레이어가 설비 표면에서 이 거리(m) 안에 들어왔을 때만 이름 표시.")]
+        public float nameVisibleDistance = 4.5f;
+
+        [Header("금지 표시 (막힘)")]
+        public float blockPixels = 95f;
+        [Tooltip("출력 포트(벨트 연결 칸)에서 위로 올리는 높이(m).")]
+        public float blockYOffset = 0.9f;
+        public Color blockColor = new Color(1f, 0.22f, 0.2f, 0.95f);
+
+        // ── 런타임 ────────────────────────────────────────────────────────
+        private MachineBase _machine;
+        private ProcessingMachine _pm;
+        private Camera _cam;
+        private Transform _player;
+        private BuildPort _outputPort;
+
+        private Collider[] _cols;      // 콜라이더 바운즈(몸체) — 위치/근접 판정 기준
+        private Renderer[] _rends;     // 콜라이더 없을 때 폴백용
+        private Bounds _bounds;        // 콜라이더(몸체) 바운즈
+        private Vector3 _boundsCenter;
+        private float  _boundsBaseY, _boundsTopY, _extX, _extZ;
+
+        // 깊이를 무시하고 항상 위에 그리는 UI 머티리얼 (메시 안쪽/뒤에 있어도 보이게).
+        private static Material _onTopMat;
+        private static Material OnTopMat
+        {
+            get
+            {
+                if (_onTopMat == null)
+                {
+                    _onTopMat = new Material(Shader.Find("UI/Default"));
+                    _onTopMat.SetInt("unity_GUIZTestMode",
+                        (int)UnityEngine.Rendering.CompareFunction.Always);
+                }
+                return _onTopMat;
+            }
+        }
+
+        // 제작 아이콘 요소
+        private GameObject _craftRoot;
+        private Image      _craftIcon;
+        private Image      _craftRing;   // 레어도색 테두리
+        private int        _craftShownItemId = -1;
+
+        // 이름 요소
+        private GameObject _nameRoot;
+        private TextMeshProUGUI _nameText;
+
+        // 금지 표시 요소
+        private GameObject _blockRoot;
+        private System.Collections.Generic.List<int> _outIds;  // 이 설비 산출물 id 캐시
+        private int _cachedLockedIdx = int.MinValue;
+
+        private void Awake()
+        {
+            _machine = GetComponent<MachineBase>();
+            _pm = _machine as ProcessingMachine;
+        }
+
+        private void Start()
+        {
+            _cam = Camera.main;
+            var p = FindFirstObjectByType<Player>();
+            if (p != null) _player = p.transform;
+            BuildElements();
+        }
+
+        private void OnDestroy()
+        {
+            // 최상위(독립) 오브젝트라 명시적으로 정리.
+            if (_craftRoot != null) Destroy(_craftRoot);
+            if (_nameRoot  != null) Destroy(_nameRoot);
+            if (_blockRoot != null) Destroy(_blockRoot);
+        }
+
+        // ── 생성 ────────────────────────────────────────────────────────
+        private void BuildElements()
+        {
+            BuildCraftIcon();
+            BuildNameLabel();
+            BuildBlockIcon();
+
+            // 출력 포트(벨트 연결 칸) 캐시
+            foreach (var p in GetComponentsInChildren<BuildPort>(true))
+                if (p.portType == PortType.Output) { _outputPort = p; break; }
+
+            HideAll();
+        }
+
+        private void BuildCraftIcon()
+        {
+            _craftRoot = CreateWorldCanvas("_FacilityCraftIcon");
+
+            // 어두운 원형 BG (탑뷰 설비 배지와 동일 스타일). 설비 안쪽에 둬도 보이게 onTop.
+            AddImage(_craftRoot.transform, UISpriteFactory.Circle(128),
+                     craftBgColor, new Vector2(craftBgPixels, craftBgPixels), onTop: true);
+
+            // 원형 테두리(링) — 색은 제작 아이템 레어도에 맞춰 런타임에 설정
+            _craftRing = AddImage(_craftRoot.transform, UISpriteFactory.Ring(128, craftRingThickness),
+                                  Color.white, new Vector2(craftBgPixels, craftBgPixels), onTop: true);
+
+            // 제작 아이템 아이콘
+            _craftIcon = AddImage(_craftRoot.transform, null, Color.white,
+                                  new Vector2(craftIconPixels, craftIconPixels), onTop: true);
+            _craftIcon.preserveAspect = true;
+        }
+
+        private void BuildNameLabel()
+        {
+            _nameRoot = CreateWorldCanvas("_FacilityNameLabel");
+
+            var txtGo = new GameObject("Name", typeof(RectTransform));
+            var trt = (RectTransform)txtGo.transform;
+            trt.SetParent(_nameRoot.transform, false);
+            trt.anchoredPosition = Vector2.zero;
+            _nameText = txtGo.AddComponent<TextMeshProUGUI>();
+            if (FacilityIconDatabase.Instance != null && FacilityIconDatabase.Instance.labelFont != null)
+                _nameText.font = FacilityIconDatabase.Instance.labelFont;
+            _nameText.fontSize = nameFontSize;
+            _nameText.color = nameTextColor;
+            _nameText.fontStyle = FontStyles.Bold;
+            _nameText.alignment = TextAlignmentOptions.Center;
+            _nameText.textWrappingMode = TextWrappingModes.NoWrap;
+            _nameText.overflowMode = TextOverflowModes.Overflow;
+            _nameText.raycastTarget = false;
+            _nameText.outlineWidth = 0.18f;
+            _nameText.outlineColor = new Color(0f, 0f, 0f, 1f);
+            _nameText.text = GetDisplayName();
+
+            LayoutNameLabel();
+        }
+
+        // 표시 이름: 하이어라키(gameObject.name) 기준 + "(Clone)" 제거.
+        //  MachineName 은 ProcessingMachine 이 LoadRecipesFromSheet 에서 GameDataUtility.GetFacility(FacilityId)
+        //  로 덮어쓰는데, 그 FacilityId↔데이터 매핑이 일부(예: 4~7번) 어긋나 이름이 밀려 나온다.
+        //  프리팹 루트 이름(용해로 등)은 항상 정확하므로 그걸 쓴다.
+        private string GetDisplayName()
+        {
+            string n = gameObject.name ?? "";
+            int idx = n.IndexOf("(Clone)", System.StringComparison.Ordinal);
+            if (idx >= 0) n = n.Substring(0, idx);
+            return n.TrimEnd();
+        }
+
+        // 이름 텍스트 폭에 맞춰 rect 크기 갱신 (BG/아이콘 없이 텍스트만).
+        private void LayoutNameLabel()
+        {
+            if (_nameText == null) return;
+            _nameText.text = GetDisplayName();
+            _nameText.ForceMeshUpdate();
+
+            var trt = (RectTransform)_nameText.transform;
+            trt.sizeDelta = new Vector2(_nameText.preferredWidth + 8f, nameFontSize + 12f);
+            trt.anchoredPosition = Vector2.zero;
+
+            // 큰 설비 몸체에 묻혀도 항상 위에 그림(깊이 무시). 메시 갱신 후 재적용해 확실히 유지.
+            // CompareFunction.Always = 8
+            _nameText.fontMaterial.SetFloat("_ZTestMode", 8f);
+        }
+
+        private void BuildBlockIcon()
+        {
+            _blockRoot = CreateWorldCanvas("_FacilityBlockIcon");
+            AddImage(_blockRoot.transform, UISpriteFactory.NoEntry(96),
+                     blockColor, new Vector2(blockPixels, blockPixels));
+        }
+
+        // ── 매 프레임 갱신 ───────────────────────────────────────────────
+        private void LateUpdate()
+        {
+            if (_cam == null) { _cam = Camera.main; if (_cam == null) return; }
+            UpdateBounds();   // 매 프레임 갱신 — 첫 프레임 바운즈 오류/늦은 로드에도 견고
+
+            // 거리 컬링
+            if (maxVisibleDistance > 0f)
+            {
+                float distSqr = (_cam.transform.position - _boundsCenter).sqrMagnitude;
+                if (distSqr > maxVisibleDistance * maxVisibleDistance)
+                {
+                    HideAll();
+                    return;
+                }
+            }
+
+            UpdateCraftIcon();
+            UpdateNameLabel();
+            UpdateBlockIcon();
+        }
+
+        private void UpdateCraftIcon()
+        {
+            bool show = _pm != null
+                     && _machine.Status == MachineStatus.Processing
+                     && _pm.ActiveRecipe != null
+                     && _pm.ActiveRecipe.outputs != null
+                     && _pm.ActiveRecipe.outputs.Length > 0;
+
+            if (!show) { if (_craftRoot.activeSelf) _craftRoot.SetActive(false); return; }
+
+            int itemId = _pm.ActiveRecipe.outputs[0].itemId;
+            if (itemId != _craftShownItemId)
+            {
+                _craftShownItemId = itemId;
+                var item = GameDataUtility.GetItem(itemId);
+                _craftIcon.sprite = item != null ? ItemDatabase.GetIcon(item.iconKey) : null;
+                _craftIcon.enabled = _craftIcon.sprite != null;
+                // 테두리 색 = 아이템 레어도색
+                _craftRing.color = item != null ? GradeVisual.GetColor(item.itemGrade) : Color.white;
+            }
+
+            if (!_craftRoot.activeSelf) _craftRoot.SetActive(true);
+
+            // 설비 정중앙(안쪽)에 배치. onTop 머티리얼이라 메시에 묻혀도 보인다.
+            _craftRoot.transform.position = _boundsCenter + new Vector3(0f, craftYOffset, 0f);
+            _craftRoot.transform.forward = _cam.transform.forward;
+        }
+
+        private void UpdateNameLabel()
+        {
+            // 플레이어가 설비 표면 근처(nameVisibleDistance)에 들어왔을 때만 표시.
+            if (_player == null)
+            {
+                var p = FindFirstObjectByType<Player>();
+                if (p != null) _player = p.transform;
+            }
+            bool near = _player != null
+                     && _bounds.SqrDistance(_player.position) <= nameVisibleDistance * nameVisibleDistance;
+            if (!near) { if (_nameRoot.activeSelf) _nameRoot.SetActive(false); return; }
+
+            if (!_nameRoot.activeSelf) _nameRoot.SetActive(true);
+
+            // 데이터 로드가 늦어 이름이 나중에 확정될 수 있으므로 변경 시 재배치
+            if (_nameText.text != GetDisplayName())
+                LayoutNameLabel();
+
+            // 플레이어(카메라)가 있는 쪽 면을 골라 그 면에 표시 → 항상 플레이어를 향한다.
+            // ±X/±Z 중 하나로 스냅(4방향). 글자는 그 면 법선에 납작하게 고정(빌보드 아님).
+            // 중심은 콜라이더(몸체) 기준 — 파티클/이펙트로 왜곡되는 시각 바운즈를 쓰지 않는다.
+            Vector3 center = _boundsCenter;
+            Vector3 toCam = _cam.transform.position - center;
+            toCam.y = 0f;
+            if (toCam.sqrMagnitude < 1e-4f) toCam = Vector3.forward;
+
+            Vector3 faceDir;
+            float ext;
+            if (Mathf.Abs(toCam.x) >= Mathf.Abs(toCam.z))
+            {
+                faceDir = new Vector3(Mathf.Sign(toCam.x), 0f, 0f);
+                ext = _extX;
+            }
+            else
+            {
+                faceDir = new Vector3(0f, 0f, Mathf.Sign(toCam.z));
+                ext = _extZ;
+            }
+
+            // 몸체 밖으로 확실히 내보낸다(ext = 그 면까지 반폭, +offset 으로 표면 바깥). clamp 없음.
+            float outward = ext + nameOutwardOffset;
+
+            // 높이 base는 설비 배치 원점(transform.position.y = 지면) 기준 — 콜라이더가 origin 중심이라
+            // 지하로 내려가거나(5x5) 시각 모델이 지면 아래로 뻗어도(생체 배양기) 영향 없음.
+            float span = Mathf.Max(0.1f, _boundsTopY - _boundsBaseY);
+            float y = transform.position.y + nameHeightFrac * span;
+            Vector3 pos = new Vector3(center.x, y, center.z)
+                        + faceDir * outward;
+
+            _nameRoot.transform.position = pos;
+            // 캔버스 글자는 forward(+Z)가 카메라 반대(설비 안쪽)를 향할 때 정상으로 읽힌다.
+            // 카메라는 faceDir 쪽(바깥)에 있으므로 forward = -faceDir 로 둔다. 4개 고정 방향 중 하나, 카메라 추적 X.
+            _nameRoot.transform.rotation = Quaternion.LookRotation(-faceDir, Vector3.up);
+        }
+
+        private void UpdateBlockIcon()
+        {
+            // 막힘 = 타깃 거부일 때만. (출력 벨트가 연결돼 있는데 그 타깃이 이 설비
+            //  산출물을 받지 못하는 경우 — 벨트 미연결/버퍼 적체는 막힘으로 보지 않음)
+            bool show = IsTargetRejecting();
+            if (!show) { if (_blockRoot.activeSelf) _blockRoot.SetActive(false); return; }
+            if (!_blockRoot.activeSelf) _blockRoot.SetActive(true);
+
+            // 출력 포트(벨트 연결 칸) 위. 포트 없으면 설비 상단 중앙.
+            Vector3 basePos = _outputPort != null
+                ? _outputPort.transform.position
+                : new Vector3(_boundsCenter.x, _boundsTopY, _boundsCenter.z);
+
+            Vector3 pos = basePos + Vector3.up * blockYOffset;
+            pos -= _cam.transform.forward * cameraPullOffset;
+
+            _blockRoot.transform.position = pos;
+            _blockRoot.transform.forward = _cam.transform.forward;
+        }
+
+        // ── 막힘(타깃 거부) 판정 ─────────────────────────────────────────
+        // 이 설비의 출력 벨트가 연결돼 있고, 그 타깃 설비가 이 설비의 산출물 중
+        // 하나라도 받지 못하면(CanReceive=false) "타깃 거부"로 본다.
+        private bool IsTargetRejecting()
+        {
+            if (_pm == null || _machine.outputBelts == null || _machine.outputBelts.Count == 0)
+                return false;
+
+            var outIds = GetOutputItemIds();
+            if (outIds == null || outIds.Count == 0) return false;
+
+            foreach (var belt in _machine.outputBelts)
+            {
+                if (belt == null || !belt.IsReady) continue;
+                var tgt = belt.targetM;
+                if (tgt == null || tgt == _machine) continue;
+
+                foreach (var id in outIds)
+                    if (!tgt.CanReceive(id)) return true;   // 타깃이 산출물 거부 → 막힘
+            }
+            return false;
+        }
+
+        // 현재 선택된(잠긴) 레시피, 없으면 첫 레시피의 산출물 id 목록 (변경 시에만 재계산).
+        private System.Collections.Generic.List<int> GetOutputItemIds()
+        {
+            if (_pm.Recipes == null || _pm.Recipes.Count == 0) return null;
+
+            int idx = _pm.LockedRecipeIndex;
+            if (idx == _cachedLockedIdx && _outIds != null) return _outIds;
+            _cachedLockedIdx = idx;
+
+            var recipe = (idx >= 0 && idx < _pm.Recipes.Count) ? _pm.Recipes[idx] : _pm.Recipes[0];
+            if (recipe == null || recipe.outputs == null) { _outIds = null; return null; }
+
+            _outIds ??= new System.Collections.Generic.List<int>();
+            _outIds.Clear();
+            foreach (var o in recipe.outputs) _outIds.Add(o.itemId);
+            return _outIds;
+        }
+
+        // ── 헬퍼 ────────────────────────────────────────────────────────
+
+        // 콜라이더(몸체) 바운즈를 매 프레임 갱신 (캐시 수집은 최초 1회 — 매 프레임 할당 없음).
+        // 위치/근접 기준으로 콜라이더만 쓴다(파티클·이펙트로 왜곡되는 렌더러 바운즈 회피).
+        // 콜라이더가 없는 설비만 렌더러 바운즈로 폴백.
+        private void UpdateBounds()
+        {
+            // ── 렌더러(시각) 바운즈 (콜라이더 없을 때 폴백용) ──
+            if (_rends == null)
+            {
+                var all = GetComponentsInChildren<Renderer>(true);
+                var rl = new System.Collections.Generic.List<Renderer>(all.Length);
+                foreach (var r in all)
+                {
+                    if (r == null) continue;
+                    if (r is ParticleSystemRenderer || r is TrailRenderer || r is LineRenderer) continue;
+                    rl.Add(r);
+                }
+                _rends = rl.ToArray();
+            }
+            bool vhas = false;
+            Bounds vb = new Bounds(transform.position, Vector3.zero);
+            foreach (var r in _rends)
+            {
+                if (r == null || !r.enabled) continue;
+                if (!vhas) { vb = r.bounds; vhas = true; }
+                else vb.Encapsulate(r.bounds);
+            }
+            if (!vhas) vb = new Bounds(transform.position, Vector3.one);
+
+            // ── 콜라이더 바운즈(BuildPort 제외) ── 없으면 시각 바운즈로 폴백
+            if (_cols == null)
+            {
+                var allCols = GetComponentsInChildren<Collider>(true);
+                var list = new System.Collections.Generic.List<Collider>(allCols.Length);
+                foreach (var c in allCols)
+                {
+                    if (c == null) continue;
+                    if (c.GetComponentInParent<BuildPort>() != null) continue; // 포트 콜라이더 제외
+                    list.Add(c);
+                }
+                _cols = list.ToArray();
+            }
+            bool chas = false;
+            Bounds cb = new Bounds(transform.position, Vector3.zero);
+            foreach (var c in _cols)
+            {
+                if (c == null || !c.enabled) continue;
+                if (!chas) { cb = c.bounds; chas = true; }
+                else cb.Encapsulate(c.bounds);
+            }
+            if (!chas) cb = vb;   // 콜라이더 없으면 시각 바운즈 사용
+
+            _bounds = cb;
+            _boundsCenter = cb.center;
+            _boundsBaseY  = cb.min.y;
+            _boundsTopY   = cb.max.y;
+
+            // 바깥 밀어내기(ext)는 콜라이더(몸체) 기준. 시각 바운즈는 파티클/이펙트(예: 생체 배양기 FX_steam)
+            // 등 부수 요소로 왜곡될 수 있어 이름 위치 기준으로 쓰지 않는다.
+            _extX = cb.extents.x;
+            _extZ = cb.extents.z;
+        }
+
+        private void HideAll()
+        {
+            if (_craftRoot != null && _craftRoot.activeSelf) _craftRoot.SetActive(false);
+            if (_nameRoot  != null && _nameRoot.activeSelf)  _nameRoot.SetActive(false);
+            if (_blockRoot != null && _blockRoot.activeSelf) _blockRoot.SetActive(false);
+        }
+
+        private GameObject CreateWorldCanvas(string n)
+        {
+            var go = new GameObject(n);
+            var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            var rt = (RectTransform)go.transform;
+            rt.sizeDelta = new Vector2(400f, 400f);
+            rt.localScale = Vector3.one * worldScale;
+            return go;
+        }
+
+        private Image AddImage(Transform parent, Sprite sprite, Color color, Vector2 size, bool onTop = false)
+        {
+            var go = new GameObject("Img", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            rt.sizeDelta = size;
+            rt.anchoredPosition = Vector2.zero;
+            var img = go.AddComponent<Image>();
+            img.sprite = sprite;
+            img.color = color;
+            img.raycastTarget = false;
+            if (onTop) img.material = OnTopMat;   // 메시에 가려도 항상 위에 표시
+            if (sprite != null && sprite.border != Vector4.zero) img.type = Image.Type.Sliced;
+            return img;
+        }
+    }
+}

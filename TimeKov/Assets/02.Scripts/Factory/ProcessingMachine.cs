@@ -34,8 +34,9 @@ namespace TIMEKOV.Factory
 
         // ── 초기화 ─────────────────────────────────────────────────────────
 
-        protected virtual void Start()
+        protected override void Start()
         {
+            base.Start();   // 월드 표시(FacilityWorldDisplay) 자동 부착
             _loopSound  = GetComponent<MachineLoopSound>();
             _animEffect = GetComponent<MachineAnimationEffect>();
             TryLoadRecipesFromSheet();
