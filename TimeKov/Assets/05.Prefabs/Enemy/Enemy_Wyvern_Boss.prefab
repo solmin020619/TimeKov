@@ -2208,6 +2208,8 @@ MonoBehaviour:
   rangedCooldown: 3.5
   fireballWindup: 0.55
   fireballRecover: 0.7
+  fireballBurstCount: 3
+  fireballBurstGap: 0.18
   eruptionVfx: {fileID: 683289275543633159, guid: e87089e33cb2fcd4c9a25bf2b6f2b74a, type: 3}
   eruptionRange: 14
   eruptionCooldown: 7
@@ -2217,6 +2219,9 @@ MonoBehaviour:
   eruptionRadius: 2.5
   eruptionDmgMul: 1.2
   eruptionState: SpreadFire
+  eruptionBarrageCount: 5
+  eruptionBarrageGap: 0.25
+  eruptionSpread: 6
   slamVfx: {fileID: 2706747961771293480, guid: 22b38d55e26272348a300b5f822bc681, type: 3}
   diveRange: 16
   diveCooldown: 11
@@ -2236,10 +2241,18 @@ MonoBehaviour:
   roarState: Roar
   roarBuildup: 0.6
   roarRecover: 1
+  roarLiftHeight: 14
+  roarLiftTime: 0.35
   debuffDuration: 6
   debuffDrainMult: 2.5
   enrageCdMul: 0.8
   enrageSpeedMul: 1.15
+  healDuration: 2.5
+  healPercent: 0.25
+  healTicks: 12
+  healRiseHeight: 12
+  healRiseTime: 0.8
+  healVfx: {fileID: 0}
   speedParam: Speed
   fireballState: Fireball
 --- !u!114 &3815243077134679219

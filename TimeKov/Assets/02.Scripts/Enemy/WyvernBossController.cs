@@ -65,6 +65,8 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private string roarState = "Roar";
     [SerializeField] private float roarBuildup = 0.6f;     // 포효 시작~절규(디버프 발동) 시점
     [SerializeField] private float roarRecover = 1.0f;
+    [SerializeField] private float roarLiftHeight = 14f;   // 포효 동안 띄움(로어가 비행 포즈라 지상서 꼬리가 땅에 박힘 -> 확 띄워서 회피. 7은 부족, 14면 회복비행 12보다 위라 확실)
+    [SerializeField] private float roarLiftTime = 0.35f;   // 띄움/내림 시간(빠르게)
     [SerializeField] private float debuffDuration = 6f;    // 화면 어둠 + 시간 가속 지속(초)
     [SerializeField] private float debuffDrainMult = 2.5f; // 시간 드레인 배수
     [SerializeField] private float enrageCdMul = 0.8f;     // 포효마다 공격 쿨 x (누적, 빨라짐)
@@ -74,10 +76,8 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private float healDuration = 2.5f;    // 회복 지속(파바바박 차오름)
     [SerializeField] private float healPercent = 0.25f;    // maxHP의 비율만큼 회복
     [SerializeField] private int healTicks = 12;           // 회복 분할 틱(파바바박 = 한 칸씩 점프)
-    [SerializeField] private float healPulseScale = 1.08f; // 틱마다 박동 크기(1=없음, 플레이어 인식용)
-    [SerializeField] private string healState = "Heal";    // 회복 애니(포효 재사용)
-    [SerializeField] private float healRiseHeight = 3f;    // 회복 중 살짝 떠오르는 높이('공중에서 쉬는' 느낌)
-    [SerializeField] private float healRiseTime = 0.45f;   // 떠오름/내려옴 시간
+    [SerializeField] private float healRiseHeight = 12f;   // 회복 중 떠오르는 높이(확실히 공중에. 꼬리 안 박히게 크게, 인스펙터서 줄여라)
+    [SerializeField] private float healRiseTime = 0.8f;    // 떠오름/내려옴 시간(이륙 애니에 맞춰 여유)
     [SerializeField] private GameObject healVfx;           // 충전 연출(선택)
 
     [Header("애니메이터 (전용 컨트롤러 상태명)")]
@@ -118,6 +118,8 @@ public class WyvernBossController : MonoBehaviour
     private float _diveCd = 6f;         // 공중 다이브 쿨(초기 지연)
     private bool _diving;               // 다이브 중(에이전트 끈 상태) - 포효/사망 중단 시 복구 필요
     private bool _healed;               // 페이즈3 회복 1회 사용 여부
+    private bool _lockScale;            // 회복 비행 중 스케일 고정 활성(비행 클립 루트 스케일 커브의 둥둥 차단)
+    private Vector3 _healLockScale = Vector3.one;   // 고정할 기준 스케일(회복 진입 시점 캡처)
     private float[] _atkCd;
     private bool[] _roared;
     private bool _engaged;              // 교전 시작(보스바 1회 표시)
@@ -159,6 +161,7 @@ public class WyvernBossController : MonoBehaviour
 
     private void Start()
     {
+        _healLockScale = transform.localScale;   // 평상(rest) 스케일 캡처 = 회복 비행 중 고정 기준(애니 첫 평가 전이라 순수 값)
         AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
@@ -173,7 +176,8 @@ public class WyvernBossController : MonoBehaviour
     {
         _dead = true;
         if (_health != null) _health.Invulnerable = false;   // 회복 중 사망 시 무적 잔존 방지
-        if (_diving) EndDiveCleanup();   // 다이브 중 사망 시 공중에 멈추지 않게 복구
+        _lockScale = false;                                  // 회복 중 사망 시 스케일 고정 해제(사망 애니 정상 재생)
+        EndDiveCleanup();   // 다이브/포효띄움 중 사망 시 공중에 멈추지 않게 지면 복구(에이전트 꺼져 있으면 재활성+스냅, 아니면 no-op)
         StopAllCoroutines();
         StopMove();
     }
@@ -543,88 +547,88 @@ public class WyvernBossController : MonoBehaviour
         _attacking = true;
         StopMove();
         if (_player != null) FaceInstant(_player.position);
+
+        // 마지막 포효(페이즈3 진입) = 포효 애니/디버프 생략하고 바로 회복 비행으로(날기전 대기 TakeOff -> 날기 FlyHover). 광폭화는 유지.
+        if (idx >= RoarThresholds.Length - 1 && !_healed)
+        {
+            _healed = true;
+            Enrage();
+            yield return HealPhase();
+            yield break;   // HealPhase가 _attacking/agent 정리
+        }
+
+        // 포효 클립이 비행 포즈라 지상서 꼬리가 땅에 박힘 -> 포효 동안만 살짝 띄움(에이전트 끄고 transform 이동, 다이브/회복과 동일).
+        Vector3 ground = transform.position;
+        _lockScale = true;   // 띄운 비행 포즈 동안 몸 크기 둥둥(루트 스케일 커브) 차단
+        if (_agent != null && _agent.enabled) { _agent.isStopped = true; _agent.ResetPath(); _agent.enabled = false; }
+
         PlayState(roarState);
         _feedback?.PlayAttack();
+        yield return MoveBetween(ground, ground + Vector3.up * roarLiftHeight, roarLiftTime);   // 살짝 떠오름
 
         yield return new WaitForSeconds(roarBuildup);
         BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult);   // 화면 어둠 + 시간 가속
         Enrage();
-
         yield return new WaitForSeconds(roarRecover);
 
-        // 마지막 포효(페이즈3 진입) = 체력 회복 1회로 이어짐
-        if (idx >= RoarThresholds.Length - 1 && !_healed)
-        {
-            _healed = true;
-            yield return HealPhase();
-            yield break;   // HealPhase가 _attacking/agent 정리
-        }
+        yield return MoveBetween(transform.position, ground, roarLiftTime);   // 내려옴
+        transform.position = ground;
+        if (_agent != null && !_agent.enabled) { _agent.enabled = true; _agent.Warp(ground); }
+        _lockScale = false;
 
         _attacking = false;
         if (AgentReady()) _agent.isStopped = false;
     }
 
-    // 페이즈3 진입 시 1회 체력 회복: 무적 + 포효 애니 + 살짝 떠올라 '쉬는' 느낌 + HP 파바바박 차오름(회복 중 딜 안 들어감).
-    // 띄우기는 agent.baseOffset 으로(에이전트/네비메시 안 끔 = 안전). 회복 끝나면 원래 높이 복귀.
+    // 페이즈3 진입 시 1회 체력 회복: 이륙(TakeOff)으로 떠올라 -> 체공(FlyHover) 날갯짓하며 회복 -> 착지.
+    // 무적 + HP 파바바박 틱(한 칸씩 점프). 띄우기는 에이전트 끄고 transform 직접 이동(다이브와 동일 = 떨림 없음).
+    // 비행 클립 루트 스케일 커브로 몸이 둥둥거리던 것 -> _lockScale 로 LateUpdate에서 스케일 고정해 차단(날갯짓은 살림).
     private IEnumerator HealPhase()
     {
         _attacking = true;
         StopMove();
         if (_player != null) FaceInstant(_player.position);
-        PlayState(healState);
         _feedback?.PlayAttack();
         if (_health != null) _health.Invulnerable = true;
 
-        float baseOff = _agent != null ? _agent.baseOffset : 0f;
+        Vector3 ground = transform.position;
+        _lockScale = true;                        // LateUpdate에서 몸 크기 둥둥(루트 스케일 커브) 차단. 기준은 Start서 캡처한 평상 스케일.
+        if (_agent != null && _agent.enabled) { _agent.isStopped = true; _agent.ResetPath(); _agent.enabled = false; }
         GameObject vfx = (healVfx != null) ? Instantiate(healVfx, transform.position, transform.rotation) : null;
 
-        yield return RaiseAgent(baseOff, baseOff + healRiseHeight, healRiseTime);   // 살짝 떠오름
+        // 1) 이륙(상승) - 에이전트 끄고 transform 직접 이동(baseOffset 안 씀 = 에이전트랑 Y 안 싸움 = 안 떨림)
+        Vector3 up = ground + Vector3.up * healRiseHeight;
+        PlayState(diveTakeoffState);
+        yield return MoveBetween(ground, up, healRiseTime);
 
-        // 분할 틱으로 파바바박 차오름 + 틱마다 박동(스케일 펄스) = 플레이어가 회복을 인식
+        // 2) 체공 + 회복 - 호버(날갯짓) 유지. 몸 크기는 LateUpdate 고정이라 안 둥둥. HP는 틱마다 한 칸씩 점프 = 파바바박.
+        PlayState(diveHoverState);
         float start = _health != null ? _health.currentHP : 0f;
         float target = _health != null ? Mathf.Min(_health.maxHP, start + _health.maxHP * healPercent) : 0f;
         int ticks = Mathf.Max(1, healTicks);
         float perTick = (target - start) / ticks;
         float tickGap = healDuration / ticks;
-        Vector3 baseScale = transform.localScale;
         for (int i = 0; i < ticks && !_dead; i++)
         {
             if (_health != null) _health.currentHP = Mathf.Min(target, _health.currentHP + perTick);   // 한 칸 차오름(파박)
-            transform.localScale = baseScale * healPulseScale;   // 순간 부풀림
             float e = 0f;
-            while (e < tickGap)                                   // gap 동안 원래대로 수축 = 박동
-            {
-                e += Time.deltaTime;
-                transform.localScale = Vector3.Lerp(baseScale * healPulseScale, baseScale, Mathf.Clamp01(e / tickGap));
-                yield return null;
-            }
+            while (e < tickGap) { e += Time.deltaTime; yield return null; }
         }
-        transform.localScale = baseScale;
         if (_health != null) _health.currentHP = target;
 
-        yield return RaiseAgent(baseOff + healRiseHeight, baseOff, healRiseTime);   // 다시 내려옴
-        if (_agent != null) _agent.baseOffset = baseOff;
+        // 3) 하강 - transform 직접 이동
+        yield return MoveBetween(transform.position, ground, healRiseTime);
+        transform.position = ground;
 
+        // 4) 착지 + 에이전트 복구(Warp 재동기화) -> 평상(Landing 상태가 Idle 자동 복귀)
+        PlayState(diveLandState);
+        if (_agent != null && !_agent.enabled) { _agent.enabled = true; _agent.Warp(ground); }
+        _lockScale = false;   // 착지 = 스케일 고정 해제(평상 애니 복귀, 평상 스케일 = 고정값과 동일)
         if (_health != null) _health.Invulnerable = false;
         if (vfx != null) Destroy(vfx);
-        PlayState("Idle");
 
         _attacking = false;
         if (AgentReady()) _agent.isStopped = false;
-    }
-
-    // agent.baseOffset 을 from->to 로 부드럽게(회복 중 공중부양/착지). 네비메시 위치는 유지.
-    private IEnumerator RaiseAgent(float from, float to, float time)
-    {
-        if (_agent == null || time <= 0f) { if (_agent != null) _agent.baseOffset = to; yield break; }
-        float t = 0f;
-        while (t < time)
-        {
-            t += Time.deltaTime;
-            _agent.baseOffset = Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / time)));
-            yield return null;
-        }
-        _agent.baseOffset = to;
     }
 
     // 포효마다 공격/이동이 빨라짐(누적)
@@ -670,6 +674,10 @@ public class WyvernBossController : MonoBehaviour
     // 평소엔 이동방향/타깃을 향함. 공격 중엔 회전 정지(방향 커밋 = 플레이어가 옆/뒤로 dash 회피 가능).
     private void LateUpdate()
     {
+        // 회복 비행 중 몸 크기 둥둥(비행 클립 루트 스케일 커브) 차단. 애니메이터가 transform 쓴 뒤(LateUpdate)라 무조건 이김.
+        // applyRootMotion=false는 위치/회전 커브만 제거하고 스케일은 안 막아서 클론 localScale이 펄스하던 것.
+        if (_lockScale && !_dead) transform.localScale = _healLockScale;
+
         if (_dead || _attacking) return;
         Vector3 faceDir = Vector3.zero;
         if (_agent != null)
