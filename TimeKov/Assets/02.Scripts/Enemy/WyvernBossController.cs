@@ -65,6 +65,8 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private string roarState = "Roar";
     [SerializeField] private float roarBuildup = 0.6f;     // 포효 시작~절규(디버프 발동) 시점
     [SerializeField] private float roarRecover = 1.0f;
+    [SerializeField] private float roarLiftHeight = 7f;    // 포효 동안 띄움(로어가 비행 포즈라 지상서 꼬리가 땅에 박힘 -> 확 띄워서 회피. 더/덜=인스펙터)
+    [SerializeField] private float roarLiftTime = 0.35f;   // 띄움/내림 시간(빠르게)
     [SerializeField] private float debuffDuration = 6f;    // 화면 어둠 + 시간 가속 지속(초)
     [SerializeField] private float debuffDrainMult = 2.5f; // 시간 드레인 배수
     [SerializeField] private float enrageCdMul = 0.8f;     // 포효마다 공격 쿨 x (누적, 빨라짐)
@@ -175,7 +177,7 @@ public class WyvernBossController : MonoBehaviour
         _dead = true;
         if (_health != null) _health.Invulnerable = false;   // 회복 중 사망 시 무적 잔존 방지
         _lockScale = false;                                  // 회복 중 사망 시 스케일 고정 해제(사망 애니 정상 재생)
-        if (_diving) EndDiveCleanup();   // 다이브 중 사망 시 공중에 멈추지 않게 복구
+        EndDiveCleanup();   // 다이브/포효띄움 중 사망 시 공중에 멈추지 않게 지면 복구(에이전트 꺼져 있으면 재활성+스냅, 아니면 no-op)
         StopAllCoroutines();
         StopMove();
     }
@@ -545,22 +547,34 @@ public class WyvernBossController : MonoBehaviour
         _attacking = true;
         StopMove();
         if (_player != null) FaceInstant(_player.position);
+
+        // 마지막 포효(페이즈3 진입) = 포효 애니/디버프 생략하고 바로 회복 비행으로(날기전 대기 TakeOff -> 날기 FlyHover). 광폭화는 유지.
+        if (idx >= RoarThresholds.Length - 1 && !_healed)
+        {
+            _healed = true;
+            Enrage();
+            yield return HealPhase();
+            yield break;   // HealPhase가 _attacking/agent 정리
+        }
+
+        // 포효 클립이 비행 포즈라 지상서 꼬리가 땅에 박힘 -> 포효 동안만 살짝 띄움(에이전트 끄고 transform 이동, 다이브/회복과 동일).
+        Vector3 ground = transform.position;
+        _lockScale = true;   // 띄운 비행 포즈 동안 몸 크기 둥둥(루트 스케일 커브) 차단
+        if (_agent != null && _agent.enabled) { _agent.isStopped = true; _agent.ResetPath(); _agent.enabled = false; }
+
         PlayState(roarState);
         _feedback?.PlayAttack();
+        yield return MoveBetween(ground, ground + Vector3.up * roarLiftHeight, roarLiftTime);   // 살짝 떠오름
 
         yield return new WaitForSeconds(roarBuildup);
         BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult);   // 화면 어둠 + 시간 가속
         Enrage();
-
         yield return new WaitForSeconds(roarRecover);
 
-        // 마지막 포효(페이즈3 진입) = 체력 회복 1회로 이어짐
-        if (idx >= RoarThresholds.Length - 1 && !_healed)
-        {
-            _healed = true;
-            yield return HealPhase();
-            yield break;   // HealPhase가 _attacking/agent 정리
-        }
+        yield return MoveBetween(transform.position, ground, roarLiftTime);   // 내려옴
+        transform.position = ground;
+        if (_agent != null && !_agent.enabled) { _agent.enabled = true; _agent.Warp(ground); }
+        _lockScale = false;
 
         _attacking = false;
         if (AgentReady()) _agent.isStopped = false;

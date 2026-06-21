@@ -2241,6 +2241,8 @@ MonoBehaviour:
   roarState: Roar
   roarBuildup: 0.6
   roarRecover: 1
+  roarLiftHeight: 7
+  roarLiftTime: 0.35
   debuffDuration: 6
   debuffDrainMult: 2.5
   enrageCdMul: 0.8
@@ -2248,7 +2250,6 @@ MonoBehaviour:
   healDuration: 2.5
   healPercent: 0.25
   healTicks: 12
-  healPulseScale: 1.08
   healRiseHeight: 12
   healRiseTime: 0.8
   healVfx: {fileID: 0}
