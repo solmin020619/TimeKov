@@ -65,7 +65,7 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private string roarState = "Roar";
     [SerializeField] private float roarBuildup = 0.6f;     // 포효 시작~절규(디버프 발동) 시점
     [SerializeField] private float roarRecover = 1.0f;
-    [SerializeField] private float roarLiftHeight = 7f;    // 포효 동안 띄움(로어가 비행 포즈라 지상서 꼬리가 땅에 박힘 -> 확 띄워서 회피. 더/덜=인스펙터)
+    [SerializeField] private float roarLiftHeight = 14f;   // 포효 동안 띄움(로어가 비행 포즈라 지상서 꼬리가 땅에 박힘 -> 확 띄워서 회피. 7은 부족, 14면 회복비행 12보다 위라 확실)
     [SerializeField] private float roarLiftTime = 0.35f;   // 띄움/내림 시간(빠르게)
     [SerializeField] private float debuffDuration = 6f;    // 화면 어둠 + 시간 가속 지속(초)
     [SerializeField] private float debuffDrainMult = 2.5f; // 시간 드레인 배수
