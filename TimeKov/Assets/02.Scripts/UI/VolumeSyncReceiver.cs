@@ -17,7 +17,7 @@ public class VolumeSyncReceiver : MonoBehaviour
         _source = GetComponent<AudioSource>();
 
         // 스폰 즉시 현재 SFX 볼륨 적용
-        _source.volume = PlayerPrefs.GetFloat("SFXVolume", 1f);
+        _source.volume = GlobalSettingsManager.CurrentSFXVolume;
     }
 
     void OnEnable()

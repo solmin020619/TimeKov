@@ -57,9 +57,9 @@ public class UISoundManager : MonoBehaviour
 
     private void Start()
     {
-        // PlayerPrefs에서 초기 SFX 볼륨 적용
+        // 초기 SFX 볼륨 적용
         if (sfxSource != null)
-            sfxSource.volume = PlayerPrefs.GetFloat("SFXVolume", 1f);
+            sfxSource.volume = GlobalSettingsManager.CurrentSFXVolume;
     }
 
     private void OnEnable()

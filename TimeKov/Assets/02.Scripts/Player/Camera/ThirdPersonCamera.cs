@@ -90,7 +90,7 @@ public class ThirdPersonCamera : MonoBehaviour
     void Start()
     {
         // 저장된 감도 값 불러오기
-        _sensitivityMult = PlayerPrefs.GetFloat("MouseSensitivity", 1f);
+        _sensitivityMult = GlobalSettingsManager.CurrentSensitivity;
         // 이후 설정창에서 변경 시 실시간 반영
         GlobalSettingsManager.OnSensitivityChanged += ApplySensitivity;
     }

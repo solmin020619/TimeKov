@@ -77,7 +77,7 @@ namespace TIMEKOV.Factory
                     ForceClose();
                     return;
                 }
-                if (Input.GetKeyDown(KeyCode.F))
+                if (Input.GetKeyDown(KeyBindings.Interact))
                     CloseUI();
                 return;
             }
@@ -120,7 +120,7 @@ namespace TIMEKOV.Factory
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.F))
+            if (Input.GetKeyDown(KeyBindings.Interact))
             {
                 if (_selectShowing && facilitySelectPanel != null)
                 {
