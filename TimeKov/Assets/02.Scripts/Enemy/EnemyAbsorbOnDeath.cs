@@ -17,6 +17,8 @@ public class EnemyAbsorbOnDeath : MonoBehaviour
     [SerializeField] private float spawnHeight = 1.0f;
     [Tooltip("CoreUpgradeManager가 없을 때 사용할 폴백 흡수 비율(최대HP 대비)")]
     [Range(0f, 1f)][SerializeField] private float fallbackLifestealPercent = 0.03f;
+    [Tooltip("이 적 처치 시 추가 흡수 % (보스 등 고정 보너스. 코어 흡수%에 더해짐. 0=일반 적). 확장: 보스 외 특수몹에도 사용 가능.")]
+    [Range(0f, 1f)][SerializeField] private float bonusHealPercent = 0f;
 
     private EnemyHealth _health;
 
@@ -44,7 +46,7 @@ public class EnemyAbsorbOnDeath : MonoBehaviour
             ? CoreUpgradeManager.Instance.GetLifestealPercent()
             : fallbackLifestealPercent;
 
-        float heal = player.Stat.MaxHp * pct;
+        float heal = player.Stat.MaxHp * (pct + bonusHealPercent);   // 보스=큰 보너스로 대량 흡수
         if (heal <= 0f) return;
 
         // 플레이어가 살아있을 때만 회복 (닿는 순간 1회)

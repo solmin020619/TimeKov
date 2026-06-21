@@ -17,6 +17,7 @@ public static class WyvernBossBuilder
     const string VfxFireball   = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Fireball.prefab";
     const string VfxExplosion  = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Explosion_Omni.prefab";
     const string VfxFire       = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Fire.prefab";
+    const string BaseEnemyPath = "Assets/05.Prefabs/Enemy/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
 
     [MenuItem("Tools/Enemy/Build Wyvern Boss (prefab + SO)")]
     public static void Build()
@@ -115,6 +116,8 @@ public static class WyvernBossBuilder
         SetRef(sobj, "spreadFireVfx", AssetDatabase.LoadAssetAtPath<GameObject>(VfxFire));
         sobj.ApplyModifiedProperties();
 
+        WireRewards(go);   // 시간 흡수(보스 대량) + 아이템 드롭 + 도감 등록
+
         PrefabUtility.SaveAsPrefabAsset(go, PrefabPath, out bool ok);
         Object.DestroyImmediate(go);
         AssetDatabase.SaveAssets();
@@ -164,6 +167,40 @@ public static class WyvernBossBuilder
         PrefabUtility.SaveAsPrefabAsset(root, FireballPath);
         Object.DestroyImmediate(root);
         return AssetDatabase.LoadAssetAtPath<GameObject>(FireballPath);
+    }
+
+    // 보스 사망 보상 컴포넌트 부착. boxPrefab/흡수VFX는 BaseEnemy에서 참조 재사용(경로 하드코딩 회피).
+    // 확장: 나중에 '특수 해금' 등은 EnemyHealth.OnDeath 구독 컴포넌트를 추가로 붙이면 끝(보상=컴포넌트 단위).
+    private static void WireRewards(GameObject go)
+    {
+        GameObject boxPrefab = null, absorbVfx = null;
+        var baseEnemy = AssetDatabase.LoadAssetAtPath<GameObject>(BaseEnemyPath);
+        if (baseEnemy != null)
+        {
+            var bd = baseEnemy.GetComponent<EnemyDropOnDeath>();
+            if (bd != null) boxPrefab = bd.BoxPrefab;
+            var ba = baseEnemy.GetComponent<EnemyAbsorbOnDeath>();
+            if (ba != null)
+            {
+                var p = new SerializedObject(ba).FindProperty("absorbVfxPrefab");
+                if (p != null) absorbVfx = p.objectReferenceValue as GameObject;
+            }
+        }
+        else Debug.LogWarning($"[WyvernBoss] BaseEnemy 못 찾음(드롭 박스/흡수 VFX 미연결): {BaseEnemyPath}");
+
+        // 아이템 드롭 + 도감 등록(HandleDeath서 CodexDiscovery.DiscoverMonster 호출). sourceId=드롭테이블/도감 매칭키.
+        var drop = GetOrAdd<EnemyDropOnDeath>(go);
+        var ds = new SerializedObject(drop);
+        var sid = ds.FindProperty("sourceId"); if (sid != null) sid.stringValue = "wyvern_boss";
+        SetRef(ds, "boxPrefab", boxPrefab);
+        ds.ApplyModifiedProperties();
+
+        // 시간 흡수(보스=최대 시간의 50% 대량 흡수)
+        var absorb = GetOrAdd<EnemyAbsorbOnDeath>(go);
+        var abs = new SerializedObject(absorb);
+        SetRef(abs, "absorbVfxPrefab", absorbVfx);
+        var bonus = abs.FindProperty("bonusHealPercent"); if (bonus != null) bonus.floatValue = 0.5f;
+        abs.ApplyModifiedProperties();
     }
 
     private static void SetRef(SerializedObject sobj, string prop, Object value)
