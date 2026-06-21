@@ -207,6 +207,15 @@ public class GameUIController : MonoBehaviour
             return;
         }
 
+        // 설정창은 적용 안 한 변경사항이 있으면 ESC로도 못 닫게 막고 안내 메세지를 띄운다.
+        if (_currentState == UIState.Settings)
+        {
+            if (GlobalSettingsManager.Instance != null && !GlobalSettingsManager.Instance.RequestClose())
+                return;
+            CloseAll();
+            return;
+        }
+
         CloseAll();
     }
 
