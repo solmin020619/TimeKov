@@ -232,22 +232,6 @@ public class PlayerMovementComponent : MonoBehaviour
         _isGrounded = Physics.CheckSphere(origin, GroundCheckRadius, GroundMask,
                                           QueryTriggerInteraction.Ignore);
 
-#if UNITY_EDITOR
-        // ── 진단: 공중 오인식 감지 ──────────────────────────────────────
-        // 상승 중(_isJumping && velocity.y > 0)인데 isGrounded=true면 무언가를 잘못 감지한 것
-        if (_isGrounded && _isJumping && _rb.linearVelocity.y > 0.5f)
-        {
-            var overlaps = Physics.OverlapSphere(origin, GroundCheckRadius, GroundMask);
-            foreach (var c in overlaps)
-            {
-                Debug.LogWarning(
-                    $"[GroundCheck] 공중 오인식! " +
-                    $"Hit='{c.name}'  Layer={LayerMask.LayerToName(c.gameObject.layer)}  " +
-                    $"Pos={c.transform.position}  IsTrigger={c.isTrigger}");
-            }
-        }
-#endif
-
         // SphereCast 로 지면 법선 획득 → 경사각 계산
         Vector3 castStart = transform.position + Vector3.up * 0.1f;
         float castDist    = halfHeight + GroundCheckOffset + 0.15f;
@@ -351,8 +335,6 @@ public class PlayerMovementComponent : MonoBehaviour
         _jumpRequested = false;
         _isGrounded = false;
         _isJumping = true;
-
-        Debug.Log($"[Jump] PlayJump 호출됨 / isGrounded={_isGrounded} / canJump={_canJump}");
 
         // 점프 애니메이션 재생
         _player.Anim.PlayJump();
