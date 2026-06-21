@@ -116,11 +116,25 @@ public static class WyvernVfxBuilder
         var slam      = BuildWrapper("Wyvern_Slam", SlamWrap, fxWeapon, 2.5f, Vector3.zero);
 
         GameObject telegraph = null;                    // 지면 범위 링(분출/다이브 전 표시)
-        var ringShader = Shader.Find(UrpParticlesUnlit);
+        // 전용 셰이더(ZTest Always = 경사/지형 뒤여도 보임). 없으면 URP Particles/Unlit 폴백.
+        AssetDatabase.Refresh();   // 새로 추가한 .shader가 아직 임포트 안 됐으면 임포트(첫 실행서 Shader.Find 성공 보장)
+        var ringShader = Shader.Find("Wyvern/TelegraphOnTop");
+        bool onTop = ringShader != null;
+        if (ringShader == null) ringShader = Shader.Find(UrpParticlesUnlit);
         if (ringShader != null)
         {
             var ringTex = MakeRingTexture(RingTexPath, 128);
-            var ringMat = MakeMaterial(RingMatPath, ringShader, ringTex, true);
+            Material ringMat;
+            if (onTop)
+            {
+                ringMat = AssetDatabase.LoadAssetAtPath<Material>(RingMatPath);
+                if (ringMat == null) { ringMat = new Material(ringShader); AssetDatabase.CreateAsset(ringMat, RingMatPath); }
+                else ringMat.shader = ringShader;
+                ringMat.SetTexture("_BaseMap", ringTex);
+                if (ringMat.HasProperty("_BaseColor")) ringMat.SetColor("_BaseColor", Color.white);
+                EditorUtility.SetDirty(ringMat);
+            }
+            else ringMat = MakeMaterial(RingMatPath, ringShader, ringTex, true);
             telegraph = BuildTelegraph(ringMat);
         }
 
@@ -584,7 +598,7 @@ public static class WyvernVfxBuilder
                 float ring = Mathf.Exp(-((d - r0) * (d - r0)) / (w * w));
                 float fill = d < r0 ? 0.12f * (1f - d / r0) : 0f;
                 float a = (d > 1f) ? 0f : Mathf.Clamp01(ring + fill);
-                tex.SetPixel(x, y, new Color(a, a, a, a));
+                tex.SetPixel(x, y, new Color(a, a, a, a));   // rgb/alpha 둘 다 링 모양(전용셰이더=alpha 마스크 / 폴백 additive=rgb 모양 - 양쪽 대응)
             }
         }
         tex.Apply();

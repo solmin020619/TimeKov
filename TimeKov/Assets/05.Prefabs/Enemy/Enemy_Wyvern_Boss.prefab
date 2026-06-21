@@ -2220,6 +2220,7 @@ MonoBehaviour:
   slamVfx: {fileID: 2706747961771293480, guid: 22b38d55e26272348a300b5f822bc681, type: 3}
   diveRange: 16
   diveCooldown: 11
+  divePrepTime: 0.35
   diveRiseTime: 0.5
   diveHoverTime: 0.6
   diveDropTime: 0.28
@@ -2227,7 +2228,10 @@ MonoBehaviour:
   diveRecover: 0.8
   diveRadius: 3.5
   diveDmgMul: 2.4
-  diveState: FinishBite
+  diveTakeoffState: TakeOff
+  diveHoverState: FlyHover
+  diveFallState: DiveFall
+  diveLandState: Landing
   telegraphVfx: {fileID: 8925826001229388022, guid: 78c1b471382148c4e80f15bc455e4b23, type: 3}
   roarState: Roar
   roarBuildup: 0.6
