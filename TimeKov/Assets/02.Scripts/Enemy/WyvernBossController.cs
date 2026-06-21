@@ -70,10 +70,14 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private float enrageCdMul = 0.8f;     // 포효마다 공격 쿨 x (누적, 빨라짐)
     [SerializeField] private float enrageSpeedMul = 1.15f; // 포효마다 이속 x (누적)
 
-    [Header("페이즈3 진입 체력 회복 (1회, 무적+웅크림)")]
+    [Header("페이즈3 진입 체력 회복 (1회, 무적+공중부양)")]
     [SerializeField] private float healDuration = 2.5f;    // 회복 지속(파바바박 차오름)
     [SerializeField] private float healPercent = 0.25f;    // maxHP의 비율만큼 회복
-    [SerializeField] private string healState = "Heal";    // 웅크림/충전 애니(컨트롤러에 추가)
+    [SerializeField] private int healTicks = 12;           // 회복 분할 틱(파바바박 = 한 칸씩 점프)
+    [SerializeField] private float healPulseScale = 1.08f; // 틱마다 박동 크기(1=없음, 플레이어 인식용)
+    [SerializeField] private string healState = "Heal";    // 회복 애니(포효 재사용)
+    [SerializeField] private float healRiseHeight = 3f;    // 회복 중 살짝 떠오르는 높이('공중에서 쉬는' 느낌)
+    [SerializeField] private float healRiseTime = 0.45f;   // 떠오름/내려옴 시간
     [SerializeField] private GameObject healVfx;           // 충전 연출(선택)
 
     [Header("애니메이터 (전용 컨트롤러 상태명)")]
@@ -560,7 +564,8 @@ public class WyvernBossController : MonoBehaviour
         if (AgentReady()) _agent.isStopped = false;
     }
 
-    // 페이즈3 진입 시 1회 체력 회복: 무적 + 웅크림 애니 + HP 파바바박 차오름(회복 중 딜 안 들어감).
+    // 페이즈3 진입 시 1회 체력 회복: 무적 + 포효 애니 + 살짝 떠올라 '쉬는' 느낌 + HP 파바바박 차오름(회복 중 딜 안 들어감).
+    // 띄우기는 agent.baseOffset 으로(에이전트/네비메시 안 끔 = 안전). 회복 끝나면 원래 높이 복귀.
     private IEnumerator HealPhase()
     {
         _attacking = true;
@@ -570,23 +575,56 @@ public class WyvernBossController : MonoBehaviour
         _feedback?.PlayAttack();
         if (_health != null) _health.Invulnerable = true;
 
+        float baseOff = _agent != null ? _agent.baseOffset : 0f;
         GameObject vfx = (healVfx != null) ? Instantiate(healVfx, transform.position, transform.rotation) : null;
 
+        yield return RaiseAgent(baseOff, baseOff + healRiseHeight, healRiseTime);   // 살짝 떠오름
+
+        // 분할 틱으로 파바바박 차오름 + 틱마다 박동(스케일 펄스) = 플레이어가 회복을 인식
         float start = _health != null ? _health.currentHP : 0f;
         float target = _health != null ? Mathf.Min(_health.maxHP, start + _health.maxHP * healPercent) : 0f;
-        float t = 0f;
-        while (t < healDuration)
+        int ticks = Mathf.Max(1, healTicks);
+        float perTick = (target - start) / ticks;
+        float tickGap = healDuration / ticks;
+        Vector3 baseScale = transform.localScale;
+        for (int i = 0; i < ticks && !_dead; i++)
         {
-            t += Time.deltaTime;
-            if (_health != null) _health.currentHP = Mathf.Lerp(start, target, Mathf.Clamp01(t / healDuration));
-            yield return null;
+            if (_health != null) _health.currentHP = Mathf.Min(target, _health.currentHP + perTick);   // 한 칸 차오름(파박)
+            transform.localScale = baseScale * healPulseScale;   // 순간 부풀림
+            float e = 0f;
+            while (e < tickGap)                                   // gap 동안 원래대로 수축 = 박동
+            {
+                e += Time.deltaTime;
+                transform.localScale = Vector3.Lerp(baseScale * healPulseScale, baseScale, Mathf.Clamp01(e / tickGap));
+                yield return null;
+            }
         }
-        if (_health != null) { _health.currentHP = target; _health.Invulnerable = false; }
+        transform.localScale = baseScale;
+        if (_health != null) _health.currentHP = target;
+
+        yield return RaiseAgent(baseOff + healRiseHeight, baseOff, healRiseTime);   // 다시 내려옴
+        if (_agent != null) _agent.baseOffset = baseOff;
+
+        if (_health != null) _health.Invulnerable = false;
         if (vfx != null) Destroy(vfx);
-        PlayState("Idle");   // 웅크림 -> 평상
+        PlayState("Idle");
 
         _attacking = false;
         if (AgentReady()) _agent.isStopped = false;
+    }
+
+    // agent.baseOffset 을 from->to 로 부드럽게(회복 중 공중부양/착지). 네비메시 위치는 유지.
+    private IEnumerator RaiseAgent(float from, float to, float time)
+    {
+        if (_agent == null || time <= 0f) { if (_agent != null) _agent.baseOffset = to; yield break; }
+        float t = 0f;
+        while (t < time)
+        {
+            t += Time.deltaTime;
+            _agent.baseOffset = Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / time)));
+            yield return null;
+        }
+        _agent.baseOffset = to;
     }
 
     // 포효마다 공격/이동이 빨라짐(누적)
