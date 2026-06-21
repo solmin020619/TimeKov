@@ -6,7 +6,7 @@ using UnityEngine.AI;
 // 기존 BT(BehaviorGraph)/EnemyBrain은 건드리지 않고(취약), 그 글루(Data 동기화/Speed 파라미터/타게팅/회전)만 직접 복제.
 // 재사용 컴포넌트: EnemyHealth(피해/사망), EnemyFeedback(피격/사망 연출), NavMeshAgent, Animator(WyvernBoss 전용 컨트롤러).
 // 공격은 상태 이름으로 CrossFade 재생(전용 컨트롤러에 공격별 상태 존재).
-// [Stage 1] 추적+물기+사망 [Stage 2] 원거리 파이어볼 [Stage 3] 근접 패턴(물기/꼬리침/화염방사/강타)+텔레그래프.
+// [Stage 1] 추적+물기+사망 [Stage 2] 원거리 파이어볼 [Stage 3] 근접(물기/꼬리침) + 라이트필러 분출 + 공중 다이브 강타(올라갔다 내려찍기). 분출/다이브는 지면 범위 텔레그래프 후 발동.
 // 공격 시작 시 방향 커밋(추적 정지) -> dash로 옆/뒤 회피 가능. 강타는 긴 윈드업=읽히는 텔레그래프.
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(EnemyHealth))]
@@ -25,8 +25,32 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private float fireballWindup = 0.55f;
     [SerializeField] private float fireballRecover = 0.7f;
 
-    [Header("화염방사 VFX (SpreadFire 시 정면 분사)")]
-    [SerializeField] private GameObject spreadFireVfx;
+    [Header("분출 공격 (라이트필러, 플레이어 위치 조준 - 브레스 대체)")]
+    [SerializeField] private GameObject eruptionVfx;            // FX_LightPillar 래퍼
+    [SerializeField] private float eruptionRange = 14f;         // 이 사거리 안이면 사용
+    [SerializeField] private float eruptionCooldown = 7f;
+    [SerializeField] private float eruptionWindup = 0.6f;       // 시전 -> 스폰
+    [SerializeField] private float eruptionTelegraph = 0.6f;    // 스폰 -> 데미지(이 사이 피하면 회피)
+    [SerializeField] private float eruptionRecover = 0.7f;
+    [SerializeField] private float eruptionRadius = 2.5f;       // 솟구침 명중 반경
+    [SerializeField] private float eruptionDmgMul = 1.2f;       // x attackDamage
+    [SerializeField] private string eruptionState = "SpreadFire";   // 기존 브레스 애니 재사용
+
+    [Header("공중 다이브 강타 (FinishBite 대체 - 올라갔다 내려찍기)")]
+    [SerializeField] private GameObject slamVfx;               // FX_Weapon Effect 래퍼(착지 임팩트)
+    [SerializeField] private float diveRange = 16f;            // 이 사거리 안이면 사용
+    [SerializeField] private float diveCooldown = 11f;
+    [SerializeField] private float diveRiseTime = 0.5f;        // 상승
+    [SerializeField] private float diveHoverTime = 0.6f;       // 정점 체공(범위 텔레그래프 시간)
+    [SerializeField] private float diveDropTime = 0.28f;       // 급강하
+    [SerializeField] private float diveHeight = 7f;            // 상승 높이
+    [SerializeField] private float diveRecover = 0.8f;
+    [SerializeField] private float diveRadius = 3.5f;          // 착지 충격 반경
+    [SerializeField] private float diveDmgMul = 2.4f;          // x attackDamage
+    [SerializeField] private string diveState = "FinishBite";  // 기존 강타 애니 재사용
+
+    [Header("범위 텔레그래프 (분출/다이브 발동 전 지면 표시)")]
+    [SerializeField] private GameObject telegraphVfx;          // 지면 링 인디케이터(자체 제작)
 
     [Header("포효 페이즈 (HP 66%/33%서 포효 -> 디버프 + 광폭화)")]
     [SerializeField] private string roarState = "Roar";
@@ -46,14 +70,11 @@ public class WyvernBossController : MonoBehaviour
     private struct AtkDef
     {
         public string state; public float reachMul, halfAngle, windup, recover, dmgMul, cd, weight;
-        public bool spreadFx;
     }
     private static readonly AtkDef[] MeleeAttacks =
     {
-        new AtkDef { state="Bite",       reachMul=1.0f, halfAngle=50f, windup=0.45f, recover=0.5f, dmgMul=1.0f, cd=2.0f, weight=3f, spreadFx=false },
-        new AtkDef { state="Stinger",    reachMul=1.4f, halfAngle=70f, windup=0.50f, recover=0.6f, dmgMul=0.9f, cd=3.5f, weight=2f, spreadFx=false },
-        new AtkDef { state="SpreadFire", reachMul=1.2f, halfAngle=95f, windup=0.70f, recover=0.7f, dmgMul=0.8f, cd=6.0f, weight=2f, spreadFx=true  },
-        new AtkDef { state="FinishBite", reachMul=1.3f, halfAngle=40f, windup=1.00f, recover=1.2f, dmgMul=2.2f, cd=9.0f, weight=1f, spreadFx=false },
+        new AtkDef { state="Bite",    reachMul=1.0f, halfAngle=50f, windup=0.45f, recover=0.5f, dmgMul=1.0f, cd=2.0f, weight=3f },
+        new AtkDef { state="Stinger", reachMul=1.4f, halfAngle=70f, windup=0.50f, recover=0.6f, dmgMul=0.9f, cd=3.5f, weight=2f },
     };
     private const float MeleeMaxReachMul = 1.4f;   // 근접 고려 최대 사거리(가장 긴 reachMul)
     private const float MeleeGap = 0.45f;          // 근접 공격 간 최소 간격
@@ -74,6 +95,9 @@ public class WyvernBossController : MonoBehaviour
     private bool _attacking;
     private float _rangedCd;
     private float _meleeGapCd;
+    private float _eruptCd = 3f;        // 분출 쿨(초기 약간 지연 = 교전 직후 바로 안 나옴)
+    private float _diveCd = 6f;         // 공중 다이브 쿨(초기 지연)
+    private bool _diving;               // 다이브 중(에이전트 끈 상태) - 포효/사망 중단 시 복구 필요
     private float[] _atkCd;
     private bool[] _roared;
     private bool _engaged;              // 교전 시작(보스바 1회 표시)
@@ -128,6 +152,7 @@ public class WyvernBossController : MonoBehaviour
     private void HandleDeath()
     {
         _dead = true;
+        if (_diving) EndDiveCleanup();   // 다이브 중 사망 시 공중에 멈추지 않게 복구
         StopAllCoroutines();
         StopMove();
     }
@@ -145,8 +170,8 @@ public class WyvernBossController : MonoBehaviour
         if (_dead) return;
         if (_player == null) AcquirePlayer();
 
-        if (_animator != null && _agent != null)
-            _animator.SetFloat(_speedHash, _agent.velocity.magnitude);
+        if (_animator != null && _agent != null && _agent.isActiveAndEnabled)
+            _animator.SetFloat(_speedHash, _agent.velocity.magnitude);   // 다이브 중 에이전트 비활성이면 스킵
 
         TickCooldowns();
         CheckRoarPhase();
@@ -163,6 +188,20 @@ public class WyvernBossController : MonoBehaviour
 
         float dist = PlanarDistance(target.position);
         float meleeMax = data.attackRange * MeleeMaxReachMul;
+
+        // 분출(라이트필러) - 쿨 차고 사거리 안이면 우선(플레이어 위치 조준 지면 공격)
+        if (_eruptCd <= 0f && eruptionVfx != null && dist <= eruptionRange)
+        {
+            StartCoroutine(EruptionAttack());
+            return;
+        }
+
+        // 공중 다이브 강타 - 쿨 차고 사거리 안이면
+        if (_diveCd <= 0f && slamVfx != null && dist <= diveRange)
+        {
+            StartCoroutine(DiveSlam());
+            return;
+        }
 
         if (dist <= meleeMax)
         {
@@ -187,6 +226,8 @@ public class WyvernBossController : MonoBehaviour
         float dt = Time.deltaTime;
         if (_rangedCd > 0f) _rangedCd -= dt;
         if (_meleeGapCd > 0f) _meleeGapCd -= dt;
+        if (_eruptCd > 0f) _eruptCd -= dt;
+        if (_diveCd > 0f) _diveCd -= dt;
         for (int i = 0; i < _atkCd.Length; i++)
             if (_atkCd[i] > 0f) _atkCd[i] -= dt;
     }
@@ -262,9 +303,6 @@ public class WyvernBossController : MonoBehaviour
 
         yield return new WaitForSeconds(a.windup);
 
-        if (a.spreadFx && spreadFireVfx != null)
-            Instantiate(spreadFireVfx, transform.TransformPoint(fireOffset), transform.rotation);
-
         if (!_dead && _playerStat != null &&
             PlayerInArc(data.attackRange * a.reachMul + 1f, a.halfAngle))
             _playerStat.TakeDamage(data.attackDamage * a.dmgMul, transform.position);
@@ -296,6 +334,136 @@ public class WyvernBossController : MonoBehaviour
         if (AgentReady()) _agent.isStopped = false;
     }
 
+    // 분출 공격: 플레이어 위치 스냅샷 -> 지면 범위 텔레그래프 먼저 -> 그 자리서 라이트필러 "팡" 솟구침 + 범위 데미지.
+    // 범위 표시 동안 빠져나가면 회피(보스전식 지면 조준 = 브레스 대체).
+    private IEnumerator EruptionAttack()
+    {
+        _attacking = true;
+        StopMove();
+        if (_player != null) FaceInstant(_player.position);
+        PlayState(eruptionState);
+        _feedback?.PlayAttack();
+
+        yield return new WaitForSeconds(eruptionWindup);
+
+        // 대상 지점 스냅샷 + 범위 텔레그래프(아직 데미지 없음)
+        Vector3 spot = _player != null ? _player.position : transform.position + transform.forward * 4f;
+        spot.y = transform.position.y;   // 지면 높이(보스 발 기준)
+        SpawnTelegraph(spot, eruptionRadius, eruptionTelegraph);
+
+        yield return new WaitForSeconds(eruptionTelegraph);   // 범위 표시 동안 회피 시간
+
+        // "팡" - 솟구침 + 데미지 동시
+        if (!_dead)
+        {
+            if (eruptionVfx != null) Instantiate(eruptionVfx, spot, Quaternion.identity);
+            if (_playerStat != null && !_playerStat.IsDead && _player != null)
+            {
+                Vector3 to = _player.position - spot; to.y = 0f;
+                if (to.sqrMagnitude <= eruptionRadius * eruptionRadius)
+                {
+                    float dmg = data != null ? data.attackDamage * eruptionDmgMul : 20f;
+                    _playerStat.TakeDamage(dmg, spot);
+                }
+            }
+        }
+
+        yield return new WaitForSeconds(eruptionRecover);
+        _attacking = false;
+        _eruptCd = eruptionCooldown * _enrageCd;
+        if (AgentReady()) _agent.isStopped = false;
+    }
+
+    // 공중 다이브 강타: 상승 -> 정점 체공(착지 지점 범위 텔레그래프) -> 급강하 -> 착지 임팩트 + 범위 데미지.
+    // 수직 이동 위해 NavMeshAgent 잠깐 끔(베이크/BT 무관, 런타임 제어만) -> 착지 시 Warp 로 네비메시 재동기화.
+    private IEnumerator DiveSlam()
+    {
+        _attacking = true;
+        _diving = true;
+        StopMove();
+        if (_player != null) FaceInstant(_player.position);
+        PlayState(diveState);
+        _feedback?.PlayAttack();
+
+        Vector3 start = transform.position;
+        if (_agent != null && _agent.enabled) { _agent.isStopped = true; _agent.ResetPath(); _agent.enabled = false; }
+
+        // 1) 제자리 상승
+        Vector3 apexUp = start + Vector3.up * diveHeight;
+        yield return MoveBetween(start, apexUp, diveRiseTime);
+
+        // 2) 착지 지점(플레이어) 스냅샷 + 지면 범위 텔레그래프 + 그 '상공'으로 이동(체공=조준)
+        Vector3 land = _player != null ? _player.position : start;
+        if (NavMesh.SamplePosition(land, out var navHit, 5f, NavMesh.AllAreas)) land = navHit.position;
+        else land = new Vector3(land.x, start.y, land.z);
+        Vector3 over = new Vector3(land.x, land.y + diveHeight, land.z);   // 착지점 바로 위
+        SpawnTelegraph(land, diveRadius, diveHoverTime + diveDropTime);
+        FaceInstant(land);
+        yield return MoveBetween(apexUp, over, diveHoverTime);
+
+        // 3) 수직 급강하 (착지점 상공 -> 착지점) = 표시된 범위에 내려찍기
+        yield return MoveBetween(over, land, diveDropTime);
+        transform.position = land;
+
+        // 4) 착지 임팩트 + 범위 데미지
+        if (slamVfx != null) Instantiate(slamVfx, land, Quaternion.identity);
+        if (!_dead && _playerStat != null && !_playerStat.IsDead && _player != null)
+        {
+            Vector3 to = _player.position - land; to.y = 0f;
+            if (to.sqrMagnitude <= diveRadius * diveRadius)
+            {
+                float dmg = data != null ? data.attackDamage * diveDmgMul : 30f;
+                _playerStat.TakeDamage(dmg, land);
+            }
+        }
+
+        // 5) 에이전트 재활성 + Warp 재동기화
+        if (_agent != null && !_agent.enabled) { _agent.enabled = true; _agent.Warp(land); }
+        _diving = false;
+
+        yield return new WaitForSeconds(diveRecover);
+        _attacking = false;
+        _diveCd = diveCooldown * _enrageCd;
+        if (AgentReady()) _agent.isStopped = false;
+    }
+
+    // from -> to 로 transform 부드럽게 이동(다이브 상승/급강하).
+    private IEnumerator MoveBetween(Vector3 from, Vector3 to, float time)
+    {
+        if (time <= 0f) { transform.position = to; yield break; }
+        float t = 0f;
+        while (t < time)
+        {
+            t += Time.deltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / time));
+            transform.position = Vector3.Lerp(from, to, k);
+            yield return null;
+        }
+        transform.position = to;
+    }
+
+    // 지면 범위 텔레그래프 링: spot 에 radius 크기로 띄우고 life 후 제거.
+    private void SpawnTelegraph(Vector3 spot, float radius, float life)
+    {
+        if (telegraphVfx == null) return;
+        var tg = Instantiate(telegraphVfx, spot, Quaternion.identity);
+        float d = Mathf.Max(0.1f, radius * 2f);
+        tg.transform.localScale = new Vector3(d, d, d);
+        Destroy(tg, life + 0.1f);
+    }
+
+    // 다이브 중단(포효/사망) 시 공중 보스를 지면으로 내려놓고 에이전트 재활성(안 하면 공중에 멈춤).
+    private void EndDiveCleanup()
+    {
+        _diving = false;
+        if (_agent == null || _agent.enabled) return;
+        Vector3 p = transform.position;
+        if (NavMesh.SamplePosition(p, out var hit, 10f, NavMesh.AllAreas)) p = hit.position;
+        transform.position = p;
+        _agent.enabled = true;
+        _agent.Warp(p);
+    }
+
     // HP 임계값(66%/33%) 도달 시 1회씩 포효 -> 디버프(화면 어둠+시간 가속) + 광폭화
     private void CheckRoarPhase()
     {
@@ -305,6 +473,7 @@ public class WyvernBossController : MonoBehaviour
         {
             if (_roared[i] || frac > RoarThresholds[i]) continue;
             _roared[i] = true;
+            if (_diving) EndDiveCleanup();   // 다이브 중이면 공중 보스 지면 복구(에이전트 재활성) 후 끊음
             StopAllCoroutines();   // 진행 중 공격 끊고 포효 우선
             _attacking = false;
             StartCoroutine(RoarPhase());

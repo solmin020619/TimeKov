@@ -1023,9 +1023,9 @@ public class CodexUI : MonoBehaviour
         var face = Make("Face", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
         face.sizeDelta = new Vector2(176f, 176f); face.anchoredPosition = new Vector2(88f, -106f);   // 큼직하게(가독성)
         Img(face, RoundedFallback(10), C32(208, 218, 230));   // 렌더 배경과 동일 톤(밝은 쿨 글래스)
-        // 위험도 등급 색 테두리 - 엘리트/보스는 크기 외 식별점 없으니 테두리 색+두께로 구분.
-        // 보스(5)=두껍고 강렬한 빨강, 엘리트(4)=중간, 일반=얇게.
-        float bw = tier >= 5 ? 6f : tier >= 4 ? 4f : 2.5f;
+        // 위험도 등급 색 테두리 - 엘리트/보스는 크기 외 식별점 없으니 테두리 '색'으로 구분.
+        // 두께는 전 몬스터 통일(중간값). 위험도 표현은 색만, 두께 차등 없음.
+        const float bw = 4f;
         Line(face, new Color(tierCol.r, tierCol.g, tierCol.b, 1f), bw);
         // 설정(프리팹)이 있으면 라이브 흉상, 없으면 실루엣 폴백
         if (!TryRenderPortrait(face, SelectedEntry()))

@@ -14,6 +14,10 @@ public class WyvernFireball : MonoBehaviour
     [Header("연출")]
     [SerializeField] private GameObject explodeVfx;     // 착탄 VFX (WyvernBossBuilder가 할당)
 
+    [Header("지형 충돌")]
+    [SerializeField] private LayerMask groundMask = 1 << 7;   // 기본 Ground(7). 터레인이 다른 레이어면 인스펙터서 조정.
+    [SerializeField] private float terrainHitRadius = 0.4f;   // 지형 충돌 판정 두께(SphereCast 반경)
+
     private float _damage;
     private Vector3 _dir;
     private Transform _target;
@@ -33,8 +37,19 @@ public class WyvernFireball : MonoBehaviour
     {
         if (_done) return;
         float dt = Time.deltaTime;
-        transform.position += _dir * (speed * dt);
+        Vector3 prev = transform.position;
+        Vector3 next = prev + _dir * (speed * dt);
+        transform.position = next;
         _timer += dt;
+
+        // 지형(터레인/건물 등) 충돌 -> 그 자리서 폭발(뚫고 지나가지 않게). 이번 프레임 이동구간을 SphereCast.
+        float step = (next - prev).magnitude;
+        if (step > 0f && Physics.SphereCast(prev, terrainHitRadius, _dir, out var hit, step, groundMask, QueryTriggerInteraction.Ignore))
+        {
+            transform.position = hit.point;
+            Explode();
+            return;
+        }
 
         // 플레이어 직격
         if (_target != null)

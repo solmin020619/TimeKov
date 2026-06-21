@@ -2208,7 +2208,27 @@ MonoBehaviour:
   rangedCooldown: 3.5
   fireballWindup: 0.55
   fireballRecover: 0.7
-  spreadFireVfx: {fileID: 868468853075218060, guid: 28aa90600df2fd9479eb5ccbc39a3fc1, type: 3}
+  eruptionVfx: {fileID: 683289275543633159, guid: e87089e33cb2fcd4c9a25bf2b6f2b74a, type: 3}
+  eruptionRange: 14
+  eruptionCooldown: 7
+  eruptionWindup: 0.6
+  eruptionTelegraph: 0.6
+  eruptionRecover: 0.7
+  eruptionRadius: 2.5
+  eruptionDmgMul: 1.2
+  eruptionState: SpreadFire
+  slamVfx: {fileID: 2706747961771293480, guid: 22b38d55e26272348a300b5f822bc681, type: 3}
+  diveRange: 16
+  diveCooldown: 11
+  diveRiseTime: 0.5
+  diveHoverTime: 0.6
+  diveDropTime: 0.28
+  diveHeight: 7
+  diveRecover: 0.8
+  diveRadius: 3.5
+  diveDmgMul: 2.4
+  diveState: FinishBite
+  telegraphVfx: {fileID: 8925826001229388022, guid: 78c1b471382148c4e80f15bc455e4b23, type: 3}
   roarState: Roar
   roarBuildup: 0.6
   roarRecover: 1
