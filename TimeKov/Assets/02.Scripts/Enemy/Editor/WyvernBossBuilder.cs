@@ -14,9 +14,10 @@ public static class WyvernBossBuilder
     const string SoPath        = "Assets/05.Prefabs/Enemy/SO/EnemyData_WyvernBoss.asset";
     const string PrefabPath    = "Assets/05.Prefabs/Enemy/Enemy_Wyvern_Boss.prefab";
     const string FireballPath  = "Assets/05.Prefabs/Enemy/Wyvern_Fireball.prefab";
-    const string VfxFireball   = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Fireball.prefab";
-    const string VfxExplosion  = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Explosion_Omni.prefab";
-    const string VfxFire       = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Fire.prefab";
+    // 불 VFX = 자체 제작 URP 프리팹(WyvernVfxBuilder 가 생성). Vefects 팩은 URP 비호환이라 폐기.
+    const string VfxFireball   = "Assets/12.VFX/WyvernFire/Wyvern_VFX_Fireball.prefab";
+    const string VfxExplosion  = "Assets/12.VFX/WyvernFire/Wyvern_VFX_Explosion.prefab";
+    const string VfxFire       = "Assets/12.VFX/WyvernFire/Wyvern_VFX_SpreadFire.prefab";
     const string BaseEnemyPath = "Assets/05.Prefabs/Enemy/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
 
     [MenuItem("Tools/Enemy/Build Wyvern Boss (prefab + SO)")]
@@ -113,7 +114,7 @@ public static class WyvernBossBuilder
         var sobj = new SerializedObject(ctrl);
         SetRef(sobj, "data", so);
         SetRef(sobj, "fireballPrefab", fireball);
-        SetRef(sobj, "spreadFireVfx", AssetDatabase.LoadAssetAtPath<GameObject>(VfxFire));
+        // 분출/강타 VFX(eruptionVfx/slamVfx)는 Tools>Enemy>Wire Eric VFX Into Wyvern 로 배선.
         sobj.ApplyModifiedProperties();
 
         WireRewards(go);   // 시간 흡수(보스 대량) + 아이템 드롭 + 도감 등록
