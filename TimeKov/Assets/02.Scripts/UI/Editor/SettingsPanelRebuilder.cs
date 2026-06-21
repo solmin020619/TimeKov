@@ -448,6 +448,13 @@ public static class SettingsPanelRebuilder
     {
         var row = CreateUIObject(label + "_Row", content);
 
+        // 엔드필드 레퍼런스의 "전체 너비 옅은 행 배경" — 모든 줄(드롭다운/슬라이더/세그먼트/키 리바인딩)에 동일하게 적용.
+        var rowBg = row.AddComponent<Image>();
+        rowBg.sprite = RoundedPillSprite();
+        rowBg.type = Image.Type.Sliced;
+        rowBg.color = new Color(1f, 1f, 1f, 0.005f);
+        rowBg.raycastTarget = false;
+
         var hlg = row.AddComponent<HorizontalLayoutGroup>();
         hlg.padding = new RectOffset(28, 28, 0, 0);
         hlg.childAlignment = TextAnchor.MiddleLeft;
@@ -519,16 +526,17 @@ public static class SettingsPanelRebuilder
     // 드롭다운 박스 + 펼침 목록을 다크 네이비 팔레트로 재도색
     private static void StyleDropdown(TMP_Dropdown dd)
     {
+        // 닫힌 박스도 펼침 목록(PillBg/PillText)과 같은 밝은 톤으로 통일 — 흰 배경 + 검은 텍스트.
         var rootImg = dd.GetComponent<Image>();
         if (rootImg != null)
         {
-            rootImg.color = ControlBg;
+            rootImg.color = PillBg;
             rootImg.sprite = RoundedPillSprite();
             rootImg.type = Image.Type.Sliced;
         }
 
         var label = dd.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
-        if (label != null) { label.color = TextPrimary; label.fontSize = 24f; ApplyFont(label); }
+        if (label != null) { label.color = PillText; label.fontSize = 24f; label.fontStyle = FontStyles.Bold; ApplyFont(label); }
         // 둥근 필 모양이 되면서 텍스트가 곡선 시작점에 너무 붙어 보여 왼쪽 여백을 한 칸 더 띄움.
         var labelRect = label?.GetComponent<RectTransform>();
         if (labelRect != null) labelRect.offsetMin = new Vector2(labelRect.offsetMin.x + 14f, labelRect.offsetMin.y);
@@ -536,7 +544,7 @@ public static class SettingsPanelRebuilder
         var arrowRt = dd.transform.Find("Arrow")?.GetComponent<RectTransform>();
         if (arrowRt != null) arrowRt.sizeDelta = new Vector2(24f, 24f);
         var arrow = dd.transform.Find("Arrow")?.GetComponent<Image>();
-        if (arrow != null) arrow.color = TextMuted;
+        if (arrow != null) arrow.color = PillText;
 
         var template = dd.transform.Find("Template");
         if (template == null) return;
@@ -551,6 +559,17 @@ public static class SettingsPanelRebuilder
 
         var itemBg = template.Find("Viewport/Content/Item/Item Background")?.GetComponent<Image>();
         if (itemBg != null) itemBg.color = PillBg;
+
+        // 현재 선택된 항목만 더 짙은 회색으로 강조 (레퍼런스: 사용자 설정 드롭다운 펼침 목록 참고)
+        var itemToggle = template.Find("Viewport/Content/Item")?.GetComponent<Toggle>();
+        if (itemBg != null && itemToggle != null)
+        {
+            var tint = template.Find("Viewport/Content/Item").gameObject.AddComponent<DropdownItemSelectedTint>();
+            tint.background = itemBg;
+            tint.toggle = itemToggle;
+            tint.selectedColor = new Color(0.62f, 0.62f, 0.62f, 1f);
+            tint.unselectedColor = PillBg;
+        }
 
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
         if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; ApplyFont(itemLabel); }
@@ -637,7 +656,7 @@ public static class SettingsPanelRebuilder
         var onLE = onBtnGO.AddComponent<LayoutElement>();
         onLE.flexibleWidth = 1f; onLE.preferredHeight = ControlHeight; onLE.minHeight = ControlHeight;
         var onTmp = onBtnGO.GetComponentInChildren<TextMeshProUGUI>();
-        if (onTmp != null) { onTmp.text = onText; onTmp.fontSize = 24f; ApplyFont(onTmp); }
+        if (onTmp != null) { onTmp.text = onText; onTmp.fontSize = 24f; onTmp.fontStyle = FontStyles.Bold; ApplyFont(onTmp); }
         var onImg = onBtnGO.GetComponent<Image>();
         if (onImg != null)
         {
@@ -653,7 +672,7 @@ public static class SettingsPanelRebuilder
         var offLE = offBtnGO.AddComponent<LayoutElement>();
         offLE.flexibleWidth = 1f; offLE.preferredHeight = ControlHeight; offLE.minHeight = ControlHeight;
         var offTmp = offBtnGO.GetComponentInChildren<TextMeshProUGUI>();
-        if (offTmp != null) { offTmp.text = offText; offTmp.fontSize = 24f; ApplyFont(offTmp); }
+        if (offTmp != null) { offTmp.text = offText; offTmp.fontSize = 24f; offTmp.fontStyle = FontStyles.Bold; ApplyFont(offTmp); }
         var offImg = offBtnGO.GetComponent<Image>();
         if (offImg != null)
         {
@@ -891,19 +910,10 @@ public static class SettingsPanelRebuilder
         return slider;
     }
 
-    // 키 바인딩 칩: 레퍼런스(단축키 화면)처럼 행 전체에 옅은 카드 배경 + 넓은 키 칩 + 얇은 중립색 외곽선
+    // 키 바인딩 칩: 레퍼런스(단축키 화면)처럼 행 전체에 옅은 카드 배경(CreateRow에서 공통 적용) + 넓은 키 칩 + 얇은 중립색 외곽선
     private static GlobalSettingsManager.RebindSlot CreateRebindRow(Transform content, string label, string actionId)
     {
         var row = CreateRow(content, label, out var slot);
-
-        var rowBg = row.AddComponent<Image>();
-        rowBg.sprite = RoundedPillSprite();
-        rowBg.type = Image.Type.Sliced;
-        // 이 프로젝트의 알파 블렌딩이 감마 보정된 듯 낮은 알파값도 훨씬 밝게 렌더링됨
-        // (alpha=0.045가 실제로는 ~0.2처럼 보임, alpha=0/0.5/1은 정상) — 육안으로 옅게
-        // 보이도록 코드값을 낮춰 보정.
-        rowBg.color = new Color(1f, 1f, 1f, 0.005f);
-        rowBg.raycastTarget = false;
 
         var btnGO = CreateUIElementViaMenu("GameObject/UI/Button - TextMeshPro", slot);
         FillSlot(btnGO, slot, 200f, 52f);
@@ -1133,7 +1143,7 @@ public static class SettingsPanelRebuilder
         var title = new GameObject("Title", typeof(RectTransform));
         title.transform.SetParent(panel.transform, false);
         var titleTmp = title.AddComponent<TextMeshProUGUI>();
-        titleTmp.text = "적용되지 않은 변경사항이 있습니다.";
+        titleTmp.text = "저장하지 않은 변경 사항이 있습니다.";
         titleTmp.fontSize = 26f;
         titleTmp.fontStyle = FontStyles.Bold;
         titleTmp.color = PillText;
@@ -1149,9 +1159,10 @@ public static class SettingsPanelRebuilder
         var subtitleGO = new GameObject("Subtitle", typeof(RectTransform));
         subtitleGO.transform.SetParent(panel.transform, false);
         var subtitleTmp = subtitleGO.AddComponent<TextMeshProUGUI>();
-        subtitleTmp.text = "'설정 적용'을 눌러야 변경사항이 저장됩니다.";
+        subtitleTmp.text = "저장하시겠습니까?";
         subtitleTmp.fontSize = 20f;
-        subtitleTmp.color = TextMuted;
+        // TextMuted는 다크 배경용 밝은 회색이라 이 모달의 밝은 PillBg 위에서는 거의 안 보임 — 어두운 회색으로.
+        subtitleTmp.color = new Color(0.42f, 0.42f, 0.45f, 1f);
         subtitleTmp.alignment = TextAlignmentOptions.Center;
         ApplyFont(subtitleTmp);
         var subtitleRect = subtitleGO.GetComponent<RectTransform>();
@@ -1161,34 +1172,64 @@ public static class SettingsPanelRebuilder
         subtitleRect.anchoredPosition = new Vector2(0f, -100f);
         subtitleRect.sizeDelta = new Vector2(0f, 30f);
 
-        var confirmGO = CreateUIObject("Btn_Confirm", panel.transform);
-        var confirmRect = confirmGO.GetComponent<RectTransform>();
-        confirmRect.anchorMin = new Vector2(0.5f, 0f);
-        confirmRect.anchorMax = new Vector2(0.5f, 0f);
-        confirmRect.pivot     = new Vector2(0.5f, 0f);
-        confirmRect.anchoredPosition = new Vector2(0f, 40f);
-        confirmRect.sizeDelta = new Vector2(180f, 56f);
-        var confirmImg = confirmGO.AddComponent<Image>();
-        confirmImg.sprite = RoundedPillSprite();
-        confirmImg.type = Image.Type.Sliced;
-        confirmImg.color = ControlBg;
-        var confirmBtn = confirmGO.AddComponent<Button>();
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(confirmBtn.onClick, mgr.DismissApplyWarning);
+        // "예" / "아니오" 버튼 — 가운데 기준으로 좌우에 나란히
+        var yesGO = CreateUIObject("Btn_Yes", panel.transform);
+        var yesRect = yesGO.GetComponent<RectTransform>();
+        yesRect.anchorMin = new Vector2(0.5f, 0f);
+        yesRect.anchorMax = new Vector2(0.5f, 0f);
+        yesRect.pivot     = new Vector2(1f, 0f);
+        yesRect.anchoredPosition = new Vector2(-10f, 40f);
+        yesRect.sizeDelta = new Vector2(170f, 56f);
+        var yesImg = yesGO.AddComponent<Image>();
+        yesImg.sprite = RoundedPillSprite();
+        yesImg.type = Image.Type.Sliced;
+        yesImg.color = AccentColor;
+        var yesBtn = yesGO.AddComponent<Button>();
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(yesBtn.onClick, mgr.ConfirmSaveAndClose);
 
-        var confirmLabelGO = new GameObject("Label", typeof(RectTransform));
-        confirmLabelGO.transform.SetParent(confirmGO.transform, false);
-        var confirmTmp = confirmLabelGO.AddComponent<TextMeshProUGUI>();
-        confirmTmp.text = "확인";
-        confirmTmp.fontSize = 22f;
-        confirmTmp.fontStyle = FontStyles.Bold;
-        confirmTmp.color = TextPrimary;
-        confirmTmp.alignment = TextAlignmentOptions.Center;
-        ApplyFont(confirmTmp);
-        var confirmLabelRect = confirmLabelGO.GetComponent<RectTransform>();
-        confirmLabelRect.anchorMin = Vector2.zero;
-        confirmLabelRect.anchorMax = Vector2.one;
-        confirmLabelRect.offsetMin = Vector2.zero;
-        confirmLabelRect.offsetMax = Vector2.zero;
+        var yesLabelGO = new GameObject("Label", typeof(RectTransform));
+        yesLabelGO.transform.SetParent(yesGO.transform, false);
+        var yesTmp = yesLabelGO.AddComponent<TextMeshProUGUI>();
+        yesTmp.text = "예";
+        yesTmp.fontSize = 22f;
+        yesTmp.fontStyle = FontStyles.Bold;
+        yesTmp.color = PillText; // 노란 액센트 배경 위라 어두운 텍스트로
+        yesTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(yesTmp);
+        var yesLabelRect = yesLabelGO.GetComponent<RectTransform>();
+        yesLabelRect.anchorMin = Vector2.zero;
+        yesLabelRect.anchorMax = Vector2.one;
+        yesLabelRect.offsetMin = Vector2.zero;
+        yesLabelRect.offsetMax = Vector2.zero;
+
+        var noGO = CreateUIObject("Btn_No", panel.transform);
+        var noRect = noGO.GetComponent<RectTransform>();
+        noRect.anchorMin = new Vector2(0.5f, 0f);
+        noRect.anchorMax = new Vector2(0.5f, 0f);
+        noRect.pivot     = new Vector2(0f, 0f);
+        noRect.anchoredPosition = new Vector2(10f, 40f);
+        noRect.sizeDelta = new Vector2(170f, 56f);
+        var noImg = noGO.AddComponent<Image>();
+        noImg.sprite = RoundedPillSprite();
+        noImg.type = Image.Type.Sliced;
+        noImg.color = ControlBg;
+        var noBtn = noGO.AddComponent<Button>();
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(noBtn.onClick, mgr.DiscardChangesAndClose);
+
+        var noLabelGO = new GameObject("Label", typeof(RectTransform));
+        noLabelGO.transform.SetParent(noGO.transform, false);
+        var noTmp = noLabelGO.AddComponent<TextMeshProUGUI>();
+        noTmp.text = "아니오";
+        noTmp.fontSize = 22f;
+        noTmp.fontStyle = FontStyles.Bold;
+        noTmp.color = TextPrimary;
+        noTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(noTmp);
+        var noLabelRect = noLabelGO.GetComponent<RectTransform>();
+        noLabelRect.anchorMin = Vector2.zero;
+        noLabelRect.anchorMax = Vector2.one;
+        noLabelRect.offsetMin = Vector2.zero;
+        noLabelRect.offsetMax = Vector2.zero;
 
         modal.SetActive(false);
         return modal;

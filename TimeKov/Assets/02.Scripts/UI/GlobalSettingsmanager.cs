@@ -219,8 +219,21 @@ public class GlobalSettingsManager : MonoBehaviour
         if (applyWarningModal != null) applyWarningModal.SetActive(false);
     }
 
-    // 경고 팝업의 "확인" 버튼에서 호출 (Editor가 persistent listener로 연결).
-    public void DismissApplyWarning() => HideApplyWarning();
+    // 경고 팝업의 "예" 버튼 — 변경사항을 적용(저장)하고 닫는다.
+    public void ConfirmSaveAndClose()
+    {
+        ApplySettings(); // _isDirty를 false로 만들고 경고창도 숨김
+        CloseSettings();
+    }
+
+    // 경고 팝업의 "아니오" 버튼 — 변경사항을 버리고(되돌리고) 닫는다.
+    public void DiscardChangesAndClose()
+    {
+        _pending = Clone(_data);
+        _isDirty = false;
+        HideApplyWarning();
+        CloseSettings();
+    }
 
     public void ToggleSettings()
     {
