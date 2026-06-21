@@ -3,36 +3,40 @@ using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// 와이번 지상 보스 프리팹 + 데이터 SO 자동 조립.
-/// 모델(Wyvern_PBR) + Wyvern_Override 애니 + EnemyHealth/EnemyFeedback/NavMeshAgent/콜라이더 + WyvernBossController를 한 번에.
-/// 기존 적 BT(EnemyBrain)는 안 붙임 - 보스는 전용 컨트롤러로 굴림.
+/// 와이번 지상 보스 풀세트 자동 조립: 전용 애니 컨트롤러 + 파이어볼 발사체 프리팹 + 보스 프리팹 + 데이터 SO.
+/// 기존 적 BT(EnemyBrain)는 안 붙임 - 보스는 전용 WyvernBossController로 굴림.
 /// 메뉴: Tools > Enemy > Build Wyvern Boss (prefab + SO)
 /// </summary>
 public static class WyvernBossBuilder
 {
-    const string ModelPath    = "Assets/03.Model/Enemy/10.Wyvern/Prefabs/Wyvern_PBR.prefab";
-    const string OverridePath = "Assets/03.Model/Enemy/10.Wyvern/Wyvern_Override.overrideController";
-    const string SoFolder     = "Assets/05.Prefabs/Enemy/SO";
-    const string SoPath       = "Assets/05.Prefabs/Enemy/SO/EnemyData_WyvernBoss.asset";
-    const string PrefabPath   = "Assets/05.Prefabs/Enemy/Enemy_Wyvern_Boss.prefab";
+    const string ModelPath     = "Assets/03.Model/Enemy/10.Wyvern/Prefabs/Wyvern_PBR.prefab";
+    const string SoFolder      = "Assets/05.Prefabs/Enemy/SO";
+    const string SoPath        = "Assets/05.Prefabs/Enemy/SO/EnemyData_WyvernBoss.asset";
+    const string PrefabPath    = "Assets/05.Prefabs/Enemy/Enemy_Wyvern_Boss.prefab";
+    const string FireballPath  = "Assets/05.Prefabs/Enemy/Wyvern_Fireball.prefab";
+    const string VfxFireball   = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Fireball.prefab";
+    const string VfxExplosion  = "Assets/Vefects/Anime Stylized VFX/Shared/Particles/VFX_Explosion_Omni.prefab";
 
     [MenuItem("Tools/Enemy/Build Wyvern Boss (prefab + SO)")]
     public static void Build()
     {
         if (!EditorUtility.DisplayDialog(
             "와이번 보스 생성",
-            "지상 보스 프리팹 + 데이터 SO를 만든다:\n" +
-            $"  - SO: {SoPath} (없으면 보스 기본값으로 생성, 있으면 수치 보존)\n" +
-            $"  - 프리팹: {PrefabPath}\n\n" +
-            "구성: Wyvern 모델 + Wyvern_Override 애니 + EnemyHealth/EnemyFeedback/NavMeshAgent/콜라이더 + WyvernBossController.\n" +
-            "(기존 적 BT는 안 붙임 - 전용 컨트롤러)\n\n계속?",
+            "지상 보스 풀세트를 만든다:\n" +
+            $"  - 전용 애니 컨트롤러(WyvernBoss.controller)\n" +
+            $"  - 파이어볼 발사체 프리팹({FireballPath})\n" +
+            $"  - 보스 프리팹({PrefabPath})\n" +
+            $"  - 데이터 SO({SoPath}, 없으면 보스 기본값/있으면 보존)\n\n" +
+            "기존 적 BT는 안 붙임 - 전용 컨트롤러.\n\n계속?",
             "생성", "취소")) return;
 
         var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
         if (modelPrefab == null) { Debug.LogError($"[WyvernBoss] 모델 프리팹 없음: {ModelPath}"); return; }
 
-        var overrideCtrl = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(OverridePath);
-        if (overrideCtrl == null) Debug.LogWarning($"[WyvernBoss] 오버라이드 컨트롤러 없음(애니 안 나올 수 있음): {OverridePath}");
+        // 0) 전용 애니 컨트롤러 보장
+        WyvernBossAnimatorBuilder.EnsureBuilt();
+        var ctrlAsset = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(WyvernBossAnimatorBuilder.CtrlPath);
+        if (ctrlAsset == null) Debug.LogWarning("[WyvernBoss] 애니 컨트롤러 로드 실패(애니 안 나올 수 있음)");
 
         // 1) 데이터 SO (보스 기본값. 밸런스는 종욱이 F7로 테스트하며 인스펙터서 튜닝)
         var so = AssetDatabase.LoadAssetAtPath<MeleeEnemyData>(SoPath);
@@ -40,8 +44,7 @@ public static class WyvernBossBuilder
         {
             EnsureFolder(SoFolder);
             so = ScriptableObject.CreateInstance<MeleeEnemyData>();
-            so.enemyName = "와이번";
-            so.enemyId = "wyvern_boss";
+            so.enemyName = "와이번"; so.enemyId = "wyvern_boss";
             so.maxHP = 800f;
             so.moveSpeed = 3.5f; so.acceleration = 14f; so.angularSpeed = 220f; so.stoppingDistance = 0f;
             so.visionRange = 30f; so.visionAngle = 360f;
@@ -53,7 +56,10 @@ public static class WyvernBossBuilder
             AssetDatabase.SaveAssets();
         }
 
-        // 2) 모델 인스턴스화 + 언팩(독립 프리팹으로)
+        // 2) 파이어볼 발사체 프리팹
+        var fireball = EnsureFireballPrefab();
+
+        // 3) 보스 프리팹 조립
         var go = (GameObject)PrefabUtility.InstantiatePrefab(modelPrefab);
         PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
         go.name = "Enemy_Wyvern_Boss";
@@ -62,11 +68,10 @@ public static class WyvernBossBuilder
         if (enemyLayer < 0) enemyLayer = 6;
         go.layer = enemyLayer;
 
-        // 애니메이터
         var animator = go.GetComponentInChildren<Animator>();
         if (animator != null)
         {
-            if (overrideCtrl != null) animator.runtimeAnimatorController = overrideCtrl;
+            if (ctrlAsset != null) animator.runtimeAnimatorController = ctrlAsset;
             animator.applyRootMotion = false;
         }
 
@@ -83,8 +88,7 @@ public static class WyvernBossBuilder
 
         var agent = GetOrAdd<NavMeshAgent>(go);
         agent.radius = Mathf.Clamp(bodyR, 0.5f, 2f);
-        agent.height = bodyH;
-        agent.baseOffset = 0f;
+        agent.height = bodyH; agent.baseOffset = 0f;
         agent.speed = so.moveSpeed; agent.acceleration = so.acceleration;
         agent.angularSpeed = so.angularSpeed;
         agent.stoppingDistance = Mathf.Max(0f, so.attackRange * so.attackApproachRatio);
@@ -105,10 +109,10 @@ public static class WyvernBossBuilder
 
         var ctrl = GetOrAdd<WyvernBossController>(go);
         var sobj = new SerializedObject(ctrl);
-        var dataProp = sobj.FindProperty("data");
-        if (dataProp != null) { dataProp.objectReferenceValue = so; sobj.ApplyModifiedProperties(); }
+        SetRef(sobj, "data", so);
+        SetRef(sobj, "fireballPrefab", fireball);
+        sobj.ApplyModifiedProperties();
 
-        // 3) 프리팹 저장
         PrefabUtility.SaveAsPrefabAsset(go, PrefabPath, out bool ok);
         Object.DestroyImmediate(go);
         AssetDatabase.SaveAssets();
@@ -119,13 +123,52 @@ public static class WyvernBossBuilder
 
         Debug.Log(
             $"[WyvernBoss] 생성 {(ok ? "완료" : "실패")}.\n" +
-            $"  프리팹: {PrefabPath}\n  SO: {SoPath} (HP {so.maxHP}, 공격 {so.attackDamage}, 사거리 {so.attackRange})\n\n" +
-            "다음 단계(종욱):\n" +
-            "1. 프리팹을 결계 밖 사냥터(NavMesh 베이크된 곳)에 배치.\n" +
-            "2. Play -> 다가가면 추적+물기, 때리면 피격/사망 애니 확인.\n" +
-            "3. 콜라이더(하늘색 캡슐)가 몸통에 안 맞으면 인스펙터서 조정.\n" +
-            "4. 애니가 T포즈면 Wyvern_Override에 클립 매핑 비어있는 것 -> EnemyOverrideControllerBuilder 재실행.\n" +
-            "5. 밸런스(HP/공격력/속도)는 EnemyData_WyvernBoss.asset에서 튜닝(F7로 코어 올려보며).");
+            $"  보스: {PrefabPath} (HP {so.maxHP}, 근접 {so.attackDamage}/{so.attackRange}m, 파이어볼 사거리 22m)\n" +
+            $"  파이어볼: {FireballPath}\n  컨트롤러: {WyvernBossAnimatorBuilder.CtrlPath}\n\n" +
+            "다음(종욱):\n" +
+            "1. 보스 프리팹을 결계 밖 사냥터(NavMesh 베이크된 곳) 배치.\n" +
+            "2. Play -> 멀면 파이어볼, 가까우면 물기. 때리면 사망 애니.\n" +
+            "3. 파이어볼 발사 위치 안 맞으면 WyvernBossController.fireOffset 조정(입 근처).\n" +
+            "4. 애니 T포즈면 Tools>Enemy>Build Wyvern Boss Animator 재실행.\n" +
+            "5. 밸런스는 EnemyData_WyvernBoss.asset / 파이어볼 수치는 컨트롤러 인스펙터.");
+    }
+
+    // 파이어볼 발사체 프리팹: 루트(WyvernFireball) + VFX_Fireball(자식 비주얼) + 착탄 VFX 할당
+    private static GameObject EnsureFireballPrefab()
+    {
+        var existing = AssetDatabase.LoadAssetAtPath<GameObject>(FireballPath);
+        if (existing != null) return existing;
+
+        var root = new GameObject("Wyvern_Fireball");
+        var fb = root.AddComponent<WyvernFireball>();
+
+        var vfxFb = AssetDatabase.LoadAssetAtPath<GameObject>(VfxFireball);
+        if (vfxFb != null)
+        {
+            var vis = (GameObject)PrefabUtility.InstantiatePrefab(vfxFb);
+            vis.transform.SetParent(root.transform, false);
+        }
+        else Debug.LogWarning($"[WyvernBoss] 파이어볼 VFX 없음: {VfxFireball}");
+
+        var vfxEx = AssetDatabase.LoadAssetAtPath<GameObject>(VfxExplosion);
+        if (vfxEx != null)
+        {
+            var sobj = new SerializedObject(fb);
+            SetRef(sobj, "explodeVfx", vfxEx);
+            sobj.ApplyModifiedProperties();
+        }
+        else Debug.LogWarning($"[WyvernBoss] 폭발 VFX 없음: {VfxExplosion}");
+
+        PrefabUtility.SaveAsPrefabAsset(root, FireballPath);
+        Object.DestroyImmediate(root);
+        return AssetDatabase.LoadAssetAtPath<GameObject>(FireballPath);
+    }
+
+    private static void SetRef(SerializedObject sobj, string prop, Object value)
+    {
+        var p = sobj.FindProperty(prop);
+        if (p != null) p.objectReferenceValue = value;
+        else Debug.LogWarning($"[WyvernBoss] 직렬화 필드 없음: {prop}");
     }
 
     private static T GetOrAdd<T>(GameObject go) where T : Component
