@@ -506,8 +506,8 @@ public static class SettingsPanelRebuilder
         rect.sizeDelta = new Vector2(width, height);
     }
 
-    private const float ControlWidth = 480f; // 드롭다운/세그먼트 컨트롤 표준 폭
-    private const float ControlHeight = 56f; // 드롭다운/세그먼트 컨트롤 표준 높이
+    private const float ControlWidth = 520f; // 드롭다운/세그먼트 컨트롤 표준 폭
+    private const float ControlHeight = 64f; // 드롭다운/세그먼트 컨트롤 표준 높이
 
     // 엔드필드 레퍼런스 팔레트 — 다크 올리브 + 옐로우 액센트
     // (이전 값은 B>G>R인 네이비톤이라 올리브가 아니라 청록빛 다크였음 — R>=G>B로 수정)
@@ -587,13 +587,17 @@ public static class SettingsPanelRebuilder
         }
 
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
-        if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; ApplyFont(itemLabel); }
+        // 닫힌 박스 라벨은 Bold인데 펼침 목록 항목 라벨엔 Bold가 빠져있어서 같은 폰트/크기인데도
+        // 더 얇아 보여 "폰트가 다른 것처럼" 보였음 — 닫힌 박스와 동일하게 Bold로 맞춤.
+        if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; itemLabel.fontStyle = FontStyles.Bold; ApplyFont(itemLabel); }
         var itemLabelRect = itemLabel?.GetComponent<RectTransform>();
         if (itemLabelRect != null) itemLabelRect.offsetMin = new Vector2(itemLabelRect.offsetMin.x + 14f, itemLabelRect.offsetMin.y);
 
         // 항목 행 높이가 기본값(20)에 묶여 있어 24pt 폰트가 한 줄을 다 못 채우고
         // 다음 행과 겹쳐 보임 — 행 높이를 키워 글자가 자연스럽게 들어가게 한다.
         // (TMP_Dropdown은 표시 시점에 이 Item의 sizeDelta.y를 행 간격으로 그대로 사용한다.)
+        // 닫힌 박스와 똑같은 높이(56)로 맞췄더니 항목이 하나뿐인 목록(화면 품질="Medium" 등)이
+        // 풍선처럼 과하게 커 보임 — 해상도 목록처럼 여러 줄이 촘촘하게 쌓이는 컴팩트한 높이로 되돌림.
         var item = template.Find("Viewport/Content/Item") as RectTransform;
         if (item != null) item.sizeDelta = new Vector2(item.sizeDelta.x, 44f);
 
@@ -705,6 +709,7 @@ public static class SettingsPanelRebuilder
     private static void CreateFooter(Transform parent, GlobalSettingsManager mgr)
     {
         const float btnWidth = 260f, btnHeight = 64f, spacing = 20f, y = 50f, edgePad = 40f;
+        const float mainMenuBtnWidth = 320f; // "메인 메뉴로 돌아가기"가 다른 버튼 라벨보다 길어서 더 넓게
 
         // 좌측 안내 문구 (레퍼런스의 "변경하고자 하는 키를 눌러서 선택해 주세요." 위치)
         var hintGO = new GameObject("Hint", typeof(RectTransform));
@@ -722,11 +727,14 @@ public static class SettingsPanelRebuilder
         hintTmp.alignment = TextAlignmentOptions.MidlineLeft;
         ApplyFont(hintTmp);
 
-        // 우측 알약 버튼 2개 (안쪽이 적용, 바깥쪽이 초기화)
+        // 우측 알약 버튼 3개 (안쪽부터 적용 → 초기화 → 메인 메뉴로 돌아가기)
         CreateFooterButton(parent, "Btn_Apply", "설정 적용", LoadKitIcon("T_icon_check.png"),
             -edgePad, y, btnWidth, btnHeight, mgr.ApplySettings);
+        // ResetAllToDefault()는 오디오/조작/그래픽/키바인딩을 전부 기본값으로 되돌린다.
         CreateFooterButton(parent, "Btn_Reset", "설정 초기화", LoadKitIcon("T_icon_refresh.png"),
-            -edgePad - btnWidth - spacing, y, btnWidth, btnHeight, mgr.ResetGraphicsToDefault);
+            -edgePad - btnWidth - spacing, y, btnWidth, btnHeight, mgr.ResetAllToDefault);
+        CreateFooterButton(parent, "Btn_MainMenu", "메인 메뉴로 돌아가기", LoadKitIcon("T_icon_quit.png"),
+            -edgePad - (btnWidth + spacing) * 2f, y, mainMenuBtnWidth, btnHeight, mgr.QuitToMainMenu);
     }
 
     private static readonly Color PillBg       = new Color(0.93f, 0.93f, 0.93f, 1f);
@@ -868,6 +876,23 @@ public static class SettingsPanelRebuilder
         slider.minValue = 0f;
         slider.maxValue = 1f;
         slider.value = 1f;
+
+        // 트랙을 얇은 3px 선으로 줄이면서 Background/Fill의 레이캐스트 영역도 그 3px로 줄어들어,
+        // 슬라이더 칸 안(40px 높이)이라도 그 가느다란 선에 정확히 클릭하지 않으면 아무 반응이 없었다.
+        // Slider는 클릭된 화면 좌표가 핸들 영역 안인지를 기하학적으로 판단해 드래그/점프를 결정하므로,
+        // 어떤 자식 그래픽이 레이를 받았는지는 무관 — 슬라이더 칸 전체를 덮는 투명 레이캐스트 캐처를
+        // 하나 깔아두면 트랙 어디를 클릭해도 그 위치로 값이 바로 점프한다.
+        var clickAreaGO = new GameObject("ClickArea", typeof(RectTransform));
+        clickAreaGO.transform.SetParent(sliderGO.transform, false);
+        clickAreaGO.transform.SetAsFirstSibling();
+        var clickAreaRt = clickAreaGO.GetComponent<RectTransform>();
+        clickAreaRt.anchorMin = Vector2.zero;
+        clickAreaRt.anchorMax = Vector2.one;
+        clickAreaRt.offsetMin = Vector2.zero;
+        clickAreaRt.offsetMax = Vector2.zero;
+        var clickAreaImg = clickAreaGO.AddComponent<Image>();
+        clickAreaImg.sprite = null;
+        clickAreaImg.color = new Color(0f, 0f, 0f, 0f);
 
         // 트랙: 얇은 회색 라인 (sprite=null, 단색만 사용)
         const float trackThickness = 3f;
@@ -1070,6 +1095,7 @@ public static class SettingsPanelRebuilder
         titleTmp.fontStyle = FontStyles.Bold;
         titleTmp.color = PillText;
         titleTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(titleTmp);
         var titleRect = title.GetComponent<RectTransform>();
         titleRect.anchorMin = new Vector2(0f, 1f);
         titleRect.anchorMax = new Vector2(1f, 1f);
@@ -1084,6 +1110,7 @@ public static class SettingsPanelRebuilder
         actionTmp.fontSize = 20f;
         actionTmp.color = TextMuted;
         actionTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(actionTmp);
         var actionRect = actionLabelGO.GetComponent<RectTransform>();
         actionRect.anchorMin = new Vector2(0f, 1f);
         actionRect.anchorMax = new Vector2(1f, 1f);
@@ -1112,6 +1139,7 @@ public static class SettingsPanelRebuilder
         keyTmp.fontStyle = FontStyles.Bold;
         keyTmp.color = PillText;
         keyTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(keyTmp);
         var keyDisplayRect = keyDisplayGO.GetComponent<RectTransform>();
         keyDisplayRect.anchorMin = Vector2.zero;
         keyDisplayRect.anchorMax = Vector2.one;
@@ -1151,6 +1179,7 @@ public static class SettingsPanelRebuilder
         escTmp.fontSize = 14f;
         escTmp.color = TextPrimary;
         escTmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(escTmp);
         var escTextRect = escTextGO.GetComponent<RectTransform>();
         escTextRect.anchorMin = Vector2.zero; escTextRect.anchorMax = Vector2.one;
         escTextRect.offsetMin = Vector2.zero; escTextRect.offsetMax = Vector2.zero;
@@ -1162,6 +1191,7 @@ public static class SettingsPanelRebuilder
         cancelTmp.fontSize = 18f;
         cancelTmp.color = PillText;
         cancelTmp.alignment = TextAlignmentOptions.MidlineLeft;
+        ApplyFont(cancelTmp);
         var cancelLE = cancelLabelGO.AddComponent<LayoutElement>();
         cancelLE.preferredWidth = 90f; cancelLE.flexibleWidth = 0f;
 
@@ -1214,9 +1244,10 @@ public static class SettingsPanelRebuilder
         subtitleGO.transform.SetParent(panel.transform, false);
         var subtitleTmp = subtitleGO.AddComponent<TextMeshProUGUI>();
         subtitleTmp.text = "저장하시겠습니까?";
-        subtitleTmp.fontSize = 20f;
-        // TextMuted는 다크 배경용 밝은 회색이라 이 모달의 밝은 PillBg 위에서는 거의 안 보임 — 어두운 회색으로.
-        subtitleTmp.color = new Color(0.42f, 0.42f, 0.45f, 1f);
+        subtitleTmp.fontSize = 22f;
+        subtitleTmp.fontStyle = FontStyles.Bold;
+        // 제목(Title)과 같은 진한 색 + Bold로 통일 — 기존엔 옅은 회색·얇은 글씨라 제목보다 훨씐 안 보였음.
+        subtitleTmp.color = PillText;
         subtitleTmp.alignment = TextAlignmentOptions.Center;
         ApplyFont(subtitleTmp);
         var subtitleRect = subtitleGO.GetComponent<RectTransform>();
