@@ -76,20 +76,48 @@ PrefabInstance:
       propertyPath: m_Name
       value: stone_2
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 6c4ba532c43d1334d86bda4fbd2d6e75, type: 3}
+      propertyPath: m_Layer
+      value: 7
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6c4ba532c43d1334d86bda4fbd2d6e75, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5065414577407330248}
+      addedObject: {fileID: 7968926103404472627}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6c4ba532c43d1334d86bda4fbd2d6e75, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4173733929080925496}
   m_SourcePrefab: {fileID: 100100000, guid: 6c4ba532c43d1334d86bda4fbd2d6e75, type: 3}
 --- !u!1 &7531493882201226731 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 6c4ba532c43d1334d86bda4fbd2d6e75, type: 3}
   m_PrefabInstance: {fileID: 7224992171255693498}
   m_PrefabAsset: {fileID: 0}
---- !u!64 &5065414577407330248
+--- !u!65 &7968926103404472627
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7531493882201226731}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.2, y: 0.2, z: 0.4}
+  m_Center: {x: 0, y: 0, z: 0.1680388}
+--- !u!64 &4173733929080925496
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
