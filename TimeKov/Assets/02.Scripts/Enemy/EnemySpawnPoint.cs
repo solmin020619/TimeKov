@@ -5,32 +5,29 @@ using UnityEngine.AI;
 
 /// <summary>
 /// BoxCollider 영역 기반 적 자동 스폰/리스폰 + 영역 내 순찰 시스템.
-/// - enemyPrefabs 중 랜덤 선택해서 maxAlive 명까지 스폰
-/// - 적이 죽으면 OnDeath 구독으로 카운트 감소 → respawnDelay 후 재스폰
-/// - 적별로 영역 안 NavMesh 점 N개 자동 생성 → EnemyBrain.SetPatrolPoints로 Blackboard 주입
+/// - spawnEntries(종류별 마리수/리스폰/엘리트 조건)대로 스폰. 항목별 maxCount 까지 유지.
+/// - 적이 죽으면 OnDeath 구독으로 카운트 감소 -> 그 항목 respawnDelay 후 재스폰
+/// - 엘리트는 일반몹 N킬 달성 시 해금되어 곧장 등장(첫 등장만 짧게), 이후 죽으면 항목 Respawn Delay로 재등장
+/// - 적별로 영역 안 NavMesh 점 N개 자동 생성 -> EnemyBrain.SetPatrolPoints 주입
 /// - Gizmo로 영역 시각화
 /// 사용:
-/// 1. 빈 GameObject 생성, BoxCollider 추가 (영역으로 사용)
-/// 2. EnemySpawnPoint 컴포넌트 추가
-/// 3. enemyPrefabs에 Enemy_*.prefab 드래그 (여러 개 OK, 랜덤 선택)
-/// 4. NavMesh 위에 영역 깔기
+/// 1. 빈 GameObject 생성 + BoxCollider(영역) + EnemySpawnPoint 컴포넌트
+/// 2. Spawn Entries 에 항목 추가: prefab / maxCount / respawnDelay / isElite / unlockAfterNormalKills
+///    (단일몹/보스도 항목 1개로: maxCount=1, isElite=false, unlockAfterNormalKills=0)
+/// 3. NavMesh 위에 영역 깔기
 /// </summary>
 [RequireComponent(typeof(BoxCollider))]
 public class EnemySpawnPoint : MonoBehaviour
 {
-    [Header("스폰할 적 프리팹 (랜덤 선택) - 레거시")]
-    [Tooltip("아래 '그룹 스폰'을 채우면 이 리스트는 무시된다.")]
-    [SerializeField] private List<GameObject> enemyPrefabs = new();
-
-    // 종류별 마리수/리스폰/엘리트 조건을 지정하는 그룹 스폰 항목.
+    // 종류별 마리수/리스폰/엘리트 조건을 지정하는 스폰 항목.
     [System.Serializable]
     public class SpawnEntry
     {
         [Tooltip("스폰할 적 프리팹")]
         public GameObject prefab;
-        [Tooltip("이 종류가 동시에 살아있을 최대 수 (엘리트=1, 쫄=4 식)")]
+        [Tooltip("이 종류가 동시에 살아있을 최대 수 (엘리트=1, 쫄=4 식. 단일몹/보스=1)")]
         [Min(1)] public int maxCount = 1;
-        [Tooltip("이 종류 사망 후 재스폰까지 대기(초). 엘리트는 길게.")]
+        [Tooltip("이 종류 사망 후 재스폰까지 대기(초). 엘리트/보스는 길게.")]
         public float respawnDelay = 5f;
         [Tooltip("엘리트 여부 (해금 조건/리스폰을 따로 적용)")]
         public bool isElite = false;
@@ -38,16 +35,12 @@ public class EnemySpawnPoint : MonoBehaviour
         public int unlockAfterNormalKills = 0;
     }
 
-    [Header("그룹 스폰 (엘리트+쫄: 종류별 마리수/리스폰/조건)")]
-    [Tooltip("비우면 위 enemyPrefabs(랜덤) 방식 그대로. 채우면 항목별로 동작(이때 enemyPrefabs/maxAlive 무시, respawnDelay는 항목값 사용).")]
+    [Header("스폰 항목 (종류별 마리수/리스폰/엘리트 조건)")]
+    [Tooltip("여기에 적을 추가한다. 단일몹/보스도 항목 1개(maxCount=1)로 넣으면 됨. 비우면 아무것도 안 나옴.")]
     [SerializeField] private List<SpawnEntry> spawnEntries = new();
 
-    [Header("동시 생존 / 리스폰")]
-    [Tooltip("동시에 살아있을 수 있는 최대 적 수")]
-    [SerializeField] private int maxAlive = 5;
-    [Tooltip("적 사망 후 다음 스폰까지 대기 시간(초)")]
-    [SerializeField] private float respawnDelay = 5f;
-    [Tooltip("시작 시 maxAlive까지 자동 스폰")]
+    [Header("초기 스폰")]
+    [Tooltip("시작 시 항목별 maxCount까지 자동 스폰(해금형 엘리트 제외 = 일반몹 처치 후 등장)")]
     [SerializeField] private bool spawnOnStart = true;
     [Tooltip("초기 스폰 시 한 마리당 간격(초). 동시 폭주 방지")]
     [SerializeField] private float initialSpawnInterval = 0.3f;
@@ -55,7 +48,7 @@ public class EnemySpawnPoint : MonoBehaviour
     [Header("순찰")]
     [Tooltip("적 한 마리당 자동 생성할 웨이포인트 수")]
     [SerializeField] private int patrolPointsPerEnemy = 4;
-    [Tooltip("랜덤 점 → NavMesh sample 시 허용 반경")]
+    [Tooltip("랜덤 점 -> NavMesh sample 시 허용 반경")]
     [SerializeField] private float navMeshSampleRadius = 5f;
     [Tooltip("0이면 영역 전체에서 순찰. >0이면 각 적의 스폰 지점 반경 내에서만 순찰. 맵 전체 같은 큰 박스에서 적이 멀리 안 가게 할 때 사용.")]
     [SerializeField] private float patrolRadius = 0f;
@@ -69,7 +62,7 @@ public class EnemySpawnPoint : MonoBehaviour
     [Header("지면 정렬 (Ground Snap)")]
     [Tooltip("영역 위에서 아래로 raycast해서 ground에 정확히 박기. NavMesh가 지면보다 살짝 떠있을 때 사용.")]
     [SerializeField] private bool snapToGround = true;
-    [Tooltip("Ground로 인식할 Layer. Everything이면 다른 적/콜라이더도 hit할 수 있음 → Ground/Terrain만 켜는 게 안전.")]
+    [Tooltip("Ground로 인식할 Layer. Everything이면 다른 적/콜라이더도 hit할 수 있음 -> Ground/Terrain만 켜는 게 안전.")]
     [SerializeField] private LayerMask groundMask = ~0;
 
     [Header("디버그")]
@@ -81,16 +74,14 @@ public class EnemySpawnPoint : MonoBehaviour
     private readonly List<BoxCollider> _excluders = new();
     private readonly List<GameObject> aliveEnemies = new();
     private readonly Dictionary<GameObject, List<GameObject>> enemyWaypoints = new();
-    private int pendingRespawns = 0;
 
-    // 그룹 스폰 런타임 추적
+    // 스폰 런타임 추적 (항목별)
     private int[] _aliveByEntry;
     private int[] _pendingByEntry;
     private int _normalKills;
     private readonly Dictionary<GameObject, int> _entryOf = new();
-    private bool UseEntries => spawnEntries != null && spawnEntries.Count > 0;
 
-    // TryGetRandomNavPos 마지막 호출에서 raycast로 찾은 ground 정보 (SpawnOne에서 baseOffset 보정용)
+    // TryGetRandomNavPos 마지막 호출에서 raycast로 찾은 ground 정보 (SpawnPrefab에서 baseOffset 보정용)
     private Vector3 _lastGroundPos;
     private bool _lastHasGround;
 
@@ -100,11 +91,9 @@ public class EnemySpawnPoint : MonoBehaviour
         area.isTrigger = true;
         BuildExcluders();
 
-        if (UseEntries)
-        {
-            _aliveByEntry = new int[spawnEntries.Count];
-            _pendingByEntry = new int[spawnEntries.Count];
-        }
+        int n = spawnEntries != null ? spawnEntries.Count : 0;
+        _aliveByEntry = new int[n];
+        _pendingByEntry = new int[n];
     }
 
     private void BuildExcluders()
@@ -141,38 +130,26 @@ public class EnemySpawnPoint : MonoBehaviour
     {
         if (!spawnOnStart) yield break;
 
-        // 그룹 스폰: 항목별로 maxCount 까지 초기 스폰(해금형 엘리트는 제외 = 일반몹 처치 후 등장)
-        if (UseEntries)
+        if (spawnEntries == null || spawnEntries.Count == 0)
         {
-            for (int i = 0; i < spawnEntries.Count; i++)
+            Debug.LogWarning($"[EnemySpawnPoint] {name}: Spawn Entries 비어있음 -> 아무것도 안 나옴. 적을 항목으로 추가하세요(단일몹/보스도 항목 1개).", this);
+            yield break;
+        }
+
+        // 항목별로 maxCount 까지 초기 스폰(해금형 엘리트는 제외 = 일반몹 처치 후 등장)
+        for (int i = 0; i < spawnEntries.Count; i++)
+        {
+            var e = spawnEntries[i];
+            if (e == null || e.prefab == null) continue;
+            if (e.isElite && e.unlockAfterNormalKills > 0) continue;
+            int want = Mathf.Max(1, e.maxCount);
+            for (int k = 0; k < want; k++)
             {
-                var e = spawnEntries[i];
-                if (e == null || e.prefab == null) continue;
-                if (e.isElite && e.unlockAfterNormalKills > 0) continue;
-                int want = Mathf.Max(1, e.maxCount);
-                for (int k = 0; k < want; k++)
-                {
-                    if (!CanSpawnEntry(i)) break;
-                    SpawnEntryOne(i);
-                    if (initialSpawnInterval > 0f)
-                        yield return new WaitForSeconds(initialSpawnInterval);
-                }
+                if (!CanSpawnEntry(i)) break;
+                SpawnEntryOne(i);
+                if (initialSpawnInterval > 0f)
+                    yield return new WaitForSeconds(initialSpawnInterval);
             }
-            yield break;
-        }
-
-        // 레거시: enemyPrefabs 랜덤으로 maxAlive 까지
-        if (enemyPrefabs == null || enemyPrefabs.Count == 0)
-        {
-            Debug.LogWarning($"[EnemySpawnPoint] {name}: enemyPrefabs 비어있음. 스폰 안 함.", this);
-            yield break;
-        }
-
-        for (int i = 0; i < maxAlive; i++)
-        {
-            SpawnOne();
-            if (initialSpawnInterval > 0f)
-                yield return new WaitForSeconds(initialSpawnInterval);
         }
     }
 
@@ -187,16 +164,7 @@ public class EnemySpawnPoint : MonoBehaviour
         }
     }
 
-    // 레거시(랜덤) 1마리 스폰
-    private void SpawnOne()
-    {
-        if (enemyPrefabs == null || enemyPrefabs.Count == 0) return;
-        var prefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Count)];
-        if (prefab == null) return;
-        SpawnPrefab(prefab, -1);
-    }
-
-    // 그룹 스폰 항목 1마리 스폰
+    // 스폰 항목 1마리 스폰
     private void SpawnEntryOne(int entryIndex)
     {
         if (entryIndex < 0 || entryIndex >= spawnEntries.Count) return;
@@ -206,7 +174,7 @@ public class EnemySpawnPoint : MonoBehaviour
             _aliveByEntry[entryIndex]++;
     }
 
-    // 공통 스폰 코어: 인스턴스화 + 이름정리 + 지면정렬 + 순찰주입 + 사망구독. entryIndex<0 = 레거시(랜덤).
+    // 공통 스폰 코어: 인스턴스화 + 이름정리 + 지면정렬 + 순찰주입 + 사망구독.
     private GameObject SpawnPrefab(GameObject prefab, int entryIndex)
     {
         if (prefab == null) return null;
@@ -235,7 +203,6 @@ public class EnemySpawnPoint : MonoBehaviour
             var agent = enemy.GetComponent<NavMeshAgent>();
             if (agent != null)
             {
-                float prevBaseOffset = agent.baseOffset;
                 float navMeshLiftFromGround = pos.y - _lastGroundPos.y;
                 agent.baseOffset = -navMeshLiftFromGround;
                 agent.Warp(_lastGroundPos);
@@ -273,15 +240,9 @@ public class EnemySpawnPoint : MonoBehaviour
             enemyWaypoints.Remove(enemy);
         }
 
-        // 레거시(랜덤) 경로
-        if (!UseEntries || entryIndex < 0 || entryIndex >= spawnEntries.Count)
-        {
-            pendingRespawns++;
-            StartCoroutine(RespawnAfterDelay());
-            return;
-        }
+        if (entryIndex < 0 || entryIndex >= spawnEntries.Count) return;   // 안전 가드(정리 콜백 등)
 
-        // 그룹 스폰 경로: 종류별 카운트 감소 + (일반몹이면) 킬 누적 -> 엘리트 해금 시도 + 종류별 리스폰
+        // 항목별 카운트 감소 + (일반몹이면) 킬 누적 -> 엘리트 해금 시도 + 항목별 리스폰
         _aliveByEntry[entryIndex] = Mathf.Max(0, _aliveByEntry[entryIndex] - 1);
         var e = spawnEntries[entryIndex];
         if (e != null && !e.isElite)
@@ -289,22 +250,14 @@ public class EnemySpawnPoint : MonoBehaviour
             _normalKills++;
             TryUnlockElites();
         }
-        float delay = e != null ? e.respawnDelay : respawnDelay;
+        float delay = e != null ? e.respawnDelay : 5f;
         StartCoroutine(RespawnEntryAfterDelay(entryIndex, delay));
     }
 
-    private IEnumerator RespawnAfterDelay()
-    {
-        yield return new WaitForSeconds(respawnDelay + Random.Range(0f, 2f));
-        if (aliveEnemies.Count + pendingRespawns - 1 < maxAlive)
-            SpawnOne();
-        pendingRespawns--;
-    }
-
-    // 그룹 스폰: 지금 즉시 스폰 가능한지(살아있는 수 < 최대 + 엘리트 해금 충족)
+    // 지금 즉시 스폰 가능한지(살아있는 수 < 최대 + 엘리트 해금 충족)
     private bool CanSpawnEntry(int i)
     {
-        if (!UseEntries || i < 0 || i >= spawnEntries.Count) return false;
+        if (i < 0 || i >= spawnEntries.Count) return false;
         var e = spawnEntries[i];
         if (e == null || e.prefab == null) return false;
         if (_aliveByEntry[i] >= Mathf.Max(1, e.maxCount)) return false;
@@ -315,7 +268,7 @@ public class EnemySpawnPoint : MonoBehaviour
     // 예약(코루틴)까지 고려해 자리 남았는지 — 중복 예약으로 maxCount 초과 방지
     private bool CanScheduleEntry(int i)
     {
-        if (!UseEntries || i < 0 || i >= spawnEntries.Count) return false;
+        if (i < 0 || i >= spawnEntries.Count) return false;
         var e = spawnEntries[i];
         if (e == null || e.prefab == null) return false;
         if (_aliveByEntry[i] + _pendingByEntry[i] >= Mathf.Max(1, e.maxCount)) return false;
