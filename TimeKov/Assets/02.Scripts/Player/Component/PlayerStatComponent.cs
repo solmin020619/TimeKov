@@ -209,6 +209,14 @@ public class PlayerStatComponent : MonoBehaviour
         if (CurrentHp <= 0f) OnDead?.Invoke();
     }
 
+    // 즉사 (물 빠짐 등). 무적/DEF/경직 전부 무시하고 바로 사망 흐름(OnDead) 발동.
+    public void Kill()
+    {
+        if (IsDead) return;
+        CurrentHp = 0f;
+        OnDead?.Invoke();
+    }
+
     // ���¹̳� ��� ȸ��
     public void RecoverStamina(float amount)
     {
