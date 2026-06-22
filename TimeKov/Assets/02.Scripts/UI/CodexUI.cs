@@ -158,11 +158,11 @@ public class CodexUI : MonoBehaviour
         if (_root != null && _root.gameObject.activeSelf) Refresh();
     }
 
-    // 도감 열려있을 때 F9 = 개발자 전부해금 토글(테스트용)
+    // 도감 열려있을 때 F5 = 개발자 전부해금 토글(테스트용). F9는 인벤 패널 스킨스왑과 충돌해서 F5로 이동.
     private void Update()
     {
         if (_root == null || !_root.gameObject.activeSelf) return;
-        if (Input.GetKeyDown(KeyCode.F9))
+        if (Input.GetKeyDown(KeyCode.F5))
         {
             _devUnlockAll = !_devUnlockAll;
             RebuildLists();
