@@ -38,6 +38,7 @@ public class SkillBarUI : MonoBehaviour
     private RectTransform _dashLockOverlay;
     private bool _dashUnlockPending;   // 해금 이벤트 수신 -> 막는 UI 닫힌 순간 연출 발동(트리거)
     private bool _dashUnlocking;       // 풀림 연출 진행 중(중복/재표시 방지)
+    private bool _registerFlashPending;   // 퀵슬롯 등록 수신 -> 인벤 닫혀 바 보이는 순간 칸 강조(트리거)
 
     // 표시/숨김 자가 관리(외부 페이더 의존 X). HUD와 동일 규칙: state==None일 때만 표시,
     // 결계 안에선 전투/대쉬/퀵슬롯/피격 시 잠깐 떴다가 다시 숨김, 결계 밖이면 항상.
@@ -109,6 +110,7 @@ public class SkillBarUI : MonoBehaviour
         {
             player.QuickSlot.OnUsed += HandleQuickUsed;
             player.QuickSlot.OnChanged += HandleQuickChanged;   // 등록/해제/재등록 시 바를 잠깐 띄움
+            GameEvents.OnQuickSlotRegistered += HandleQuickRegistered;   // 등록 순간 -> 인벤 닫혀 바 보일 때 칸 강조
         }
 
         _dashSlot = _slots.Find(s => s.kind == Kind.Dash);
@@ -287,6 +289,23 @@ public class SkillBarUI : MonoBehaviour
                 StartCoroutine(DashUnlockCelebration());
             }
         }
+
+        // 퀵슬롯 등록 직후 — 인벤 닫혀 바가 보이는 순간 칸을 한 번 강조(등록됐음을 인지).
+        if (_registerFlashPending)
+        {
+            var gui2 = GameUIController.Instance;
+            bool anyUI2 = gui2 != null && gui2.GetCurrentState() != GameUIController.UIState.None;
+            if (!anyUI2)
+            {
+                _registerFlashPending = false;
+                _showTimer = Mathf.Max(_showTimer, ShowHold);   // 강조 동안 바 유지
+                if (_quickSlot != null && _quickSlot.flash != null)
+                {
+                    if (_flashCo != null) StopCoroutine(_flashCo);
+                    _flashCo = StartCoroutine(FlashRoutine(_quickSlot));
+                }
+            }
+        }
     }
 
     // 플레이어 HUD와 동일하게: 다른 UI(인벤/공장/건축/퀘스트/설정/코어/상자)가 열리면 숨김.
@@ -398,6 +417,7 @@ public class SkillBarUI : MonoBehaviour
             _player.QuickSlot.OnUsed -= HandleQuickUsed;
             _player.QuickSlot.OnChanged -= HandleQuickChanged;
         }
+        GameEvents.OnQuickSlotRegistered -= HandleQuickRegistered;   // 정적 이벤트 누수 방지(조건 밖에서 항상 해제)
         PlayerDashComponent.OnDashUnlocked -= HandleDashUnlocked;
         PlayerDashComponent.OnDashBlocked -= HandleDashBlocked;
         GlobalSettingsManager.OnKeyBindingsChanged -= RefreshKeyLabels;
@@ -416,6 +436,10 @@ public class SkillBarUI : MonoBehaviour
 
     // 퀵슬롯 등록/해제 등 내용 변경 시 바를 잠깐 띄움(아이콘/배지 변화를 보이게).
     void HandleQuickChanged() => _showTimer = ShowHold;
+
+    // 퀵슬롯 등록 순간 — 이때는 인벤이 열려 바가 숨겨져 있으니 즉시 연출 안 함.
+    // 인벤이 닫혀 바가 보이는 순간(Update)에 칸을 한 번 강조한다(등록됐음을 인지).
+    void HandleQuickRegistered(int itemId) => _registerFlashPending = true;
 
     // 코어 1강으로 우클릭 대쉬가 해금되는 순간 — 즉시 연출하지 않고 대기 플래그만 세움.
     // 보통 이 순간 코어 패널이 떠 있어 바가 가려지므로, 패널 닫혀 바가 보일 때 Update가 발동(트리거).

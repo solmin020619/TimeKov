@@ -1066,7 +1066,7 @@ public class CodexUI : MonoBehaviour
             // 5마리 처치 완료 -> 빨강 [스탯 활성화] 버튼(클릭해 직접 해금)
             var pill = Make("stact", statArea, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
             pill.sizeDelta = new Vector2(240f, 46f); pill.anchoredPosition = new Vector2(120f, -74f);
-            RedActivateButton(pill, "스탯 활성화 (" + KillsForStats + "마리 처치 완료)",
+            RedActivateButton(pill, "스탯 공개",
                 () => { CodexDiscovery.ActivateStats(srcId); ToastManager.Success("스탯 공개"); Refresh(); });
         }
         else
@@ -1088,7 +1088,7 @@ public class CodexUI : MonoBehaviour
                 // 10마리 처치 완료 -> 빨강 [드롭 확률 활성화]
                 var pill = Make("ratact", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
                 pill.sizeDelta = new Vector2(196f, 40f); pill.anchoredPosition = new Vector2(282f, -225f);
-                RedActivateButton(pill, "드롭 확률 활성화",
+                RedActivateButton(pill, "확률 공개",
                     () => { CodexDiscovery.ActivateRates(srcId); ToastManager.Success("드롭 확률 공개"); Refresh(); });
             }
             else
@@ -1317,12 +1317,59 @@ public class CodexUI : MonoBehaviour
     private bool RecipeMastered(string recipeId)
         => _devUnlockAll || RecipeProgress.IsMastered(recipeId);
 
-    // 조건 달성 시 뜨는 "빨강 활성화 버튼"을 host(미리 배치된 RectTransform)에 만든다.
+    // 조건 달성 시 뜨는 "클릭 활성화 버튼"을 host(미리 배치된 RectTransform)에 만든다.
+    // 정적 라벨처럼 안 읽히게 = (1)왼쪽 [클릭] 키캡 칩 (2)호버 시 밝아짐+호버음 (3)미세 펄스 로 "누르라"를 명확히.
     private void RedActivateButton(RectTransform host, string label, UnityEngine.Events.UnityAction onClick)
     {
-        Img(host, RoundedFallback(9), C32(224, 96, 96));
-        Txt(host, label, 15f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
-        Btn(host, onClick);
+        var bg = Img(host, RoundedFallback(9), C32(224, 96, 96));
+        bg.raycastTarget = true;
+        Line(host, new Color(1f, 1f, 1f, 0.35f));   // 밝은 테두리 = 떠 있는 버튼 느낌
+
+        // 호버 밝힘 오버레이(레이아웃 제외, 풀사이즈) - Button ColorTint 타깃. 텍스트보다 뒤라 글씨는 또렷.
+        var hl = Make("hover", host, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        hl.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+        var hlImg = Img(hl, RoundedFallback(9), Color.white); hlImg.raycastTarget = false;
+
+        // [클릭칩] [라벨] 가로 배치
+        var hlg = host.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.childAlignment = TextAnchor.MiddleCenter; hlg.spacing = 8f;
+        hlg.padding = new RectOffset(10, 12, 0, 0);
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+
+        // [클릭] 키캡 칩 - 흰 라운드 칩 + 빨강 글씨(마우스로 누르는 대상임을 즉시 인지)
+        var chip = NewChild("clickchip", host);
+        var cle = chip.gameObject.AddComponent<LayoutElement>();
+        cle.minWidth = 46f; cle.preferredWidth = 46f; cle.minHeight = 30f; cle.preferredHeight = 30f;
+        Img(chip, RoundedFallback(7), new Color(1f, 1f, 1f, 0.92f)).raycastTarget = false;
+        Txt(chip, "클릭", 13f, FontStyles.Bold, C32(208, 70, 70), TextAlignmentOptions.Center);
+
+        var lbl = Txt(NewChild("lbl", host), label, 15f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
+        lbl.ForceMeshUpdate();
+
+        // 버튼(호버 시 밝아짐 = 인터랙티브 신호). targetGraphic = 오버레이.
+        var btn = host.gameObject.AddComponent<Button>();
+        btn.targetGraphic = hlImg;
+        btn.transition = Selectable.Transition.ColorTint;
+        var cb = btn.colors;
+        cb.normalColor      = new Color(1f, 1f, 1f, 0f);
+        cb.highlightedColor = new Color(1f, 1f, 1f, 0.22f);
+        cb.pressedColor     = new Color(1f, 1f, 1f, 0.34f);
+        cb.selectedColor    = new Color(1f, 1f, 1f, 0f);
+        cb.disabledColor    = new Color(1f, 1f, 1f, 0f);
+        cb.colorMultiplier  = 1f; cb.fadeDuration = 0.1f;
+        btn.colors = cb;
+        btn.onClick.AddListener(() => GameSfx.Play(SfxId.CodexClick));
+        btn.onClick.AddListener(onClick);
+
+        // 호버음(다른 클릭 셀과 동일 피드백)
+        var et = host.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+        var enter = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
+        enter.callback.AddListener(e => GameSfx.Play(SfxId.CodexHover));
+        et.triggers.Add(enter);
+
+        // 미세 펄스(정지 UI라 unscaled) - 눈에 띄어 "지금 누르라"를 환기
+        host.gameObject.AddComponent<UIPulseScale>();
     }
 
     // 레시피 제작 진행도(행 우측). 회색 N/10 -> (마스터)빨강[잭팟 활성화] -> (클릭)초록 잭팟 ON.
@@ -1341,9 +1388,9 @@ public class CodexUI : MonoBehaviour
         {
             var pill = Make("jp", box, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             pill.pivot = new Vector2(1f, 0.5f);   // 우측 정렬 -> 박스 안에 들어와 안 잘림(기본 0.5피벗이면 오른쪽 절반이 밖으로 삐져 클리핑)
-            pill.sizeDelta = new Vector2(138f, 40f); pill.anchoredPosition = new Vector2(-6f, 0f);
+            pill.sizeDelta = new Vector2(152f, 40f); pill.anchoredPosition = new Vector2(-6f, 0f);
             string rid = recipeId;
-            RedActivateButton(pill, "잭팟 활성화", () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success("잭팟 활성화! 제작마다 10% 확률로 2배 생산"); Refresh(); });
+            RedActivateButton(pill, "잭팟 ON", () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success("잭팟 활성화! 제작마다 10% 확률로 2배 생산"); Refresh(); });
         }
         else
             Txt(box, Mathf.Min(crafts, RecipeProgress.CraftsToMaster) + " / " + RecipeProgress.CraftsToMaster, 16f, FontStyles.Bold, C32(120, 128, 140), TextAlignmentOptions.Right);

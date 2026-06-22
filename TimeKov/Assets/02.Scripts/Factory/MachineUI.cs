@@ -537,7 +537,10 @@ public class MachineUI : MonoBehaviour
 
         if (_machine.Status == MachineStatus.NoFuel)
         {
-            statusText.text = "⚠ 연료 부족";                              // 연료 칸 위
+            // 연료 슬롯에 "연료 넣기" 프롬프트가 떠 있으면(연료 드래그/호버) 같은 자리에 겹치므로 그땐 경고를 숨긴다.
+            // (옛 경고기호는 Static 한글 폰트에 없어 깨진 네모로 떠서 텍스트만 남김 - 강조는 statusText 색으로.)
+            bool inserting = fuelDropSlot != null && fuelDropSlot.IsInsertPromptVisible;
+            statusText.text = inserting ? "" : "연료 부족";              // 연료 칸 위
             if (_processTimeText != null) _processTimeText.text = "";
         }
         else if (isSelectedRecipeActive)

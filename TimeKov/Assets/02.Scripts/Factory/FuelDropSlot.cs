@@ -201,6 +201,10 @@ public class FuelDropSlot : MonoBehaviour,
     /// <summary>이 슬롯이 받는 아이템 ID (연료).</summary>
     public int AcceptedItemId => FuelConfig.Instance != null ? FuelConfig.Instance.fuelItemId : -1;
 
+    /// <summary>"연료 넣기" 프롬프트(호버/드래그 강조)가 떠 있는지 = labelText 비어있지 않음.
+    /// MachineUI가 같은 자리의 "연료 부족" 경고와 겹치지 않게 조회한다.</summary>
+    public bool IsInsertPromptVisible => labelText != null && !string.IsNullOrEmpty(labelText.text);
+
     /// <summary>인벤토리에서 연료를 집어든 순간 드랍 대상임을 미리 강조한다.</summary>
     public void SetDragHighlight(bool on)
     {

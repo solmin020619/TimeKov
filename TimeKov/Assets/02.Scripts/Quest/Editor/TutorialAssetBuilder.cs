@@ -237,11 +237,11 @@ public static class TutorialAssetBuilder
                 new QuestSO.QuestReward { itemId = ItemSpiderVenom, amount = 1 },
                 new QuestSO.QuestReward { itemId = ItemCorrosive,   amount = 1 },
             },
-            CreateRailConnect("obj_rail_connect", $"{Y}생체 추출기{E}와 {Y}생체 배양기{E}를 {Y}레일{E}로 {Y}연결{E}하세요.", 1)));
+            CreateRailConnect("obj_rail_connect", $"{Y}생체 추출기{E}를 {Y}생체 배양기{E}에 {Y}레일{E}로 이어보세요.", 1)));
 
         quests.Add(BuildQuest("quest_tut_16b_rail_move", "레일 자동화 확인",
             CreateRailItemMove("obj_rail_move",
-                $"{Y}생체 추출기{E}에 재료를 넣어 가공하고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}자동 이동{E}하는지 확인하세요.", 1)));
+                $"{Y}생체 추출기{E}에 재료를 넣고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}저절로 넘어가는지{E} 확인하세요.", 1)));
 
         // ============================================================
         // 코어 강화 - 이동(보상 키트) -> [영상 안내 + 열기 + 강화] -> 결과/마무리

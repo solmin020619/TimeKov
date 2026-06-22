@@ -291,6 +291,7 @@ public class ContextMenuUI : MonoBehaviour
 
         player.QuickSlot.Register(itemId);
         Close();
+        InventoryUIController.Instance?.Close();   // 등록 후 인벤 닫기 -> 스킬바가 드러나며 퀵슬롯 칸 강조(SkillBarUI)가 보임
     }
 
     private void OnClickSplit()
