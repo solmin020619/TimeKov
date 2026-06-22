@@ -6,8 +6,8 @@
 // 게임 종료 버튼도 이 스크립트에서 처리
 //
 // 다른 스크립트(InGameAudioManager 등)는 OnBGMVolumeChanged/OnSFXVolumeChanged/
-// OnSensitivityChanged 이벤트와 CurrentBGMVolume/CurrentSFXVolume/CurrentSensitivity
-// static 프로퍼티만 참조한다 — 시그니처 바뀌면 그쪽도 깨지니 변경 시 주의.
+// OnSensitivityChanged/OnKeyBindingsChanged 이벤트와 CurrentBGMVolume/CurrentSFXVolume/
+// CurrentSensitivity static 프로퍼티만 참조한다 — 시그니처 바뀌면 그쪽도 깨지니 변경 시 주의.
 // =====================================================================
 
 using System;
@@ -25,6 +25,7 @@ public class GlobalSettingsManager : MonoBehaviour
     public static event Action<float> OnBGMVolumeChanged;
     public static event Action<float> OnSFXVolumeChanged;
     public static event Action<float> OnSensitivityChanged;
+    public static event Action OnKeyBindingsChanged;
 
     // 다른 스크립트의 PlayerPrefs 직접 읽기를 대체하는 정적 접근자 (effective 값 = master 적용 후)
     private static float _currentBGM = 1f;
@@ -292,6 +293,7 @@ public class GlobalSettingsManager : MonoBehaviour
         ApplyShadowQuality(data.shadowQualityLevel);
         ApplyTextureQuality(data.textureQualityLevel);
         KeyBindings.Apply(data.keyBindings);
+        OnKeyBindingsChanged?.Invoke(); // 스킬바 등 키 라벨을 직접 그리는 UI에게 리바인딩 결과를 알림
 
         _currentBGM = data.bgmVolume * data.masterVolume;
         _currentSFX = data.sfxVolume * data.masterVolume;

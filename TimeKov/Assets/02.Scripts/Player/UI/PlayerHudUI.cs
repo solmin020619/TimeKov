@@ -253,9 +253,8 @@ public class PlayerHudUI : MonoBehaviour
 
         var go = new GameObject("SkillBar", typeof(RectTransform));
         var bar = go.AddComponent<SkillBarUI>();
-        KeyCode qsKey = player.Input != null ? player.Input.QuickSlotKey : KeyCode.V;
         TMP_FontAsset hudFont = timeValueText != null ? timeValueText.font : null;
-        bar.Setup(parent, player, icons, qsKey, hudFont);
+        bar.Setup(parent, player, icons, hudFont);
 
         // 표시/숨김(다른 UI 열림 시 숨김 + 결계 안 자동 페이드)은 SkillBarUI가 스스로 관리한다.
         // (HudAutoFader 외부 등록에 의존하지 않게 - 등록 타이밍/그리는 순서 취약성 제거)

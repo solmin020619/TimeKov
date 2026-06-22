@@ -21,6 +21,8 @@ public class SkillBarUI : MonoBehaviour
         public Image countBadge;
         public int shownItemId = int.MinValue;
         public bool wasReady = true;   // 직전 프레임 준비완료 여부 (쿨 완료 순간 감지용)
+        public TMP_Text keyLabel;          // 슬롯 아래 키 텍스트 ("Q"/"E"/"R"/"V"/"RMB" 등)
+        public System.Func<KeyCode> liveKey; // 설정에서 리바인딩된 실제 키를 매 갱신마다 다시 읽기 위한 getter
     }
 
     private Player _player;
@@ -56,7 +58,7 @@ public class SkillBarUI : MonoBehaviour
 
     private static Sprite Load(string n) => Resources.Load<Sprite>("SkillBar/" + n);
 
-    public void Setup(RectTransform canvasParent, Player player, Sprite[] skillIcons, KeyCode quickKey, TMP_FontAsset font)
+    public void Setup(RectTransform canvasParent, Player player, Sprite[] skillIcons, TMP_FontAsset font)
     {
         _player = player;
         _font = font;
@@ -92,12 +94,15 @@ public class SkillBarUI : MonoBehaviour
         fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         // 왼쪽부터: 퀵슬롯, 대쉬, Q, E, R
-        BuildSlot(Kind.Quick, default, UtilSize, frameSp, ringSp, null, countBadge, keyBadge, KeyLabel(quickKey), QuickTint, null);
-        BuildSlot(Kind.Dash,  default, UtilSize, frameSp, ringSp, dashIcon, null, keyBadge, "RMB", Color.white, null);
-        BuildSlot(Kind.Skill, SkillSheetId.Skill1, SkillSize, frameSp, ringSp, Pick(skillIcons, 0), null, keyBadge, "Q", Color.white, "skill_q");
-        // E/R 스왑: E슬롯 = Skill3(아이콘 idx2), R슬롯 = Skill2(궁극기, 아이콘 idx1). 키 라벨은 위치 그대로 E/R.
-        BuildSlot(Kind.Skill, SkillSheetId.Skill3, SkillSize, frameSp, ringSp, Pick(skillIcons, 2), null, keyBadge, "E", Color.white, "skill_e");
-        BuildSlot(Kind.Skill, SkillSheetId.Skill2, SkillSize, frameSp, ringSp, Pick(skillIcons, 1), null, keyBadge, "R", Color.white, "skill_r");
+        // 라벨은 리바인딩 직후에도 맞아야 하므로 고정 문자열이 아니라 KeyBindings를 직접 읽는 getter로 채운다.
+        BuildSlot(Kind.Quick, default, UtilSize, frameSp, ringSp, null, countBadge, keyBadge, () => KeyBindings.QuickSlot, QuickTint, null);
+        BuildSlot(Kind.Dash,  default, UtilSize, frameSp, ringSp, dashIcon, null, keyBadge, () => KeyBindings.Dash, Color.white, null);
+        BuildSlot(Kind.Skill, SkillSheetId.Skill1, SkillSize, frameSp, ringSp, Pick(skillIcons, 0), null, keyBadge, () => KeyBindings.Skill1, Color.white, "skill_q");
+        // E/R 스왑: PlayerSkillComponent.Update()에서 Skill2Pressed(KeyBindings.Skill2)가 SkillSheetId.Skill3을,
+        // Skill3Pressed(KeyBindings.Skill3)가 SkillSheetId.Skill2(궁극기)를 실행하도록 디스패치가 교차되어 있다.
+        // 라벨도 "실제로 눌러야 하는 키"를 보여줘야 하므로 liveKey를 디스패치와 똑같이 교차해서 읽는다.
+        BuildSlot(Kind.Skill, SkillSheetId.Skill3, SkillSize, frameSp, ringSp, Pick(skillIcons, 2), null, keyBadge, () => KeyBindings.Skill2, Color.white, "skill_e");
+        BuildSlot(Kind.Skill, SkillSheetId.Skill2, SkillSize, frameSp, ringSp, Pick(skillIcons, 1), null, keyBadge, () => KeyBindings.Skill3, Color.white, "skill_r");
 
         _quickSlot = _slots.Find(s => s.kind == Kind.Quick);
         if (player.QuickSlot != null)
@@ -109,12 +114,22 @@ public class SkillBarUI : MonoBehaviour
         _dashSlot = _slots.Find(s => s.kind == Kind.Dash);
         PlayerDashComponent.OnDashUnlocked += HandleDashUnlocked;   // 코어 1강 대쉬 해금 순간 아이콘 팝
         PlayerDashComponent.OnDashBlocked += HandleDashBlocked;     // 잠긴 대쉬 시도 시 바 띄우고 잠금 덜컹
+
+        GlobalSettingsManager.OnKeyBindingsChanged += RefreshKeyLabels;   // 설정창에서 "설정 적용" 누른 직후 라벨 갱신
+    }
+
+    // 설정에서 리바인딩 적용 시 호출 — 5개 슬롯 키 라벨을 KeyBindings 최신 값으로 다시 그림.
+    void RefreshKeyLabels()
+    {
+        foreach (var s in _slots)
+            if (s.keyLabel != null && s.liveKey != null)
+                s.keyLabel.text = KeyLabel(s.liveKey());
     }
 
     static Sprite Pick(Sprite[] arr, int i) => (arr != null && i < arr.Length) ? arr[i] : null;
 
     void BuildSlot(Kind kind, SkillSheetId skillId, float size, Sprite frameSp, Sprite ringSp,
-                   Sprite iconSp, Sprite countBadge, Sprite keyBadge, string keyText, Color frameColor,
+                   Sprite iconSp, Sprite countBadge, Sprite keyBadge, System.Func<KeyCode> liveKey, Color frameColor,
                    string spotlightId)
     {
         float colH = size + 12f + 22f;   // 원 + 간격 + 키 배지
@@ -191,7 +206,7 @@ public class SkillBarUI : MonoBehaviour
         if (keyBadge != null)
             NewImage("KeyBadge", colRt, new Vector2(0.5f, 0f), Vector2.zero, new Vector2(48f, 22f)).sprite = keyBadge;
         var keyT = NewText("Key", colRt, new Vector2(0.5f, 0f), Vector2.zero, new Vector2(50f, 22f), 14f);
-        keyT.text = keyText;
+        keyT.text = KeyLabel(liveKey());
 
         if (!string.IsNullOrEmpty(spotlightId))
         {
@@ -208,7 +223,7 @@ public class SkillBarUI : MonoBehaviour
 
         if (kind == Kind.Dash) BuildDashLockOverlay(circle, size);
 
-        _slots.Add(new Slot { kind = kind, skillId = skillId, circle = circle, icon = icon, ring = ring, flash = flashImg, seconds = seconds, count = count, countBadge = countBadgeImg });
+        _slots.Add(new Slot { kind = kind, skillId = skillId, circle = circle, icon = icon, ring = ring, flash = flashImg, seconds = seconds, count = count, countBadge = countBadgeImg, keyLabel = keyT, liveKey = liveKey });
     }
 
     // 대쉬 슬롯 위에 얹는 잠금 오버레이 — 어두운 디스크 + 쇠사슬 X자 + 자물쇠. 해금되면 코루틴이 팡 풀고 끈다.
@@ -385,6 +400,7 @@ public class SkillBarUI : MonoBehaviour
         }
         PlayerDashComponent.OnDashUnlocked -= HandleDashUnlocked;
         PlayerDashComponent.OnDashBlocked -= HandleDashBlocked;
+        GlobalSettingsManager.OnKeyBindingsChanged -= RefreshKeyLabels;
         foreach (var (id, rt) in _spotlights) TutorialOverlay.UnregisterTarget(id, rt);
         _spotlights.Clear();
     }
@@ -645,6 +661,13 @@ public class SkillBarUI : MonoBehaviour
 
     static string KeyLabel(KeyCode key)
     {
+        // 마우스 버튼은 좁은 원형 슬롯 아래에 "Mouse0/1/2"로 박히면 너무 길고 안 읽혀서 약어로.
+        switch (key)
+        {
+            case KeyCode.Mouse0: return "LMB";
+            case KeyCode.Mouse1: return "RMB";
+            case KeyCode.Mouse2: return "MMB";
+        }
         string s = key.ToString();
         if (s.StartsWith("Alpha")) s = s.Substring(5);
         return s;
