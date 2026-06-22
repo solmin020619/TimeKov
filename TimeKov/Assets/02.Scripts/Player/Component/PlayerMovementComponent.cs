@@ -128,11 +128,17 @@ public class PlayerMovementComponent : MonoBehaviour
     // 접지 + 거의 정지(또는 타임아웃)까지 기다렸다 지면 스냅 + kinematic 고정.
     private IEnumerator SettleThenFreezeRoutine()
     {
-        yield return new WaitForFixedUpdate();   // 최소 한 스텝(이미 접지면 다음 루프서 즉시 종료)
-        float t = 0f;
+        Debug.Log($"[Death] settle start y={transform.position.y:F2} grounded={_isGrounded} vy={_rb.linearVelocity.y:F2}");   // 임시 진단(원인 확정 후 제거)
+        yield return new WaitForFixedUpdate();
+        float t = 0f, rest = 0f, lastY = _rb.position.y;
         while (t < DeathSettleMaxTime)
         {
-            if (_isGrounded && Mathf.Abs(_rb.linearVelocity.y) < 0.6f) break;   // 바닥 안착 완료
+            // 안착 판정 = GroundMask 접지 OR Y가 거의 안 변함(어떤 콜라이더 위든 안착. 새 터레인이 GroundMask에 없어도 OK).
+            bool atRest = (_isGrounded || Mathf.Abs(_rb.position.y - lastY) < 0.02f)
+                          && Mathf.Abs(_rb.linearVelocity.y) < 1f;
+            lastY = _rb.position.y;
+            rest = atRest ? rest + Time.fixedDeltaTime : 0f;
+            if (rest >= 0.15f) break;   // 0.15초 연속 정지 = 안착 완료
             t += Time.fixedDeltaTime;
             yield return new WaitForFixedUpdate();
         }
@@ -143,6 +149,7 @@ public class PlayerMovementComponent : MonoBehaviour
         _rb.isKinematic = true;
         _settling = false;
         _settleCo = null;
+        Debug.Log($"[Death] settled y={transform.position.y:F2} after {t:F2}s grounded={_isGrounded}");   // 임시 진단(원인 확정 후 제거)
     }
 
     // 똑바로 세우기(yaw만). 경사 법선 정렬 안 함 = 가로로 눕혀 맵 뚫리던 것 방지.
@@ -220,7 +227,7 @@ public class PlayerMovementComponent : MonoBehaviour
                 // 안착 중: 중력으로 낙하/경사 안착. 수평 관성만 제거하고 낙하(Y)는 유지.
                 Vector3 v = _rb.linearVelocity;
                 v.x = 0f; v.z = 0f;
-                if (!_rb.useGravity) v.y += Gravity * Time.fixedDeltaTime;   // 커스텀 중력(useGravity off)이면 수동 낙하
+                if (!_rb.useGravity) v.y += Gravity * FallMultiplier * Time.fixedDeltaTime;   // 빠른 낙하(살아있을 때 하강과 동일 배수) - 공중사망 즉시 떨어지게
                 _rb.linearVelocity = v;
             }
             else if (!_rb.isKinematic)

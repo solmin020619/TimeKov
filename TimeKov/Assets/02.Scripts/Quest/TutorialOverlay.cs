@@ -126,8 +126,8 @@ public class TutorialOverlay : MonoBehaviour
         {
             _continueLabel.gameObject.SetActive(true);
             _continueLabel.text = advanceKey == KeyCode.None
-                ? "▶  아무 곳이나 클릭하여 계속  ◀"
-                : $"▶  {advanceKey} 키를 눌러 계속  ◀";
+                ? "아무 곳이나 클릭하여 계속"
+                : $"{advanceKey} 키를 눌러 계속";
         }
 
         // 코치마크 표시 중 좌측 퀘스트 트래커 숨김 (배너와 중복 방지, 토스트 느낌)
@@ -412,7 +412,7 @@ public class TutorialOverlay : MonoBehaviour
         _continueLabel.alignment = TextAlignmentOptions.Center;
         _continueLabel.fontSize = 24f;
         _continueLabel.color = new Color(1f, 0.85f, 0.2f, 1f);
-        _continueLabel.text = "▶  아무 곳이나 클릭하여 계속  ◀";
+        _continueLabel.text = "아무 곳이나 클릭하여 계속";
     }
 
     private static Image NewImage(string name, Transform parent, Color col)
