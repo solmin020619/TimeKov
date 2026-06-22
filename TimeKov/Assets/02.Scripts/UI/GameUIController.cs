@@ -111,6 +111,11 @@ public class GameUIController : MonoBehaviour
             // R 설비회전 행 — Right_X 와 동일 패턴(아이콘이 바운드 밖)으로 등록 (#23 스포트라이트)
             RegisterSubtreeByName(quickSlotUI.transform, "Right_R", "build_rotate");
         }
+
+        // _currentState 기본값(None)에 맞춰 패널 활성 상태를 강제로 동기화.
+        // 에디터에서 작업하다 설정창 등을 켜둔 채로 씬을 저장하면(테스트용으로 활성화해뒀던 경우 등)
+        // 코드가 그걸 신뢰해버려 시작하자마자 그 패널이 떠 있는 문제가 생긴다 — 항상 None 기준으로 리셋.
+        ApplyState();
     }
 
     protected virtual void Update()
@@ -357,6 +362,13 @@ public class GameUIController : MonoBehaviour
     {
         var oldState = _currentState;
         _currentState = newState;
+
+        // 설정창에 처음 들어가는 전환이면 항상 _pending을 _data 기준으로 리셋 + UI 동기화.
+        // GlobalSettingsManager.OpenSettings()를 거치지 않는 경로(ESC 폴백 등)로 열려도
+        // 누락 없이 보장하기 위해 모든 진입 경로의 단일 지점인 여기서 처리한다.
+        if (newState == UIState.Settings && oldState != UIState.Settings)
+            GlobalSettingsManager.Instance?.RefreshOnOpen();
+
         ApplyState();
 
         // 상태가 바뀌면 우클릭 컨텍스트 메뉴는 항상 닫는다 (F로 공장 닫기 등 ESC 외 경로에서도 메뉴가 안 남게).

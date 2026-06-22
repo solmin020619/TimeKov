@@ -236,9 +236,13 @@ public static class SettingsPanelRebuilder
         // 오디오
         var (audioRoot, audioContent) = CreateScrollTab(settingsBG, "AudioTab");
         CreateSectionHeader(audioContent, "오디오 설정");
-        Slider masterSlider = CreateSliderRow(audioContent, "마스터 볼륨", LoadKitIcon("T_icon_volume_on.png"));
-        Slider bgmSlider = CreateSliderRow(audioContent, "배경음(BGM)", Load("SettingsPanel_Icon_BGM.png"));
-        Slider sfxSlider = CreateSliderRow(audioContent, "효과음(SFX)", Load("SettingsPanel_Icon_SFX.png"));
+        // 오디오 3종은 아이콘을 눌러 음소거 토글이 가능해야 해서 동일한 볼륨 켬/끔 아이콘 쌍으로 통일
+        // (BGM/SFX 전용 아이콘은 꺼짐 상태 그림이 없어 토글 시 보여줄 짝이 없었음).
+        var volumeOnIcon  = LoadKitIcon("T_icon_volume_on.png");
+        var volumeMuteIcon = LoadKitIcon("T_icon_volume_mute.png");
+        Slider masterSlider = CreateSliderRow(audioContent, "마스터 볼륨", volumeOnIcon, volumeMuteIcon);
+        Slider bgmSlider = CreateSliderRow(audioContent, "배경음(BGM)", volumeOnIcon, volumeMuteIcon);
+        Slider sfxSlider = CreateSliderRow(audioContent, "효과음(SFX)", volumeOnIcon, volumeMuteIcon);
         tabContents[1] = audioRoot;
 
         // 조작
@@ -809,7 +813,7 @@ public static class SettingsPanelRebuilder
     private const float ValueLabelWidth = 46f; // 클릭해서 직접 입력하는 칸이라 살짝 넓힘
 
     // OS 볼륨 슬라이더 스타일: 얇은 회색 라인 트랙 + 흰 캡슐형 핸들 + 우측 숫자 값(0-10)
-    private static Slider CreateSliderRow(Transform content, string label, Sprite icon)
+    private static Slider CreateSliderRow(Transform content, string label, Sprite icon, Sprite mutedIcon = null)
     {
         CreateRow(content, label, out var slot);
 
@@ -831,6 +835,7 @@ public static class SettingsPanelRebuilder
         groupHlg.childForceExpandWidth  = false;
         groupHlg.childForceExpandHeight = false;
 
+        Image muteIconImg = null;
         if (icon != null)
         {
             var iconGO = new GameObject("Icon", typeof(RectTransform));
@@ -840,6 +845,13 @@ public static class SettingsPanelRebuilder
             iconImg.preserveAspect = true;
             var iconLE = iconGO.AddComponent<LayoutElement>();
             iconLE.preferredWidth = 56f; iconLE.minWidth = 56f; iconLE.flexibleWidth = 0f;
+            if (mutedIcon != null)
+            {
+                // 아이콘 클릭 = 음소거 토글 — Button만 추가해두고, 실제 토글 로직(MuteToggleButton)은
+                // 슬라이더가 만들어진 뒤에 연결한다 (아래 muteIconImg 참조 유지).
+                iconGO.AddComponent<Button>();
+                muteIconImg = iconImg;
+            }
             iconLE.preferredHeight = 56f; iconLE.minHeight = 56f;
         }
 
@@ -939,6 +951,15 @@ public static class SettingsPanelRebuilder
         valueInputComp.slider = slider;
         valueInputComp.input = valueInput;
         valueInputComp.scale = 100f;
+
+        if (muteIconImg != null)
+        {
+            var muteToggle = muteIconImg.gameObject.AddComponent<MuteToggleButton>();
+            muteToggle.slider = slider;
+            muteToggle.icon = muteIconImg;
+            muteToggle.unmutedSprite = icon;
+            muteToggle.mutedSprite = mutedIcon;
+        }
 
         return slider;
     }

@@ -240,6 +240,10 @@ public class GlobalSettingsManager : MonoBehaviour
         _pending = Clone(_data);
         _isDirty = false;
         HideApplyWarning();
+        // _pending은 되돌렸지만 슬라이더/드롭다운 자체는 사용자가 만지던 값을 그대로 들고 있어서
+        // SyncUIValues() 없이는 패널을 다시 열었을 때(특히 GlobalSettingsManager.OpenSettings()를
+        // 거치지 않는 경로로 재오픈될 때) 화면에 바꾼 값이 계속 남아있는 것처럼 보였다.
+        SyncUIValues();
         CloseSettings();
     }
 
