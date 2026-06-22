@@ -61,10 +61,6 @@ public class BuildZoneProgression : MonoBehaviour
     [Tooltip("BuildZone 의 BoxCollider. 현재 영역 월드 크기/bounds 조회용.")]
     [SerializeField] private BoxCollider zoneCollider;
 
-    [Header("디버그")]
-    [Tooltip("단계 변경 로그 출력")]
-    [SerializeField] private bool logStageChanges = true;
-
     // 시작 시점 기준값 (배율 계산 기준)
     private Vector3 _baseGridScale;          // Grid_plane 초기 localScale
     private float _baseZoneWorldSize;        // 콜라이더 초기 월드 가로 크기 (배율 1 기준)
