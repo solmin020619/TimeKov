@@ -169,6 +169,13 @@ public class GameUIController : MonoBehaviour
 
     public void HandleEscape()
     {
+        // 키 리바인딩 캡처 중이면 ESC는 그 캡처만 취소해야 한다. GlobalSettingsManager.Update()도
+        // 똑같은 ESC 입력을 보고 자체적으로 캡처를 취소하는데, 그걸 믿고 그냥 넘어가면 스크립트
+        // 실행 순서에 따라 같은 프레임에 "캡처 취소" 직후 _isDirty=false로 통과해버려 아래 로직이
+        // 설정창 전체까지 닫아버리는 버그가 생긴다 — 여기서 직접 취소시키고 그 즉시 리턴해서 차단.
+        if (GlobalSettingsManager.Instance != null && GlobalSettingsManager.Instance.CancelRebindIfActive())
+            return;
+
         // 우클릭 컨텍스트 메뉴가 떠 있으면 ESC 1번은 그 메뉴부터 닫는다 (공장/인벤 어디서든).
         // 두 번째 ESC가 부모 UI(공장/인벤 등)를 닫음. (메뉴가 부모 닫힌 뒤 화면에 남던 버그 수정)
         if (InventoryUIController.Instance != null
@@ -220,15 +227,8 @@ public class GameUIController : MonoBehaviour
             return;
         }
 
-        // 설정창은 적용 안 한 변경사항이 있으면 ESC로도 못 닫게 막고 안내 메세지를 띄운다.
-        if (_currentState == UIState.Settings)
-        {
-            if (GlobalSettingsManager.Instance != null && !GlobalSettingsManager.Instance.RequestClose())
-                return;
-            CloseAll();
-            return;
-        }
-
+        // 설정창의 dirty 체크는 위쪽 가드(195번 줄)에서 이미 끝났으므로(통과 못 하면 여기 도달 안 함)
+        // 여기서 다시 검사할 필요 없이 그냥 닫으면 된다.
         CloseAll();
     }
 

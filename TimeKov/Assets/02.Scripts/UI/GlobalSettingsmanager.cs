@@ -205,15 +205,17 @@ public class GlobalSettingsManager : MonoBehaviour
 
     // ── 설정창 열기 / 닫기 ───────────────────────────────────────────
 
+    // RefreshOnOpen()은 직접 호출하지 않는다 — GameUIController.SetState()가 Settings로
+    // 진입하는 모든 경로(이 메서드 포함)에서 단일 지점으로 이미 호출해준다. 여기서 또 부르면
+    // 같은 오픈에 두 번 호출되는 것뿐이라 해는 없지만(_pending 리셋은 멱등) 그냥 중복이다.
     public void OpenSettings()
     {
-        RefreshOnOpen();
         GameUIController.Instance?.OpenSettings();
     }
 
     // 폼을 _data 기준으로 리셋(편집 중이던 _pending 폐기) + UI 동기화.
-    // OpenSettings()뿐 아니라, ESC 등 WindowManager가 패널을 직접 여는 경로에서도
-    // SettingsModalAdapter.AfterOpen()이 이걸 호출해 누락 없이 보장한다.
+    // GameUIController.SetState()가 Settings로 들어가는 모든 경로(ESC 포함)에서 호출해
+    // 누락 없이 보장한다.
     public void RefreshOnOpen()
     {
         _pending = Clone(_data);
@@ -576,6 +578,17 @@ public class GlobalSettingsManager : MonoBehaviour
         RestoreLabel(_rebindingActionId);
         _rebindingActionId = null;
         HideRebindModal();
+    }
+
+    // 키 캡처 중 ESC는 캡처만 취소해야 한다 — GameUIController.HandleEscape()가 패널을 닫기
+    // 전에 호출해서 처리 여부를 반환받는다. 같은 ESC 입력에 대해 이 Update()의 자체 캡처-취소
+    // 검사보다 먼저 실행되어도/나중에 실행되어도(스크립트 실행 순서 무관) 항상 캡처만 취소되고
+    // 패널은 닫히지 않도록, "캡처 중이었는지"를 그 자리에서 확정해서 호출자에게 알려준다.
+    public bool CancelRebindIfActive()
+    {
+        if (_rebindingActionId == null) return false;
+        CancelRebind();
+        return true;
     }
 
     // 정적 KeyBindings(현재 적용 중인 값)가 아니라 _pending.keyBindings(아직 적용 안 한 폼 값) 기준으로
