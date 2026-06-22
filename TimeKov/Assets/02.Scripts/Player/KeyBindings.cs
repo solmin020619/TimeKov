@@ -37,24 +37,4 @@ public static class KeyBindings
         Stat      = data.stat;
         Codex     = data.codex;
     }
-
-    /// <summary>code가 이미 다른 액션에 쓰이고 있으면 그 액션 이름을 반환하고 true.</summary>
-    public static bool IsConflict(KeyCode code, string excludeAction, out string conflictAction)
-    {
-        conflictAction = null;
-        if (excludeAction != "Jump"      && Jump      == code) conflictAction = "점프";
-        else if (excludeAction != "Skill1"    && Skill1    == code) conflictAction = "스킬1";
-        else if (excludeAction != "Skill2"    && Skill2    == code) conflictAction = "스킬2";
-        else if (excludeAction != "Skill3"    && Skill3    == code) conflictAction = "스킬3";
-        else if (excludeAction != "Interact"  && Interact  == code) conflictAction = "상호작용";
-        else if (excludeAction != "Instant"   && Instant   == code) conflictAction = "즉시완료";
-        else if (excludeAction != "QuickSlot" && QuickSlot == code) conflictAction = "퀵슬롯";
-        else if (excludeAction != "Attack"    && Attack    == code) conflictAction = "기본 공격";
-        else if (excludeAction != "Dash"      && Dash      == code) conflictAction = "대시";
-        else if (excludeAction != "Inventory" && Inventory == code) conflictAction = "인벤토리";
-        else if (excludeAction != "Stat"      && Stat      == code) conflictAction = "스탯창";
-        else if (excludeAction != "Codex"     && Codex     == code) conflictAction = "도감";
-
-        return conflictAction != null;
-    }
 }

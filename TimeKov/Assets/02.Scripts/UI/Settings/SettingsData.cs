@@ -80,7 +80,7 @@ public class SettingsData
         }
     }
 
-    private static SettingsData CreateDefault()
+    public static SettingsData CreateDefault()
     {
         var res = Screen.currentResolution;
         return new SettingsData

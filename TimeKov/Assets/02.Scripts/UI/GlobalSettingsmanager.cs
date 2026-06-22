@@ -14,6 +14,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using TMPro;
 
 public class GlobalSettingsManager : MonoBehaviour
@@ -354,19 +356,16 @@ public class GlobalSettingsManager : MonoBehaviour
         if (fullscreenOffLabel != null) fullscreenOffLabel.color = isFullscreen ? SegmentUnselectedText : SegmentSelectedText;
     }
 
-    // 그래픽 탭 전체를 기본값으로 초기화 ("설정 초기화" 버튼) — 폼만 기본값으로 되돌리고,
-    // 실제 엔진 반영/저장은 다른 항목들처럼 "설정 적용"을 눌러야 이루어진다.
-    public void ResetGraphicsToDefault()
+    // 설정 전체(오디오/조작/그래픽/키바인딩)를 기본값으로 초기화 ("설정 초기화" 버튼) — 폼만
+    // 기본값으로 되돌리고, 실제 엔진 반영/저장은 다른 항목들처럼 "설정 적용"을 눌러야 이루어진다.
+    public void ResetAllToDefault()
     {
-        var res = Screen.currentResolution;
-        _pending.resolutionWidth  = res.width;
-        _pending.resolutionHeight = res.height;
-        _pending.fullscreen       = true;
-        _pending.qualityLevel        = Mathf.Clamp(1, 0, QualitySettings.names.Length - 1);
-        _pending.shadowQualityLevel  = 2; // 높음
-        _pending.textureQualityLevel = 0; // 매우 높음
+        var defaults = SettingsData.CreateDefault();
+        defaults.qualityLevel = Mathf.Clamp(1, 0, QualitySettings.names.Length - 1);
+        _pending = defaults;
         _isDirty = true;
 
+        var res = new Resolution { width = _pending.resolutionWidth, height = _pending.resolutionHeight };
         int idx = _resolutions.FindIndex(r => r.width == res.width && r.height == res.height);
         if (idx < 0) idx = 0;
         if (resolutionDropdown != null)
@@ -407,12 +406,27 @@ public class GlobalSettingsManager : MonoBehaviour
 
     private void ApplyShadowQuality(int level)
     {
+        UnityEngine.ShadowResolution legacyRes;
+        int urpRes;
+        float distance;
         switch (level)
         {
-            case 0:  QualitySettings.shadowResolution = ShadowResolution.Low;    QualitySettings.shadowDistance = 20f;  break;
-            case 1:  QualitySettings.shadowResolution = ShadowResolution.Medium; QualitySettings.shadowDistance = 50f;  break;
-            case 2:  QualitySettings.shadowResolution = ShadowResolution.High;   QualitySettings.shadowDistance = 100f; break;
-            default: QualitySettings.shadowResolution = ShadowResolution.VeryHigh; QualitySettings.shadowDistance = 150f; break;
+            case 0:  legacyRes = UnityEngine.ShadowResolution.Low;      urpRes = 512;  distance = 20f;  break;
+            case 1:  legacyRes = UnityEngine.ShadowResolution.Medium;   urpRes = 1024; distance = 50f;  break;
+            case 2:  legacyRes = UnityEngine.ShadowResolution.High;     urpRes = 2048; distance = 100f; break;
+            default: legacyRes = UnityEngine.ShadowResolution.VeryHigh; urpRes = 4096; distance = 150f; break;
+        }
+
+        // QualitySettings.shadowResolution/shadowDistance는 Built-in 렌더러 전용 필드라
+        // 이 프로젝트가 쓰는 URP에서는 완전히 무시된다 — URP는 파이프라인 에셋 자체의
+        // mainLightShadowmapResolution/shadowDistance를 따로 갖고 있어 그쪽도 같이 바꿔야 실제로 반영된다.
+        QualitySettings.shadowResolution = legacyRes;
+        QualitySettings.shadowDistance = distance;
+
+        if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urpAsset)
+        {
+            urpAsset.mainLightShadowmapResolution = urpRes;
+            urpAsset.shadowDistance = distance;
         }
     }
 
@@ -432,6 +446,7 @@ public class GlobalSettingsManager : MonoBehaviour
         var options = new List<string>();
         var seen = new HashSet<string>();
         int currentIndex = 0;
+        bool matched = false;
 
         foreach (var r in allRes)
         {
@@ -442,13 +457,28 @@ public class GlobalSettingsManager : MonoBehaviour
             options.Add(label);
             _resolutions.Add(r);
             if (r.width == _data.resolutionWidth && r.height == _data.resolutionHeight)
+            {
                 currentIndex = _resolutions.Count - 1;
+                matched = true;
+            }
         }
 
         if (options.Count == 0)
         {
             options.Add($"{Screen.width} x {Screen.height}");
             _resolutions.Add(Screen.currentResolution);
+        }
+
+        // 저장된 해상도가 지금 모니터의 지원 목록에 없으면(모니터 교체 등) 드롭다운은 인덱스 0을
+        // 보여주는데 _data/_pending은 옛 값을 그대로 들고 있어 화면에 보이는 값과 실제 적용/저장될
+        // 값이 어긋났다 — 표시되는 해상도로 _data/_pending도 같이 맞춰준다.
+        if (!matched && _resolutions.Count > 0)
+        {
+            var fallback = _resolutions[currentIndex];
+            _data.resolutionWidth  = fallback.width;
+            _data.resolutionHeight = fallback.height;
+            _pending.resolutionWidth  = fallback.width;
+            _pending.resolutionHeight = fallback.height;
         }
 
         resolutionDropdown.AddOptions(options);
@@ -535,9 +565,28 @@ public class GlobalSettingsManager : MonoBehaviour
         return false;
     }
 
+    // 리바인딩 가능한 12개 액션 외에, 게임 전역에서 상태와 무관하게 항상 활성화된 하드코딩 키.
+    // (건설모드/디버그용 키(E/R/B/X/Alpha1-9/F7~F11 등)는 해당 모드에서만 켜져서 일반 액션과
+    //  동시에 쓰이지 않으므로 제외 — 항상 켜져 있는 키만 여기 등록한다.)
+    private static readonly (KeyCode code, string label)[] ReservedGlobalKeys =
+    {
+        (KeyCode.J, "퀘스트"), // GameUIController.Update()에서 상태와 무관하게 항상 체크
+    };
+
+    private bool IsReservedKeyConflict(KeyCode code, out string conflictAction)
+    {
+        foreach (var (reservedCode, label) in ReservedGlobalKeys)
+        {
+            if (reservedCode == code) { conflictAction = label; return true; }
+        }
+        conflictAction = null;
+        return false;
+    }
+
     private void CompleteRebind(KeyCode code)
     {
-        if (IsPendingConflict(code, _rebindingActionId, out string conflictAction))
+        if (IsPendingConflict(code, _rebindingActionId, out string conflictAction)
+            || IsReservedKeyConflict(code, out conflictAction))
         {
             Debug.LogWarning($"[Settings] '{code}' 키는 이미 '{conflictAction}'에 사용 중입니다.");
             RestoreLabel(_rebindingActionId);
