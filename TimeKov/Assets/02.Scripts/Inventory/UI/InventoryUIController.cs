@@ -84,12 +84,14 @@ public class InventoryUIController : MonoBehaviour
     // 상자 열기 여부 (ChestInteractable에서 설정, 닫을 때 자동 초기화)
     public static bool IsChestOpen { get; set; } = false;
 
-    // 플레이어가 결계존(BaseZone) 안인지 조회 — TAB로 인벤 열 때 창고 자동 연동 판정용
+    // 플레이어가 결계존(BaseZone) 안인지 조회 — TAB로 인벤 열 때 창고 자동 연동 판정용.
+    // 캐시된 Stat.IsInBase(부활 시 강제 true, 트리거 타이밍 등으로 stale 가능)가 아니라
+    // 현재 위치로 직접 판정 -> 결계 밖에서 창고가 뜨던 문제 차단.
     private static Player _player;
     private static bool IsPlayerInBase()
     {
         if (_player == null) _player = FindAnyObjectByType<Player>();
-        return _player != null && _player.Stat != null && _player.Stat.IsInBase;
+        return _player != null && BaseZone.Contains(_player.transform.position);
     }
 
     private void Awake()
