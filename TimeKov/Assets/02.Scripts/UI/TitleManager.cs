@@ -31,11 +31,9 @@ public class TitleManager : MonoBehaviour
         if (!_isStarting && Input.anyKeyDown)
         {
             bool over = IsPointerOverInteractiveUI();
-            Debug.Log($"[TitleManager] 입력감지 anyKeyDown=true / overInteractiveUI={over}");
             if (!over)
             {
                 _isStarting = true;
-                Debug.Log($"[TitleManager] 시작! StartGameRoutine (nextScene='{nextSceneName}')");
                 StartCoroutine(StartGameRoutine());
             }
         }
@@ -53,17 +51,13 @@ public class TitleManager : MonoBehaviour
         var data = new PointerEventData(es) { position = Input.mousePosition };
         _uiHits.Clear();
         es.RaycastAll(data, _uiHits);
-        Debug.Log($"[TitleManager] UI 레이캐스트 hits={_uiHits.Count}");
         for (int i = 0; i < _uiHits.Count; i++)
         {
             var go = _uiHits[i].gameObject;
             if (go == null) continue;
             var sel = go.GetComponentInParent<Selectable>();
             if (sel != null && sel.interactable)
-            {
-                Debug.Log($"[TitleManager] 차단됨 — Selectable '{sel.name}' (hit '{go.name}')");
                 return true;   // 버튼 등 위 = 시작 차단
-            }
         }
         return false;
     }
@@ -89,7 +83,6 @@ public class TitleManager : MonoBehaviour
         }
 
         Time.timeScale = 1f;   // 게임 시작 전 시간 정상화(메뉴에서 멈춰 있었을 수 있음)
-        Debug.Log($"[TitleManager] LoadScene('{nextSceneName}') 호출");
         SceneManager.LoadScene(nextSceneName);
     }
 }

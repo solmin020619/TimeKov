@@ -84,14 +84,12 @@ public class InventoryUIController : MonoBehaviour
     // 상자 열기 여부 (ChestInteractable에서 설정, 닫을 때 자동 초기화)
     public static bool IsChestOpen { get; set; } = false;
 
-    // 플레이어가 결계존(BaseZone) 안인지 조회 — TAB로 인벤 열 때 창고 자동 연동 판정용.
-    // 캐시된 Stat.IsInBase(부활 시 강제 true, 트리거 타이밍 등으로 stale 가능)가 아니라
-    // 현재 위치로 직접 판정 -> 결계 밖에서 창고가 뜨던 문제 차단.
+    // 플레이어가 결계존(BaseZone) 안인지 조회 — TAB로 인벤 열 때 창고 자동 연동 판정용
     private static Player _player;
     private static bool IsPlayerInBase()
     {
         if (_player == null) _player = FindAnyObjectByType<Player>();
-        return _player != null && BaseZone.Contains(_player.transform.position);
+        return _player != null && _player.Stat != null && _player.Stat.IsInBase;
     }
 
     private void Awake()
@@ -351,25 +349,6 @@ public class InventoryUIController : MonoBehaviour
         // (아이템 첫칸부터 촤라락 순차 등장은 카테고리 바꿀 때만 = InventoryGridUI.SetFilter)
         if (IsInBase)
             PlayWarehouseSectionOpen();
-
-        Debug.Log("[InventoryUI] 인벤토리 열림");
-
-        // ── 진단: 부모 캔버스 / CanvasGroup 상태 확인 ─────────────────
-        var parentCanvas = inventoryRoot.GetComponentInParent<Canvas>();
-        if (parentCanvas == null)
-            Debug.LogError("[InventoryUI] InventoryRoot 위에 Canvas가 없습니다!");
-        else
-            Debug.Log($"[InventoryUI] 부모 Canvas='{parentCanvas.name}'  activeInHierarchy={parentCanvas.gameObject.activeInHierarchy}  sortOrder={parentCanvas.sortingOrder}  renderMode={parentCanvas.renderMode}");
-
-        var cg = inventoryRoot.GetComponent<CanvasGroup>();
-        if (cg != null)
-            Debug.Log($"[InventoryUI] InventoryRoot CanvasGroup  alpha={cg.alpha}  interactable={cg.interactable}  blocksRaycasts={cg.blocksRaycasts}");
-
-        if (bagPanel != null)
-            Debug.Log($"[InventoryUI] bagPanel active={bagPanel.activeSelf}  activeInHierarchy={bagPanel.activeInHierarchy}");
-        else
-            Debug.LogWarning("[InventoryUI] bagPanel이 인스펙터에 연결되지 않았습니다!");
-        // ─────────────────────────────────────────────────────────────
     }
 
     // 엔필식 열기 애니: 가방 먼저 보이고, 창고 콘텐츠(탭+그리드)는 살짝 뒤 페이드 인.
