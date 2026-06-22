@@ -70,6 +70,15 @@ public class EnemyHealth : MonoBehaviour
             Die();
     }
 
+    // 리쉬(이탈) 리셋 등에서 풀피로 되돌릴 때. 사망 상태면 무시.
+    // OnDamage 를 쏴서 머리 위 체력바/상단 보스바를 즉시 갱신.
+    public void ResetToFull()
+    {
+        if (isDead) return;
+        currentHP = maxHP;
+        OnDamage?.Invoke();
+    }
+
     private void Die()
     {
         if (isDead) return;
