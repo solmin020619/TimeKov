@@ -331,6 +331,10 @@ public class EnemySpawnPoint : MonoBehaviour
         if (CanSpawnEntry(i)) SpawnEntryOne(i);
     }
 
+    // 해금되는 순간(일반몹 N킬 달성) 엘리트가 곧장 나오게 하는 첫 등장 지연(초).
+    // 죽은 뒤 재등장은 항목별 Respawn Delay(길다)를 그대로 쓴다 -> 첫 등장만 빠르게.
+    private const float EliteUnlockAppearDelay = 3f;
+
     // 일반몹 처치로 해금 조건을 넘긴 엘리트가 있으면 스폰 예약
     private void TryUnlockElites()
     {
@@ -339,7 +343,8 @@ public class EnemySpawnPoint : MonoBehaviour
             var e = spawnEntries[i];
             if (e == null || !e.isElite || e.unlockAfterNormalKills <= 0) continue;
             if (_normalKills < e.unlockAfterNormalKills) continue;
-            if (CanScheduleEntry(i)) StartCoroutine(RespawnEntryAfterDelay(i, e.respawnDelay));
+            // 첫 등장은 Respawn Delay(재등장용, 50~100초로 길다)가 아니라 짧은 지연으로 곧장.
+            if (CanScheduleEntry(i)) StartCoroutine(RespawnEntryAfterDelay(i, EliteUnlockAppearDelay));
         }
     }
 
