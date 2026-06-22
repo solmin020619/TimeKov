@@ -2255,6 +2255,8 @@ MonoBehaviour:
   healVfx: {fileID: 0}
   speedParam: Speed
   fireballState: Fireball
+  leashDistance: 45
+  leashResetTime: 4
 --- !u!114 &3815243077134679219
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2268,7 +2270,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceId: wyvern_boss
-  boxPrefab: {fileID: 0}
+  boxPrefab: {fileID: 5492271872351944366, guid: 3e6f655b05dbdaf43a2451c009617465, type: 3}
   spawnHeightOffset: 0.5
   scatterRadius: 1
 --- !u!114 &3936268408131616068
