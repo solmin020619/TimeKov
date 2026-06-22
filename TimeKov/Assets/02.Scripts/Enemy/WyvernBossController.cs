@@ -37,7 +37,7 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private float eruptionRadius = 2.5f;       // 솟구침 명중 반경(발당)
     [SerializeField] private float eruptionDmgMul = 1.2f;       // x attackDamage
     [SerializeField] private string eruptionState = "SpreadFire";   // 기존 브레스 애니 재사용
-    [SerializeField] private int eruptionBarrageCount = 5;      // 페이즈2+ 분출 개수(여기저기 팡팡팡)
+    [SerializeField] private int eruptionBarrageCount = 9;      // 페2 분출 발수(페3 = 이 값의 2배). 여기저기 팡팡팡.
     [SerializeField] private float eruptionBarrageGap = 0.25f;  // 팡 사이 간격(순차 발생)
     [SerializeField] private float eruptionSpread = 6f;         // 주변 폭발이 흩어지는 반경(플레이어 기준)
 
@@ -281,7 +281,7 @@ public class WyvernBossController : MonoBehaviour
         if (_eruptCd <= 0f && eruptionVfx != null && dist <= eruptionRange)
         {
             int roars = RoarsDone();
-            int count = roars == 0 ? 1 : eruptionBarrageCount + (roars - 1) * 4;       // 페3 훨씬 많이
+            int count = roars == 0 ? 1 : eruptionBarrageCount * roars;       // 페2=base 발수, 페3=2배 (base 9 -> 페2 9 / 페3 18)
             float gap = roars >= 2 ? eruptionBarrageGap * 0.6f : eruptionBarrageGap;   // 페3 더 빠르게(파파방)
             StartCoroutine(EruptionBarrage(count, gap));
             return;
