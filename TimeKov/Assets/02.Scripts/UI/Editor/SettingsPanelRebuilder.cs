@@ -249,6 +249,11 @@ public static class SettingsPanelRebuilder
         var (controlsRoot, controlsContent) = CreateScrollTab(settingsBG, "ControlsTab");
         CreateSectionHeader(controlsContent, "조작 설정");
         Slider sensitivitySlider = CreateSliderRow(controlsContent, "마우스 감도", Load("SettingsPanel_Icon_Mouse.png"));
+        // 볼륨류 슬라이더(0~1, 1=최대)와 달리 감도는 1.0이 "기존 카메라 SensitivityX/Y 그대로"인
+        // 중간값이라 0~1로는 기본보다 빠르게 갈 방법이 없었다 — 0~2로 넓혀 1.0을 중간 기준으로 둠.
+        sensitivitySlider.minValue = 0f;
+        sensitivitySlider.maxValue = 2f;
+        sensitivitySlider.value = 1f;
         var rebindSlots = new List<GlobalSettingsManager.RebindSlot>
         {
             CreateRebindRow(controlsContent, "기본 공격", "Attack"),
