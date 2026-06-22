@@ -60,6 +60,8 @@ public class WyvernBossController : MonoBehaviour
 
     [Header("범위 텔레그래프 (분출/다이브 발동 전 지면 표시)")]
     [SerializeField] private GameObject telegraphVfx;          // 지면 링 인디케이터(자체 제작)
+    [Tooltip("텔레그래프 원의 보이는 크기 배율. 파티클 링이라 transform 스케일 대비 작게 보여서 보정용. Play 중 이 값 올리며 원이 실제 딜 반경과 겹칠 때까지 맞춰라. 분출/다이브 공통.")]
+    [SerializeField] private float telegraphScaleMul = 2.5f;
 
     [Header("포효 페이즈 (HP 66%/33%서 포효 -> 디버프 + 광폭화)")]
     [SerializeField] private string roarState = "Roar";
@@ -571,7 +573,7 @@ public class WyvernBossController : MonoBehaviour
     {
         if (telegraphVfx == null) return;
         var tg = Instantiate(telegraphVfx, spot + Vector3.up * 0.1f, Quaternion.identity);   // 살짝 띄움(z-fighting 방지, 셰이더가 항상 위에 그림)
-        float d = Mathf.Max(0.1f, radius * 2f);
+        float d = Mathf.Max(0.1f, radius * 2f * telegraphScaleMul);   // 파티클 링 보정(telegraphScaleMul)으로 보이는 원을 딜 반경에 맞춤
         tg.transform.localScale = new Vector3(d, d, d);
         Destroy(tg, life + 0.1f);
     }
