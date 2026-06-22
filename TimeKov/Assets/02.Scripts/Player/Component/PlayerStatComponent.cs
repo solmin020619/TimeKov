@@ -20,7 +20,7 @@ public class PlayerStatComponent : MonoBehaviour
     public float StaminaRegen = 5f;
     [Tooltip("탈진 후 달리기 재허용 기준 비율 (0~1). 스테미나가 0이 되면 탈진, 이 비율 이상 회복되면 재허용")]
     public float ExhaustedThreshold = 0.3f;
-    [Tooltip("대쉬/달리기로 스태미나를 쓴 직후 이 시간(초)만큼 회복을 막는다. 걸으면서 대쉬 스팸으로 스태미나가 사실상 무한 회복되던 문제를 막는 핵심.")]
+    [Tooltip("대쉬로 스태미나를 쓴 직후 이 시간(초)만큼 회복을 막는다. 걸으면서 대쉬 스팸으로 스태미나가 사실상 무한 회복되던 문제를 막는 핵심. (달리기에는 안 걸림 - 달리다 멈추면 바로 회복)")]
     public float StaminaRegenDelay = 1.5f;
 
     [Header("Hurt")]
@@ -47,7 +47,7 @@ public class PlayerStatComponent : MonoBehaviour
 
     private Player _player;
     private Coroutine _hurtRoutine;
-    private float _regenLockTimer;   // >0 동안 스태미나 회복 정지(대쉬/달리기 소모 직후)
+    private float _regenLockTimer;   // >0 동안 스태미나 회복 정지(대쉬 소모 직후만. 달리기는 안 검)
 
     public event Action OnDead;
     public event Action OnHurt;  // UI �ǰ� �ǵ���
@@ -264,7 +264,7 @@ public class PlayerStatComponent : MonoBehaviour
     {
         if (IsExhausted) return false;
         CurrentStamina = Mathf.Max(0, CurrentStamina - StaminaDrain * Time.deltaTime);
-        _regenLockTimer = StaminaRegenDelay;   // 달리기 멈춘 뒤에도 잠깐 회복 지연
+        // 달리기는 회복 락아웃을 안 건다 -> 멈추면 바로 회복 시작. (달리는 중엔 HandleStaminaRegen의 !IsSprinting 가드가 회복을 막음)
         return true;
     }
 
@@ -278,7 +278,7 @@ public class PlayerStatComponent : MonoBehaviour
     void HandleStaminaRegen()
     {
         if (CurrentStamina >= MaxStamina) return;
-        if (_regenLockTimer > 0f) return;   // 대쉬/달리기 소모 직후 회복 락아웃
+        if (_regenLockTimer > 0f) return;   // 대쉬 소모 직후 회복 락아웃(달리기는 아래 !IsSprinting 가드로 처리)
 
         // 지상에 있고 스프린트 중이 아니면 회복 (idle + 걷기 모두 허용)
         bool canRegen = _player.Movement.IsGrounded

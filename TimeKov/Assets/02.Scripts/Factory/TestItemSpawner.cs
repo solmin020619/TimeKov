@@ -43,7 +43,6 @@ public class TestItemSpawner : MonoBehaviour
             if (GameDataHolder.I.ItemData.TryGet(info.itemID.ToString(), out var data))
             {
                 inv.AddItem(info.itemID, info.amount);
-                Debug.Log($"[TestSpawner] {data.itemName} x{info.amount} 지급");
             }
             else
             {

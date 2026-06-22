@@ -35,8 +35,6 @@ public class RespawnManager : MonoBehaviour
         // deathOverlay 미연결 시 씬에서 자동 탐색
         if (deathOverlay == null)
             deathOverlay = Object.FindAnyObjectByType<DeathOverlayUI>(FindObjectsInactive.Include);
-
-        Debug.Log($"[RespawnManager] deathOverlay = {(deathOverlay != null ? deathOverlay.gameObject.name : "NULL")}");
     }
 
     void HandleDead()
@@ -72,10 +70,8 @@ public class RespawnManager : MonoBehaviour
             DropInventoryItems();
 
         // 3. DEFEAT 오버레이 표시 + 카운트다운 후 버튼 활성화
-        Debug.Log($"[RespawnManager] HandleDead → deathOverlay={deathOverlay}");
         if (deathOverlay != null)
         {
-            Debug.Log("[RespawnManager] Show() 호출");
             deathOverlay.Show(RespawnDelay, () => _respawnRequested = true);
             yield return new WaitUntil(() => _respawnRequested);
         }
@@ -139,7 +135,6 @@ public class RespawnManager : MonoBehaviour
             if (enemyDrop != null)
             {
                 lootBoxPrefab = enemyDrop.BoxPrefab;
-                Debug.Log("[RespawnManager] lootBoxPrefab 자동 탐색 완료 → EnemyDropOnDeath.BoxPrefab 사용");
             }
         }
 
@@ -162,8 +157,6 @@ public class RespawnManager : MonoBehaviour
             lootBox.Initialize(items);
         else
             Debug.LogWarning("[RespawnManager] 생성된 LootBox 프리팹에 LootBox 컴포넌트가 없습니다.");
-
-        Debug.Log($"[RespawnManager] 사망 드롭: {items.Count}종 아이템 드롭 완료");
     }
 
     void OnDestroy() => _player.Stat.OnDead -= HandleDead;

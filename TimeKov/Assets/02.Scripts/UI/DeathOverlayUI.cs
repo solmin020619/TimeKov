@@ -10,6 +10,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using TimeKov.UI;   // WindowManager / UILayer / WindowSortingSettings (오버레이 sortingOrder)
 
 public class DeathOverlayUI : MonoBehaviour
 {
@@ -46,6 +47,8 @@ public class DeathOverlayUI : MonoBehaviour
 
     void Awake()
     {
+        EnsureTopmostCanvas();   // 사망 화면은 항상 최상단(Overlay) — 다른 UI가 부활 버튼 가리는 것 차단
+
         if (overlayGroup != null)
         {
             overlayGroup.alpha          = 0f;
@@ -125,6 +128,28 @@ public class DeathOverlayUI : MonoBehaviour
     {
         SetButtonReady(false);
         _onRespawn?.Invoke();
+    }
+
+    // 사망 오버레이를 자체 Canvas로 띄워 sortingOrder를 Overlay(500)로 고정.
+    // 코어키트 F목록/컨텍스트메뉴 등 나중에 생성되는 UI가 부활 버튼 위를 덮어 클릭이 안 먹던 버그 차단.
+    // (overlayGroup.blocksRaycasts=true 와 합쳐져 사망 중엔 뒤 UI 클릭도 막는 올바른 모달이 됨)
+    void EnsureTopmostCanvas()
+    {
+        var canvas = GetComponent<Canvas>();
+        if (canvas == null) canvas = gameObject.AddComponent<Canvas>();
+
+        int order = 500;   // WindowSortingSettings.overlayOrder 폴백(매니저 없을 때)
+        var wm = WindowManager.I;
+        if (wm != null && wm.SortingSettings != null)
+            order = wm.SortingSettings.GetOrder(UILayer.Overlay);
+
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = order;
+
+        // ★자체 Canvas를 붙이면 이 오브젝트 하위 그래픽이 이 Canvas에 등록된다.
+        // 루트 GraphicRaycaster는 자기 Canvas 그래픽만 레이캐스트하므로, 여기에도 GraphicRaycaster가 없으면
+        // 화면엔 보이지만(렌더는 sortingOrder로) 버튼 클릭이 안 먹는다. -> 자체 레이캐스터 부착 필수.
+        if (GetComponent<GraphicRaycaster>() == null) gameObject.AddComponent<GraphicRaycaster>();
     }
 
     // 인벤/창고/도감과 톤 통일: 차가운 슬레이트 패널 + 밝은 텍스트 + 시안 카운트다운 + 어두운 딤.

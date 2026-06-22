@@ -33,7 +33,6 @@ public class InventoryPanelSkinSwapper : MonoBehaviour
         index = (index + dir + skins.Length) % skins.Length;
         Apply();
         var n = skins[index] != null ? skins[index].name : "null";
-        Debug.Log($"[PanelSkin] {index + 1}/{skins.Length} = {n} (alpha {alpha:0.00})");
     }
 
     void Apply()

@@ -72,8 +72,6 @@ public class TerrainTreeNavObstacles : MonoBehaviour
             obs.carveOnlyStationary = true;   // 나무는 안 움직임 → 1회만 카빙(런타임 비용 최소)
             made++;
         }
-
-        Debug.Log($"[TerrainTreeNavObstacles] 나무 장애물 {made}개 생성 (총 트리 {data.treeInstances.Length})");
     }
 
     [ContextMenu("Clear Tree Obstacles")]
