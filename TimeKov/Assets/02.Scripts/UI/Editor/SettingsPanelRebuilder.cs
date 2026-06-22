@@ -254,6 +254,23 @@ public static class SettingsPanelRebuilder
         sensitivitySlider.minValue = 0f;
         sensitivitySlider.maxValue = 2f;
         sensitivitySlider.value = 1f;
+
+        // 감도는 볼륨처럼 "%"가 아니라 "배율" 개념이라 100/150/200보다 1.00x/1.50x/2.00x가 더 직관적.
+        var sensValueInput = sensitivitySlider.transform.parent.GetComponentInChildren<SliderValueInput>(true);
+        if (sensValueInput != null)
+        {
+            sensValueInput.scale = 1f;
+            sensValueInput.decimals = 2;
+            sensValueInput.suffix = "x";
+            if (sensValueInput.input != null)
+            {
+                // DecimalNumber 콘텐츠 타입은 'x' 문자를 입력 중 걸러내버려서 Standard로 둔다 —
+                // 파싱(SliderValueInput.OnSubmit)이 숫자만 직접 떼어내 처리하므로 문제 없음.
+                sensValueInput.input.contentType = TMP_InputField.ContentType.Standard;
+                sensValueInput.input.characterLimit = 6;
+                sensValueInput.input.text = "1.00x";
+            }
+        }
         var rebindSlots = new List<GlobalSettingsManager.RebindSlot>
         {
             CreateRebindRow(controlsContent, "기본 공격", "Attack"),

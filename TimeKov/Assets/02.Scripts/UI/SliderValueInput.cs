@@ -3,12 +3,15 @@ using UnityEngine;
 using UnityEngine.UI;
 
 // 슬라이더 옆 숫자칸 — 평소엔 현재 값을 보여주고, 클릭해서 직접 숫자를 입력하면 슬라이더 값이 바뀐다.
-// scale=100이면 입력칸은 0~100 정수, 슬라이더 자체는 0~1로 환산해서 적용한다.
+// scale=100, decimals=0이면 입력칸은 0~100 정수(볼륨 등 %). 감도처럼 "배율(x)"로 보여줄 땐
+// scale=1, decimals=2, suffix="x"로 설정해서 "1.00x" 형식으로 표시한다.
 public class SliderValueInput : MonoBehaviour
 {
     public Slider slider;
     public TMP_InputField input;
     public float scale = 100f;
+    public int decimals = 0;
+    public string suffix = "";
 
     void OnEnable()
     {
@@ -26,20 +29,24 @@ public class SliderValueInput : MonoBehaviour
 
     void UpdateFromSlider(float v)
     {
-        input.SetTextWithoutNotify(Mathf.RoundToInt(v * scale).ToString());
+        input.SetTextWithoutNotify((v * scale).ToString("F" + decimals) + suffix);
     }
 
     void OnSubmit(string text)
     {
-        if (!int.TryParse(text, out int n))
+        string numeric = !string.IsNullOrEmpty(suffix) && text.EndsWith(suffix)
+            ? text.Substring(0, text.Length - suffix.Length)
+            : text;
+
+        if (!float.TryParse(numeric, out float n))
         {
             UpdateFromSlider(slider.value); // 잘못 입력하면 원래 값으로 되돌림
             return;
         }
-        int min = Mathf.RoundToInt(slider.minValue * scale);
-        int max = Mathf.RoundToInt(slider.maxValue * scale);
+        float min = slider.minValue * scale;
+        float max = slider.maxValue * scale;
         n = Mathf.Clamp(n, min, max);
         slider.value = n / scale;
-        input.SetTextWithoutNotify(n.ToString());
+        UpdateFromSlider(slider.value); // 클램프/포맷 반영해서 다시 그림
     }
 }
