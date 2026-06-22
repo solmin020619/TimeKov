@@ -234,7 +234,6 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
     {
         if (player == null || !CanInstantComplete(player))
         {
-            Debug.Log("[FacilityUnlockPickup] 즉시완료 불가 — 시간(HP) 부족.");
             return;
         }
         player.Stat.SpendHp(InstantCost);

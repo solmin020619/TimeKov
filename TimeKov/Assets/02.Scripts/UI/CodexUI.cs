@@ -158,11 +158,11 @@ public class CodexUI : MonoBehaviour
         if (_root != null && _root.gameObject.activeSelf) Refresh();
     }
 
-    // 도감 열려있을 때 F9 = 개발자 전부해금 토글(테스트용)
+    // 도감 열려있을 때 F3 = 개발자 전부해금 토글(테스트용).
     private void Update()
     {
         if (_root == null || !_root.gameObject.activeSelf) return;
-        if (Input.GetKeyDown(KeyCode.F9))
+        if (Input.GetKeyDown(KeyCode.F3))
         {
             _devUnlockAll = !_devUnlockAll;
             RebuildLists();
@@ -396,7 +396,7 @@ public class CodexUI : MonoBehaviour
         fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         Img(tab, active ? RoundedFallback(11) : null, active ? Accent : new Color(0f, 0f, 0f, 0f));
-        Btn(tab, () => { _tab = index; _sel = 0; _highlightOutputItemId = 0; CodexNotice.MarkSeen(index); RebuildTabs(); Refresh(); });
+        Btn(tab, () => { _tab = index; _sel = 0; _highlightOutputItemId = 0; CodexNotice.MarkSeen(index); RebuildTabs(); Refresh(); }, SfxId.CodexTabClick);   // 탭 위젯은 별도 사운드
 
         Color icCol = active ? TabActiveTxt : TabInactiveTxt;
         var ico = NewChild("ico", tab);
@@ -1903,13 +1903,13 @@ public class CodexUI : MonoBehaviour
         return t;
     }
 
-    static void Btn(RectTransform rt, UnityEngine.Events.UnityAction onClick)
+    static void Btn(RectTransform rt, UnityEngine.Events.UnityAction onClick, SfxId clickSfx = SfxId.CodexClick)
     {
         var img = rt.gameObject.GetComponent<Image>();
         if (img != null) img.raycastTarget = true;
         var btn = rt.gameObject.AddComponent<Button>();
         btn.transition = Selectable.Transition.None;
-        btn.onClick.AddListener(() => GameSfx.Play(SfxId.CodexClick));   // 클릭음 - 평버튼 공통(좌측 목록/상단 탭 위젯/활성화·보상수령). 그리드 셀은 HoverButton서 별도.
+        btn.onClick.AddListener(() => GameSfx.Play(clickSfx));   // 기본 CodexClick(좌측 목록/활성화·보상수령). 상단 탭 위젯만 CodexTabClick 전달. 그리드 셀은 HoverButton서 별도.
         btn.onClick.AddListener(onClick);
     }
 

@@ -76,8 +76,6 @@ public class EnemySpawnPoint : MonoBehaviour
     [SerializeField] private bool drawGizmos = true;
     [SerializeField] private Color areaColor = new Color(1f, 0.5f, 0f, 0.25f);
     [SerializeField] private Color waypointColor = new Color(0.2f, 0.8f, 1f, 1f);
-    [Tooltip("Console에 스폰 위치/지면 보정 값 출력 (부유 디버깅용)")]
-    [SerializeField] private bool verboseLog = false;
 
     private BoxCollider area;
     private readonly List<BoxCollider> _excluders = new();
@@ -241,9 +239,6 @@ public class EnemySpawnPoint : MonoBehaviour
                 float navMeshLiftFromGround = pos.y - _lastGroundPos.y;
                 agent.baseOffset = -navMeshLiftFromGround;
                 agent.Warp(_lastGroundPos);
-
-                if (verboseLog)
-                    Debug.Log($"[SpawnPoint] {enemy.name}: navY={pos.y:F3}, groundY={_lastGroundPos.y:F3}, prevBaseOffset={prevBaseOffset:F3}, newBaseOffset={agent.baseOffset:F3}, finalY={enemy.transform.position.y:F3}", enemy);
             }
         }
 

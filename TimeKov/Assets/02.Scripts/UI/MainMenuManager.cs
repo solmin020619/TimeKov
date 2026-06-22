@@ -56,7 +56,6 @@ public class MainMenuManager : MonoBehaviour
     public void OnClickLoadGame()
     {
         PlayClickSound();
-        Debug.Log("·Îµå °ÔÀÓ ±â´ÉÀº ¾ÆÁ÷ ±¸ÇöµÇÁö ¾Ê¾Ò½À´Ï´Ù.");
     }
 
     public void OnClickOption()
@@ -64,7 +63,7 @@ public class MainMenuManager : MonoBehaviour
         if (globalSettingsManager != null)
             globalSettingsManager.OpenSettings();
         else
-            Debug.LogError("GlobalSettingsManager°¡ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù!");
+            Debug.LogError("GlobalSettingsManagerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò½ï¿½ï¿½Ï´ï¿½!");
     }
 
     public void OnClickQuit()

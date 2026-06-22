@@ -25,11 +25,10 @@ public class InventoryBlurTuner : MonoBehaviour
     [Range(-1f, 1f)] public float brightness = 0.02f;
 
     private UIBlur _blur;
-    private bool _logged;
 
     private void OnEnable()   { Resolve(); Apply(); }
     private void OnValidate() { Resolve(); Apply(); }
-    private void Update()     { Resolve(); Apply(); Diagnose(); }
+    private void Update()     { Resolve(); Apply(); }
 
     private void Resolve()
     {
@@ -84,20 +83,4 @@ public class InventoryBlurTuner : MonoBehaviour
         return best != null ? best : main;
     }
 
-    // 진단 (자동 1회 + F8)
-    private void Diagnose()
-    {
-        bool key = Input.GetKeyDown(KeyCode.F8);
-        if ((_logged && !key) || !Application.isPlaying || _blur == null || _blur.Common == null) return;
-        _logged = true;
-
-        var cam = _blur.Common.cameraReference;
-        int fnum = _blur.Common.featureNumber;
-        bool passForCam = cam != null && FlexibleBlurFeature.GlobalFlexibleBlurPassDict.ContainsKey((cam, fnum));
-        var s = _blur.Common.ActiveSettings;
-        float addDist = s != null ? s.blurAdditionalDistancePerIteration : -1f;
-
-        Debug.Log($"[BlurTuner-UIBlur] camRef={(cam ? cam.name : "null")} present={_blur.Common.PresentInBlurList} " +
-                  $"passForCam={passForCam} uiBlurDict={UIBlur.BlurDict.Count} alpha={_blur.Alpha:0.00} addDist={addDist:0.0}");
-    }
 }

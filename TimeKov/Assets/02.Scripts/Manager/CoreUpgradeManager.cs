@@ -80,8 +80,8 @@ public class CoreUpgradeManager : MonoBehaviour
 
     private void Update()
     {
-        // [Dev/테스트] F7 = 코어 레벨 +1 (재료/확률 무시). 출시 전 제거.
-        if (Input.GetKeyDown(KeyCode.F7))
+        // [Dev/테스트] F2 = 코어 레벨 +1 (재료/확률 무시). 출시 전 제거.
+        if (Input.GetKeyDown(KeyCode.F2))
             DevForceLevelUp();
     }
 
@@ -177,7 +177,6 @@ public class CoreUpgradeManager : MonoBehaviour
         // ④ 확률 판정 (타임 캐치 보너스 포함)
         float finalRate = Mathf.Clamp01(nextData.successRate + successRateBonus);
         bool success = UnityEngine.Random.value < finalRate;
-        Debug.Log($"[CoreUpgrade] 확률 판정: successRate={nextData.successRate} + bonus={successRateBonus} = {finalRate} → {(success ? "성공" : "실패")}");
 
         if (success)
         {
@@ -189,7 +188,6 @@ public class CoreUpgradeManager : MonoBehaviour
             OnLevelChanged?.Invoke(CurrentCoreLevel);
             GameEvents.RaiseCoreUpgraded(CurrentCoreLevel);   // 튜토리얼 등 전역 구독자 통지
             ToastManager.Success("코어 강화 성공!");
-            Debug.Log($"[CoreUpgrade] 강화 성공! 현재 레벨: {CurrentCoreLevel}");
         }
         else
         {
@@ -198,7 +196,6 @@ public class CoreUpgradeManager : MonoBehaviour
             // CurrentCoreLevel = Mathf.Max(0, CurrentCoreLevel - 1);
             // ApplyStatsForLevel(CurrentCoreLevel);
             // SaveLevel();
-            Debug.Log("[CoreUpgrade] 강화 실패. 레벨 유지.");
         }
 
         GameEvents.RaiseCoreUpgradeAttempt();   // 튜토 lookback: 퀘 갭에 미리 강화해도 인정되게 기록
@@ -272,7 +269,6 @@ public class CoreUpgradeManager : MonoBehaviour
         if (player == null) return;
 
         player.Stat.ApplyCoreStats(data.maxTime);
-        Debug.Log($"[CoreUpgrade] Lv.{level} 스탯 적용: MaxTime(HP)={data.maxTime}");
     }
 
     private bool HasRequiredKit(CoreLevelDataSheetData data)
@@ -364,7 +360,6 @@ public class CoreUpgradeManager : MonoBehaviour
         // TODO: Steam + Firebase 저장 시스템 연동 시 여기에 구현
         // CurrentCoreLevel = SaveSystem.Load<int>("currentCoreLevel", defaultValue: 0);
         CurrentCoreLevel = 0;  // 저장 시스템 연동 전까지 항상 0단계로 시작
-        Debug.Log("[CoreUpgrade] 코어 레벨 초기화 (저장 미연동 — 0단계 시작)");
     }
 
     private Player _cachedPlayer;

@@ -49,7 +49,6 @@ public class EnemyDropOnDeath : MonoBehaviour
         }
 
         List<(int itemId, int count)> contents = Roll();
-        Debug.Log($"[Drop] sourceId='{sourceId}' → 굴린 아이템 {contents.Count}개 → 박스 {contents.Count}개 스폰");
         if (contents.Count == 0) return;
 
         // 아이템 1개 = 박스 1개. 죽은 자리 주변에 흩어 놓는다.

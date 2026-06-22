@@ -39,7 +39,6 @@ public class GameOverUIManager : MonoBehaviour
         if (FindAnyObjectByType<RespawnManager>() != null)
         {
             _disabled = true;
-            Debug.Log("[GameOverUIManager] RespawnManager 감지 → 게임오버 연출 비활성화 (리스폰 시스템이 사망을 처리합니다)");
             return;
         }
 

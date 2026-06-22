@@ -39,7 +39,6 @@ public class ActiveBuffManager : MonoBehaviour
             {
                 RevertBuff(buff);
                 _activeBuffs.RemoveAt(i);
-                Debug.Log($"[BuffManager] 버프 만료: {buff.target} delta={buff.appliedDelta}");
             }
         }
     }
@@ -72,8 +71,6 @@ public class ActiveBuffManager : MonoBehaviour
             remainingTime = duration,
             sourceItemId = sourceItemId
         });
-
-        Debug.Log($"[BuffManager] 버프 적용: {target} delta={appliedDelta} / {duration}초");
     }
 
     // 지속 회복: 초당 healPerSecond 를 duration 동안 누적 회복

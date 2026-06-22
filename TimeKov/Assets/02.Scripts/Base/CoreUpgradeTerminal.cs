@@ -47,7 +47,6 @@ public class CoreUpgradeTerminal : MonoBehaviour, IInteractable
         // 기지 내부 조건 검사
         if (!player.Stat.IsInBase)
         {
-            Debug.Log("[CoreTerminal] 기지 결계 내부에서만 강화할 수 있습니다.");
             // TODO: 토스트 메시지 출력
             // ToastNotification.Show("기지 내부에서만 강화할 수 있습니다.");
             return;
@@ -57,7 +56,6 @@ public class CoreUpgradeTerminal : MonoBehaviour, IInteractable
         if (player.Stat.IsDead || player.Stat.IsHurt ||
             player.Skill.IsExecuting || player.Dash.IsDashing)
         {
-            Debug.Log("[CoreTerminal] 현재 상태에서는 강화할 수 없습니다.");
             return;
         }
 

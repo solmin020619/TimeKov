@@ -159,7 +159,7 @@ public class GlobalSettingsManager : MonoBehaviour
             for (int i = 0; i < tabButtons.Length; i++)
             {
                 int idx = i;
-                if (tabButtons[i] != null) tabButtons[i].onClick.AddListener(() => { GameSfx.Play(SfxId.SettingsClick); ShowTab(idx); });   // 중앙 위 탭 위젯 클릭음
+                if (tabButtons[i] != null) tabButtons[i].onClick.AddListener(() => { GameSfx.Play(SfxId.SettingsTabClick); ShowTab(idx); });   // 중앙 위 탭 위젯 클릭음(별도 사운드)
             }
 
         if (rebindSlots != null)

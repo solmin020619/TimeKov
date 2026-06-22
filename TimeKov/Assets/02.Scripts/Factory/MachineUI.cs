@@ -126,7 +126,6 @@ public class MachineUI : MonoBehaviour
         if (inventoryDropZone == null)
         {
             inventoryDropZone = inventorySlotParent.gameObject.AddComponent<InventoryPanelDropZone>();
-            Debug.Log("[MachineUI] InventoryPanelDropZone 컴포넌트를 inventorySlotParent에 자동으로 추가했습니다.");
         }
 
         inventoryDropZone.SetDropCallback(TakeOutput);

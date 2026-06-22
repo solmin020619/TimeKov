@@ -146,17 +146,14 @@ public static class ConsumableEffectApplier
         {
             case EffectTarget.ATK:
                 player.Stat.ATK += delta;
-                Debug.Log($"[ConsumableEffect] 영구 ATK +{delta} → 현재 ATK={player.Stat.ATK}");
                 return true;
 
             case EffectTarget.DEF:
                 player.Stat.DEF += delta;
-                Debug.Log($"[ConsumableEffect] 영구 DEF +{delta} → 현재 DEF={player.Stat.DEF}");
                 return true;
 
             case EffectTarget.Stamina:
                 player.Stat.MaxStamina += delta;
-                Debug.Log($"[ConsumableEffect] 영구 최대 스태미나 +{delta} → 현재 MaxStamina={player.Stat.MaxStamina}");
                 return true;
 
             // 후속 확장 — MoveSpeed 등 영구 증가 필요해지면 case 추가

@@ -16,9 +16,7 @@ using Unity.Profiling;
 
 public class PerfHud : MonoBehaviour
 {
-    [SerializeField] private KeyCode toggleKey = KeyCode.F3;
-    [SerializeField] private KeyCode resetKey = KeyCode.F4;
-    [SerializeField] private bool visible = true;
+    [SerializeField] private bool visible = false;   // 개발자키(F3/F4) 제거됨 — 측정 쓰려면 인스펙터에서 visible 켜기
     [SerializeField] private float refreshInterval = 0.25f; // 표시 갱신 주기(초)
 
     private ProfilerRecorder gcAlloc;
@@ -57,12 +55,6 @@ public class PerfHud : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(toggleKey)) visible = !visible;
-        if (Input.GetKeyDown(resetKey))
-        {
-            accumGC = 0; accumFrames = 0; accumPeakMs = 0f; accumTime = 0f;
-        }
-
         float ms = Time.unscaledDeltaTime * 1000f;
         avgMs = avgMs <= 0f ? ms : Mathf.Lerp(avgMs, ms, 0.05f);
         if (ms > peakMs) peakMs = ms;

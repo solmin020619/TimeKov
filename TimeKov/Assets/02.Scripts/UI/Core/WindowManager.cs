@@ -93,9 +93,6 @@ namespace TimeKov.UI
         {
             if (listenEscapeKey && Input.GetKeyDown(KeyCode.Escape))
                 HandleEscape();
-
-            if (enableDebugOverlay && Input.GetKeyDown(KeyCode.F11))
-                _debugOverlayVisible = !_debugOverlayVisible;
         }
 
         void OnGUI()

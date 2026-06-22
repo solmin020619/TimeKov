@@ -105,8 +105,6 @@ public class TutorialMarker : MonoBehaviour
                 }
                 if (lastTriggerId != null)
                     Debug.LogWarning($"[TutorialMarker] ReachTrigger='{lastTriggerId}' 활성인데 QuestTrigger GameObject 못 찾음. 활성 obj {total}개=[{types}]");
-                else
-                    Debug.Log($"[TutorialMarker] 활성 ReachTrigger 없음 (활성 obj {total}개, ReachTrigger {reachCount}개, 타입=[{types}])");
             }
             Hide();
             return;

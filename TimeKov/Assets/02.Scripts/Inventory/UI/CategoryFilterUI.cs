@@ -193,16 +193,9 @@ public class CategoryFilterUI : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             startW[i] = _tabRects[i] != null ? _tabRects[i].sizeDelta.x : collapsedWidth;
+            startA[i] = _tabLabels[i] != null ? _tabLabels[i].color.a : 0f;
             targW[i] = (i == sel) ? _expandedWidth[i] : collapsedWidth;
             targA[i] = (i == sel) ? 1f : 0f;
-
-            // 비선택 탭 라벨은 즉시 숨김 — 슬라이드되는 동안 옛 라벨이 알파가 남은 채 끌려가
-            // 잔상처럼 보이던 문제 방지. 선택 탭 라벨만 0->1 페이드인.
-            if (i != sel && _tabLabels[i] != null)
-            {
-                var c = _tabLabels[i].color; c.a = 0f; _tabLabels[i].color = c;
-            }
-            startA[i] = _tabLabels[i] != null ? _tabLabels[i].color.a : 0f;
         }
 
         var cur = new float[n];
