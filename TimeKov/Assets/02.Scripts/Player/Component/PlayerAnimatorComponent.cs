@@ -181,7 +181,10 @@ public class PlayerAnimatorComponent : MonoBehaviour
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
     public void PlayDie()
     {
+        // 트리거 경로(기존) + Action 레이어(1)에 GS_Die 강제 재생.
+        // 트리거 전환이 타이밍/상태에 따라 누락돼 "죽어도 우뚝 서있던" 문제 방지 — Play로 확실히 재생.
         _anim.SetTrigger(DieHash);
+        _anim.Play("GS_Die", 1, 0f);
         _player.Audio?.PlayDie();
     }
 }

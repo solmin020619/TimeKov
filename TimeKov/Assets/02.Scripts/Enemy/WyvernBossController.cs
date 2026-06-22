@@ -84,6 +84,12 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private string speedParam = "Speed";
     [SerializeField] private string fireballState = "Fireball";
 
+    [Header("리쉬 (이탈 리셋 - 팰월드/마크식: 멀리 가면 풀피로 초기화)")]
+    [Tooltip("교전 시작 후 플레이어가 이 거리(평면) 넘게 멀어지면 리셋 타이머 시작. 어그로보다 넓게.")]
+    [SerializeField] private float leashDistance = 45f;
+    [Tooltip("이 시간(초) 동안 leashDistance 밖에 있으면 보스를 스폰 자리로 되돌리고 풀피/페이즈 초기화.")]
+    [SerializeField] private float leashResetTime = 4f;
+
     // 근접 공격 정의 (state=컨트롤러 상태명 / reachMul=사거리배수 x attackRange / halfAngle=정면 호 반각
     //  / windup=발사프레임 / recover=후딜 / dmgMul=데미지배수 x attackDamage / cd=개별쿨 / weight=선택가중)
     private struct AtkDef
@@ -127,6 +133,11 @@ public class WyvernBossController : MonoBehaviour
     private float _enrageSpeed = 1f;    // 누적 이속 배수
     private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
 
+    // 리쉬(이탈 리셋)
+    private Vector3 _spawnPos;
+    private Quaternion _spawnRot;
+    private float _leashTimer;
+
     private void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
@@ -162,6 +173,8 @@ public class WyvernBossController : MonoBehaviour
     private void Start()
     {
         _healLockScale = transform.localScale;   // 평상(rest) 스케일 캡처 = 회복 비행 중 고정 기준(애니 첫 평가 전이라 순수 값)
+        _spawnPos = transform.position;          // 리쉬 리셋 시 되돌아올 자리
+        _spawnRot = transform.rotation;
         AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
@@ -190,10 +203,57 @@ public class WyvernBossController : MonoBehaviour
         _playerStat = p.GetComponent<PlayerStatComponent>();
     }
 
+    // 리쉬: 교전 후 플레이어가 leashDistance 밖에 leashResetTime 만큼 머물면 보스 리셋.
+    // (보스 피 깎고 도망 -> 재접근 무한반복 익스플로잇 차단. 팰월드/마크식 풀피 복귀.)
+    private void HandleLeash()
+    {
+        if (_player == null) { _leashTimer = 0f; return; }
+        if (PlanarDistance(_player.position) > leashDistance)
+        {
+            _leashTimer += Time.deltaTime;
+            if (_leashTimer >= leashResetTime) ResetBoss();
+        }
+        else _leashTimer = 0f;
+    }
+
+    // 보스를 스폰 자리로 되돌리고 풀피/페이즈/광폭화/쿨/무적/스케일을 초기 상태로.
+    private void ResetBoss()
+    {
+        _leashTimer = 0f;
+        _engaged = false;
+
+        StopAllCoroutines();
+        _attacking = false;
+        EndDiveCleanup();   // 공중에 떠 있었으면 지면/에이전트 복구
+        _lockScale = false;
+        transform.localScale = _healLockScale;
+
+        // 페이즈/광폭화/쿨 초기화
+        for (int i = 0; i < _roared.Length; i++) _roared[i] = false;
+        _healed = false;
+        _enrageCd = 1f;
+        _enrageSpeed = 1f;
+        for (int i = 0; i < _atkCd.Length; i++) _atkCd[i] = 0f;
+        _rangedCd = 0f; _meleeGapCd = 0f; _eruptCd = 3f; _diveCd = 6f;
+
+        if (_health != null) { _health.Invulnerable = false; _health.ResetToFull(); }
+        if (_agent != null && data != null) _agent.speed = data.moveSpeed;
+
+        // 스폰 자리로 복귀(네비메시 위면 Warp, 아니면 직접 이동)
+        if (_agent != null && _agent.enabled && _agent.isOnNavMesh) _agent.Warp(_spawnPos);
+        else transform.position = _spawnPos;
+        transform.rotation = _spawnRot;
+        if (AgentReady()) { _agent.isStopped = true; _agent.ResetPath(); }
+
+        BossHealthBarUI.Hide();   // 상단 보스바 숨김(다시 접근하면 재교전 시 다시 뜸)
+    }
+
     private void Update()
     {
         if (_dead) return;
         if (_player == null) AcquirePlayer();
+
+        if (_engaged) HandleLeash();   // 멀리 가면 풀피 리셋(리셋되면 _engaged=false라 이하 로직은 idle처럼 흐름)
 
         if (_animator != null && _agent != null && _agent.isActiveAndEnabled)
             _animator.SetFloat(_speedHash, _agent.velocity.magnitude);   // 다이브 중 에이전트 비활성이면 스킵

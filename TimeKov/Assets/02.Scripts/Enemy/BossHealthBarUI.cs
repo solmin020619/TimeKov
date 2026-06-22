@@ -18,7 +18,11 @@ public class BossHealthBarUI : MonoBehaviour
 
     private EnemyHealth _target;
     private bool _visible;
-    private Coroutine _fadeCo;
+    private Camera _cam;
+
+    // 가까이 있을 때만 표시: 카메라-보스 거리가 이 값 안일 때만 보임(보스 어그로/리쉬보다 약간 넓게).
+    private const float ShowDistance = 40f;
+    private const float FadeDur = 0.35f;
 
     // ── 외부 API ──
     public static void Show(EnemyHealth health, string bossName, string subtitle = null)
@@ -137,51 +141,53 @@ public class BossHealthBarUI : MonoBehaviour
         if (_subText != null) _subText.text = subtitle ?? "";
         if (_fill != null) _fill.fillAmount = SafeFrac();
 
-        _visible = true;
-        StartFade(1f);
+        _visible = true;   // 알파 페이드인은 Update가 거리/UI 조건 보고 처리
     }
 
     private void HideInternal()
     {
         if (_target != null) { _target.OnDeath -= OnTargetDeath; _target = null; }
         _visible = false;
-        StartFade(0f);
     }
 
     private void OnTargetDeath() => HideInternal();
 
     private void Update()
     {
-        if (!_visible || _fill == null) return;
-        if (_target == null) { HideInternal(); return; }   // 보스 GameObject 소멸 시
-        float frac = SafeFrac();
-        _fill.fillAmount = Mathf.Lerp(_fill.fillAmount, frac, Time.deltaTime * 8f);
+        if (_cg == null) return;
+
+        // 표시 조건: 교전 중(_visible) + 타깃 생존 + 일정 거리 안 + 막는 UI(설정창/인벤 등) 안 떠 있음.
+        bool show = _visible && _target != null && WithinShowDistance() && !BlockingUIOpen();
+
+        // 설정창은 timeScale=0 으로 게임을 멈춰 Time.deltaTime=0 이 되므로 페이드가 안 먹는다 -> unscaled 사용.
+        float targetAlpha = show ? 1f : 0f;
+        _cg.alpha = Mathf.MoveTowards(_cg.alpha, targetAlpha, Time.unscaledDeltaTime / FadeDur);
+
+        if (_fill != null && _target != null)
+            _fill.fillAmount = Mathf.Lerp(_fill.fillAmount, SafeFrac(), Time.unscaledDeltaTime * 8f);
+    }
+
+    // 카메라-보스 거리가 ShowDistance 안인지 (멀리 가면 자동 숨김 -> 보스 리쉬 리셋과 짝).
+    private bool WithinShowDistance()
+    {
+        if (_target == null) return false;
+        if (_cam == null) _cam = Camera.main;
+        if (_cam == null) return true;
+        float sqr = (_cam.transform.position - _target.transform.position).sqrMagnitude;
+        return sqr <= ShowDistance * ShowDistance;
+    }
+
+    // 설정/인벤/공장 등 막는 UI가 떠 있으면 보스바를 숨긴다(그 위로 덮어쓰던 문제 수정).
+    private static bool BlockingUIOpen()
+    {
+        var gui = GameUIController.Instance;
+        return gui != null && gui.IsUIBlocking();
     }
 
     private float SafeFrac()
     {
         if (_target == null || _target.maxHP <= 0f) return 0f;
         return Mathf.Clamp01(_target.currentHP / _target.maxHP);
-    }
-
-    private void StartFade(float to)
-    {
-        if (_fadeCo != null) StopCoroutine(_fadeCo);
-        _fadeCo = StartCoroutine(FadeRoutine(to));
-    }
-
-    private IEnumerator FadeRoutine(float to)
-    {
-        float from = _cg != null ? _cg.alpha : 0f;
-        float t = 0f; const float dur = 0.35f;
-        while (t < dur && _cg != null)
-        {
-            t += Time.deltaTime;
-            _cg.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
-            yield return null;
-        }
-        if (_cg != null) _cg.alpha = to;
-        _fadeCo = null;
     }
 
     // ── 생성 헬퍼 ──

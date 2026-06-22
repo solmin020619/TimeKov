@@ -27,5 +27,9 @@ public class Player : MonoBehaviour
         // 프리팹에 직접 붙이면 인스펙터에서 쿨다운 등 튜닝 가능.
         QuickSlot = GetComponent<PlayerQuickSlotComponent>();
         if (QuickSlot == null) QuickSlot = gameObject.AddComponent<PlayerQuickSlotComponent>();
+
+        // 물(Water 레이어) 닿으면 즉사 - 프리팹에 없으면 런타임 추가.
+        // 직접 붙이면 인스펙터에서 레이어명 변경 가능.
+        if (GetComponent<PlayerWaterDeath>() == null) gameObject.AddComponent<PlayerWaterDeath>();
     }
 }

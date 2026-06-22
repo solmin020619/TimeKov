@@ -1,7 +1,9 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using TMPro;
 
 public class TitleManager : MonoBehaviour
@@ -25,18 +27,34 @@ public class TitleManager : MonoBehaviour
             startText.color = c;
         }
 
-        // UI 버튼(게임 종료 등) 위를 클릭한 경우엔 게임을 시작하지 않는다.
-        if (!_isStarting && Input.anyKeyDown && !IsPointerOverUI())
+        // UI 버튼(게임 종료 등) 위를 클릭한 경우에만 시작을 막는다.
+        if (!_isStarting && Input.anyKeyDown && !IsPointerOverInteractiveUI())
         {
             _isStarting = true;
             StartCoroutine(StartGameRoutine());
         }
     }
 
-    private static bool IsPointerOverUI()
+    // 기존엔 IsPointerOverGameObject()로 '아무 UI'나 위에 있으면 막았다.
+    // 그런데 풀스크린 배경/로고/페이드 같은 장식 Image도 Raycast Target이면 화면 전체를 덮어
+    // 어디를 눌러도 시작이 안 되던 문제 -> 실제 상호작용 UI(Selectable=버튼)만 차단하게 변경.
+    private static readonly List<RaycastResult> _uiHits = new List<RaycastResult>();
+    private static bool IsPointerOverInteractiveUI()
     {
         var es = EventSystem.current;
-        return es != null && es.IsPointerOverGameObject();
+        if (es == null) return false;
+
+        var data = new PointerEventData(es) { position = Input.mousePosition };
+        _uiHits.Clear();
+        es.RaycastAll(data, _uiHits);
+        for (int i = 0; i < _uiHits.Count; i++)
+        {
+            var go = _uiHits[i].gameObject;
+            if (go == null) continue;
+            var sel = go.GetComponentInParent<Selectable>();
+            if (sel != null && sel.interactable) return true;   // 버튼 등 위 = 시작 차단
+        }
+        return false;
     }
 
     private IEnumerator StartGameRoutine()
