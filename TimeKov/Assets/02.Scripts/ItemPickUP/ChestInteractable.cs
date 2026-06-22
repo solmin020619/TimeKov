@@ -105,7 +105,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
             case State.Idle:
                 if (requireBase && !player.Stat.IsInBase)
                 {
-                    Debug.Log("[Chest] 기지 내부에서만 열 수 있습니다.");
                     return;
                 }
                 _state = State.Opening;       // F로 걸어두기
@@ -141,7 +140,6 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     {
         if (player == null || !CanInstantComplete(player))
         {
-            Debug.Log("[Chest] 즉시완료 불가 — 시간(HP) 부족.");
             return;
         }
         if (requireBase && !player.Stat.IsInBase) return;

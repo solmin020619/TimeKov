@@ -13,7 +13,6 @@ public class PlayerBuildZoneChecker : MonoBehaviour
         if (zone == null) return;
 
         zones.Add(zone);
-        Debug.Log($"[ZONE] Enter by {other.name} -> count={zones.Count}");
     }
 
     private void OnTriggerExit(Collider other)
@@ -22,6 +21,5 @@ public class PlayerBuildZoneChecker : MonoBehaviour
         if (zone == null) return;
 
         zones.Remove(zone);
-        Debug.Log($"[ZONE] Exit by {other.name} -> count={zones.Count}");
     }
 }

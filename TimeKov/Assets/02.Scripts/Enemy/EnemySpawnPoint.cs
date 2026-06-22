@@ -241,9 +241,6 @@ public class EnemySpawnPoint : MonoBehaviour
                 float navMeshLiftFromGround = pos.y - _lastGroundPos.y;
                 agent.baseOffset = -navMeshLiftFromGround;
                 agent.Warp(_lastGroundPos);
-
-                if (verboseLog)
-                    Debug.Log($"[SpawnPoint] {enemy.name}: navY={pos.y:F3}, groundY={_lastGroundPos.y:F3}, prevBaseOffset={prevBaseOffset:F3}, newBaseOffset={agent.baseOffset:F3}, finalY={enemy.transform.position.y:F3}", enemy);
             }
         }
 

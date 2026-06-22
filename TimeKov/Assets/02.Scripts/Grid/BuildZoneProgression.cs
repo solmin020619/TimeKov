@@ -178,10 +178,6 @@ public class BuildZoneProgression : MonoBehaviour
 
         _currentStageIndex = index;
         ApplySize(stage.sizeInCells);
-
-        if (logStageChanges)
-            Debug.Log($"[BuildZoneProgression] 단계 {index} 적용 — {stage.sizeInCells.x}x{stage.sizeInCells.y} 칸" +
-                      (string.IsNullOrEmpty(stage.questId) ? " (시작)" : $" (quest: {stage.questId})"));
     }
 
     private void ApplySize(Vector2Int sizeInCells)

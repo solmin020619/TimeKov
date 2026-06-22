@@ -96,8 +96,5 @@ public class InventoryBlurTuner : MonoBehaviour
         bool passForCam = cam != null && FlexibleBlurFeature.GlobalFlexibleBlurPassDict.ContainsKey((cam, fnum));
         var s = _blur.Common.ActiveSettings;
         float addDist = s != null ? s.blurAdditionalDistancePerIteration : -1f;
-
-        Debug.Log($"[BlurTuner-UIBlur] camRef={(cam ? cam.name : "null")} present={_blur.Common.PresentInBlurList} " +
-                  $"passForCam={passForCam} uiBlurDict={UIBlur.BlurDict.Count} alpha={_blur.Alpha:0.00} addDist={addDist:0.0}");
     }
 }

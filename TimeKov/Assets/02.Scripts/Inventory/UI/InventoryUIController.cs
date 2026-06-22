@@ -305,8 +305,6 @@ public class InventoryUIController : MonoBehaviour
                     chestGridUI.Bind(InventoryManager.ChestInstance);
                 if (bagPanel != null) bagPanel.SetActive(true);
             }
-            else
-                Debug.Log($"[InventoryUI] Open 차단 — 현재 UI 상태: {gui.GetCurrentState()}");
             return;
         }
 
