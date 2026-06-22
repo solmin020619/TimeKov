@@ -181,8 +181,11 @@ public class PlayerAnimatorComponent : MonoBehaviour
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
     public void PlayDie()
     {
-        // 트리거 경로(기존) + Action 레이어(1)에 GS_Die 강제 재생.
-        // 트리거 전환이 타이밍/상태에 따라 누락돼 "죽어도 우뚝 서있던" 문제 방지 — Play로 확실히 재생.
+        // 죽는 애니가 확실히, 전신으로 나오게:
+        //  - Action 레이어(1) weight=1 강제 (점프/낙하 등 베이스 레이어 포즈가 비쳐 스완다이브처럼 보이던 것 방지)
+        //  - 트리거 + Play 둘 다 (전환 누락 시에도 강제 재생)
+        _anim.ResetTrigger(DieHash);
+        _anim.SetLayerWeight(1, 1f);
         _anim.SetTrigger(DieHash);
         _anim.Play("GS_Die", 1, 0f);
         _player.Audio?.PlayDie();

@@ -15,7 +15,7 @@ public class TestItemSpawner : MonoBehaviour
     public List<SpawnInfo> startItems = new();
 
     [Header("재지급 단축키")]
-    public KeyCode debugKey = KeyCode.F12;
+    public KeyCode debugKey = KeyCode.F4;   // ★직렬화 필드 - 실제값은 인스펙터. F4 적용하려면 인스펙터에서도 바꿀 것.
 
     private void Start()
     {

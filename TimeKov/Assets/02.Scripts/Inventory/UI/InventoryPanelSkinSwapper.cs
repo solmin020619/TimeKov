@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 // 가방 패널 간유리 PNG를 Play 중 키로 갈아끼며 비교(A/B)하는 개발 도구.
 // skins[] = 빌더가 sprites 폴더의 panel_* 스프라이트로 자동 채움.
-// F9 = 다음, F10 = 이전. color 알파(비침 배율)는 PNG 무관 유지 -> 톤/그레인만 비교됨.
+// (개발자 단축키 F9/F10 제거됨) 인스펙터 index/alpha 로만 비교. color 알파는 PNG 무관 유지.
 // 톤 확정되면 PanelSpritePath만 그걸로 박고 이 컴포넌트는 제거하면 됨.
 public class InventoryPanelSkinSwapper : MonoBehaviour
 {
@@ -23,16 +23,6 @@ public class InventoryPanelSkinSwapper : MonoBehaviour
         {
             var c = _img.color; c.a = alpha; _img.color = c;
         }
-        if (!Application.isPlaying || skins == null || skins.Length == 0) return;
-        if (Input.GetKeyDown(KeyCode.F9)) Step(1);
-        else if (Input.GetKeyDown(KeyCode.F10)) Step(-1);
-    }
-
-    void Step(int dir)
-    {
-        index = (index + dir + skins.Length) % skins.Length;
-        Apply();
-        var n = skins[index] != null ? skins[index].name : "null";
     }
 
     void Apply()

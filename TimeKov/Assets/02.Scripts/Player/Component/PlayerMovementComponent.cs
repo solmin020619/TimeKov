@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -27,6 +28,10 @@ public class PlayerMovementComponent : MonoBehaviour
     public float MaxSlopeAngle   = 45f;   // 최대 등반 가능 경사각
     public float SlopeSlideSpeed = 4f;    // 가파른 경사에서 미끄러지는 속도
 
+    [Header("Death")]
+    [Tooltip("죽은 뒤 바닥에 안착(공중=낙하/경사=안착)되기를 기다리는 최대 시간(초). 지나면 강제로 지면 스냅 후 고정.")]
+    public float DeathSettleMaxTime = 3f;
+
     private Player _player;
     private Rigidbody _rb;
     private CapsuleCollider _capsule;
@@ -51,7 +56,10 @@ public class PlayerMovementComponent : MonoBehaviour
     private const float POST_UNLOCK_PHYS = 0.15f; // 물리 dead zone 길이
     private const float POST_UNLOCK_ANIM = 0.20f; // anim sync 길이 (dead zone + 1프레임 여유)
 
-    // 사망 처리 = 죽는 순간 발밑 지면으로 스냅 + 똑바로 + kinematic 고정(아래 FreezeOnDeath). 케이스별 분기 없음.
+    private bool _settling;            // 사망 안착 진행 중(동적 상태로 중력 낙하/경사 안착 중)
+    private Coroutine _settleCo;
+
+    // 사망 처리: 죽는 순간 즉시 고정하지 않고, 중력으로 바닥까지 떨어뜨리거나 경사에 안착시킨 뒤 고정(FreezeOnDeath -> SettleThenFreezeRoutine).
 
     // Slash
     private bool _isSlashing;
@@ -100,23 +108,49 @@ public class PlayerMovementComponent : MonoBehaviour
     }
 
     /// <summary>
-    /// 사망 처리(깔끔/단일경로): 어디서 죽든(공중/대쉬리프트/경사) 발밑 지면으로 스냅 + 똑바로 세움 + kinematic 고정.
-    /// - 공중에 뜬 채 죽는 것: 지면 레이캐스트 스냅으로 해결(접지 오판에 안 의존).
-    /// - 경사에서 가로로 눕혀 맵 뚫던 것: 눕히지 않고 yaw만 유지(죽는 애니가 그 자리서 쓰러짐).
+    /// 사망 처리: 죽는 순간 즉시 고정하지 않고, 중력으로 바닥까지 떨어뜨리거나(공중) 경사에 안착시킨 뒤 고정한다.
+    /// - 공중사망: 동적 상태 유지 + 중력으로 수직 낙하 -> 접지 후 고정(순간이동 스냅 아님).
+    /// - 경사사망: 그 자리 안착 + yaw만 유지(가로로 안 눕혀 맵 뚫림 방지).
+    /// - 극단 케이스(허공): 타임아웃 후 SnapDownToGround(폴백 레이캐스트)로 강제 안착.
     /// </summary>
     private void FreezeOnDeath()
     {
+        if (_settling) return;   // 중복 OnDead 방지
         _rb.angularVelocity = Vector3.zero;
-        _rb.linearVelocity = Vector3.zero;
+        _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);   // 수평 관성만 제거, 낙하(Y)는 유지
+        UprightYaw();
 
-        SnapDownToGround();   // 발밑 지면으로 (XZ는 죽은 자리 유지, Y만 보정)
+        // kinematic 으로 박지 않음 = 동적 상태로 중력 낙하/경사 안착 후(아래 코루틴) 고정.
+        _settling = true;
+        _settleCo = StartCoroutine(SettleThenFreezeRoutine());
+    }
 
-        // 똑바로(yaw만). 경사 법선 정렬 안 함 = 맵 뚫림 없음.
+    // 접지 + 거의 정지(또는 타임아웃)까지 기다렸다 지면 스냅 + kinematic 고정.
+    private IEnumerator SettleThenFreezeRoutine()
+    {
+        yield return new WaitForFixedUpdate();   // 최소 한 스텝(이미 접지면 다음 루프서 즉시 종료)
+        float t = 0f;
+        while (t < DeathSettleMaxTime)
+        {
+            if (_isGrounded && Mathf.Abs(_rb.linearVelocity.y) < 0.6f) break;   // 바닥 안착 완료
+            t += Time.fixedDeltaTime;
+            yield return new WaitForFixedUpdate();
+        }
+        SnapDownToGround();   // 최종 정렬(폴백 포함 = 못 찾아도 안전)
+        UprightYaw();
+        _rb.linearVelocity  = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
+        _rb.isKinematic = true;
+        _settling = false;
+        _settleCo = null;
+    }
+
+    // 똑바로 세우기(yaw만). 경사 법선 정렬 안 함 = 가로로 눕혀 맵 뚫리던 것 방지.
+    private void UprightYaw()
+    {
         Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
         if (flatFwd.sqrMagnitude < 1e-4f) flatFwd = Vector3.forward;
         transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
-
-        _rb.isKinematic = true;
     }
 
     // 발밑으로 레이캐스트해서 캡슐 바닥이 지면에 닿게 Y 보정. 지면 못 찾으면 현재 위치 유지.
@@ -147,12 +181,10 @@ public class PlayerMovementComponent : MonoBehaviour
     /// <summary>부활 시 Rigidbody 복구 (PlayerStatComponent.Respawn에서 호출됨)</summary>
     public void UnfreezeOnRespawn()
     {
+        if (_settleCo != null) { StopCoroutine(_settleCo); _settleCo = null; }   // 안착 코루틴 진행 중이면 중단
+        _settling = false;
         _rb.isKinematic = false;
-
-        // 죽을 때 yaw만 유지했으므로 기울기 복원은 사실상 불필요하지만, 안전하게 수직 정렬.
-        Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
-        if (flatFwd.sqrMagnitude < 1e-4f) flatFwd = Vector3.forward;
-        transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
+        UprightYaw();
     }
 
     void Update()
@@ -183,8 +215,15 @@ public class PlayerMovementComponent : MonoBehaviour
         if (_player.Stat.IsDead)
         {
             _currentSpeed = 0f;
-            // FreezeOnDeath가 지면 스냅 + kinematic 고정을 끝냄. 비-kinematic 프레임만 속도 0 보강.
-            if (!_rb.isKinematic)
+            if (_settling && !_rb.isKinematic)
+            {
+                // 안착 중: 중력으로 낙하/경사 안착. 수평 관성만 제거하고 낙하(Y)는 유지.
+                Vector3 v = _rb.linearVelocity;
+                v.x = 0f; v.z = 0f;
+                if (!_rb.useGravity) v.y += Gravity * Time.fixedDeltaTime;   // 커스텀 중력(useGravity off)이면 수동 낙하
+                _rb.linearVelocity = v;
+            }
+            else if (!_rb.isKinematic)
             {
                 _rb.linearVelocity  = Vector3.zero;
                 _rb.angularVelocity = Vector3.zero;
