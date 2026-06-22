@@ -69,6 +69,9 @@ public class WyvernBossController : MonoBehaviour
     [SerializeField] private float roarLiftTime = 0.35f;   // 띄움/내림 시간(빠르게)
     [SerializeField] private float debuffDuration = 6f;    // 화면 어둠 + 시간 가속 지속(초)
     [SerializeField] private float debuffDrainMult = 2.5f; // 시간 드레인 배수
+    [Range(0f, 0.8f)]    [SerializeField] private float debuffDarkness = 0.5f;          // 화면 전체 어둠 세기(0=없음 ~ 0.8=매우 어둡게). "암흑효과" 강도.
+    [Range(0f, 1f)]      [SerializeField] private float debuffVignetteStrength = 0.95f; // 가장자리 비네트 진하기
+    [Range(0.05f, 0.8f)] [SerializeField] private float debuffVignetteFalloff = 0.55f;  // 비네트 퍼짐(클수록 넓고 부드럽게)
     [SerializeField] private float enrageCdMul = 0.8f;     // 포효마다 공격 쿨 x (누적, 빨라짐)
     [SerializeField] private float enrageSpeedMul = 1.15f; // 포효마다 이속 x (누적)
 
@@ -627,7 +630,7 @@ public class WyvernBossController : MonoBehaviour
         yield return MoveBetween(ground, ground + Vector3.up * roarLiftHeight, roarLiftTime);   // 살짝 떠오름
 
         yield return new WaitForSeconds(roarBuildup);
-        BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult);   // 화면 어둠 + 시간 가속
+        BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult, debuffDarkness, debuffVignetteStrength, debuffVignetteFalloff);   // 화면 어둠 + 시간 가속
         Enrage();
         yield return new WaitForSeconds(roarRecover);
 
