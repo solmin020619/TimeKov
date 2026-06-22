@@ -124,15 +124,24 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         Vector3 origin = transform.position + Vector3.up * Mathf.Max(2f, _capsule.height);
         float maxDist = origin.y - transform.position.y + 80f;
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, maxDist, GroundMask, QueryTriggerInteraction.Ignore))
+
+        // 1순위: 지정한 지면 레이어. 2순위(폴백): 플레이어 외 아무 표면.
+        // GroundMask에 새 터레인 등 일부 레이어가 누락되면 1순위가 빗나가 공중에 떠버리므로(점프사망 부유 원인),
+        // 마스크 설정에 의존하지 않게 폴백을 둔다.
+        bool hit = Physics.Raycast(origin, Vector3.down, out RaycastHit groundHit, maxDist, GroundMask, QueryTriggerInteraction.Ignore);
+        if (!hit)
         {
-            float capsuleBottomLocalY = _capsule.center.y - _capsule.height * 0.5f;
-            float worldBottomY = transform.position.y + capsuleBottomLocalY * transform.lossyScale.y;
-            float dy = hit.point.y - worldBottomY;
-            Vector3 p = transform.position + Vector3.up * dy;
-            _rb.position = p;
-            transform.position = p;
+            int notPlayer = ~(1 << gameObject.layer);   // 자기 콜라이더 제외(Ignore Raycast 레이어는 어차피 제외됨)
+            hit = Physics.Raycast(origin, Vector3.down, out groundHit, maxDist, notPlayer, QueryTriggerInteraction.Ignore);
         }
+        if (!hit) return;   // 그래도 못 찾으면(완전 허공) 현재 위치 유지
+
+        float capsuleBottomLocalY = _capsule.center.y - _capsule.height * 0.5f;
+        float worldBottomY = transform.position.y + capsuleBottomLocalY * transform.lossyScale.y;
+        float dy = groundHit.point.y - worldBottomY;
+        Vector3 p = transform.position + Vector3.up * dy;
+        _rb.position = p;
+        transform.position = p;
     }
 
     /// <summary>부활 시 Rigidbody 복구 (PlayerStatComponent.Respawn에서 호출됨)</summary>

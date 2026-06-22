@@ -145,7 +145,11 @@ public class DeathOverlayUI : MonoBehaviour
 
         canvas.overrideSorting = true;
         canvas.sortingOrder = order;
-        // 레이캐스트는 루트 Canvas의 GraphicRaycaster가 sortingOrder 순으로 처리하므로 별도 추가 불필요.
+
+        // ★자체 Canvas를 붙이면 이 오브젝트 하위 그래픽이 이 Canvas에 등록된다.
+        // 루트 GraphicRaycaster는 자기 Canvas 그래픽만 레이캐스트하므로, 여기에도 GraphicRaycaster가 없으면
+        // 화면엔 보이지만(렌더는 sortingOrder로) 버튼 클릭이 안 먹는다. -> 자체 레이캐스터 부착 필수.
+        if (GetComponent<GraphicRaycaster>() == null) gameObject.AddComponent<GraphicRaycaster>();
     }
 
     // 인벤/창고/도감과 톤 통일: 차가운 슬레이트 패널 + 밝은 텍스트 + 시안 카운트다운 + 어두운 딤.
