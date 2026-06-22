@@ -58,6 +58,8 @@ public class DeathOverlayUI : MonoBehaviour
         if (countdownNumber != null) countdownNumber.text = "";
         if (countdownLabel  != null) countdownLabel.text  = "";
 
+        ApplyTone();   // 인벤/창고/도감과 톤 통일(차가운 sci-fi 간유리)
+
         SetButtonReady(false);
 
         if (respawnButton != null)
@@ -123,6 +125,37 @@ public class DeathOverlayUI : MonoBehaviour
     {
         SetButtonReady(false);
         _onRespawn?.Invoke();
+    }
+
+    // 인벤/창고/도감과 톤 통일: 차가운 슬레이트 패널 + 밝은 텍스트 + 시안 카운트다운 + 어두운 딤.
+    // 색/패널이 프리팹에 박혀 있어 코드에서 자동 재색(인스펙터 수동 배선 불필요).
+    void ApplyTone()
+    {
+        var txtMain = new Color32(0xEA, 0xF2, 0xFB, 0xFF);   // 밝은 본문(어두운 패널 위)
+        var txtSub  = new Color32(0xAE, 0xC0, 0xD6, 0xFF);   // 차가운 보조
+        var cyan    = new Color32(0x5F, 0xC4, 0xFF, 0xFF);   // 시안 액센트(인벤/도감 공통)
+
+        if (titleText      != null) titleText.color      = txtMain;
+        if (subtitleText   != null) subtitleText.color   = txtSub;
+        if (countdownLabel != null) countdownLabel.color = txtSub;
+        if (countdownNumber!= null) countdownNumber.color= cyan;
+
+        // 패널 박스 = 제목의 가장 가까운 부모 Image. 차가운 슬레이트(인벤 패널톤, 가독 위해 불투명도↑).
+        Image panel    = titleText != null ? titleText.GetComponentInParent<Image>() : null;
+        // 풀스크린 딤 = overlayGroup가 붙은 오브젝트의 Image(있으면).
+        Image backdrop = overlayGroup != null ? overlayGroup.GetComponent<Image>() : null;
+
+        if (panel != null && panel != backdrop)
+            panel.color = new Color(26f / 255f, 32f / 255f, 42f / 255f, 0.92f);
+        if (backdrop != null)
+            backdrop.color = new Color(6f / 255f, 9f / 255f, 14f / 255f, 0.72f);
+
+        // 부활 버튼: 차가운 슬레이트 베이스(테두리/라운드는 프리팹 유지).
+        if (respawnButton != null)
+        {
+            var bImg = respawnButton.GetComponent<Image>();
+            if (bImg != null) bImg.color = new Color(0.16f, 0.42f, 0.62f, 0.85f);
+        }
     }
 
     void SetButtonReady(bool ready)
