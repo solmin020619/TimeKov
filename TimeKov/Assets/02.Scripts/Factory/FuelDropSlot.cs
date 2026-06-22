@@ -135,11 +135,13 @@ public class FuelDropSlot : MonoBehaviour,
                 // 현재 아이템 1개분의 남은 시간만 표시
                 timeText.text  = $"{currentTime:F0}초";
                 timeText.color = normalTextColor;
+                timeText.enabled = true;
             }
             else
             {
-                timeText.text  = "연료 없음";
-                timeText.color = noFuelTextColor;
+                // 연료 없음은 MachineUI.statusText가 "연료 부족"으로 표시 -> 여기선 숨김(겹침 방지)
+                timeText.text  = "";
+                timeText.enabled = false;
             }
         }
 
