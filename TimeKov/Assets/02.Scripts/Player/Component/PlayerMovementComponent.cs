@@ -51,11 +51,7 @@ public class PlayerMovementComponent : MonoBehaviour
     private const float POST_UNLOCK_PHYS = 0.15f; // 물리 dead zone 길이
     private const float POST_UNLOCK_ANIM = 0.20f; // anim sync 길이 (dead zone + 1프레임 여유)
 
-    // 사망 시 시체를 지면 경사에 맞춰 눕히기 (경사면 파묻힘 방지)
-    private bool       _deathAligned;            // 이번 사망에서 목표 회전을 이미 잡았는지
-    private Quaternion _deathTargetRot;          // 지면 법선에 정렬된 목표 회전
-    private const float CORPSE_ALIGN_SPEED = 8f; // 경사 정렬 슬러프 속도
-    private bool       _deathPendingGround;      // 공중에서 죽었을 때 착지 전까지 true (착지하면 그때 얼림 — 떠서 죽는 것 방지)
+    // 사망 처리 = 죽는 순간 발밑 지면으로 스냅 + 똑바로 + kinematic 고정(아래 FreezeOnDeath). 케이스별 분기 없음.
 
     // Slash
     private bool _isSlashing;
@@ -103,23 +99,39 @@ public class PlayerMovementComponent : MonoBehaviour
         }
     }
 
-    /// <summary>사망 시 Rigidbody를 Kinematic으로 전환 — 경사면 미끄러짐 및 피격 밀림 방지</summary>
+    /// <summary>
+    /// 사망 처리(깔끔/단일경로): 어디서 죽든(공중/대쉬리프트/경사) 발밑 지면으로 스냅 + 똑바로 세움 + kinematic 고정.
+    /// - 공중에 뜬 채 죽는 것: 지면 레이캐스트 스냅으로 해결(접지 오판에 안 의존).
+    /// - 경사에서 가로로 눕혀 맵 뚫던 것: 눕히지 않고 yaw만 유지(죽는 애니가 그 자리서 쓰러짐).
+    /// </summary>
     private void FreezeOnDeath()
     {
         _rb.angularVelocity = Vector3.zero;
+        _rb.linearVelocity = Vector3.zero;
 
-        // 공중에서 죽으면 즉시 kinematic으로 얼릴 경우 그 위치에 떠서 죽는다.
-        // 접지 상태에서만 바로 얼리고, 공중이면 착지할 때까지 떨어지게 둔다(FixedUpdate에서 처리).
-        if (_isGrounded)
+        SnapDownToGround();   // 발밑 지면으로 (XZ는 죽은 자리 유지, Y만 보정)
+
+        // 똑바로(yaw만). 경사 법선 정렬 안 함 = 맵 뚫림 없음.
+        Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        if (flatFwd.sqrMagnitude < 1e-4f) flatFwd = Vector3.forward;
+        transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
+
+        _rb.isKinematic = true;
+    }
+
+    // 발밑으로 레이캐스트해서 캡슐 바닥이 지면에 닿게 Y 보정. 지면 못 찾으면 현재 위치 유지.
+    private void SnapDownToGround()
+    {
+        Vector3 origin = transform.position + Vector3.up * Mathf.Max(2f, _capsule.height);
+        float maxDist = origin.y - transform.position.y + 80f;
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, maxDist, GroundMask, QueryTriggerInteraction.Ignore))
         {
-            _rb.linearVelocity = Vector3.zero;
-            _rb.isKinematic = true;
-            _deathPendingGround = false;
-        }
-        else
-        {
-            _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);   // 수평만 정지, 낙하(Y)는 유지
-            _deathPendingGround = true;
+            float capsuleBottomLocalY = _capsule.center.y - _capsule.height * 0.5f;
+            float worldBottomY = transform.position.y + capsuleBottomLocalY * transform.lossyScale.y;
+            float dy = hit.point.y - worldBottomY;
+            Vector3 p = transform.position + Vector3.up * dy;
+            _rb.position = p;
+            transform.position = p;
         }
     }
 
@@ -128,30 +140,10 @@ public class PlayerMovementComponent : MonoBehaviour
     {
         _rb.isKinematic = false;
 
-        // 사망 중 지면 경사에 맞춰 기울였던 회전을 수직(yaw만 유지)으로 복원.
-        // 안 하면 부활 후 기울어진 채 시작했다가 HandleRotation이 천천히 세워 어색함.
+        // 죽을 때 yaw만 유지했으므로 기울기 복원은 사실상 불필요하지만, 안전하게 수직 정렬.
         Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
         if (flatFwd.sqrMagnitude < 1e-4f) flatFwd = Vector3.forward;
         transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
-        _deathAligned = false;
-        _deathPendingGround = false;
-    }
-
-    // 사망 시 시체를 지면 경사면을 따라 눕힌다 (경사에서 누운 메시가 지형에 파묻히는 것 방지).
-    // 캡슐을 지면 법선 방향으로 기울여, 누운 사망 애니메이션이 경사면 표면에 얹히게 한다.
-    // 평지(법선=up)에선 목표 회전이 수직이라 기울지 않음. 카메라는 회전 비의존이라 영향 없음.
-    void AlignCorpseToSlope()
-    {
-        if (!_deathAligned)
-        {
-            Vector3 n = _smoothedGroundNormal;
-            Vector3 fwd = Vector3.ProjectOnPlane(transform.forward, n);
-            if (fwd.sqrMagnitude < 1e-4f) fwd = Vector3.ProjectOnPlane(Vector3.forward, n);
-            _deathTargetRot = Quaternion.LookRotation(fwd.normalized, n);
-            _deathAligned = true;
-        }
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation, _deathTargetRot, Time.fixedDeltaTime * CORPSE_ALIGN_SPEED);
     }
 
     void Update()
@@ -182,34 +174,14 @@ public class PlayerMovementComponent : MonoBehaviour
         if (_player.Stat.IsDead)
         {
             _currentSpeed = 0f;
-
-            // 공중에서 죽음 -> 착지할 때까지 중력으로 낙하(수평 정지). 닿으면 그때 얼린다(떠서 죽는 것 방지).
-            if (_deathPendingGround)
-            {
-                _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
-                float mult = _rb.linearVelocity.y < 0f ? FallMultiplier : 1f;
-                _rb.AddForce(Vector3.up * Gravity * mult, ForceMode.Acceleration);
-
-                if (_isGrounded && _rb.linearVelocity.y <= 0f)
-                {
-                    _rb.linearVelocity  = Vector3.zero;
-                    _rb.angularVelocity = Vector3.zero;
-                    _rb.isKinematic     = true;
-                    _deathPendingGround = false;
-                }
-                return;   // 낙하 중엔 경사 정렬 안 함(착지 후 다음 프레임에 정렬)
-            }
-
+            // FreezeOnDeath가 지면 스냅 + kinematic 고정을 끝냄. 비-kinematic 프레임만 속도 0 보강.
             if (!_rb.isKinematic)
             {
                 _rb.linearVelocity  = Vector3.zero;
                 _rb.angularVelocity = Vector3.zero;
             }
-            AlignCorpseToSlope();
             return;
         }
-        _deathAligned       = false;  // 살아있으면 다음 사망 때 다시 정렬하도록 리셋
-        _deathPendingGround = false;
 
         HandleJump();
         HandleSlash();
