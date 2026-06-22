@@ -1909,6 +1909,7 @@ public class CodexUI : MonoBehaviour
         if (img != null) img.raycastTarget = true;
         var btn = rt.gameObject.AddComponent<Button>();
         btn.transition = Selectable.Transition.None;
+        btn.onClick.AddListener(() => GameSfx.Play(SfxId.CodexClick));   // 클릭음 - 평버튼 공통(좌측 목록/상단 탭 위젯/활성화·보상수령). 그리드 셀은 HoverButton서 별도.
         btn.onClick.AddListener(onClick);
     }
 

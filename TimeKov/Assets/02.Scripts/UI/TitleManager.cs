@@ -28,10 +28,16 @@ public class TitleManager : MonoBehaviour
         }
 
         // UI 버튼(게임 종료 등) 위를 클릭한 경우에만 시작을 막는다.
-        if (!_isStarting && Input.anyKeyDown && !IsPointerOverInteractiveUI())
+        if (!_isStarting && Input.anyKeyDown)
         {
-            _isStarting = true;
-            StartCoroutine(StartGameRoutine());
+            bool over = IsPointerOverInteractiveUI();
+            Debug.Log($"[TitleManager] 입력감지 anyKeyDown=true / overInteractiveUI={over}");
+            if (!over)
+            {
+                _isStarting = true;
+                Debug.Log($"[TitleManager] 시작! StartGameRoutine (nextScene='{nextSceneName}')");
+                StartCoroutine(StartGameRoutine());
+            }
         }
     }
 
@@ -47,12 +53,17 @@ public class TitleManager : MonoBehaviour
         var data = new PointerEventData(es) { position = Input.mousePosition };
         _uiHits.Clear();
         es.RaycastAll(data, _uiHits);
+        Debug.Log($"[TitleManager] UI 레이캐스트 hits={_uiHits.Count}");
         for (int i = 0; i < _uiHits.Count; i++)
         {
             var go = _uiHits[i].gameObject;
             if (go == null) continue;
             var sel = go.GetComponentInParent<Selectable>();
-            if (sel != null && sel.interactable) return true;   // 버튼 등 위 = 시작 차단
+            if (sel != null && sel.interactable)
+            {
+                Debug.Log($"[TitleManager] 차단됨 — Selectable '{sel.name}' (hit '{go.name}')");
+                return true;   // 버튼 등 위 = 시작 차단
+            }
         }
         return false;
     }
@@ -65,16 +76,20 @@ public class TitleManager : MonoBehaviour
             startText.text = "�ε� ��...";
         }
 
+        // 메인메뉴가 timeScale=0(정지)이면 WaitForSeconds(스케일타임)는 영원히 안 끝나 LoadScene에 도달 못함.
+        // -> Realtime 으로 대기해야 함. (좌클릭해도 안 넘어가던 진짜 원인)
         if (audioSource != null && clickSound != null)
         {
             audioSource.PlayOneShot(clickSound);
-            yield return new WaitForSeconds(clickSound.length);
+            yield return new WaitForSecondsRealtime(clickSound.length);
         }
         else
         {
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSecondsRealtime(0.5f);
         }
 
+        Time.timeScale = 1f;   // 게임 시작 전 시간 정상화(메뉴에서 멈춰 있었을 수 있음)
+        Debug.Log($"[TitleManager] LoadScene('{nextSceneName}') 호출");
         SceneManager.LoadScene(nextSceneName);
     }
 }

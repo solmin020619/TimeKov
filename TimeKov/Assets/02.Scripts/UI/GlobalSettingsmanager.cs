@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using TMPro;
@@ -148,11 +149,17 @@ public class GlobalSettingsManager : MonoBehaviour
         if (shadowQualityDropdown != null)  shadowQualityDropdown.onValueChanged.AddListener(SetShadowQuality);
         if (textureQualityDropdown != null) textureQualityDropdown.onValueChanged.AddListener(SetTextureQuality);
 
+        // 드랍다운 클릭음(열기) + 메뉴 항목 선택음
+        HookDropdownSfx(resolutionDropdown);
+        HookDropdownSfx(qualityDropdown);
+        HookDropdownSfx(shadowQualityDropdown);
+        HookDropdownSfx(textureQualityDropdown);
+
         if (tabButtons != null)
             for (int i = 0; i < tabButtons.Length; i++)
             {
                 int idx = i;
-                if (tabButtons[i] != null) tabButtons[i].onClick.AddListener(() => ShowTab(idx));
+                if (tabButtons[i] != null) tabButtons[i].onClick.AddListener(() => { GameSfx.Play(SfxId.SettingsClick); ShowTab(idx); });   // 중앙 위 탭 위젯 클릭음
             }
 
         if (rebindSlots != null)
@@ -162,6 +169,20 @@ public class GlobalSettingsManager : MonoBehaviour
                 string id = slot.actionId;
                 slot.button.onClick.AddListener(() => BeginRebind(id));
             }
+    }
+
+    // 드랍다운: 자체 클릭(열기) + 메뉴 항목 선택 시 클릭음. EventTrigger PointerClick은
+    // 드랍다운 본래 동작(열림)을 막지 않는다(이벤트 시스템이 같은 오브젝트의 핸들러를 모두 호출).
+    private static void HookDropdownSfx(TMP_Dropdown dd)
+    {
+        if (dd == null) return;
+        dd.onValueChanged.AddListener(_ => GameSfx.Play(SfxId.SettingsClick));   // 메뉴에서 항목 선택 시
+
+        var et = dd.gameObject.GetComponent<EventTrigger>();
+        if (et == null) et = dd.gameObject.AddComponent<EventTrigger>();
+        var entry = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
+        entry.callback.AddListener(_ => GameSfx.Play(SfxId.SettingsClick));   // 드랍다운 클릭(열기) 시
+        et.triggers.Add(entry);
     }
 
     // ── 탭 ───────────────────────────────────────────────────────────
@@ -265,6 +286,7 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void QuitToMainMenu()
     {
+        GameSfx.Play(SfxId.SettingsClick);   // 하단 '메인메뉴' 버튼음
         Time.timeScale = 1f;
         CoreUtilities.LoadDirect(mainMenuSceneName);
     }
@@ -275,6 +297,7 @@ public class GlobalSettingsManager : MonoBehaviour
     // 이 버튼을 누르기 전까지는 슬라이더/드롭다운을 움직여도 실제로 아무 효과가 없다.
     public void ApplySettings()
     {
+        GameSfx.Play(SfxId.SettingsClick);   // 하단 '적용' 버튼음
         _data = Clone(_pending);
         _data.Save();
         ApplyToEngine(_data);
@@ -337,6 +360,7 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void SetFullscreen(bool isFullscreen)
     {
+        GameSfx.Play(SfxId.SettingsClick);   // 전체화면/창모드 전환음
         _pending.fullscreen = isFullscreen;
         _isDirty = true;
         UpdateFullscreenButtonVisual(isFullscreen);
@@ -362,6 +386,7 @@ public class GlobalSettingsManager : MonoBehaviour
     // 기본값으로 되돌리고, 실제 엔진 반영/저장은 다른 항목들처럼 "설정 적용"을 눌러야 이루어진다.
     public void ResetAllToDefault()
     {
+        GameSfx.Play(SfxId.SettingsClick);   // 하단 '초기화' 버튼음
         var defaults = SettingsData.CreateDefault();
         defaults.qualityLevel = Mathf.Clamp(1, 0, QualitySettings.names.Length - 1);
         _pending = defaults;

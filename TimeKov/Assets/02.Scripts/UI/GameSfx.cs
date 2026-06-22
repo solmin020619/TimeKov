@@ -16,6 +16,7 @@ public enum SfxId
     CodexClose,
     CodexHover,
     CodexClick,
+    SettingsClick,
 }
 
 // 런타임 UI/이벤트 효과음 재생기 (지연 싱글톤, 씬 세팅 불필요).
@@ -58,24 +59,53 @@ public class GameSfx : MonoBehaviour
     private void OnApplicationQuit() => _quitting = true;
     private void OnDestroy() { if (_i == this) _i = null; }
 
-    // 효과음 재생. 클립 없으면 조용히 무시.
+    // 효과음 재생(2D). 클립 없으면 조용히 무시.
     public static void Play(SfxId id)
     {
         if (_quitting || id == SfxId.None) return;
         I.PlayInternal(id);
     }
 
+    // 3D(공간) 효과음 재생. 지정한 월드 위치에서 거리감 있게 들린다.
+    public static void Play(SfxId id, Vector3 position)
+    {
+        if (_quitting || id == SfxId.None) return;
+        I.PlayInternal3D(id, position);
+    }
+
     private void PlayInternal(SfxId id)
     {
-        // (1) SO 설정 우선 (볼륨 조절 가능)
+        if (Resolve(id, out var clip, out var volume)) _source.PlayOneShot(clip, volume);
+    }
+
+    private void PlayInternal3D(SfxId id, Vector3 position)
+    {
+        if (!Resolve(id, out var clip, out var volume)) return;
+        var go = new GameObject("[GameSfx3D]");
+        go.transform.position = position;
+        var src = go.AddComponent<AudioSource>();
+        src.clip = clip;
+        src.volume = volume;
+        src.spatialBlend = 1f;                          // 3D
+        src.minDistance  = 3f;                          // 설비 제작음(MachineLoopSound)과 동일한 거리 감쇠
+        src.maxDistance  = 20f;
+        src.rolloffMode  = AudioRolloffMode.Logarithmic;
+        src.playOnAwake = false;
+        src.Play();
+        Destroy(go, clip.length + 0.1f);   // 재생 끝나면 임시 오브젝트 정리
+    }
+
+    // 클립+볼륨 해석. (1) SO 설정 우선(볼륨 조절 가능) (2) Resources/Sfx/<이름> 폴백.
+    private bool Resolve(SfxId id, out AudioClip clip, out float volume)
+    {
+        volume = 1f;
         if (_config != null)
         {
             var e = _config.Get(id);
-            if (e != null && e.clip != null) { _source.PlayOneShot(e.clip, e.volume); return; }
+            if (e != null && e.clip != null) { clip = e.clip; volume = e.volume; return true; }
         }
-        // (2) 폴백: Resources/Sfx/<SfxId 이름> 클립 자동 로드(파일만 떨궈도 재생)
-        var clip = LoadByName(id);
-        if (clip != null) _source.PlayOneShot(clip);
+        clip = LoadByName(id);
+        return clip != null;
     }
 
     private AudioClip LoadByName(SfxId id)
