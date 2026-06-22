@@ -69,8 +69,8 @@ public class CoreUpgradeUI : MonoBehaviour
     [SerializeField] private float spinPeriod     = 1.6f;   // 바늘 1회전 (초) — 처음엔 느긋하게
     [SerializeField] private float zoneHalfDeg    = 32f;    // 성공존 반각 (넉넉히)
     [SerializeField] private float perfectHalfDeg = 11f;    // 퍼펙트존 반각
-    [SerializeField] private int   perfectBonusPct = 45;
-    [SerializeField] private int   goodBonusPct    = 22;
+    [SerializeField] private int   perfectBonusPct = 20;   // (이전 45 — 너무 쉬워서 하향)
+    [SerializeField] private int   goodBonusPct    = 8;     // (이전 22)
     [SerializeField] private float spinTimeout     = 6f;    // 미정지 자동 미스
     [SerializeField] private float crossfadeDur    = 0.35f;
     [SerializeField] private float judgeHold       = 1.1f;  // 판정 칩 유지
