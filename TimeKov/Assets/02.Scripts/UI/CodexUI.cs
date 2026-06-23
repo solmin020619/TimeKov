@@ -158,7 +158,8 @@ public class CodexUI : MonoBehaviour
         if (_root != null && _root.gameObject.activeSelf) Refresh();
     }
 
-    // 도감 열려있을 때 F3 = 개발자 전부해금 토글(테스트용).
+    // 도감 열려있을 때 F3 = 개발자 전부해금 토글(테스트용). 정식 빌드 차단(에디터/Dev빌드만).
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     private void Update()
     {
         if (_root == null || !_root.gameObject.activeSelf) return;
@@ -171,6 +172,7 @@ public class CodexUI : MonoBehaviour
             Refresh();
         }
     }
+#endif
 
     private void SetOpenInternal(bool on)
     {

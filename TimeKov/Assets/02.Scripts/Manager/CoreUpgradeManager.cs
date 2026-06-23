@@ -78,12 +78,14 @@ public class CoreUpgradeManager : MonoBehaviour
         DataBoot.OnDataLoaded -= OnDataReady;
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     private void Update()
     {
-        // [Dev/테스트] F2 = 코어 레벨 +1 (재료/확률 무시). 출시 전 제거.
+        // [Dev/테스트] F2 = 코어 레벨 +1 (재료/확률 무시). 정식 빌드 차단(에디터/Dev빌드만).
         if (Input.GetKeyDown(KeyCode.F2))
             DevForceLevelUp();
     }
+#endif
 
     /// <summary>[테스트용] 코어 레벨을 1 강제 상승 — 스탯 적용 + OnLevelChanged/해금 트리거를 정상 발생시킨다.</summary>
     public void DevForceLevelUp()
