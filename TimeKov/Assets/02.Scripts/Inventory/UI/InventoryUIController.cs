@@ -392,8 +392,18 @@ public class InventoryUIController : MonoBehaviour
         _whRevealCo = null;
     }
 
-    // 인벤토리 닫기
+    // 인벤토리 닫기 (커서·입력 복구까지)
     public void Close()
+    {
+        CloseInternal();
+        // 커서·입력 복구는 GameUIController에 위임
+        GameUIController.Instance?.CloseAll();
+    }
+
+    // 패널/상태만 닫는다 (커서·입력 복구 위임 없음).
+    // GameUIController.CloseAll()이 사망 등에서 인벤을 닫을 때 이걸 호출한다 -
+    // Close()를 부르면 다시 CloseAll()로 되돌아와 무한 재귀가 되므로 분리.
+    public void CloseInternal()
     {
         if (inventoryRoot == null) return;
 
@@ -434,9 +444,6 @@ public class InventoryUIController : MonoBehaviour
             inventoryRoot.SetActive(false);
             if (bagBlurCanvas != null) bagBlurCanvas.SetActive(false);
         }
-
-        // 커서·입력 복구는 GameUIController에 위임
-        GameUIController.Instance?.CloseAll();
     }
 
     /// <summary>

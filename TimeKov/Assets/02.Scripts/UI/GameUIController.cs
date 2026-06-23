@@ -242,6 +242,12 @@ public class GameUIController : MonoBehaviour
         // 상자 오픈 UI
         ChestOpenUI.Instance?.HidePanel();
 
+        // 인벤토리도 함께 닫음 — 인벤 가시성은 InventoryUIController가 따로 관리해 ApplyState가 안 건드린다.
+        // 사망 등 CloseAll 경로에서 여기서 안 닫으면 인벤이 열린 채 남아 부활버튼 클릭/커서/ESC(상태가
+        // None이라 설정창이 위에 겹침)가 꼬인다. (Close()는 다시 CloseAll을 부르므로 재귀 방지로 CloseInternal 사용)
+        if (InventoryUIController.Instance != null && InventoryUIController.Instance.IsOpen)
+            InventoryUIController.Instance.CloseInternal();
+
         // SetState가 WindowManager mirror도 함께 처리
         SetState(UIState.None);
 

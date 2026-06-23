@@ -42,6 +42,7 @@ public class DeathOverlayUI : MonoBehaviour
     private bool    _counting;
     private Action  _onRespawn;
     private Coroutine _fadeRoutine;
+    private Coroutine _cursorRoutine;   // 오버레이 동안 프레임 끝에서 커서 강제 (가장 늦게 돌아 무조건 이김)
 
     // ═══════════════════════════════════════════════════════════════
 
@@ -109,6 +110,25 @@ public class DeathOverlayUI : MonoBehaviour
 
         if (_fadeRoutine != null) StopCoroutine(_fadeRoutine);
         _fadeRoutine = StartCoroutine(FadeTo(1f, fadeInDuration));
+
+        // 부활 버튼 클릭용 커서 강제. RefreshCursorState 가 사망 시 커서를 풀어주게 돼 있으나
+        // 빌드에서 안 먹히는 정황(state==None=게임플레이로 보고 누군가 다시 잠금) -> 프레임 맨 끝에서
+        // 강제해 '마지막 라이터'를 보장한다.
+        if (_cursorRoutine != null) StopCoroutine(_cursorRoutine);
+        _cursorRoutine = StartCoroutine(ForceCursorWhileOpen());
+    }
+
+    // 오버레이가 떠 있는 동안 매 프레임 '끝'(모든 Update/LateUpdate 이후)에 커서를 강제 표시+해제.
+    // 어떤 스크립트가 LateUpdate 에서 커서를 다시 잠가도 이게 가장 늦게 돌아 이긴다.
+    private IEnumerator ForceCursorWhileOpen()
+    {
+        var wait = new WaitForEndOfFrame();
+        while (IsOpen)
+        {
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+            yield return wait;
+        }
     }
 
     /// <summary>오버레이 페이드 아웃 후 숨김.</summary>
@@ -118,6 +138,7 @@ public class DeathOverlayUI : MonoBehaviour
 
         IsOpen = false;
 
+        if (_cursorRoutine != null) { StopCoroutine(_cursorRoutine); _cursorRoutine = null; }
         if (_fadeRoutine != null) StopCoroutine(_fadeRoutine);
         _fadeRoutine = StartCoroutine(FadeOutRoutine());
     }
