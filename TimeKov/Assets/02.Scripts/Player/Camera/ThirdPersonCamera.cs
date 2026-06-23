@@ -195,15 +195,29 @@ public class ThirdPersonCamera : MonoBehaviour
 
         // 목표 각도(_yaw/_pitch)를 display 각도가 부드럽게 따라감 -> 마우스 휙 돌릴 때 쿠션.
         // 0이면 즉시 1:1 (기존 동작).
-        if (RotationSmoothTime <= 0f)
+        // deltaTime<=0(정지: 설정창/영상 timeScale=0) 이면 SmoothDampAngle 이 0/0=NaN 으로 속도를 오염시켜
+        // _yawDisplay 가 영구 NaN 이 되고 Quaternion.Euler -> CameraPivot 회전이 깨진다(HandleFollow 와 동일 함정).
+        // -> 정지/스무딩 0 일 땐 즉시 추종으로 우회.
+        if (RotationSmoothTime <= 0f || Time.deltaTime <= 0f)
         {
             _yawDisplay = _yaw;
             _pitchDisplay = _pitch;
+            _yawVel = 0f;
+            _pitchVel = 0f;
         }
         else
         {
             _yawDisplay   = Mathf.SmoothDampAngle(_yawDisplay, _yaw, ref _yawVel, RotationSmoothTime);
             _pitchDisplay = Mathf.SmoothDampAngle(_pitchDisplay, _pitch, ref _pitchVel, RotationSmoothTime);
+
+            // 한 번 NaN 이 되면 ref 속도로 매 프레임 되먹임돼 영구 오염 -> 입력 목표값으로 끊어 자가복구.
+            if (float.IsNaN(_yawDisplay) || float.IsNaN(_pitchDisplay))
+            {
+                _yawDisplay = _yaw;
+                _pitchDisplay = _pitch;
+                _yawVel = 0f;
+                _pitchVel = 0f;
+            }
         }
 
         transform.rotation = Quaternion.Euler(0, _yawDisplay, 0);
