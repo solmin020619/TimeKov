@@ -155,6 +155,11 @@ public class EnemyBrain : MonoBehaviour
 
     private void LateUpdate()
     {
+        // 내장 NavigateToTargetAction(BT)이 추적 시작 시 agent.speed 를 자기 Speed 로 덮어써 SO moveSpeed 를 무시한다.
+        // SO 를 권위자로 유지하려고 BT Update 이후(LateUpdate)에 다시 박는다. (float 비교 1개라 비용 무시 가능)
+        if (navAgent != null && data != null && !Mathf.Approximately(navAgent.speed, data.moveSpeed))
+            navAgent.speed = data.moveSpeed;
+
         // [회전 기준] 이동 중이면 "진행 방향", 거의 멈춰 있으면(공격/대기) "타깃 방향"을 바라본다.
         // 기존엔 타깃이 있을 때 항상 타깃 방향만 봐서, 순찰 중(타깃 없음)엔 회전을 아예 안 하고
         // 추격 중엔 측면으로 접근하며 옆걸음·문워크가 발생했음. NavMeshAgent.updateRotation 은
