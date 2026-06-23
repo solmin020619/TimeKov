@@ -610,7 +610,7 @@ public class GlobalSettingsManager : MonoBehaviour
     //  동시에 쓰이지 않으므로 제외 — 항상 켜져 있는 키만 여기 등록한다.)
     private static readonly (KeyCode code, string label)[] ReservedGlobalKeys =
     {
-        (KeyCode.J, "퀘스트"), // GameUIController.Update()에서 상태와 무관하게 항상 체크
+        // J(퀘스트 팝업)는 잔재로 제거됨(GameUIController) - 더 이상 예약 키 없음.
     };
 
     private bool IsReservedKeyConflict(KeyCode code, out string conflictAction)

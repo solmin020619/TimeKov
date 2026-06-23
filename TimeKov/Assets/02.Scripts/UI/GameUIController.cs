@@ -139,9 +139,7 @@ public class GameUIController : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.J))
-            ToggleQuest();
-
+        // J(퀘스트 팝업) 잔재 제거 - questPanel이 모든 씬에서 null이라, 보이는 패널 없이 입력만 잠그고 다시 J로 풀리던 버그.
         if (Input.GetKeyDown(KeyBindings.Stat))
             TogglePlayerStat();
 
