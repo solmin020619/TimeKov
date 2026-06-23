@@ -272,6 +272,7 @@ public class WyvernBossController : MonoBehaviour
         {
             _engaged = true;
             BossHealthBarUI.Show(_health, data != null ? data.enemyName : "보스", bossSubtitle);
+            _feedback?.PlayDetect();   // SO detectSound 1회 재생(다른 적과 동일 훅)
         }
         if (target == null) { StopMove(); return; }
         if (data == null) return;
