@@ -24,9 +24,10 @@ public class FacilityUnlockManager : MonoBehaviour
         Instance = this;
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     private void Update()
     {
-        // [임시 디버그] ~(백쿼트) 키 → 데이터에 존재하는 모든 설비(1~9) 즉시 해금. 테스트용 — 정식 빌드 전 제거.
+        // [임시 디버그] ~(백쿼트) 키 -> 데이터에 존재하는 모든 설비(1~9) 즉시 해금. 정식 빌드 차단(에디터/Dev빌드만).
         if (Input.GetKeyDown(KeyCode.BackQuote))
         {
             for (int id = 1; id <= MaxSlots; id++)
@@ -36,6 +37,7 @@ public class FacilityUnlockManager : MonoBehaviour
             }
         }
     }
+#endif
 
     // ── 조회 ─────────────────────────────────────────────────────
 

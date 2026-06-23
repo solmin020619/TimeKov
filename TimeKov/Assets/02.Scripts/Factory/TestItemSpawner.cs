@@ -22,11 +22,13 @@ public class TestItemSpawner : MonoBehaviour
         if (startItems.Count > 0) StartCoroutine(GiveItemsRoutine());
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     private void Update()
     {
         if (Input.GetKeyDown(debugKey))
             StartCoroutine(GiveItemsRoutine());
     }
+#endif
 
     private IEnumerator GiveItemsRoutine()
     {
