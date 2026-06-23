@@ -64,31 +64,51 @@ public class LoadingSceneManager : MonoBehaviour
         SetProgress(SCENE_LOAD_RATIO);
 
         // ── Phase 2: 데이터 로드 (60 ~ 100%) ───────────────────────
-        bool dataReady = false;
-
-        DataBoot.Instance.LoadAsync(success =>
-        {
-            if (!success)
-                Debug.LogError("[LoadingSceneManager] 데이터 로드 실패 — 씬 전환을 강행합니다.");
-            dataReady = true;
-        });
-
-        // 데이터 로드 중 진행바 이동. 구글시트 일괄 다운로드라 실제 진행도를 알 수 없어
-        // 가짜 진행도를 점근 보간으로 99%까지 채운다(완전 정지 없이 막판까지 미세하게 계속 이동).
-        // 숫자가 사실상 멈춰도 "멈춘 듯" 보이지 않게 텍스트 끝에 도는 점(.../..)을 붙인다 (#16).
+        // 데이터 로드가 성공할 때까지 반복한다. 실패해도 World 로 강행하지 않고 로딩씬에 머물며
+        // 잠시 뒤 자동 재시도 -> 네트워크가 복구되면 그대로 통과한다.
+        // (예전엔 실패해도 강행해서 데이터 깨진 채 게임에 진입, 플레이어가 영문 모른 채 망가진 화면을 봤음.)
+        // 진행바는 구글시트 일괄 다운로드라 실제 진행도를 알 수 없어 가짜 진행도를 99%까지 점근 보간(끝에 도는 점).
         float dataFill = 0f;
         float dotTimer = 0f;
         int dotCount = 0;
-        while (!dataReady)
+        bool dataSuccess = false;
+        int attempt = 0;
+
+        while (!dataSuccess)
         {
-            yield return null;
-            dataFill = Mathf.Lerp(dataFill, 1f, Time.deltaTime * loadingSpeed * 0.6f);
-            if (dataFill > 0.99f) dataFill = 0.99f;
+            bool dataReady = false;
+            attempt++;
+            System.Action<bool> onLoaded = success => { dataSuccess = success; dataReady = true; };
+            // 첫 시도는 LoadAsync, 재시도는 ForceReload(부분 로드 상태를 비우고 깨끗이 다시 받음).
+            if (attempt == 1) DataBoot.Instance.LoadAsync(onLoaded);
+            else              DataBoot.Instance.ForceReload(onLoaded);
 
-            dotTimer += Time.deltaTime;
-            if (dotTimer >= 0.35f) { dotTimer = 0f; dotCount = (dotCount + 1) % 4; }
+            // 이번 시도 완료 대기
+            while (!dataReady)
+            {
+                yield return null;
+                dataFill = Mathf.Lerp(dataFill, 1f, Time.deltaTime * loadingSpeed * 0.6f);
+                if (dataFill > 0.99f) dataFill = 0.99f;
 
-            SetProgress(SCENE_LOAD_RATIO + dataFill * DATA_LOAD_RATIO, new string('.', dotCount));
+                dotTimer += Time.deltaTime;
+                if (dotTimer >= 0.35f) { dotTimer = 0f; dotCount = (dotCount + 1) % 4; }
+
+                SetProgress(SCENE_LOAD_RATIO + dataFill * DATA_LOAD_RATIO, new string('.', dotCount));
+            }
+
+            if (dataSuccess) break;
+
+            // 실패 -> World 진입 보류. 진행바 되감고 안내 표시 후 잠시 뒤 재시도.
+            Debug.LogWarning($"[LoadingSceneManager] 데이터 로드 실패 (시도 {attempt}) - World 진입 보류, 재시도합니다.");
+            dataFill = 0f;
+            float wait = 2f;
+            while (wait > 0f)
+            {
+                wait -= Time.unscaledDeltaTime;
+                if (loadingText != null)
+                    loadingText.text = $"데이터를 불러오지 못했습니다. 재시도 중...({attempt})";
+                yield return null;
+            }
         }
 
         // 100% 확정
