@@ -483,7 +483,11 @@ public class PlayerHudUI : MonoBehaviour
         }
 
         if (staminaSlider != null)
-            staminaSlider.value = playerStat.CurrentStamina;
+        {
+            // HP바와 동일 - 런타임에 MaxStamina가 커져도(스태미나 앰플) 추적. 안 하면 옛 max에 클램프돼 바가 항상 꽉 차 보임.
+            staminaSlider.maxValue = playerStat.MaxStamina;
+            staminaSlider.value    = playerStat.CurrentStamina;
+        }
 
         UpdateTimeText();
         UpdateStaminaWorldUI();
