@@ -464,38 +464,34 @@ public class GlobalSettingsManager : MonoBehaviour
         QualitySettings.globalTextureMipmapLimit = Mathf.Clamp(level, 0, 3);
     }
 
+    // 모니터가 지원하는 해상도를 전부 나열하지 않고, 이 3개로 고정한다 (요청에 따라 축소).
+    private static readonly (int width, int height)[] FixedResolutions =
+    {
+        (1280, 720),
+        (1920, 1080),
+        (2560, 1440),
+    };
+
     private void InitResolutionOptions()
     {
         if (resolutionDropdown == null) return;
 
-        Resolution[] allRes = Screen.resolutions;
         _resolutions.Clear();
         resolutionDropdown.ClearOptions();
 
         var options = new List<string>();
-        var seen = new HashSet<string>();
         int currentIndex = 0;
         bool matched = false;
 
-        foreach (var r in allRes)
+        foreach (var (width, height) in FixedResolutions)
         {
-            if (r.width < 1280 || r.height < 720) continue;
-            string label = $"{r.width} x {r.height}";
-            if (!seen.Add(label)) continue;
-
-            options.Add(label);
-            _resolutions.Add(r);
-            if (r.width == _data.resolutionWidth && r.height == _data.resolutionHeight)
+            options.Add($"{width} x {height}");
+            _resolutions.Add(new Resolution { width = width, height = height });
+            if (width == _data.resolutionWidth && height == _data.resolutionHeight)
             {
                 currentIndex = _resolutions.Count - 1;
                 matched = true;
             }
-        }
-
-        if (options.Count == 0)
-        {
-            options.Add($"{Screen.width} x {Screen.height}");
-            _resolutions.Add(Screen.currentResolution);
         }
 
         // 저장된 해상도가 지금 모니터의 지원 목록에 없으면(모니터 교체 등) 드롭다운은 인덱스 0을
