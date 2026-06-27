@@ -91,7 +91,6 @@ public class PlayerDashComponent : MonoBehaviour
 
     void TryDash()
     {
-        // ������Dead��Hurt ���� ����
         // 코어 0강이면 우클릭 대쉬 잠김 — 시도 시 안내(스팸 방지 스로틀).
         if (!IsDashUnlocked)
         {
@@ -138,7 +137,6 @@ public class PlayerDashComponent : MonoBehaviour
         _player.Anim.PlayDash(dashDir);
         _player.Audio?.PlayDash();
 
-        // ��� ����Ʈ ����
         VfxUtils.SpawnAtCaster(
             DashVfxPrefab,
             gameObject,

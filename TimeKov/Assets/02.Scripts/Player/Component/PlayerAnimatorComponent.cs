@@ -5,21 +5,21 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private Player _player;
     private Animator _anim;
 
-    private static readonly int NormalHash = Animator.StringToHash("----normal");     // �̵� �ӵ� (Blend Tree)
-    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");        // 1Ÿ Ʈ����
-    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");        // 2Ÿ Ʈ����
-    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");        // 3Ÿ Ʈ����
-    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");     // ��ų1 Ʈ����
-    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2");     // ��ų2 Ʈ����
-    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3");     // ��ų3 Ʈ����
-    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F");  // �� ��� Ʈ����
-    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B");  // �� ��� Ʈ����
-    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R");  // �� ��� Ʈ����
-    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L");  // �� ��� Ʈ����
-    private static readonly int HitLHash = Animator.StringToHash("Hit L");          // �ǰ� �� Ʈ����
-    private static readonly int HitRHash = Animator.StringToHash("Hit R");          // �ǰ� �� Ʈ����
-    private static readonly int DieHash = Animator.StringToHash("Die");            // ��� Ʈ����
-    private static readonly int JumpHash = Animator.StringToHash("Jump");           // ���� Ʈ����
+    private static readonly int NormalHash = Animator.StringToHash("----normal");
+    private static readonly int Attack1Hash = Animator.StringToHash("ATTACK1");
+    private static readonly int Attack2Hash = Animator.StringToHash("ATTACK2");
+    private static readonly int Attack3Hash = Animator.StringToHash("ATTACK3");
+    private static readonly int Skill1Hash = Animator.StringToHash("SP SKILL 1");
+    private static readonly int Skill2Hash = Animator.StringToHash("SP SKILL 2");
+    private static readonly int Skill3Hash = Animator.StringToHash("SP SKILL 3");
+    private static readonly int DashFHash = Animator.StringToHash("QUICK SHIFT F");
+    private static readonly int DashBHash = Animator.StringToHash("QUICK SHIFT B");
+    private static readonly int DashRHash = Animator.StringToHash("QUICK SHIFT R");
+    private static readonly int DashLHash = Animator.StringToHash("QUICK SHIFT L");
+    private static readonly int HitLHash = Animator.StringToHash("Hit L");
+    private static readonly int HitRHash = Animator.StringToHash("Hit R");
+    private static readonly int DieHash = Animator.StringToHash("Die");
+    private static readonly int JumpHash = Animator.StringToHash("Jump");
 
     // 피격 회복 직후 애니메이션 즉시 동기화용 타이머
     private bool  _prevIsHurt;
@@ -67,7 +67,6 @@ public class PlayerAnimatorComponent : MonoBehaviour
 
     public void PlayAttack(int comboIndex)
     {
-        // ���� Ʈ���� �ʱ�ȭ �� ����
         _anim.ResetTrigger(Attack1Hash);
         _anim.ResetTrigger(Attack2Hash);
         _anim.ResetTrigger(Attack3Hash);
@@ -93,7 +92,6 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
     }
 
-    // ��� ������ ĳ���� ���� �������� �Ǵ��ؼ� ���⺰ �ִϸ��̼� ���
     public void PlayDash(Vector3 dashDir)
     {
         Vector3 localDir = transform.InverseTransformDirection(dashDir);
