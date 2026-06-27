@@ -14,6 +14,11 @@ namespace TIMEKOV.Factory
         [Tooltip("시트 레시피에 craftTime 이 없을 때만 쓰는 폴백(초). 평소엔 레시피별 시트 craftTime 사용.")]
         public float processingTime = 5f;
 
+        [Header("출력 버퍼 상한")]
+        [Tooltip("출력이 이만큼 쌓이면(다운스트림이 막혀 벨트가 가득 찬 상태 = 역압) 생산을 멈춘다.\n" +
+                 "벨트 머리 칸이 비어 버퍼가 한 개라도 빠지면 자동으로 생산을 재개한다.")]
+        public int maxOutputStock = 3;
+
         // 레시피는 시트(RecipeData/RecipeInputData)에서 런타임 로드 — 인스펙터 편집 안 함.
         private List<FactoryRecipe> recipes = new();
 
@@ -139,6 +144,11 @@ namespace TIMEKOV.Factory
             if (OutputBuffer.Stock.Count > 0 && !IsOutputCompatibleWith(recipe))
                 return false;
 
+            // 출력 버퍼가 상한까지 찼으면 생산 중지 — 다운스트림이 막혀 벨트가 가득 찬 상태(역압).
+            // 벨트 머리 칸이 비어 버퍼가 한 개라도 빠지면 OnOutputDrained 로 재개된다.
+            if (OutputBuffer.TotalCount >= maxOutputStock)
+                return false;
+
             if (InputBuffer.HasAll(recipe.inputs))
             {
                 StartCoroutine(ProcessRoutine(recipe));
@@ -171,6 +181,12 @@ namespace TIMEKOV.Factory
 
         /// <summary>OutputBuffer가 비면 생산 재개를 시도한다.</summary>
         protected override void OnOutputCleared()
+        {
+            TryStartProcessing();
+        }
+
+        /// <summary>출력 버퍼에서 한 개가 빠져 자리가 나면(상한에 걸려 멈춰 있었을 수 있음) 생산 재개를 시도한다.</summary>
+        protected override void OnOutputDrained()
         {
             TryStartProcessing();
         }

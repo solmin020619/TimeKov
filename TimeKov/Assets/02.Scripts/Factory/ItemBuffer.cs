@@ -14,6 +14,17 @@ namespace TIMEKOV.Factory
 
         public IReadOnlyDictionary<int, int> Stock => _stock;
 
+        /// <summary>현재 쌓여 있는 아이템 총 개수(종류 무관). 출력 버퍼 상한 판정 등에 사용.</summary>
+        public int TotalCount
+        {
+            get
+            {
+                int t = 0;
+                foreach (var kv in _stock) t += kv.Value;
+                return t;
+            }
+        }
+
         public void Add(int itemId, int amount)
         {
             if (itemId <= 0) return;

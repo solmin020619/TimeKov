@@ -39,17 +39,6 @@ namespace TIMEKOV.Factory
         // 라운드 로빈 인덱스 — 다음에 사용할 outputBelt 순번
         private int _nextBeltIndex = 0;
 
-        // 예약(대기) 중인 자동 배출 횟수. 0보다 크면 이미 배출 루프(ScheduleNextDispatch)가
-        // 돌고 있다는 뜻. 연결 시점에 ReconnectAll 이 여러 프레임에 걸쳐 두 번 이상 불려
-        // 연결 상태가 매번 새로 잡히면(첫·둘째 아이템이 한꺼번에 나가는 버그) 중복 킥을 막는다.
-        private int _pendingDispatchSchedules = 0;
-
-        /// <summary>이미 예약된 자동 배출이 있는지 여부 (연결 시 중복 발송 방지용).</summary>
-        public bool HasPendingDispatch => _pendingDispatchSchedules > 0;
-
-        internal void MarkDispatchScheduled() => _pendingDispatchSchedules++;
-        internal void MarkDispatchFired()     => _pendingDispatchSchedules = Mathf.Max(0, _pendingDispatchSchedules - 1);
-
         [Header("입출구 포트")]
         public Transform outputPort;
         public Transform inputPort;
@@ -109,7 +98,11 @@ namespace TIMEKOV.Factory
             if (OutputBuffer.Stock.Count == 0)
             {
                 SetStatus(MachineStatus.Idle);
-                OnOutputCleared();
+                OnOutputCleared();   // 버퍼 완전 비움 → 생산 재개 시도
+            }
+            else
+            {
+                OnOutputDrained();   // 일부만 꺼냄(상한에서 자리가 남) → 생산 재개 시도
             }
             return true;
         }
@@ -143,44 +136,25 @@ namespace TIMEKOV.Factory
 
         protected void Dispatch(int itemId, int amount)
         {
-            // 라운드 로빈으로 벨트 우선 발송
-            BeltSegment belt = GetCurrentOutputBelt();
-            AdvanceOutputBeltIndex();
+            // 머리 칸이 비어 있는 준비된 벨트로 발송. 없으면 출력 버퍼에 쌓아 두고(역압) 대기.
+            BeltSegment belt = FindFreeOutputBelt();
+            if (belt != null && belt.TryTransport(itemId, amount))
+                return;
 
-            if (belt != null && belt.IsReady && belt.targetM != this)
-                belt.TryTransport(itemId, amount);
-            else
-            {
-                OutputBuffer.Add(itemId, amount);
-                SetStatus(MachineStatus.OutputReady);
-                NotifyBufferChanged();
-            }
+            OutputBuffer.Add(itemId, amount);
+            SetStatus(MachineStatus.OutputReady);
+            NotifyBufferChanged();
         }
 
-        /// <summary>현재 라운드 로빈 순번의 벨트를 반환한다.</summary>
-        private BeltSegment GetCurrentOutputBelt()
+        /// <summary>라운드 로빈 순서로, 머리 칸이 비어 있고 연결된 출력 벨트를 찾는다(없으면 null).</summary>
+        private BeltSegment FindFreeOutputBelt()
         {
             if (outputBelts.Count == 0) return null;
-            return outputBelts[_nextBeltIndex % outputBelts.Count];
-        }
-
-        /// <summary>라운드 로빈 인덱스를 다음으로 진행한다.</summary>
-        private void AdvanceOutputBeltIndex()
-        {
-            if (outputBelts.Count == 0) { _nextBeltIndex = 0; return; }
-            _nextBeltIndex = (_nextBeltIndex + 1) % outputBelts.Count;
-        }
-
-        /// <summary>라운드 로빈 순서로 사용 가능한 벨트를 탐색한다.</summary>
-        private BeltSegment FindAvailableOutputBelt()
-        {
-            if (outputBelts.Count == 0) return null;
-            // _nextBeltIndex 기준으로 순환 탐색 (라운드 로빈 일관성 유지)
             for (int i = 0; i < outputBelts.Count; i++)
             {
                 int idx = (_nextBeltIndex + i) % outputBelts.Count;
                 var b = outputBelts[idx];
-                if (b != null && b.IsReady && b.targetM != this)
+                if (b != null && b.IsReady && b.targetM != this && !b.IsOccupied)
                 {
                     _nextBeltIndex = (idx + 1) % outputBelts.Count;
                     return b;
@@ -196,16 +170,21 @@ namespace TIMEKOV.Factory
         protected virtual void OnOutputCleared() { }
 
         /// <summary>
-        /// OutputBuffer에 대기 중인 아이템이 있을 때 사용 가능한 벨트로 내보낸다.
-        /// 벨트가 아이템 전달 완료 후 호출한다.
+        /// OutputBuffer에서 아이템 1개가 벨트로 빠져나가 자리가 났을 때 호출된다(완전히 비지 않아도).
+        /// 서브클래스에서 오버라이드해 생산 재개 등에 사용한다.
+        /// </summary>
+        protected virtual void OnOutputDrained() { }
+
+        /// <summary>
+        /// OutputBuffer에 대기 중인 아이템이 있으면 머리 칸이 빈 벨트로 1개 내보낸다.
+        /// 벨트의 머리 칸이 비는 순간(아이템이 한 칸 전진)마다 호출돼 역압을 따라 한 개씩 흐른다.
         /// </summary>
         public void TryDispatchPendingOutput()
         {
             if (OutputBuffer.Stock.Count == 0) return;
 
-            // 버퍼 드레인은 여유 있는 벨트 아무거나 사용 (라운드 로빈 인덱스 비소모)
-            BeltSegment belt = FindAvailableOutputBelt();
-            if (belt == null) return;
+            BeltSegment belt = FindFreeOutputBelt();
+            if (belt == null) return;   // 보낼 벨트의 머리 칸이 차 있음 → 그대로 대기(역압)
 
             int dispatchId = -1;
             foreach (var kv in OutputBuffer.Stock)
@@ -216,16 +195,28 @@ namespace TIMEKOV.Factory
             }
 
             if (dispatchId < 0) return;
-            // 스택된 아이템은 1개씩 순차 발송 — 벨트 완료 후 2초 딜레이와 맞물려 하나씩 이동
             if (!OutputBuffer.Consume(dispatchId, 1)) return;
 
-            belt.TryTransport(dispatchId, 1);
+            // 머리 칸이 빈 것을 FindFreeOutputBelt 가 보장하지만, 만일 실패하면 도로 버퍼에 넣어 유실 방지.
+            if (!belt.TryTransport(dispatchId, 1))
+            {
+                OutputBuffer.Add(dispatchId, 1);
+                return;
+            }
+
             NotifyBufferChanged();
 
+            // 재개 훅은 상태(Idle/OutputReady)를 먼저 정한 뒤에 호출한다.
+            // 서브클래스가 생산을 재개하면 내부에서 Processing 으로 바꾸므로, 순서가 뒤바뀌면
+            // 방금 켠 Processing 을 Idle 이 덮어쓴다(상태 오표시 버그) — 그래서 분기 끝에서 호출.
             if (OutputBuffer.Stock.Count == 0)
             {
                 SetStatus(MachineStatus.Idle);
-                OnOutputCleared();
+                OnOutputCleared();   // 버퍼 완전 비움 → 생산 재개 시도(서브클래스)
+            }
+            else
+            {
+                OnOutputDrained();   // 자리가 남(상한에 걸려 멈췄을 수 있음) → 생산 재개 시도
             }
         }
 
