@@ -120,8 +120,9 @@ public static class CoreUpgradeUIBuilder
         // -- 효과 리스트 패널 (우측) = 코어 단계별 효과 + 다음 강화 미리보기(???/+N) --
         GameObject fxPanel = MakeImage("EffectPanel", panel.transform, new Vector2(388, 348), new Vector2(566, CoreY - 6f), Hex("0C1322", 205));
         SetSpr(fxPanel, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
+        DecoratePanel(fxPanel, new Vector2(388, 348));
         MakeTMP("EffectTitle", fxPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "코어 효과", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        MakeImage("EffectDivider", fxPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("2A3C5A", 200));
+        MakeImage("EffectDivider", fxPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("5FC4FF", 150));
         var fxRows = new Object[4];
         string[] fxSeed = { "최대 시간", "부활 체력", "우클릭 대쉬", "흡수율" };
         for (int i = 0; i < 4; i++)
@@ -134,8 +135,9 @@ public static class CoreUpgradeUIBuilder
         // -- 보유 코어 키트 패널 (좌측) = 키트 I~V 아이콘 + 보유 개수(가방+창고 합산) --
         GameObject ksPanel = MakeImage("KitStockPanel", panel.transform, new Vector2(388, 348), new Vector2(-566, CoreY - 6f), Hex("0C1322", 205));
         SetSpr(ksPanel, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
+        DecoratePanel(ksPanel, new Vector2(388, 348));
         MakeTMP("KitStockTitle", ksPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "보유 코어 키트", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        MakeImage("KitStockDivider", ksPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("2A3C5A", 200));
+        MakeImage("KitStockDivider", ksPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("5FC4FF", 150));
         var ksIcons = new Object[5];
         var ksTexts = new Object[5];
         for (int i = 0; i < 5; i++)
@@ -468,6 +470,37 @@ public static class CoreUpgradeUIBuilder
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
         rt.offsetMin = rt.offsetMax = Vector2.zero;
+    }
+
+    // 패널 화려하게: 뒤 시안 글로우 후광 + 시안 테두리 라인 + 4코너 액센트 점
+    static void DecoratePanel(GameObject panel, Vector2 size)
+    {
+        // 뒤 글로우 후광 (패널보다 크게, 은은한 시안)
+        var glow = MakeImage("PanelGlow", panel.transform, size + new Vector2(30f, 30f), Vector2.zero, Hex("5FC4FF", 26));
+        var gimg = glow.GetComponent<Image>();
+        gimg.sprite        = UISpriteFactory.RoundedRect(96, 40);
+        gimg.raycastTarget = false;
+        glow.transform.SetAsFirstSibling();
+
+        // 시안 테두리 라인 (전역 Outline 충돌 방지로 한정명)
+        var ol = panel.AddComponent<UnityEngine.UI.Outline>();
+        ol.effectColor    = Hex("5FC4FF", 70);
+        ol.effectDistance = new Vector2(1.6f, -1.6f);
+
+        // 4코너 액센트 점
+        float hw = size.x * 0.5f - 15f;
+        float hh = size.y * 0.5f - 15f;
+        AddCornerDot(panel.transform, new Vector2(-hw,  hh));
+        AddCornerDot(panel.transform, new Vector2( hw,  hh));
+        AddCornerDot(panel.transform, new Vector2(-hw, -hh));
+        AddCornerDot(panel.transform, new Vector2( hw, -hh));
+    }
+
+    static void AddCornerDot(Transform parent, Vector2 pos)
+    {
+        var c = MakeImage("CornerDot", parent, new Vector2(9f, 9f), pos, Hex("7FD4FF", 220));
+        c.GetComponent<Image>().sprite        = UISpriteFactory.RoundedRect(16, 4);
+        c.GetComponent<Image>().raycastTarget = false;
     }
 
     // 별 배경 (고정 시드라 재생성해도 같은 배치)
