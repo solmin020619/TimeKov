@@ -8,10 +8,8 @@ namespace TIMEKOV.Factory
     {
         [Header("벨트 시각화")]
         public GameObject beltItemPrefab;
+        [Tooltip("벨트 한 칸을 지나는 데 걸리는 시간(초). 칸 진입(절반)+방출(절반)으로 나눠 쓴다.")]
         public float travelTimePerSegment = 0.5f;
-
-        [Tooltip("OutputBuffer에 아이템이 쌓여있을 때 다음 아이템 발송까지 대기 시간(초)")]
-        public float dispatchInterval = 1.5f;
 
         [HideInInspector] public BeltSegment prevSegment;
         [HideInInspector] public BeltSegment nextSegment;
@@ -228,7 +226,23 @@ namespace TIMEKOV.Factory
         private void OnDisable()
         {
             All.Remove(this);
+            // 이 칸에 아이템이 올라와 있으면(잼 상태 등) 먼저 창고로 옮기고 비주얼을 제거한다.
+            // Unity는 StopAllCoroutines/파괴 시 코루틴 finally 실행을 보장하지 않으므로 여기서 명시적으로 처리
+            // (벨트 철거 시 아이템 오브젝트가 씬에 남던 문제 방지). OnDisable은 파괴 직전에도 호출된다.
+            RescueOccupantToStorage();
             StopAllCoroutines();
+        }
+
+        // 이 칸의 점유 아이템을 창고로 옮기고 비주얼을 제거한다. 점유가 없으면 아무것도 안 함(멱등).
+        // 정상 전달/핸드오프는 이미 _occupant 를 비워두므로 여기서 중복 회수되지 않는다.
+        private void RescueOccupantToStorage()
+        {
+            if (_occupant == null) return;
+            var token = _occupant;
+            var v     = _occupantVisual;
+            _occupant = null; _occupantVisual = null;
+            InventoryManager.StorageInstance?.AddItem(token.itemId, token.amount);
+            if (v != null) Destroy(v);
         }
 
         private IEnumerator DetectNextFrame()
@@ -607,32 +621,32 @@ namespace TIMEKOV.Factory
             }
             src.AddOutputBelt(chain[0]);
 
-            // 벨트가 연결될 때 OutputBuffer에 이미 대기 중인 아이템이 있으면 즉시 첫 발송 시작.
-            // 단, 이미 배출 루프가 돌고 있으면(ReconnectAll 이 여러 프레임에 걸쳐 다시 불려
-            // changed 가 또 true 가 되는 경우) 중복 킥 금지 — 첫·둘째 아이템이 한꺼번에
-            // 나가는 버그 방지. 진행 중인 루프가 1.5초 간격으로 이어서 비워준다.
-            if (changed && !src.HasPendingDispatch)
+            // 벨트가 연결될 때 OutputBuffer에 이미 대기 중인 아이템이 있으면 첫 발송을 시도한다.
+            // 여러 세그먼트가 각자 PropagateChain을 호출해 changed가 여러 번 true가 돼도,
+            // TryDispatchPendingOutput은 머리 칸이 비었을 때만 1개를 올리므로 중복 발송되지 않는다.
+            if (changed)
                 src.TryDispatchPendingOutput();
         }
 
         // =====================================================================
-        // 운송 중 아이템 추적 (벨트 삭제 / 레시피 불일치 시 창고 구조용)
+        // 칸 점유(occupancy) 기반 운송 — 벨트 1칸당 아이템 1개.
+        // 각 세그먼트가 자기 칸의 아이템 하나를 소유하고, 다음 칸이 비면 한 칸씩 넘긴다(hand-off).
+        // 다음 칸/설비가 못 받으면 그 자리에 머물러(잼) 뒤로 역압이 전파된다.
         // =====================================================================
 
-        /// <summary>코루틴 하나당 하나씩 생성되는 토큰. 아이템 생사 상태를 추적한다.</summary>
+        /// <summary>이동 중인 아이템 하나를 식별하는 토큰.</summary>
         private class InFlightItem
         {
             public int itemId;
             public int amount;
-            /// <summary>설비에 정상 전달 완료되면 true.</summary>
-            public bool isDelivered;
-            /// <summary>창고로 우회 또는 이미 구조됐으면 true.</summary>
-            public bool isRescued;
         }
 
-        private readonly List<InFlightItem> _inFlightItems = new();
-        /// <summary>현재 씬에 존재하는 시각 오브젝트 목록. OnDestroy에서 일괄 정리.</summary>
-        private readonly List<GameObject> _activeVisuals = new();
+        // 이 칸이 들고 있는 아이템(없으면 null)과 그 시각 오브젝트.
+        private InFlightItem _occupant;
+        private GameObject   _occupantVisual;
+
+        /// <summary>이 벨트 칸에 아이템이 올라와 있으면 true.</summary>
+        public bool IsOccupied => _occupant != null;
 
         private void OnDestroy()
         {
@@ -647,281 +661,177 @@ namespace TIMEKOV.Factory
             // 소스 머신의 outputBelts 목록에서 이 세그먼트 제거
             sourceM?.RemoveOutputBelt(this);
 
-            // 이동 중이던 시각 오브젝트 제거
-            for (int i = _activeVisuals.Count - 1; i >= 0; i--)
-            {
-                if (_activeVisuals[i] != null)
-                    Destroy(_activeVisuals[i]);
-            }
-            _activeVisuals.Clear();
-
-            // 아직 전달/구조되지 않은 아이템 -> 창고(Storage)로 이동
-            foreach (var token in _inFlightItems)
-            {
-                if (token.isDelivered || token.isRescued) continue;
-                token.isRescued = true;
-                RescueToStorage(token.itemId, token.amount, "벨트 삭제");
-            }
-            _inFlightItems.Clear();
+            // 점유 아이템/비주얼 정리는 OnDisable 의 RescueOccupantToStorage 가 담당한다.
+            // (OnDisable 은 파괴 직전에도 호출되므로, 벨트 철거 시 올라와 있던 아이템이
+            //  모두 창고로 옮겨지고 비주얼이 제거된다.)
         }
 
-        // 운송 중 아이템을 창고로 구조 + (notify면) 안내 토스트. 플레이어가 "템 증발"로 오해하지 않게.
-        // notify=true 는 철거로 벨트/경로가 사라진 경우만. 정상 작동 중 반복될 수 있는 경우
-        // (목표 설비 없음/레시피 불일치 - 라인 설정 실수)는 notify=false 로 토스트 nag 방지.
-        // 한 번에 여러 개가 구조돼도(체인 철거 등) ToastManager 디바운스가 하나로 합쳐 흔들기만 함(스팸 방지).
-        // 설비 철거(BuildDemolisher) 토스트와 메시지를 통일해 같은 철거 동작에서 한 토스트로 합쳐진다.
-        private static void RescueToStorage(int itemId, int amount, string reason, bool notify = true)
-        {
-            var storage = InventoryManager.StorageInstance;
-            if (storage == null) return;
-            storage.AddItem(itemId, amount);
-            if (notify) ToastManager.Warning("가동 중 철거 - 아이템 창고로 회수");
-        }
+        // ── 소스 → 머리 칸 진입 ───────────────────────────────────────────
 
-        // =====================================================================
-
-        /// <summary>현재 이 벨트 체인에서 이동 중인 아이템이 있으면 true.</summary>
-        public bool IsBusy => _inFlightItems.Count > 0;
-
+        /// <summary>소스 설비가 이 벨트(체인 머리)로 아이템을 올린다.
+        /// 칸이 비어 있고 연결돼 있을 때만 성공한다. 차 있으면 false → 아이템은 소스 출력 버퍼에 남아 역압.</summary>
         public bool TryTransport(int itemId, int amount)
         {
             if (!IsReady) return false;
-            StartCoroutine(ChainTransportRoutine(itemId, amount));
-            // 아이템 출발 시점부터 dispatchInterval 후 다음 아이템 발송
-            StartCoroutine(ScheduleNextDispatch());
+            if (_occupant != null) return false;
+
+            var token  = new InFlightItem { itemId = itemId, amount = amount };
+            var visual = SpawnVisual(itemId, amount, BackPoint());   // 진입 지점(소스 출력 쪽 stub)에서 시작
+            AcceptOccupant(token, visual);
             return true;
         }
 
-        private IEnumerator ScheduleNextDispatch()
+        /// <summary>이전 칸(또는 소스)에서 이 칸으로 아이템을 넘겨받아 이동을 시작한다.</summary>
+        private void AcceptOccupant(InFlightItem token, GameObject visual)
         {
-            // 출발 시점의 소스를 고정 캡처 — 대기 중 연결이 바뀌어도 같은 설비의 배출 루프로 동작.
-            var src = sourceM;
-            src?.MarkDispatchScheduled();
-            yield return new WaitForSeconds(dispatchInterval);
-            src?.MarkDispatchFired();
-            src?.TryDispatchPendingOutput();
+            _occupant       = token;
+            _occupantVisual = visual;
+            StartCoroutine(RunOccupant());
         }
 
-        private IEnumerator ChainTransportRoutine(int itemId, int amount)
+        private IEnumerator RunOccupant()
         {
-            // 운송 토큰 등록
-            var token = new InFlightItem { itemId = itemId, amount = amount };
-            _inFlightItems.Add(token);
-
-            // ── 체인 스냅샷 (출발 시점 기준) ────────────────────────────────
-            var chain = new List<BeltSegment>();
-            var cur = GetChainHead();
-            int safety = 200;
-            while (cur != null && safety-- > 0) { chain.Add(cur); cur = cur.nextSegment; }
-
-            if (chain.Count == 0)
+            var token  = _occupant;
+            var visual = _occupantVisual;
+            try
             {
-                token.isRescued = true;
-                RescueToStorage(itemId, amount, "체인 없음", notify: false);
-                _inFlightItems.Remove(token);
-                yield break;
+                float half = Mathf.Max(0.01f, travelTimePerSegment * 0.5f);
+
+                // 1) 진입: back(칸 경계) → center(칸 중앙). 이 칸은 이미 우리가 점유 중이라 항상 진행.
+                yield return MoveVisual(visual, BackPoint(), transform.position, half);
+
+                // 2) 칸 중앙에서 대기하다가, 다음 칸/설비가 받으면 내보낸다(못 받으면 잼).
+                while (true)
+                {
+                    // 양끝(소스·타깃) 모두 끊긴 고립 칸 → 창고로 구조
+                    if (sourceM == null && targetM == null)
+                    {
+                        RescueAndClear(token, visual, notify: false);
+                        yield break;
+                    }
+
+                    var next = nextSegment;
+                    if (next == null)
+                    {
+                        // 이 칸이 꼬리 — 설비로 전달 시도
+                        var tgt = targetM;
+                        if (tgt == null)
+                        {
+                            // 도착 설비가 사라짐(철거) → 창고로 구조
+                            RescueAndClear(token, visual, notify: false);
+                            yield break;
+                        }
+                        if (!tgt.CanReceive(token.itemId))
+                        {
+                            // 레시피 불일치 등 — 받을 때까지 이 칸에 머문다(잼 = 역압). 창고로 안 보낸다.
+                            yield return null;
+                            continue;
+                        }
+                        // 전달: center → 설비 입구
+                        yield return MoveVisual(visual, transform.position, FrontPoint(), half);
+                        _occupant = null; _occupantVisual = null;
+                        tgt.Receive(token.itemId, token.amount);
+                        GameEvents.RaiseRailItemMoved(tgt.FacilityId, token.itemId, token.amount);   // 튜토: 레일 자동 이동 성공
+                        if (visual != null) Destroy(visual);
+                        NotifyFreed();
+                        yield break;
+                    }
+                    else
+                    {
+                        if (next.IsOccupied)
+                        {
+                            // 다음 칸이 차 있음 → 비워질 때까지 이 칸에서 대기(역압)
+                            yield return null;
+                            continue;
+                        }
+                        // 방출: center → front(= 다음 칸 back). 같은 토큰/비주얼을 그대로 넘긴다(연속 이동).
+                        yield return MoveVisual(visual, transform.position, FrontPoint(), half);
+                        _occupant = null; _occupantVisual = null;
+                        next.AcceptOccupant(token, visual);
+                        NotifyFreed();
+                        yield break;
+                    }
+                }
             }
-
-            // ── 경로 웨이포인트 사전 계산 ────────────────────────────────────
-            // 경로는 각 세그먼트 중심(transform.position = 벨트 정중앙)을 기준으로 만든다.
-            // endpoint 는 벨트 중앙에서 좌우로 살짝 치우쳐 있어 직선이 한쪽으로 쏠려 보이므로,
-            // 세그먼트 경계는 이웃 중심의 중점(=중심선 위의 edge midpoint)으로 잡는다. 그러면
-            // 직선은 정중앙을 지나고, 코너도 올바른 중심선 기준으로 둥글게 돈다.
-            int n = chain.Count;
-            var waypoints = new List<Vector3>();
-
-            Vector3 c0 = chain[0].transform.position;
-            Vector3 cN = chain[n - 1].transform.position;
-
-            // 시작/끝 stub: 방향은 endpoint(설비 쪽 진입/진출 방향) 기준, 길이·기준점은 중심.
-            float startLen = (n >= 2) ? Vector3.Distance(c0, chain[1].transform.position) * 0.5f : 0.5f;
-            float endLen   = (n >= 2) ? Vector3.Distance(cN, chain[n - 2].transform.position) * 0.5f : 0.5f;
-            Vector3 startDir = chain[0].endpointBack != null
-                ? (chain[0].endpointBack.position - c0).normalized : -chain[0].transform.forward;
-            Vector3 endDir = chain[n - 1].endpointFront != null
-                ? (chain[n - 1].endpointFront.position - cN).normalized : chain[n - 1].transform.forward;
-            Vector3 startStub = c0 + startDir * startLen;
-            Vector3 endStub   = cN + endDir   * endLen;
-
-            waypoints.Add(startStub);
-            for (int i = 0; i < n; i++)
+            finally
             {
-                Vector3 ci     = chain[i].transform.position;
-                Vector3 backI  = (i == 0)     ? startStub : (chain[i - 1].transform.position + ci) * 0.5f;
-                Vector3 frontI = (i == n - 1) ? endStub   : (ci + chain[i + 1].transform.position) * 0.5f;
-                AppendSegmentWaypoints(waypoints, backI, ci, frontI);
+                // 보조 안전망: 정상 경로(전달/핸드오프/구조)와 철거(OnDisable)는 이미 _occupant 를 비운다.
+                // 여기까지 아직 들고 있다면 예기치 못한 예외 등으로 중단된 경우 → 창고에 구조하고 비주얼 제거.
+                // (Unity는 파괴/StopAllCoroutines 시 finally 실행을 보장하지 않으므로 이건 어디까지나 보조다.)
+                if (_occupant == token)
+                {
+                    var v = _occupantVisual;
+                    _occupant = null; _occupantVisual = null;
+                    InventoryManager.StorageInstance?.AddItem(token.itemId, token.amount);
+                    if (v != null) Destroy(v);
+                }
             }
+        }
 
-            // 구간별 거리 사전 계산 (매 프레임 계산 방지)
-            var segLengths = new float[waypoints.Count - 1];
-            float totalLength = 0f;
-            for (int i = 0; i < segLengths.Length; i++)
+        // 머리 칸이 비면 소스가 다음 아이템을 올릴 수 있게 알린다.
+        // (중간/꼬리 칸이 비는 건 직전 칸 RunOccupant 가 매 프레임 next.IsOccupied 를 폴링해
+        //  알아서 전진하므로 별도 통지가 필요 없다.)
+        private void NotifyFreed()
+        {
+            if (prevSegment == null)
+                sourceM?.TryDispatchPendingOutput();
+        }
+
+        // 아이템을 창고로 구조하고 이 칸의 점유를 해제한다(경로 소실 전용 — 레시피 잼은 여기로 오지 않는다).
+        private void RescueAndClear(InFlightItem token, GameObject visual, bool notify)
+        {
+            _occupant = null; _occupantVisual = null;
+            InventoryManager.StorageInstance?.AddItem(token.itemId, token.amount);
+            if (notify) ToastManager.Warning("가동 중 철거 - 아이템 창고로 회수");
+            if (visual != null) Destroy(visual);
+        }
+
+        private GameObject SpawnVisual(int itemId, int amount, Vector3 pos)
+        {
+            if (beltItemPrefab == null) return null;
+            var v = Instantiate(beltItemPrefab, pos, beltItemPrefab.transform.rotation);
+            if (v.TryGetComponent<BeltItemVisual>(out var vis)) vis.Setup(itemId, amount);
+            return v;
+        }
+
+        // 비주얼을 from→to 로 dur 초 동안 직선 이동. visual 이 null 이어도 시간은 흐른다(타이밍 보존).
+        private static IEnumerator MoveVisual(GameObject visual, Vector3 from, Vector3 to, float dur)
+        {
+            float t = 0f;
+            while (t < dur)
             {
-                segLengths[i] = Vector3.Distance(waypoints[i], waypoints[i + 1]);
-                totalLength  += segLengths[i];
-            }
-
-            // 전체 이동 시간
-            float totalTime = 0f;
-            foreach (var seg in chain) totalTime += seg.travelTimePerSegment;
-            if (totalTime <= 0f) totalTime = 1f;
-
-            // 거부 대상이면 마지막 세그먼트 절반 지점에서 정지
-            bool willBeRejected = targetM == null || !targetM.CanReceive(itemId);
-            float moveDuration  = willBeRejected
-                ? Mathf.Max(0f, totalTime - chain[chain.Count - 1].travelTimePerSegment * 0.5f)
-                : totalTime;
-
-            // 시각 오브젝트 생성
-            GameObject visual = null;
-            if (beltItemPrefab != null)
-            {
-                visual = Instantiate(beltItemPrefab, waypoints[0], beltItemPrefab.transform.rotation);
-                if (visual.TryGetComponent<BeltItemVisual>(out var vis))
-                    vis.Setup(itemId, amount);
-                _activeVisuals.Add(visual);
-            }
-
-            // ── 전체 경로를 일정 속도로 부드럽게 이동 ───────────────────────
-            float elapsed    = 0f;
-            bool  pathBroken = false;
-
-            while (elapsed < moveDuration)
-            {
-                // 현재 진행률에 해당하는 세그먼트 생존 확인
-                int segIdx = Mathf.Clamp(Mathf.FloorToInt(elapsed / totalTime * chain.Count), 0, chain.Count - 1);
-                if (chain[segIdx] == null) { pathBroken = true; break; }
-
-                float t = Mathf.Clamp01(elapsed / totalTime);
                 if (visual != null)
-                    visual.transform.position = GetPositionAlongPath(waypoints, segLengths, totalLength, t);
-
-                elapsed += Time.deltaTime;
+                    visual.transform.position = Vector3.Lerp(from, to, t / dur);
+                t += Time.deltaTime;
                 yield return null;
             }
-
-            // 마지막 위치 확정
-            if (!pathBroken && visual != null)
-                visual.transform.position = GetPositionAlongPath(
-                    waypoints, segLengths, totalLength, Mathf.Clamp01(moveDuration / totalTime));
-
-            // ── OnDestroy가 이미 처리한 경우 (방어 코드) ────────────────────
-            if (token.isRescued)
-            {
-                CleanupVisual(visual);
-                _inFlightItems.Remove(token);
-                yield break;
-            }
-
-            // ── 결과 처리 ────────────────────────────────────────────────────
-            if (pathBroken)
-            {
-                token.isRescued = true;
-                RescueToStorage(itemId, amount, "경로 파괴");
-            }
-            else if (targetM == null)
-            {
-                token.isRescued = true;
-                RescueToStorage(itemId, amount, "목표 설비 없음", notify: false);
-            }
-            else if (!targetM.CanReceive(itemId))
-            {
-                yield return new WaitForSeconds(1.5f);
-                if (!token.isRescued)
-                {
-                    token.isRescued = true;
-                    RescueToStorage(itemId, amount, "레시피 불일치", notify: false);
-                }
-            }
-            else
-            {
-                token.isDelivered = true;
-                targetM.Receive(itemId, amount);
-                GameEvents.RaiseRailItemMoved(targetM.FacilityId, itemId, amount);   // 튜토: 레일 자동 이동 성공
-            }
-
-            CleanupVisual(visual);
-            _inFlightItems.Remove(token);
+            if (visual != null) visual.transform.position = to;
         }
 
-        /// <summary>한 세그먼트 구간(back→front)을 경로에 추가한다. 직전 점이 back 이라고 가정하므로
-        /// back 은 다시 넣지 않고, 코너면 벨트 중심선을 따르는 원호 샘플들을, 직선이면 front 만 추가한다.</summary>
-        private static void AppendSegmentWaypoints(List<Vector3> pts, Vector3 back, Vector3 center, Vector3 front)
+        // ── 이 칸의 진입/방출 기준점 ─────────────────────────────────────
+        // back  = 이전 칸과의 경계(없으면 소스 진입 stub), front = 다음 칸과의 경계(없으면 설비 입구 stub).
+        // 아이템은 back→center→front 로 지나가고, 막히면 center(칸 중앙)에 머문다 → 칸마다 1개씩 균일 간격.
+
+        // stub(머리/꼬리에서 칸 밖으로 뻗는 길이) = 이웃까지 거리의 절반(없으면 0.5).
+        private float StubLen()
         {
-            // 평면(XZ)에서 안쪽 모서리(코너 중심)를 기준으로 호를 그린다. 직선이면 vertex≈center.
-            Vector2 b = new Vector2(back.x,   back.z);
-            Vector2 c = new Vector2(center.x, center.z);
-            Vector2 f = new Vector2(front.x,  front.z);
-
-            // 안쪽 모서리 = 두 endpoint 가 셀 중심에서 뻗은 방향의 합 → 코너의 회전 중심.
-            Vector2 vertex = b + f - c;
-            Vector2 rb = b - vertex;
-            Vector2 rf = f - vertex;
-
-            float angB     = Mathf.Atan2(rb.y, rb.x);
-            float angF     = Mathf.Atan2(rf.y, rf.x);
-            float sweepDeg = Mathf.DeltaAngle(angB * Mathf.Rad2Deg, angF * Mathf.Rad2Deg); // 최단 회전(±90°)
-
-            // 진짜 ~90° 코너일 때만 호로 돈다. 직선(스윕 ~0)·축퇴(스윕 ~180, 예전 '원 그리기' 원인)는
-            // 곧은 직선으로 처리해 루프를 원천 차단.
-            if (rb.sqrMagnitude < 1e-6f || rf.sqrMagnitude < 1e-6f
-                || Mathf.Abs(sweepDeg) < 30f || Mathf.Abs(sweepDeg) > 150f)
-            {
-                pts.Add(front);   // back 은 이미 들어가 있으므로 front 만 — 곧은 직선
-                return;
-            }
-
-            // 코너: 3차 베지에로 돈다. 양 끝 접선을 들어오는(dirIn)·나가는(dirOut) 직선 방향에
-            // 정확히 맞춰, 직선↔코너 양쪽 이음새가 모두 매끄럽고 출구에서 바깥으로 밀리지 않는다.
-            // 핸들 길이는 1/4원 근사 상수(0.5523·r)로 잡아 곡선이 벨트 중심선을 그대로 따라간다.
-            // Y는 endpoint 기준 보간해 뜨는 현상도 없앤다.
-            const float kCircle = 0.5523f;
-            Vector2 dirIn  = (c - b).normalized;   // 입구 진행 방향(들어오는 직선과 일치)
-            Vector2 dirOut = (f - c).normalized;   // 출구 진행 방향(나가는 직선과 일치)
-            Vector2 P1 = b + dirIn  * (kCircle * (c - b).magnitude);
-            Vector2 P2 = f - dirOut * (kCircle * (f - c).magnitude);
-
-            const int samples = 8;
-            for (int i = 1; i <= samples; i++)
-            {
-                float t = (float)i / samples;
-                float u = 1f - t;
-                float w0 = u * u * u, w1 = 3f * u * u * t, w2 = 3f * u * t * t, w3 = t * t * t;
-                float x = w0 * b.x + w1 * P1.x + w2 * P2.x + w3 * f.x;
-                float z = w0 * b.y + w1 * P1.y + w2 * P2.y + w3 * f.y;
-                float y = Mathf.Lerp(back.y, front.y, t);
-                pts.Add(new Vector3(x, y, z));
-            }
+            if (nextSegment != null) return Vector3.Distance(transform.position, nextSegment.transform.position) * 0.5f;
+            if (prevSegment != null) return Vector3.Distance(transform.position, prevSegment.transform.position) * 0.5f;
+            return 0.5f;
         }
 
-        /// <summary>웨이포인트 목록 위에서 t(0~1) 비율에 해당하는 위치를 반환한다.</summary>
-        private static Vector3 GetPositionAlongPath(List<Vector3> pts, float[] lengths, float totalLength, float t)
+        private Vector3 BackPoint()
         {
-            if (totalLength <= 0f) return pts[pts.Count - 1];
-
-            float target = t * totalLength;
-            float acc    = 0f;
-
-            for (int i = 0; i < lengths.Length; i++)
-            {
-                if (acc + lengths[i] >= target - 0.0001f)
-                {
-                    float segT = lengths[i] > 0f
-                        ? Mathf.Clamp01((target - acc) / lengths[i])
-                        : 1f;
-                    return Vector3.Lerp(pts[i], pts[i + 1], segT);
-                }
-                acc += lengths[i];
-            }
-
-            return pts[pts.Count - 1];
+            if (prevSegment != null) return (prevSegment.transform.position + transform.position) * 0.5f;
+            Vector3 dir = endpointBack != null ? (endpointBack.position - transform.position) : -transform.forward;
+            return transform.position + dir.normalized * StubLen();
         }
 
-        private void CleanupVisual(GameObject visual)
+        private Vector3 FrontPoint()
         {
-            if (visual == null) return;
-            _activeVisuals.Remove(visual);
-            Destroy(visual);
+            if (nextSegment != null) return (transform.position + nextSegment.transform.position) * 0.5f;
+            Vector3 dir = endpointFront != null ? (endpointFront.position - transform.position) : transform.forward;
+            return transform.position + dir.normalized * StubLen();
         }
 
         private void OnDrawGizmosSelected()

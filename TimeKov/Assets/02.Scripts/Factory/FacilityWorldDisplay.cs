@@ -3,7 +3,7 @@
 // 엔드필드 스타일 설비 월드 표시 (플레이어 3인칭 카메라 뷰 기준).
 //  1) 제작 중 아이템 아이콘 — 설비 가운데에 BG와 함께, 항상 카메라를 향함(빌보드).
 //  2) 설비 이름 — 플레이어 근접 시에만, 사각형 4면 중 카메라가 보는 면에 납작하게 고정 표시(빌보드 아님).
-//  3) 금지 표시 — 벨트에서 아이템이 막혔을 때(OutputReady) 출력 포트(벨트 연결 칸) 위에 표시.
+//  3) 금지 표시 — 산출물이 막혔을 때, 거부하는 연결 설비의 "입력 포트" 위에 표시.
 // ProcessingMachine 이 런타임에 자동 부착한다(프리팹 편집 불필요).
 // =====================================================================
 
@@ -47,9 +47,9 @@ namespace TIMEKOV.Factory
         public float nameVisibleDistance = 4.5f;
 
         [Header("금지 표시 (막힘)")]
-        public float blockPixels = 95f;
-        [Tooltip("출력 포트(벨트 연결 칸)에서 위로 올리는 높이(m).")]
-        public float blockYOffset = 0.9f;
+        public float blockPixels = 60f;
+        [Tooltip("거부하는 타깃 설비의 입력 포트에서 위로 올리는 높이(m).")]
+        public float blockYOffset = 1.2f;
         public Color blockColor = new Color(1f, 0.22f, 0.2f, 0.95f);
 
         // ── 런타임 ────────────────────────────────────────────────────────
@@ -57,7 +57,6 @@ namespace TIMEKOV.Factory
         private ProcessingMachine _pm;
         private Camera _cam;
         private Transform _player;
-        private BuildPort _outputPort;
 
         private Collider[] _cols;      // 콜라이더 바운즈(몸체) — 위치/근접 판정 기준
         private Renderer[] _rends;     // 콜라이더 없을 때 폴백용
@@ -124,10 +123,6 @@ namespace TIMEKOV.Factory
             BuildCraftIcon();
             BuildNameLabel();
             BuildBlockIcon();
-
-            // 출력 포트(벨트 연결 칸) 캐시
-            foreach (var p in GetComponentsInChildren<BuildPort>(true))
-                if (p.portType == PortType.Output) { _outputPort = p; break; }
 
             HideAll();
         }
@@ -317,16 +312,15 @@ namespace TIMEKOV.Factory
 
         private void UpdateBlockIcon()
         {
-            // 막힘 = 타깃 거부일 때만. (출력 벨트가 연결돼 있는데 그 타깃이 이 설비
-            //  산출물을 받지 못하는 경우 — 벨트 미연결/버퍼 적체는 막힘으로 보지 않음)
-            bool show = IsTargetRejecting();
-            if (!show) { if (_blockRoot.activeSelf) _blockRoot.SetActive(false); return; }
+            // 막힘 = 타깃 거부일 때만. 표시는 거부하는 "타깃 설비의 입력 포트"에 띄운다.
+            // (출력 벨트가 연결돼 있는데 그 타깃이 이 설비 산출물을 못 받는 경우 —
+            //  벨트 미연결/버퍼 적체는 막힘으로 보지 않음)
+            var tgt = FindRejectingTarget();
+            if (tgt == null) { if (_blockRoot.activeSelf) _blockRoot.SetActive(false); return; }
             if (!_blockRoot.activeSelf) _blockRoot.SetActive(true);
 
-            // 출력 포트(벨트 연결 칸) 위. 포트 없으면 설비 상단 중앙.
-            Vector3 basePos = _outputPort != null
-                ? _outputPort.transform.position
-                : new Vector3(_boundsCenter.x, _boundsTopY, _boundsCenter.z);
+            // 거부하는 타깃 설비의 입력 포트 위. 포트가 없으면 타깃 설비 중심.
+            Vector3 basePos = tgt.inputPort != null ? tgt.inputPort.position : tgt.transform.position;
 
             Vector3 pos = basePos + Vector3.up * blockYOffset;
             pos -= _cam.transform.forward * cameraPullOffset;
@@ -337,14 +331,14 @@ namespace TIMEKOV.Factory
 
         // ── 막힘(타깃 거부) 판정 ─────────────────────────────────────────
         // 이 설비의 출력 벨트가 연결돼 있고, 그 타깃 설비가 이 설비의 산출물 중
-        // 하나라도 받지 못하면(CanReceive=false) "타깃 거부"로 본다.
-        private bool IsTargetRejecting()
+        // 하나라도 받지 못하면(CanReceive=false) 그 "거부하는 타깃 설비"를 반환한다(없으면 null).
+        private MachineBase FindRejectingTarget()
         {
             if (_pm == null || _machine.outputBelts == null || _machine.outputBelts.Count == 0)
-                return false;
+                return null;
 
             var outIds = GetOutputItemIds();
-            if (outIds == null || outIds.Count == 0) return false;
+            if (outIds == null || outIds.Count == 0) return null;
 
             foreach (var belt in _machine.outputBelts)
             {
@@ -353,9 +347,9 @@ namespace TIMEKOV.Factory
                 if (tgt == null || tgt == _machine) continue;
 
                 foreach (var id in outIds)
-                    if (!tgt.CanReceive(id)) return true;   // 타깃이 산출물 거부 → 막힘
+                    if (!tgt.CanReceive(id)) return tgt;   // 산출물 거부 → 이 타깃 입구에 막힘 표시
             }
-            return false;
+            return null;
         }
 
         // 현재 선택된(잠긴) 레시피, 없으면 첫 레시피의 산출물 id 목록 (변경 시에만 재계산).

@@ -4,7 +4,7 @@ namespace TIMEKOV.Factory
 {
     /// <summary>
     /// 저장고 설비 — 벨트로 도착한 아이템을 바로 창고(StorageInstance)에 입고시킨다.
-    /// 아이템 오브젝트는 BeltSegment.ChainTransportRoutine이 Receive() 호출 직후 자동으로 사라진다.
+    /// 아이템 오브젝트는 BeltSegment가 Receive() 호출 직후 자동으로 사라진다.
     /// </summary>
     public class WarehouseReceiver : MachineBase
     {
