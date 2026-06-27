@@ -142,6 +142,7 @@ public class CoreUpgradeUI : MonoBehaviour
     private Coroutine _fadeCo;
     private Coroutine _feedbackRoutine;
     private Coroutine _introCo;   // 패널 열릴 때 별자리 순차 등장 연출
+    private CanvasGroup _starsGroup;   // 배경 별 페이드용 (런타임에 Stars에 부착)
     private Color _btnNormalColor = Color.white;
 
     // F 열기/닫기 충돌 방지용 프레임 가드.
@@ -308,24 +309,73 @@ public class CoreUpgradeUI : MonoBehaviour
         _introCo = StartCoroutine(IntroRoutine());
     }
 
+    // 배경 별 묶음 CanvasGroup (없으면 런타임에 Stars에 부착)
+    private CanvasGroup EnsureStarsGroup()
+    {
+        if (_starsGroup != null) return _starsGroup;
+        if (panelRoot == null) return null;
+        var stars = panelRoot.transform.Find("Stars");
+        if (stars == null) return null;
+        _starsGroup = stars.GetComponent<CanvasGroup>();
+        if (_starsGroup == null) _starsGroup = stars.gameObject.AddComponent<CanvasGroup>();
+        return _starsGroup;
+    }
+
+    // 사이드 패널 = SetRef된 자식(효과행/키트텍스트)의 부모로 역참조 (빌더 수정 불필요)
+    private RectTransform GetEffectPanel()
+        => (effectRows != null && effectRows.Length > 0 && effectRows[0] != null)
+            ? effectRows[0].transform.parent as RectTransform : null;
+
+    private RectTransform GetKitStockPanel()
+        => (kitStockTexts != null && kitStockTexts.Length > 0 && kitStockTexts[0] != null)
+            ? kitStockTexts[0].transform.parent as RectTransform : null;
+
+    // 패널 즉시 숨김 (오프닝 시작 시)
+    private void HidePanelInstant(RectTransform panel)
+    {
+        if (panel == null) return;
+        var cg = panel.GetComponent<CanvasGroup>();
+        if (cg == null) cg = panel.gameObject.AddComponent<CanvasGroup>();
+        cg.DOKill(); panel.DOKill();
+        cg.alpha = 0f;
+        panel.localScale = Vector3.one * 0.9f;
+    }
+
+    // 패널 등장 (페이드 + 살짝 스케일)
+    private void RevealPanel(RectTransform panel)
+    {
+        if (panel == null) return;
+        var cg = panel.GetComponent<CanvasGroup>();
+        if (cg == null) cg = panel.gameObject.AddComponent<CanvasGroup>();
+        cg.DOFade(1f, 0.25f).SetUpdate(true);
+        panel.DOScale(1f, 0.3f).SetUpdate(true).SetEase(Ease.OutBack);
+    }
+
+    private void RestorePanelInstant(RectTransform panel)
+    {
+        if (panel == null) return;
+        panel.DOKill();
+        panel.localScale = Vector3.one;
+        var cg = panel.GetComponent<CanvasGroup>();
+        if (cg != null) { cg.DOKill(); cg.alpha = 1f; }
+    }
+
     private IEnumerator IntroRoutine()
     {
-        // 코어 중앙 팝
+        var starsCg = EnsureStarsGroup();
+        var ksPanel = GetKitStockPanel();
+        var fxPanel = GetEffectPanel();
         Transform coreTr = coreVisualGroup != null ? coreVisualGroup.transform
                          : coreImage != null ? coreImage.transform : null;
-        if (coreTr != null)
-        {
-            coreTr.DOKill();
-            coreTr.localScale = Vector3.zero;
-            coreTr.DOScale(1f, 0.45f).SetUpdate(true).SetEase(Ease.OutBack);
-        }
 
-        // 노드 숨김 (scale 0)
+        // === 0) 전부 숨긴 채 시작 ===
+        if (starsCg != null) { starsCg.DOKill(); starsCg.alpha = 0f; }
+        HidePanelInstant(ksPanel);
+        HidePanelInstant(fxPanel);
+        if (coreTr != null) { coreTr.DOKill(); coreTr.localScale = Vector3.zero; }
         if (constellationNodes != null)
             foreach (var nd in constellationNodes)
                 if (nd != null) { nd.transform.DOKill(); nd.transform.localScale = Vector3.zero; }
-
-        // 연결선 숨김 (alpha 0) + 원래 색 저장
         Color[] saved = null;
         if (_lines != null)
         {
@@ -340,29 +390,41 @@ public class CoreUpgradeUI : MonoBehaviour
                 var c = im.color; c.a = 0f; im.color = c;
             }
         }
+        yield return new WaitForSecondsRealtime(0.2f);
 
-        yield return new WaitForSecondsRealtime(0.22f);
+        // === 1) 좌우 패널 동시 등장 ===
+        RevealPanel(ksPanel);
+        RevealPanel(fxPanel);
+        yield return new WaitForSecondsRealtime(0.4f);
 
-        // 시계방향 순차 등장 (파바바방)
+        // === 2) 별 배경 차오름 ===
+        if (starsCg != null) starsCg.DOFade(1f, 0.45f).SetUpdate(true);
+        yield return new WaitForSecondsRealtime(0.6f);
+
+        // === 3) 코어 중앙 팝 ===
+        if (coreTr != null) coreTr.DOScale(1f, 0.3f).SetUpdate(true).SetEase(Ease.OutBack);
+        yield return new WaitForSecondsRealtime(0.5f);
+
+        // === 4) 노드 시계방향 순차 점등 + 연결선 따라 그려짐 (파바방) ===
         int n = constellationNodes != null ? constellationNodes.Length : 0;
         for (int i = 0; i < n; i++)
         {
             var node = constellationNodes[i];
             if (node != null)
-                node.transform.DOScale(1f, 0.32f).SetUpdate(true).SetEase(Ease.OutBack);
+                node.transform.DOScale(1f, 0.2f).SetUpdate(true).SetEase(Ease.OutBack);
             if (_lines != null && i < _lines.Length && _lines[i] != null && saved != null)
             {
                 var im = _lines[i].GetComponent<Image>();
-                if (im != null) im.DOColor(saved[i], 0.28f).SetUpdate(true);
+                if (im != null) im.DOColor(saved[i], 0.15f).SetUpdate(true);
             }
             yield return new WaitForSecondsRealtime(0.07f);
         }
 
-        // 닫는 선(폐곡선) 마지막에
+        // === 5) 닫는 선(폐곡선) 마지막에 ===
         if (_lines != null && n < _lines.Length && _lines[n] != null && saved != null)
         {
             var im = _lines[n].GetComponent<Image>();
-            if (im != null) im.DOColor(saved[n], 0.3f).SetUpdate(true);
+            if (im != null) im.DOColor(saved[n], 0.2f).SetUpdate(true);
         }
 
         _introCo = null;
@@ -373,6 +435,12 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         if (_introCo == null) return;
         StopCoroutine(_introCo); _introCo = null;
+
+        // 별/패널 즉시 복원
+        var starsCg = EnsureStarsGroup();
+        if (starsCg != null) { starsCg.DOKill(); starsCg.alpha = 1f; }
+        RestorePanelInstant(GetKitStockPanel());
+        RestorePanelInstant(GetEffectPanel());
 
         Transform coreTr = coreVisualGroup != null ? coreVisualGroup.transform
                          : coreImage != null ? coreImage.transform : null;

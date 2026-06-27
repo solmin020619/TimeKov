@@ -557,35 +557,26 @@ public static class CoreUpgradeUIBuilder
             img.raycastTarget = false;
         }
 
-        // 밝은 별 (뒤 글로우 + 코어 점). 소수.
-        for (int i = 0; i < 18; i++)
+        // 빛나는 별 (뒤 글로우 disc + 앞 마커 별 item_marker, 시안빛 틴트). 소수, 또렷하게.
+        var markerSpr = LoadSprAt("Assets/Resources/SkillBar/item_marker.png");
+        for (int i = 0; i < 22; i++)
         {
-            float x = (float)(rng.NextDouble() * 1820.0 - 910.0);
-            float y = (float)(rng.NextDouble() * 1000.0 - 500.0);
-            float core = 3f + (float)rng.NextDouble() * 3f;
-            var glow = MakeImage($"StarGlow{i}", starsRoot.transform, new Vector2(core * 6f, core * 6f), new Vector2(x, y), new Color(0.60f, 0.85f, 1f, 0.16f));
+            float x  = (float)(rng.NextDouble() * 1820.0 - 910.0);
+            float y  = (float)(rng.NextDouble() * 1000.0 - 500.0);
+            float mk = 9f + (float)rng.NextDouble() * 8f;   // 마커 크기(작은 점보다 또렷하게)
+            // 뒤 글로우 후광
+            var glow = MakeImage($"StarGlow{i}", starsRoot.transform, new Vector2(mk * 2.6f, mk * 2.6f), new Vector2(x, y), new Color(0.60f, 0.85f, 1f, 0.20f));
             glow.GetComponent<Image>().sprite        = starSpr;
             glow.GetComponent<Image>().raycastTarget = false;
-            var bright = MakeImage($"StarBright{i}", starsRoot.transform, new Vector2(core, core), new Vector2(x, y), new Color(1f, 1f, 1f, 0.95f));
-            bright.GetComponent<Image>().sprite        = starSpr;
-            bright.GetComponent<Image>().raycastTarget = false;
+            // 앞 마커 별 (시안빛)
+            var bright = MakeImage($"StarBright{i}", starsRoot.transform, new Vector2(mk, mk), new Vector2(x, y), new Color(0.86f, 0.95f, 1f, 0.95f));
+            var bimg = bright.GetComponent<Image>();
+            bimg.sprite         = markerSpr != null ? markerSpr : starSpr;
+            bimg.preserveAspect = true;
+            bimg.raycastTarget  = false;
         }
 
-        // 십자 반짝임 (4-point glint). 아주 소수, 포인트.
-        for (int i = 0; i < 7; i++)
-        {
-            float x = (float)(rng.NextDouble() * 1700.0 - 850.0);
-            float y = (float)(rng.NextDouble() * 900.0 - 450.0);
-            float len = 14f + (float)rng.NextDouble() * 16f;
-            var glint = MakeEmptyAt($"StarGlint{i}", starsRoot.transform, new Vector2(len, len), new Vector2(x, y));
-            var hbar = MakeImage("H", glint.transform, new Vector2(len, 1.6f), Vector2.zero, new Color(0.80f, 0.92f, 1f, 0.7f));
-            hbar.GetComponent<Image>().raycastTarget = false;
-            var vbar = MakeImage("V", glint.transform, new Vector2(1.6f, len), Vector2.zero, new Color(0.80f, 0.92f, 1f, 0.7f));
-            vbar.GetComponent<Image>().raycastTarget = false;
-            var cd = MakeImage("C", glint.transform, new Vector2(3.5f, 3.5f), Vector2.zero, new Color(1f, 1f, 1f, 0.95f));
-            cd.GetComponent<Image>().sprite        = starSpr;
-            cd.GetComponent<Image>().raycastTarget = false;
-        }
+        // (십자 반짝임 제거: 코드로 막대 교차하면 별이 아니라 '+' 조준점처럼 보여서 뺌)
     }
 
     // 별자리 노드 1개 = 발광 별점(숫자 없음 = 성좌 느낌).
