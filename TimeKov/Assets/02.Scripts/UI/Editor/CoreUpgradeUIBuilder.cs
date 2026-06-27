@@ -115,11 +115,22 @@ public static class CoreUpgradeUIBuilder
         }
         SetRefArray(so, "constellationNodes", nodeImgs);
 
-        // 강화 성공/실패 연출용 균열(번개) 프레임 CoreCrackle_00~15 연결
+        // 강화 연출용 균열(번개) 프레임 CoreCrackle_00~15 연결 (보조, 현재 결과연출은 폭발 시퀀스 사용)
         var crackleFrames = new Object[16];
         for (int i = 0; i < 16; i++)
             crackleFrames[i] = LoadSprAt($"Assets/Resources/CoreUI/sprites/CoreCrackle/CoreCrackle_{i:00}.png");
         SetRefArray(so, "crackleFrames", crackleFrames);
+
+        // 강화 성공/실패 폭발 이펙트 프레임 (디자인 시퀀스, 결과연출 메인)
+        var successBurst = new Object[16];
+        var failBurst    = new Object[16];
+        for (int i = 0; i < 16; i++)
+        {
+            successBurst[i] = LoadSprAt($"Assets/Resources/CoreUI/sprites/Success_성공/CoreBurst_Success_{i:00}.png");
+            failBurst[i]    = LoadSprAt($"Assets/Resources/CoreUI/sprites/Fail_실패/CoreBurst_Fail_{i:00}.png");
+        }
+        SetRefArray(so, "successBurstFrames", successBurst);
+        SetRefArray(so, "failBurstFrames", failBurst);
 
         // -- 타이틀 / 레벨 뱃지 / 닫기 --
         var title = MakeTMP("TitleText", panel.transform, new Vector2(500, 44), new Vector2(0, 420),

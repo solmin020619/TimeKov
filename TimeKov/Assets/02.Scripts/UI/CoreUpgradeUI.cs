@@ -106,7 +106,9 @@ public class CoreUpgradeUI : MonoBehaviour
     [Header("결과 연출")]
     [SerializeField] private Color successFlashColor = new Color(0.27f, 0.88f, 0.54f, 0.35f);
     [SerializeField] private Color failFlashColor    = new Color(1f,    0.38f, 0.41f, 0.35f);
-    [SerializeField] private Sprite[] crackleFrames;   // CoreCrackle 16프레임(에너지 균열/번개)
+    [SerializeField] private Sprite[] crackleFrames;        // CoreCrackle 16프레임(번개, 보조)
+    [SerializeField] private Sprite[] successBurstFrames;   // 강화 성공 폭발/광채 16프레임(결과연출 메인)
+    [SerializeField] private Sprite[] failBurstFrames;      // 강화 실패 균열/파편 16프레임(결과연출 메인)
     private Image _flashOverlay;   // 런타임 생성 전체화면 플래시
 
     // 부가 스탯 행 — 런타임 생성(빌더 재실행 불필요, 현재 패널 위에 얹음).
@@ -867,15 +869,12 @@ public class CoreUpgradeUI : MonoBehaviour
 
         if (success)
         {
-            PlayCrackle(new Color(0.72f, 0.92f, 1f, 1f), 400f, 0.035f);   // 시안 에너지 균열 분출
-            PlaySuccessBurst();
-            PlaySparks(16, perfectColor, goodColor);
+            PlayFrameBurst(successBurstFrames, Color.white, 460f, 0.04f);   // 디자인 성공 폭발/광채
         }
         else
         {
-            PlayCrackle(new Color(1f, 0.48f, 0.43f, 1f), 340f, 0.045f);   // 붉은 균열(금이 감)
+            PlayFrameBurst(failBurstFrames, Color.white, 420f, 0.045f);     // 디자인 실패 균열/파편
             PlayFailShake();
-            PlayImplosionRing(missColor);
         }
     }
 
@@ -896,6 +895,27 @@ public class CoreUpgradeUI : MonoBehaviour
             if (crackleFrames[i] != null) img.sprite = crackleFrames[i];
             float k = 1f - (i / (float)crackleFrames.Length) * 0.5f;   // 끝으로 갈수록 잔광처럼 옅게
             var c = tint; c.a *= k; img.color = c;
+            yield return new WaitForSecondsRealtime(frameDur);
+        }
+        if (img != null) Destroy(img.gameObject);
+    }
+
+    // 프레임 시퀀스(폭발/광채 등)를 코어 자리에 한 번 재생. tint=Color.white면 PNG 원색 그대로.
+    private void PlayFrameBurst(Sprite[] frames, Color tint, float size, float frameDur)
+    {
+        if (frames == null || frames.Length == 0) return;
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
+        StartCoroutine(FrameBurstRoutine(frames, parent, pos, tint, size, frameDur));
+    }
+
+    private IEnumerator FrameBurstRoutine(Sprite[] frames, RectTransform parent, Vector2 pos, Color tint, float size, float frameDur)
+    {
+        var img = MakeFxImage("FrameBurst", parent, pos, size, frames[0]);
+        img.color = tint;
+        for (int i = 0; i < frames.Length; i++)
+        {
+            if (img == null) yield break;
+            if (frames[i] != null) img.sprite = frames[i];
             yield return new WaitForSecondsRealtime(frameDur);
         }
         if (img != null) Destroy(img.gameObject);
@@ -934,6 +954,30 @@ public class CoreUpgradeUI : MonoBehaviour
         ring.DOFade(0f, 0.45f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
     }
 
+    // 코어 중심에서 사방으로 뻗는 방사 빛줄기 (동심원 대신 burst 느낌)
+    private void PlayBurstRays(int count, Color color, float maxLen)
+    {
+        if (!GetCorePanelPos(out var parent, out var center)) return;
+        for (int i = 0; i < count; i++)
+        {
+            float ang = (360f / count) * i + Random.Range(-6f, 6f);
+            var go = new GameObject($"BurstRay{i}", typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot            = new Vector2(0.5f, 0f);   // 밑동이 코어 중심 = 바깥으로 자람
+            rt.anchoredPosition = center;
+            rt.sizeDelta        = new Vector2(3.5f, 18f);
+            rt.localRotation    = Quaternion.Euler(0f, 0f, ang);
+            var img = go.GetComponent<Image>();
+            img.color         = color;
+            img.raycastTarget = false;
+            rt.SetAsLastSibling();
+            rt.DOSizeDelta(new Vector2(3.5f, maxLen), 0.3f).SetUpdate(true).SetEase(Ease.OutCubic);
+            img.DOFade(0f, 0.45f).SetUpdate(true).OnComplete(() => { if (go != null) Destroy(go); });
+        }
+    }
+
     private void EnsureFlashOverlay()
     {
         if (_flashOverlay != null || panelRoot == null) return;
@@ -959,13 +1003,6 @@ public class CoreUpgradeUI : MonoBehaviour
         ring.rectTransform.localScale = Vector3.one * 0.6f;
         ring.rectTransform.DOScale(2.6f, 0.6f).SetUpdate(true).SetEase(Ease.OutCubic);
         ring.DOFade(0f, 0.6f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
-
-        // 2차 링 (더 크게/얇게) = 이중 충격파
-        var ring2 = MakeFxImage("ResultRing2", parent, pos, 150f, UISpriteFactory.Ring(96, 3f));
-        ring2.color = new Color(0.42f, 0.78f, 1f, 0.9f);
-        ring2.rectTransform.localScale = Vector3.one * 0.5f;
-        ring2.rectTransform.DOScale(3.4f, 0.8f).SetUpdate(true).SetEase(Ease.OutCubic);
-        ring2.DOFade(0f, 0.8f).SetUpdate(true).OnComplete(() => { if (ring2 != null) Destroy(ring2.gameObject); });
 
         var disc = MakeFxImage("ResultDisc", parent, pos, 110f, UISpriteFactory.Disc(96));
         disc.color = new Color(goodColor.r, goodColor.g, goodColor.b, 0.7f);
