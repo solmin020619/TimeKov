@@ -1,8 +1,10 @@
 // =====================================================================
 // CoreUpgradeUIBuilder.cs  (Editor Only)
-// Tools/TIMEKOV/코어 강화 UI 생성 → Canvas 안에 CoreUpgradePanel 계층 자동 생성 + 필드 연결.
-// 레이아웃 = CoreUI/README.md [최종 화면] 스펙: 스탯은 "체력(시간)" 하나만.
-// (스프라이트는 비워두고 색 플레이스홀더만 — core.png/reference PNG는 인스펙터에서 드래그)
+// Tools/TIMEKOV/코어 강화 UI 생성 -> Canvas 안에 CoreUpgradePanel 계층 자동 생성 + 필드 연결.
+// 레이아웃 = 별자리(운명의 자리) 스타일: 풀스크린 우주배경 + 중앙 코어 + 10단계 노드 원형 배치.
+//   1단계(골격, 지금): 우주배경/별 + 코어 + 10노드(전부 미점등).
+//   다음 단계: 2 점등/연결선, 3 효과리스트(???/미리보기), 4 미니게임 연결, 5 연출/PNG.
+// 미니게임 시계 / 재료바 / 버튼 / 매니저 로직은 기존 그대로 재활용(SetRef 연결만 유지).
 // =====================================================================
 
 using UnityEditor;
@@ -13,6 +15,11 @@ using TMPro;
 
 public static class CoreUpgradeUIBuilder
 {
+    // 별자리 배치 상수
+    const int   NodeCount  = 10;
+    const float NodeRadius = 290f;   // 코어 중심에서 노드까지
+    const float CoreY      = 50f;    // 코어/별자리 중심 Y (panel 기준)
+
     [MenuItem("Tools/TIMEKOV/코어 강화 UI 생성")]
     public static void Build()
     {
@@ -23,8 +30,8 @@ public static class CoreUpgradeUIBuilder
             return;
         }
 
-        // 기존 패널 전수 제거 (비활성 포함). 옛 빌더 잔재가 다른 부모 밑에 숨어
-        // 런타임 싱글톤(CoreUpgradeUI.Instance)을 가로채면 새 패널이 파괴돼 "변경이 안 먹힌다".
+        // 기존 패널 전수 제거 (비활성 포함). 옛 잔재가 싱글톤(CoreUpgradeUI.Instance)을 가로채면
+        // 새 패널이 파괴돼 "변경이 안 먹힌다".
         var existingUis = Object.FindObjectsByType<CoreUpgradeUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         if (existingUis.Length > 0)
         {
@@ -36,93 +43,110 @@ public static class CoreUpgradeUIBuilder
                 if (u != null) Object.DestroyImmediate(u.gameObject);
         }
 
-        // ── 루트 = 컴포넌트 호스트. 항상 active로 둬야 Awake가 돌아 Instance가 등록되고,
-        //    트리거(CoreUpgradeUI.Instance.Open())가 패널을 열 수 있다.
-        //    실제 보이는 딤/패널은 PanelRoot 자식으로 빼서 그것만 껐다 켠다. ──
+        // 루트 = 컴포넌트 호스트. 항상 active(Awake가 돌아 Instance 등록). 보이는 건 PanelRoot 자식만 토글.
         GameObject root = new GameObject("CoreUpgradePanel", typeof(RectTransform));
         var rootTr = root.GetComponent<RectTransform>();
         rootTr.SetParent(canvas.transform, false);
-        rootTr.anchorMin = Vector2.zero; rootTr.anchorMax = Vector2.one;
-        rootTr.offsetMin = rootTr.offsetMax = Vector2.zero;
+        Stretch(rootTr);
 
         CoreUpgradeUI ui = root.AddComponent<CoreUpgradeUI>();
         SerializedObject so = new SerializedObject(ui);
 
-        // ── PanelRoot = 전체화면 딤(scrim) + 패널 내용. 평소 false, Open()에서 true. ──
+        // -- PanelRoot = 풀스크린 우주 배경. 평소 off, Open()에서 on. --
         GameObject panelRootGo = new GameObject("PanelRoot", typeof(RectTransform), typeof(Image));
         var panelRootTr = panelRootGo.GetComponent<RectTransform>();
         panelRootTr.SetParent(rootTr, false);
-        panelRootTr.anchorMin = Vector2.zero; panelRootTr.anchorMax = Vector2.one;
-        panelRootTr.offsetMin = panelRootTr.offsetMax = Vector2.zero;
-        panelRootGo.GetComponent<Image>().color = Hex("070C16", 190);   // 은은한 딤
+        Stretch(panelRootTr);
+        panelRootGo.GetComponent<Image>().color = Hex("04060D", 252);   // 깊은 우주(거의 불투명, 뒤 클릭 차단)
         SetRef(so, "panelRoot", panelRootGo);
         panelRootGo.SetActive(false);
 
-        // ── 패널 (1280x720) = 투명 컨테이너. 불투명 베이스/프레임은 스프라이트 블록에서 얹음. ──
-        GameObject panel = MakeImage("Panel", panelRootTr,
-            size: new Vector2(1280, 720), pos: Vector2.zero, color: Hex("0E1A2C", 0));
+        // 배경 그라데이션 (위 네이비 -> 아래 거의 검정)
+        var grad = MakeImage("SpaceGradient", panelRootTr, new Vector2(64, 64), Vector2.zero, Color.white);
+        Stretch(grad.GetComponent<RectTransform>());
+        var gradImg = grad.GetComponent<Image>();
+        gradImg.sprite       = UISpriteFactory.RoundedRectVGrad(Hex("0A1730"), Hex("03060E"), 64, 0);
+        gradImg.type         = Image.Type.Simple;
+        gradImg.raycastTarget = false;
 
-        // ── 타이틀 ──
-        var title = MakeTMP("TitleText", panel.transform,
-            new Vector2(500, 44), new Vector2(0, 305),
-            "코어 <color=#5FC4FF>강화</color>", 30, Hex("EAF3FB"), TextAlignmentOptions.Center);
-        title.fontStyle = FontStyles.Bold;
+        // 별 (고정 시드 -> 재생성해도 동일 배치)
+        BuildStars(panelRootTr);
 
-        // ── 레벨 뱃지 (우상단) ──
-        GameObject badge = MakeImage("LevelBadge", panel.transform,
-            new Vector2(140, 60), new Vector2(540, 300), Hex("0B1422", 230));
-        var levelTxt = MakeTMP("LevelText", badge.transform, Vector2.zero, Vector2.zero,
-            "Lv.0 / 10", 22, Hex("EAF3FB"), TextAlignmentOptions.Center, stretch: true);
-        levelTxt.fontStyle = FontStyles.Bold;
-        SetRef(so, "levelText", levelTxt);
+        // -- panel = 1600x900 중앙 컨테이너 (투명). 코어/노드/UI 올림. --
+        GameObject panel = MakeImage("Panel", panelRootTr, new Vector2(1600, 900), Vector2.zero, Hex("1A202A", 0));
+        panel.GetComponent<Image>().raycastTarget = false;
 
-        // ── 닫기 버튼 (좌상단) ──
-        GameObject closeBtn = MakeButton("CloseButton", panel.transform,
-            new Vector2(48, 48), new Vector2(-596, 300), "X", 22, Hex("16263C", 215));
-        SetRef(so, "closeButton", closeBtn.GetComponent<Button>());
+        // 코어 글로우 (코어 뒤 은은한 빛)
+        var glow = MakeImage("CoreGlow", panel.transform, new Vector2(560, 560), new Vector2(0, CoreY), Color.white);
+        SetSpr(glow, LoadSpr("Core_Glow"), Image.Type.Simple);
 
-        // ── 코어 이미지 (중앙) ──
-        GameObject coreGo = MakeImage("CoreImage", panel.transform,
-            new Vector2(300, 300), new Vector2(0, 45), Hex("4A9EFF", 0));
+        // 데코 링
+        var dring = MakeImage("DecoRing", panel.transform, new Vector2(360, 360), new Vector2(0, CoreY), Color.white);
+        SetSpr(dring, LoadSpr("Deco_Ring"), Image.Type.Simple);
+
+        // 코어 본체 (중앙)
+        GameObject coreGo = MakeImage("CoreImage", panel.transform, new Vector2(230, 230), new Vector2(0, CoreY), Color.white);
+        SetSpr(coreGo, LoadSpr("core"), Image.Type.Simple);
         coreGo.GetComponent<Image>().preserveAspect = true;
         SetRef(so, "coreImage", coreGo.GetComponent<Image>());
 
-        // ── 현재 카드 (좌, 항상 표시) ──
-        GameObject leftCard = MakeImage("CurrentCard", panel.transform,
-            new Vector2(280, 210), new Vector2(-430, 0), Hex("0B1422", 150));
-        MakeTMP("CurHead", leftCard.transform, new Vector2(240, 30), new Vector2(0, 78), "현재", 20, Hex("AEBFD0"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        MakeTMP("CurLbl",  leftCard.transform, new Vector2(200, 24), new Vector2(0, 30), "체력", 16, Hex("AEBFD0"), TextAlignmentOptions.Center);
-        var curTime = MakeTMP("CurrentTimeText", leftCard.transform, new Vector2(260, 80), new Vector2(0, -28), "0s", 56, Hex("EAF3FB"), TextAlignmentOptions.Center);
-        curTime.fontStyle = FontStyles.Bold;
-        SetRef(so, "currentTimeText", curTime);
+        // -- 10단계 노드 원형 배치 (12시부터 시계방향). 1단계는 전부 미점등. --
+        var nodeImgs = new Object[NodeCount];
+        for (int i = 0; i < NodeCount; i++)
+        {
+            float angDeg = 90f - i * (360f / NodeCount);   // 12시(90도) 시작, 시계방향
+            float rad    = angDeg * Mathf.Deg2Rad;
+            Vector2 pos  = new Vector2(Mathf.Cos(rad) * NodeRadius, CoreY + Mathf.Sin(rad) * NodeRadius);
+            nodeImgs[i]  = MakeNode(panel.transform, pos, i + 1);
+        }
+        SetRefArray(so, "constellationNodes", nodeImgs);
 
-        // ── 강화 정보 그룹 (MAX면 숨김) ──
+        // -- 타이틀 / 레벨 뱃지 / 닫기 --
+        var title = MakeTMP("TitleText", panel.transform, new Vector2(500, 44), new Vector2(0, 420),
+            "코어 <color=#5FC4FF>강화</color>", 30, Hex("EAF3FB"), TextAlignmentOptions.Center);
+        title.fontStyle = FontStyles.Bold;
+
+        GameObject badge = MakeImage("LevelBadge", panel.transform, new Vector2(140, 60), new Vector2(640, 416), Hex("0C1322", 230));
+        SetSpr(badge, LoadSprAt("Assets/11.UI/New/pill_dark.png", 24), Image.Type.Sliced);
+        var levelTxt = MakeTMP("LevelText", badge.transform, Vector2.zero, Vector2.zero, "Lv.0 / 10", 22, Hex("EAF3FB"), TextAlignmentOptions.Center, stretch: true);
+        levelTxt.fontStyle = FontStyles.Bold;
+        SetRef(so, "levelText", levelTxt);
+
+        GameObject closeBtn = MakeButton("CloseButton", panel.transform, new Vector2(48, 48), new Vector2(-724, 416), "X", 22, Hex("0E1626", 215));
+        SetSpr(closeBtn, LoadSprAt("Assets/11.UI/New/pill_dark.png", 16), Image.Type.Sliced);
+        closeBtn.GetComponent<Image>().color = Hex("0E1626", 215);
+        SetRef(so, "closeButton", closeBtn.GetComponent<Button>());
+
+        // -- 효과 리스트 패널 (우측) = 코어 단계별 효과 + 다음 강화 미리보기(???/+N) --
+        GameObject fxPanel = MakeImage("EffectPanel", panel.transform, new Vector2(388, 348), new Vector2(566, CoreY - 6f), Hex("0C1322", 205));
+        SetSpr(fxPanel, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
+        MakeTMP("EffectTitle", fxPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "코어 효과", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+        MakeImage("EffectDivider", fxPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("2A3C5A", 200));
+        var fxRows = new Object[4];
+        string[] fxSeed = { "최대 시간", "부활 체력", "우클릭 대쉬", "흡수율" };
+        for (int i = 0; i < 4; i++)
+        {
+            var fxRow = MakeTMP($"EffectRow{i}", fxPanel.transform, new Vector2(330, 38), new Vector2(10, 84 - i * 62), fxSeed[i], 17, Hex("C7D6E6"), TextAlignmentOptions.Left);
+            fxRows[i] = fxRow;
+        }
+        SetRefArray(so, "effectRows", fxRows);
+
+        // -- 강화 정보 그룹 (MAX면 숨김) = 재료/확률 바 + 강화 버튼 --
         GameObject infoGroup = MakeEmpty("UpgradeInfoGroup", panel.transform);
         SetRef(so, "upgradeInfoGroup", infoGroup);
 
-        // 강화 후 카드 (우)
-        GameObject rightCard = MakeImage("NextCard", infoGroup.transform,
-            new Vector2(280, 210), new Vector2(430, 0), Hex("0B1422", 150));
-        MakeTMP("NxtHead", rightCard.transform, new Vector2(240, 30), new Vector2(0, 78), "강화 후", 20, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        MakeTMP("NxtLbl",  rightCard.transform, new Vector2(200, 24), new Vector2(0, 30), "체력", 16, Hex("AEBFD0"), TextAlignmentOptions.Center);
-        var nxtTime = MakeTMP("NextTimeText", rightCard.transform, new Vector2(260, 80), new Vector2(0, -18), "0s", 56, Hex("AEE3FF"), TextAlignmentOptions.Center);
-        nxtTime.fontStyle = FontStyles.Bold;
-        SetRef(so, "nextTimeText", nxtTime);
-        var dltTime = MakeTMP("DeltaTimeText", rightCard.transform, new Vector2(220, 24), new Vector2(0, -72), "+0s ↑", 17, Hex("46E08A"), TextAlignmentOptions.Center);
-        dltTime.fontStyle = FontStyles.Bold;
-        SetRef(so, "deltaTimeText", dltTime);
-
-        // 하단 바 (재료 + 성공확률 + 게이지) — 행 간격 충분히 (겹침 방지)
-        GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform,
-            new Vector2(640, 110), new Vector2(0, -215), Hex("0B1422", 200));
+        GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform, new Vector2(660, 104), new Vector2(0, -396), Hex("0C1322", 200));
+        SetSpr(bottomBar, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
         AddHighlight(bottomBar, "core_upgrade_materials");   // 튜토 코치마크 대상 (재료/성공확률)
-        GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform,
-            new Vector2(48, 48), new Vector2(-288, 24), Hex("0D2040", 220));
+        GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform, new Vector2(48, 48), new Vector2(-296, 22), Hex("1A202C", 220));
+        SetSpr(kitIconGo, LoadSpr("KitSlot"), Image.Type.Simple);
         SetRef(so, "kitIconImage", kitIconGo.GetComponent<Image>());
-        var kitName  = MakeTMP("KitNameText",     bottomBar.transform, new Vector2(280, 24), new Vector2(-100, 30), "필요: 코어 키트", 16, Hex("EAF3FB"), TextAlignmentOptions.Left);
-        var kitCount = MakeTMP("KitCountText",    bottomBar.transform, new Vector2(200, 22), new Vector2(-110, 4),  "보유:  0 / 3",   15, Hex("AEBFD0"), TextAlignmentOptions.Left);
-        var kitShort = MakeTMP("KitShortageText", bottomBar.transform, new Vector2(130, 22), new Vector2(95, 4),    "",              14, Hex("FF6068"), TextAlignmentOptions.Left);
-        var succRate = MakeTMP("SuccessRateText", bottomBar.transform, new Vector2(240, 26), new Vector2(170, 30),  "성공 확률:  50%", 18, Hex("AEE3FF"), TextAlignmentOptions.Right);
+        var kitItemIcon = MakeImage("KitItemIcon", kitIconGo.transform, new Vector2(34, 34), Vector2.zero, Color.white);
+        SetSpr(kitItemIcon, LoadSpr("KitIcon"), Image.Type.Simple);
+        var kitName  = MakeTMP("KitNameText",     bottomBar.transform, new Vector2(280, 24), new Vector2(-108, 28), "필요: 코어 키트", 16, Hex("EAF3FB"), TextAlignmentOptions.Left);
+        var kitCount = MakeTMP("KitCountText",    bottomBar.transform, new Vector2(200, 22), new Vector2(-118, 2),  "보유:  0 / 3",   15, Hex("AEBFD0"), TextAlignmentOptions.Left);
+        var kitShort = MakeTMP("KitShortageText", bottomBar.transform, new Vector2(130, 22), new Vector2(88, 2),    "",              14, Hex("FF6068"), TextAlignmentOptions.Left);
+        var succRate = MakeTMP("SuccessRateText", bottomBar.transform, new Vector2(240, 26), new Vector2(170, 28),  "성공 확률:  50%", 18, Hex("AEE3FF"), TextAlignmentOptions.Right);
         succRate.fontStyle = FontStyles.Bold;
         SetRef(so, "kitNameText",     kitName);
         SetRef(so, "kitCountText",    kitCount);
@@ -130,75 +154,59 @@ public static class CoreUpgradeUIBuilder
         SetRef(so, "successRateText", succRate);
 
         // 성공 확률 게이지 (바닥)
-        GameObject gaugeBg = MakeImage("GaugeBG", bottomBar.transform, new Vector2(600, 10), new Vector2(0, -34), Hex("05080D", 255));
-        GameObject gaugeFillGo = MakeImage("GaugeFill", gaugeBg.transform, new Vector2(600, 10), Vector2.zero, Hex("6FD2FF", 255));
+        GameObject gaugeBg = MakeImage("GaugeBG", bottomBar.transform, new Vector2(610, 10), new Vector2(0, -34), Hex("05080D", 255));
+        SetSpr(gaugeBg, LoadSpr("Gauge_Trough", 6), Image.Type.Sliced);
+        GameObject gaugeFillGo = MakeImage("GaugeFill", gaugeBg.transform, new Vector2(610, 10), Vector2.zero, Hex("6FD2FF", 255));
+        SetSpr(gaugeFillGo, LoadSpr("Gauge_Fill", 6), Image.Type.Filled);
         var gaugeFillImg = gaugeFillGo.GetComponent<Image>();
         gaugeFillImg.type       = Image.Type.Filled;
         gaugeFillImg.fillMethod = Image.FillMethod.Horizontal;
         gaugeFillImg.fillOrigin = 0; // Left
         gaugeFillImg.fillAmount = 0.5f;
+        gaugeFillImg.color      = Hex("6FD2FF");   // 채움은 시안
         SetRef(so, "gaugeFill", gaugeFillImg);
 
         // 강화 시작 버튼
-        GameObject upgradeBtn = MakeButton("UpgradeButton", infoGroup.transform,
-            new Vector2(360, 60), new Vector2(0, -312), "강화 시작", 20, Hex("2F9BE0"));
+        GameObject upgradeBtn = MakeButton("UpgradeButton", infoGroup.transform, new Vector2(360, 60), new Vector2(0, -486), "강화", 20, Hex("2A4A66"));
+        SetSpr(upgradeBtn, LoadSprAt("Assets/11.UI/New/panel_steel_a78.png", 24), Image.Type.Sliced);
+        upgradeBtn.GetComponent<Image>().color = Hex("2A4A66");
         SetRef(so, "upgradeButton",     upgradeBtn.GetComponent<Button>());
         SetRef(so, "upgradeButtonText", upgradeBtn.GetComponentInChildren<TextMeshProUGUI>());
         AddHighlight(upgradeBtn, "core_upgrade_button");   // 튜토 코치마크 대상 (강화 버튼)
 
-        // ── MAX 그룹 ──
+        // -- MAX 그룹 --
         GameObject maxGroup = MakeEmpty("MaxLevelGroup", panel.transform);
-        MakeTMP("MaxText", maxGroup.transform, new Vector2(500, 50), new Vector2(0, -200), "최대 단계 달성", 24, Hex("FFD66B"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+        MakeTMP("MaxText", maxGroup.transform, new Vector2(500, 50), new Vector2(0, -396), "최대 단계 달성", 24, Hex("FFD66B"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         maxGroup.SetActive(false);
         SetRef(so, "maxLevelGroup", maxGroup);
 
-        // ── 피드백 텍스트 ──
-        var feedback = MakeTMP("FeedbackText", panel.transform, new Vector2(600, 40), new Vector2(0, -150), "", 22, Hex("EAF3FB"), TextAlignmentOptions.Center);
+        // -- 피드백 텍스트 --
+        var feedback = MakeTMP("FeedbackText", panel.transform, new Vector2(600, 40), new Vector2(0, -170), "", 22, Hex("EAF3FB"), TextAlignmentOptions.Center);
         feedback.fontStyle = FontStyles.Bold;
         feedback.gameObject.SetActive(false);
         SetRef(so, "feedbackText", feedback);
 
-        // ── 스프라이트 자동 적용 (CoreUI/sprites) — Sprite 임포트 + 9-slice border 자동 ──
-        SetSpr(badge,       LoadSpr("Bar_Frame", 36),          Image.Type.Sliced);   // 종욱이 LevelBadge->Bar_Frame 선택, 재생성 보존
-        SetSpr(leftCard,    LoadSpr("Card_Frame", 48),         Image.Type.Sliced);
-        SetSpr(rightCard,   LoadSpr("Card_Frame", 48),         Image.Type.Sliced);
-        SetSpr(bottomBar,   LoadSpr("Bar_Frame", 36),          Image.Type.Sliced);
-        SetSpr(kitIconGo,   LoadSpr("KitSlot"),                Image.Type.Simple);   // 육각이라 9-slice 금지(찌그러짐)
-        SetSpr(gaugeBg,     LoadSpr("Gauge_Trough", 6),        Image.Type.Sliced);
-        SetSpr(gaugeFillGo, LoadSpr("Gauge_Fill", 6),          Image.Type.Filled);
-        gaugeFillGo.GetComponent<Image>().color = Hex("6FD2FF");   // 채움은 시안 (흰색 아님)
-        SetSpr(upgradeBtn,  LoadSpr("Btn_Enhance_Normal", 24), Image.Type.Sliced);
-        SetSpr(coreGo,      LoadSpr("core"), Image.Type.Simple);   // core.png는 sprites/ 안에 있음
+        // -- 인라인 시계 (강화 시 코어->시계 전환). 미니게임 재활용. --
+        BuildInlineClock(panel, so);
 
-        // 패널 배경 = Panel_BG 2겹(같은 크기/둥근 모양). 단색 직각 베이스를 쓰면 그 직선 변이
-        // 반투명 프레임 뒤로 비쳐 상/우/하에 "선"이 생김 → 같은 스프라이트를 겹쳐 경계를 없애고
-        // 불투명도도 보강(코너 삐짐 동시 해결).
-        var panelBase = MakeImage("PanelBase", panel.transform, new Vector2(1280, 720), Vector2.zero, Color.white);
-        SetSpr(panelBase, LoadSpr("Panel_BG"), Image.Type.Simple);
-        panelBase.GetComponent<Image>().color = Hex("0E1A2C", 255);   // 뒤겹은 navy 틴트로 시안 테두리 죽임 → 테두리 1줄, 불투명 채움 유지
-        panelBase.transform.SetSiblingIndex(0);
-        var panelFrame = MakeImage("PanelFrame", panel.transform, new Vector2(1280, 720), Vector2.zero, Color.white);
-        SetSpr(panelFrame, LoadSpr("Panel_BG"), Image.Type.Simple);
-        panelFrame.transform.SetSiblingIndex(1);
+        // -- 적용 + 저장 --
+        so.ApplyModifiedProperties();
+        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Selection.activeGameObject = root;
 
-        // 데코 링 + 코어 글로우 (프레임 위 · 코어 뒤, 살짝 작게)
-        var dring = MakeImage("DecoRing", panel.transform, new Vector2(360, 360), new Vector2(0, 45), Color.white);
-        SetSpr(dring, LoadSpr("Deco_Ring"), Image.Type.Simple);
-        dring.transform.SetSiblingIndex(2);
-        var glow = MakeImage("CoreGlow", panel.transform, new Vector2(380, 380), new Vector2(0, 45), Color.white);
-        SetSpr(glow, LoadSpr("Core_Glow"), Image.Type.Simple);
-        glow.transform.SetSiblingIndex(3);
+        Debug.Log("[TIMEKOV] 코어 강화 UI(별자리 1단계 골격) 생성 완료.");
+        EditorUtility.DisplayDialog("완료",
+            "코어 강화 UI(별자리 골격) 생성 완료!\n\n- CoreUpgradePanel은 active(켜진 상태)로 둘 것\n- Ctrl+S로 씬 저장", "확인");
+    }
 
-        // 키트 아이콘 (슬롯 위에)
-        var kitItemIcon = MakeImage("KitItemIcon", kitIconGo.transform, new Vector2(34, 34), Vector2.zero, Color.white);
-        SetSpr(kitItemIcon, LoadSpr("KitIcon"), Image.Type.Simple);
-
-        // ── 인라인 시계 (강화 시 코어→시계 전환) — Clock_* 스프라이트 사용 ──
+    // -- 인라인 시계 (코어 자리에서 코어<->시계 크로스페이드, 미니게임용) --
+    static void BuildInlineClock(GameObject panel, SerializedObject so)
+    {
         var clockGo = MakeEmpty("ClockGroup", panel.transform);
         var clockRt = clockGo.GetComponent<RectTransform>();
         clockRt.anchorMin = clockRt.anchorMax = clockRt.pivot = new Vector2(0.5f, 0.5f);
         clockRt.sizeDelta        = new Vector2(300, 300);
-        clockRt.anchoredPosition = new Vector2(0, 45);
+        clockRt.anchoredPosition = new Vector2(0, CoreY);
         var clockCg = clockGo.AddComponent<CanvasGroup>();
         clockCg.alpha = 0f;
         SetRef(so, "clockGroup", clockCg);
@@ -240,26 +248,17 @@ public static class CoreUpgradeUIBuilder
         SetSpr(hubGo, LoadSpr("Clock_Hub"), Image.Type.Simple);
 
         // 스핀 안내 (코어 아래) + 판정 칩 (코어 위)
-        var spinHintTmp = MakeTMP("SpinHint", panel.transform, new Vector2(540, 36), new Vector2(0, -120),
+        var spinHintTmp = MakeTMP("SpinHint", panel.transform, new Vector2(540, 36), new Vector2(0, CoreY - 170f),
             "멈춰서 <color=#46E08A>성공존</color>에 맞추세요!", 18, Hex("AEE3FF"), TextAlignmentOptions.Center);
         spinHintTmp.fontStyle = FontStyles.Bold;
         spinHintTmp.gameObject.SetActive(false);
         SetRef(so, "spinHint", spinHintTmp.gameObject);
 
-        var judgeChip = MakeTMP("JudgeChip", panel.transform, new Vector2(360, 40), new Vector2(0, 200),
+        var judgeChip = MakeTMP("JudgeChip", panel.transform, new Vector2(360, 40), new Vector2(0, CoreY + 155f),
             "", 26, Hex("FFD66B"), TextAlignmentOptions.Center);
         judgeChip.fontStyle = FontStyles.Bold;
         judgeChip.gameObject.SetActive(false);
         SetRef(so, "judgeChipText", judgeChip);
-
-        // ── 적용 + 저장 ──
-        so.ApplyModifiedProperties();
-        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
-        Selection.activeGameObject = root;
-
-        Debug.Log("[TIMEKOV] 코어 강화 UI 생성 완료 (README 스펙: 체력만).");
-        EditorUtility.DisplayDialog("완료",
-            "코어 강화 UI 생성 완료!\n\n- CoreUpgradePanel은 active(켜진 상태)로 둘 것\n  (안 보이는 처리는 자식 PanelRoot가 자동으로 함)\n- Ctrl+S로 씬 저장", "확인");
     }
 
     // ── 타임 캐치 단독 추가 ───────────────────────────────────────────
@@ -445,6 +444,55 @@ public static class CoreUpgradeUIBuilder
 
     // ── 헬퍼 ──────────────────────────────────────────────────────────
 
+    static void Stretch(RectTransform rt)
+    {
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+    }
+
+    // 별 배경 (고정 시드라 재생성해도 같은 배치)
+    static void BuildStars(Transform parent)
+    {
+        var rng = new System.Random(20260624);
+        var starsRoot = new GameObject("Stars", typeof(RectTransform));
+        starsRoot.transform.SetParent(parent, false);
+        Stretch(starsRoot.GetComponent<RectTransform>());
+
+        var starSpr = UISpriteFactory.Disc(16);
+        for (int i = 0; i < 90; i++)
+        {
+            float x = (float)(rng.NextDouble() * 1920.0 - 960.0);
+            float y = (float)(rng.NextDouble() * 1080.0 - 540.0);
+            float s = 1.5f + (float)rng.NextDouble() * 2.5f;
+            float a = 0.15f + (float)rng.NextDouble() * 0.55f;
+            var star = MakeImage($"Star{i}", starsRoot.transform, new Vector2(s, s), new Vector2(x, y), new Color(1f, 1f, 1f, a));
+            var img = star.GetComponent<Image>();
+            img.sprite        = starSpr;
+            img.raycastTarget = false;
+        }
+    }
+
+    // 별자리 노드 1개 (미점등). 점등 대상인 안쪽 disc Image를 반환.
+    static Image MakeNode(Transform parent, Vector2 pos, int number)
+    {
+        var node = MakeImage($"Node{number}", parent, new Vector2(58, 58), pos, Color.white);
+        var img  = node.GetComponent<Image>();
+        img.sprite = UISpriteFactory.Disc(64);
+        img.type   = Image.Type.Simple;
+        img.color  = Hex("121A2C", 240);   // 미점등 채움
+
+        var ring  = MakeImage("Ring", node.transform, new Vector2(58, 58), Vector2.zero, Color.white);
+        var rimg  = ring.GetComponent<Image>();
+        rimg.sprite        = UISpriteFactory.Ring(64, 3f);
+        rimg.color         = Hex("2A3C5A", 255);   // 미점등 테두리
+        rimg.raycastTarget = false;
+
+        var num = MakeTMP("Num", node.transform, new Vector2(58, 58), Vector2.zero, number.ToString(), 20, Hex("46597C"), TextAlignmentOptions.Center);
+        num.raycastTarget = false;
+        return img;
+    }
+
     static GameObject MakeImage(string name, Transform parent, Vector2 size, Vector2 pos, Color color)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image));
@@ -534,7 +582,20 @@ public static class CoreUpgradeUIBuilder
         if (prop != null)
             prop.objectReferenceValue = obj;
         else
-            Debug.LogWarning($"[UIBuilder] SerializedProperty 없음: '{fieldName}' — CoreUpgradeUI.cs 필드명 확인 필요");
+            Debug.LogWarning($"[UIBuilder] SerializedProperty 없음: '{fieldName}' -- CoreUpgradeUI.cs 필드명 확인 필요");
+    }
+
+    static void SetRefArray(SerializedObject so, string fieldName, Object[] objs)
+    {
+        var prop = so.FindProperty(fieldName);
+        if (prop == null)
+        {
+            Debug.LogWarning($"[UIBuilder] SerializedProperty 없음: '{fieldName}' -- CoreUpgradeUI.cs 필드명 확인 필요");
+            return;
+        }
+        prop.arraySize = objs.Length;
+        for (int i = 0; i < objs.Length; i++)
+            prop.GetArrayElementAtIndex(i).objectReferenceValue = objs[i];
     }
 
     static Color Hex(string hex, int alpha = 255)
@@ -558,7 +619,7 @@ public static class CoreUpgradeUIBuilder
         {
             bool dirty = false;
             if (imp.textureType != TextureImporterType.Sprite) { imp.textureType = TextureImporterType.Sprite; dirty = true; }
-            // UI 스프라이트는 압축 금지: DXT/BC 블록압축이 그라데이션·얇은선을 뭉개
+            // UI 스프라이트는 압축 금지: DXT/BC 블록압축이 그라데이션, 얇은선을 뭉개
             // 고해상도 원본이어도 엔진에선 "블러"처럼 보인다.
             if (imp.textureCompression != TextureImporterCompression.Uncompressed) { imp.textureCompression = TextureImporterCompression.Uncompressed; dirty = true; }
             if (imp.mipmapEnabled) { imp.mipmapEnabled = false; dirty = true; }
