@@ -117,16 +117,15 @@ public class CoreUpgradeUI : MonoBehaviour
     private static readonly Color OwnedStatColor = new Color(0.56f, 0.62f, 0.69f);   // 현재(보유) = 차분한 회색
     private static readonly Color NextStatColor  = new Color(0.76f, 0.93f, 1f);      // 강화 후 = 밝은 시안(증가/구분 강조)
 
-    // 별자리 노드/연결선 색 (점등 = 시안, 다음 목표 = 골드, 미점등 = 어두운 네이비)
-    private static readonly Color NodeOff    = new Color(0.07f,  0.10f,  0.17f,  0.95f);
-    private static readonly Color NodeOn     = new Color(0.37f,  0.77f,  1f,     1f);
-    private static readonly Color RingOff    = new Color(0.165f, 0.235f, 0.353f, 1f);
-    private static readonly Color RingOn     = new Color(0.68f,  0.91f,  1f,     1f);
-    private static readonly Color RingTarget = new Color(1f,     0.84f,  0.42f,  1f);
-    private static readonly Color NumOff     = new Color(0.275f, 0.35f,  0.486f, 1f);
-    private static readonly Color NumOn      = new Color(0.03f,  0.08f,  0.14f,  1f);
-    private static readonly Color LineOn     = new Color(0.37f,  0.77f,  1f,     0.85f);
-    private static readonly Color LineOff    = new Color(0.165f, 0.235f, 0.353f, 0.30f);
+    // 별자리 별점 색 (글로우 = 뒤 후광 / 코어점 = 앞 점). 점등 = 시안, 다음 목표 = 골드, 미점등 = 어두움.
+    private static readonly Color GlowOff       = new Color(0.14f, 0.22f, 0.36f, 0.28f);
+    private static readonly Color GlowOn        = new Color(0.37f, 0.77f, 1f,    0.60f);
+    private static readonly Color GlowTarget    = new Color(1f,    0.84f, 0.42f, 0.55f);
+    private static readonly Color CoreDotOff    = new Color(0.27f, 0.35f, 0.49f, 1f);
+    private static readonly Color CoreDotOn     = new Color(0.78f, 0.93f, 1f,    1f);
+    private static readonly Color CoreDotTarget = new Color(1f,    0.88f, 0.55f, 1f);
+    private static readonly Color LineOn        = new Color(0.37f,  0.77f,  1f,     0.85f);
+    private static readonly Color LineOff       = new Color(0.165f, 0.235f, 0.353f, 0.30f);
 
     private RectTransform[] _lines;   // 연결선(코어->노드0, 노드i-1->노드i) 런타임 생성
     private bool _linesBuilt;
@@ -304,23 +303,19 @@ public class CoreUpgradeUI : MonoBehaviour
         {
             for (int i = 0; i < constellationNodes.Length; i++)
             {
-                var disc = constellationNodes[i];
-                if (disc == null) continue;
+                var glow = constellationNodes[i];
+                if (glow == null) continue;
                 bool on     = i < level;
                 bool target = i == level;
-                disc.color = on ? NodeOn : NodeOff;
+                glow.color = on ? GlowOn : (target ? GlowTarget : GlowOff);
 
-                var ring = disc.transform.Find("Ring");
-                if (ring != null)
+                var core = glow.transform.Find("Core");
+                if (core != null)
                 {
-                    var rimg = ring.GetComponent<Image>();
-                    if (rimg != null) rimg.color = on ? RingOn : (target ? RingTarget : RingOff);
-                }
-                var num = disc.transform.Find("Num");
-                if (num != null)
-                {
-                    var ntmp = num.GetComponent<TextMeshProUGUI>();
-                    if (ntmp != null) ntmp.color = on ? NumOn : (target ? RingTarget : NumOff);
+                    var cimg = core.GetComponent<Image>();
+                    if (cimg != null) cimg.color = on ? CoreDotOn : (target ? CoreDotTarget : CoreDotOff);
+                    // 점등/목표 별점은 살짝 크게 = 빛나는 느낌
+                    core.localScale = (on || target) ? Vector3.one * 1.35f : Vector3.one;
                 }
             }
         }
@@ -511,7 +506,7 @@ public class CoreUpgradeUI : MonoBehaviour
 
         Vector2 pos = node.rectTransform.anchoredPosition;
         var ring = MakeFxImage("NodeBurst", parent, pos, 78f, UISpriteFactory.Ring(64, 4f));
-        ring.color = RingOn;
+        ring.color = CoreDotOn;
         ring.rectTransform.localScale = Vector3.one * 0.6f;
         ring.rectTransform.DOScale(2.3f, 0.55f).SetUpdate(true).SetEase(Ease.OutCubic);
         ring.DOFade(0f, 0.55f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
@@ -527,7 +522,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (!GetCorePanelPos(out var parent, out var c)) return;
 
         var ring = MakeFxImage("CompleteRing", parent, c, 200f, UISpriteFactory.Ring(128, 6f));
-        ring.color = RingTarget;
+        ring.color = CoreDotTarget;
         ring.rectTransform.localScale = Vector3.one * 0.4f;
         ring.rectTransform.DOScale(3.2f, 0.9f).SetUpdate(true).SetEase(Ease.OutCubic);
         ring.DOFade(0f, 0.9f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
@@ -539,7 +534,7 @@ public class CoreUpgradeUI : MonoBehaviour
                 var img = ln.GetComponent<Image>();
                 if (img == null) continue;
                 img.DOKill();
-                img.color = RingTarget;
+                img.color = CoreDotTarget;
                 img.DOColor(LineOn, 0.8f).SetUpdate(true);
             }
     }

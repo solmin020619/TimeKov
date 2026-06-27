@@ -120,23 +120,24 @@ public static class CoreUpgradeUIBuilder
             "코어 <color=#5FC4FF>강화</color>", 30, Hex("EAF3FB"), TextAlignmentOptions.Center);
         title.fontStyle = FontStyles.Bold;
 
-        GameObject badge = MakeImage("LevelBadge", panel.transform, new Vector2(140, 60), new Vector2(640, 416), Hex("0C1322", 230));
+        // 레벨 뱃지 = 좌상단
+        GameObject badge = MakeImage("LevelBadge", panel.transform, new Vector2(140, 60), new Vector2(-640, 416), Hex("0C1322", 230));
         SetSpr(badge, LoadSprAt("Assets/11.UI/New/pill_dark.png", 24), Image.Type.Sliced);
         var levelTxt = MakeTMP("LevelText", badge.transform, Vector2.zero, Vector2.zero, "Lv.0 / 10", 22, Hex("EAF3FB"), TextAlignmentOptions.Center, stretch: true);
         levelTxt.fontStyle = FontStyles.Bold;
         SetRef(so, "levelText", levelTxt);
 
-        GameObject closeBtn = MakeButton("CloseButton", panel.transform, new Vector2(48, 48), new Vector2(-724, 416), "X", 22, Hex("0E1626", 215));
-        SetSpr(closeBtn, LoadSprAt("Assets/11.UI/New/pill_dark.png", 16), Image.Type.Sliced);
-        closeBtn.GetComponent<Image>().color = Hex("0E1626", 215);
+        // 닫기(X) = 우상단(직관적). sci-fi 육각 버튼 PNG(X는 그림에 포함).
+        GameObject closeBtn = MakeButton("CloseButton", panel.transform, new Vector2(64, 64), new Vector2(724, 416), "", 26, Color.white);
+        SetSpr(closeBtn, LoadSpr("Btn_Close_Sci"), Image.Type.Simple);
+        var closeTxt = closeBtn.GetComponentInChildren<TextMeshProUGUI>();
+        if (closeTxt != null) closeTxt.gameObject.SetActive(false);   // X 글자는 PNG에 그려져 있어 중복 제거
         SetRef(so, "closeButton", closeBtn.GetComponent<Button>());
 
         // -- 효과 리스트 패널 (우측) = 코어 단계별 효과 + 다음 강화 미리보기(???/+N) --
-        GameObject fxPanel = MakeImage("EffectPanel", panel.transform, new Vector2(388, 348), new Vector2(566, CoreY - 6f), Hex("0C1322", 205));
-        SetSpr(fxPanel, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
-        DecoratePanel(fxPanel, new Vector2(388, 348));
+        GameObject fxPanel = MakeImage("EffectPanel", panel.transform, new Vector2(388, 348), new Vector2(566, CoreY - 6f), Color.white);
+        SetSpr(fxPanel, LoadSpr("Panel_Frame_Sci", 44), Image.Type.Sliced);   // sci-fi 프레임(테두리/코너/divider 포함)
         MakeTMP("EffectTitle", fxPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "코어 효과", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        MakeImage("EffectDivider", fxPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("5FC4FF", 150));
         var fxRows = new Object[4];
         string[] fxSeed = { "최대 시간", "부활 체력", "우클릭 대쉬", "흡수율" };
         for (int i = 0; i < 4; i++)
@@ -147,11 +148,9 @@ public static class CoreUpgradeUIBuilder
         SetRefArray(so, "effectRows", fxRows);
 
         // -- 보유 코어 키트 패널 (좌측) = 키트 I~V 아이콘 + 보유 개수(가방+창고 합산) --
-        GameObject ksPanel = MakeImage("KitStockPanel", panel.transform, new Vector2(388, 348), new Vector2(-566, CoreY - 6f), Hex("0C1322", 205));
-        SetSpr(ksPanel, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
-        DecoratePanel(ksPanel, new Vector2(388, 348));
+        GameObject ksPanel = MakeImage("KitStockPanel", panel.transform, new Vector2(388, 348), new Vector2(-566, CoreY - 6f), Color.white);
+        SetSpr(ksPanel, LoadSpr("Panel_Frame_Sci", 44), Image.Type.Sliced);   // sci-fi 프레임(테두리/코너/divider 포함)
         MakeTMP("KitStockTitle", ksPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "보유 코어 키트", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        MakeImage("KitStockDivider", ksPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("5FC4FF", 150));
         var ksIcons = new Object[5];
         var ksTexts = new Object[5];
         for (int i = 0; i < 5; i++)
@@ -539,24 +538,25 @@ public static class CoreUpgradeUIBuilder
         }
     }
 
-    // 별자리 노드 1개 (미점등). 점등 대상인 안쪽 disc Image를 반환.
+    // 별자리 노드 1개 = 발광 별점(숫자 없음 = 성좌 느낌).
+    // 뒤 글로우(부드러운 큰 disc) + 앞 코어점(작은 밝은 disc). 점등 대상 = 글로우 루트 Image.
+    // 자식 "Core"(코어점) 색/스케일은 런타임 RefreshConstellation이 갱신.
     static Image MakeNode(Transform parent, Vector2 pos, int number)
     {
-        var node = MakeImage($"Node{number}", parent, new Vector2(58, 58), pos, Color.white);
-        var img  = node.GetComponent<Image>();
-        img.sprite = UISpriteFactory.Disc(64);
-        img.type   = Image.Type.Simple;
-        img.color  = Hex("121A2C", 240);   // 미점등 채움
+        var node = MakeImage($"Node{number}", parent, new Vector2(46, 46), pos, Color.white);
+        var glow = node.GetComponent<Image>();
+        glow.sprite        = UISpriteFactory.Disc(64);
+        glow.type          = Image.Type.Simple;
+        glow.color         = Hex("24395C", 70);    // 미점등 글로우(은은)
+        glow.raycastTarget = false;
 
-        var ring  = MakeImage("Ring", node.transform, new Vector2(58, 58), Vector2.zero, Color.white);
-        var rimg  = ring.GetComponent<Image>();
-        rimg.sprite        = UISpriteFactory.Ring(64, 3f);
-        rimg.color         = Hex("2A3C5A", 255);   // 미점등 테두리
-        rimg.raycastTarget = false;
+        var core = MakeImage("Core", node.transform, new Vector2(15, 15), Vector2.zero, Color.white);
+        var cimg = core.GetComponent<Image>();
+        cimg.sprite        = UISpriteFactory.Disc(32);
+        cimg.color         = Hex("44597C", 255);   // 미점등 코어점
+        cimg.raycastTarget = false;
 
-        var num = MakeTMP("Num", node.transform, new Vector2(58, 58), Vector2.zero, number.ToString(), 20, Hex("46597C"), TextAlignmentOptions.Center);
-        num.raycastTarget = false;
-        return img;
+        return glow;
     }
 
     static GameObject MakeImage(string name, Transform parent, Vector2 size, Vector2 pos, Color color)
