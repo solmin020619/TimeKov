@@ -169,6 +169,17 @@ public class RailBuildManager : MonoBehaviour
         return piece;
     }
 
+    // 세이브 복원 전용 — PlaceRailImmediate로 모든 레일을 다시 깐 뒤 1회 호출.
+    // 흐름 화살표/연결 인덱스(flowFrom/pathIndex)는 클릭으로 깔 때와 달리 즉시 배치로는
+    // 갱신되지 않으므로, 연결된 모든 컴포넌트를 다시 훑어 재계산하고 포트 연결까지 검증한다.
+    public void RestoreReflowAndValidate()
+    {
+        foreach (var cell in railMap.Keys)
+            ReflowConnectedChain(cell);
+
+        ValidateAllPortConnections();
+    }
+
     private void RefreshNeighbors(Vector2Int cell)
     {
         Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };

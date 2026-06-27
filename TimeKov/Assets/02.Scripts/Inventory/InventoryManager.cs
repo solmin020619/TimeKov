@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class InventoryManager : MonoBehaviour
+public class InventoryManager : MonoBehaviour, ISaveable
 {
     // 인벤토리 소유자 유형
     public enum InventoryOwnerType { Player, Storage, Chest }
@@ -53,6 +53,61 @@ public class InventoryManager : MonoBehaviour
             ChestInstance = this;
 
         CreateSlots();
+
+        // 상자(Chest)는 열 때마다 초기화되는 임시 인벤토리라 저장 대상에서 제외.
+        if (ownerType != InventoryOwnerType.Chest)
+        {
+            SaveSlotManager.Instance?.Register(this);
+            RestoreFromSave();
+        }
+    }
+
+    private void OnDestroy()
+    {
+        SaveSlotManager.Instance?.Unregister(this);
+    }
+
+    /// <summary>SaveSlotManager.SaveActive()가 호출. 가방/창고 중 자신의 슬롯만 채워넣는다.</summary>
+    public void Capture(GameSaveData data)
+    {
+        if (ownerType == InventoryOwnerType.Player) data.bagSlots = ExportSlots();
+        else if (ownerType == InventoryOwnerType.Storage) data.storageSlots = ExportSlots();
+    }
+
+    private void RestoreFromSave()
+    {
+        if (SaveSlotManager.Instance == null || !SaveSlotManager.Instance.HasActiveSlot) return;
+
+        List<InventorySlotData> saved = ownerType == InventoryOwnerType.Player
+            ? SaveSlotManager.Instance.Data.bagSlots
+            : SaveSlotManager.Instance.Data.storageSlots;
+
+        ImportSlots(saved);
+    }
+
+    private List<InventorySlotData> ExportSlots()
+    {
+        var list = new List<InventorySlotData>();
+        foreach (var slot in _slots)
+            if (!slot.IsEmpty)
+                list.Add(new InventorySlotData { slotIndex = slot.slotIndex, itemId = slot.itemId, amount = slot.amount });
+        return list;
+    }
+
+    private void ImportSlots(List<InventorySlotData> saved)
+    {
+        if (saved == null || saved.Count == 0) return;
+
+        foreach (var entry in saved)
+        {
+            // 슬롯 수가 줄어든 경우(밸런스 변경 등) 대비 — 범위 밖이면 빈 슬롯에 다시 채워넣는다.
+            if (entry.slotIndex >= 0 && entry.slotIndex < _slots.Count)
+                _slots[entry.slotIndex].Set(entry.itemId, entry.amount);
+            else
+                AddItem(entry.itemId, entry.amount);
+        }
+
+        OnInventoryChanged?.Invoke();
     }
 
     /// <summary>모든 슬롯 비우기 (상자 열 때마다 초기화용)</summary>

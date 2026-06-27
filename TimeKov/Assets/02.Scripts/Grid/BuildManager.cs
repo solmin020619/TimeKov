@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
 
-public class BuildManager : MonoBehaviour
+public class BuildManager : MonoBehaviour, ISaveable
 {
     public enum BuildSubMode
     {
@@ -214,12 +214,94 @@ public class BuildManager : MonoBehaviour
 
         // 동적 해금 슬롯 초기화
         InitDynamicUnlockSlots();
+
+        SaveSlotManager.Instance?.Register(this);
+        RestoreFromSave();
     }
 
     private void OnDestroy()
     {
         if (FacilityUnlockManager.Instance != null)
             FacilityUnlockManager.Instance.OnFacilityUnlocked -= HandleFacilityUnlocked;
+
+        SaveSlotManager.Instance?.Unregister(this);
+    }
+
+    // ── 세이브/로드 (ISaveable) ───────────────────────────────────────────
+    // 위치·회전·강화레벨만 저장. 건물 내부 생산 상태(버퍼/진행도/연료)는 TODO(다음 단계).
+
+    /// <summary>SaveSlotManager.SaveActive()가 호출. 현재 배치된 모든 건물/레일을 캡처한다.</summary>
+    public void Capture(GameSaveData data)
+    {
+        data.buildings.Clear();
+        foreach (var pb in buildParent.GetComponentsInChildren<PlacedBuilding>(true))
+        {
+            data.buildings.Add(new PlacedBuildingData
+            {
+                facilityId = pb.facilityId,
+                originCellX = pb.originCell.x,
+                originCellY = pb.originCell.y,
+                rotationY = Mathf.RoundToInt(pb.transform.eulerAngles.y) % 360,
+                currentLevel = pb.currentLevel,
+            });
+        }
+
+        data.rails.Clear();
+        if (railBuildManager != null)
+        {
+            foreach (var kv in railBuildManager.RailMap)
+            {
+                RailPiece piece = kv.Value;
+                if (piece == null) continue;
+
+                data.rails.Add(new RailPieceData
+                {
+                    cellX = kv.Key.x,
+                    cellY = kv.Key.y,
+                    up = piece.up,
+                    down = piece.down,
+                    left = piece.left,
+                    right = piece.right,
+                });
+            }
+        }
+    }
+
+    private void RestoreFromSave()
+    {
+        if (SaveSlotManager.Instance == null || !SaveSlotManager.Instance.HasActiveSlot) return;
+
+        GameSaveData data = SaveSlotManager.Instance.Data;
+
+        foreach (var entry in data.buildings)
+            RestoreBuilding(entry);
+
+        if (railBuildManager != null && data.rails.Count > 0)
+        {
+            foreach (var entry in data.rails)
+                railBuildManager.PlaceRailImmediate(new Vector2Int(entry.cellX, entry.cellY),
+                    entry.up, entry.down, entry.left, entry.right);
+
+            railBuildManager.RestoreReflowAndValidate();
+        }
+    }
+
+    private void RestoreBuilding(PlacedBuildingData entry)
+    {
+        FacilityDataSheetData facility = GetFacilityData(entry.facilityId);
+        if (facility == null)
+        {
+            Debug.LogWarning($"[BuildManager] 복원 실패 — facilityId={entry.facilityId} 데이터 없음");
+            return;
+        }
+
+        Vector2Int originCell = new Vector2Int(entry.originCellX, entry.originCellY);
+        Vector2Int rotatedSize = GetRotatedSize(new Vector2Int(facility.gridW, facility.gridH), entry.rotationY);
+        List<Vector2Int> footprintCells = GetFootprintCellsFromStartCell(originCell, rotatedSize);
+        Vector3 position = StartCellToWorldCenter(originCell, rotatedSize);
+        Quaternion rotation = Quaternion.Euler(0f, entry.rotationY, 0f);
+
+        placer.PlaceInstant(entry.facilityId, position, rotation, footprintCells, entry.currentLevel);
     }
 
     private void Update()

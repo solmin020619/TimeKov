@@ -1,0 +1,216 @@
+// =====================================================================
+// SaveSlotManager.cs
+// 통합 세이브 시스템의 중앙 관리자 (DontDestroyOnLoad 싱글톤).
+// DataBoot/DevHotkeys와 동일한 패턴: 씬에 수동 배치할 필요 없이 게임 시작 시 자동 생성되고
+// 씬 전환에도 유지된다.
+//
+// 폴더 구조:
+//   {persistentDataPath}/Saves/{slotId}/meta.json   - 목록 화면용 가벼운 메타데이터
+//   {persistentDataPath}/Saves/{slotId}/save.json   - 실제 진행 데이터 (GameSaveData)
+//
+// 흐름:
+//   1) WorldSelectUI가 ListSlots()로 목록 표시
+//   2) CreateSlot() 또는 LoadSlot()으로 활성 슬롯 확정 -> Data에 적재
+//   3) 게임플레이 씬으로 전환. 각 시스템은 자기 Awake/Start에서 SaveSlotManager.Instance.Data를
+//      직접 읽어 스스로 복원한다 (DataBoot/GameDataHolder와 동일한 "끌어오기" 패턴 — 이 매니저는
+//      복원 순서/타이밍을 모름).
+//   4) 저장 시점(자동/수동)에 SaveActive() 호출 -> 등록된 모든 ISaveable.Capture()를 모아
+//      save.json 1개에 한 번에 기록 (요청에 따라 "하나씩"이 아니라 "한 번에 다" 처리).
+// =====================================================================
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+
+public class SaveSlotManager : MonoBehaviour
+{
+    public static SaveSlotManager Instance { get; private set; }
+
+    /// <summary>현재 활성 슬롯의 진행 데이터. 슬롯을 로드/생성하기 전엔 null.</summary>
+    public GameSaveData Data { get; private set; }
+    public SaveSlotMeta ActiveMeta { get; private set; }
+    public string ActiveSlotId { get; private set; }
+    public bool HasActiveSlot => Data != null && !string.IsNullOrEmpty(ActiveSlotId);
+
+    readonly List<ISaveable> _saveables = new();
+
+    static string SavesRoot => Path.Combine(Application.persistentDataPath, "Saves");
+    const string MetaFileName = "meta.json";
+    const string SaveFileName = "save.json";
+
+    // 퀘스트 완료/코어 강화 등 특정 이벤트에서만 저장하면, 그 사이에 인벤토리만 채우거나
+    // 건물만 짓고 나가는 경우 진행이 그냥 사라진다 — 그런 누락을 막는 최후의 안전망.
+    const float AutoSaveIntervalSeconds = 60f;
+
+    // BeforeSceneLoad(첫 씬의 Awake들보다 먼저)여야 한다. AfterSceneLoad로 두면, 타이틀을 거치지
+    // 않고 World 씬을 곧바로 Play했을 때(에디터 테스트) World의 다른 컴포넌트들 Awake가 먼저 돌면서
+    // Instance가 아직 null인 시점에 SaveSlotManager.Instance?.Register(...) 호출이 통째로 스킵돼버린다.
+    // 이 타이밍만 고쳐도 "활성 슬롯 없음" 자체는 정상 — MainMenu(월드 선택)를 거치지 않고 들어간
+    // 경우엔 의도적으로 활성 슬롯이 없는 상태로 두고, 모든 ISaveable이 그걸 보고 조용히 저장/복원을
+    // 건너뛴다(World 씬 직접 Play = 저장 시스템 미개입 샌드박스 테스트).
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void Spawn()
+    {
+        if (Instance != null) return;
+        var go = new GameObject("[SaveSlotManager]");
+        go.AddComponent<SaveSlotManager>();
+        DontDestroyOnLoad(go);
+    }
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+        Directory.CreateDirectory(SavesRoot);
+        InvokeRepeating(nameof(AutoSaveTick), AutoSaveIntervalSeconds, AutoSaveIntervalSeconds);
+    }
+
+    void AutoSaveTick()
+    {
+        if (HasActiveSlot) SaveActive();
+    }
+
+    void OnApplicationQuit() => SaveActive();
+
+    // ── ISaveable 등록 ────────────────────────────────────────────────
+    // 각 시스템은 자기 Awake에서 Register(this)를 호출. SaveActive()가 이 목록을 순회해 Capture한다.
+
+    public void Register(ISaveable s)
+    {
+        if (s != null && !_saveables.Contains(s)) _saveables.Add(s);
+    }
+
+    public void Unregister(ISaveable s) => _saveables.Remove(s);
+
+    // ── 슬롯 목록 ──────────────────────────────────────────────────────
+
+    /// <summary>모든 슬롯의 메타데이터를 마지막 플레이 시각 내림차순으로 반환. meta.json만 읽으므로 가볍다.</summary>
+    public List<SaveSlotMeta> ListSlots()
+    {
+        var result = new List<SaveSlotMeta>();
+        if (!Directory.Exists(SavesRoot)) return result;
+
+        foreach (var dir in Directory.GetDirectories(SavesRoot))
+        {
+            string metaPath = Path.Combine(dir, MetaFileName);
+            if (!File.Exists(metaPath)) continue;
+            try
+            {
+                var meta = JsonUtility.FromJson<SaveSlotMeta>(File.ReadAllText(metaPath));
+                if (meta != null) result.Add(meta);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SaveSlotManager] meta 읽기 실패({dir}): {e.Message}");
+            }
+        }
+
+        result.Sort((a, b) => string.CompareOrdinal(b.lastPlayedIso, a.lastPlayedIso));
+        return result;
+    }
+
+    // ── 슬롯 생성 / 로드 / 삭제 ───────────────────────────────────────
+
+    /// <summary>새 월드 슬롯을 만들고 즉시 활성 슬롯으로 만든다. 빈 GameSaveData로 시작.</summary>
+    public SaveSlotMeta CreateSlot(string worldName)
+    {
+        string slotId = "World_" + DateTime.UtcNow.Ticks; // 충돌 없는 고유 폴더명
+        string dir = Path.Combine(SavesRoot, slotId);
+        Directory.CreateDirectory(dir);
+
+        string nowIso = DateTime.UtcNow.ToString("o");
+        var meta = new SaveSlotMeta
+        {
+            slotId = slotId,
+            worldName = string.IsNullOrWhiteSpace(worldName) ? "이름없는 월드" : worldName,
+            createdAtIso = nowIso,
+            lastPlayedIso = nowIso,
+            coreLevelSnapshot = 0,
+        };
+
+        ActiveSlotId = slotId;
+        ActiveMeta = meta;
+        Data = new GameSaveData();
+
+        WriteSlotFiles(dir, meta, Data);
+        return meta;
+    }
+
+    /// <summary>기존 슬롯을 읽어 활성 슬롯으로 만든다. 실패 시 false (Data/ActiveSlotId는 변경하지 않음).</summary>
+    public bool LoadSlot(string slotId)
+    {
+        string dir = Path.Combine(SavesRoot, slotId);
+        string metaPath = Path.Combine(dir, MetaFileName);
+        string savePath = Path.Combine(dir, SaveFileName);
+
+        if (!File.Exists(metaPath) || !File.Exists(savePath))
+        {
+            Debug.LogError($"[SaveSlotManager] 슬롯을 찾을 수 없음: {slotId}");
+            return false;
+        }
+
+        try
+        {
+            ActiveMeta = JsonUtility.FromJson<SaveSlotMeta>(File.ReadAllText(metaPath));
+            Data = JsonUtility.FromJson<GameSaveData>(File.ReadAllText(savePath)) ?? new GameSaveData();
+            ActiveSlotId = slotId;
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[SaveSlotManager] 슬롯 로드 실패({slotId}): {e.Message}");
+            return false;
+        }
+    }
+
+    public void DeleteSlot(string slotId)
+    {
+        string dir = Path.Combine(SavesRoot, slotId);
+        if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        if (ActiveSlotId == slotId)
+        {
+            ActiveSlotId = null;
+            ActiveMeta = null;
+            Data = null;
+        }
+    }
+
+    // ── 저장 ───────────────────────────────────────────────────────────
+
+    /// <summary>등록된 모든 시스템의 Capture()를 모아 활성 슬롯에 한 번에 기록.</summary>
+    public void SaveActive()
+    {
+        if (!HasActiveSlot)
+        {
+            Debug.LogWarning("[SaveSlotManager] 활성 슬롯이 없어 저장을 건너뜀.");
+            return;
+        }
+
+        foreach (var s in _saveables)
+            s?.Capture(Data);
+
+        ActiveMeta.lastPlayedIso = DateTime.UtcNow.ToString("o");
+        ActiveMeta.coreLevelSnapshot = Data.coreLevel;
+
+        string dir = Path.Combine(SavesRoot, ActiveSlotId);
+        Directory.CreateDirectory(dir);
+        WriteSlotFiles(dir, ActiveMeta, Data);
+    }
+
+    // 임시 파일에 먼저 쓰고 교체하는 원자적 쓰기 — 저장 중 게임이 죽어도 기존 세이브가 깨지지 않게.
+    static void WriteSlotFiles(string dir, SaveSlotMeta meta, GameSaveData data)
+    {
+        AtomicWrite(Path.Combine(dir, MetaFileName), JsonUtility.ToJson(meta, true));
+        AtomicWrite(Path.Combine(dir, SaveFileName), JsonUtility.ToJson(data, true));
+    }
+
+    static void AtomicWrite(string path, string content)
+    {
+        string tmp = path + ".tmp";
+        File.WriteAllText(tmp, content);
+        if (File.Exists(path)) File.Delete(path);
+        File.Move(tmp, path);
+    }
+}

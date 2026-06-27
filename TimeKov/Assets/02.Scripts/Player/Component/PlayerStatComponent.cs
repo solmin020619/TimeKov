@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-public class PlayerStatComponent : MonoBehaviour
+public class PlayerStatComponent : MonoBehaviour, ISaveable
 {
     public float MaxHp = 300f;
     public float HpDrainRate = 1f;
@@ -48,6 +48,10 @@ public class PlayerStatComponent : MonoBehaviour
     private Coroutine _hurtRoutine;
     private float _regenLockTimer;   // >0 동안 스태미나 회복 정지(대쉬 소모 직후만. 달리기는 안 검)
 
+    // 로드 직후 ApplyCoreStats가 MaxHp를 확정하기 전까지 대기 중인 복원 비율(없으면 null).
+    // CoreUpgradeManager.Start()가 ApplyCoreStats를 호출하는 시점에 1회만 소비된다.
+    private float? _pendingHpPercent;
+
     public event Action OnDead;
     public event Action OnHurt;
     public event Action<float> OnDamaged;  // 시간(HP) 감소량 — 플로팅 텍스트용
@@ -58,6 +62,33 @@ public class PlayerStatComponent : MonoBehaviour
         _player = GetComponent<Player>();
         CurrentHp = MaxHp;
         CurrentStamina = MaxStamina;
+
+        SaveSlotManager.Instance?.Register(this);
+        if (SaveSlotManager.Instance != null && SaveSlotManager.Instance.HasActiveSlot)
+        {
+            GameSaveData data = SaveSlotManager.Instance.Data;
+            _pendingHpPercent = data.playerHpPercent;
+
+            if (data.hasPlayerPosition)
+            {
+                transform.position = data.playerPosition;
+                transform.rotation = Quaternion.Euler(0f, data.playerRotationY, 0f);
+            }
+        }
+    }
+
+    void OnDestroy()
+    {
+        SaveSlotManager.Instance?.Unregister(this);
+    }
+
+    /// <summary>SaveSlotManager.SaveActive()가 호출. 비율로 저장(코어 강화로 MaxHp가 바뀌어도 안전) + 현재 위치.</summary>
+    public void Capture(GameSaveData data)
+    {
+        data.playerHpPercent = MaxHp > 0f ? Mathf.Clamp01(CurrentHp / MaxHp) : 1f;
+        data.hasPlayerPosition = true;
+        data.playerPosition = transform.position;
+        data.playerRotationY = transform.eulerAngles.y;
     }
 
     void Update()
@@ -296,8 +327,18 @@ public class PlayerStatComponent : MonoBehaviour
     public void ApplyCoreStats(int maxTime)
     {
         MaxHp = maxTime;
-        // 현재 HP가 새 최대치를 초과하면 클램프 (자동 회복 없음)
-        CurrentHp = Mathf.Min(CurrentHp, MaxHp);
+
+        if (_pendingHpPercent.HasValue)
+        {
+            // 로드 직후 1회 — 저장된 비율로 복원 (MaxHp가 막 확정된 시점)
+            CurrentHp = Mathf.Clamp(MaxHp * _pendingHpPercent.Value, 0f, MaxHp);
+            _pendingHpPercent = null;
+        }
+        else
+        {
+            // 현재 HP가 새 최대치를 초과하면 클램프 (자동 회복 없음)
+            CurrentHp = Mathf.Min(CurrentHp, MaxHp);
+        }
     }
 
     // 플레이어 → 적 데미지 계산

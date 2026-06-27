@@ -1,28 +1,28 @@
 // InventorySlot.cs
-// ÀÎº¥Åä¸® ½½·Ô ÇÏ³ªÀÇ µ¥ÀÌÅÍ ±¸Á¶Ã¼ ¿ªÇÒ Å¬·¡½º
-// InventoryManager °¡ List<InventorySlot> À¸·Î °ü¸®ÇÔ
+// ì¸ë²¤í† ë¦¬ ìŠ¬ë¡¯ í•˜ë‚˜ì˜ ë°ì´í„°ë¥¼ ë‹´ëŠ” í´ë˜ìŠ¤
+// InventoryManagerê°€ List<InventorySlot>ìœ¼ë¡œ ë“¤ê³  ìˆìŒ
 
 using System;
 
 [Serializable]
 public class InventorySlot
 {
-    // ¾ÆÀÌÅÛ ID (-1 ÀÌ¸é ºó ½½·Ô)
+    // ì•„ì´í…œ ID (-1ì´ë©´ ë¹ˆ ìŠ¬ë¡¯)
     public int itemId = -1;
 
-    // ÇöÀç ¼ö·®
+    // ë³´ìœ  ìˆ˜ëŸ‰
     public int amount = 0;
 
-    // ½½·Ô ÀÎµ¦½º (¸®½ºÆ® ³» À§Ä¡, InventoryManager ¿¡¼­ ÀÚµ¿ ¼³Á¤)
+    // ìŠ¬ë¡¯ ì¸ë±ìŠ¤ (ë¦¬ìŠ¤íŠ¸ ë‚´ ìœ„ì¹˜, InventoryManagerì—ì„œ ìë™ ë¶€ì—¬)
     public int slotIndex = -1;
 
-    // »õ·Î È¹µæÇÑ ¾ÆÀÌÅÛ ¿©ºÎ (NEW ¹îÁö Ç¥½Ã¿ë)
+    // ìƒˆë¡œ íšë“í•œ ì•„ì´í…œì¸ì§€ ì—¬ë¶€ (NEW ë±ƒì§€ í‘œì‹œìš©)
     public bool isNew = false;
 
-    // ºó ½½·ÔÀÎÁö È®ÀÎÇÏ´Â ÇÁ·ÎÆÛÆ¼
+    // ë¹ˆ ìŠ¬ë¡¯ì¸ì§€ í™•ì¸í•˜ëŠ” í”„ë¡œí¼í‹°
     public bool IsEmpty => itemId < 0 || amount <= 0;
 
-    // ½½·Ô µ¥ÀÌÅÍ ¼³Á¤
+    // ìŠ¬ë¡¯ ë°ì´í„° ì„¤ì •
     public void Set(int id, int qty, bool markNew = false)
     {
         itemId = id;
@@ -30,7 +30,7 @@ public class InventorySlot
         isNew = markNew;
     }
 
-    // ½½·Ô ÃÊ±âÈ­ (ºñ¿ì±â)
+    // ìŠ¬ë¡¯ ì´ˆê¸°í™” (ë¹„ìš°ê¸°)
     public void Clear()
     {
         itemId = -1;
