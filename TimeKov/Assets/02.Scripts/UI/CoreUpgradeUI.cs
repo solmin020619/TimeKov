@@ -141,6 +141,7 @@ public class CoreUpgradeUI : MonoBehaviour
     private Coroutine _seqCo;
     private Coroutine _fadeCo;
     private Coroutine _feedbackRoutine;
+    private Coroutine _introCo;   // 패널 열릴 때 별자리 순차 등장 연출
     private Color _btnNormalColor = Color.white;
 
     // F 열기/닫기 충돌 방지용 프레임 가드.
@@ -210,6 +211,7 @@ public class CoreUpgradeUI : MonoBehaviour
         _openedFrame = Time.frameCount;
         ResetCatchVisual();
         Refresh();
+        PlayIntroSequence();              // 별자리 순차 등장(시각 연출, 강화는 즉시 가능)
         GameEvents.RaiseCoreUIOpened();   // 튜토리얼 'F로 단말 열기' 감지용
     }
 
@@ -293,6 +295,100 @@ public class CoreUpgradeUI : MonoBehaviour
         if (parent == null) return false;
         pos = visualRt != null ? visualRt.anchoredPosition : coreRt.anchoredPosition;
         return true;
+    }
+
+    // ── 오프닝 연출 (별자리 순차 등장) ────────────────────────────────
+
+    // 패널 열릴 때 코어 팝 -> 노드 시계방향 순차 팝 + 연결선 따라 등장.
+    // 순수 시각 연출이라 강화 버튼/패널은 즉시 활성(연출 중에도 바로 강화 가능).
+    private void PlayIntroSequence()
+    {
+        if (!isActiveAndEnabled) return;
+        if (_introCo != null) StopCoroutine(_introCo);
+        _introCo = StartCoroutine(IntroRoutine());
+    }
+
+    private IEnumerator IntroRoutine()
+    {
+        // 코어 중앙 팝
+        Transform coreTr = coreVisualGroup != null ? coreVisualGroup.transform
+                         : coreImage != null ? coreImage.transform : null;
+        if (coreTr != null)
+        {
+            coreTr.DOKill();
+            coreTr.localScale = Vector3.zero;
+            coreTr.DOScale(1f, 0.45f).SetUpdate(true).SetEase(Ease.OutBack);
+        }
+
+        // 노드 숨김 (scale 0)
+        if (constellationNodes != null)
+            foreach (var nd in constellationNodes)
+                if (nd != null) { nd.transform.DOKill(); nd.transform.localScale = Vector3.zero; }
+
+        // 연결선 숨김 (alpha 0) + 원래 색 저장
+        Color[] saved = null;
+        if (_lines != null)
+        {
+            saved = new Color[_lines.Length];
+            for (int i = 0; i < _lines.Length; i++)
+            {
+                if (_lines[i] == null) continue;
+                var im = _lines[i].GetComponent<Image>();
+                if (im == null) continue;
+                im.DOKill();
+                saved[i] = im.color;
+                var c = im.color; c.a = 0f; im.color = c;
+            }
+        }
+
+        yield return new WaitForSecondsRealtime(0.22f);
+
+        // 시계방향 순차 등장 (파바바방)
+        int n = constellationNodes != null ? constellationNodes.Length : 0;
+        for (int i = 0; i < n; i++)
+        {
+            var node = constellationNodes[i];
+            if (node != null)
+                node.transform.DOScale(1f, 0.32f).SetUpdate(true).SetEase(Ease.OutBack);
+            if (_lines != null && i < _lines.Length && _lines[i] != null && saved != null)
+            {
+                var im = _lines[i].GetComponent<Image>();
+                if (im != null) im.DOColor(saved[i], 0.28f).SetUpdate(true);
+            }
+            yield return new WaitForSecondsRealtime(0.07f);
+        }
+
+        // 닫는 선(폐곡선) 마지막에
+        if (_lines != null && n < _lines.Length && _lines[n] != null && saved != null)
+        {
+            var im = _lines[n].GetComponent<Image>();
+            if (im != null) im.DOColor(saved[n], 0.3f).SetUpdate(true);
+        }
+
+        _introCo = null;
+    }
+
+    // 오프닝 중 강화 클릭 등으로 즉시 마무리 (노드/코어/선 바로 복원)
+    private void SkipIntro()
+    {
+        if (_introCo == null) return;
+        StopCoroutine(_introCo); _introCo = null;
+
+        Transform coreTr = coreVisualGroup != null ? coreVisualGroup.transform
+                         : coreImage != null ? coreImage.transform : null;
+        if (coreTr != null) { coreTr.DOKill(); coreTr.localScale = Vector3.one; }
+
+        if (constellationNodes != null)
+            foreach (var nd in constellationNodes)
+                if (nd != null) { nd.transform.DOKill(); nd.transform.localScale = Vector3.one; }
+
+        if (_lines != null)
+            foreach (var ln in _lines)
+                if (ln != null) { var im = ln.GetComponent<Image>(); if (im != null) im.DOKill(); }
+
+        // 선/노드 색 재설정 (점등/미점등 상태로 복원)
+        var mgr = CoreUpgradeManager.Instance;
+        RefreshConstellation(mgr != null ? mgr.CurrentCoreLevel : 0);
     }
 
     // ── 별자리 (노드 점등 + 연결선) ───────────────────────────────────
@@ -631,6 +727,8 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         if (_phase == CatchPhase.Spin) { StopSpin(false); return; }   // 정지!
         if (_phase != CatchPhase.Idle) return;                        // judge/result 중 무시
+
+        SkipIntro();   // 오프닝 연출 중이면 즉시 마무리(강화엔 지장 없음)
 
         var mgr = CoreUpgradeManager.Instance;
         if (mgr == null) return;
