@@ -12,7 +12,6 @@ public class TitleManager : MonoBehaviour
     public TextMeshProUGUI startText;
     public float blinkSpeed = 2f;
 
-    [Header("���� ����")]
     public AudioSource audioSource;
     public AudioClip clickSound;
 
@@ -67,7 +66,7 @@ public class TitleManager : MonoBehaviour
         if (startText != null)
         {
             startText.color = new Color(1, 1, 1, 1);
-            startText.text = "�ε� ��...";
+            startText.text = "로딩 중...";
         }
 
         // 메인메뉴가 timeScale=0(정지)이면 WaitForSeconds(스케일타임)는 영원히 안 끝나 LoadScene에 도달 못함.

@@ -12,7 +12,7 @@ using TMPro;
 
 public static class ChestPanelBuilder
 {
-    [MenuItem("Tools/TIMEKOV/상자 패널 생성 (창고 복제)")]
+    // [MenuItem("Tools/TIMEKOV/상자 패널 생성 (창고 복제)")]   // 메뉴 정리: 숨김(필요시 주석 해제)
     public static void Build()
     {
         // [폐기] 창고가 통합패널(창고+가방 한 표면)로 바뀐 뒤로 이 복제 방식은 거대한 듀얼패널을

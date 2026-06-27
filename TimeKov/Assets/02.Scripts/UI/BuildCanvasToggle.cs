@@ -7,13 +7,11 @@ public class BuildCanvasToggle : MonoBehaviour
     [SerializeField] private GameObject buildCanvas;
 
     [Header("Player Visual")]
-    [Tooltip("�������� �� ���� ������Ʈ (��, ���� ��)")]
     [SerializeField] private GameObject[] playerVisuals;
 
     private bool lastBuildMode = false;
     private bool isAltHeld = false;
 
-    // �� ������Ʈ���� ������ Renderer ���
     private Renderer[][] cachedRenderers;
 
     private void Awake()

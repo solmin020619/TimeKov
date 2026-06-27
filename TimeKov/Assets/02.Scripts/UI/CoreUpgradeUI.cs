@@ -26,7 +26,17 @@ public class CoreUpgradeUI : MonoBehaviour
 
     // ── 코어 비주얼 ───────────────────────────────────────────────────
     [Header("코어 비주얼")]
-    [SerializeField] private Image coreImage;
+    [SerializeField] private Image coreImage;              // 중앙 구체. 위치/연출 기준.
+    [SerializeField] private CanvasGroup coreVisualGroup;  // 후광+링+구체 묶음(시계 전환 시 통째 페이드)
+    [SerializeField] private RectTransform coreRingA;      // 회전 링 A(가로 기운 고리)
+    [SerializeField] private RectTransform coreRingB;      // 회전 링 B(세로 기운 고리, 반대 회전)
+    [SerializeField] private float ringASpeedDeg = 22f;    // 링 A 회전 속도(도/초)
+    [SerializeField] private float ringBSpeedDeg = -31f;   // 링 B 회전 속도(반대 방향)
+    [SerializeField] private Image[] constellationNodes;   // 별자리 10노드(점등 = 강화 단계).
+    [SerializeField] private TextMeshProUGUI[] effectRows; // 효과 리스트(최대시간/부활/대쉬/흡수). 미해금=???.
+    [SerializeField] private Image[] kitStockIcons;        // 좌측 보유 키트 아이콘 5(I~V)
+    [SerializeField] private TextMeshProUGUI[] kitStockTexts; // 좌측 보유 키트 이름+개수 5
+    [SerializeField] private Image kitNeedIcon;            // 하단 필요 키트 실제 아이콘
 
     // ── 현재 / 강화 후 스탯 ───────────────────────────────────────────
     [Header("현재 스탯")]
@@ -96,6 +106,9 @@ public class CoreUpgradeUI : MonoBehaviour
     [Header("결과 연출")]
     [SerializeField] private Color successFlashColor = new Color(0.27f, 0.88f, 0.54f, 0.35f);
     [SerializeField] private Color failFlashColor    = new Color(1f,    0.38f, 0.41f, 0.35f);
+    [SerializeField] private Sprite[] crackleFrames;        // CoreCrackle 16프레임(번개, 보조)
+    [SerializeField] private Sprite[] successBurstFrames;   // 강화 성공 폭발/광채 16프레임(결과연출 메인)
+    [SerializeField] private Sprite[] failBurstFrames;      // 강화 실패 균열/파편 16프레임(결과연출 메인)
     private Image _flashOverlay;   // 런타임 생성 전체화면 플래시
 
     // 부가 스탯 행 — 런타임 생성(빌더 재실행 불필요, 현재 패널 위에 얹음).
@@ -106,6 +119,19 @@ public class CoreUpgradeUI : MonoBehaviour
     private TextMeshProUGUI[] _nextRows;   // 강화 후 — 다음 레벨에 보유할 것(새로 해금되는 건 New)
     private static readonly Color OwnedStatColor = new Color(0.56f, 0.62f, 0.69f);   // 현재(보유) = 차분한 회색
     private static readonly Color NextStatColor  = new Color(0.76f, 0.93f, 1f);      // 강화 후 = 밝은 시안(증가/구분 강조)
+
+    // 별자리 별점 색 (글로우 = 뒤 후광 / 코어점 = 앞 점). 점등 = 시안, 다음 목표 = 골드, 미점등 = 어두움.
+    private static readonly Color GlowOff       = new Color(0.14f, 0.22f, 0.36f, 0.28f);
+    private static readonly Color GlowOn        = new Color(0.37f, 0.77f, 1f,    0.60f);
+    private static readonly Color GlowTarget    = new Color(1f,    0.84f, 0.42f, 0.55f);
+    private static readonly Color CoreDotOff    = new Color(0.27f, 0.35f, 0.49f, 1f);
+    private static readonly Color CoreDotOn     = new Color(0.78f, 0.93f, 1f,    1f);
+    private static readonly Color CoreDotTarget = new Color(1f,    0.88f, 0.55f, 1f);
+    private static readonly Color LineOn        = new Color(0.37f,  0.77f,  1f,     0.85f);
+    private static readonly Color LineOff       = new Color(0.165f, 0.235f, 0.353f, 0.30f);
+
+    private RectTransform[] _lines;   // 연결선(코어->노드0, 노드i-1->노드i) 런타임 생성
+    private bool _linesBuilt;
 
     // ── 내부 ──────────────────────────────────────────────────────────
     private enum CatchPhase { Idle, Spin, Judge, Result }
@@ -161,6 +187,8 @@ public class CoreUpgradeUI : MonoBehaviour
     private void Update()
     {
         if (!IsPanelOpen()) return;
+
+        SpinCoreRings();
 
         // 스핀 중 Space로도 정지
         if (_phase == CatchPhase.Spin && Input.GetKeyDown(KeyCode.Space))
@@ -223,68 +251,295 @@ public class CoreUpgradeUI : MonoBehaviour
         var cur  = mgr.GetCurrentLevelData();
         var next = mgr.GetNextLevelData();
         bool isMax = (next == null) && DataBoot.IsLoaded;
+        int lv = mgr.CurrentCoreLevel;
 
-        if (levelText != null) levelText.text = $"Lv.{mgr.CurrentCoreLevel} / 10";
-
+        if (levelText != null) levelText.text = $"Lv.{lv} / 10";
         if (upgradeInfoGroup != null) upgradeInfoGroup.SetActive(!isMax);
         if (maxLevelGroup    != null) maxLevelGroup.SetActive(isMax);
 
-        if (cur != null) SetText(currentTimeText, $"체력  {cur.maxTime}s");
+        RefreshConstellation(lv);
+        RefreshEffectList(mgr, cur, next, isMax, lv);
+        RefreshKitStock(mgr);
 
-        // 부가 스탯 행 보장 + 갱신
-        BuildExtraStatRows();
-        int lv     = mgr.CurrentCoreLevel;
-        int dashLv = PlayerDashComponent.DashUnlockCoreLevel;
+        if (!isMax) RefreshKitPanel(mgr, next);
+    }
 
-        // ── 현재(보유한 것만, 미해금은 숨김 = 플레이어 스포 방지) ──
-        if (_curRows != null)
+    // ── 코어 비주얼 (구체 + 회전 링 + 페이드) ─────────────────────────
+
+    // 두 링을 서로 다른 속도/방향으로 Z회전 = 자이로스코프 느낌. 정지(timeScale 0)에서도 돌게 unscaled.
+    private void SpinCoreRings()
+    {
+        float dt = Time.unscaledDeltaTime;
+        if (coreRingA != null) coreRingA.Rotate(0f, 0f, ringASpeedDeg * dt);
+        if (coreRingB != null) coreRingB.Rotate(0f, 0f, ringBSpeedDeg * dt);
+    }
+
+    // 코어 비주얼(구체+링+후광) 통째 알파. CanvasGroup이 있으면 그걸로, 없으면 구체 색 폴백.
+    private void SetCoreVisualAlpha(float a)
+    {
+        if (coreVisualGroup != null) { coreVisualGroup.alpha = a; return; }
+        if (coreImage != null) { var c = coreImage.color; c.a = a; coreImage.color = c; }
+    }
+
+    // 코어의 panel 좌표(연출 생성용). 코어 비주얼은 CanvasGroup으로 묶여 시계 전환 시 투명해지므로,
+    // 버스트/링 연출은 그 그룹 '밖'(panel)에 panel 좌표로 만들어야 시계 모드에서도 보인다.
+    private bool GetCorePanelPos(out RectTransform parent, out Vector2 pos)
+    {
+        parent = null; pos = Vector2.zero;
+        if (coreImage == null) return false;
+        var coreRt   = coreImage.rectTransform;
+        var visualRt = coreRt.parent as RectTransform;          // CoreVisual(묶음)
+        parent = (visualRt != null ? visualRt.parent : coreRt.parent) as RectTransform;   // panel
+        if (parent == null) return false;
+        pos = visualRt != null ? visualRt.anchoredPosition : coreRt.anchoredPosition;
+        return true;
+    }
+
+    // ── 별자리 (노드 점등 + 연결선) ───────────────────────────────────
+
+    // i<level=달성(점등), i==level=다음 목표(골드 테두리), i>level=미점등.
+    private void RefreshConstellation(int level)
+    {
+        BuildConstellationLines();
+
+        if (constellationNodes != null)
         {
-            SetStatRow(_curRows[0], true,                          $"부활 체력   {Pct(mgr.GetRespawnHpPercentAt(lv))}", OwnedStatColor);
-            SetStatRow(_curRows[1], lv >= dashLv,                  "우클릭 대쉬", OwnedStatColor);
-            SetStatRow(_curRows[2], mgr.IsLifestealUnlockedAt(lv), $"흡수율   {PctF(mgr.GetLifestealPercentAt(lv))}", OwnedStatColor);
-        }
-
-        if (isMax) return;
-
-        if (next != null && cur != null)
-        {
-            int dt = next.maxTime - cur.maxTime;
-            string dStr = dt > 0 ? DeltaTag($"+{dt}s") : "";
-            SetText(nextTimeText, $"체력  {next.maxTime}s{dStr}");   // 강화후 = 값 + 증가분 인라인(초록)
-
-            if (_nextRows != null)
+            for (int i = 0; i < constellationNodes.Length; i++)
             {
-                // 부활 체력 — 체력과 동일 포맷: 값 + (+증가분) ↑
-                float cResp = mgr.GetRespawnHpPercentAt(lv);
-                float nResp = mgr.GetRespawnHpPercentAt(lv + 1);
-                int dResp = Mathf.RoundToInt((nResp - cResp) * 100f);
-                SetStatRow(_nextRows[0], true, $"부활 체력   {Pct(nResp)}{(dResp > 0 ? DeltaTag($"+{dResp}%") : "")}", NextStatColor);
+                var glow = constellationNodes[i];
+                if (glow == null) continue;
+                bool on     = i < level;
+                bool target = i == level;
+                glow.color = on ? GlowOn : (target ? GlowTarget : GlowOff);
 
-                // 우클릭 대쉬 — 다음 레벨에 새로 해금되면 New, 이미 보유면 그대로 표시, 미해금이면 숨김(스포 방지)
-                bool dashNow  = (lv < dashLv) && (lv + 1 >= dashLv);
-                bool dashHave = (lv + 1 >= dashLv);
-                SetStatRow(_nextRows[1], dashHave,
-                    dashNow ? "New!  우클릭 대쉬" : "우클릭 대쉬",
-                    dashNow ? perfectColor : NextStatColor);
-
-                // 몬스터 체력 흡수 — 새로 해금되면 New, 이미 보유면 흡수율(증가 시 ↑), 미해금이면 숨김(스포 방지)
-                bool lifeNow  = mgr.IsLifestealUnlockedAt(lv + 1) && !mgr.IsLifestealUnlockedAt(lv);
-                bool lifeHave = mgr.IsLifestealUnlockedAt(lv + 1);
-                if (lifeHave && !lifeNow)
+                var core = glow.transform.Find("Core");
+                if (core != null)
                 {
-                    // 체력과 동일 포맷: 값 + (+증가분) ↑. 흡수는 0.5% 단위라 소수 1자리.
-                    float cLife = mgr.GetLifestealPercentAt(lv);
-                    float nLife = mgr.GetLifestealPercentAt(lv + 1);
-                    float dLife = (nLife - cLife) * 100f;
-                    SetStatRow(_nextRows[2], true, $"흡수율   {PctF(nLife)}{(dLife > 0.001f ? DeltaTag($"+{dLife:0.#}%") : "")}", NextStatColor);
-                }
-                else
-                {
-                    SetStatRow(_nextRows[2], lifeHave, "New!  몬스터 체력 흡수", perfectColor);
+                    var cimg = core.GetComponent<Image>();
+                    if (cimg != null) cimg.color = on ? CoreDotOn : (target ? CoreDotTarget : CoreDotOff);
+                    // 점등/목표 별점은 살짝 크게 = 빛나는 느낌
+                    core.localScale = (on || target) ? Vector3.one * 1.35f : Vector3.one;
                 }
             }
         }
-        RefreshKitPanel(mgr, next);
+
+        if (_lines != null)
+        {
+            int n = constellationNodes != null ? constellationNodes.Length : 0;
+            for (int i = 0; i < _lines.Length; i++)
+            {
+                if (_lines[i] == null) continue;
+                var img = _lines[i].GetComponent<Image>();
+                if (img == null) continue;
+                // 일반 선(i<n)은 i<level, 닫는 선(i==n)은 만렙(level>=n)일 때만 점등
+                bool on = (i < n) ? (i < level) : (level >= n);
+                img.color = on ? LineOn : LineOff;
+            }
+        }
+    }
+
+    // 코어->노드0, 노드(i-1)->노드i 를 잇는 연결선 런타임 생성 (1회). 코어/노드 뒤, 배경 앞.
+    private void BuildConstellationLines()
+    {
+        if (_linesBuilt) return;
+        if (constellationNodes == null || constellationNodes.Length == 0) return;
+        if (coreImage == null) return;
+        // 코어는 CoreVisual(묶음) 안에 있으므로 panel = 코어.parent.parent, 코어중심 = CoreVisual 위치.
+        var coreRt   = coreImage.rectTransform;
+        var visualRt = coreRt.parent as RectTransform;                 // CoreVisual
+        var parent   = (visualRt != null ? visualRt.parent : coreRt.parent) as RectTransform;   // panel
+        if (parent == null) return;
+        _linesBuilt = true;
+
+        // 선 전용 컨테이너 (코어 비주얼보다 뒤 = 더 작은 sibling index)
+        var container = new GameObject("ConstellationLines", typeof(RectTransform));
+        var crt = (RectTransform)container.transform;
+        crt.SetParent(parent, false);
+        crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
+        crt.anchoredPosition = Vector2.zero;
+        crt.sizeDelta        = Vector2.zero;
+        int coreSibling = visualRt != null ? visualRt.GetSiblingIndex() : coreRt.GetSiblingIndex();
+        crt.SetSiblingIndex(Mathf.Max(0, coreSibling));
+
+        int n = constellationNodes.Length;
+        _lines = new RectTransform[n + 1];   // [n] = 마지막->처음 닫는 선(별자리 폐곡선, 만렙 때만 점등)
+        Vector2 corePos = visualRt != null ? visualRt.anchoredPosition : coreRt.anchoredPosition;
+
+        for (int i = 0; i < n; i++)
+        {
+            if (constellationNodes[i] == null) continue;
+            Vector2 a = (i == 0 || constellationNodes[i - 1] == null) ? corePos : constellationNodes[i - 1].rectTransform.anchoredPosition;
+            Vector2 b = constellationNodes[i].rectTransform.anchoredPosition;
+            _lines[i] = MakeLine(crt, a, b);
+        }
+
+        // 닫는 선: 마지막 노드 -> 첫 노드 (10단계 완성 시 별자리가 닫힘)
+        if (constellationNodes[n - 1] != null && constellationNodes[0] != null)
+            _lines[n] = MakeLine(crt, constellationNodes[n - 1].rectTransform.anchoredPosition,
+                                       constellationNodes[0].rectTransform.anchoredPosition);
+    }
+
+    private RectTransform MakeLine(RectTransform parent, Vector2 a, Vector2 b)
+    {
+        var go = new GameObject("Line", typeof(RectTransform), typeof(Image));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(parent, false);
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+
+        Vector2 dir = b - a;
+        float len = dir.magnitude;
+        rt.sizeDelta        = new Vector2(len, 3f);
+        rt.anchoredPosition = (a + b) * 0.5f;
+        rt.localRotation    = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+
+        var img = go.GetComponent<Image>();
+        img.color         = LineOff;
+        img.raycastTarget = false;
+        return rt;
+    }
+
+    // ── 효과 리스트 (현재 효과 + 다음 강화 미리보기, 미해금=???) ────────
+    private void RefreshEffectList(CoreUpgradeManager mgr, CoreLevelDataSheetData cur, CoreLevelDataSheetData next, bool isMax, int lv)
+    {
+        if (effectRows == null || effectRows.Length < 4) return;
+        int dashLv = PlayerDashComponent.DashUnlockCoreLevel;
+        int lifeLv = mgr.LifestealUnlockLevel;
+
+        // 0) 최대 시간(체력)
+        if (cur != null)
+        {
+            string d = (!isMax && next != null && next.maxTime > cur.maxTime) ? PreviewTag($"+{next.maxTime - cur.maxTime}s") : "";
+            SetEffectRow(effectRows[0], "최대 시간", $"{cur.maxTime}s", d);
+        }
+
+        // 1) 부활 체력
+        {
+            float c = mgr.GetRespawnHpPercentAt(lv);
+            string d = "";
+            if (!isMax)
+            {
+                int dd = Mathf.RoundToInt((mgr.GetRespawnHpPercentAt(lv + 1) - c) * 100f);
+                if (dd > 0) d = PreviewTag($"+{dd}%");
+            }
+            SetEffectRow(effectRows[1], "부활 체력", Pct(c), d);
+        }
+
+        // 2) 우클릭 대쉬 (해금형)
+        {
+            bool have = lv >= dashLv;
+            bool soon = !isMax && !have && (lv + 1 >= dashLv);
+            if (have) SetEffectRow(effectRows[2], "우클릭 대쉬", "사용 가능", "");
+            else      SetEffectRowLocked(effectRows[2], "우클릭 대쉬", dashLv, soon);
+        }
+
+        // 3) 흡수율 (해금형)
+        {
+            bool have = mgr.IsLifestealUnlockedAt(lv);
+            bool soon = !isMax && !have && mgr.IsLifestealUnlockedAt(lv + 1);
+            if (have)
+            {
+                float c = mgr.GetLifestealPercentAt(lv);
+                string d = "";
+                if (!isMax && mgr.IsLifestealUnlockedAt(lv + 1))
+                {
+                    float dd = (mgr.GetLifestealPercentAt(lv + 1) - c) * 100f;
+                    if (dd > 0.001f) d = PreviewTag($"+{dd:0.#}%");
+                }
+                SetEffectRow(effectRows[3], "흡수율", PctF(c), d);
+            }
+            else SetEffectRowLocked(effectRows[3], "흡수율", lifeLv, soon);
+        }
+    }
+
+    private void SetEffectRow(TextMeshProUGUI row, string label, string val, string deltaTag)
+    {
+        if (row == null) return;
+        row.gameObject.SetActive(true);
+        row.text = $"<color=#8FA6BC>{label}</color>    <color=#EAF3FB>{val}</color>{deltaTag}";
+    }
+
+    private void SetEffectRowLocked(TextMeshProUGUI row, string label, int unlockLv, bool soon)
+    {
+        if (row == null) return;
+        row.gameObject.SetActive(true);
+        if (soon)
+            row.text = $"<color=#FFD66B>{label}</color>    <color=#FFD66B>다음 강화 해금!</color>";
+        else
+            row.text = $"<color=#54657C>{label}</color>    <color=#54657C>??? ({unlockLv}단계 해금)</color>";
+    }
+
+    // 미리보기 태그(다음 강화 시 변화량) = 골드, 작게
+    private static string PreviewTag(string t) => $"   <size=82%><color=#FFD66B>{t}</color></size>";
+
+    // 코어 키트 ID (I~V). 좌측 보유량 패널용. CoreLevelData의 requiredKitItemId와 일치.
+    private static readonly int[] KitItemIds = { 6101, 6102, 6103, 6104, 6105 };
+
+    // 좌측 보유 코어 키트 패널 갱신 (가방 + 창고 합산)
+    private void RefreshKitStock(CoreUpgradeManager mgr)
+    {
+        if (kitStockIcons == null && kitStockTexts == null) return;
+        for (int i = 0; i < KitItemIds.Length; i++)
+        {
+            int id = KitItemIds[i];
+            var item = GameDataUtility.GetItem(id);
+            int count = mgr.GetTotalKitCount(id);
+
+            if (kitStockIcons != null && i < kitStockIcons.Length && kitStockIcons[i] != null)
+            {
+                kitStockIcons[i].sprite  = item != null ? ItemDatabase.GetIcon(item.iconKey) : null;
+                kitStockIcons[i].enabled = kitStockIcons[i].sprite != null;
+            }
+            if (kitStockTexts != null && i < kitStockTexts.Length && kitStockTexts[i] != null)
+            {
+                string nm = item != null ? item.itemName : $"키트 {i + 1}";
+                kitStockTexts[i].text  = $"{nm}   <color=#EAF3FB>x{count}</color>";
+                kitStockTexts[i].color = count > 0 ? new Color(0.78f, 0.86f, 0.94f) : new Color(0.42f, 0.5f, 0.6f);
+            }
+        }
+    }
+
+    // 강화 성공으로 새 노드가 켜질 때 버스트 링 + 노드 펀치
+    private void PlayNodeLightUp(int index)
+    {
+        if (constellationNodes == null || index < 0 || index >= constellationNodes.Length) return;
+        var node = constellationNodes[index];
+        if (node == null) return;
+        var parent = node.rectTransform.parent as RectTransform;
+        if (parent == null) return;
+
+        Vector2 pos = node.rectTransform.anchoredPosition;
+        var ring = MakeFxImage("NodeBurst", parent, pos, 78f, UISpriteFactory.Ring(64, 4f));
+        ring.color = CoreDotOn;
+        ring.rectTransform.localScale = Vector3.one * 0.6f;
+        ring.rectTransform.DOScale(2.3f, 0.55f).SetUpdate(true).SetEase(Ease.OutCubic);
+        ring.DOFade(0f, 0.55f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
+
+        node.transform.DOKill();
+        node.transform.localScale = Vector3.one;
+        node.transform.DOPunchScale(Vector3.one * 0.4f, 0.5f, 6, 0.7f).SetUpdate(true);
+    }
+
+    // 10단계 완성: 중앙 큰 버스트 + 모든 연결선 골드 플래시
+    private void PlayConstellationComplete()
+    {
+        if (!GetCorePanelPos(out var parent, out var c)) return;
+
+        var ring = MakeFxImage("CompleteRing", parent, c, 200f, UISpriteFactory.Ring(128, 6f));
+        ring.color = CoreDotTarget;
+        ring.rectTransform.localScale = Vector3.one * 0.4f;
+        ring.rectTransform.DOScale(3.2f, 0.9f).SetUpdate(true).SetEase(Ease.OutCubic);
+        ring.DOFade(0f, 0.9f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
+
+        if (_lines != null)
+            foreach (var ln in _lines)
+            {
+                if (ln == null) continue;
+                var img = ln.GetComponent<Image>();
+                if (img == null) continue;
+                img.DOKill();
+                img.color = CoreDotTarget;
+                img.DOColor(LineOn, 0.8f).SetUpdate(true);
+            }
     }
 
     private void RefreshButton()
@@ -323,12 +578,23 @@ public class CoreUpgradeUI : MonoBehaviour
             return;
         }
 
+        // 키트 필요 레벨: noKit에서 껐을 수 있는 슬롯/아이콘을 다시 켜 복구
+        if (kitIconImage != null) kitIconImage.gameObject.SetActive(true);
+
         string kitName = GetKitName(next);
         SetText(kitNameText, $"필요: {kitName}");
 
         int owned = 0;
         if (int.TryParse(kitIdStr, out int kitItemId))
+        {
             owned = mgr.GetTotalKitCount(kitItemId);
+            if (kitNeedIcon != null)
+            {
+                var kitItem = GameDataUtility.GetItem(kitItemId);
+                kitNeedIcon.sprite  = kitItem != null ? ItemDatabase.GetIcon(kitItem.iconKey) : null;
+                kitNeedIcon.enabled = kitNeedIcon.sprite != null;
+            }
+        }
 
         int required = next.requiredAmount;
         if (kitCountText != null)
@@ -455,6 +721,14 @@ public class CoreUpgradeUI : MonoBehaviour
         ShowFeedback(success ? "강화 성공!" : "강화 실패", success ? deltaColor : shortageColor);
         PlayResultEffect(success);   // 플래시 + 펀치 + 성공 버스트 / 실패 흔들림
 
+        // 성공 시 새로 켜진 노드 점등 연출 (+ 10단계면 완성 연출). 노드 색은 RefreshData(OnLevelChanged)가 이미 갱신.
+        if (success)
+        {
+            int newLv = mgr != null ? mgr.CurrentCoreLevel : 0;
+            PlayNodeLightUp(newLv - 1);
+            if (mgr != null && newLv >= mgr.MaxLevel) PlayConstellationComplete();
+        }
+
         yield return new WaitForSecondsRealtime(resultHold);
 
         if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
@@ -470,18 +744,17 @@ public class CoreUpgradeUI : MonoBehaviour
         if (toClock && clockGroup != null) clockGroup.gameObject.SetActive(true);
 
         float e = 0f;
-        Color cc = coreImage != null ? coreImage.color : Color.white;
         while (e < crossfadeDur)
         {
             e += Time.unscaledDeltaTime;
             float k = Mathf.Clamp01(e / crossfadeDur);
             float clockA = toClock ? k : 1f - k;
-            if (coreImage != null) { cc.a = 1f - clockA; coreImage.color = cc; }
+            SetCoreVisualAlpha(1f - clockA);
             if (clockGroup != null) clockGroup.alpha = clockA;
             yield return null;
         }
 
-        if (coreImage != null) { cc.a = toClock ? 0f : 1f; coreImage.color = cc; }
+        SetCoreVisualAlpha(toClock ? 0f : 1f);
         if (clockGroup != null)
         {
             clockGroup.alpha = toClock ? 1f : 0f;
@@ -537,7 +810,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (_fadeCo != null) { StopCoroutine(_fadeCo); _fadeCo = null; }
 
         if (clockGroup != null) { clockGroup.alpha = 0f; clockGroup.gameObject.SetActive(false); }
-        if (coreImage != null) { var c = coreImage.color; c.a = 1f; coreImage.color = c; }
+        SetCoreVisualAlpha(1f);
         if (spinHint != null) spinHint.SetActive(false);
         if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
         if (clockNeedle != null) clockNeedle.localRotation = Quaternion.identity;
@@ -594,8 +867,115 @@ public class CoreUpgradeUI : MonoBehaviour
             feedbackText.transform.DOPunchScale(Vector3.one * 0.35f, 0.5f, 6, 0.7f).SetUpdate(true);
         }
 
-        if (success) PlaySuccessBurst();
-        else         PlayFailShake();
+        if (success)
+        {
+            PlayFrameBurst(successBurstFrames, Color.white, 460f, 0.04f);   // 디자인 성공 폭발/광채
+        }
+        else
+        {
+            PlayFrameBurst(failBurstFrames, Color.white, 420f, 0.045f);     // 디자인 실패 균열/파편
+            PlayFailShake();
+        }
+    }
+
+    // CoreCrackle 16프레임을 코어 자리에 한 번 재생 (성공=시안 / 실패=붉은 틴트).
+    private void PlayCrackle(Color tint, float size, float frameDur)
+    {
+        if (crackleFrames == null || crackleFrames.Length == 0) return;
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
+        StartCoroutine(CrackleRoutine(parent, pos, tint, size, frameDur));
+    }
+
+    private IEnumerator CrackleRoutine(RectTransform parent, Vector2 pos, Color tint, float size, float frameDur)
+    {
+        var img = MakeFxImage("Crackle", parent, pos, size, crackleFrames[0]);
+        for (int i = 0; i < crackleFrames.Length; i++)
+        {
+            if (img == null) yield break;
+            if (crackleFrames[i] != null) img.sprite = crackleFrames[i];
+            float k = 1f - (i / (float)crackleFrames.Length) * 0.5f;   // 끝으로 갈수록 잔광처럼 옅게
+            var c = tint; c.a *= k; img.color = c;
+            yield return new WaitForSecondsRealtime(frameDur);
+        }
+        if (img != null) Destroy(img.gameObject);
+    }
+
+    // 프레임 시퀀스(폭발/광채 등)를 코어 자리에 한 번 재생. tint=Color.white면 PNG 원색 그대로.
+    private void PlayFrameBurst(Sprite[] frames, Color tint, float size, float frameDur)
+    {
+        if (frames == null || frames.Length == 0) return;
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
+        StartCoroutine(FrameBurstRoutine(frames, parent, pos, tint, size, frameDur));
+    }
+
+    private IEnumerator FrameBurstRoutine(Sprite[] frames, RectTransform parent, Vector2 pos, Color tint, float size, float frameDur)
+    {
+        var img = MakeFxImage("FrameBurst", parent, pos, size, frames[0]);
+        img.color = tint;
+        for (int i = 0; i < frames.Length; i++)
+        {
+            if (img == null) yield break;
+            if (frames[i] != null) img.sprite = frames[i];
+            yield return new WaitForSecondsRealtime(frameDur);
+        }
+        if (img != null) Destroy(img.gameObject);
+    }
+
+    // 코어 중심에서 사방으로 튀는 스파크 (작은 점이 바깥으로 이동 + 소멸)
+    private void PlaySparks(int count, Color colorA, Color colorB)
+    {
+        if (!GetCorePanelPos(out var parent, out var center)) return;
+        var spr = UISpriteFactory.Disc(16);
+        for (int i = 0; i < count; i++)
+        {
+            float ang  = (360f / count) * i + Random.Range(-12f, 12f);
+            float rad  = ang * Mathf.Deg2Rad;
+            float dist = 120f + Random.Range(0f, 120f);
+            Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+            float sz = 5f + Random.Range(0f, 5f);
+
+            var sp = MakeFxImage($"Spark{i}", parent, center, sz, spr);
+            sp.color = (i % 2 == 0) ? colorA : colorB;
+            var rt = sp.rectTransform;
+            rt.DOAnchorPos(center + dir * dist, 0.5f).SetUpdate(true).SetEase(Ease.OutCubic);
+            rt.DOScale(0.2f, 0.5f).SetUpdate(true);
+            sp.DOFade(0f, 0.5f).SetUpdate(true).OnComplete(() => { if (sp != null) Destroy(sp.gameObject); });
+        }
+    }
+
+    // 실패: 바깥에서 안으로 수축하는 붉은 링 (implosion)
+    private void PlayImplosionRing(Color color)
+    {
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
+        var ring = MakeFxImage("ImplodeRing", parent, pos, 260f, UISpriteFactory.Ring(128, 5f));
+        ring.color = color;
+        ring.rectTransform.localScale = Vector3.one * 1.6f;
+        ring.rectTransform.DOScale(0.5f, 0.45f).SetUpdate(true).SetEase(Ease.InCubic);
+        ring.DOFade(0f, 0.45f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
+    }
+
+    // 코어 중심에서 사방으로 뻗는 방사 빛줄기 (동심원 대신 burst 느낌)
+    private void PlayBurstRays(int count, Color color, float maxLen)
+    {
+        if (!GetCorePanelPos(out var parent, out var center)) return;
+        for (int i = 0; i < count; i++)
+        {
+            float ang = (360f / count) * i + Random.Range(-6f, 6f);
+            var go = new GameObject($"BurstRay{i}", typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot            = new Vector2(0.5f, 0f);   // 밑동이 코어 중심 = 바깥으로 자람
+            rt.anchoredPosition = center;
+            rt.sizeDelta        = new Vector2(3.5f, 18f);
+            rt.localRotation    = Quaternion.Euler(0f, 0f, ang);
+            var img = go.GetComponent<Image>();
+            img.color         = color;
+            img.raycastTarget = false;
+            rt.SetAsLastSibling();
+            rt.DOSizeDelta(new Vector2(3.5f, maxLen), 0.3f).SetUpdate(true).SetEase(Ease.OutCubic);
+            img.DOFade(0f, 0.45f).SetUpdate(true).OnComplete(() => { if (go != null) Destroy(go); });
+        }
     }
 
     private void EnsureFlashOverlay()
@@ -613,13 +993,10 @@ public class CoreUpgradeUI : MonoBehaviour
         go.SetActive(false);
     }
 
-    // 성공: 코어 자리에 링 + 디스크 버스트
+    // 성공: 코어 자리에 링 + 디스크 버스트 (코어 비주얼 CanvasGroup 밖 = panel에 생성)
     private void PlaySuccessBurst()
     {
-        if (coreImage == null) return;
-        var parent = coreImage.rectTransform.parent as RectTransform;
-        if (parent == null) return;
-        Vector2 pos = coreImage.rectTransform.anchoredPosition;
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
 
         var ring = MakeFxImage("ResultRing", parent, pos, 120f, UISpriteFactory.Ring(96, 5f));
         ring.color = perfectColor;
@@ -638,6 +1015,7 @@ public class CoreUpgradeUI : MonoBehaviour
     private void PlayFailShake()
     {
         RectTransform t = clockGroup != null ? clockGroup.transform as RectTransform
+                        : coreVisualGroup != null ? coreVisualGroup.transform as RectTransform
                         : coreImage != null ? coreImage.rectTransform : null;
         if (t == null) return;
         t.DOShakeAnchorPos(0.4f, new Vector2(16f, 7f), 18, 90, false, true).SetUpdate(true);
@@ -690,12 +1068,11 @@ public class CoreUpgradeUI : MonoBehaviour
 
     // 현재/강화후 카드에 부활·흡수 두 줄을 런타임 생성 (빌더 재실행 없이 현재 패널 위에 얹음)
     // 카드 레이아웃 상수 (현재/강화후 박스. 헤더는 박스 밖 위쪽, 스탯은 한 줄씩 균형있게).
-    const float CardH   = 280f;   // 박스 높이 - 길게(앞으로 New 스탯 늘어도 여유 + 빈 공간 채움)
-    const float CardY   = -6f;    // 박스 중심 Y(아래로 늘림. 바닥 -146, 재료 바 top -160 위로 14px 여유)
-    const float HeadY   = 160f;   // 현재/강화후 = 박스 위 바깥
-    const float ValRowY = 86f;    // 체력 (한 줄 "체력 100s")
-    // 부가 스탯 행 Y — 위에서부터 부활/대쉬/흡수 순. 간격 ~48px로 넓혀 답답함 해소 + 아래로 추가 여유(-108, -140까지).
-    static readonly float[] StatRowY = { 36f, -12f, -60f };
+    const float HeadY      = 160f;  // 현재/강화후 헤더 = 박스 위 바깥(레이아웃 제외)
+    const float CardTopY   = 134f;  // 카드 위쪽 고정 Y(top pivot). 켜진 항목 수만큼 아래로 자동 확장.
+    const float RowSpacing = 10f;   // 항목 행 간격
+    const int   CardPadTop = 18, CardPadBottom = 18;   // 카드 안쪽 위/아래 여백
+    const int   StatSlotCount = 3;  // 부활/대쉬/흡수 (2단계에서 대쉬는 본체 아이콘으로 분리 예정)
 
     private void BuildExtraStatRows()
     {
@@ -713,12 +1090,13 @@ public class CoreUpgradeUI : MonoBehaviour
         if (deltaTimeText != null) deltaTimeText.gameObject.SetActive(false);   // 델타는 강화후 체력줄에 인라인 합침
 
         // 슬롯 고정 3행(부활/대쉬/흡수) 생성 후 전부 끄고 시작 — RefreshData가 보유분만 켠다.
-        _curRows  = new TextMeshProUGUI[StatRowY.Length];
-        _nextRows = new TextMeshProUGUI[StatRowY.Length];
-        for (int i = 0; i < StatRowY.Length; i++)
+        // 세로 자동 레이아웃이라 켜진 행만 위에서부터 빈칸 없이 쌓이고, 카드 높이도 자동.
+        _curRows  = new TextMeshProUGUI[StatSlotCount];
+        _nextRows = new TextMeshProUGUI[StatSlotCount];
+        for (int i = 0; i < StatSlotCount; i++)
         {
-            _curRows[i]  = MakeStatRow(leftCard,  StatRowY[i], OwnedStatColor);
-            _nextRows[i] = MakeStatRow(rightCard, StatRowY[i], NextStatColor);
+            _curRows[i]  = MakeStatRow(leftCard,  OwnedStatColor);
+            _nextRows[i] = MakeStatRow(rightCard, NextStatColor);
             _curRows[i].gameObject.SetActive(false);
             _nextRows[i].gameObject.SetActive(false);
         }
@@ -727,31 +1105,40 @@ public class CoreUpgradeUI : MonoBehaviour
     // 카드 정리: 박스 크기/위치 + 헤더(현재/강화후)를 박스 위 바깥으로 + "체력" 라벨 숨김(값에 합침) + 값 크기/위치.
     private void ArrangeCard(RectTransform card, TextMeshProUGUI valueText, string headName, string lblName)
     {
-        card.sizeDelta        = new Vector2(card.sizeDelta.x, CardH);
-        card.anchoredPosition = new Vector2(card.anchoredPosition.x, CardY);
-
+        // 헤더(현재/강화후) = 박스 밖 위쪽 고정. 레이아웃에서 제외해 항목 스택에 안 섞이게.
         var head = card.Find(headName) as RectTransform;
-        if (head != null) head.anchoredPosition = new Vector2(0f, HeadY);   // 박스 밖 위쪽으로
+        if (head != null) { IgnoreLayout(head); head.anchoredPosition = new Vector2(0f, HeadY); }
 
         var lbl = card.Find(lblName);
         if (lbl != null) lbl.gameObject.SetActive(false);                   // "체력" 라벨은 값 텍스트에 합침
 
+        // 카드 = 위쪽 고정 + 켜진 항목 수만큼 아래로 자동 확장(고정 높이 탈피 = New 늘어도 안 깨짐).
+        card.pivot = new Vector2(0.5f, 1f);
+        card.anchoredPosition = new Vector2(card.anchoredPosition.x, CardTopY);
+
+        var vlg = GetOrAdd<VerticalLayoutGroup>(card.gameObject);
+        vlg.childAlignment        = TextAnchor.UpperCenter;
+        vlg.spacing               = RowSpacing;
+        vlg.padding               = new RectOffset(0, 0, CardPadTop, CardPadBottom);
+        vlg.childControlWidth     = true;  vlg.childControlHeight     = true;
+        vlg.childForceExpandWidth = true;  vlg.childForceExpandHeight = false;
+        var fit = GetOrAdd<ContentSizeFitter>(card.gameObject);
+        fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // 체력 값 = 항상 첫 줄
         if (valueText != null)
         {
-            valueText.fontSize = 24f;                                        // 엄청 크게(56) -> 적당히
-            valueText.rectTransform.anchoredPosition = new Vector2(0f, ValRowY);
+            valueText.fontSize = 24f;
+            valueText.rectTransform.SetSiblingIndex(0);
+            SetRowHeight(valueText.gameObject, 36f);
         }
     }
 
-    private TextMeshProUGUI MakeStatRow(RectTransform parent, float y, Color color)
+    private TextMeshProUGUI MakeStatRow(RectTransform parent, Color color)
     {
         var go = new GameObject("StatRow", typeof(RectTransform));
         var rt = (RectTransform)go.transform;
         rt.SetParent(parent, false);
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(250f, 26f);
-        rt.anchoredPosition = new Vector2(0f, y);
 
         var tmp = go.AddComponent<TextMeshProUGUI>();
         if (currentTimeText.font != null) tmp.font = currentTimeText.font;
@@ -759,7 +1146,24 @@ public class CoreUpgradeUI : MonoBehaviour
         tmp.color     = color;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.raycastTarget = false;
+        SetRowHeight(go, 28f);   // 세로 레이아웃 행 높이
         return tmp;
+    }
+
+    // ── 레이아웃 헬퍼 (가변 카드용) ──
+    private static T GetOrAdd<T>(GameObject go) where T : Component
+    {
+        var c = go.GetComponent<T>();
+        return c != null ? c : go.AddComponent<T>();
+    }
+    private static void SetRowHeight(GameObject go, float h)
+    {
+        var le = GetOrAdd<LayoutElement>(go);
+        le.minHeight = h; le.preferredHeight = h;
+    }
+    private static void IgnoreLayout(RectTransform rt)
+    {
+        GetOrAdd<LayoutElement>(rt.gameObject).ignoreLayout = true;
     }
 
     // 스탯 행 표시/숨김 + 내용 설정. 보유 안 한 스탯은 숨겨서 다음 해금을 미리 노출하지 않는다.

@@ -27,7 +27,6 @@ public class PlayerSkillComponent : MonoBehaviour
     private SkillBase _currentSkill;
     private ComboAttackBase _currentCombo;
 
-    // Skill3 ���� �� �ǰ� ���ͷ�Ʈ ��� �÷���
     public bool CurrentSkillIsInterruptible { get; set; }
 
     public bool IsExecuting => _currentRoutine != null;
@@ -106,13 +105,11 @@ public class PlayerSkillComponent : MonoBehaviour
         return Mathf.Clamp01((max - remaining) / max) * 100f;
     }
 
-    // ��Ÿ�� ��ȯ (UI��)
     public float GetCooldown(SkillSheetId id)
     {
         return _cooldownTimers.TryGetValue(id, out float val) ? Mathf.Max(0f, val) : 0f;
     }
 
-    // �ִ� ��Ÿ�� ��ȯ (UI ���� ����)
     public float GetMaxCooldown(SkillSheetId id)
     {
         return _skillDatabase.TryGetValue(id, out var skill) ? skill.CoolTime : 1f;
@@ -272,14 +269,12 @@ public class PlayerSkillComponent : MonoBehaviour
                 _cooldownTimers[key] -= Time.deltaTime;
     }
 
-    // ������ �� ��ü �ʱ�ȭ (3�ܰ�)
     public void ResetAll()
     {
-        // ��Ÿ�� �ʱ�ȭ — 부활 시 모든 스킬 즉시 사용 가능
+        // 쿨타임 초기화 — 부활 시 모든 스킬 즉시 사용 가능
         foreach (var key in _cooldownTimers.Keys.ToList())
             _cooldownTimers[key] = 0f;
 
-        // �޺� ���� �ʱ�ȭ
         _comboIndex = 0;
         _comboTimer = 0f;
         _comboInputReceived = false;

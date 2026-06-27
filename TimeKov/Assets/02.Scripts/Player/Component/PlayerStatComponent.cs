@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class PlayerStatComponent : MonoBehaviour
 {
-    [Header("HP (= �ð�)")]
     public float MaxHp = 300f;
     public float HpDrainRate = 1f;
     [Tooltip("시간(HP) 드레인 배수 - 보스 포효 등 디버프로 일시 가속(1=기본). 결계 밖에서만 적용.")]
@@ -42,15 +41,15 @@ public class PlayerStatComponent : MonoBehaviour
     public float CurrentStamina { get; private set; }
     public bool IsExhausted { get; private set; }
     public bool IsInBase { get; private set; }
-    public bool IsHurt { get; private set; }  // �ǰ� ���� ��
-    public bool IsInvincible { get; private set; }  // ���� ��
+    public bool IsHurt { get; private set; }
+    public bool IsInvincible { get; private set; }
 
     private Player _player;
     private Coroutine _hurtRoutine;
     private float _regenLockTimer;   // >0 동안 스태미나 회복 정지(대쉬 소모 직후만. 달리기는 안 검)
 
     public event Action OnDead;
-    public event Action OnHurt;  // UI �ǰ� �ǵ���
+    public event Action OnHurt;
     public event Action<float> OnDamaged;  // 시간(HP) 감소량 — 플로팅 텍스트용
     public event Action<float> OnHealed;   // 시간(HP) 회복량 — 플로팅 텍스트용
 
@@ -69,7 +68,6 @@ public class PlayerStatComponent : MonoBehaviour
         UpdateExhaustedState();
     }
 
-    // HP(�ð�) �ڵ� ����
     void HandleHpDrain()
     {
         if (IsInBase) return;
@@ -84,11 +82,10 @@ public class PlayerStatComponent : MonoBehaviour
         }
     }
 
-    // �ܺ� ������ (attackerPos: �ǰ� ���� �Ǻ���)
     public void TakeDamage(float amount, Vector3 attackerPos = default)
     {
         if (IsDead) return;
-        if (IsInvincible) return;  // ���� �� ����
+        if (IsInvincible) return;
 
         float finalDamage = Mathf.Max(1f, amount - DEF);
         CurrentHp = Mathf.Max(0, CurrentHp - finalDamage);
@@ -107,7 +104,6 @@ public class PlayerStatComponent : MonoBehaviour
             return;
         }
 
-        // Hurt ���� ����
         if (_hurtRoutine != null) StopCoroutine(_hurtRoutine);
         _hurtRoutine = StartCoroutine(HurtRoutine(attackerPos));
     }
@@ -158,7 +154,7 @@ public class PlayerStatComponent : MonoBehaviour
             false
             );
 
-        OnHurt?.Invoke();  // UI �ǵ�� �̺�Ʈ
+        OnHurt?.Invoke();
 
         // 피격 경직 시간
         yield return new WaitForSeconds(HurtDuration);
@@ -171,7 +167,6 @@ public class PlayerStatComponent : MonoBehaviour
         _hurtRoutine = null;
     }
 
-    // �ǰ� ���� �Ǻ� (�����̸� true)
     bool IsAttackerOnLeft(Vector3 attackerPos)
     {
         Vector3 toAttacker = (attackerPos - transform.position).normalized;
@@ -217,13 +212,11 @@ public class PlayerStatComponent : MonoBehaviour
         OnDead?.Invoke();
     }
 
-    // ���¹̳� ��� ȸ��
     public void RecoverStamina(float amount)
     {
         CurrentStamina = Mathf.Min(MaxStamina, CurrentStamina + amount);
     }
 
-    // BaseZone���� ȣ��
     public void SetInBase(bool inBase)
     {
         bool wasInBase = IsInBase;
@@ -239,7 +232,7 @@ public class PlayerStatComponent : MonoBehaviour
     private float _lastOutsideWarnTime = -999f;
     private const float OutsideWarnCooldown = 8f;
 
-    // ������ �� ȣ��  (hpPercent: 최대 HP 대비 부활 체력 비율. 1=풀피, 0.5=반피. 코어 강화로 MaxHp가 커져도 비율로 추적)
+    // 리스폰 시 호출 (hpPercent: 최대 HP 대비 부활 체력 비율. 1=풀피, 0.5=반피. 코어 강화로 MaxHp가 커져도 비율로 추적)
     public void Respawn(float hpPercent = 1f)
     {
         CurrentHp = Mathf.Clamp(MaxHp * hpPercent, 1f, MaxHp);
@@ -259,7 +252,6 @@ public class PlayerStatComponent : MonoBehaviour
         _player.Movement.UnfreezeOnRespawn();
     }
 
-    // �޸��� �� �� ������ ȣ��  �޸� �� ������ true
     public bool TryDrainSprintStamina()
     {
         if (IsExhausted) return false;

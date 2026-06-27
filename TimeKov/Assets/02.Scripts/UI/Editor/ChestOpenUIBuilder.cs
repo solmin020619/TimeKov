@@ -12,7 +12,7 @@ using TMPro;
 
 public static class ChestOpenUIBuilder
 {
-    [MenuItem("Tools/TIMEKOV/상자 오픈 UI 생성")]
+    // [MenuItem("Tools/TIMEKOV/상자 오픈 UI 생성")]   // 메뉴 정리: 숨김(필요시 주석 해제)
     public static void Build()
     {
         Canvas canvas = Object.FindAnyObjectByType<Canvas>();
