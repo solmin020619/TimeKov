@@ -185,7 +185,7 @@ public static class CoreUpgradeUIBuilder
         GameObject infoGroup = MakeEmpty("UpgradeInfoGroup", panel.transform);
         SetRef(so, "upgradeInfoGroup", infoGroup);
 
-        GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform, new Vector2(660, 104), new Vector2(0, -396), Hex("0C1322", 200));
+        GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform, new Vector2(660, 104), new Vector2(0, -340), Hex("0C1322", 200));
         SetSpr(bottomBar, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
         AddHighlight(bottomBar, "core_upgrade_materials");   // 튜토 코치마크 대상 (재료/성공확률)
         GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform, new Vector2(56, 56), new Vector2(-300, 22), Hex("1A202C", 220));
@@ -218,9 +218,9 @@ public static class CoreUpgradeUIBuilder
         SetRef(so, "gaugeFill", gaugeFillImg);
 
         // 강화 시작 버튼
-        GameObject upgradeBtn = MakeButton("UpgradeButton", infoGroup.transform, new Vector2(360, 60), new Vector2(0, -486), "강화", 20, Hex("2A4A66"));
+        GameObject upgradeBtn = MakeButton("UpgradeButton", infoGroup.transform, new Vector2(360, 64), new Vector2(0, -432), "강화", 22, Hex("2F8FD8"));
         SetSpr(upgradeBtn, LoadSprAt("Assets/11.UI/New/panel_steel_a78.png", 24), Image.Type.Sliced);
-        upgradeBtn.GetComponent<Image>().color = Hex("2A4A66");
+        upgradeBtn.GetComponent<Image>().color = Hex("2F8FD8");
         SetRef(so, "upgradeButton",     upgradeBtn.GetComponent<Button>());
         SetRef(so, "upgradeButtonText", upgradeBtn.GetComponentInChildren<TextMeshProUGUI>());
         AddHighlight(upgradeBtn, "core_upgrade_button");   // 튜토 코치마크 대상 (강화 버튼)

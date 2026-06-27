@@ -706,6 +706,12 @@ public class CoreUpgradeUI : MonoBehaviour
             }
     }
 
+    // 강화 버튼 상태색 (가능 = 밝은 시안 강조 / 불가 = 어두운 회청 + 흐린 글자)
+    private static readonly Color BtnReadyColor    = new Color(0.18f, 0.62f, 0.90f, 1f);
+    private static readonly Color BtnLockedColor   = new Color(0.14f, 0.19f, 0.27f, 0.85f);
+    private static readonly Color BtnTextReady     = Color.white;
+    private static readonly Color BtnTextLocked    = new Color(0.52f, 0.60f, 0.70f, 1f);
+
     private void RefreshButton()
     {
         var mgr = CoreUpgradeManager.Instance;
@@ -714,14 +720,15 @@ public class CoreUpgradeUI : MonoBehaviour
         bool canUpgrade = mgr.CanUpgrade();
         if (upgradeButton != null)
         {
-            upgradeButton.interactable = true;
+            upgradeButton.interactable = true;   // 클릭은 항상 받되(부족 토스트 안내), 색으로 가능여부 표시
             if (upgradeButton.image != null)
-            {
-                Color grey = _btnNormalColor * 0.5f; grey.a = _btnNormalColor.a;
-                upgradeButton.image.color = canUpgrade ? _btnNormalColor : grey;
-            }
+                upgradeButton.image.color = canUpgrade ? BtnReadyColor : BtnLockedColor;
         }
-        if (upgradeButtonText != null) upgradeButtonText.text = "강화";
+        if (upgradeButtonText != null)
+        {
+            upgradeButtonText.text  = canUpgrade ? "강화" : "키트 부족";
+            upgradeButtonText.color = canUpgrade ? BtnTextReady : BtnTextLocked;
+        }
     }
 
     private void RefreshKitPanel(CoreUpgradeManager mgr, CoreLevelDataSheetData next)
