@@ -1514,6 +1514,330 @@ public static class InventoryUIBuilder
         if (s == null) Debug.LogWarning("[InventoryUIBuilder] 스프라이트 로드 실패: " + p);
         return s;
     }
+
+    // =====================================================================
+    // 창고 출력 포트(StorageExtractor) 패널 — 인벤토리/도감과 동일한 간유리 디자인.
+    // 좌: 창고 아이템 그리드(드래그로 추출 품목 선택) / 우: 선택 품목·창고 수량·추출 타이머.
+    // 기존 StorageMachinePanel(머신 UI 디자인)을 대체하고 MachineInteraction 배선을 갱신한다.
+    // =====================================================================
+    [MenuItem("Tools/TIMEKOV/창고 출력 포트 UI 생성")]
+    public static void BuildStorageExtractorPanel()
+    {
+        // ── 기존 패널/배선 찾기 ───────────────────────────────────────
+        var oldUI = Object.FindAnyObjectByType<StorageExtractorUI>(FindObjectsInactive.Include);
+        var mi    = Object.FindAnyObjectByType<TIMEKOV.Factory.MachineInteraction>(FindObjectsInactive.Include);
+
+        Transform parent = oldUI != null ? oldUI.transform.parent : null;
+        int sibling = oldUI != null ? oldUI.transform.GetSiblingIndex() : -1;
+        if (parent == null)
+        {
+            var invCtrl = Object.FindAnyObjectByType<InventoryUIController>(FindObjectsInactive.Include);
+            GameObject rootGo = invCtrl != null ? new SerializedObject(invCtrl).FindProperty("inventoryRoot").objectReferenceValue as GameObject : null;
+            var canvas = rootGo != null ? rootGo.GetComponentInParent<Canvas>(true) : Object.FindAnyObjectByType<Canvas>(FindObjectsInactive.Include);
+            if (canvas == null) { EditorUtility.DisplayDialog("오류", "패널을 붙일 Canvas를 찾지 못했습니다.\n씬에 UI Canvas가 있어야 합니다.", "확인"); return; }
+            parent = canvas.transform;
+        }
+
+        // ── 패널 루트 (중앙, 고정 크기) ───────────────────────────────
+        // 크기는 기존 창고 패널(860x600)에 맞춤.
+        const float pw = 900f, ph = 600f;
+        const float inset = 3f, footerH = 22f, titleH = 62f;
+        var panel = MakeRounded("StorageMachinePanel", parent, new Vector2(pw, ph), Vector2.zero, BaseDark);
+        var prt = panel.GetComponent<RectTransform>();
+        prt.anchorMin = prt.anchorMax = prt.pivot = new Vector2(0.5f, 0.5f);
+        prt.anchoredPosition = Vector2.zero;
+        if (sibling >= 0) panel.transform.SetSiblingIndex(sibling);
+
+        var panelSprite = LoadPanelSprite();
+        if (panelSprite != null)
+        {
+            var pimg = panel.GetComponent<Image>();
+            pimg.sprite = panelSprite; pimg.type = Image.Type.Sliced;
+            pimg.color = new Color(1f, 1f, 1f, 0.12f); pimg.pixelsPerUnitMultiplier = 1f;
+        }
+        var mask = panel.GetComponent<UnityEngine.UI.Mask>() ?? panel.AddComponent<UnityEngine.UI.Mask>();
+        mask.showMaskGraphic = true;
+
+        BuildFrostLayers(prt, panelSprite, inset, footerH, titleH);
+
+        // ── 헤더: 제목 + 닫기 ─────────────────────────────────────────
+        var header = MakeImage("HeaderBand", prt, Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
+        StretchTop(header.GetComponent<RectTransform>(), 56, 0, 0);
+        header.GetComponent<Image>().raycastTarget = false;
+
+        var title = MakeTMP("Title", header.transform, "창고 출력", 26, TxtMain, TextAlignmentOptions.Left);
+        AnchorLeft(title.rectTransform, 22, 320, 40); title.fontStyle = FontStyles.Bold;
+        AddOutline(title.gameObject, new Color(0.86f, 0.90f, 0.96f, 0.5f), new Vector2(1f, -1f));
+
+        var closeBtnGo = MakeFrostedCloseButton(header.transform);
+        var closeButton = closeBtnGo.GetComponent<Button>();
+
+        // ── 좌측: 창고 그리드 (StorageExtractorUI가 런타임에 슬롯을 채움) ──
+        var gridArea = MakeEmpty("WarehouseGrid", prt, Vector2.zero, Vector2.zero);
+        var gart = gridArea.GetComponent<RectTransform>();
+        gart.anchorMin = new Vector2(0f, 0f); gart.anchorMax = new Vector2(0.60f, 1f);
+        gart.offsetMin = new Vector2(inset + 14, footerH + 8);
+        gart.offsetMax = new Vector2(-7, -titleH - 6);
+        var gridContent = BuildPlainScrollGrid(gridArea, 5);
+
+        // ── 우측: 추출 설정 컬럼 ──────────────────────────────────────
+        var col = MakeEmpty("ExtractColumn", prt, Vector2.zero, Vector2.zero);
+        var crt = col.GetComponent<RectTransform>();
+        crt.anchorMin = new Vector2(0.60f, 0f); crt.anchorMax = new Vector2(1f, 1f);
+        crt.offsetMin = new Vector2(7, footerH + 8);
+        crt.offsetMax = new Vector2(-(inset + 14), -titleH - 6);
+
+        // 큰 faint 배경 아이콘 (선택 품목 — 런타임에 켜짐)
+        var bgIcon = MakeImage("BgItemIcon", col.transform, new Vector2(220, 220), Vector2.zero, new Color(1, 1, 1, 0.07f));
+        var bgRt = bgIcon.GetComponent<RectTransform>();
+        bgRt.anchorMin = bgRt.anchorMax = new Vector2(0.5f, 0.5f); bgRt.anchoredPosition = new Vector2(0, 8);
+        var bgIconImg = bgIcon.GetComponent<Image>(); bgIconImg.raycastTarget = false; bgIconImg.preserveAspect = true; bgIconImg.enabled = false;
+
+        var pickLabel = MakeTMP("PickLabel", col.transform, "추출 품목", 18, TxtSub, TextAlignmentOptions.Center);
+        pickLabel.fontStyle = FontStyles.Bold;
+        var plRt = pickLabel.rectTransform; plRt.anchorMin = plRt.anchorMax = new Vector2(0.5f, 1); plRt.pivot = new Vector2(0.5f, 1);
+        plRt.sizeDelta = new Vector2(240, 26); plRt.anchoredPosition = new Vector2(0, -8);
+
+        // 선택 슬롯 (StorageItemSelectSlot — 드래그 드롭 대상)
+        var slot = MakeImage("SelectSlot", col.transform, new Vector2(132, 132), Vector2.zero, RGBA(12, 16, 24, 0.30f));
+        var slotRt = slot.GetComponent<RectTransform>();
+        slotRt.anchorMin = slotRt.anchorMax = new Vector2(0.5f, 1); slotRt.pivot = new Vector2(0.5f, 1);
+        slotRt.anchoredPosition = new Vector2(0, -42);
+        var slotImg = slot.GetComponent<Image>(); slotImg.sprite = RoundedSprite(); slotImg.type = Image.Type.Sliced; slotImg.raycastTarget = true;
+
+        var border = MakeImage("SlotBorder", slot.transform, Vector2.zero, Vector2.zero, new Color(1, 1, 1, 0f));
+        Stretch(border.GetComponent<RectTransform>());
+        var borderImg = border.GetComponent<Image>(); borderImg.sprite = RoundedSprite(); borderImg.type = Image.Type.Sliced; borderImg.raycastTarget = false;
+        AddOutline(border, SlotLine, new Vector2(1.5f, -1.5f));
+
+        var icon = MakeImage("Icon", slot.transform, Vector2.zero, Vector2.zero, Color.white);
+        var icRt = icon.GetComponent<RectTransform>();
+        icRt.anchorMin = Vector2.zero; icRt.anchorMax = Vector2.one; icRt.offsetMin = new Vector2(14, 14); icRt.offsetMax = new Vector2(-14, -14);
+        var iconImg = icon.GetComponent<Image>(); iconImg.raycastTarget = false; iconImg.preserveAspect = true; iconImg.enabled = false;
+
+        var hoverLabel = MakeTMP("HoverLabel", slot.transform, "", 15, TxtMain, TextAlignmentOptions.Center);
+        Stretch(hoverLabel.rectTransform);
+        AddOutline(hoverLabel.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.6f), new Vector2(1f, -1f));
+
+        var countTxt = MakeTMP("CountText", col.transform, "창고: 0개", 18, TxtMain, TextAlignmentOptions.Center);
+        countTxt.fontStyle = FontStyles.Bold;
+        AddOutline(countTxt.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.5f), new Vector2(1f, -1f));
+        var ctRt = countTxt.rectTransform; ctRt.anchorMin = ctRt.anchorMax = new Vector2(0.5f, 1); ctRt.pivot = new Vector2(0.5f, 1);
+        ctRt.sizeDelta = new Vector2(240, 28); ctRt.anchoredPosition = new Vector2(0, -190);
+
+        var selSlot = slot.AddComponent<StorageItemSelectSlot>();
+        var selSO = new SerializedObject(selSlot);
+        selSO.FindProperty("iconImage").objectReferenceValue   = iconImg;
+        selSO.FindProperty("bgIconImage").objectReferenceValue = bgIconImg;
+        selSO.FindProperty("borderImage").objectReferenceValue = borderImg;
+        selSO.FindProperty("countText").objectReferenceValue   = countTxt;
+        selSO.FindProperty("labelText").objectReferenceValue   = hoverLabel;
+        selSO.ApplyModifiedProperties();
+
+        // 타이머 텍스트 + 진행 바 (컬럼 하단)
+        var timerTxt = MakeTMP("TimerText", col.transform, "아이템을 선택하세요", 16, TxtSub, TextAlignmentOptions.Center);
+        var ttRt = timerTxt.rectTransform; ttRt.anchorMin = ttRt.anchorMax = new Vector2(0.5f, 0); ttRt.pivot = new Vector2(0.5f, 0);
+        ttRt.sizeDelta = new Vector2(260, 26); ttRt.anchoredPosition = new Vector2(0, 52);
+        AddOutline(timerTxt.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.45f), new Vector2(1f, -1f));
+
+        var slider = BuildProgressBar(col.transform);
+        var slRt = slider.GetComponent<RectTransform>();
+        slRt.anchorMin = slRt.anchorMax = new Vector2(0.5f, 0); slRt.pivot = new Vector2(0.5f, 0);
+        slRt.sizeDelta = new Vector2(220, 14); slRt.anchoredPosition = new Vector2(0, 26);
+
+        // ── 유리 림 ───────────────────────────────────────────────────
+        if (panelSprite != null) BuildPanelRimLocal(prt, panelSprite);
+
+        // ── StorageExtractorUI 배선 ───────────────────────────────────
+        var ui = panel.AddComponent<StorageExtractorUI>();
+        var uiSO = new SerializedObject(ui);
+        uiSO.FindProperty("uiPanel").objectReferenceValue             = panel;
+        uiSO.FindProperty("titleText").objectReferenceValue           = title;
+        uiSO.FindProperty("itemSelectSlot").objectReferenceValue      = selSlot;
+        uiSO.FindProperty("timerText").objectReferenceValue           = timerTxt;
+        uiSO.FindProperty("timerSlider").objectReferenceValue         = slider;
+        uiSO.FindProperty("closeBtn").objectReferenceValue            = closeButton;
+        uiSO.FindProperty("inventorySlotParent").objectReferenceValue = gridContent;
+        uiSO.FindProperty("inventorySlotPrefab").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(SlotPrefabPath);
+        uiSO.ApplyModifiedProperties();
+
+        // ── MachineInteraction 배선 갱신 ──────────────────────────────
+        if (mi != null)
+        {
+            var miSO = new SerializedObject(mi);
+            var p = miSO.FindProperty("storageExtractorUI");
+            if (p != null) { p.objectReferenceValue = ui; miSO.ApplyModifiedProperties(); }
+        }
+
+        // ── 기존 패널 제거 ────────────────────────────────────────────
+        if (oldUI != null && oldUI.gameObject != panel) Object.DestroyImmediate(oldUI.gameObject);
+
+        panel.SetActive(false);
+        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Selection.activeGameObject = panel;
+        EditorUtility.DisplayDialog("완료",
+            "창고 출력 포트 UI 생성 완료.\n\n" +
+            "좌측 = 창고 아이템 그리드(드래그로 추출 품목 지정)\n" +
+            "우측 = 선택 품목 · 창고 수량 · 추출 타이머\n\n" +
+            (mi != null ? "MachineInteraction.storageExtractorUI 자동 배선됨.\n" : "⚠ 씬에 MachineInteraction이 없어 배선은 수동으로 연결하세요.\n") +
+            "추출기와 상호작용해 확인 후 Ctrl+S.", "확인");
+    }
+
+    // 간유리 레이어 (블러 + 어두운 배경 + 밝은 inset 카드/헤더). BuildChestPanel과 동일 레시피.
+    static void BuildFrostLayers(RectTransform prt, Sprite panelSprite, float inset, float footerH, float titleH)
+    {
+        if (panelSprite == null) return;
+
+        var blurGo = new GameObject("PanelBlur", typeof(RectTransform));
+        blurGo.transform.SetParent(prt, false);
+        var blRt = blurGo.GetComponent<RectTransform>();
+        blRt.anchorMin = Vector2.zero; blRt.anchorMax = Vector2.one; blRt.offsetMin = Vector2.zero; blRt.offsetMax = Vector2.zero;
+        var blur = blurGo.AddComponent<BlurredImage>();
+        blur.sprite = panelSprite; blur.type = Image.Type.Sliced; blur.pixelsPerUnitMultiplier = 1f;
+        blur.color = Color.white; blur.raycastTarget = false;
+        blur.Common.blurReferencesFrom = UIBlurCommon.BlurReferencesFrom.Self;
+        blur.Common.cameraReference = PickBuildCamera();
+        blur.Common.featureNumber = 0; blur.Common.unrankedLayer = 1;
+        var bs = blur.Common.blurInstanceSettings;
+        if (bs != null)
+        {
+            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 1.5f; }
+            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
+        }
+        blur.Common.ValidateBlur();
+
+        var bgGo = MakeImage("BgDark", prt, Vector2.zero, Vector2.zero, Color.white);
+        var bgrt = bgGo.GetComponent<RectTransform>();
+        bgrt.anchorMin = Vector2.zero; bgrt.anchorMax = Vector2.one; bgrt.offsetMin = Vector2.zero; bgrt.offsetMax = Vector2.zero;
+        var bgImg = bgGo.GetComponent<Image>(); bgImg.sprite = null; bgImg.type = Image.Type.Simple; bgImg.raycastTarget = false;
+        var bgGrad = bgGo.AddComponent<UIFrostGradient>();
+        bgGrad.topColor = RGBA(22, 28, 40, 0.26f); bgGrad.bottomColor = RGBA(10, 14, 22, 0.52f);
+
+        var cardGo = MakeImage("SlotFrost", prt, Vector2.zero, Vector2.zero, Color.white);
+        var crt2 = cardGo.GetComponent<RectTransform>();
+        crt2.anchorMin = Vector2.zero; crt2.anchorMax = Vector2.one;
+        crt2.offsetMin = new Vector2(inset, footerH); crt2.offsetMax = new Vector2(-inset, -titleH);
+        var cImg = cardGo.GetComponent<Image>(); cImg.sprite = null; cImg.type = Image.Type.Simple; cImg.raycastTarget = false;
+        var cGrad = cardGo.AddComponent<UIFrostGradient>();
+        cGrad.topColor = RGBA(216, 224, 237, 0.34f); cGrad.bottomColor = RGBA(199, 209, 223, 0.26f);
+
+        var hbGo = MakeImage("HeaderFrost", prt, Vector2.zero, Vector2.zero, Color.white);
+        var hbrt = hbGo.GetComponent<RectTransform>();
+        hbrt.anchorMin = new Vector2(0, 1); hbrt.anchorMax = new Vector2(1, 1); hbrt.pivot = new Vector2(0.5f, 1);
+        hbrt.offsetMin = new Vector2(inset, -titleH); hbrt.offsetMax = new Vector2(-inset, -inset);
+        var hbImg = hbGo.GetComponent<Image>(); hbImg.sprite = null; hbImg.type = Image.Type.Simple; hbImg.raycastTarget = false;
+        var hbGrad = hbGo.AddComponent<UIFrostGradient>();
+        hbGrad.topColor = RGBA(245, 248, 253, 0.62f); hbGrad.bottomColor = RGBA(237, 243, 251, 0.56f);
+
+        var hdiv = MakeImage("HeaderDivider", prt, Vector2.zero, Vector2.zero, RGBA(84, 98, 122, 0.60f));
+        var hdrt = hdiv.GetComponent<RectTransform>();
+        hdrt.anchorMin = new Vector2(0, 1); hdrt.anchorMax = new Vector2(1, 1); hdrt.pivot = new Vector2(0.5f, 1);
+        hdrt.offsetMin = new Vector2(inset, -63); hdrt.offsetMax = new Vector2(-inset, -61);
+        hdiv.GetComponent<Image>().raycastTarget = false;
+    }
+
+    // 닫기 버튼 (헤더 우측, ic_close + 호버/클릭 ColorTint). BuildChestPanel과 동일.
+    static GameObject MakeFrostedCloseButton(Transform header)
+    {
+        var closeBtn = MakeIconButton("CloseButton", header, "ic_close", 54, Color.clear);
+        AnchorRight(closeBtn.GetComponent<RectTransform>(), 12, 54, 54);
+        TintIcon(closeBtn, TxtMain);
+        var closeSpr = LoadPartSprite(PartDir + "/ic_close.png", Vector4.zero);
+        var closeIconImg = closeBtn.transform.Find("Icon")?.GetComponent<Image>();
+        if (closeIconImg != null) { if (closeSpr != null) closeIconImg.sprite = closeSpr; closeIconImg.rectTransform.sizeDelta = new Vector2(48, 48); }
+        var closeBg = closeBtn.GetComponent<Image>();
+        closeBg.sprite = RoundedSprite(); closeBg.type = Image.Type.Sliced; closeBg.color = Color.white;
+        var closeButton = closeBtn.GetComponent<Button>();
+        closeButton.transition = Selectable.Transition.ColorTint; closeButton.targetGraphic = closeBg;
+        var ccb = closeButton.colors;
+        ccb.normalColor = new Color(1f, 1f, 1f, 0f); ccb.highlightedColor = new Color(0.24f, 0.29f, 0.39f, 0.20f);
+        ccb.pressedColor = new Color(0.20f, 0.24f, 0.34f, 0.36f); ccb.selectedColor = new Color(1f, 1f, 1f, 0f);
+        ccb.disabledColor = new Color(1f, 1f, 1f, 0f); ccb.colorMultiplier = 1f; ccb.fadeDuration = 0.1f;
+        closeButton.colors = ccb;
+        return closeBtn;
+    }
+
+    // 유리 림 (패널 형태 1px 라이트 보더). BuildChestPanel과 동일.
+    static void BuildPanelRimLocal(RectTransform prt, Sprite panelSprite)
+    {
+        var rim = MakeImage("PanelRim", prt, Vector2.zero, Vector2.zero, new Color(1f, 1f, 1f, 0f));
+        var rimRt = rim.GetComponent<RectTransform>();
+        rimRt.anchorMin = Vector2.zero; rimRt.anchorMax = Vector2.one; rimRt.offsetMin = Vector2.zero; rimRt.offsetMax = Vector2.zero;
+        var rimImg = rim.GetComponent<Image>();
+        rimImg.sprite = panelSprite; rimImg.type = Image.Type.Sliced; rimImg.raycastTarget = false;
+        AddOutline(rim, RGBA(238, 246, 255, 0.32f), new Vector2(1f, -1f));
+        rim.transform.SetAsLastSibling();
+    }
+
+    // 스크롤 그리드 (InventoryGridUI 없이 content 반환 — StorageExtractorUI가 직접 슬롯을 채운다).
+    static Transform BuildPlainScrollGrid(GameObject area, int columns)
+    {
+        var scrollGo = MakeEmpty("Scroll", area.transform, Vector2.zero, Vector2.zero);
+        var srt = scrollGo.GetComponent<RectTransform>(); Stretch(srt);
+        var scrollImg = scrollGo.AddComponent<Image>(); scrollImg.color = Color.clear;
+        var scrollMask = scrollGo.AddComponent<RectMask2D>();
+        scrollMask.padding = new Vector4(-12f, -12f, -12f, -12f);
+        var scroll = scrollGo.AddComponent<ScrollRect>();
+        scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 30;
+
+        var content = MakeEmpty("Content", scrollGo.transform, Vector2.zero, Vector2.zero);
+        var crt = content.GetComponent<RectTransform>();
+        float blockW = columns * 90f + (columns - 1) * 9f;
+        crt.anchorMin = new Vector2(0.5f, 1f); crt.anchorMax = new Vector2(0.5f, 1f); crt.pivot = new Vector2(0.5f, 1f);
+        crt.sizeDelta = new Vector2(blockW, 0f); crt.anchoredPosition = new Vector2(-4f, 0f);
+        var grid = content.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(9, 9);
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = columns;
+        grid.childAlignment = TextAnchor.UpperLeft; grid.padding = new RectOffset(0, 0, 8, 0);
+        var csf = content.AddComponent<ContentSizeFitter>(); csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        scroll.viewport = srt; scroll.content = crt;
+
+        var sbGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+        sbGo.transform.SetParent(scrollGo.transform, false);
+        var sbRt = sbGo.GetComponent<RectTransform>();
+        sbRt.anchorMin = new Vector2(1, 0); sbRt.anchorMax = new Vector2(1, 1); sbRt.pivot = new Vector2(1, 1);
+        sbRt.sizeDelta = new Vector2(6, 0); sbRt.anchoredPosition = new Vector2(-1, 0);
+        var sbTrack = sbGo.GetComponent<Image>();
+        var trackSpr = LoadPartSprite(PartDir + "/scrollbar_track.png", new Vector4(0, 8, 0, 8));
+        if (trackSpr != null) { sbTrack.sprite = trackSpr; sbTrack.type = Image.Type.Sliced; sbTrack.color = Color.white; }
+        else { sbTrack.sprite = RoundedSprite(); sbTrack.type = Image.Type.Sliced; sbTrack.color = RGBA(40, 46, 54, 0.18f); }
+        var sb = sbGo.GetComponent<Scrollbar>(); sb.direction = Scrollbar.Direction.BottomToTop;
+        var slideArea = new GameObject("Sliding Area", typeof(RectTransform)); slideArea.transform.SetParent(sbGo.transform, false); Stretch(slideArea.GetComponent<RectTransform>());
+        var handle = new GameObject("Handle", typeof(RectTransform), typeof(Image)); handle.transform.SetParent(slideArea.transform, false);
+        var hRt = handle.GetComponent<RectTransform>(); Stretch(hRt);
+        var hImg = handle.GetComponent<Image>();
+        var handleSpr = LoadPartSprite(PartDir + "/scrollbar_handle.png", new Vector4(0, 8, 0, 8));
+        if (handleSpr != null) { hImg.sprite = handleSpr; hImg.type = Image.Type.Sliced; hImg.color = Color.white; }
+        else { hImg.sprite = RoundedSprite(); hImg.type = Image.Type.Sliced; hImg.color = ScrollHandle; }
+        sb.targetGraphic = hImg; sb.handleRect = hRt;
+        scroll.verticalScrollbar = sb; scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
+        return content.transform;
+    }
+
+    // 추출 진행 바 (조작 불가, value 0~1로 채워지는 게이지).
+    static Slider BuildProgressBar(Transform parent)
+    {
+        var go = MakeImage("TimerBar", parent, new Vector2(220, 14), Vector2.zero, RGBA(10, 14, 22, 0.55f));
+        var trackImg = go.GetComponent<Image>(); trackImg.sprite = RoundedSprite(); trackImg.type = Image.Type.Sliced; trackImg.raycastTarget = false;
+        var slider = go.AddComponent<Slider>();
+        slider.transition = Selectable.Transition.None; slider.interactable = false;
+        slider.direction = Slider.Direction.LeftToRight; slider.minValue = 0f; slider.maxValue = 1f; slider.value = 0f;
+
+        var fillArea = new GameObject("Fill Area", typeof(RectTransform));
+        fillArea.transform.SetParent(go.transform, false);
+        var faRt = fillArea.GetComponent<RectTransform>();
+        faRt.anchorMin = new Vector2(0, 0.5f); faRt.anchorMax = new Vector2(1, 0.5f); faRt.pivot = new Vector2(0.5f, 0.5f);
+        faRt.sizeDelta = new Vector2(-4, 10); faRt.anchoredPosition = Vector2.zero;
+
+        var fill = MakeImage("Fill", fillArea.transform, Vector2.zero, Vector2.zero, Cyan);
+        var fRt = fill.GetComponent<RectTransform>();
+        fRt.anchorMin = new Vector2(0, 0); fRt.anchorMax = new Vector2(1, 1); fRt.offsetMin = Vector2.zero; fRt.offsetMax = Vector2.zero;
+        var fImg = fill.GetComponent<Image>(); fImg.sprite = RoundedSprite(); fImg.type = Image.Type.Sliced; fImg.raycastTarget = false;
+
+        slider.fillRect = fRt; slider.targetGraphic = fImg;
+        return slider;
+    }
 }
 
 // SerializedProperty Object 세팅 확장 (이름 충돌 회피용)
