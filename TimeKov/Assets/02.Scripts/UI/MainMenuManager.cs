@@ -63,7 +63,7 @@ public class MainMenuManager : MonoBehaviour
         if (globalSettingsManager != null)
             globalSettingsManager.OpenSettings();
         else
-            Debug.LogError("GlobalSettingsManager�� ������� �ʾҽ��ϴ�!");
+            Debug.LogError("GlobalSettingsManager가 연결되지 않았습니다!");
     }
 
     public void OnClickQuit()

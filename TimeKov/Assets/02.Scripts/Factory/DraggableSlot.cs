@@ -51,14 +51,12 @@ public class DraggableSlot : MonoBehaviour,
 
     public void Clear() => SetItem(0, 0);
 
-    // ���� �巡�� ��������������������������������������������������������������������������������������������
 
     public void OnBeginDrag(PointerEventData e)
     {
         if (!HasItem) { e.pointerDrag = null; return; }
         IsDragging = true;
 
-        // �巡�� �� ������ �ӽ� �̹��� ����
         _dragVisual = new GameObject("DragVisual");
         _dragVisual.transform.SetParent(_canvas.transform, false);
         _dragVisual.transform.SetAsLastSibling();

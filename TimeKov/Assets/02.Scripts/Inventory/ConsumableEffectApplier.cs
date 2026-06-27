@@ -1,18 +1,11 @@
 // =====================================================================
 // ConsumableEffectApplier.cs
-// ConsumableEffectTable �����͸� �о� �÷��̾ ȿ�� ����
-// InventoryManager.UseItem() ������ ȣ��
-// ���� ������ �� Ŭ�������� ���� �ʴ´�
-//   ���� �� InventoryManager.UseItem() ���� TryConsumeItem()
-//   ���� �� Apply ���� �� UseItem() ���� AddItem() ���� ��� ����
 // =====================================================================
 
 using UnityEngine;
 
 public static class ConsumableEffectApplier
 {
-    // ��ȯ��: true=���� / false=����
-    // �����ص� �� Ŭ���� �ȿ��� ������ �ǵ帮�� �ʴ´�
     public static bool Apply(string itemId, Player player)
     {
         bool result = ApplyInternal(itemId, player);
@@ -55,7 +48,7 @@ public static class ConsumableEffectApplier
 
         if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var effect))
         {
-            Debug.LogWarning($"[ConsumableEffect] ������ ����: itemId={itemId}");
+            Debug.LogWarning($"[ConsumableEffect] 데이터 없음: itemId={itemId}");
             return false;
         }
 
@@ -75,20 +68,17 @@ public static class ConsumableEffectApplier
             case ConsumableType.PermanentStat:
                 return ApplyPermanentStat(effect, delta, player);
 
-            // �̹� ���� ����
             case ConsumableType.Stamina:
-                Debug.LogWarning("[ConsumableEffect] Stamina Ÿ�� : �ļ� ���� ���");
+                Debug.LogWarning("[ConsumableEffect] Stamina 타입: 아직 지원하지 않음");
                 return false;
 
             default:
-                Debug.LogWarning($"[ConsumableEffect] ó������ ���� consumableType={effect.consumableType}");
+                Debug.LogWarning($"[ConsumableEffect] 처리되지 않은 consumableType={effect.consumableType}");
                 return false;
         }
     }
 
-    // ���� ȿ���� ó�� ������������������������������������������������������������������������������������
 
-    // ��� HP(Time) ȸ��
     private static bool ApplyHeal(ConsumableEffectSheetData effect, float delta, Player player)
     {
         if (effect.effectValueType == EffectValueType.MaxPercent)
@@ -99,13 +89,12 @@ public static class ConsumableEffectApplier
         return true;
     }
 
-    // ���� ȸ�� : ActiveBuffManager �ڷ�ƾ���� ����
     private static bool ApplySustainHeal(ConsumableEffectSheetData effect, Player player)
     {
         var buffManager = player.GetComponent<ActiveBuffManager>();
         if (buffManager == null)
         {
-            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager ���� : SustainHeal ����");
+            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager 없음: SustainHeal 무시");
             return false;
         }
 
@@ -114,23 +103,21 @@ public static class ConsumableEffectApplier
         return true;
     }
 
-    // ���Ѻ� ���� ����
     private static bool ApplyBuff(string itemId, ConsumableEffectSheetData effect,
                                    float delta, Player player)
     {
-        // �̹� ���� ���� �׸�
         if (effect.effectTarget == EffectTarget.AllStats ||
             effect.effectTarget == EffectTarget.Stamina ||
             effect.effectTarget == EffectTarget.SkillGauge)
         {
-            Debug.LogWarning($"[ConsumableEffect] {effect.effectTarget} : �ļ� ���� ���");
+            Debug.LogWarning($"[ConsumableEffect] {effect.effectTarget}: 아직 지원하지 않는 대상");
             return false;
         }
 
         var buffManager = player.GetComponent<ActiveBuffManager>();
         if (buffManager == null)
         {
-            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager ���� : Buff ����");
+            Debug.LogWarning("[ConsumableEffect] ActiveBuffManager 없음: Buff 무시");
             return false;
         }
 
@@ -163,7 +150,6 @@ public static class ConsumableEffectApplier
         }
     }
 
-    // ���� ��ġ ��� ������������������������������������������������������������������������������������������
 
     private static float CalculateDelta(ConsumableEffectSheetData effect, Player player)
     {
@@ -176,7 +162,6 @@ public static class ConsumableEffectApplier
         };
     }
 
-    // Percent ���� ���� ����
     private static float GetBaseStat(EffectTarget target, Player player)
     {
         return target switch
@@ -188,7 +173,6 @@ public static class ConsumableEffectApplier
         };
     }
 
-    // MaxPercent ���� �ִ� ����
     private static float GetMaxStat(EffectTarget target, Player player)
     {
         return target switch
