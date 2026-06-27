@@ -26,7 +26,12 @@ public class CoreUpgradeUI : MonoBehaviour
 
     // ── 코어 비주얼 ───────────────────────────────────────────────────
     [Header("코어 비주얼")]
-    [SerializeField] private Image coreImage;
+    [SerializeField] private Image coreImage;              // 중앙 구체. 위치/연출 기준.
+    [SerializeField] private CanvasGroup coreVisualGroup;  // 후광+링+구체 묶음(시계 전환 시 통째 페이드)
+    [SerializeField] private RectTransform coreRingA;      // 회전 링 A(가로 기운 고리)
+    [SerializeField] private RectTransform coreRingB;      // 회전 링 B(세로 기운 고리, 반대 회전)
+    [SerializeField] private float ringASpeedDeg = 22f;    // 링 A 회전 속도(도/초)
+    [SerializeField] private float ringBSpeedDeg = -31f;   // 링 B 회전 속도(반대 방향)
     [SerializeField] private Image[] constellationNodes;   // 별자리 10노드(점등 = 강화 단계).
     [SerializeField] private TextMeshProUGUI[] effectRows; // 효과 리스트(최대시간/부활/대쉬/흡수). 미해금=???.
     [SerializeField] private Image[] kitStockIcons;        // 좌측 보유 키트 아이콘 5(I~V)
@@ -181,6 +186,8 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         if (!IsPanelOpen()) return;
 
+        SpinCoreRings();
+
         // 스핀 중 Space로도 정지
         if (_phase == CatchPhase.Spin && Input.GetKeyDown(KeyCode.Space))
         {
@@ -255,6 +262,37 @@ public class CoreUpgradeUI : MonoBehaviour
         if (!isMax) RefreshKitPanel(mgr, next);
     }
 
+    // ── 코어 비주얼 (구체 + 회전 링 + 페이드) ─────────────────────────
+
+    // 두 링을 서로 다른 속도/방향으로 Z회전 = 자이로스코프 느낌. 정지(timeScale 0)에서도 돌게 unscaled.
+    private void SpinCoreRings()
+    {
+        float dt = Time.unscaledDeltaTime;
+        if (coreRingA != null) coreRingA.Rotate(0f, 0f, ringASpeedDeg * dt);
+        if (coreRingB != null) coreRingB.Rotate(0f, 0f, ringBSpeedDeg * dt);
+    }
+
+    // 코어 비주얼(구체+링+후광) 통째 알파. CanvasGroup이 있으면 그걸로, 없으면 구체 색 폴백.
+    private void SetCoreVisualAlpha(float a)
+    {
+        if (coreVisualGroup != null) { coreVisualGroup.alpha = a; return; }
+        if (coreImage != null) { var c = coreImage.color; c.a = a; coreImage.color = c; }
+    }
+
+    // 코어의 panel 좌표(연출 생성용). 코어 비주얼은 CanvasGroup으로 묶여 시계 전환 시 투명해지므로,
+    // 버스트/링 연출은 그 그룹 '밖'(panel)에 panel 좌표로 만들어야 시계 모드에서도 보인다.
+    private bool GetCorePanelPos(out RectTransform parent, out Vector2 pos)
+    {
+        parent = null; pos = Vector2.zero;
+        if (coreImage == null) return false;
+        var coreRt   = coreImage.rectTransform;
+        var visualRt = coreRt.parent as RectTransform;          // CoreVisual(묶음)
+        parent = (visualRt != null ? visualRt.parent : coreRt.parent) as RectTransform;   // panel
+        if (parent == null) return false;
+        pos = visualRt != null ? visualRt.anchoredPosition : coreRt.anchoredPosition;
+        return true;
+    }
+
     // ── 별자리 (노드 점등 + 연결선) ───────────────────────────────────
 
     // i<level=달성(점등), i==level=다음 목표(골드 테두리), i>level=미점등.
@@ -308,22 +346,26 @@ public class CoreUpgradeUI : MonoBehaviour
         if (_linesBuilt) return;
         if (constellationNodes == null || constellationNodes.Length == 0) return;
         if (coreImage == null) return;
-        var parent = coreImage.rectTransform.parent as RectTransform;   // panel
+        // 코어는 CoreVisual(묶음) 안에 있으므로 panel = 코어.parent.parent, 코어중심 = CoreVisual 위치.
+        var coreRt   = coreImage.rectTransform;
+        var visualRt = coreRt.parent as RectTransform;                 // CoreVisual
+        var parent   = (visualRt != null ? visualRt.parent : coreRt.parent) as RectTransform;   // panel
         if (parent == null) return;
         _linesBuilt = true;
 
-        // 선 전용 컨테이너 (코어보다 뒤 = 더 작은 sibling index)
+        // 선 전용 컨테이너 (코어 비주얼보다 뒤 = 더 작은 sibling index)
         var container = new GameObject("ConstellationLines", typeof(RectTransform));
         var crt = (RectTransform)container.transform;
         crt.SetParent(parent, false);
         crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
         crt.anchoredPosition = Vector2.zero;
         crt.sizeDelta        = Vector2.zero;
-        crt.SetSiblingIndex(Mathf.Max(0, coreImage.transform.GetSiblingIndex()));
+        int coreSibling = visualRt != null ? visualRt.GetSiblingIndex() : coreRt.GetSiblingIndex();
+        crt.SetSiblingIndex(Mathf.Max(0, coreSibling));
 
         int n = constellationNodes.Length;
         _lines = new RectTransform[n + 1];   // [n] = 마지막->처음 닫는 선(별자리 폐곡선, 만렙 때만 점등)
-        Vector2 corePos = coreImage.rectTransform.anchoredPosition;
+        Vector2 corePos = visualRt != null ? visualRt.anchoredPosition : coreRt.anchoredPosition;
 
         for (int i = 0; i < n; i++)
         {
@@ -482,10 +524,7 @@ public class CoreUpgradeUI : MonoBehaviour
     // 10단계 완성: 중앙 큰 버스트 + 모든 연결선 골드 플래시
     private void PlayConstellationComplete()
     {
-        if (coreImage == null) return;
-        var parent = coreImage.rectTransform.parent as RectTransform;
-        if (parent == null) return;
-        Vector2 c = coreImage.rectTransform.anchoredPosition;
+        if (!GetCorePanelPos(out var parent, out var c)) return;
 
         var ring = MakeFxImage("CompleteRing", parent, c, 200f, UISpriteFactory.Ring(128, 6f));
         ring.color = RingTarget;
@@ -707,18 +746,17 @@ public class CoreUpgradeUI : MonoBehaviour
         if (toClock && clockGroup != null) clockGroup.gameObject.SetActive(true);
 
         float e = 0f;
-        Color cc = coreImage != null ? coreImage.color : Color.white;
         while (e < crossfadeDur)
         {
             e += Time.unscaledDeltaTime;
             float k = Mathf.Clamp01(e / crossfadeDur);
             float clockA = toClock ? k : 1f - k;
-            if (coreImage != null) { cc.a = 1f - clockA; coreImage.color = cc; }
+            SetCoreVisualAlpha(1f - clockA);
             if (clockGroup != null) clockGroup.alpha = clockA;
             yield return null;
         }
 
-        if (coreImage != null) { cc.a = toClock ? 0f : 1f; coreImage.color = cc; }
+        SetCoreVisualAlpha(toClock ? 0f : 1f);
         if (clockGroup != null)
         {
             clockGroup.alpha = toClock ? 1f : 0f;
@@ -774,7 +812,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (_fadeCo != null) { StopCoroutine(_fadeCo); _fadeCo = null; }
 
         if (clockGroup != null) { clockGroup.alpha = 0f; clockGroup.gameObject.SetActive(false); }
-        if (coreImage != null) { var c = coreImage.color; c.a = 1f; coreImage.color = c; }
+        SetCoreVisualAlpha(1f);
         if (spinHint != null) spinHint.SetActive(false);
         if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
         if (clockNeedle != null) clockNeedle.localRotation = Quaternion.identity;
@@ -850,13 +888,10 @@ public class CoreUpgradeUI : MonoBehaviour
         go.SetActive(false);
     }
 
-    // 성공: 코어 자리에 링 + 디스크 버스트
+    // 성공: 코어 자리에 링 + 디스크 버스트 (코어 비주얼 CanvasGroup 밖 = panel에 생성)
     private void PlaySuccessBurst()
     {
-        if (coreImage == null) return;
-        var parent = coreImage.rectTransform.parent as RectTransform;
-        if (parent == null) return;
-        Vector2 pos = coreImage.rectTransform.anchoredPosition;
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
 
         var ring = MakeFxImage("ResultRing", parent, pos, 120f, UISpriteFactory.Ring(96, 5f));
         ring.color = perfectColor;
@@ -875,6 +910,7 @@ public class CoreUpgradeUI : MonoBehaviour
     private void PlayFailShake()
     {
         RectTransform t = clockGroup != null ? clockGroup.transform as RectTransform
+                        : coreVisualGroup != null ? coreVisualGroup.transform as RectTransform
                         : coreImage != null ? coreImage.rectTransform : null;
         if (t == null) return;
         t.DOShakeAnchorPos(0.4f, new Vector2(16f, 7f), 18, 90, false, true).SetUpdate(true);

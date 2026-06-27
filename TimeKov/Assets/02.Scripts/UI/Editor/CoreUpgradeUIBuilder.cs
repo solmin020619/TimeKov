@@ -76,19 +76,33 @@ public static class CoreUpgradeUIBuilder
         GameObject panel = MakeImage("Panel", panelRootTr, new Vector2(1600, 900), Vector2.zero, Hex("1A202A", 0));
         panel.GetComponent<Image>().raycastTarget = false;
 
-        // 코어 글로우 (코어 뒤 은은한 빛)
-        var glow = MakeImage("CoreGlow", panel.transform, new Vector2(560, 560), new Vector2(0, CoreY), Color.white);
+        // 코어 비주얼 = 후광 + 회전 링 2개 + 구체 (자이로스코프형 모델 PNG).
+        // CanvasGroup으로 묶어 시계 전환 시 통째로 페이드(coreVisualGroup). 자식 순서 = 그리는 순서(뒤->앞).
+        GameObject coreVisual = MakeEmptyAt("CoreVisual", panel.transform, new Vector2(560, 560), new Vector2(0, CoreY));
+        coreVisual.AddComponent<CanvasGroup>();
+        SetRef(so, "coreVisualGroup", coreVisual.GetComponent<CanvasGroup>());
+
+        // 후광 (제일 뒤 은은한 빛)
+        var glow = MakeImage("CoreGlow", coreVisual.transform, new Vector2(560, 560), Vector2.zero, Color.white);
         SetSpr(glow, LoadSpr("Core_Glow"), Image.Type.Simple);
 
-        // 데코 링
-        var dring = MakeImage("DecoRing", panel.transform, new Vector2(360, 360), new Vector2(0, CoreY), Color.white);
-        SetSpr(dring, LoadSpr("Deco_Ring"), Image.Type.Simple);
+        // 링 B (구체 뒤, 세로로 기운 고리) - 런타임에 Z회전
+        GameObject ringBGo = MakeImage("CoreRingB", coreVisual.transform, new Vector2(360, 360), Vector2.zero, Color.white);
+        SetSpr(ringBGo, LoadSpr("CoreRingB"), Image.Type.Simple);
+        ringBGo.GetComponent<Image>().preserveAspect = true;
+        SetRef(so, "coreRingB", ringBGo.GetComponent<RectTransform>());
 
-        // 코어 본체 (중앙)
-        GameObject coreGo = MakeImage("CoreImage", panel.transform, new Vector2(230, 230), new Vector2(0, CoreY), Color.white);
-        SetSpr(coreGo, LoadSpr("core"), Image.Type.Simple);
+        // 코어 구체 (중앙). 위치/연출 기준 = coreImage.
+        GameObject coreGo = MakeImage("CoreImage", coreVisual.transform, new Vector2(200, 200), Vector2.zero, Color.white);
+        SetSpr(coreGo, LoadSpr("CoreOrb_glow"), Image.Type.Simple);
         coreGo.GetComponent<Image>().preserveAspect = true;
         SetRef(so, "coreImage", coreGo.GetComponent<Image>());
+
+        // 링 A (구체 앞, 가로로 누운 고리) - 런타임에 반대 방향 Z회전
+        GameObject ringAGo = MakeImage("CoreRingA", coreVisual.transform, new Vector2(360, 360), Vector2.zero, Color.white);
+        SetSpr(ringAGo, LoadSpr("CoreRingA"), Image.Type.Simple);
+        ringAGo.GetComponent<Image>().preserveAspect = true;
+        SetRef(so, "coreRingA", ringAGo.GetComponent<RectTransform>());
 
         // -- 10단계 노드 원형 배치 (12시부터 시계방향). 1단계는 전부 미점등. --
         var nodeImgs = new Object[NodeCount];
@@ -625,6 +639,18 @@ public static class CoreUpgradeUIBuilder
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
         rt.offsetMin = rt.offsetMax = Vector2.zero;
+        return go;
+    }
+
+    // 중앙 앵커 + 크기/위치 지정 빈 컨테이너 (코어 비주얼 묶음 등)
+    static GameObject MakeEmptyAt(string name, Transform parent, Vector2 size, Vector2 pos)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta        = size;
+        rt.anchoredPosition = pos;
         return go;
     }
 
