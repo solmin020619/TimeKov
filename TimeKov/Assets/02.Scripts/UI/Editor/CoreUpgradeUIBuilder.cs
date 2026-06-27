@@ -115,6 +115,12 @@ public static class CoreUpgradeUIBuilder
         }
         SetRefArray(so, "constellationNodes", nodeImgs);
 
+        // 강화 성공/실패 연출용 균열(번개) 프레임 CoreCrackle_00~15 연결
+        var crackleFrames = new Object[16];
+        for (int i = 0; i < 16; i++)
+            crackleFrames[i] = LoadSprAt($"Assets/Resources/CoreUI/sprites/CoreCrackle/CoreCrackle_{i:00}.png");
+        SetRefArray(so, "crackleFrames", crackleFrames);
+
         // -- 타이틀 / 레벨 뱃지 / 닫기 --
         var title = MakeTMP("TitleText", panel.transform, new Vector2(500, 44), new Vector2(0, 420),
             "코어 <color=#5FC4FF>강화</color>", 30, Hex("EAF3FB"), TextAlignmentOptions.Center);
@@ -137,7 +143,6 @@ public static class CoreUpgradeUIBuilder
         // -- 효과 리스트 패널 (우측) = 코어 단계별 효과 + 다음 강화 미리보기(???/+N) --
         GameObject fxPanel = MakeImage("EffectPanel", panel.transform, new Vector2(388, 348), new Vector2(566, CoreY - 6f), Color.white);
         SetSpr(fxPanel, LoadSpr("Panel_Frame_Sci", 44), Image.Type.Sliced);   // sci-fi 프레임(테두리/코너/divider 포함)
-        AddPanelGlow(fxPanel, new Vector2(388, 348));
         MakeTMP("EffectTitle", fxPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "코어 효과", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         var fxRows = new Object[4];
         string[] fxSeed = { "최대 시간", "부활 체력", "우클릭 대쉬", "흡수율" };
@@ -151,17 +156,16 @@ public static class CoreUpgradeUIBuilder
         // -- 보유 코어 키트 패널 (좌측) = 키트 I~V 아이콘 + 보유 개수(가방+창고 합산) --
         GameObject ksPanel = MakeImage("KitStockPanel", panel.transform, new Vector2(388, 348), new Vector2(-566, CoreY - 6f), Color.white);
         SetSpr(ksPanel, LoadSpr("Panel_Frame_Sci", 44), Image.Type.Sliced);   // sci-fi 프레임(테두리/코너/divider 포함)
-        AddPanelGlow(ksPanel, new Vector2(388, 348));
         MakeTMP("KitStockTitle", ksPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "보유 코어 키트", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         var ksIcons = new Object[5];
         var ksTexts = new Object[5];
         for (int i = 0; i < 5; i++)
         {
-            float ry = 90 - i * 52;
-            var ksIc = MakeImage($"KitStockIcon{i}", ksPanel.transform, new Vector2(46, 46), new Vector2(-150, ry), Color.white);
+            float ry = 82 - i * 50;   // 제목과 간격 확보 + 행 여백 넉넉히(빽빽함 해소)
+            var ksIc = MakeImage($"KitStockIcon{i}", ksPanel.transform, new Vector2(42, 42), new Vector2(-150, ry), Color.white);
             ksIc.GetComponent<Image>().preserveAspect = true;
             ksIcons[i] = ksIc.GetComponent<Image>();
-            ksTexts[i] = MakeTMP($"KitStockText{i}", ksPanel.transform, new Vector2(264, 40), new Vector2(30, ry), "코어 키트", 18, Hex("C7D6E6"), TextAlignmentOptions.Left);
+            ksTexts[i] = MakeTMP($"KitStockText{i}", ksPanel.transform, new Vector2(266, 38), new Vector2(28, ry), "코어 키트", 17, Hex("C7D6E6"), TextAlignmentOptions.Left);
         }
         SetRefArray(so, "kitStockIcons", ksIcons);
         SetRefArray(so, "kitStockTexts", ksTexts);
@@ -298,7 +302,7 @@ public static class CoreUpgradeUIBuilder
     }
 
     // ── 타임 캐치 단독 추가 ───────────────────────────────────────────
-    [MenuItem("Tools/TIMEKOV/코어 강화 타임캐치 UI 추가")]
+    // [MenuItem("Tools/TIMEKOV/코어 강화 타임캐치 UI 추가")]   // 메뉴 정리: 숨김(인라인 시계로 통합됨, 필요시 주석 해제)
     public static void AddTimeCatch()
     {
         var panelGo = Selection.activeGameObject;
@@ -509,16 +513,6 @@ public static class CoreUpgradeUIBuilder
         AddCornerDot(panel.transform, new Vector2( hw,  hh));
         AddCornerDot(panel.transform, new Vector2(-hw, -hh));
         AddCornerDot(panel.transform, new Vector2( hw, -hh));
-    }
-
-    // 패널 안쪽/뒤 은은한 시안 글로우 (프레임 위, 내용 아래 = 첫 자식). 패널이 빛나 보이게.
-    static void AddPanelGlow(GameObject panel, Vector2 size)
-    {
-        var glow = MakeImage("PanelGlow", panel.transform, size + new Vector2(36f, 36f), Vector2.zero, Hex("5FC4FF", 24));
-        var gimg = glow.GetComponent<Image>();
-        gimg.sprite        = UISpriteFactory.RoundedRect(96, 44);
-        gimg.raycastTarget = false;
-        glow.transform.SetAsFirstSibling();
     }
 
     static void AddCornerDot(Transform parent, Vector2 pos)

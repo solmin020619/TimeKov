@@ -106,6 +106,7 @@ public class CoreUpgradeUI : MonoBehaviour
     [Header("결과 연출")]
     [SerializeField] private Color successFlashColor = new Color(0.27f, 0.88f, 0.54f, 0.35f);
     [SerializeField] private Color failFlashColor    = new Color(1f,    0.38f, 0.41f, 0.35f);
+    [SerializeField] private Sprite[] crackleFrames;   // CoreCrackle 16프레임(에너지 균열/번개)
     private Image _flashOverlay;   // 런타임 생성 전체화면 플래시
 
     // 부가 스탯 행 — 런타임 생성(빌더 재실행 불필요, 현재 패널 위에 얹음).
@@ -864,8 +865,73 @@ public class CoreUpgradeUI : MonoBehaviour
             feedbackText.transform.DOPunchScale(Vector3.one * 0.35f, 0.5f, 6, 0.7f).SetUpdate(true);
         }
 
-        if (success) PlaySuccessBurst();
-        else         PlayFailShake();
+        if (success)
+        {
+            PlayCrackle(new Color(0.72f, 0.92f, 1f, 1f), 400f, 0.035f);   // 시안 에너지 균열 분출
+            PlaySuccessBurst();
+            PlaySparks(16, perfectColor, goodColor);
+        }
+        else
+        {
+            PlayCrackle(new Color(1f, 0.48f, 0.43f, 1f), 340f, 0.045f);   // 붉은 균열(금이 감)
+            PlayFailShake();
+            PlayImplosionRing(missColor);
+        }
+    }
+
+    // CoreCrackle 16프레임을 코어 자리에 한 번 재생 (성공=시안 / 실패=붉은 틴트).
+    private void PlayCrackle(Color tint, float size, float frameDur)
+    {
+        if (crackleFrames == null || crackleFrames.Length == 0) return;
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
+        StartCoroutine(CrackleRoutine(parent, pos, tint, size, frameDur));
+    }
+
+    private IEnumerator CrackleRoutine(RectTransform parent, Vector2 pos, Color tint, float size, float frameDur)
+    {
+        var img = MakeFxImage("Crackle", parent, pos, size, crackleFrames[0]);
+        for (int i = 0; i < crackleFrames.Length; i++)
+        {
+            if (img == null) yield break;
+            if (crackleFrames[i] != null) img.sprite = crackleFrames[i];
+            float k = 1f - (i / (float)crackleFrames.Length) * 0.5f;   // 끝으로 갈수록 잔광처럼 옅게
+            var c = tint; c.a *= k; img.color = c;
+            yield return new WaitForSecondsRealtime(frameDur);
+        }
+        if (img != null) Destroy(img.gameObject);
+    }
+
+    // 코어 중심에서 사방으로 튀는 스파크 (작은 점이 바깥으로 이동 + 소멸)
+    private void PlaySparks(int count, Color colorA, Color colorB)
+    {
+        if (!GetCorePanelPos(out var parent, out var center)) return;
+        var spr = UISpriteFactory.Disc(16);
+        for (int i = 0; i < count; i++)
+        {
+            float ang  = (360f / count) * i + Random.Range(-12f, 12f);
+            float rad  = ang * Mathf.Deg2Rad;
+            float dist = 120f + Random.Range(0f, 120f);
+            Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+            float sz = 5f + Random.Range(0f, 5f);
+
+            var sp = MakeFxImage($"Spark{i}", parent, center, sz, spr);
+            sp.color = (i % 2 == 0) ? colorA : colorB;
+            var rt = sp.rectTransform;
+            rt.DOAnchorPos(center + dir * dist, 0.5f).SetUpdate(true).SetEase(Ease.OutCubic);
+            rt.DOScale(0.2f, 0.5f).SetUpdate(true);
+            sp.DOFade(0f, 0.5f).SetUpdate(true).OnComplete(() => { if (sp != null) Destroy(sp.gameObject); });
+        }
+    }
+
+    // 실패: 바깥에서 안으로 수축하는 붉은 링 (implosion)
+    private void PlayImplosionRing(Color color)
+    {
+        if (!GetCorePanelPos(out var parent, out var pos)) return;
+        var ring = MakeFxImage("ImplodeRing", parent, pos, 260f, UISpriteFactory.Ring(128, 5f));
+        ring.color = color;
+        ring.rectTransform.localScale = Vector3.one * 1.6f;
+        ring.rectTransform.DOScale(0.5f, 0.45f).SetUpdate(true).SetEase(Ease.InCubic);
+        ring.DOFade(0f, 0.45f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
     }
 
     private void EnsureFlashOverlay()
@@ -893,6 +959,13 @@ public class CoreUpgradeUI : MonoBehaviour
         ring.rectTransform.localScale = Vector3.one * 0.6f;
         ring.rectTransform.DOScale(2.6f, 0.6f).SetUpdate(true).SetEase(Ease.OutCubic);
         ring.DOFade(0f, 0.6f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
+
+        // 2차 링 (더 크게/얇게) = 이중 충격파
+        var ring2 = MakeFxImage("ResultRing2", parent, pos, 150f, UISpriteFactory.Ring(96, 3f));
+        ring2.color = new Color(0.42f, 0.78f, 1f, 0.9f);
+        ring2.rectTransform.localScale = Vector3.one * 0.5f;
+        ring2.rectTransform.DOScale(3.4f, 0.8f).SetUpdate(true).SetEase(Ease.OutCubic);
+        ring2.DOFade(0f, 0.8f).SetUpdate(true).OnComplete(() => { if (ring2 != null) Destroy(ring2.gameObject); });
 
         var disc = MakeFxImage("ResultDisc", parent, pos, 110f, UISpriteFactory.Disc(96));
         disc.color = new Color(goodColor.r, goodColor.g, goodColor.b, 0.7f);

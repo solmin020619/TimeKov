@@ -8,7 +8,7 @@ using UnityEngine;
 // 메뉴: Tools > TIMEKOV > Codex > 몬스터 설정 자동 채우기
 public static class CodexConfigPopulator
 {
-    [MenuItem("Tools/TIMEKOV/Codex/몬스터 설정 자동 채우기")]
+    // [MenuItem("Tools/TIMEKOV/Codex/몬스터 설정 자동 채우기")]   // 메뉴 정리: 숨김(필요시 주석 해제)
     public static void Populate()
     {
         // 1) 설정 에셋 찾기(없으면 Resources/Codex 에 생성)
@@ -58,7 +58,7 @@ public static class CodexConfigPopulator
 
     // 기존 영상 튜토(TutorialVideoObjective)의 페이지를 도감 튜토 설정으로 복붙.
     // 영상 추가/삭제 따라가게 매번 새로 채운다(튜토는 별도 튜닝 없음).
-    [MenuItem("Tools/TIMEKOV/Codex/튜토리얼 영상 설정 자동 채우기")]
+    // [MenuItem("Tools/TIMEKOV/Codex/튜토리얼 영상 설정 자동 채우기")]   // 메뉴 정리: 숨김(필요시 주석 해제)
     public static void PopulateTutorial()
     {
         CodexTutorialConfig cfg;
