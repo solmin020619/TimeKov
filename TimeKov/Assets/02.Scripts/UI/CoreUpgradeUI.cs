@@ -142,6 +142,7 @@ public class CoreUpgradeUI : MonoBehaviour
     private Coroutine _fadeCo;
     private Coroutine _feedbackRoutine;
     private Coroutine _introCo;   // 패널 열릴 때 별자리 순차 등장 연출
+    private CanvasGroup _starsGroup;   // 배경 별 페이드용 (런타임에 Stars에 부착)
     private Color _btnNormalColor = Color.white;
 
     // F 열기/닫기 충돌 방지용 프레임 가드.
@@ -209,6 +210,7 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         panelRoot?.SetActive(true);
         _openedFrame = Time.frameCount;
+        EnsureUpgradeLayout();            // 강화 버튼 위치/배경/발광 코드로 보장(메뉴 재실행 불필요)
         ResetCatchVisual();
         Refresh();
         PlayIntroSequence();              // 별자리 순차 등장(시각 연출, 강화는 즉시 가능)
@@ -308,24 +310,73 @@ public class CoreUpgradeUI : MonoBehaviour
         _introCo = StartCoroutine(IntroRoutine());
     }
 
+    // 배경 별 묶음 CanvasGroup (없으면 런타임에 Stars에 부착)
+    private CanvasGroup EnsureStarsGroup()
+    {
+        if (_starsGroup != null) return _starsGroup;
+        if (panelRoot == null) return null;
+        var stars = panelRoot.transform.Find("Stars");
+        if (stars == null) return null;
+        _starsGroup = stars.GetComponent<CanvasGroup>();
+        if (_starsGroup == null) _starsGroup = stars.gameObject.AddComponent<CanvasGroup>();
+        return _starsGroup;
+    }
+
+    // 사이드 패널 = SetRef된 자식(효과행/키트텍스트)의 부모로 역참조 (빌더 수정 불필요)
+    private RectTransform GetEffectPanel()
+        => (effectRows != null && effectRows.Length > 0 && effectRows[0] != null)
+            ? effectRows[0].transform.parent as RectTransform : null;
+
+    private RectTransform GetKitStockPanel()
+        => (kitStockTexts != null && kitStockTexts.Length > 0 && kitStockTexts[0] != null)
+            ? kitStockTexts[0].transform.parent as RectTransform : null;
+
+    // 패널 즉시 숨김 (오프닝 시작 시)
+    private void HidePanelInstant(RectTransform panel)
+    {
+        if (panel == null) return;
+        var cg = panel.GetComponent<CanvasGroup>();
+        if (cg == null) cg = panel.gameObject.AddComponent<CanvasGroup>();
+        cg.DOKill(); panel.DOKill();
+        cg.alpha = 0f;
+        panel.localScale = Vector3.one * 0.9f;
+    }
+
+    // 패널 등장 (페이드 + 살짝 스케일)
+    private void RevealPanel(RectTransform panel)
+    {
+        if (panel == null) return;
+        var cg = panel.GetComponent<CanvasGroup>();
+        if (cg == null) cg = panel.gameObject.AddComponent<CanvasGroup>();
+        cg.DOFade(1f, 0.25f).SetUpdate(true);
+        panel.DOScale(1f, 0.3f).SetUpdate(true).SetEase(Ease.OutBack);
+    }
+
+    private void RestorePanelInstant(RectTransform panel)
+    {
+        if (panel == null) return;
+        panel.DOKill();
+        panel.localScale = Vector3.one;
+        var cg = panel.GetComponent<CanvasGroup>();
+        if (cg != null) { cg.DOKill(); cg.alpha = 1f; }
+    }
+
     private IEnumerator IntroRoutine()
     {
-        // 코어 중앙 팝
+        var starsCg = EnsureStarsGroup();
+        var ksPanel = GetKitStockPanel();
+        var fxPanel = GetEffectPanel();
         Transform coreTr = coreVisualGroup != null ? coreVisualGroup.transform
                          : coreImage != null ? coreImage.transform : null;
-        if (coreTr != null)
-        {
-            coreTr.DOKill();
-            coreTr.localScale = Vector3.zero;
-            coreTr.DOScale(1f, 0.45f).SetUpdate(true).SetEase(Ease.OutBack);
-        }
 
-        // 노드 숨김 (scale 0)
+        // === 0) 전부 숨긴 채 시작 ===
+        if (starsCg != null) { starsCg.DOKill(); starsCg.alpha = 0f; }
+        HidePanelInstant(ksPanel);
+        HidePanelInstant(fxPanel);
+        if (coreTr != null) { coreTr.DOKill(); coreTr.localScale = Vector3.zero; }
         if (constellationNodes != null)
             foreach (var nd in constellationNodes)
                 if (nd != null) { nd.transform.DOKill(); nd.transform.localScale = Vector3.zero; }
-
-        // 연결선 숨김 (alpha 0) + 원래 색 저장
         Color[] saved = null;
         if (_lines != null)
         {
@@ -340,29 +391,41 @@ public class CoreUpgradeUI : MonoBehaviour
                 var c = im.color; c.a = 0f; im.color = c;
             }
         }
+        yield return new WaitForSecondsRealtime(0.2f);
 
-        yield return new WaitForSecondsRealtime(0.22f);
+        // === 1) 좌우 패널 동시 등장 ===
+        RevealPanel(ksPanel);
+        RevealPanel(fxPanel);
+        yield return new WaitForSecondsRealtime(0.4f);
 
-        // 시계방향 순차 등장 (파바바방)
+        // === 2) 별 배경 차오름 ===
+        if (starsCg != null) starsCg.DOFade(1f, 0.45f).SetUpdate(true);
+        yield return new WaitForSecondsRealtime(0.6f);
+
+        // === 3) 코어 중앙 팝 ===
+        if (coreTr != null) coreTr.DOScale(1f, 0.3f).SetUpdate(true).SetEase(Ease.OutBack);
+        yield return new WaitForSecondsRealtime(0.5f);
+
+        // === 4) 노드 시계방향 순차 점등 + 연결선 따라 그려짐 (파바방) ===
         int n = constellationNodes != null ? constellationNodes.Length : 0;
         for (int i = 0; i < n; i++)
         {
             var node = constellationNodes[i];
             if (node != null)
-                node.transform.DOScale(1f, 0.32f).SetUpdate(true).SetEase(Ease.OutBack);
+                node.transform.DOScale(1f, 0.2f).SetUpdate(true).SetEase(Ease.OutBack);
             if (_lines != null && i < _lines.Length && _lines[i] != null && saved != null)
             {
                 var im = _lines[i].GetComponent<Image>();
-                if (im != null) im.DOColor(saved[i], 0.28f).SetUpdate(true);
+                if (im != null) im.DOColor(saved[i], 0.15f).SetUpdate(true);
             }
             yield return new WaitForSecondsRealtime(0.07f);
         }
 
-        // 닫는 선(폐곡선) 마지막에
+        // === 5) 닫는 선(폐곡선) 마지막에 ===
         if (_lines != null && n < _lines.Length && _lines[n] != null && saved != null)
         {
             var im = _lines[n].GetComponent<Image>();
-            if (im != null) im.DOColor(saved[n], 0.3f).SetUpdate(true);
+            if (im != null) im.DOColor(saved[n], 0.2f).SetUpdate(true);
         }
 
         _introCo = null;
@@ -373,6 +436,12 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         if (_introCo == null) return;
         StopCoroutine(_introCo); _introCo = null;
+
+        // 별/패널 즉시 복원
+        var starsCg = EnsureStarsGroup();
+        if (starsCg != null) { starsCg.DOKill(); starsCg.alpha = 1f; }
+        RestorePanelInstant(GetKitStockPanel());
+        RestorePanelInstant(GetEffectPanel());
 
         Transform coreTr = coreVisualGroup != null ? coreVisualGroup.transform
                          : coreImage != null ? coreImage.transform : null;
@@ -638,6 +707,40 @@ public class CoreUpgradeUI : MonoBehaviour
             }
     }
 
+    // 강화 버튼 상태색 (가능 = 밝은 시안 강조 / 불가 = 어두운 회청 + 흐린 글자)
+    private static readonly Color BtnReadyColor    = new Color(0.20f, 0.66f, 0.95f, 1f);
+    private static readonly Color BtnLockedColor   = new Color(0.14f, 0.19f, 0.27f, 0.90f);
+    private static readonly Color BtnTextReady     = Color.white;
+    private static readonly Color BtnTextLocked    = new Color(0.52f, 0.60f, 0.70f, 1f);
+    private static readonly Color BtnGlowReady     = new Color(0.45f, 0.88f, 1f,   0.95f);
+    private static readonly Color BtnGlowLocked    = new Color(0.28f, 0.34f, 0.42f, 0.45f);
+    private UnityEngine.UI.Outline _btnGlow;
+
+    // 강화 버튼을 메뉴 재실행 없이도 또렷하게: 위치 위로 + 어두운 강철 스프라이트를 둥근 단색으로 교체 + 발광 테두리.
+    private void EnsureUpgradeLayout()
+    {
+        if (upgradeButton == null) return;
+
+        // 위치 (하단바 + 버튼 함께 위로, 노드와 28px 띄움)
+        var infoGroup = upgradeButton.transform.parent;
+        var bar = infoGroup != null ? infoGroup.Find("BottomBar") as RectTransform : null;
+        if (bar != null) bar.anchoredPosition = new Vector2(0f, -320f);
+        var btnRt = upgradeButton.GetComponent<RectTransform>();
+        if (btnRt != null) { btnRt.anchoredPosition = new Vector2(0f, -434f); btnRt.sizeDelta = new Vector2(380f, 66f); }
+
+        // 배경 = 둥근 단색(어두운 강철 스프라이트 대체 -> 색이 또렷하게 살아남)
+        if (upgradeButton.image != null)
+        {
+            upgradeButton.image.sprite = UISpriteFactory.RoundedRect(96, 20);
+            upgradeButton.image.type   = Image.Type.Simple;
+        }
+
+        // 발광 테두리 (활성 시 시안빛)
+        _btnGlow = upgradeButton.GetComponent<UnityEngine.UI.Outline>();
+        if (_btnGlow == null) _btnGlow = upgradeButton.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        _btnGlow.effectDistance = new Vector2(2.5f, -2.5f);
+    }
+
     private void RefreshButton()
     {
         var mgr = CoreUpgradeManager.Instance;
@@ -646,14 +749,17 @@ public class CoreUpgradeUI : MonoBehaviour
         bool canUpgrade = mgr.CanUpgrade();
         if (upgradeButton != null)
         {
-            upgradeButton.interactable = true;
+            upgradeButton.interactable = true;   // 클릭은 항상 받되(부족 토스트 안내), 색으로 가능여부 표시
             if (upgradeButton.image != null)
-            {
-                Color grey = _btnNormalColor * 0.5f; grey.a = _btnNormalColor.a;
-                upgradeButton.image.color = canUpgrade ? _btnNormalColor : grey;
-            }
+                upgradeButton.image.color = canUpgrade ? BtnReadyColor : BtnLockedColor;
         }
-        if (upgradeButtonText != null) upgradeButtonText.text = "강화";
+        if (_btnGlow != null)
+            _btnGlow.effectColor = canUpgrade ? BtnGlowReady : BtnGlowLocked;
+        if (upgradeButtonText != null)
+        {
+            upgradeButtonText.text  = canUpgrade ? "강화" : "키트 부족";
+            upgradeButtonText.color = canUpgrade ? BtnTextReady : BtnTextLocked;
+        }
     }
 
     private void RefreshKitPanel(CoreUpgradeManager mgr, CoreLevelDataSheetData next)
