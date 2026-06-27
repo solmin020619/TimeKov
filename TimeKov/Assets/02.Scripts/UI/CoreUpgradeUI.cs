@@ -210,6 +210,7 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         panelRoot?.SetActive(true);
         _openedFrame = Time.frameCount;
+        EnsureUpgradeLayout();            // 강화 버튼 위치/배경/발광 코드로 보장(메뉴 재실행 불필요)
         ResetCatchVisual();
         Refresh();
         PlayIntroSequence();              // 별자리 순차 등장(시각 연출, 강화는 즉시 가능)
@@ -707,10 +708,38 @@ public class CoreUpgradeUI : MonoBehaviour
     }
 
     // 강화 버튼 상태색 (가능 = 밝은 시안 강조 / 불가 = 어두운 회청 + 흐린 글자)
-    private static readonly Color BtnReadyColor    = new Color(0.18f, 0.62f, 0.90f, 1f);
-    private static readonly Color BtnLockedColor   = new Color(0.14f, 0.19f, 0.27f, 0.85f);
+    private static readonly Color BtnReadyColor    = new Color(0.20f, 0.66f, 0.95f, 1f);
+    private static readonly Color BtnLockedColor   = new Color(0.14f, 0.19f, 0.27f, 0.90f);
     private static readonly Color BtnTextReady     = Color.white;
     private static readonly Color BtnTextLocked    = new Color(0.52f, 0.60f, 0.70f, 1f);
+    private static readonly Color BtnGlowReady     = new Color(0.45f, 0.88f, 1f,   0.95f);
+    private static readonly Color BtnGlowLocked    = new Color(0.28f, 0.34f, 0.42f, 0.45f);
+    private UnityEngine.UI.Outline _btnGlow;
+
+    // 강화 버튼을 메뉴 재실행 없이도 또렷하게: 위치 위로 + 어두운 강철 스프라이트를 둥근 단색으로 교체 + 발광 테두리.
+    private void EnsureUpgradeLayout()
+    {
+        if (upgradeButton == null) return;
+
+        // 위치 (하단바 + 버튼 함께 위로, 노드와 28px 띄움)
+        var infoGroup = upgradeButton.transform.parent;
+        var bar = infoGroup != null ? infoGroup.Find("BottomBar") as RectTransform : null;
+        if (bar != null) bar.anchoredPosition = new Vector2(0f, -320f);
+        var btnRt = upgradeButton.GetComponent<RectTransform>();
+        if (btnRt != null) { btnRt.anchoredPosition = new Vector2(0f, -434f); btnRt.sizeDelta = new Vector2(380f, 66f); }
+
+        // 배경 = 둥근 단색(어두운 강철 스프라이트 대체 -> 색이 또렷하게 살아남)
+        if (upgradeButton.image != null)
+        {
+            upgradeButton.image.sprite = UISpriteFactory.RoundedRect(96, 20);
+            upgradeButton.image.type   = Image.Type.Simple;
+        }
+
+        // 발광 테두리 (활성 시 시안빛)
+        _btnGlow = upgradeButton.GetComponent<UnityEngine.UI.Outline>();
+        if (_btnGlow == null) _btnGlow = upgradeButton.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        _btnGlow.effectDistance = new Vector2(2.5f, -2.5f);
+    }
 
     private void RefreshButton()
     {
@@ -724,6 +753,8 @@ public class CoreUpgradeUI : MonoBehaviour
             if (upgradeButton.image != null)
                 upgradeButton.image.color = canUpgrade ? BtnReadyColor : BtnLockedColor;
         }
+        if (_btnGlow != null)
+            _btnGlow.effectColor = canUpgrade ? BtnGlowReady : BtnGlowLocked;
         if (upgradeButtonText != null)
         {
             upgradeButtonText.text  = canUpgrade ? "강화" : "키트 부족";
