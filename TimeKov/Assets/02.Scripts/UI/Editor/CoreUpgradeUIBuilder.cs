@@ -137,6 +137,7 @@ public static class CoreUpgradeUIBuilder
         // -- 효과 리스트 패널 (우측) = 코어 단계별 효과 + 다음 강화 미리보기(???/+N) --
         GameObject fxPanel = MakeImage("EffectPanel", panel.transform, new Vector2(388, 348), new Vector2(566, CoreY - 6f), Color.white);
         SetSpr(fxPanel, LoadSpr("Panel_Frame_Sci", 44), Image.Type.Sliced);   // sci-fi 프레임(테두리/코너/divider 포함)
+        AddPanelGlow(fxPanel, new Vector2(388, 348));
         MakeTMP("EffectTitle", fxPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "코어 효과", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         var fxRows = new Object[4];
         string[] fxSeed = { "최대 시간", "부활 체력", "우클릭 대쉬", "흡수율" };
@@ -150,16 +151,17 @@ public static class CoreUpgradeUIBuilder
         // -- 보유 코어 키트 패널 (좌측) = 키트 I~V 아이콘 + 보유 개수(가방+창고 합산) --
         GameObject ksPanel = MakeImage("KitStockPanel", panel.transform, new Vector2(388, 348), new Vector2(-566, CoreY - 6f), Color.white);
         SetSpr(ksPanel, LoadSpr("Panel_Frame_Sci", 44), Image.Type.Sliced);   // sci-fi 프레임(테두리/코너/divider 포함)
+        AddPanelGlow(ksPanel, new Vector2(388, 348));
         MakeTMP("KitStockTitle", ksPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "보유 코어 키트", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         var ksIcons = new Object[5];
         var ksTexts = new Object[5];
         for (int i = 0; i < 5; i++)
         {
-            float ry = 84 - i * 48;
-            var ksIc = MakeImage($"KitStockIcon{i}", ksPanel.transform, new Vector2(34, 34), new Vector2(-148, ry), Color.white);
+            float ry = 90 - i * 52;
+            var ksIc = MakeImage($"KitStockIcon{i}", ksPanel.transform, new Vector2(46, 46), new Vector2(-150, ry), Color.white);
             ksIc.GetComponent<Image>().preserveAspect = true;
             ksIcons[i] = ksIc.GetComponent<Image>();
-            ksTexts[i] = MakeTMP($"KitStockText{i}", ksPanel.transform, new Vector2(270, 34), new Vector2(26, ry), "코어 키트", 16, Hex("C7D6E6"), TextAlignmentOptions.Left);
+            ksTexts[i] = MakeTMP($"KitStockText{i}", ksPanel.transform, new Vector2(264, 40), new Vector2(30, ry), "코어 키트", 18, Hex("C7D6E6"), TextAlignmentOptions.Left);
         }
         SetRefArray(so, "kitStockIcons", ksIcons);
         SetRefArray(so, "kitStockTexts", ksTexts);
@@ -171,10 +173,10 @@ public static class CoreUpgradeUIBuilder
         GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform, new Vector2(660, 104), new Vector2(0, -396), Hex("0C1322", 200));
         SetSpr(bottomBar, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
         AddHighlight(bottomBar, "core_upgrade_materials");   // 튜토 코치마크 대상 (재료/성공확률)
-        GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform, new Vector2(48, 48), new Vector2(-296, 22), Hex("1A202C", 220));
+        GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform, new Vector2(56, 56), new Vector2(-300, 22), Hex("1A202C", 220));
         SetSpr(kitIconGo, LoadSpr("KitSlot"), Image.Type.Simple);
         SetRef(so, "kitIconImage", kitIconGo.GetComponent<Image>());
-        var kitItemIcon = MakeImage("KitItemIcon", kitIconGo.transform, new Vector2(34, 34), Vector2.zero, Color.white);
+        var kitItemIcon = MakeImage("KitItemIcon", kitIconGo.transform, new Vector2(46, 46), Vector2.zero, Color.white);
         SetSpr(kitItemIcon, LoadSpr("KitIcon"), Image.Type.Simple);
         SetRef(so, "kitNeedIcon", kitItemIcon.GetComponent<Image>());   // 런타임에 현재 필요 키트 실제 아이콘으로 교체
         var kitName  = MakeTMP("KitNameText",     bottomBar.transform, new Vector2(280, 24), new Vector2(-108, 28), "필요: 코어 키트", 16, Hex("EAF3FB"), TextAlignmentOptions.Left);
@@ -509,6 +511,16 @@ public static class CoreUpgradeUIBuilder
         AddCornerDot(panel.transform, new Vector2( hw, -hh));
     }
 
+    // 패널 안쪽/뒤 은은한 시안 글로우 (프레임 위, 내용 아래 = 첫 자식). 패널이 빛나 보이게.
+    static void AddPanelGlow(GameObject panel, Vector2 size)
+    {
+        var glow = MakeImage("PanelGlow", panel.transform, size + new Vector2(36f, 36f), Vector2.zero, Hex("5FC4FF", 24));
+        var gimg = glow.GetComponent<Image>();
+        gimg.sprite        = UISpriteFactory.RoundedRect(96, 44);
+        gimg.raycastTarget = false;
+        glow.transform.SetAsFirstSibling();
+    }
+
     static void AddCornerDot(Transform parent, Vector2 pos)
     {
         var c = MakeImage("CornerDot", parent, new Vector2(9f, 9f), pos, Hex("7FD4FF", 220));
@@ -516,7 +528,7 @@ public static class CoreUpgradeUIBuilder
         c.GetComponent<Image>().raycastTarget = false;
     }
 
-    // 별 배경 (고정 시드라 재생성해도 같은 배치)
+    // 별 배경 (고정 시드라 재생성해도 같은 배치). 잔별 다수 + 밝은 별(글로우) + 십자 반짝임.
     static void BuildStars(Transform parent)
     {
         var rng = new System.Random(20260624);
@@ -525,16 +537,49 @@ public static class CoreUpgradeUIBuilder
         Stretch(starsRoot.GetComponent<RectTransform>());
 
         var starSpr = UISpriteFactory.Disc(16);
-        for (int i = 0; i < 90; i++)
+
+        // 잔별 (작은 점, 다수). 일부는 시안 틴트.
+        for (int i = 0; i < 220; i++)
         {
-            float x = (float)(rng.NextDouble() * 1920.0 - 960.0);
-            float y = (float)(rng.NextDouble() * 1080.0 - 540.0);
-            float s = 1.5f + (float)rng.NextDouble() * 2.5f;
-            float a = 0.15f + (float)rng.NextDouble() * 0.55f;
-            var star = MakeImage($"Star{i}", starsRoot.transform, new Vector2(s, s), new Vector2(x, y), new Color(1f, 1f, 1f, a));
+            float x = (float)(rng.NextDouble() * 1900.0 - 950.0);
+            float y = (float)(rng.NextDouble() * 1060.0 - 530.0);
+            float s = 1.2f + (float)rng.NextDouble() * 2.6f;
+            float a = 0.12f + (float)rng.NextDouble() * 0.6f;
+            Color col = rng.NextDouble() < 0.25 ? new Color(0.70f, 0.88f, 1f, a) : new Color(1f, 1f, 1f, a);
+            var star = MakeImage($"Star{i}", starsRoot.transform, new Vector2(s, s), new Vector2(x, y), col);
             var img = star.GetComponent<Image>();
             img.sprite        = starSpr;
             img.raycastTarget = false;
+        }
+
+        // 밝은 별 (뒤 글로우 + 코어 점). 소수.
+        for (int i = 0; i < 18; i++)
+        {
+            float x = (float)(rng.NextDouble() * 1820.0 - 910.0);
+            float y = (float)(rng.NextDouble() * 1000.0 - 500.0);
+            float core = 3f + (float)rng.NextDouble() * 3f;
+            var glow = MakeImage($"StarGlow{i}", starsRoot.transform, new Vector2(core * 6f, core * 6f), new Vector2(x, y), new Color(0.60f, 0.85f, 1f, 0.16f));
+            glow.GetComponent<Image>().sprite        = starSpr;
+            glow.GetComponent<Image>().raycastTarget = false;
+            var bright = MakeImage($"StarBright{i}", starsRoot.transform, new Vector2(core, core), new Vector2(x, y), new Color(1f, 1f, 1f, 0.95f));
+            bright.GetComponent<Image>().sprite        = starSpr;
+            bright.GetComponent<Image>().raycastTarget = false;
+        }
+
+        // 십자 반짝임 (4-point glint). 아주 소수, 포인트.
+        for (int i = 0; i < 7; i++)
+        {
+            float x = (float)(rng.NextDouble() * 1700.0 - 850.0);
+            float y = (float)(rng.NextDouble() * 900.0 - 450.0);
+            float len = 14f + (float)rng.NextDouble() * 16f;
+            var glint = MakeEmptyAt($"StarGlint{i}", starsRoot.transform, new Vector2(len, len), new Vector2(x, y));
+            var hbar = MakeImage("H", glint.transform, new Vector2(len, 1.6f), Vector2.zero, new Color(0.80f, 0.92f, 1f, 0.7f));
+            hbar.GetComponent<Image>().raycastTarget = false;
+            var vbar = MakeImage("V", glint.transform, new Vector2(1.6f, len), Vector2.zero, new Color(0.80f, 0.92f, 1f, 0.7f));
+            vbar.GetComponent<Image>().raycastTarget = false;
+            var cd = MakeImage("C", glint.transform, new Vector2(3.5f, 3.5f), Vector2.zero, new Color(1f, 1f, 1f, 0.95f));
+            cd.GetComponent<Image>().sprite        = starSpr;
+            cd.GetComponent<Image>().raycastTarget = false;
         }
     }
 
