@@ -131,6 +131,24 @@ public static class CoreUpgradeUIBuilder
         }
         SetRefArray(so, "effectRows", fxRows);
 
+        // -- 보유 코어 키트 패널 (좌측) = 키트 I~V 아이콘 + 보유 개수(가방+창고 합산) --
+        GameObject ksPanel = MakeImage("KitStockPanel", panel.transform, new Vector2(388, 348), new Vector2(-566, CoreY - 6f), Hex("0C1322", 205));
+        SetSpr(ksPanel, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
+        MakeTMP("KitStockTitle", ksPanel.transform, new Vector2(340, 30), new Vector2(0, 142), "보유 코어 키트", 18, Hex("AEE3FF"), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+        MakeImage("KitStockDivider", ksPanel.transform, new Vector2(332, 2), new Vector2(0, 120), Hex("2A3C5A", 200));
+        var ksIcons = new Object[5];
+        var ksTexts = new Object[5];
+        for (int i = 0; i < 5; i++)
+        {
+            float ry = 84 - i * 48;
+            var ksIc = MakeImage($"KitStockIcon{i}", ksPanel.transform, new Vector2(34, 34), new Vector2(-148, ry), Color.white);
+            ksIc.GetComponent<Image>().preserveAspect = true;
+            ksIcons[i] = ksIc.GetComponent<Image>();
+            ksTexts[i] = MakeTMP($"KitStockText{i}", ksPanel.transform, new Vector2(270, 34), new Vector2(26, ry), "코어 키트", 16, Hex("C7D6E6"), TextAlignmentOptions.Left);
+        }
+        SetRefArray(so, "kitStockIcons", ksIcons);
+        SetRefArray(so, "kitStockTexts", ksTexts);
+
         // -- 강화 정보 그룹 (MAX면 숨김) = 재료/확률 바 + 강화 버튼 --
         GameObject infoGroup = MakeEmpty("UpgradeInfoGroup", panel.transform);
         SetRef(so, "upgradeInfoGroup", infoGroup);
@@ -143,6 +161,7 @@ public static class CoreUpgradeUIBuilder
         SetRef(so, "kitIconImage", kitIconGo.GetComponent<Image>());
         var kitItemIcon = MakeImage("KitItemIcon", kitIconGo.transform, new Vector2(34, 34), Vector2.zero, Color.white);
         SetSpr(kitItemIcon, LoadSpr("KitIcon"), Image.Type.Simple);
+        SetRef(so, "kitNeedIcon", kitItemIcon.GetComponent<Image>());   // 런타임에 현재 필요 키트 실제 아이콘으로 교체
         var kitName  = MakeTMP("KitNameText",     bottomBar.transform, new Vector2(280, 24), new Vector2(-108, 28), "필요: 코어 키트", 16, Hex("EAF3FB"), TextAlignmentOptions.Left);
         var kitCount = MakeTMP("KitCountText",    bottomBar.transform, new Vector2(200, 22), new Vector2(-118, 2),  "보유:  0 / 3",   15, Hex("AEBFD0"), TextAlignmentOptions.Left);
         var kitShort = MakeTMP("KitShortageText", bottomBar.transform, new Vector2(130, 22), new Vector2(88, 2),    "",              14, Hex("FF6068"), TextAlignmentOptions.Left);

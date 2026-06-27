@@ -29,6 +29,9 @@ public class CoreUpgradeUI : MonoBehaviour
     [SerializeField] private Image coreImage;
     [SerializeField] private Image[] constellationNodes;   // 별자리 10노드(점등 = 강화 단계).
     [SerializeField] private TextMeshProUGUI[] effectRows; // 효과 리스트(최대시간/부활/대쉬/흡수). 미해금=???.
+    [SerializeField] private Image[] kitStockIcons;        // 좌측 보유 키트 아이콘 5(I~V)
+    [SerializeField] private TextMeshProUGUI[] kitStockTexts; // 좌측 보유 키트 이름+개수 5
+    [SerializeField] private Image kitNeedIcon;            // 하단 필요 키트 실제 아이콘
 
     // ── 현재 / 강화 후 스탯 ───────────────────────────────────────────
     [Header("현재 스탯")]
@@ -247,6 +250,7 @@ public class CoreUpgradeUI : MonoBehaviour
 
         RefreshConstellation(lv);
         RefreshEffectList(mgr, cur, next, isMax, lv);
+        RefreshKitStock(mgr);
 
         if (!isMax) RefreshKitPanel(mgr, next);
     }
@@ -285,11 +289,15 @@ public class CoreUpgradeUI : MonoBehaviour
 
         if (_lines != null)
         {
+            int n = constellationNodes != null ? constellationNodes.Length : 0;
             for (int i = 0; i < _lines.Length; i++)
             {
                 if (_lines[i] == null) continue;
                 var img = _lines[i].GetComponent<Image>();
-                if (img != null) img.color = (i < level) ? LineOn : LineOff;
+                if (img == null) continue;
+                // 일반 선(i<n)은 i<level, 닫는 선(i==n)은 만렙(level>=n)일 때만 점등
+                bool on = (i < n) ? (i < level) : (level >= n);
+                img.color = on ? LineOn : LineOff;
             }
         }
     }
@@ -314,16 +322,21 @@ public class CoreUpgradeUI : MonoBehaviour
         crt.SetSiblingIndex(Mathf.Max(0, coreImage.transform.GetSiblingIndex()));
 
         int n = constellationNodes.Length;
-        _lines = new RectTransform[n];
+        _lines = new RectTransform[n + 1];   // [n] = 마지막->처음 닫는 선(별자리 폐곡선, 만렙 때만 점등)
         Vector2 corePos = coreImage.rectTransform.anchoredPosition;
 
         for (int i = 0; i < n; i++)
         {
             if (constellationNodes[i] == null) continue;
-            Vector2 a = (i == 0) ? corePos : constellationNodes[i - 1].rectTransform.anchoredPosition;
+            Vector2 a = (i == 0 || constellationNodes[i - 1] == null) ? corePos : constellationNodes[i - 1].rectTransform.anchoredPosition;
             Vector2 b = constellationNodes[i].rectTransform.anchoredPosition;
             _lines[i] = MakeLine(crt, a, b);
         }
+
+        // 닫는 선: 마지막 노드 -> 첫 노드 (10단계 완성 시 별자리가 닫힘)
+        if (constellationNodes[n - 1] != null && constellationNodes[0] != null)
+            _lines[n] = MakeLine(crt, constellationNodes[n - 1].rectTransform.anchoredPosition,
+                                       constellationNodes[0].rectTransform.anchoredPosition);
     }
 
     private RectTransform MakeLine(RectTransform parent, Vector2 a, Vector2 b)
@@ -418,6 +431,33 @@ public class CoreUpgradeUI : MonoBehaviour
     // 미리보기 태그(다음 강화 시 변화량) = 골드, 작게
     private static string PreviewTag(string t) => $"   <size=82%><color=#FFD66B>{t}</color></size>";
 
+    // 코어 키트 ID (I~V). 좌측 보유량 패널용. CoreLevelData의 requiredKitItemId와 일치.
+    private static readonly int[] KitItemIds = { 6101, 6102, 6103, 6104, 6105 };
+
+    // 좌측 보유 코어 키트 패널 갱신 (가방 + 창고 합산)
+    private void RefreshKitStock(CoreUpgradeManager mgr)
+    {
+        if (kitStockIcons == null && kitStockTexts == null) return;
+        for (int i = 0; i < KitItemIds.Length; i++)
+        {
+            int id = KitItemIds[i];
+            var item = GameDataUtility.GetItem(id);
+            int count = mgr.GetTotalKitCount(id);
+
+            if (kitStockIcons != null && i < kitStockIcons.Length && kitStockIcons[i] != null)
+            {
+                kitStockIcons[i].sprite  = item != null ? ItemDatabase.GetIcon(item.iconKey) : null;
+                kitStockIcons[i].enabled = kitStockIcons[i].sprite != null;
+            }
+            if (kitStockTexts != null && i < kitStockTexts.Length && kitStockTexts[i] != null)
+            {
+                string nm = item != null ? item.itemName : $"키트 {i + 1}";
+                kitStockTexts[i].text  = $"{nm}   <color=#EAF3FB>x{count}</color>";
+                kitStockTexts[i].color = count > 0 ? new Color(0.78f, 0.86f, 0.94f) : new Color(0.42f, 0.5f, 0.6f);
+            }
+        }
+    }
+
     // 강화 성공으로 새 노드가 켜질 때 버스트 링 + 노드 펀치
     private void PlayNodeLightUp(int index)
     {
@@ -501,12 +541,23 @@ public class CoreUpgradeUI : MonoBehaviour
             return;
         }
 
+        // 키트 필요 레벨: noKit에서 껐을 수 있는 슬롯/아이콘을 다시 켜 복구
+        if (kitIconImage != null) kitIconImage.gameObject.SetActive(true);
+
         string kitName = GetKitName(next);
         SetText(kitNameText, $"필요: {kitName}");
 
         int owned = 0;
         if (int.TryParse(kitIdStr, out int kitItemId))
+        {
             owned = mgr.GetTotalKitCount(kitItemId);
+            if (kitNeedIcon != null)
+            {
+                var kitItem = GameDataUtility.GetItem(kitItemId);
+                kitNeedIcon.sprite  = kitItem != null ? ItemDatabase.GetIcon(kitItem.iconKey) : null;
+                kitNeedIcon.enabled = kitNeedIcon.sprite != null;
+            }
+        }
 
         int required = next.requiredAmount;
         if (kitCountText != null)
