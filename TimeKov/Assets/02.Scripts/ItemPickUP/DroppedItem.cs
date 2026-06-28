@@ -13,9 +13,6 @@ public class DroppedItem : MonoBehaviour, IInteractable
     [Tooltip("플레이어가 주울 수 있는지")]
     public bool canPickup = true;
 
-    //[Tooltip("Player Layer (인스펙터에서 Player 레이어 체크)")]
-    //public LayerMask playerMask = ~0;
-
     private Rigidbody _rb;
     private float _spawnTime;
     private float _pickupDelay;
@@ -67,36 +64,8 @@ public class DroppedItem : MonoBehaviour, IInteractable
 
     // F키로 상호작용 시 호출
     // 구 InventoryManager 의존 제거됨 — LootBox 로 대체된 레거시 스크립트.
-    // Player_T 씬이 이 컴포넌트를 참조해서 파일만 유지 (아래 주석 블록도 옛 코드).
+    // Player_T 씬이 이 컴포넌트를 참조해서 파일만 유지.
     public void Interact(Player player)
     {
     }
-
-    // 자동 획득 비활성화 (F키 방식으로 변경)
-    // private void OnTriggerEnter(Collider other)
-    // {
-    //     TryPickup(other);
-    // }
-
-    // private void OnCollisionEnter(Collision collision)
-    // {
-    //     TryPickup(collision.collider);
-    // }
-
-    // private void TryPickup(Collider other)
-    // {
-    //     if (!canPickup) return;
-    //     if (Time.time - _spawnTime < _pickupDelay) return;
-
-    //     if (((1 << other.gameObject.layer) & playerMask.value) == 0)
-    //     {
-    //         if (!other.CompareTag("Player")) return;
-    //     }
-
-    //     InventoryManager inv = FindPlayerInventory();
-    //     if (inv == null) return;
-
-    //     inv.AddItem(itemId, count);
-    //     Destroy(gameObject);
-    // }
 }

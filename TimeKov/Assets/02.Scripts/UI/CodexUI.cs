@@ -333,36 +333,6 @@ public class CodexUI : MonoBehaviour
         Img(fill, RoundedFallback(3), Accent).raycastTarget = false;
     }
 
-    private void BuildTelemetry(RectTransform tele)
-    {
-        // 하단 행: 모노 주파수 (우측정렬)
-        Txt(Make("freq", tele, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 16f)),
-            "FREQ 432.500MHz", 11f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Right);
-        // 상단 행: 미니 이퀄라이저 바
-        var bar = Make("seg", tele, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-104f, -16f), new Vector2(-20f, 0f));
-        BuildSegBar(bar);
-        // REC 점
-        var dot = Make("recdot", tele, new Vector2(1f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
-        dot.sizeDelta = new Vector2(7f, 7f); dot.anchoredPosition = new Vector2(-9f, -8f);
-        Deco(dot, UISpriteFactory.Disc(16), C32(224, 96, 96));
-    }
-
-    private void BuildSegBar(RectTransform parent)
-    {
-        var hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 2f; hlg.childAlignment = TextAnchor.LowerRight;
-        hlg.childControlWidth = true; hlg.childControlHeight = true;
-        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
-        int[] hs = { 5, 8, 6, 11, 7, 9, 13, 6, 10, 7, 12, 8 };
-        for (int i = 0; i < hs.Length; i++)
-        {
-            var s = NewChild("s", parent);
-            var le = s.gameObject.AddComponent<LayoutElement>();
-            le.preferredWidth = 3f; le.minWidth = 3f; le.preferredHeight = hs[i]; le.minHeight = hs[i];
-            Deco(s, null, new Color32(96, 150, 196, (byte)(90 + i * 8)));
-        }
-    }
-
     private void RebuildTabs()
     {
         if (_tabRow == null) return;
