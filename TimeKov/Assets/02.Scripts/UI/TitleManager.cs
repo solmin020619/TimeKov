@@ -15,6 +15,9 @@ public class TitleManager : MonoBehaviour
     public AudioSource audioSource;
     public AudioClip clickSound;
 
+    [Tooltip("할당 시: 씬을 바로 로드하는 대신 이 패널을 띄워 월드를 선택/생성하게 한다. 비어있으면 기존 동작(바로 nextSceneName 로드).")]
+    public WorldSelectUI worldSelectUI;
+
     private bool _isStarting = false;
 
     private void Update()
@@ -82,6 +85,10 @@ public class TitleManager : MonoBehaviour
         }
 
         Time.timeScale = 1f;   // 게임 시작 전 시간 정상화(메뉴에서 멈춰 있었을 수 있음)
-        SceneManager.LoadScene(nextSceneName);
+
+        if (worldSelectUI != null)
+            worldSelectUI.Show();   // 월드 선택/생성 후 그 안에서 씬 전환
+        else
+            SceneManager.LoadScene(nextSceneName);   // 폴백(미연결 시 기존 동작)
     }
 }

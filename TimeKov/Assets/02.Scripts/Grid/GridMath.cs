@@ -10,23 +10,6 @@ using UnityEngine;
 
 public static class GridMath
 {
-    // 월드 좌표 -> 셀 좌표 (floor, 칸 인덱스)
-    public static Vector2Int WorldToCell(Vector3 worldPos, Vector3 origin, float cellSize)
-    {
-        return new Vector2Int(
-            Mathf.FloorToInt((worldPos.x - origin.x) / cellSize),
-            Mathf.FloorToInt((worldPos.z - origin.z) / cellSize));
-    }
-
-    // 셀 좌표 -> 월드 (좌표를 그대로 변환. 칸 중심이 필요하면 호출부에서 +0.5 해서 넘김)
-    public static Vector3 CellToWorld(Vector2 cellCoord, Vector3 origin, float cellSize, float fixedY)
-    {
-        return new Vector3(
-            origin.x + cellCoord.x * cellSize,
-            fixedY,
-            origin.z + cellCoord.y * cellSize);
-    }
-
     // 월드 좌표 -> 시작 셀 (size 건물의 중심이 마우스에 오도록 round 보정)
     public static Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size, Vector3 origin, float cellSize)
     {

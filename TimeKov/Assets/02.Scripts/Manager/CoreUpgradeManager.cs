@@ -9,7 +9,7 @@
 using System;
 using UnityEngine;
 
-public class CoreUpgradeManager : MonoBehaviour
+public class CoreUpgradeManager : MonoBehaviour, ISaveable
 {
     // ── 싱글톤 ────────────────────────────────────────────────────────
     public static CoreUpgradeManager Instance { get; private set; }
@@ -53,6 +53,7 @@ public class CoreUpgradeManager : MonoBehaviour
         }
         Instance = this;
 
+        SaveSlotManager.Instance?.Register(this);
         LoadLevel();
     }
 
@@ -76,7 +77,11 @@ public class CoreUpgradeManager : MonoBehaviour
     private void OnDestroy()
     {
         DataBoot.OnDataLoaded -= OnDataReady;
+        SaveSlotManager.Instance?.Unregister(this);
     }
+
+    /// <summary>SaveSlotManager.SaveActive()가 호출. 현재 코어 레벨을 세이브 데이터에 적어넣는다.</summary>
+    public void Capture(GameSaveData data) => data.coreLevel = CurrentCoreLevel;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     private void Update()
@@ -353,15 +358,16 @@ public class CoreUpgradeManager : MonoBehaviour
 
     private void SaveLevel()
     {
-        // TODO: Steam + Firebase 저장 시스템 연동 시 여기에 구현
-        // SaveSystem.Save("currentCoreLevel", CurrentCoreLevel);
+        // 레벨이 바뀌는 시점은 잃으면 안 되는 진행이므로 즉시 전체 저장(다른 ISaveable도 같이 기록됨).
+        SaveSlotManager.Instance?.SaveActive();
     }
 
     private void LoadLevel()
     {
-        // TODO: Steam + Firebase 저장 시스템 연동 시 여기에 구현
-        // CurrentCoreLevel = SaveSystem.Load<int>("currentCoreLevel", defaultValue: 0);
-        CurrentCoreLevel = 0;  // 저장 시스템 연동 전까지 항상 0단계로 시작
+        // 활성 슬롯 없이 씬을 직접 실행한 경우(에디터 테스트 등)는 0단계로 시작.
+        CurrentCoreLevel = SaveSlotManager.Instance != null && SaveSlotManager.Instance.HasActiveSlot
+            ? SaveSlotManager.Instance.Data.coreLevel
+            : 0;
     }
 
     private Player _cachedPlayer;

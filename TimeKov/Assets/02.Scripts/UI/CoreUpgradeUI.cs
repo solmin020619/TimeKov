@@ -111,15 +111,6 @@ public class CoreUpgradeUI : MonoBehaviour
     [SerializeField] private Sprite[] failBurstFrames;      // 강화 실패 균열/파편 16프레임(결과연출 메인)
     private Image _flashOverlay;   // 런타임 생성 전체화면 플래시
 
-    // 부가 스탯 행 — 런타임 생성(빌더 재실행 불필요, 현재 패널 위에 얹음).
-    // 슬롯 고정: [0]=부활 체력 [1]=우클릭 대쉬 [2]=몬스터 체력 흡수.
-    // 해금 순서(부활 항상 / 대쉬 1강 / 흡수 2강)가 슬롯 순서와 같아 위에서부터 빈칸 없이 쌓인다.
-    private bool _extraStatsBuilt;
-    private TextMeshProUGUI[] _curRows;    // 현재(보유) — 활성된 것만 표시(미해금은 숨김 = 스포 방지)
-    private TextMeshProUGUI[] _nextRows;   // 강화 후 — 다음 레벨에 보유할 것(새로 해금되는 건 New)
-    private static readonly Color OwnedStatColor = new Color(0.56f, 0.62f, 0.69f);   // 현재(보유) = 차분한 회색
-    private static readonly Color NextStatColor  = new Color(0.76f, 0.93f, 1f);      // 강화 후 = 밝은 시안(증가/구분 강조)
-
     // 별자리 별점 색 (글로우 = 뒤 후광 / 코어점 = 앞 점). 점등 = 시안, 다음 목표 = 골드, 미점등 = 어두움.
     private static readonly Color GlowOff       = new Color(0.14f, 0.22f, 0.36f, 0.28f);
     private static readonly Color GlowOn        = new Color(0.37f, 0.77f, 1f,    0.60f);
@@ -1082,28 +1073,6 @@ public class CoreUpgradeUI : MonoBehaviour
         }
     }
 
-    // CoreCrackle 16프레임을 코어 자리에 한 번 재생 (성공=시안 / 실패=붉은 틴트).
-    private void PlayCrackle(Color tint, float size, float frameDur)
-    {
-        if (crackleFrames == null || crackleFrames.Length == 0) return;
-        if (!GetCorePanelPos(out var parent, out var pos)) return;
-        StartCoroutine(CrackleRoutine(parent, pos, tint, size, frameDur));
-    }
-
-    private IEnumerator CrackleRoutine(RectTransform parent, Vector2 pos, Color tint, float size, float frameDur)
-    {
-        var img = MakeFxImage("Crackle", parent, pos, size, crackleFrames[0]);
-        for (int i = 0; i < crackleFrames.Length; i++)
-        {
-            if (img == null) yield break;
-            if (crackleFrames[i] != null) img.sprite = crackleFrames[i];
-            float k = 1f - (i / (float)crackleFrames.Length) * 0.5f;   // 끝으로 갈수록 잔광처럼 옅게
-            var c = tint; c.a *= k; img.color = c;
-            yield return new WaitForSecondsRealtime(frameDur);
-        }
-        if (img != null) Destroy(img.gameObject);
-    }
-
     // 프레임 시퀀스(폭발/광채 등)를 코어 자리에 한 번 재생. tint=Color.white면 PNG 원색 그대로.
     private void PlayFrameBurst(Sprite[] frames, Color tint, float size, float frameDur)
     {
@@ -1125,63 +1094,6 @@ public class CoreUpgradeUI : MonoBehaviour
         if (img != null) Destroy(img.gameObject);
     }
 
-    // 코어 중심에서 사방으로 튀는 스파크 (작은 점이 바깥으로 이동 + 소멸)
-    private void PlaySparks(int count, Color colorA, Color colorB)
-    {
-        if (!GetCorePanelPos(out var parent, out var center)) return;
-        var spr = UISpriteFactory.Disc(16);
-        for (int i = 0; i < count; i++)
-        {
-            float ang  = (360f / count) * i + Random.Range(-12f, 12f);
-            float rad  = ang * Mathf.Deg2Rad;
-            float dist = 120f + Random.Range(0f, 120f);
-            Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
-            float sz = 5f + Random.Range(0f, 5f);
-
-            var sp = MakeFxImage($"Spark{i}", parent, center, sz, spr);
-            sp.color = (i % 2 == 0) ? colorA : colorB;
-            var rt = sp.rectTransform;
-            rt.DOAnchorPos(center + dir * dist, 0.5f).SetUpdate(true).SetEase(Ease.OutCubic);
-            rt.DOScale(0.2f, 0.5f).SetUpdate(true);
-            sp.DOFade(0f, 0.5f).SetUpdate(true).OnComplete(() => { if (sp != null) Destroy(sp.gameObject); });
-        }
-    }
-
-    // 실패: 바깥에서 안으로 수축하는 붉은 링 (implosion)
-    private void PlayImplosionRing(Color color)
-    {
-        if (!GetCorePanelPos(out var parent, out var pos)) return;
-        var ring = MakeFxImage("ImplodeRing", parent, pos, 260f, UISpriteFactory.Ring(128, 5f));
-        ring.color = color;
-        ring.rectTransform.localScale = Vector3.one * 1.6f;
-        ring.rectTransform.DOScale(0.5f, 0.45f).SetUpdate(true).SetEase(Ease.InCubic);
-        ring.DOFade(0f, 0.45f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
-    }
-
-    // 코어 중심에서 사방으로 뻗는 방사 빛줄기 (동심원 대신 burst 느낌)
-    private void PlayBurstRays(int count, Color color, float maxLen)
-    {
-        if (!GetCorePanelPos(out var parent, out var center)) return;
-        for (int i = 0; i < count; i++)
-        {
-            float ang = (360f / count) * i + Random.Range(-6f, 6f);
-            var go = new GameObject($"BurstRay{i}", typeof(RectTransform), typeof(Image));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.pivot            = new Vector2(0.5f, 0f);   // 밑동이 코어 중심 = 바깥으로 자람
-            rt.anchoredPosition = center;
-            rt.sizeDelta        = new Vector2(3.5f, 18f);
-            rt.localRotation    = Quaternion.Euler(0f, 0f, ang);
-            var img = go.GetComponent<Image>();
-            img.color         = color;
-            img.raycastTarget = false;
-            rt.SetAsLastSibling();
-            rt.DOSizeDelta(new Vector2(3.5f, maxLen), 0.3f).SetUpdate(true).SetEase(Ease.OutCubic);
-            img.DOFade(0f, 0.45f).SetUpdate(true).OnComplete(() => { if (go != null) Destroy(go); });
-        }
-    }
-
     private void EnsureFlashOverlay()
     {
         if (_flashOverlay != null || panelRoot == null) return;
@@ -1195,24 +1107,6 @@ public class CoreUpgradeUI : MonoBehaviour
         _flashOverlay.raycastTarget = false;
         _flashOverlay.color = new Color(0f, 0f, 0f, 0f);
         go.SetActive(false);
-    }
-
-    // 성공: 코어 자리에 링 + 디스크 버스트 (코어 비주얼 CanvasGroup 밖 = panel에 생성)
-    private void PlaySuccessBurst()
-    {
-        if (!GetCorePanelPos(out var parent, out var pos)) return;
-
-        var ring = MakeFxImage("ResultRing", parent, pos, 120f, UISpriteFactory.Ring(96, 5f));
-        ring.color = perfectColor;
-        ring.rectTransform.localScale = Vector3.one * 0.6f;
-        ring.rectTransform.DOScale(2.6f, 0.6f).SetUpdate(true).SetEase(Ease.OutCubic);
-        ring.DOFade(0f, 0.6f).SetUpdate(true).OnComplete(() => { if (ring != null) Destroy(ring.gameObject); });
-
-        var disc = MakeFxImage("ResultDisc", parent, pos, 110f, UISpriteFactory.Disc(96));
-        disc.color = new Color(goodColor.r, goodColor.g, goodColor.b, 0.7f);
-        disc.rectTransform.localScale = Vector3.one * 0.5f;
-        disc.rectTransform.DOScale(1.8f, 0.5f).SetUpdate(true).SetEase(Ease.OutCubic);
-        disc.DOFade(0f, 0.5f).SetUpdate(true).OnComplete(() => { if (disc != null) Destroy(disc.gameObject); });
     }
 
     // 실패: 시계(코어) 영역 흔들기
@@ -1267,129 +1161,9 @@ public class CoreUpgradeUI : MonoBehaviour
     private static string Pct(float f) => $"{Mathf.RoundToInt(f * 100f)}%";
     private static string PctF(float f) => $"{f * 100f:0.#}%";   // 소수 1자리(흡수 0.5% 단위 등)
 
-    // 강화 후 증가분 인라인 태그 — 체력/부활/흡수 공통(작게 + 초록 + 화살표). 모든 스탯 같은 표현 통일.
-    private static string DeltaTag(string text) => $"  <size=66%><color=#46E08A>{text} ↑</color></size>";
-
-    // 현재/강화후 카드에 부활·흡수 두 줄을 런타임 생성 (빌더 재실행 없이 현재 패널 위에 얹음)
-    // 카드 레이아웃 상수 (현재/강화후 박스. 헤더는 박스 밖 위쪽, 스탯은 한 줄씩 균형있게).
-    const float HeadY      = 160f;  // 현재/강화후 헤더 = 박스 위 바깥(레이아웃 제외)
-    const float CardTopY   = 134f;  // 카드 위쪽 고정 Y(top pivot). 켜진 항목 수만큼 아래로 자동 확장.
-    const float RowSpacing = 10f;   // 항목 행 간격
-    const int   CardPadTop = 18, CardPadBottom = 18;   // 카드 안쪽 위/아래 여백
-    const int   StatSlotCount = 3;  // 부활/대쉬/흡수 (2단계에서 대쉬는 본체 아이콘으로 분리 예정)
-
-    private void BuildExtraStatRows()
-    {
-        if (_extraStatsBuilt) return;
-        if (currentTimeText == null || nextTimeText == null) return;
-
-        var leftCard  = currentTimeText.transform.parent as RectTransform;
-        var rightCard = nextTimeText.transform.parent as RectTransform;
-        if (leftCard == null || rightCard == null) return;
-
-        _extraStatsBuilt = true;
-
-        ArrangeCard(leftCard,  currentTimeText, "CurHead", "CurLbl");
-        ArrangeCard(rightCard, nextTimeText,    "NxtHead", "NxtLbl");
-        if (deltaTimeText != null) deltaTimeText.gameObject.SetActive(false);   // 델타는 강화후 체력줄에 인라인 합침
-
-        // 슬롯 고정 3행(부활/대쉬/흡수) 생성 후 전부 끄고 시작 — RefreshData가 보유분만 켠다.
-        // 세로 자동 레이아웃이라 켜진 행만 위에서부터 빈칸 없이 쌓이고, 카드 높이도 자동.
-        _curRows  = new TextMeshProUGUI[StatSlotCount];
-        _nextRows = new TextMeshProUGUI[StatSlotCount];
-        for (int i = 0; i < StatSlotCount; i++)
-        {
-            _curRows[i]  = MakeStatRow(leftCard,  OwnedStatColor);
-            _nextRows[i] = MakeStatRow(rightCard, NextStatColor);
-            _curRows[i].gameObject.SetActive(false);
-            _nextRows[i].gameObject.SetActive(false);
-        }
-    }
-
-    // 카드 정리: 박스 크기/위치 + 헤더(현재/강화후)를 박스 위 바깥으로 + "체력" 라벨 숨김(값에 합침) + 값 크기/위치.
-    private void ArrangeCard(RectTransform card, TextMeshProUGUI valueText, string headName, string lblName)
-    {
-        // 헤더(현재/강화후) = 박스 밖 위쪽 고정. 레이아웃에서 제외해 항목 스택에 안 섞이게.
-        var head = card.Find(headName) as RectTransform;
-        if (head != null) { IgnoreLayout(head); head.anchoredPosition = new Vector2(0f, HeadY); }
-
-        var lbl = card.Find(lblName);
-        if (lbl != null) lbl.gameObject.SetActive(false);                   // "체력" 라벨은 값 텍스트에 합침
-
-        // 카드 = 위쪽 고정 + 켜진 항목 수만큼 아래로 자동 확장(고정 높이 탈피 = New 늘어도 안 깨짐).
-        card.pivot = new Vector2(0.5f, 1f);
-        card.anchoredPosition = new Vector2(card.anchoredPosition.x, CardTopY);
-
-        var vlg = GetOrAdd<VerticalLayoutGroup>(card.gameObject);
-        vlg.childAlignment        = TextAnchor.UpperCenter;
-        vlg.spacing               = RowSpacing;
-        vlg.padding               = new RectOffset(0, 0, CardPadTop, CardPadBottom);
-        vlg.childControlWidth     = true;  vlg.childControlHeight     = true;
-        vlg.childForceExpandWidth = true;  vlg.childForceExpandHeight = false;
-        var fit = GetOrAdd<ContentSizeFitter>(card.gameObject);
-        fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        // 체력 값 = 항상 첫 줄
-        if (valueText != null)
-        {
-            valueText.fontSize = 24f;
-            valueText.rectTransform.SetSiblingIndex(0);
-            SetRowHeight(valueText.gameObject, 36f);
-        }
-    }
-
-    private TextMeshProUGUI MakeStatRow(RectTransform parent, Color color)
-    {
-        var go = new GameObject("StatRow", typeof(RectTransform));
-        var rt = (RectTransform)go.transform;
-        rt.SetParent(parent, false);
-
-        var tmp = go.AddComponent<TextMeshProUGUI>();
-        if (currentTimeText.font != null) tmp.font = currentTimeText.font;
-        tmp.fontSize  = 18;
-        tmp.color     = color;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.raycastTarget = false;
-        SetRowHeight(go, 28f);   // 세로 레이아웃 행 높이
-        return tmp;
-    }
-
-    // ── 레이아웃 헬퍼 (가변 카드용) ──
-    private static T GetOrAdd<T>(GameObject go) where T : Component
-    {
-        var c = go.GetComponent<T>();
-        return c != null ? c : go.AddComponent<T>();
-    }
-    private static void SetRowHeight(GameObject go, float h)
-    {
-        var le = GetOrAdd<LayoutElement>(go);
-        le.minHeight = h; le.preferredHeight = h;
-    }
-    private static void IgnoreLayout(RectTransform rt)
-    {
-        GetOrAdd<LayoutElement>(rt.gameObject).ignoreLayout = true;
-    }
-
-    // 스탯 행 표시/숨김 + 내용 설정. 보유 안 한 스탯은 숨겨서 다음 해금을 미리 노출하지 않는다.
-    private void SetStatRow(TextMeshProUGUI row, bool active, string text, Color color)
-    {
-        if (row == null) return;
-        row.gameObject.SetActive(active);
-        if (!active) return;
-        row.text  = text;
-        row.color = color;
-    }
-
     private void SetText(TextMeshProUGUI tmp, string value)
     {
         if (tmp != null) tmp.text = value;
-    }
-
-    private void SetDelta(TextMeshProUGUI tmp, int delta, string suffix)
-    {
-        if (tmp == null) return;
-        tmp.text  = delta > 0 ? $"+{delta}{suffix} ↑" : $"{delta}{suffix}";
-        tmp.color = deltaColor;
     }
 
     private bool IsKitShort(CoreUpgradeManager mgr, CoreLevelDataSheetData next)

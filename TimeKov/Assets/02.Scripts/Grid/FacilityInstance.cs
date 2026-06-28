@@ -53,6 +53,13 @@ public class FacilityInstance : MonoBehaviour
         return true;
     }
 
+    // 세이브 복원 전용 — Initialize()는 항상 레벨을 1로 리셋하므로, 그 다음에 저장된 레벨을 적용한다.
+    public void SetLevel(int level)
+    {
+        currentLevel = Mathf.Max(1, level);
+        RefreshCachedData();
+    }
+
     // 전력 필요 여부 (requiresPower)
     public bool RequiresPower()
     {

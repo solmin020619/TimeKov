@@ -58,7 +58,7 @@ public class QuestManager : MonoBehaviour
 
     [SerializeField] TutorialSO tutorial;
 
-    [Tooltip("ON: 진행도 저장 안 함 (매 Play마다 초기화, 개발용). OFF: PlayerPrefs에 저장 (production).")]
+    [Tooltip("ON: 진행도 저장 안 함 (매 Play마다 초기화, 개발용). OFF: 저장 슬롯에 저장 (production).")]
     [SerializeField] bool useNoOpStorage = true;
 
     IQuestSaveStorage _storage;
@@ -103,9 +103,17 @@ public class QuestManager : MonoBehaviour
         }
 
         Instance = this;
-        _storage = useNoOpStorage
-            ? (IQuestSaveStorage)new NoOpQuestStorage()
-            : new PlayerPrefsQuestStorage(tutorial.savePrefix);
+        if (useNoOpStorage)
+            _storage = new NoOpQuestStorage();
+        else if (SaveSlotManager.Instance != null && SaveSlotManager.Instance.HasActiveSlot)
+            _storage = new SaveSlotQuestStorage();
+        else
+        {
+            // 활성 슬롯 없이 씬을 직접 실행한 경우(에디터 테스트 등) — 인벤토리/위치/건물과 동일하게
+            // 저장 시스템 미개입 상태로 둔다. (예전엔 PlayerPrefs로 폴백했는데, 슬롯 구분이 없는
+            // 전역 값이라 월드별로 따로 저장돼야 하는 지금 구조와 맞지 않아 제거함)
+            _storage = new NoOpQuestStorage();
+        }
     }
 
     void Start()
