@@ -98,6 +98,14 @@ public class GlobalSettingsManager : MonoBehaviour
 
     private static KeyCode[] _rebindCandidates;
 
+    // GameUIController.settingsPanel은 이 컴포넌트가 붙은 루트(SettingsPanel)가 아니라
+    // 자식 "Option"을 가리킨다(World 씬에서 실제로 켜고 끄는 대상) — SettingsPanel 자신은
+    // World 씬에서 항상 켜져 있는 컨트롤러 래퍼일 뿐이라, 이 컴포넌트가 직접 패널을 열고
+    // 닫아야 하는 MainMenu 같은 씬(GameUIController 없음)에서는 gameObject가 아니라
+    // "Option"을 켜고 꺼야 실제 비주얼이 보인다.
+    private GameObject _visualRoot;
+    private GameObject VisualRoot => _visualRoot ??= transform.Find("Option")?.gameObject;
+
     // ── 초기화 ───────────────────────────────────────────────────────
 
     void Awake()
@@ -116,6 +124,12 @@ public class GlobalSettingsManager : MonoBehaviour
         SyncUIValues();
         WireListeners();
         ShowTab(0);
+
+        // GameUIController가 없는 씬(MainMenu)에서는 패널을 직접 관리해야 한다.
+        // World 씬은 GameUIController.Awake()의 ApplyState()가 시작 시 강제로 닫아주지만
+        // 여기는 그게 없으므로, 초기화가 끝난 뒤 여기서 직접 닫아둔다.
+        if (GameUIController.Instance == null && VisualRoot != null)
+            VisualRoot.SetActive(false);
     }
 
     private static SettingsData Clone(SettingsData src) =>
@@ -210,7 +224,11 @@ public class GlobalSettingsManager : MonoBehaviour
     // 같은 오픈에 두 번 호출되는 것뿐이라 해는 없지만(_pending 리셋은 멱등) 그냥 중복이다.
     public void OpenSettings()
     {
-        GameUIController.Instance?.OpenSettings();
+        if (GameUIController.Instance != null) { GameUIController.Instance.OpenSettings(); return; }
+
+        // GameUIController가 없는 씬(MainMenu) — 직접 열고 동기화.
+        RefreshOnOpen();
+        if (VisualRoot != null) VisualRoot.SetActive(true);
     }
 
     // 폼을 _data 기준으로 리셋(편집 중이던 _pending 폐기) + UI 동기화.
@@ -240,7 +258,11 @@ public class GlobalSettingsManager : MonoBehaviour
     public void CloseSettings()
     {
         if (!RequestClose()) return;
-        GameUIController.Instance?.CloseSettings();
+
+        if (GameUIController.Instance != null) { GameUIController.Instance.CloseSettings(); return; }
+
+        // GameUIController가 없는 씬(MainMenu) — 직접 닫기.
+        if (VisualRoot != null) VisualRoot.SetActive(false);
     }
 
     private void ShowApplyWarning()

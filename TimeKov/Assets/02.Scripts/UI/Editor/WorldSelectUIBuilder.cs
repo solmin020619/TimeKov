@@ -1,9 +1,11 @@
 // =====================================================================
 // WorldSelectUIBuilder.cs  (Editor Only)
 // Tools/UI/Build World Select UI
-// 타이틀 화면(MainMenu_Cinematic) 위에 월드 선택 패널을 생성하고 레퍼런스를 연결한다.
-// SettingsPanelRebuilder/ChestOpenUIBuilder와 동일한 컨벤션: 자체 완결된 정적 빌더 +
-// 자체 MakeXxx 헬퍼(다른 빌더 스크립트와 공유하지 않음).
+// 타이틀 화면(MainMenu_Cinematic) 위에 월드 선택 패널을 생성한다.
+// 팰월드 WORLD SELECT / WORLD SETTING 레퍼런스 참고: 중앙 카드 팝업이 아니라
+// 전체화면(기존 배경이 그대로 비치는 풀블리드) + 좌상단 큰 타이틀 + 테이블形 목록.
+// SettingsPanelRebuilder/MainMenuButtonsBuilder와 동일 컨벤션: 자체 완결된 정적 빌더 +
+// 자체 헬퍼(다른 빌더 스크립트와 공유하지 않음), 확인창 없이 항상 재생성.
 // =====================================================================
 
 #if UNITY_EDITOR
@@ -19,8 +21,29 @@ public static class WorldSelectUIBuilder
     private const string CanvasName = "MainMenu_Cinematic";
     private const string RowPrefabPath = "Assets/05.Prefabs/UI/WorldSelectRow.prefab";
 
-    // 타이틀 화면 Btn_Quit의 하이라이트 색과 동일 계열의 골드 — SettingsPanelRebuilder.AccentColor와도 통일.
-    private static readonly Color AccentColor = new Color(0.85f, 0.78f, 0.24f, 1f);
+    // 레이아웃 기준값 (1920x1080 캔버스)
+    private const float LeftMargin = 90f;
+    private const float ContentWidth = 1650f; // 90 ~ 1740
+    private const float RowHeight = 84f;
+    private const float RowSpacing = 10f;
+    private const float LevelColWidth = 160f;
+
+    // 팰월드 레퍼런스 톤: 거의 무채색 슬레이트 네이비 + 시안 액센트(레벨/강조값만).
+    // 배경이 밝고 복잡한 산/하늘 그림이라 처음엔 행 배경이 거의 투명(alpha 80~130)하고
+    // 글자색도 채도가 낮아 글자가 배경에 묻혀 안 보이는 문제가 있었음 — 전부 대비를 크게 올림.
+    private static readonly Color DimOverlayColor = Hex("050B12", 150); // 화면 전체를 깔아 글자 대비 확보
+    private static readonly Color TitleColor   = Hex("F2F5F8", 255);
+    private static readonly Color LineColor    = Hex("FFFFFF", 120);
+    private static readonly Color HeaderColor  = Hex("C7D2DC", 255);
+    private static readonly Color RowBgColor   = Hex("0A1018", 235);
+    private static readonly Color CreateBgColor = Hex("0A1018", 190);
+    private static readonly Color NameColor    = Hex("FFFFFF", 255);
+    private static readonly Color DateColor    = Hex("A9BBCB", 255);
+    private static readonly Color AccentCyan   = Hex("8FD8FF", 255);
+    private static readonly Color ModalBg      = Hex("0A1018", 255);
+    private static readonly Color ModalLabelBg = Hex("4A5868", 255);
+    private static readonly Color ModalLabelTx = Hex("0D1218", 255);
+    private static readonly Color InputBg      = Hex("050B12", 230);
 
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
@@ -36,7 +59,6 @@ public static class WorldSelectUIBuilder
             return;
         }
 
-        // 반복 실행해도 항상 깨끗하게 — SettingsPanelRebuilder와 동일하게 확인창 없이 바로 교체.
         var existing = canvasGO.transform.Find("WorldSelectPanel");
         if (existing != null)
             Undo.DestroyObjectImmediate(existing.gameObject);
@@ -44,45 +66,114 @@ public static class WorldSelectUIBuilder
         Undo.SetCurrentGroupName("Build World Select UI");
         int undoGroup = Undo.GetCurrentGroup();
 
-        // ── 루트(전체화면 어둡게 깔기) ───────────────────────────────────
-        GameObject root = MakeFullscreen("WorldSelectPanel", canvasGO.transform, Hex("050B12", 215));
+        // ── 루트 — 풀스크린이지만 배경 채움 없음(기존 MainMenu_Cinematic의 산/Scrim이 그대로 비침) ──
+        var root = new GameObject("WorldSelectPanel", typeof(RectTransform));
         Undo.RegisterCreatedObjectUndo(root, "Create WorldSelectPanel");
+        root.transform.SetParent(canvasGO.transform, false);
+        Stretch(root.GetComponent<RectTransform>());
 
         var ui = root.AddComponent<WorldSelectUI>();
         var so = new SerializedObject(ui);
         SetRef(so, "panelRoot", root);
 
-        // ── 카드 ─────────────────────────────────────────────────────────
-        GameObject card = MakeImage("Card", root.transform, new Vector2(900, 700), Vector2.zero, Hex("0E1B2A", 235));
+        // ── 딤 오버레이 — 배경(산/하늘) 위에 어둡게 깔아 글자 대비를 확보 ──────────
+        // 풀블리드 배경이 밝고 복잡해서 이게 없으면 타이틀/헤더/행 글자가 묻혀 안 보였다.
+        var dimOverlay = MakeRect("DimOverlay", root.transform, Vector2.zero, Vector2.zero, DimOverlayColor);
+        Stretch(dimOverlay.GetComponent<RectTransform>());
+        dimOverlay.GetComponent<Image>().raycastTarget = false;
 
-        var title = MakeTMP("Title", card.transform, new Vector2(800, 56), new Vector2(0f, 306f),
-            "월드 선택", 30f, AccentColor, TextAlignmentOptions.Center);
-        title.fontStyle = FontStyles.Bold;
+        // ── 타이틀 (좌상단, 팰월드 "WORLD SELECT" 스타일) ───────────────────
+        var title = MakeTMP("Title", root.transform, new Vector2(900, 60),
+            new Vector2(LeftMargin, -70f), "WORLD SELECT", 46f, TitleColor, TextAlignmentOptions.MidlineLeft);
+        title.characterSpacing = 4f;
+        AnchorTopLeft(title.rectTransform);
         ApplyFont(title);
 
-        MakeImage("TitleLine", card.transform, new Vector2(820, 1f), new Vector2(0f, 272f), Hex("23394F", 220));
+        var titleLine = MakeRect("TitleLine", root.transform, new Vector2(360, 2), new Vector2(LeftMargin, -130f), LineColor);
+        AnchorTopLeft(titleLine);
+        var titleTick = MakeRect("TitleTick", root.transform, new Vector2(3, 12), new Vector2(LeftMargin, -126f), Hex("FFFFFF", 140));
+        AnchorTopLeft(titleTick);
 
-        // ── 슬롯 목록 (스크롤) ─────────────────────────────────────────
-        Transform rowContainer = BuildScrollList(card.transform);
-        SetRef(so, "rowContainer", rowContainer);
+        // ── 헤더 행 (데이터 행과 동일한 HorizontalLayoutGroup 폭 배분으로 컬럼 정렬 보장) ──
+        var headerRow = BuildRowSkeleton("HeaderRow", root.transform, new Vector2(LeftMargin, -190f), withBg: false);
+        var headerName = MakeColumnTMP(headerRow, "월드명", HeaderColor, TextAlignmentOptions.MidlineLeft, flexible: true);
+        headerName.fontStyle = FontStyles.Bold;
+        var headerLevel = MakeColumnTMP(headerRow, "강화 Lv.", HeaderColor, TextAlignmentOptions.MidlineRight, flexible: false, fixedWidth: LevelColWidth);
+        headerLevel.fontStyle = FontStyles.Bold;
 
-        MakeImage("BottomLine", card.transform, new Vector2(820, 1f), new Vector2(0f, -218f), Hex("23394F", 220));
+        var headerLine = MakeRect("HeaderLine", root.transform, new Vector2(ContentWidth, 1f), new Vector2(LeftMargin, -224f), Hex("FFFFFF", 50));
+        AnchorTopLeft(headerLine);
 
-        // ── 하단: 새 월드 이름 입력 + 생성 버튼 ──────────────────────────
-        TMP_InputField nameInput = BuildNameInputField(card.transform);
-        SetRef(so, "newWorldNameInput", nameInput);
+        // ── 목록 컨테이너 (스크롤 없이 VerticalLayoutGroup — 슬롯이 적어 스크롤 불필요) ──
+        var listGo = new GameObject("RowContainer", typeof(RectTransform));
+        listGo.transform.SetParent(root.transform, false);
+        var listRt = listGo.GetComponent<RectTransform>();
+        AnchorTopLeft(listRt);
+        listRt.anchoredPosition = new Vector2(LeftMargin, -240f);
+        listRt.sizeDelta = new Vector2(ContentWidth, 0f);
+        var listVlg = listGo.AddComponent<VerticalLayoutGroup>();
+        listVlg.spacing = RowSpacing;
+        listVlg.childControlWidth = true;
+        listVlg.childControlHeight = true;
+        listVlg.childForceExpandWidth = true;
+        listVlg.childForceExpandHeight = false;
+        var listCsf = listGo.AddComponent<ContentSizeFitter>();
+        listCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        SetRef(so, "rowContainer", listGo.transform);
 
-        GameObject createBtn = MakeButton("Btn_CreateWorld", card.transform,
-            new Vector2(220, 56), new Vector2(345f, -270f), "새 월드 만들기", 19f, AccentColor, Hex("1A1606"));
-        SetRef(so, "newWorldButton", createBtn.GetComponent<Button>());
+        // ── "+ 신규 월드 생성하기" 행 — rowContainer의 자식으로 둬서 Refresh() 때 항상 맨 아래로 ──
+        var createRow = BuildRowSkeleton("CreateRow", listGo.transform, Vector2.zero, withBg: true, bgColor: CreateBgColor);
+        var createLabel = MakeTMP("Label", createRow.transform, new Vector2(0, RowHeight), Vector2.zero,
+            "+  신규 월드 생성하기", 22f, NameColor, TextAlignmentOptions.Center);
+        StretchFull(createLabel.rectTransform);
+        ApplyFont(createLabel);
+        // createRow의 HorizontalLayoutGroup이 자식을 컨텐츠 크기로 줄여버려(StretchFull 무시) 텍스트가
+        // 가운데가 아니라 왼쪽에 몰려 보이는 문제 — 레이아웃 계산에서 빼서 직접 지정한 풀스트레치를 살린다.
+        var createLabelLe = createLabel.gameObject.AddComponent<LayoutElement>();
+        createLabelLe.ignoreLayout = true;
+        var createBtn = createRow.AddComponent<Button>();
+        createBtn.targetGraphic = createRow.GetComponent<Image>();
+        SetRef(so, "createRowButton", createBtn);
 
-        GameObject backBtn = MakeButton("Btn_Back", card.transform,
-            new Vector2(160, 48), new Vector2(0f, -330f), "취소", 18f, Hex("1A2A3C"), Color.white);
-        SetRef(so, "backButton", backBtn.GetComponent<Button>());
+        // ── 하단 우측 액션 바: 시작 / 삭제 / 뒤로가기 (뒤로가기가 가장 우측 모서리) ──
+        // 행을 클릭하면 선택(하이라이트)만 되고, 실제 입장/삭제는 여기 버튼이 현재
+        // 선택된 슬롯을 대상으로 처리한다(선택 전엔 시작/삭제 비활성).
+        const float actBtnW = 160f, actBtnH = 52f, actSpacing = 16f, actBottom = 50f, actRight = LeftMargin;
+        var cancelBtn = MakeBottomRightButton("Btn_Cancel", root.transform, new Vector2(actBtnW, actBtnH),
+            actRight, actBottom, "뒤로가기", Hex("1A2A3C"), Color.white);
+        SetRef(so, "cancelButton", cancelBtn.GetComponent<Button>());
 
-        // ── WorldSelectRow 프리팹 생성/로드 ──────────────────────────────
-        WorldSelectRow rowComp = BuildOrLoadRowPrefab();
+        var deleteActionBtn = MakeBottomRightButton("Btn_Delete", root.transform, new Vector2(actBtnW, actBtnH),
+            actRight + actBtnW + actSpacing, actBottom, "삭제", Hex("3A1414"), Hex("FF8A8A"));
+        SetRef(so, "deleteButton", deleteActionBtn.GetComponent<Button>());
+
+        var enterBtn = MakeBottomRightButton("Btn_Enter", root.transform, new Vector2(actBtnW, actBtnH),
+            actRight + (actBtnW + actSpacing) * 2f, actBottom, "시작", AccentCyan, Hex("0A1018"));
+        SetRef(so, "enterButton", enterBtn.GetComponent<Button>());
+
+        // 선택된 슬롯이 없는 평소 상태 — 인터랙터블 토글은 WorldSelectUI.SelectRow()가 담당.
+        enterBtn.GetComponent<Button>().interactable = false;
+        deleteActionBtn.GetComponent<Button>().interactable = false;
+
+        // ── 이름 입력 모달 (팰월드 WORLD SETTING의 "월드명" 변경 팝업 참고) ──
+        BuildCreateModal(root.transform, so);
+
+        // ── WorldSelectRow 프리팹 ────────────────────────────────────────
+        WorldSelectRow rowComp = BuildRowPrefab();
         if (rowComp != null) SetRef(so, "rowPrefab", rowComp);
+
+        // ── 메인메뉴 버튼 목록 / 장식 요소 자동 연결 ──────────────────────
+        var menuList = canvasGO.transform.Find("MenuList");
+        if (menuList != null) SetRef(so, "mainMenuList", menuList.gameObject);
+
+        var hideNames = new[] { "Logo_Timekov", "Logo_Underline", "Tagline" };
+        var hideGos = new System.Collections.Generic.List<GameObject>();
+        foreach (var n in hideNames)
+        {
+            var t = canvasGO.transform.Find(n);
+            if (t != null) hideGos.Add(t.gameObject);
+        }
+        SetRefArray(so, "hideWhileOpen", hideGos);
 
         so.ApplyModifiedProperties();
 
@@ -105,87 +196,127 @@ public static class WorldSelectUIBuilder
         EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         Selection.activeGameObject = root;
 
-        Debug.Log("[WorldSelectUIBuilder] 월드 선택 UI 생성 완료. " +
-            "행 프리팹: Assets/05.Prefabs/UI/WorldSelectRow.prefab — Ctrl+S로 씬 저장하세요.");
+        Debug.Log("[WorldSelectUIBuilder] 월드 선택 UI(풀스크린, 팰월드 스타일) 생성 완료. Ctrl+S로 씬 저장하세요.");
     }
 
     [MenuItem(MenuPath, true)]
     static bool Validate() => !Application.isPlaying;
 
-    // ── 스크롤 목록 ──────────────────────────────────────────────────────
-
-    static Transform BuildScrollList(Transform parent)
+    // ── 행 골격 (헤더/데이터/생성행이 동일한 컬럼 폭 배분을 공유 — 정렬 보장) ──────
+    static GameObject BuildRowSkeleton(string name, Transform parent, Vector2 pos, bool withBg, Color bgColor = default)
     {
-        var scrollGo = new GameObject("ScrollView", typeof(RectTransform), typeof(ScrollRect));
-        scrollGo.transform.SetParent(parent, false);
-        var scrollRt = scrollGo.GetComponent<RectTransform>();
-        scrollRt.anchorMin = scrollRt.anchorMax = scrollRt.pivot = new Vector2(0.5f, 0.5f);
-        scrollRt.sizeDelta = new Vector2(840, 460);
-        scrollRt.anchoredPosition = new Vector2(0f, 30f);
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        if (parent.GetComponent<VerticalLayoutGroup>() == null)
+        {
+            AnchorTopLeft(rt);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(ContentWidth, RowHeight);
+        }
 
-        var scrollRect = scrollGo.GetComponent<ScrollRect>();
-        scrollRect.horizontal = false;
-        scrollRect.vertical = true;
+        if (withBg)
+        {
+            var img = go.AddComponent<Image>();
+            img.color = bgColor;
+            img.raycastTarget = true;
+        }
 
-        var viewportGo = MakeImage("Viewport", scrollGo.transform, Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
-        var vpRt = viewportGo.GetComponent<RectTransform>();
-        vpRt.anchorMin = Vector2.zero;
-        vpRt.anchorMax = Vector2.one;
-        vpRt.offsetMin = vpRt.offsetMax = Vector2.zero;
-        viewportGo.AddComponent<RectMask2D>();
-        scrollRect.viewport = vpRt;
+        var hlg = go.AddComponent<HorizontalLayoutGroup>();
+        hlg.padding = new RectOffset(24, 16, 8, 8);
+        hlg.spacing = 16f;
+        hlg.childAlignment = TextAnchor.MiddleLeft;
+        hlg.childControlWidth = true;
+        hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
 
-        var contentGo = new GameObject("RowContainer", typeof(RectTransform));
-        contentGo.transform.SetParent(viewportGo.transform, false);
-        var contentRt = contentGo.GetComponent<RectTransform>();
-        contentRt.anchorMin = new Vector2(0f, 1f);
-        contentRt.anchorMax = new Vector2(1f, 1f);
-        contentRt.pivot = new Vector2(0.5f, 1f);
-        contentRt.sizeDelta = new Vector2(0f, 0f);
-        contentRt.anchoredPosition = Vector2.zero;
+        var le = go.AddComponent<LayoutElement>();
+        le.minHeight = RowHeight;
+        le.preferredHeight = RowHeight;
 
-        var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 8f;
-        vlg.padding = new RectOffset(6, 6, 6, 6);
-        vlg.childControlWidth = true;
-        vlg.childControlHeight = true;
-        vlg.childForceExpandWidth = true;
-        vlg.childForceExpandHeight = false;
-
-        var csf = contentGo.AddComponent<ContentSizeFitter>();
-        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        scrollRect.content = contentRt;
-        return contentGo.transform;
+        return go;
     }
 
-    // ── 새 월드 이름 입력 필드 ────────────────────────────────────────────
-    // TMP_InputField는 Text Area/Placeholder 등 내부 구조가 복잡해 수동 생성보다
-    // 기본 메뉴 생성 결과를 재배치하는 쪽이 안전하다 (SettingsPanelRebuilder와 동일 방식).
-
-    static TMP_InputField BuildNameInputField(Transform parent)
+    static TextMeshProUGUI MakeColumnTMP(GameObject row, string text, Color color, TextAlignmentOptions align, bool flexible, float fixedWidth = 0f)
     {
-        GameObject go = CreateUIElementViaMenu("GameObject/UI/Input Field - TextMeshPro", parent);
-        go.name = "Input_WorldName";
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(480, 56);
-        rt.anchoredPosition = new Vector2(-100f, -270f);
+        var go = new GameObject("Col_" + text, typeof(RectTransform));
+        go.transform.SetParent(row.transform, false);
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = 22f;
+        tmp.color = color;
+        tmp.alignment = align;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        ApplyFontStatic(tmp);
 
-        var input = go.GetComponent<TMP_InputField>();
-        input.text = string.Empty;
+        var le = go.AddComponent<LayoutElement>();
+        if (flexible) le.flexibleWidth = 1f;
+        else { le.preferredWidth = fixedWidth; le.minWidth = fixedWidth; le.flexibleWidth = 0f; }
+        return tmp;
+    }
+
+    // ── 이름 입력 모달 ────────────────────────────────────────────────────
+    static void BuildCreateModal(Transform parent, SerializedObject so)
+    {
+        var modalRoot = new GameObject("CreateModal", typeof(RectTransform));
+        modalRoot.transform.SetParent(parent, false);
+        Stretch(modalRoot.GetComponent<RectTransform>());
+        modalRoot.SetActive(false);
+        SetRef(so, "createModal", modalRoot);
+
+        var backdropGo = new GameObject("Backdrop", typeof(RectTransform), typeof(Image), typeof(Button));
+        backdropGo.transform.SetParent(modalRoot.transform, false);
+        Stretch(backdropGo.GetComponent<RectTransform>());
+        backdropGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
+        var backdropBtn = backdropGo.GetComponent<Button>();
+        backdropBtn.targetGraphic = backdropGo.GetComponent<Image>();
+        SetRef(so, "modalBackdropButton", backdropBtn);
+
+        const float boxW = 620f, boxH = 230f;
+        var box = MakeRect("Box", modalRoot.transform, new Vector2(boxW, boxH), Vector2.zero, ModalBg);
+
+        // 라벨 스트립 — 배경(Image)과 텍스트(TMP)를 같은 오브젝트에 두면 같은 GameObject 안에서는
+        // 컴포넌트 추가 순서가 그대로 렌더 순서가 되어(SetAsFirstSibling은 형제 간에만 영향) 배경이
+        // 텍스트를 덮어버린다 — 배경 전용 오브젝트를 따로 만들고 텍스트를 그 자식으로 둔다.
+        var labelStrip = MakeRect("LabelStrip", box.transform, new Vector2(boxW, 44f), new Vector2(0f, 93f), ModalLabelBg);
+        var label = MakeTMP("Text", labelStrip.transform, Vector2.zero, Vector2.zero,
+            "월드명", 20f, ModalLabelTx, TextAlignmentOptions.Center);
+        StretchFull(label.rectTransform);
+        label.fontStyle = FontStyles.Bold;
+        ApplyFont(label);
+
+        // 입력 필드
+        var inputGo = CreateUIElementViaMenu("GameObject/UI/Input Field - TextMeshPro", box.transform);
+        inputGo.name = "Input_WorldName";
+        var inputRt = inputGo.GetComponent<RectTransform>();
+        inputRt.anchorMin = inputRt.anchorMax = inputRt.pivot = new Vector2(0.5f, 0.5f);
+        inputRt.sizeDelta = new Vector2(boxW - 40f, 56f);
+        inputRt.anchoredPosition = new Vector2(0f, 28f);
+        var inputImg = inputGo.GetComponent<Image>();
+        if (inputImg != null) inputImg.color = InputBg;
+        var input = inputGo.GetComponent<TMP_InputField>();
         input.characterLimit = 24;
+        var placeholder = inputGo.transform.Find("Text Area/Placeholder")?.GetComponent<TextMeshProUGUI>();
+        if (placeholder != null) { placeholder.text = "새 월드 이름"; ApplyFont(placeholder); }
+        var inputText = inputGo.transform.Find("Text Area/Text")?.GetComponent<TextMeshProUGUI>();
+        ApplyFont(inputText);
+        SetRef(so, "newWorldNameInput", input);
 
-        var placeholder = go.transform.Find("Text Area/Placeholder")?.GetComponent<TextMeshProUGUI>();
-        if (placeholder != null)
-        {
-            placeholder.text = "새 월드 이름";
-            ApplyFont(placeholder);
-        }
-        var textComp = go.transform.Find("Text Area/Text")?.GetComponent<TextMeshProUGUI>();
-        ApplyFont(textComp);
+        // 구분선
+        MakeRect("Sep", box.transform, new Vector2(boxW - 40f, 1f), new Vector2(0f, -12f), Hex("FFFFFF", 35));
 
-        return input;
+        // 결정 버튼
+        var confirmBtn = MakeButton("Btn_Confirm", box.transform, new Vector2(boxW - 40f, 52f),
+            new Vector2(0f, -54f), "결정", 20f, Hex("E8ECEF"), Hex("16202B"));
+        SetRef(so, "confirmCreateButton", confirmBtn.GetComponent<Button>());
+
+        // 모서리 틱(팰월드 미니멀 코너 브래킷 근사 — 단순 대시 4개)
+        float hx = boxW * 0.5f, hy = boxH * 0.5f;
+        MakeRect("TickTL", box.transform, new Vector2(14, 2), new Vector2(-hx, hy), Hex("FFFFFF", 120));
+        MakeRect("TickTR", box.transform, new Vector2(14, 2), new Vector2(hx, hy), Hex("FFFFFF", 120));
+        MakeRect("TickBL", box.transform, new Vector2(14, 2), new Vector2(-hx, -hy), Hex("FFFFFF", 120));
+        MakeRect("TickBR", box.transform, new Vector2(14, 2), new Vector2(hx, -hy), Hex("FFFFFF", 120));
     }
 
     static GameObject CreateUIElementViaMenu(string menuPath, Transform parent)
@@ -200,104 +331,104 @@ public static class WorldSelectUIBuilder
         return created;
     }
 
-    // ── WorldSelectRow 프리팹 생성/로드 ───────────────────────────────────
-
-    static WorldSelectRow BuildOrLoadRowPrefab()
+    // ── WorldSelectRow 프리팹 (항상 재생성 — 다른 빌더와 동일 컨벤션) ───────────
+    static WorldSelectRow BuildRowPrefab()
     {
-        var existing = AssetDatabase.LoadAssetAtPath<GameObject>(RowPrefabPath);
-        if (existing != null)
-        {
-            var comp = existing.GetComponent<WorldSelectRow>();
-            if (comp != null) return comp;
-        }
-
         System.IO.Directory.CreateDirectory("Assets/05.Prefabs/UI");
 
-        var row = new GameObject("WorldSelectRow", typeof(RectTransform));
-        var rowRt = row.GetComponent<RectTransform>();
-        rowRt.anchorMin = rowRt.anchorMax = rowRt.pivot = new Vector2(0.5f, 0.5f);
-        rowRt.sizeDelta = new Vector2(800, 84);
+        // BuildRowSkeleton은 parent.GetComponent<VerticalLayoutGroup>()를 호출해 parent가
+        // 필요하므로(프리팹 루트는 부모 없는 임시 오브젝트), 여기서는 그 헬퍼를 쓰지 않고
+        // 행 골격을 직접 만든다(헤더/데이터 행과 동일한 HorizontalLayoutGroup 설정만 맞춤).
+        var rowGo = new GameObject("WorldSelectRow", typeof(RectTransform), typeof(Image));
+        var rowRt = rowGo.GetComponent<RectTransform>();
+        rowRt.sizeDelta = new Vector2(ContentWidth, RowHeight);
+        rowGo.GetComponent<Image>().color = RowBgColor;
 
-        var rowImg = row.AddComponent<Image>();
-        rowImg.color = Hex("13283B", 220);
-
-        var hlg = row.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 12f;
-        hlg.padding = new RectOffset(20, 14, 8, 8);
-        hlg.childControlHeight = true;
-        hlg.childControlWidth = true;
-        hlg.childForceExpandWidth = false;
+        var hlg = rowGo.AddComponent<HorizontalLayoutGroup>();
+        hlg.padding = new RectOffset(24, 16, 8, 8);
+        hlg.spacing = 16f;
         hlg.childAlignment = TextAnchor.MiddleLeft;
+        hlg.childControlWidth = true;
+        hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
+        var rowLe = rowGo.AddComponent<LayoutElement>();
+        rowLe.minHeight = RowHeight;
+        rowLe.preferredHeight = RowHeight;
 
-        var le = row.AddComponent<LayoutElement>();
-        le.minHeight = 84f;
-        le.preferredHeight = 84f;
-
-        // 이름 + 정보 텍스트 (세로로 쌓는 영역)
+        // 이름 + 날짜 (세로로 쌓는 텍스트 컬럼, 가변폭)
         var textColGo = new GameObject("TextColumn", typeof(RectTransform));
-        textColGo.transform.SetParent(row.transform, false);
-        var textColLE = textColGo.AddComponent<LayoutElement>();
-        textColLE.flexibleWidth = 1f;
-        var vlg = textColGo.AddComponent<VerticalLayoutGroup>();
-        vlg.childControlWidth = true;
-        vlg.childControlHeight = true;
-        vlg.childForceExpandWidth = true;
-        vlg.childForceExpandHeight = false;
-        vlg.spacing = 4f;
-        vlg.childAlignment = TextAnchor.MiddleLeft;
+        textColGo.transform.SetParent(rowGo.transform, false);
+        var textColLe = textColGo.AddComponent<LayoutElement>();
+        textColLe.flexibleWidth = 1f;
+        var textVlg = textColGo.AddComponent<VerticalLayoutGroup>();
+        textVlg.childControlWidth = true;
+        textVlg.childControlHeight = true;
+        textVlg.childForceExpandWidth = true;
+        textVlg.childForceExpandHeight = false;
+        textVlg.spacing = 4f;
+        textVlg.childAlignment = TextAnchor.MiddleLeft;
 
         var nameTMP = MakeTMP("NameText", textColGo.transform, new Vector2(0, 28), Vector2.zero,
-            "이름없는 월드", 22f, Color.white, TextAlignmentOptions.MidlineLeft);
+            "이름없는 월드", 22f, NameColor, TextAlignmentOptions.MidlineLeft);
         nameTMP.fontStyle = FontStyles.Bold;
         ApplyFont(nameTMP);
 
-        var infoTMP = MakeTMP("InfoText", textColGo.transform, new Vector2(0, 22), Vector2.zero,
-            "강화 Lv.0", 15f, Hex("8FA6BC"), TextAlignmentOptions.MidlineLeft);
-        ApplyFont(infoTMP);
+        var dateTMP = MakeTMP("DateText", textColGo.transform, new Vector2(0, 20), Vector2.zero,
+            "-", 14f, DateColor, TextAlignmentOptions.MidlineLeft);
+        ApplyFont(dateTMP);
 
-        // 선택 버튼(행 전체를 누르면 진입)
-        var selectBtn = row.AddComponent<Button>();
-        selectBtn.targetGraphic = rowImg;
+        // 레벨 (고정폭, 시안 액센트 — 헤더 "강화 Lv."와 정렬)
+        var levelTMP = MakeColumnTMP(rowGo, "Lv.0", AccentCyan, TextAlignmentOptions.MidlineRight, flexible: false, fixedWidth: LevelColWidth);
+        levelTMP.name = "LevelText";
+        levelTMP.fontStyle = FontStyles.Bold;
 
-        // 삭제 버튼(우측 고정)
-        var deleteGo = MakeButton("Btn_Delete", row.transform, new Vector2(72, 56), Vector2.zero, "삭제", 16f, Hex("3A1414"), Hex("FF8A8A"));
-        var deleteLE = deleteGo.AddComponent<LayoutElement>();
-        deleteLE.minWidth = 72f;
-        deleteLE.preferredWidth = 72f;
-        deleteLE.flexibleWidth = 0f;
+        // 선택 버튼(행 전체) — 클릭하면 선택(하이라이트)만 됨. 입장/삭제는 하단 액션 바가 처리.
+        var selectBtn = rowGo.AddComponent<Button>();
+        selectBtn.targetGraphic = rowGo.GetComponent<Image>();
 
-        var rowComp = row.AddComponent<WorldSelectRow>();
+        var rowComp = rowGo.AddComponent<WorldSelectRow>();
         var rowSO = new SerializedObject(rowComp);
+        SetRef(rowSO, "background", rowGo.GetComponent<Image>());
         SetRef(rowSO, "nameText", nameTMP);
-        SetRef(rowSO, "infoText", infoTMP);
+        SetRef(rowSO, "dateText", dateTMP);
+        SetRef(rowSO, "levelText", levelTMP);
         SetRef(rowSO, "selectButton", selectBtn);
-        SetRef(rowSO, "deleteButton", deleteGo.GetComponent<Button>());
         rowSO.ApplyModifiedProperties();
 
-        GameObject prefabAsset = PrefabUtility.SaveAsPrefabAsset(row, RowPrefabPath);
-        Object.DestroyImmediate(row);
+        GameObject prefabAsset = PrefabUtility.SaveAsPrefabAsset(rowGo, RowPrefabPath);
+        Object.DestroyImmediate(rowGo);
 
         AssetDatabase.Refresh();
-        Debug.Log($"[WorldSelectUIBuilder] WorldSelectRow 프리팹 생성됨: {RowPrefabPath}");
+        Debug.Log($"[WorldSelectUIBuilder] WorldSelectRow 프리팹 재생성됨: {RowPrefabPath}");
 
         return prefabAsset?.GetComponent<WorldSelectRow>();
     }
 
     // ── 헬퍼 (이 빌더 전용 — 다른 Builder 스크립트와 공유하지 않음) ───────
 
-    static GameObject MakeFullscreen(string name, Transform parent, Color color)
+    static void Stretch(RectTransform rt)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(parent, false);
-        var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;
         rt.offsetMin = rt.offsetMax = Vector2.zero;
-        go.GetComponent<Image>().color = color;
-        return go;
     }
 
-    static GameObject MakeImage(string name, Transform parent, Vector2 size, Vector2 pos, Color color)
+    static void StretchFull(RectTransform rt)
+    {
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+    }
+
+    static void AnchorTopLeft(RectTransform rt)
+    {
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
+    }
+
+    static void AnchorTopLeft(GameObject go) => AnchorTopLeft(go.GetComponent<RectTransform>());
+
+    static GameObject MakeRect(string name, Transform parent, Vector2 size, Vector2 pos, Color color)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
@@ -355,16 +486,39 @@ public static class WorldSelectUIBuilder
         return go;
     }
 
+    // 화면 우하단 모서리 기준 고정 배치 버튼(액션 바: 입장하기/삭제/취소). xFromRight/yFromBottom은
+    // 버튼의 우측/하단 가장자리가 화면 가장자리에서 떨어진 거리.
+    static GameObject MakeBottomRightButton(string name, Transform parent, Vector2 size,
+        float xFromRight, float yFromBottom, string label, Color bgColor, Color textColor)
+    {
+        var go = MakeButton(name, parent, size, Vector2.zero, label, 20f, bgColor, textColor);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 0f);
+        rt.anchoredPosition = new Vector2(-xFromRight - size.x * 0.5f, yFromBottom + size.y * 0.5f);
+        return go;
+    }
+
     static void ApplyFont(TMP_Text t)
     {
         if (t != null && KoreanFont != null) t.font = KoreanFont;
     }
+
+    static void ApplyFontStatic(TMP_Text t) => ApplyFont(t);
 
     static void SetRef(SerializedObject so, string field, Object obj)
     {
         var prop = so.FindProperty(field);
         if (prop != null) prop.objectReferenceValue = obj;
         else Debug.LogWarning($"[WorldSelectUIBuilder] 필드 없음: '{field}'");
+    }
+
+    static void SetRefArray(SerializedObject so, string field, System.Collections.Generic.List<GameObject> items)
+    {
+        var prop = so.FindProperty(field);
+        if (prop == null) { Debug.LogWarning($"[WorldSelectUIBuilder] 필드 없음: '{field}'"); return; }
+        prop.arraySize = items.Count;
+        for (int i = 0; i < items.Count; i++)
+            prop.GetArrayElementAtIndex(i).objectReferenceValue = items[i];
     }
 
     static Color Hex(string hex, int alpha = 255)

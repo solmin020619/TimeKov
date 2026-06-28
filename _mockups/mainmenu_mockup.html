@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>TimeKov MainMenu Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  body { font-family: 'Noto Sans KR', sans-serif; }
+
+  #stage {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    transform-origin: top left;
+    overflow: hidden;
+  }
+
+  /* BG_Mountain 자리 — 실제 아트 없으니 그라데이션으로 톤만 표현 */
+  #bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 1400px 900px at 50% 30%, rgba(60,90,120,0.35), transparent 70%),
+      linear-gradient(180deg, #0c1118 0%, #161d27 45%, #0a0d12 100%);
+  }
+
+  /* Scrim */
+  #scrim {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,var(--scrim, 0.45));
+    transition: background 0.15s linear;
+  }
+
+  /* VersionChip (좌상단) */
+  #versionChip {
+    position: absolute; left: 56px; top: 48px;
+    font-size: 14px; color: rgba(255,255,255,0.45);
+    letter-spacing: 0.5px;
+  }
+
+  /* Logo + Tagline (중앙 상단) */
+  #logoWrap {
+    position: absolute; left: 50%; top: 38%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 100%;
+  }
+  #logo {
+    font-size: 86px; font-weight: 700; color: #f2f5f8;
+    letter-spacing: 6px;
+    text-shadow: 0 0 var(--glow, 18px) rgba(120,170,220,0.55);
+  }
+  #logoUnderline {
+    width: 220px; height: 2px; margin: 18px auto 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  }
+  #tagline {
+    margin-top: 22px; font-size: 20px; font-weight: 300;
+    color: rgba(220,230,240,0.75); letter-spacing: 2px;
+  }
+
+  /* 메뉴 리스트 (PressPrompt 자리 대체) */
+  #menu {
+    position: absolute; left: 50%; bottom: var(--menuBottom, 140px);
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center;
+    gap: var(--menuGap, 22px);
+  }
+  .menuItem {
+    font-size: var(--menuFontSize, 30px);
+    letter-spacing: var(--menuLetterSpacing, 4px);
+    color: var(--menuColor, #f2f5f8);
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 28px;
+    border-radius: 6px;
+    text-shadow: 0 0 var(--glow, 18px) rgba(120,170,220,0.45);
+    transition: color 0.15s, text-shadow 0.15s, background 0.15s;
+  }
+  .menuItem:hover, .menuItem.selected {
+    color: var(--hoverColor, #7fd0ff);
+    text-shadow: 0 0 calc(var(--glow, 18px) * 1.6) var(--hoverColor, #7fd0ff);
+    background: rgba(255,255,255,0.06);
+  }
+
+  /* Btn_Quit는 메뉴 리스트 안으로 흡수 (별도 우하단 버튼 제거) */
+
+  /* Tweaks panel */
+  #tweaks {
+    position: fixed; right: 24px; top: 24px;
+    width: 300px;
+    background: rgba(20,24,30,0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 16px 18px;
+    color: #dfe6ee;
+    font-size: 12px;
+    z-index: 10;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+  #tweaks h3 { font-size: 13px; font-weight: 500; margin-bottom: 10px; color: #fff; }
+  .row { margin-bottom: 12px; }
+  .row label { display: flex; justify-content: space-between; margin-bottom: 4px; color: #aab4c0; }
+  .row input[type="range"] { width: 100%; }
+  .row input[type="color"] { width: 100%; height: 26px; border: none; background: none; padding: 0; }
+  #readout {
+    margin-top: 10px; padding: 10px; background: #0c0f13;
+    border-radius: 6px; font-family: monospace; font-size: 10.5px;
+    white-space: pre-wrap; line-height: 1.5; color: #8fe0a8;
+    max-height: 180px; overflow-y: auto;
+  }
+  #copyBtn {
+    margin-top: 8px; width: 100%; padding: 8px; border: none; border-radius: 6px;
+    background: #2c6ea8; color: #fff; font-size: 12px; cursor: pointer;
+  }
+  #copyBtn:active { background: #1f5483; }
+  #scaleNote { position: fixed; left: 24px; bottom: 24px; color: rgba(255,255,255,0.5); font-size: 12px; z-index: 10; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="bg"></div>
+  <div id="scrim"></div>
+  <div id="versionChip">v0.1.0</div>
+
+  <div id="logoWrap">
+    <div id="logo">TIMEKOV</div>
+    <div id="logoUnderline"></div>
+    <div id="tagline">시간을 다루는 자, 시간에 갇힌 자</div>
+  </div>
+
+  <div id="menu">
+    <div class="menuItem selected">게임 시작</div>
+    <div class="menuItem">게임 종료</div>
+  </div>
+</div>
+
+<div id="tweaks">
+  <h3>Tweaks panel</h3>
+
+  <div class="row">
+    <label>메뉴 글자 크기 <span id="v_menuFontSize">30px</span></label>
+    <input type="range" id="menuFontSize" min="18" max="48" value="30">
+  </div>
+  <div class="row">
+    <label>메뉴 줄 간격 <span id="v_menuGap">22px</span></label>
+    <input type="range" id="menuGap" min="8" max="48" value="22">
+  </div>
+  <div class="row">
+    <label>자간 <span id="v_menuLetterSpacing">4px</span></label>
+    <input type="range" id="menuLetterSpacing" min="0" max="12" value="4">
+  </div>
+  <div class="row">
+    <label>메뉴 하단 여백 <span id="v_menuBottom">140px</span></label>
+    <input type="range" id="menuBottom" min="40" max="400" value="140">
+  </div>
+  <div class="row">
+    <label>글로우 블러 <span id="v_glow">18px</span></label>
+    <input type="range" id="glow" min="0" max="40" value="18">
+  </div>
+  <div class="row">
+    <label>배경 어둡기(scrim) <span id="v_scrim">0.45</span></label>
+    <input type="range" id="scrim" min="0" max="0.9" step="0.05" value="0.45">
+  </div>
+  <div class="row">
+    <label>기본 텍스트 색</label>
+    <input type="color" id="menuColor" value="#f2f5f8">
+  </div>
+  <div class="row">
+    <label>호버/선택 색</label>
+    <input type="color" id="hoverColor" value="#7fd0ff">
+  </div>
+
+  <div id="readout"></div>
+  <button id="copyBtn">값 복사 (핸드오프용)</button>
+</div>
+
+<div id="scaleNote">1920x1080 기준 목업 — 실제 Unity 해상도와 1:1 비교용</div>
+
+<script>
+  const root = document.documentElement;
+  const ids = ["menuFontSize","menuGap","menuLetterSpacing","menuBottom","glow","scrim"];
+  const units = { menuFontSize:"px", menuGap:"px", menuLetterSpacing:"px", menuBottom:"px", glow:"px", scrim:"" };
+
+  function applyVar(id, val) {
+    const cssVarMap = {
+      menuFontSize: "--menuFontSize",
+      menuGap: "--menuGap",
+      menuLetterSpacing: "--menuLetterSpacing",
+      menuBottom: "--menuBottom",
+      glow: "--glow",
+      scrim: "--scrim"
+    };
+    document.documentElement.style.setProperty(cssVarMap[id], val + units[id]);
+  }
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+      document.getElementById("v_" + id).textContent = el.value + units[id];
+      applyVar(id, el.value);
+      updateReadout();
+    });
+    applyVar(id, el.value);
+  });
+
+  document.getElementById("menuColor").addEventListener("input", e => {
+    document.documentElement.style.setProperty("--menuColor", e.target.value);
+    updateReadout();
+  });
+  document.getElementById("hoverColor").addEventListener("input", e => {
+    document.documentElement.style.setProperty("--hoverColor", e.target.value);
+    updateReadout();
+  });
+
+  document.querySelectorAll(".menuItem").forEach(it => {
+    it.addEventListener("click", () => {
+      document.querySelectorAll(".menuItem").forEach(o => o.classList.remove("selected"));
+      it.classList.add("selected");
+    });
+  });
+
+  function updateReadout() {
+    const v = id => document.getElementById(id).value;
+    const text =
+`menuFontSize: ${v("menuFontSize")}px
+menuItemGap: ${v("menuGap")}px
+menuLetterSpacing: ${v("menuLetterSpacing")}px
+menuBottomOffset: ${v("menuBottom")}px
+textGlowBlur: ${v("glow")}px
+scrimOpacity: ${v("scrim")}
+textColor: ${document.getElementById("menuColor").value}
+hoverColor: ${document.getElementById("hoverColor").value}`;
+    document.getElementById("readout").textContent = text;
+  }
+  updateReadout();
+
+  document.getElementById("copyBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(document.getElementById("readout").textContent);
+    const btn = document.getElementById("copyBtn");
+    const old = btn.textContent;
+    btn.textContent = "복사됨!";
+    setTimeout(() => btn.textContent = old, 1200);
+  });
+
+  // 1920x1080 스테이지를 창 크기에 맞춰 축소 표시
+  function fitStage() {
+    const stage = document.getElementById("stage");
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform = `scale(${scale})`;
+  }
+  window.addEventListener("resize", fitStage);
+  fitStage();
+</script>
+
+</body>
+</html>
