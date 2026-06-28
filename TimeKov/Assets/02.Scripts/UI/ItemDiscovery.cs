@@ -43,7 +43,8 @@ public static class ItemDiscovery
 
     static void OnAdded(int itemId, int amount) => MarkObtained(itemId);
 
-    // 세션 시작마다 초기화(저장 없음).
+    // 세션 시작 시 1회 초기화 + CodexSaveBridge가 슬롯 전환마다(다른 월드로 이동 등) 호출해
+    // 이전 슬롯의 메모리 상태가 새 슬롯으로 새는 것을 막는다.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void Reset() => _obtained.Clear();
+    public static void Reset() => _obtained.Clear();
 }

@@ -61,7 +61,8 @@ public static class RecipeProgress
         if (jackpotsOn != null) foreach (var j in jackpotsOn) _jackpotOn.Add(j);
     }
 
-    // 도메인 리로드마다 일단 비움 — 활성 슬롯이 있으면 CodexSaveBridge.Awake가 곧바로 복원한다.
+    // 세션 시작 시 1회 초기화 + CodexSaveBridge가 슬롯 전환마다(다른 월드로 이동 등) 호출해
+    // 이전 슬롯의 메모리 상태가 새 슬롯으로 새는 것을 막는다.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void Reset() { _craft.Clear(); _claimedFacilities.Clear(); _jackpotOn.Clear(); }
+    public static void Reset() { _craft.Clear(); _claimedFacilities.Clear(); _jackpotOn.Clear(); }
 }

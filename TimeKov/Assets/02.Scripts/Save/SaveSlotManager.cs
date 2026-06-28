@@ -35,6 +35,7 @@ public class SaveSlotManager : MonoBehaviour
     public bool HasActiveSlot => Data != null && !string.IsNullOrEmpty(ActiveSlotId);
 
     readonly List<ISaveable> _saveables = new();
+    CodexSaveBridge _codexBridge;
 
     static string SavesRoot => Path.Combine(Application.persistentDataPath, "Saves");
     const string MetaFileName = "meta.json";
@@ -70,7 +71,7 @@ public class SaveSlotManager : MonoBehaviour
         // 여기서 직접 스폰해야 그 Awake가 도는 시점에 Instance(바로 위)가 이미 보장된다 —
         // 자체 RuntimeInitializeOnLoadMethod를 따로 두면 이 메서드와 실행 순서가 보장되지 않는다.
         var bridgeGo = new GameObject("[CodexSaveBridge]");
-        bridgeGo.AddComponent<CodexSaveBridge>();
+        _codexBridge = bridgeGo.AddComponent<CodexSaveBridge>();
         DontDestroyOnLoad(bridgeGo);
     }
 
@@ -142,6 +143,10 @@ public class SaveSlotManager : MonoBehaviour
         Data = new GameSaveData();
 
         WriteSlotFiles(dir, meta, Data);
+
+        // CodexDiscovery 등 static 상태는 슬롯과 무관하게 메모리에 남으므로, 슬롯이 바뀔
+        // 때마다(새 슬롯 생성 포함) 직접 리셋+복원을 트리거해줘야 한다 (CodexSaveBridge 참고).
+        _codexBridge?.ResetAndRestore();
         return meta;
     }
 
@@ -163,6 +168,10 @@ public class SaveSlotManager : MonoBehaviour
             ActiveMeta = JsonUtility.FromJson<SaveSlotMeta>(File.ReadAllText(metaPath));
             Data = JsonUtility.FromJson<GameSaveData>(File.ReadAllText(savePath)) ?? new GameSaveData();
             ActiveSlotId = slotId;
+
+            // CodexDiscovery 등 static 상태는 슬롯과 무관하게 메모리에 남으므로, 슬롯이 바뀔
+            // 때마다 직접 리셋+복원을 트리거해줘야 한다 (CodexSaveBridge 참고).
+            _codexBridge?.ResetAndRestore();
             return true;
         }
         catch (Exception e)
