@@ -42,7 +42,7 @@ public class SaveSlotManager : MonoBehaviour
 
     // 퀘스트 완료/코어 강화 등 특정 이벤트에서만 저장하면, 그 사이에 인벤토리만 채우거나
     // 건물만 짓고 나가는 경우 진행이 그냥 사라진다 — 그런 누락을 막는 최후의 안전망.
-    const float AutoSaveIntervalSeconds = 60f;
+    const float AutoSaveIntervalSeconds = 30f;
 
     // BeforeSceneLoad(첫 씬의 Awake들보다 먼저)여야 한다. AfterSceneLoad로 두면, 타이틀을 거치지
     // 않고 World 씬을 곧바로 Play했을 때(에디터 테스트) World의 다른 컴포넌트들 Awake가 먼저 돌면서
