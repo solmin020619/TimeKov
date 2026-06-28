@@ -90,6 +90,15 @@ public class FacilityUnlockPickup : MonoBehaviour, IInstantInteractable
 
     private void Start()
     {
+        // 이전 세션에 이미 해금된 설비면(세이브 복원) 연출 없이 즉시 제거 —
+        // FacilityUnlockManager는 해금 상태를 복원하지만, 월드에 놓인 이 오브젝트 자체는
+        // 씬 로드 시 항상 새로 생성되므로 직접 확인해 정리해줘야 한다.
+        if (FacilityUnlockManager.Instance != null && FacilityUnlockManager.Instance.IsUnlocked(facilityId))
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         var player = FindFirstObjectByType<Player>();
         if (player != null) { _player = player; _playerTransform = player.transform; }
     }

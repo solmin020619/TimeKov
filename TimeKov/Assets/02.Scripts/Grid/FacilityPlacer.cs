@@ -90,7 +90,9 @@ public class FacilityPlacer
 
     // 세이브 복원 전용 — 홀로그램 연출/사운드/VFX/퀘스트 알림 없이 즉시 배치한다.
     // PlaceRoutine과 달리 코루틴이 아니라 동기 호출이며, 저장된 currentLevel을 그대로 적용한다.
-    public void PlaceInstant(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells, int level)
+    // 반환값: 배치된 GameObject(실패 시 null) — 호출부가 설비 내부 생산 상태(MachineBase)를
+    // 추가로 복원할 때 컴포넌트를 꺼내 쓸 수 있게.
+    public GameObject PlaceInstant(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells, int level)
     {
         FacilityDataSheetData facility = GetFacilityData(facilityId);
         GameObject prefab = owner.PrefabDatabase != null ? owner.PrefabDatabase.GetPrefab(facilityId) : null;
@@ -98,7 +100,7 @@ public class FacilityPlacer
         if (facility == null || prefab == null)
         {
             Debug.LogWarning($"[FacilityPlacer] 복원 실패 — facilityId={facilityId} 데이터/프리팹 없음");
-            return;
+            return null;
         }
 
         occupancy.Occupy(footprintCells);
@@ -132,6 +134,8 @@ public class FacilityPlacer
 
         if (!owner.IsTopViewMode)
             placedBuilding.HideLabel();
+
+        return obj;
     }
 
     private FacilityDataSheetData GetFacilityData(int facilityId)

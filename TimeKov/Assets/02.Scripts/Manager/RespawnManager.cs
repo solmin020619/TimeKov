@@ -35,6 +35,20 @@ public class RespawnManager : MonoBehaviour
         // deathOverlay 미연결 시 씬에서 자동 탐색
         if (deathOverlay == null)
             deathOverlay = Object.FindAnyObjectByType<DeathOverlayUI>(FindObjectsInactive.Include);
+
+        // 세이브 복원 시점에 이미 사망 상태(HP=0)로 로드되는 경우를 대비한다 — 죽은 채로 저장(자동저장/
+        // 종료저장)되면 PlayerStatComponent.ApplyCoreStats가 CurrentHp를 0으로 맞추기만 할 뿐 OnDead를
+        // 다시 발화시키지 않아, 부활 루틴이 한 번도 안 돌고 영구히 멈춰버린다(움직임도 안 됨). 이번 프레임의
+        // 모든 Start()(CoreUpgradeManager의 스탯 적용 포함)가 끝난 다음 프레임에 직접 확인해 강제로
+        // 부활 흐름을 태운다.
+        StartCoroutine(CheckAlreadyDeadOnLoad());
+    }
+
+    IEnumerator CheckAlreadyDeadOnLoad()
+    {
+        yield return null;
+        if (_player.Stat.IsDead)
+            HandleDead();
     }
 
     void HandleDead()

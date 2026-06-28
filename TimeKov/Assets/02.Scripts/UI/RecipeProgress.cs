@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// 레시피 제작 진행도(세션 단위, 저장 없음 - CodexDiscovery/FacilityUnlockManager와 동일 정책).
+// 레시피 제작 진행도. CodexSaveBridge(ISaveable)가 세이브 슬롯에 영구 저장한다.
 // 레시피 1회 제작 = +1. CraftsToMaster(10) 달성 = 마스터 -> 잭팟(JackpotChance 확률 2배 제작) 활성.
 // 설비별 보상(전 레시피 마스터 시 코어키트) 수령 상태도 여기서 관리.
 public static class RecipeProgress
@@ -45,6 +45,24 @@ public static class RecipeProgress
     public static bool IsFacilityRewardClaimed(int facilityId) => _claimedFacilities.Contains(facilityId);
     public static void MarkFacilityRewardClaimed(int facilityId) => _claimedFacilities.Add(facilityId);
 
+    // ── 세이브 캡처/복원 (CodexSaveBridge 전용) ──────────────────────────
+    public static IReadOnlyDictionary<string, int> AllCrafts => _craft;
+    public static IReadOnlyCollection<int> AllClaimedFacilities => _claimedFacilities;
+    public static IReadOnlyCollection<string> AllActivatedJackpots => _jackpotOn;
+
+    /// <summary>세이브 복원 전용 — 알림(!) 발생 없이 조용히 채운다.</summary>
+    public static void RestoreState(
+        IEnumerable<KeyValuePair<string, int>> crafts,
+        IEnumerable<int> claimedFacilities,
+        IEnumerable<string> jackpotsOn)
+    {
+        if (crafts != null) foreach (var kv in crafts) _craft[kv.Key] = kv.Value;
+        if (claimedFacilities != null) foreach (var f in claimedFacilities) _claimedFacilities.Add(f);
+        if (jackpotsOn != null) foreach (var j in jackpotsOn) _jackpotOn.Add(j);
+    }
+
+    // 세션 시작 시 1회 초기화 + CodexSaveBridge가 슬롯 전환마다(다른 월드로 이동 등) 호출해
+    // 이전 슬롯의 메모리 상태가 새 슬롯으로 새는 것을 막는다.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void Reset() { _craft.Clear(); _claimedFacilities.Clear(); _jackpotOn.Clear(); }
+    public static void Reset() { _craft.Clear(); _claimedFacilities.Clear(); _jackpotOn.Clear(); }
 }

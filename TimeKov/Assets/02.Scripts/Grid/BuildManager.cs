@@ -228,12 +228,13 @@ public class BuildManager : MonoBehaviour, ISaveable
     }
 
     // ── 세이브/로드 (ISaveable) ───────────────────────────────────────────
-    // 위치·회전·강화레벨만 저장. 건물 내부 생산 상태(버퍼/진행도/연료)는 TODO(다음 단계).
+    // 위치·회전·강화레벨 + 설비 내부 생산 상태(버퍼/연료/고정레시피)까지 저장.
 
     /// <summary>SaveSlotManager.SaveActive()가 호출. 현재 배치된 모든 건물/레일을 캡처한다.</summary>
     public void Capture(GameSaveData data)
     {
         data.buildings.Clear();
+        data.machines.Clear();
         foreach (var pb in buildParent.GetComponentsInChildren<PlacedBuilding>(true))
         {
             data.buildings.Add(new PlacedBuildingData
@@ -244,6 +245,22 @@ public class BuildManager : MonoBehaviour, ISaveable
                 rotationY = Mathf.RoundToInt(pb.transform.eulerAngles.y) % 360,
                 currentLevel = pb.currentLevel,
             });
+
+            var machine = pb.GetComponent<TIMEKOV.Factory.MachineBase>();
+            if (machine == null) continue;
+
+            var msd = new MachineSaveData
+            {
+                originCellX = pb.originCell.x,
+                originCellY = pb.originCell.y,
+                fuelTimeRemaining = machine.FuelTimeRemaining,
+                lockedRecipeIndex = (machine as TIMEKOV.Factory.ProcessingMachine)?.LockedRecipeIndex ?? -1,
+            };
+            foreach (var kv in machine.InputBuffer.Stock)
+                msd.inputStock.Add(new ItemStackData { itemId = kv.Key, amount = kv.Value });
+            foreach (var kv in machine.OutputBuffer.Stock)
+                msd.outputStock.Add(new ItemStackData { itemId = kv.Key, amount = kv.Value });
+            data.machines.Add(msd);
         }
 
         data.rails.Clear();
@@ -301,7 +318,26 @@ public class BuildManager : MonoBehaviour, ISaveable
         Vector3 position = StartCellToWorldCenter(originCell, rotatedSize);
         Quaternion rotation = Quaternion.Euler(0f, entry.rotationY, 0f);
 
-        placer.PlaceInstant(entry.facilityId, position, rotation, footprintCells, entry.currentLevel);
+        GameObject obj = placer.PlaceInstant(entry.facilityId, position, rotation, footprintCells, entry.currentLevel);
+        if (obj == null) return;
+
+        MachineSaveData msd = FindMachineData(entry.originCellX, entry.originCellY);
+        if (msd == null) return;
+
+        var machine = obj.GetComponent<TIMEKOV.Factory.MachineBase>();
+        if (machine == null) return;
+
+        machine.RestoreBuffers(msd.inputStock, msd.outputStock, msd.fuelTimeRemaining);
+        if (machine is TIMEKOV.Factory.ProcessingMachine pm)
+            pm.RestoreLockedRecipe(msd.lockedRecipeIndex);
+    }
+
+    private MachineSaveData FindMachineData(int originCellX, int originCellY)
+    {
+        foreach (var m in SaveSlotManager.Instance.Data.machines)
+            if (m.originCellX == originCellX && m.originCellY == originCellY)
+                return m;
+        return null;
     }
 
     private void Update()

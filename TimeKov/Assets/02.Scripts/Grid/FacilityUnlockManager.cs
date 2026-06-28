@@ -4,9 +4,8 @@ using UnityEngine;
 /// <summary>
 /// 설비 해금 상태를 관리하는 싱글턴.
 /// 해금된 설비를 획득 순서대로 저장하며, BuildManager의 퀵슬롯(1~9)과 연동된다.
-/// 저장 기능 없음 — 매 세션 초기화.
 /// </summary>
-public class FacilityUnlockManager : MonoBehaviour
+public class FacilityUnlockManager : MonoBehaviour, ISaveable
 {
     public static FacilityUnlockManager Instance { get; private set; }
 
@@ -22,6 +21,34 @@ public class FacilityUnlockManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+
+        SaveSlotManager.Instance?.Register(this);
+        RestoreFromSave();
+    }
+
+    private void OnDestroy()
+    {
+        SaveSlotManager.Instance?.Unregister(this);
+    }
+
+    // ── 세이브/로드 (ISaveable) ───────────────────────────────────────────
+    // BuildManager.Start()(InitDynamicUnlockSlots)가 IsUnlocked()를 읽기 전에 끝나야 하므로
+    // Awake에서 복원한다 — 같은 씬의 모든 Awake는 어떤 Start보다 먼저 실행되므로 순서 안전.
+
+    public void Capture(GameSaveData data)
+    {
+        data.unlockedFacilityIds = new List<int>(_unlockedIds);
+    }
+
+    private void RestoreFromSave()
+    {
+        if (SaveSlotManager.Instance == null || !SaveSlotManager.Instance.HasActiveSlot) return;
+
+        // 이벤트/토스트/도감알림 없이 조용히 복원 — "새로 해금"이 아니라 "이미 해금된 상태"이므로.
+        _unlockedIds.Clear();
+        foreach (int id in SaveSlotManager.Instance.Data.unlockedFacilityIds)
+            if (!_unlockedIds.Contains(id))
+                _unlockedIds.Add(id);
     }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

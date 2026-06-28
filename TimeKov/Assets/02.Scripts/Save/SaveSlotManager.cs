@@ -35,6 +35,7 @@ public class SaveSlotManager : MonoBehaviour
     public bool HasActiveSlot => Data != null && !string.IsNullOrEmpty(ActiveSlotId);
 
     readonly List<ISaveable> _saveables = new();
+    CodexSaveBridge _codexBridge;
 
     static string SavesRoot => Path.Combine(Application.persistentDataPath, "Saves");
     const string MetaFileName = "meta.json";
@@ -42,7 +43,7 @@ public class SaveSlotManager : MonoBehaviour
 
     // 퀘스트 완료/코어 강화 등 특정 이벤트에서만 저장하면, 그 사이에 인벤토리만 채우거나
     // 건물만 짓고 나가는 경우 진행이 그냥 사라진다 — 그런 누락을 막는 최후의 안전망.
-    const float AutoSaveIntervalSeconds = 60f;
+    const float AutoSaveIntervalSeconds = 30f;
 
     // BeforeSceneLoad(첫 씬의 Awake들보다 먼저)여야 한다. AfterSceneLoad로 두면, 타이틀을 거치지
     // 않고 World 씬을 곧바로 Play했을 때(에디터 테스트) World의 다른 컴포넌트들 Awake가 먼저 돌면서
@@ -65,6 +66,13 @@ public class SaveSlotManager : MonoBehaviour
         Instance = this;
         Directory.CreateDirectory(SavesRoot);
         InvokeRepeating(nameof(AutoSaveTick), AutoSaveIntervalSeconds, AutoSaveIntervalSeconds);
+
+        // CodexSaveBridge는 static 클래스(ItemDiscovery 등)를 ISaveable로 잇는 다리.
+        // 여기서 직접 스폰해야 그 Awake가 도는 시점에 Instance(바로 위)가 이미 보장된다 —
+        // 자체 RuntimeInitializeOnLoadMethod를 따로 두면 이 메서드와 실행 순서가 보장되지 않는다.
+        var bridgeGo = new GameObject("[CodexSaveBridge]");
+        _codexBridge = bridgeGo.AddComponent<CodexSaveBridge>();
+        DontDestroyOnLoad(bridgeGo);
     }
 
     void AutoSaveTick()
@@ -135,6 +143,10 @@ public class SaveSlotManager : MonoBehaviour
         Data = new GameSaveData();
 
         WriteSlotFiles(dir, meta, Data);
+
+        // CodexDiscovery 등 static 상태는 슬롯과 무관하게 메모리에 남으므로, 슬롯이 바뀔
+        // 때마다(새 슬롯 생성 포함) 직접 리셋+복원을 트리거해줘야 한다 (CodexSaveBridge 참고).
+        _codexBridge?.ResetAndRestore();
         return meta;
     }
 
@@ -156,6 +168,10 @@ public class SaveSlotManager : MonoBehaviour
             ActiveMeta = JsonUtility.FromJson<SaveSlotMeta>(File.ReadAllText(metaPath));
             Data = JsonUtility.FromJson<GameSaveData>(File.ReadAllText(savePath)) ?? new GameSaveData();
             ActiveSlotId = slotId;
+
+            // CodexDiscovery 등 static 상태는 슬롯과 무관하게 메모리에 남으므로, 슬롯이 바뀔
+            // 때마다 직접 리셋+복원을 트리거해줘야 한다 (CodexSaveBridge 참고).
+            _codexBridge?.ResetAndRestore();
             return true;
         }
         catch (Exception e)

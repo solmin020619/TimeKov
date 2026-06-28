@@ -37,6 +37,13 @@ public class GameSaveData
     // (PlayerStatComponent.Respawn(hpPercent)와 동일한 설계 원칙)
     public float playerHpPercent = 1f;
 
+    // ── 플레이어 영구 스탯 (앰플로 누적되는 ATK/DEF/MaxStamina, ConsumableEffectApplier.ApplyPermanentStat) ──
+    // 코어 강화(MaxHp)와 분리된 별도 누적치라 절대값 그대로 저장. 인스펙터 기본값(0/0/100)과
+    // 동일해 새 슬롯에서도 그대로 적용해도 무해함.
+    public float playerATK = 0f;
+    public float playerDEF = 0f;
+    public float playerMaxStamina = 100f;
+
     // ── 플레이어 위치 ────────────────────────────────────────────────────
     // hasPlayerPosition=false면 새 슬롯이라 씬 기본 스폰 위치를 그대로 둔다(원점으로 텔레포트 안 함).
     public bool hasPlayerPosition = false;
@@ -44,11 +51,36 @@ public class GameSaveData
     public float playerRotationY;
 
     // ── Factory/Grid: 배치된 건물 / 레일 ─────────────────────────────────
-    // 위치·회전·강화레벨만 저장 — 건물 내부 생산 상태(투입/산출 버퍼, 진행도, 연료)는
-    // 아직 미구현(TODO 다음 단계). 레일은 연결 방향만 저장하고 흐름 화살표/포트 검증은
+    // 위치·회전·강화레벨만 저장. 레일은 연결 방향만 저장하고 흐름 화살표/포트 검증은
     // RailBuildManager.RestoreReflowAndValidate()로 복원 후 재계산한다.
     public List<PlacedBuildingData> buildings = new();
     public List<RailPieceData> rails = new();
+
+    // ── 설비 내부 생산 상태 (originCell 기준으로 buildings 항목과 매칭) ───────
+    // 진행 중이던 정확한 제작 시점(코루틴 elapsed)까지는 복원하지 않음 — 버퍼/연료/
+    // 고정 레시피만 복원하면 재료가 충분할 때 ProcessingMachine이 스스로 생산을 재개한다.
+    public List<MachineSaveData> machines = new();
+
+    // ── 설비 해금 (퀵슬롯 1~9, FacilityUnlockManager) ───────────────────────
+    public List<int> unlockedFacilityIds = new();
+
+    // ── 건축 영역(BuildZone) 확장 단계 (BuildZoneProgression) ───────────────
+    // -1 = 저장된 값 없음(새 슬롯) → 시작 단계 그대로 둠.
+    public int buildZoneStageIndex = -1;
+
+    // ── 도감: 아이템 최초 획득 기록 (ItemDiscovery) ──────────────────────────
+    public List<int> discoveredItemIds = new();
+
+    // ── 도감: 몬스터 처치 / 튜토 시청 기록 (CodexDiscovery) ──────────────────
+    public List<MonsterKillData> monsterKills = new();
+    public List<string> watchedTutorials = new();
+    public List<string> activatedStats = new();
+    public List<string> activatedRates = new();
+
+    // ── 레시피 마스터 진행도 (RecipeProgress) ───────────────────────────────
+    public List<RecipeCraftData> recipeCrafts = new();
+    public List<int> claimedFacilityRewards = new();
+    public List<string> activatedJackpots = new();
 }
 
 [Serializable]
@@ -85,4 +117,36 @@ public class RailPieceData
     public bool down;
     public bool left;
     public bool right;
+}
+
+[Serializable]
+public class ItemStackData
+{
+    public int itemId;
+    public int amount;
+}
+
+[Serializable]
+public class MachineSaveData
+{
+    public int originCellX;
+    public int originCellY;
+    public List<ItemStackData> inputStock = new();
+    public List<ItemStackData> outputStock = new();
+    public float fuelTimeRemaining;
+    public int lockedRecipeIndex = -1;
+}
+
+[Serializable]
+public class MonsterKillData
+{
+    public string sourceId;
+    public int kills;
+}
+
+[Serializable]
+public class RecipeCraftData
+{
+    public string recipeId;
+    public int crafts;
 }

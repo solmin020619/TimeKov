@@ -60,13 +60,18 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     void Awake()
     {
         _player = GetComponent<Player>();
-        CurrentHp = MaxHp;
-        CurrentStamina = MaxStamina;
 
         SaveSlotManager.Instance?.Register(this);
         if (SaveSlotManager.Instance != null && SaveSlotManager.Instance.HasActiveSlot)
         {
             GameSaveData data = SaveSlotManager.Instance.Data;
+
+            // ATK/DEF/MaxStamina는 앰플로 영구 누적되는 값 — CurrentStamina=MaxStamina 적용
+            // 전에 먼저 복원해야 새로 늘어난 최대치 기준으로 풀스태미나가 채워진다.
+            ATK = data.playerATK;
+            DEF = data.playerDEF;
+            MaxStamina = data.playerMaxStamina;
+
             _pendingHpPercent = data.playerHpPercent;
 
             if (data.hasPlayerPosition)
@@ -75,6 +80,9 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
                 transform.rotation = Quaternion.Euler(0f, data.playerRotationY, 0f);
             }
         }
+
+        CurrentHp = MaxHp;
+        CurrentStamina = MaxStamina;
     }
 
     void OnDestroy()
@@ -86,6 +94,9 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     public void Capture(GameSaveData data)
     {
         data.playerHpPercent = MaxHp > 0f ? Mathf.Clamp01(CurrentHp / MaxHp) : 1f;
+        data.playerATK = ATK;
+        data.playerDEF = DEF;
+        data.playerMaxStamina = MaxStamina;
         data.hasPlayerPosition = true;
         data.playerPosition = transform.position;
         data.playerRotationY = transform.eulerAngles.y;
