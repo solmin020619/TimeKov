@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// 도감 발견/시청 상태 추적기 (세션 단위, 저장 없음 - FacilityUnlockManager와 동일 정책).
+// 도감 발견/시청 상태 추적기. CodexSaveBridge(ISaveable)가 세이브 슬롯에 영구 저장한다.
 // 몬스터: 처치 시 sourceId 기록(EnemyDropOnDeath). 튜토: 영상 페이지 시청 시 제목 기록(TutorialVideoUI).
-// 정적 클래스라 어디서든 호출/조회 가능. 도메인 리로드 시 자동 초기화.
+// 정적 클래스라 어디서든 호출/조회 가능. 도메인 리로드 시 일단 초기화 후 CodexSaveBridge가 복원.
 public static class CodexDiscovery
 {
     private static readonly Dictionary<string, int> _monsterKills = new Dictionary<string, int>();
@@ -47,7 +47,26 @@ public static class CodexDiscovery
     public static bool IsTutorialWatched(string title)
         => !string.IsNullOrEmpty(title) && _tutorials.Contains(title.Trim());
 
-    // 세션 시작마다 초기화(저장 없음).
+    // ── 세이브 캡처/복원 (CodexSaveBridge 전용) ──────────────────────────
+    public static IReadOnlyDictionary<string, int> AllMonsterKills => _monsterKills;
+    public static IReadOnlyCollection<string> AllWatchedTutorials => _tutorials;
+    public static IReadOnlyCollection<string> AllActivatedStats => _statsOn;
+    public static IReadOnlyCollection<string> AllActivatedRates => _ratesOn;
+
+    /// <summary>세이브 복원 전용 — 알림(!) 발생 없이 조용히 채운다.</summary>
+    public static void RestoreState(
+        IEnumerable<KeyValuePair<string, int>> kills,
+        IEnumerable<string> tutorials,
+        IEnumerable<string> statsOn,
+        IEnumerable<string> ratesOn)
+    {
+        if (kills != null) foreach (var kv in kills) _monsterKills[kv.Key] = kv.Value;
+        if (tutorials != null) foreach (var t in tutorials) _tutorials.Add(t);
+        if (statsOn != null) foreach (var s in statsOn) _statsOn.Add(s);
+        if (ratesOn != null) foreach (var r in ratesOn) _ratesOn.Add(r);
+    }
+
+    // 도메인 리로드마다 일단 비움 — 활성 슬롯이 있으면 CodexSaveBridge.Awake가 곧바로 복원한다.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset() { _monsterKills.Clear(); _tutorials.Clear(); _statsOn.Clear(); _ratesOn.Clear(); }
 }

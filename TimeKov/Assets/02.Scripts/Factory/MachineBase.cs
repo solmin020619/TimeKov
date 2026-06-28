@@ -285,5 +285,22 @@ namespace TIMEKOV.Factory
 
         protected void NotifyBufferChanged() => OnBufferChanged?.Invoke();
         public void PublicNotifyBufferChanged() => OnBufferChanged?.Invoke();
+
+        // ── 세이브 복원 전용 ──────────────────────────────────────────────
+        // 진행 중이던 정확한 제작 시점(코루틴 elapsed)까지는 복원하지 않는다 — 버퍼/연료만
+        // 직접 채워두면, 재료가 충분할 때 ProcessingMachine이 레시피 로드 이후 스스로 생산을
+        // 재개한다(이벤트/알림 없이 조용히).
+        public void RestoreBuffers(List<ItemStackData> input, List<ItemStackData> output, float fuelSecondsRemaining)
+        {
+            if (input != null)
+                foreach (var s in input) InputBuffer.Add(s.itemId, s.amount);
+            if (output != null)
+                foreach (var s in output) OutputBuffer.Add(s.itemId, s.amount);
+
+            FuelTimeRemaining = Mathf.Max(0f, fuelSecondsRemaining);
+            var cfg = FuelConfig.Instance;
+            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+            FuelItemCount = Mathf.CeilToInt(FuelTimeRemaining / secs);
+        }
     }
 }

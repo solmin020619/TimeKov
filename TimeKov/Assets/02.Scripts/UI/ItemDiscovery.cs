@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// 아이템 도감 획득 추적 (세션 단위, 저장 없음 - CodexDiscovery/RecipeProgress와 동일 정책).
+// 아이템 도감 획득 추적. CodexSaveBridge(ISaveable)가 세이브 슬롯에 영구 저장한다.
 // 가방(OnItemAddedToInventory) + 창고(OnItemAddedToStorage) 입고를 모두 구독 = 어디로 들어오든 잡힌다.
 // 커버: 필드 드롭 / 공장 '모두 받기' / 퀘스트 보상(가방) + 벨트->창고 자동입고 / 철거 환급(창고 직행).
 // 정적 부트스트랩으로 구독 -> 도감 안 열어도 획득이 쌓인다.
@@ -12,12 +12,23 @@ public static class ItemDiscovery
     public static bool IsObtained(int itemId) => _obtained.Contains(itemId);
     public static int Count => _obtained.Count;
 
+    /// <summary>세이브 캡처용 — 현재까지 획득한 모든 아이템 id.</summary>
+    public static IReadOnlyCollection<int> AllObtained => _obtained;
+
     // 처음 획득한 아이템이면 도감 알림(!) 점등.
     public static void MarkObtained(int itemId)
     {
         if (itemId <= 0) return;
         if (_obtained.Add(itemId))
             CodexNotice.MarkUnseen(CodexNotice.Item);
+    }
+
+    /// <summary>세이브 복원 전용 — 알림(!) 발생 없이 조용히 채운다("새 발견"이 아니므로).</summary>
+    public static void RestoreObtained(IEnumerable<int> ids)
+    {
+        if (ids == null) return;
+        foreach (int id in ids)
+            if (id > 0) _obtained.Add(id);
     }
 
     // 인벤 획득 이벤트 구독(씬 로드 후 1회). -=/+= 로 중복 구독 방지.

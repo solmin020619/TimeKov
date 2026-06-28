@@ -33,6 +33,10 @@ namespace TIMEKOV.Factory
         /// </summary>
         [HideInInspector] public int LockedRecipeIndex = -1;
 
+        // 세이브 복원이 LoadRecipesFromSheet()보다 먼저 끝날 수 있어(레시피 미로딩 상태),
+        // 복원된 인덱스를 잠깐 들고 있다가 레시피 로드 완료 시점에 적용한다.
+        private int? _pendingLockedRecipeIndex;
+
         private bool _processing;
         private MachineLoopSound       _loopSound;
         private MachineAnimationEffect _animEffect;
@@ -75,11 +79,33 @@ namespace TIMEKOV.Factory
             if (fid <= 0) return;
 
             recipes = FactoryRecipeBuilder.BuildForFacility(fid);
-            LockedRecipeIndex = -1;
+
+            if (_pendingLockedRecipeIndex.HasValue)
+            {
+                SetLockedRecipe(_pendingLockedRecipeIndex.Value);
+                _pendingLockedRecipeIndex = null;
+            }
+            else
+            {
+                LockedRecipeIndex = -1;
+            }
 
             var facility = GameDataUtility.GetFacility(fid);
             if (facility != null && !string.IsNullOrEmpty(facility.facilityName))
                 machineName = facility.facilityName;
+
+            // 세이브 복원으로 버퍼가 미리 채워져 있었다면, 레시피가 준비된 지금 생산 재개 시도.
+            if (!_processing)
+                TryStartProcessing();
+        }
+
+        /// <summary>세이브 복원 전용 — 레시피가 아직 로드되지 않았을 수 있어 지연 적용한다.</summary>
+        public void RestoreLockedRecipe(int index)
+        {
+            if (recipes != null && recipes.Count > 0)
+                SetLockedRecipe(index);
+            else
+                _pendingLockedRecipeIndex = index;
         }
 
         /// <summary>

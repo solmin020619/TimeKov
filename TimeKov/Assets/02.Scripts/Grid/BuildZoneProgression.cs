@@ -32,7 +32,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BuildZoneProgression : MonoBehaviour
+public class BuildZoneProgression : MonoBehaviour, ISaveable
 {
     [Serializable]
     public class Stage
@@ -68,6 +68,9 @@ public class BuildZoneProgression : MonoBehaviour
 
     private int _currentStageIndex = -1;
 
+    /// <summary>현재 적용된 확장 단계 인덱스 (세이브용). 미적용 상태면 -1.</summary>
+    public int CurrentStageIndex => _currentStageIndex;
+
     // ── 초기화 ────────────────────────────────────────────────────
 
     private void Awake()
@@ -75,6 +78,8 @@ public class BuildZoneProgression : MonoBehaviour
         if (buildManager == null) buildManager = FindAnyObjectByType<BuildManager>();
         // CaptureBase() 는 여기서 부르지 않는다 — Awake 시점엔 부모 Transform 변경이
         // 자식 콜라이더 bounds 에 아직 반영 안 됐을 수 있음. 첫 ApplySize(Start) 때 캡처.
+
+        SaveSlotManager.Instance?.Register(this);
     }
 
     private void OnEnable()
@@ -90,12 +95,35 @@ public class BuildZoneProgression : MonoBehaviour
 
         // 시작 단계(questId 비어있는 첫 stage, 없으면 stages[0]) 적용
         ApplyInitialStage();
+
+        // 저장된 단계가 시작 단계보다 더 진행돼 있으면 그쪽으로 한 번에 점프.
+        // (퀘스트 완료 "이벤트" 시점에만 단계가 올라가므로, 이미 완료된 퀘스트는 재발화되지
+        //  않아 복원 시 시작 단계에 머무는 문제를 막는다)
+        RestoreFromSave();
     }
 
     private void OnDestroy()
     {
         if (QuestManager.Instance != null)
             QuestManager.Instance.OnQuestCompleted -= HandleQuestCompleted;
+
+        SaveSlotManager.Instance?.Unregister(this);
+    }
+
+    // ── 세이브/로드 (ISaveable) ───────────────────────────────────────────
+
+    public void Capture(GameSaveData data)
+    {
+        data.buildZoneStageIndex = _currentStageIndex;
+    }
+
+    private void RestoreFromSave()
+    {
+        if (SaveSlotManager.Instance == null || !SaveSlotManager.Instance.HasActiveSlot) return;
+
+        int saved = SaveSlotManager.Instance.Data.buildZoneStageIndex;
+        if (saved >= 0)
+            ApplyStage(saved);
     }
 
     private bool _subscribed;

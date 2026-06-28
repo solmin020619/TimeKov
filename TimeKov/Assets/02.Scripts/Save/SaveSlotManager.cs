@@ -65,6 +65,13 @@ public class SaveSlotManager : MonoBehaviour
         Instance = this;
         Directory.CreateDirectory(SavesRoot);
         InvokeRepeating(nameof(AutoSaveTick), AutoSaveIntervalSeconds, AutoSaveIntervalSeconds);
+
+        // CodexSaveBridge는 static 클래스(ItemDiscovery 등)를 ISaveable로 잇는 다리.
+        // 여기서 직접 스폰해야 그 Awake가 도는 시점에 Instance(바로 위)가 이미 보장된다 —
+        // 자체 RuntimeInitializeOnLoadMethod를 따로 두면 이 메서드와 실행 순서가 보장되지 않는다.
+        var bridgeGo = new GameObject("[CodexSaveBridge]");
+        bridgeGo.AddComponent<CodexSaveBridge>();
+        DontDestroyOnLoad(bridgeGo);
     }
 
     void AutoSaveTick()
