@@ -1571,6 +1571,7 @@ public static class InventoryUIBuilder
 
         var closeBtnGo = MakeFrostedCloseButton(header.transform);
         var closeButton = closeBtnGo.GetComponent<Button>();
+        closeBtnGo.AddComponent<UIButtonSound>();   // 버튼 클릭/호버 사운드 (인벤 버튼과 동일)
 
         // ── 좌측: 창고 그리드 (StorageExtractorUI가 런타임에 슬롯을 채움) ──
         var gridArea = MakeEmpty("WarehouseGrid", prt, Vector2.zero, Vector2.zero);
@@ -1619,11 +1620,33 @@ public static class InventoryUIBuilder
         Stretch(hoverLabel.rectTransform);
         AddOutline(hoverLabel.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.6f), new Vector2(1f, -1f));
 
+        // 해제 안내 오버레이 (아이콘 위 어두운 막 + 밝은 글자 — hover/드래그 시 표시. 아이템에 글자가 묻히는 문제 해결)
+        var rmOverlay = MakeImage("RemoveOverlay", slot.transform, Vector2.zero, Vector2.zero, RGBA(8, 11, 18, 0.66f));
+        Stretch(rmOverlay.GetComponent<RectTransform>());
+        var rmImg = rmOverlay.GetComponent<Image>(); rmImg.sprite = RoundedSprite(); rmImg.type = Image.Type.Sliced; rmImg.raycastTarget = false;
+        var rmIcon = MakeTMP("RemoveGlyph", rmOverlay.transform, "✕", 34, new Color(1f, 0.45f, 0.42f, 1f), TextAlignmentOptions.Center);
+        rmIcon.fontStyle = FontStyles.Bold; rmIcon.raycastTarget = false;
+        var rgRt = rmIcon.rectTransform; rgRt.anchorMin = rgRt.anchorMax = new Vector2(0.5f, 0.5f); rgRt.pivot = new Vector2(0.5f, 0.5f);
+        rgRt.sizeDelta = new Vector2(60, 46); rgRt.anchoredPosition = new Vector2(0, 16);
+        var rmTxt = MakeTMP("RemoveText", rmOverlay.transform, "드래그로 빼기", 15, Color.white, TextAlignmentOptions.Center);
+        rmTxt.fontStyle = FontStyles.Bold; rmTxt.raycastTarget = false;
+        var rtRt = rmTxt.rectTransform; rtRt.anchorMin = rtRt.anchorMax = new Vector2(0.5f, 0.5f); rtRt.pivot = new Vector2(0.5f, 0.5f);
+        rtRt.sizeDelta = new Vector2(150, 24); rtRt.anchoredPosition = new Vector2(0, -26);
+        AddOutline(rmTxt.gameObject, new Color(0f, 0f, 0f, 0.6f), new Vector2(1f, -1f));
+        rmOverlay.SetActive(false);
+
+        // 선택된 아이템 이름 (슬롯 바로 아래)
+        var nameTxt = MakeTMP("NameText", col.transform, "", 17, TxtMain, TextAlignmentOptions.Center);
+        nameTxt.fontStyle = FontStyles.Bold; nameTxt.raycastTarget = false;
+        AddOutline(nameTxt.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.5f), new Vector2(1f, -1f));
+        var nmRt = nameTxt.rectTransform; nmRt.anchorMin = nmRt.anchorMax = new Vector2(0.5f, 1); nmRt.pivot = new Vector2(0.5f, 1);
+        nmRt.sizeDelta = new Vector2(240, 26); nmRt.anchoredPosition = new Vector2(0, -184);
+
         var countTxt = MakeTMP("CountText", col.transform, "창고: 0개", 18, TxtMain, TextAlignmentOptions.Center);
-        countTxt.fontStyle = FontStyles.Bold;
+        countTxt.fontStyle = FontStyles.Bold; countTxt.raycastTarget = false;
         AddOutline(countTxt.gameObject, new Color(0.90f, 0.93f, 0.97f, 0.5f), new Vector2(1f, -1f));
         var ctRt = countTxt.rectTransform; ctRt.anchorMin = ctRt.anchorMax = new Vector2(0.5f, 1); ctRt.pivot = new Vector2(0.5f, 1);
-        ctRt.sizeDelta = new Vector2(240, 28); ctRt.anchoredPosition = new Vector2(0, -190);
+        ctRt.sizeDelta = new Vector2(240, 28); ctRt.anchoredPosition = new Vector2(0, -214);
 
         var selSlot = slot.AddComponent<StorageItemSelectSlot>();
         var selSO = new SerializedObject(selSlot);
@@ -1632,6 +1655,9 @@ public static class InventoryUIBuilder
         selSO.FindProperty("borderImage").objectReferenceValue = borderImg;
         selSO.FindProperty("countText").objectReferenceValue   = countTxt;
         selSO.FindProperty("labelText").objectReferenceValue   = hoverLabel;
+        selSO.FindProperty("nameText").objectReferenceValue    = nameTxt;
+        selSO.FindProperty("removeOverlay").objectReferenceValue     = rmOverlay;
+        selSO.FindProperty("removeOverlayText").objectReferenceValue = rmTxt;
         selSO.ApplyModifiedProperties();
 
         // 타이머 텍스트 + 진행 바 (컬럼 하단)
@@ -1668,6 +1694,12 @@ public static class InventoryUIBuilder
             var p = miSO.FindProperty("storageExtractorUI");
             if (p != null) { p.objectReferenceValue = ui; miSO.ApplyModifiedProperties(); }
         }
+
+        // ── 열기/닫기 가로 슬라이드 애니메이션 (인벤·창고 패널과 동일: 오른쪽→왼쪽 슬라이드 인 + 페이드) ──
+        panel.AddComponent<UISlideEffect>();
+
+        // ── 열기/닫기 사운드 (인벤·설비UI와 동일: OnEnable=열기음 / OnDisable=닫기음) ──
+        panel.AddComponent<UIPanelSound>();
 
         // ── 기존 패널 제거 ────────────────────────────────────────────
         if (oldUI != null && oldUI.gameObject != panel) Object.DestroyImmediate(oldUI.gameObject);

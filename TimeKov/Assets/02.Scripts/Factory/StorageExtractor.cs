@@ -27,6 +27,17 @@ namespace TIMEKOV.Factory
         public float ExtractInterval => extractInterval;
         public float TimerRemaining  => extractInterval - _timer;
 
+        /// <summary>출력 벨트가 하나라도 연결돼 있는지. 연결이 없으면 추출하지 않는다.</summary>
+        public bool HasOutputBelt
+        {
+            get
+            {
+                for (int i = 0; i < outputBelts.Count; i++)
+                    if (outputBelts[i] != null) return true;
+                return false;
+            }
+        }
+
         /// <summary>선택 아이템이 바뀔 때 발생.</summary>
         public event Action OnSelectionChanged;
 
@@ -48,6 +59,9 @@ namespace TIMEKOV.Factory
         private void Update()
         {
             if (_selectedItemId <= 0) return;
+
+            // 출력 벨트가 연결돼 있지 않으면 추출하지 않는다 (타이머도 멈춤)
+            if (!HasOutputBelt) return;
 
             // OutputBuffer에 아이템이 남아있으면 대기 (벨트가 처리할 때까지)
             if (OutputBuffer.Stock.Count > 0) return;
