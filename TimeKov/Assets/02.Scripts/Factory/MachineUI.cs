@@ -78,6 +78,12 @@ public class MachineUI : MonoBehaviour
     [Tooltip("가공 중 기계 뒤 노란 글로우. 알파 펄스(unscaled).")]
     [SerializeField] private Image machineGlow;
 
+    [Header("현재 생산 공식 스트립(하단)")]
+    [Tooltip("공식 아이콘 엔트리 부모(HLG). 런타임이 재료->결과 아이콘을 채움.")]
+    [SerializeField] private Transform formulaContent;
+    [Tooltip("공식 스트립 좌측 상태 라벨(생산 중 / 대기 중).")]
+    [SerializeField] private TextMeshProUGUI formulaStatusText;
+
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
 
@@ -99,6 +105,10 @@ public class MachineUI : MonoBehaviour
     private readonly List<InventorySlotUI> _invSlots = new();
     /// <summary>outputSlot 외에 동적으로 생성된 추가 출력 슬롯들.</summary>
     private readonly List<MachineSlotWidget> _extraOutputSlots = new();
+
+    // 현재 선택 레시피의 출력 버퍼에 받을 게 있는지(모두받기 dim #34 + 출력 펄스 #40 공통).
+    private bool _hasOutput;
+    private Coroutine _tabFadeCo;
 
     // ── 초기화 ────────────────────────────────────────────────
 
@@ -177,12 +187,20 @@ public class MachineUI : MonoBehaviour
 
         if (machineTitleText != null) machineTitleText.text = title;
 
-        // 중앙 설비 도면 = 퀵슬롯 설비 모델 렌더 재사용 (facilityId 매핑)
+        // 중앙 설비 도면 = 전용 도면 폴더(클로드디자인) 우선, 없으면 퀵슬롯 모델 폴백.
+        //   도면 위치: Assets/Resources/Image/UI_Icon/FacilityBlueprint/  파일명 "{facilityId}" 또는 "{facilityId}_설비명".
+        //   헤더 아이콘은 작은 모델 아이콘이라 그대로 FacilityIconDatabase 사용.
         if (facilityImage != null || headerIconImage != null)
         {
             var fIcon = FacilityIconDatabase.Instance != null
                 ? FacilityIconDatabase.Instance.GetIcon(machine.FacilityId) : null;
-            if (facilityImage != null) { facilityImage.sprite = fIcon; facilityImage.enabled = fIcon != null; }
+            if (facilityImage != null)
+            {
+                var blueprint = LoadFacilityBlueprint(machine.FacilityId);
+                var spr = blueprint != null ? blueprint : fIcon;
+                facilityImage.sprite = spr;
+                facilityImage.enabled = spr != null;
+            }
             if (headerIconImage != null) { headerIconImage.sprite = fIcon; headerIconImage.enabled = fIcon != null; }
         }
 
@@ -192,6 +210,9 @@ public class MachineUI : MonoBehaviour
         _showStorage = false;   // 열 때 항상 가방 뷰부터
         BuildRecipeSlots();
         BuildInventorySlots();
+        // 탭 페이드(#17)가 닫힘으로 중단돼 알파가 덜 찼을 수 있어 열 때 1로 리셋.
+        var gridCg = inventorySlotParent != null ? inventorySlotParent.GetComponent<CanvasGroup>() : null;
+        if (gridCg != null) gridCg.alpha = 1f;
         UpdateTabVisual();
         RefreshOutputSlots();
 
@@ -200,6 +221,7 @@ public class MachineUI : MonoBehaviour
         fuelDropSlot?.Setup(machine, inv2);
 
         uiPanel.SetActive(true);
+        GameSfx.Play(SfxId.MachineOpen);
 
         ShowFirstMachineHintIfNeeded();
 
@@ -211,6 +233,21 @@ public class MachineUI : MonoBehaviour
         InventorySlotUI.OnAnySlotDragBegin += OnInventoryDragBegin;
         InventorySlotUI.OnAnySlotDragEnd   -= OnInventoryDragEnd;
         InventorySlotUI.OnAnySlotDragEnd   += OnInventoryDragEnd;
+    }
+
+    // 중앙 도면 로드: Resources/Image/UI_Icon/FacilityBlueprint/ 에서 "{id}" 또는 "{id}_이름" 스프라이트.
+    // 없으면 null(호출측이 퀵슬롯 모델로 폴백). 폴더 없으면 LoadAll 이 빈 배열 -> 안전.
+    private static Sprite LoadFacilityBlueprint(int facilityId)
+    {
+        var all = Resources.LoadAll<Sprite>("Image/UI_Icon/FacilityBlueprint");
+        if (all == null) return null;
+        string id = facilityId.ToString();
+        foreach (var s in all)
+        {
+            if (s == null) continue;
+            if (s.name == id || s.name.StartsWith(id + "_")) return s;
+        }
+        return null;
     }
 
     // ── 레시피 선택 ─────────────────────────────────────────────
@@ -246,6 +283,7 @@ public class MachineUI : MonoBehaviour
 
     public void Close()
     {
+        GameSfx.Play(SfxId.MachineClose);
         if (_machine != null) _machine.OnBufferChanged -= OnBufferChanged;
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
@@ -352,8 +390,34 @@ public class MachineUI : MonoBehaviour
     {
         if (_showStorage == storage) return;
         _showStorage = storage;
+        GameSfx.Play(SfxId.MachineTabClick);
         BuildInventorySlots();   // 칸 수(가방35/창고50) 다를 수 있어 재구성 + 갱신
         UpdateTabVisual();
+        PlayTabFade();
+    }
+
+    // 탭 전환 시 그리드 짧은 페이드(#17). timeScale=0 안전(unscaledDeltaTime).
+    private void PlayTabFade()
+    {
+        if (inventorySlotParent == null) return;
+        var cg = inventorySlotParent.GetComponent<CanvasGroup>();
+        if (cg == null) cg = inventorySlotParent.gameObject.AddComponent<CanvasGroup>();
+        if (_tabFadeCo != null) StopCoroutine(_tabFadeCo);
+        _tabFadeCo = StartCoroutine(TabFadeRoutine(cg));
+    }
+
+    private System.Collections.IEnumerator TabFadeRoutine(CanvasGroup cg)
+    {
+        cg.alpha = 0.25f;
+        float t = 0f;
+        while (t < 1f)
+        {
+            t += Time.unscaledDeltaTime / 0.12f;
+            cg.alpha = Mathf.Lerp(0.25f, 1f, Mathf.Clamp01(t));
+            yield return null;
+        }
+        cg.alpha = 1f;
+        _tabFadeCo = null;
     }
 
     private void UpdateTabVisual()
@@ -403,7 +467,73 @@ public class MachineUI : MonoBehaviour
             }
         }
 
+        BuildFormula();
         ShowRecipeHintIfQuestActive();
+    }
+
+    // ── 현재 생산 공식 스트립 ─────────────────────────────────────
+    // 하단 작은 패널에 [재료 아이콘 > 결과 아이콘] 을 채운다(엔필식 요약).
+    // 중앙 슬롯은 상호작용용, 이건 "지금 뭘 만드는지" 요약 표시.
+
+    private void BuildFormula()
+    {
+        if (formulaContent == null || _machine == null) return;
+
+        for (int i = formulaContent.childCount - 1; i >= 0; i--)
+            Destroy(formulaContent.GetChild(i).gameObject);
+
+        var recipes = _machine.Recipes;
+        if (recipes == null || recipes.Count == 0) return;
+        int ri = Mathf.Clamp(_selectedRecipeIndex, 0, recipes.Count - 1);
+        var recipe = recipes[ri];
+        if (recipe == null) return;
+
+        if (recipe.inputs != null)
+            foreach (var inp in recipe.inputs)
+                MakeFormulaEntry(inp.itemId, inp.amount, false);
+
+        MakeFormulaArrow();
+
+        if (recipe.outputs != null)
+            foreach (var outp in recipe.outputs)
+                MakeFormulaEntry(outp.itemId, outp.amount, true);
+    }
+
+    private void MakeFormulaEntry(int itemId, int amount, bool isOutput)
+    {
+        var go = new GameObject(isOutput ? "FxOut" : "FxIn", typeof(RectTransform), typeof(LayoutElement));
+        go.transform.SetParent(formulaContent, false);
+        var le = go.GetComponent<LayoutElement>();
+        le.preferredWidth = 40; le.preferredHeight = 40;
+
+        var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+        iconGo.transform.SetParent(go.transform, false);
+        var irt = iconGo.GetComponent<RectTransform>();
+        irt.anchorMin = Vector2.zero; irt.anchorMax = Vector2.one; irt.offsetMin = Vector2.zero; irt.offsetMax = Vector2.zero;
+        var img = iconGo.GetComponent<Image>(); img.preserveAspect = true; img.raycastTarget = false;
+        var itemData = GameDataUtility.GetItem(itemId);
+        img.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
+        img.enabled = img.sprite != null;
+
+        var amtGo = new GameObject("Amt", typeof(RectTransform));
+        amtGo.transform.SetParent(go.transform, false);
+        var amt = amtGo.AddComponent<TextMeshProUGUI>();
+        amt.text = "x" + amount; amt.fontSize = 13; amt.color = Color.white;
+        amt.alignment = TextAlignmentOptions.BottomRight; amt.fontStyle = FontStyles.Bold;
+        amt.raycastTarget = false; amt.textWrappingMode = TextWrappingModes.NoWrap;
+        var art = amt.rectTransform;
+        art.anchorMin = Vector2.zero; art.anchorMax = Vector2.one; art.offsetMin = Vector2.zero; art.offsetMax = new Vector2(2, 0);
+    }
+
+    private void MakeFormulaArrow()
+    {
+        var go = new GameObject("Arrow", typeof(RectTransform), typeof(LayoutElement));
+        go.transform.SetParent(formulaContent, false);
+        var le = go.GetComponent<LayoutElement>(); le.preferredWidth = 22; le.preferredHeight = 40;
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.text = ">"; tmp.fontSize = 22; tmp.color = new Color(0.90f, 0.76f, 0.29f, 1f);
+        tmp.alignment = TextAlignmentOptions.Center; tmp.fontStyle = FontStyles.Bold;
+        tmp.raycastTarget = false; tmp.textWrappingMode = TextWrappingModes.NoWrap;
     }
 
     private void RefreshRecipeSelectionUI(int totalCount)
@@ -429,20 +559,18 @@ public class MachineUI : MonoBehaviour
     {
         if (outputSlot == null || _machine == null) return;
 
-        // 모두받기 버튼 = 출력 버퍼 있을 때만 활성(없으면 dim). interactable 만 토글, 좌표/색 규칙 무변경.
-        if (takeOutputBtn != null)
+        // 출력 버퍼 총량 -> 모두받기 dim(#34) + 출력 펄스(#40) 공통 판정.
+        int totalOut = 0;
+        var rcs = _machine.Recipes;
+        if (rcs != null && rcs.Count > 0)
         {
-            int totalOut = 0;
-            var rcs = _machine.Recipes;
-            if (rcs != null && rcs.Count > 0)
-            {
-                int ri = Mathf.Clamp(_selectedRecipeIndex, 0, rcs.Count - 1);
-                var outs = rcs[ri]?.outputs;
-                if (outs != null)
-                    foreach (var o in outs) totalOut += _machine.OutputBuffer.GetAmount(o.itemId);
-            }
-            takeOutputBtn.interactable = totalOut > 0;
+            int ri = Mathf.Clamp(_selectedRecipeIndex, 0, rcs.Count - 1);
+            var outs = rcs[ri]?.outputs;
+            if (outs != null)
+                foreach (var o in outs) totalOut += _machine.OutputBuffer.GetAmount(o.itemId);
         }
+        _hasOutput = totalOut > 0;
+        if (takeOutputBtn != null) takeOutputBtn.interactable = _hasOutput;
 
         // 이전에 동적으로 생성된 추가 슬롯 제거
         foreach (var s in _extraOutputSlots)
@@ -619,6 +747,13 @@ public class MachineUI : MonoBehaviour
             }
         }
 
+        // 출력 펄스(#40): 받을 결과물 있으면 출력 슬롯 살짝 맥동(수령 유도). unscaled.
+        if (outputSlot != null)
+        {
+            float s = _hasOutput ? 1f + 0.05f * Mathf.PingPong(Time.unscaledTime * 2f, 1f) : 1f;
+            outputSlot.transform.localScale = new Vector3(s, s, 1f);
+        }
+
         // 가동 글로우 = 가공 중 노란빛 알파 펄스(unscaled = timeScale 0 안전).
         if (machineGlow != null)
         {
@@ -651,6 +786,17 @@ public class MachineUI : MonoBehaviour
                 if (processingGauge.gameObject.activeSelf)
                     processingGauge.StopAndHide();
             }
+        }
+
+        // 공식 스트립 상태 라벨(#31): 생산 중 / 연료 부족 / 대기 중.
+        if (formulaStatusText != null)
+        {
+            if (isSelectedRecipeActive && _machine.IsProcessing)
+            { formulaStatusText.text = "생산 중"; formulaStatusText.color = new Color(0.90f, 0.76f, 0.29f, 1f); }
+            else if (_machine.Status == MachineStatus.NoFuel)
+            { formulaStatusText.text = "연료 부족"; formulaStatusText.color = new Color(0.88f, 0.45f, 0.40f, 1f); }
+            else
+            { formulaStatusText.text = "대기 중"; formulaStatusText.color = new Color(0.72f, 0.77f, 0.82f, 1f); }
         }
 
         if (statusText == null) return;
@@ -713,6 +859,7 @@ public class MachineUI : MonoBehaviour
     public void TakeAll()
     {
         if (_machine == null) return;
+        GameSfx.Play(SfxId.MachineTakeOutput);
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
 

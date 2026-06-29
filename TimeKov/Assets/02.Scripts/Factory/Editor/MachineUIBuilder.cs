@@ -31,10 +31,11 @@ public static class MachineUIBuilder
 
     // ── 색 (인벤 팔레트 복제 + 공장 노란 액센트) ──
     static Color BaseDark   => RGBA(230, 223, 211, 0.38f);   // PNG 폴백색(정상시 패널이 PNG라 안쓰임)
-    static Color TxtMain    => Hex("242a31");                // 어두운 슬레이트(밝은 표면 위)
-    static Color TxtSub     => Hex("4c545d");
+    static Color TxtMain    => Hex("e9eef5");                // 밝은 텍스트(그래디언트 어두운 하단 위)
+    static Color TxtSub     => Hex("9aabbf");                // 밝은 보조 텍스트
+    static Color TxtDark    => Hex("232a33");                // 어두운 텍스트(그래디언트 밝은 상단용: 헤더/레시피명/용량)
     static Color Chrome     => RGBA(150, 178, 205, 0.26f);
-    static Color HeaderHair => RGBA(84, 98, 122, 0.50f);     // 헤더 밑 구분선(쿨 슬레이트)
+    static Color HeaderHair => RGBA(120, 140, 170, 0.45f);   // 구분선(어두운 글라스 위 - 밝은 쿨 라인)
     // 공장 노란 액센트(버튼/진행바/입력화살표) - 단계 4에서 사용
     static Color Yellow     => Hex("e6c24a");
     static Color YellowBd   => Hex("b89a2e");
@@ -42,7 +43,7 @@ public static class MachineUIBuilder
     static Color SlotBody   => RGBA(26, 34, 46, 0.36f);     // 함몰 슬롯 몸체(쿨)
 
     // ── 레이아웃 상수 (패널 = 스트레치 near-fullscreen, 영역은 패널 가장자리 기준 앵커) ──
-    const float HeaderH = 64f, FooterH = 70f;
+    const float HeaderH = 64f, FooterH = 90f;   // 푸터=엔필식 액션바(공식 스트립+버튼+얇은 진행선)
     const float SidePad = 26f;       // 패널 안쪽 여백
     const float Gap = 20f;           // 영역 간 간격
     const float BagWidth = 540f;     // 좌 가방 칼럼 고정폭(나머지는 생산부가 채움)
@@ -139,16 +140,16 @@ public static class MachineUIBuilder
         SetRef(so, "headerIconImage", icImg);
 
         // 제목(설비 이름) - SetRef. 런타임 OpenFor(title)에서 채움.
-        var title = MakeTMP("Title", header.transform, "설비", 24, TxtMain, TextAlignmentOptions.Left);
+        var title = MakeTMP("Title", header.transform, "설비", 24, TxtDark, TextAlignmentOptions.Left);
         AnchorLeft(title.rectTransform, 66, 380, 40);
         title.fontStyle = FontStyles.Bold;
-        AddOutline(title.gameObject, new Color(0.86f, 0.90f, 0.96f, 0.5f), new Vector2(1f, -1f));
+        AddOutline(title.gameObject, new Color(1f, 1f, 1f, 0.4f), new Vector2(1f, -1f));   // 밝은 헤일로(밝은 상단 위 어두운 글자)
         SetRef(so, "machineTitleText", title);
 
         // 닫기 버튼 (우상단, ic_close + 호버 ColorTint)
         var closeBtnGo = MakeIconButton("CloseButton", header.transform, "ic_close", 48, Color.clear);
         AnchorRight(closeBtnGo.GetComponent<RectTransform>(), 12, 48, 48);
-        TintIcon(closeBtnGo, TxtMain);
+        TintIcon(closeBtnGo, TxtDark);
         var closeSpr = LoadPartSprite(PartDir + "/ic_close.png", Vector4.zero);
         var closeIconImg = closeBtnGo.transform.Find("Icon")?.GetComponent<Image>();
         if (closeIconImg != null && closeSpr != null) closeIconImg.sprite = closeSpr;
@@ -158,16 +159,16 @@ public static class MachineUIBuilder
         closeButton.transition = Selectable.Transition.ColorTint; closeButton.targetGraphic = closeBg;
         var ccb = closeButton.colors;
         ccb.normalColor      = new Color(1f, 1f, 1f, 0f);
-        ccb.highlightedColor = new Color(0.24f, 0.29f, 0.39f, 0.20f);
-        ccb.pressedColor     = new Color(0.20f, 0.24f, 0.34f, 0.36f);
+        ccb.highlightedColor = new Color(0f, 0f, 0f, 0.10f);    // 밝은 상단 = 어둡게 호버
+        ccb.pressedColor     = new Color(0f, 0f, 0f, 0.18f);
         ccb.selectedColor    = new Color(1f, 1f, 1f, 0f);
         ccb.disabledColor    = new Color(1f, 1f, 1f, 0f);
         ccb.colorMultiplier  = 1f; ccb.fadeDuration = 0.1f;
         closeButton.colors = ccb;
         SetRef(so, "closeBtn", closeButton);
 
-        // 헤더 밑 구분선 (밝은 표면 위라 또렷하게)
-        var hair = MakeImage("HeaderDivider", prt, Vector2.zero, Vector2.zero, HeaderHair);
+        // 헤더 밑 구분선 (그래디언트 밝은 상단 위라 어두운 선으로 또렷하게)
+        var hair = MakeImage("HeaderDivider", prt, Vector2.zero, Vector2.zero, RGBA(70, 84, 104, 0.5f));
         var hairRt = hair.GetComponent<RectTransform>();
         hairRt.anchorMin = new Vector2(0, 1); hairRt.anchorMax = new Vector2(1, 1); hairRt.pivot = new Vector2(0.5f, 1);
         hairRt.offsetMin = new Vector2(3, -headerH - 2); hairRt.offsetMax = new Vector2(-3, -headerH);
@@ -208,7 +209,6 @@ public static class MachineUIBuilder
     static void BuildFrost(RectTransform prt, Sprite panelSprite)
     {
         if (panelSprite == null) return;
-        const float inset = 3f, footerH = 60f, titleH = 64f;
 
         // 통합 블러 = 패널 자식 (별도 Screen Space-Camera 캔버스 없음). 둥근 패널 스프라이트 + Mask로 코너 일치.
         var blurGo = new GameObject("PanelBlur", typeof(RectTransform));
@@ -225,39 +225,23 @@ public static class MachineUIBuilder
         var bs = blur.Common.blurInstanceSettings;
         if (bs != null)
         {
-            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 1.5f; }
-            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
+            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 7; sec.sampleDistance = 2.2f; }
+            bs.vibrancy = 0f; bs.brightness = 0f; bs.contrast = 0f; bs.referenceResolution = 1080;   // 톤은 그래디언트가 담당(블러 밝기 중립)
         }
         blur.Common.ValidateBlur();
 
-        // 어두운 배경 = 풀사이즈(Mask 둥근 코너). 가장자리/코너로 비쳐 그림자 착시.
+        // ★엔필식 = 단일 패널에 세로 그래디언트(위 밝게 -> 아래 어둡게) 한 겹. 블러+밝은/어두운 층 짜깁기 아님.
+        //   배경 때문이 아니라 그래디언트가 본질이라 "어딜 가도 비슷". 구역은 divider 선으로만 나눈다.
+        //   ★상단이 밝아서 헤더/레시피명 글자는 어둡게(TxtDark), 아래 어두운 데는 글자 밝게(TxtMain).
         var bgGo = MakeImage("BgDark", prt, Vector2.zero, Vector2.zero, Color.white);
         var bgrt = bgGo.GetComponent<RectTransform>();
         bgrt.anchorMin = Vector2.zero; bgrt.anchorMax = Vector2.one; bgrt.offsetMin = Vector2.zero; bgrt.offsetMax = Vector2.zero;
         var bgImg = bgGo.GetComponent<Image>(); bgImg.sprite = null; bgImg.type = Image.Type.Simple; bgImg.raycastTarget = false;
         var bgGrad = bgGo.AddComponent<UIFrostGradient>();
-        // 위아래 거의 균일(바닥만 살짝) = 하나의 면. 옛날 바닥 0.52 는 아래가 어두운 별도 패널처럼 보였음.
-        bgGrad.topColor = RGBA(22, 28, 40, 0.26f); bgGrad.bottomColor = RGBA(20, 26, 38, 0.32f);
+        bgGrad.topColor = RGBA(212, 220, 233, 0.66f); bgGrad.bottomColor = RGBA(11, 15, 24, 0.82f);
+        bgGrad.topBias = 4f;   // 밝음을 상단 ~20%에 몰고 빠르게 어둡게(엔필 비율). 1=선형(밝음 절반).
 
-        // 본문 밝은 표면 = 헤더 아래 ~ 바닥까지 한 면(엔필처럼 하나의 패널). 푸터를 따로 안 비움.
-        // (옛날엔 offsetMin.y=footerH 라 바닥 60px 가 BgDark 만 남아 어두운 띠=별도 패널처럼 보였음.
-        //  하단 액션바는 같은 면 위 divider 선으로만 구분한다.)
-        var cardGo = MakeImage("BodyFrost", prt, Vector2.zero, Vector2.zero, Color.white);
-        var crt = cardGo.GetComponent<RectTransform>();
-        crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one;
-        crt.offsetMin = new Vector2(inset, inset); crt.offsetMax = new Vector2(-inset, -titleH);
-        var cImg = cardGo.GetComponent<Image>(); cImg.sprite = null; cImg.type = Image.Type.Simple; cImg.raycastTarget = false;
-        var cGrad = cardGo.AddComponent<UIFrostGradient>();
-        cGrad.topColor = RGBA(216, 224, 237, 0.34f); cGrad.bottomColor = RGBA(199, 209, 223, 0.26f);
-
-        // 헤더 밝은 표면 = 상단(거의 흰색, 엔필처럼).
-        var hbGo = MakeImage("HeaderFrost", prt, Vector2.zero, Vector2.zero, Color.white);
-        var hbrt = hbGo.GetComponent<RectTransform>();
-        hbrt.anchorMin = new Vector2(0, 1); hbrt.anchorMax = new Vector2(1, 1); hbrt.pivot = new Vector2(0.5f, 1);
-        hbrt.offsetMin = new Vector2(inset, -titleH); hbrt.offsetMax = new Vector2(-inset, -inset);
-        var hbImg = hbGo.GetComponent<Image>(); hbImg.sprite = null; hbImg.type = Image.Type.Simple; hbImg.raycastTarget = false;
-        var hbGrad = hbGo.AddComponent<UIFrostGradient>();
-        hbGrad.topColor = RGBA(245, 248, 253, 0.62f); hbGrad.bottomColor = RGBA(237, 243, 251, 0.56f);
+        // (옛 밝은 BodyFrost/HeaderFrost 층 제거 = 어두운 글라스로 전환. 헤더/푸터는 divider 선으로만 구분.)
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -424,12 +408,12 @@ public static class MachineUIBuilder
         var ct = col.transform;
 
         // ── 가방/창고 탭 + 용량 (칼럼 상단). 런타임 MachineUI 가 활성탭 알파 토글. ──
-        var bagTab = MakeTextButton("BagTab", ct, "가방", Vector2.zero, new Vector2(96, 34), RGBA(150, 178, 205, 0.22f), Chrome, TxtMain, 16);
+        var bagTab = MakeTextButton("BagTab", ct, "가방", Vector2.zero, new Vector2(96, 34), RGBA(236, 241, 248, 0.5f), Chrome, TxtDark, 16);
         var btRt = bagTab.GetComponent<RectTransform>();
         btRt.anchorMin = btRt.anchorMax = new Vector2(0, 1); btRt.pivot = new Vector2(0, 1); btRt.anchoredPosition = new Vector2(4, -4);
         SetRef(so, "bagTabBtn", bagTab);
 
-        var stoTab = MakeTextButton("StorageTab", ct, "창고", Vector2.zero, new Vector2(96, 34), RGBA(150, 178, 205, 0.22f), Chrome, TxtMain, 16);
+        var stoTab = MakeTextButton("StorageTab", ct, "창고", Vector2.zero, new Vector2(96, 34), RGBA(236, 241, 248, 0.5f), Chrome, TxtDark, 16);
         var stoRt = stoTab.GetComponent<RectTransform>();
         stoRt.anchorMin = stoRt.anchorMax = new Vector2(0, 1); stoRt.pivot = new Vector2(0, 1); stoRt.anchoredPosition = new Vector2(106, -4);
         SetRef(so, "storageTabBtn", stoTab);
@@ -445,7 +429,7 @@ public static class MachineUIBuilder
         tabDiv.GetComponent<Image>().raycastTarget = false;
 
         // 용량 = 탭 행 우측 끝에 세로 중앙 정렬(탭과 한 줄).
-        var cap = MakeTMP("BagCapacity", ct, "용량 0 / 35", 14, TxtSub, TextAlignmentOptions.Right);
+        var cap = MakeTMP("BagCapacity", ct, "용량 0 / 35", 14, TxtDark, TextAlignmentOptions.Right);
         var capRt = cap.rectTransform; capRt.anchorMin = capRt.anchorMax = new Vector2(1, 1); capRt.pivot = new Vector2(1, 0.5f);
         capRt.sizeDelta = new Vector2(160, 22); capRt.anchoredPosition = new Vector2(-6, -21);
         SetRef(so, "bagCapacityText", cap);
@@ -554,10 +538,10 @@ public static class MachineUIBuilder
         navRt.anchorMin = navRt.anchorMax = new Vector2(0.5f, 1); navRt.pivot = new Vector2(0.5f, 1); navRt.anchoredPosition = new Vector2(0, -6);
         var prevBtn = MakeMiniButton("RecipePrev", nav.transform, "<", new Vector2(-220, 0), 40f);
         SetRef(so, "recipePrevBtn", prevBtn);
-        var idx = MakeTMP("RecipeIndex", nav.transform, "", 18, TxtMain, TextAlignmentOptions.Center);
+        var idx = MakeTMP("RecipeIndex", nav.transform, "", 18, TxtDark, TextAlignmentOptions.Center);
         idx.fontStyle = FontStyles.Bold; idx.rectTransform.sizeDelta = new Vector2(90, 30); idx.rectTransform.anchoredPosition = new Vector2(-150, 0);
         SetRef(so, "recipeIndexText", idx);
-        var nm = MakeTMP("RecipeName", nav.transform, "", 18, TxtMain, TextAlignmentOptions.Left);
+        var nm = MakeTMP("RecipeName", nav.transform, "", 18, TxtDark, TextAlignmentOptions.Left);
         nm.rectTransform.sizeDelta = new Vector2(240, 30); nm.rectTransform.anchoredPosition = new Vector2(40, 0);
         SetRef(so, "recipeNameText", nm);
         var nextBtn = MakeMiniButton("RecipeNext", nav.transform, ">", new Vector2(230, 0), 40f);
@@ -633,11 +617,12 @@ public static class MachineUIBuilder
     }
 
     // ═════════════════════════════════════════════════════════════════
-    // 단계 4 : 하단 액션 (진행바 + 모두받기 노란버튼 + 재료회수)
+    // 단계 4 : 하단 액션 = 엔필식 액션바
+    //   [재료회수 작게] [현재 생산 공식 스트립] ...... [모두받기 크게] + 맨아래 얇은 진행선
     // ═════════════════════════════════════════════════════════════════
     static void BuildFooter(RectTransform prt, SerializedObject so)
     {
-        float fy = FooterH * 0.5f;   // 푸터 밴드 중앙(하단 가장자리 기준)
+        float rowY = 52f;   // 액션 행 중심(하단 가장자리 기준)
 
         // 하단 액션바 구분 = 같은 면 위 divider 한 줄(별도 패널 아님).
         var footDiv = MakeImage("FooterDivider", prt, Vector2.zero, Vector2.zero, HeaderHair);
@@ -646,24 +631,56 @@ public static class MachineUIBuilder
         fdRt.offsetMin = new Vector2(3, FooterH); fdRt.offsetMax = new Vector2(-3, FooterH + 1.5f);
         footDiv.GetComponent<Image>().raycastTarget = false;
 
-        // 진행 바 (하단 중앙)
-        var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 16));
+        // 진행 바 = 맨 아래 얇은 전폭 선(노란 fill + 노브).
+        var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 10));
         var brRt = bar.GetComponent<RectTransform>();
-        brRt.anchorMin = brRt.anchorMax = new Vector2(0.5f, 0); brRt.pivot = new Vector2(0.5f, 0.5f); brRt.anchoredPosition = new Vector2(0, fy);
+        brRt.anchorMin = new Vector2(0, 0); brRt.anchorMax = new Vector2(1, 0); brRt.pivot = new Vector2(0.5f, 0);
+        brRt.offsetMin = new Vector2(SidePad, 12); brRt.offsetMax = new Vector2(-SidePad, 22);
         SetRef(so, "progressBar", bar);
         SetRef(so, "progressKnob", bar.transform.Find("Knob") as RectTransform);
 
-        // 모두 받기 (하단 우, 노랑)
-        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(210, 46), Yellow, YellowBd, YellowTx, 20);
-        var toRt = takeOut.GetComponent<RectTransform>();
-        toRt.anchorMin = toRt.anchorMax = new Vector2(1, 0); toRt.pivot = new Vector2(1, 0.5f); toRt.anchoredPosition = new Vector2(-(SidePad + 10), fy);
-        SetRef(so, "takeOutputBtn", takeOut);
-
-        // 재료 회수 (하단 좌, 보조)
-        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(150, 38), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 16);
+        // 재료 회수 (하단 좌, 보조 작게)
+        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(124, 38), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 15);
         var tiRt = takeIn.GetComponent<RectTransform>();
-        tiRt.anchorMin = tiRt.anchorMax = new Vector2(0, 0); tiRt.pivot = new Vector2(0, 0.5f); tiRt.anchoredPosition = new Vector2(SidePad + 10, fy);
+        tiRt.anchorMin = tiRt.anchorMax = new Vector2(0, 0); tiRt.pivot = new Vector2(0, 0.5f); tiRt.anchoredPosition = new Vector2(SidePad, rowY);
         SetRef(so, "takeInputsBtn", takeIn);
+
+        // 현재 생산 공식 스트립 (재료회수 우측, 딱 그 크기 개별 패널)
+        BuildRecipeFormula(prt, so, new Vector2(SidePad + 124 + 12, rowY));
+
+        // 모두 받기 (하단 우, 노랑 크게)
+        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(240, 52), Yellow, YellowBd, YellowTx, 21);
+        var toRt = takeOut.GetComponent<RectTransform>();
+        toRt.anchorMin = toRt.anchorMax = new Vector2(1, 0); toRt.pivot = new Vector2(1, 0.5f); toRt.anchoredPosition = new Vector2(-SidePad, rowY);
+        SetRef(so, "takeOutputBtn", takeOut);
+    }
+
+    // 현재 생산 공식 = 작은 개별 패널. [상태 라벨][재료아이콘 > 결과아이콘] 을 런타임이 채운다.
+    static void BuildRecipeFormula(RectTransform prt, SerializedObject so, Vector2 pos)
+    {
+        var panel = MakeRounded("RecipeFormula", prt, new Vector2(560, 52), Vector2.zero, RGBA(20, 28, 40, 0.34f));
+        var pr = panel.GetComponent<RectTransform>();
+        pr.anchorMin = pr.anchorMax = new Vector2(0, 0); pr.pivot = new Vector2(0, 0.5f); pr.anchoredPosition = pos;
+        AddOutline(panel, Chrome, new Vector2(1f, -1f));
+        panel.GetComponent<Image>().raycastTarget = false;
+
+        // 상태 라벨(좌) = 런타임이 생산중/대기중 토글.
+        var st = MakeTMP("FormulaStatus", panel.transform, "대기 중", 13, TxtSub, TextAlignmentOptions.Left);
+        var stRt = st.rectTransform; stRt.anchorMin = stRt.anchorMax = new Vector2(0, 0.5f); stRt.pivot = new Vector2(0, 0.5f);
+        stRt.sizeDelta = new Vector2(58, 40); stRt.anchoredPosition = new Vector2(14, 0);
+        st.fontStyle = FontStyles.Bold;
+        SetRef(so, "formulaStatusText", st);
+
+        // 공식 내용 컨테이너(상태 라벨 우측) = 런타임이 아이콘 엔트리 채움(HLG 좌측정렬).
+        var content = MakeEmpty("FormulaContent", panel.transform, Vector2.zero, Vector2.zero);
+        var cr = content.GetComponent<RectTransform>();
+        cr.anchorMin = new Vector2(0, 0); cr.anchorMax = new Vector2(1, 1); cr.pivot = new Vector2(0, 0.5f);
+        cr.offsetMin = new Vector2(78, 4); cr.offsetMax = new Vector2(-12, -4);
+        var hlg = content.AddComponent<HorizontalLayoutGroup>();
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        hlg.spacing = 6; hlg.childAlignment = TextAnchor.MiddleLeft;
+        SetRef(so, "formulaContent", content.transform);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -706,13 +723,29 @@ public static class MachineUIBuilder
         var time = MakeTMP("Time", go.transform, "", 14, Hex("e6c24a"), TextAlignmentOptions.Bottom);
         var trt = time.rectTransform;
         trt.anchorMin = new Vector2(0, 0); trt.anchorMax = new Vector2(1, 0); trt.pivot = new Vector2(0.5f, 0);
-        trt.offsetMin = new Vector2(0, 2); trt.offsetMax = new Vector2(0, 22);
+        trt.offsetMin = new Vector2(0, 12); trt.offsetMax = new Vector2(0, 30);   // 게이지 위로 올림
+
+        // 연료 게이지(#41) = 슬롯 하단 얇은 노란 fill 바. 런타임이 fillAmount 갱신.
+        var gaugeGo = new GameObject("Gauge", typeof(RectTransform), typeof(Image));
+        gaugeGo.transform.SetParent(go.transform, false);
+        var grt = gaugeGo.GetComponent<RectTransform>();
+        grt.anchorMin = new Vector2(0, 0); grt.anchorMax = new Vector2(1, 0); grt.pivot = new Vector2(0, 0);
+        grt.offsetMin = new Vector2(6, 5); grt.offsetMax = new Vector2(-6, 10);
+        var gimg = gaugeGo.GetComponent<Image>();
+        gimg.sprite = RoundedSprite(); gimg.type = Image.Type.Filled;
+        gimg.fillMethod = Image.FillMethod.Horizontal; gimg.fillOrigin = (int)Image.OriginHorizontal.Left;
+        gimg.fillAmount = 0f; gimg.color = Yellow; gimg.raycastTarget = false; gimg.enabled = false;
+
         var label = MakeTMP("Label", go.transform, "", 13, Color.white, TextAlignmentOptions.Center);
         FillRect(label.rectTransform);
 
         var wso = new SerializedObject(fds);
         SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", border);
         SetRef(wso, "amountText", amount); SetRef(wso, "timeText", time); SetRef(wso, "labelText", label);
+        SetRef(wso, "fuelGauge", gimg);
+        // 빈 슬롯 실루엣을 순흑 -> 부드러운 반투명 슬레이트(밝은 UI에서 "낙서"처럼 튀던 것 완화).
+        var silhProp = wso.FindProperty("emptySilhouetteColor");
+        if (silhProp != null) silhProp.colorValue = RGBA(40, 52, 68, 0.5f);
         wso.ApplyModifiedProperties();
         return fds;
     }

@@ -13,6 +13,8 @@ public class UIFrostGradient : BaseMeshEffect
     public Color topColor = new Color(0.745f, 0.839f, 0.941f, 0.10f);
     [Tooltip("아래쪽 색 (투명)")]
     public Color bottomColor = new Color(0.745f, 0.839f, 0.941f, 0f);
+    [Tooltip("위쪽 색이 상단에 몰리는 정도. 1=선형(기본, 인벤/도감 그대로). 클수록 상단 일부만 밝고 빠르게 아래색으로(엔필식 상단 집중).")]
+    public float topBias = 1f;
 
     private static readonly List<UIVertex> _verts = new List<UIVertex>();
 
@@ -21,28 +23,65 @@ public class UIFrostGradient : BaseMeshEffect
         if (!IsActive() || vh.currentVertCount == 0) return;
 
         vh.GetUIVertexStream(_verts);
+        if (_verts.Count == 0) return;
 
-        float minY = float.MaxValue, maxY = float.MinValue;
+        // 쿼드 경계
+        float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
         for (int i = 0; i < _verts.Count; i++)
         {
-            float y = _verts[i].position.y;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+            var p = _verts[i].position;
+            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
         }
         float h = Mathf.Max(0.0001f, maxY - minY);
 
-        for (int i = 0; i < _verts.Count; i++)
+        bool curved = topBias > 0f && Mathf.Abs(topBias - 1f) > 0.001f;
+
+        // 선형(기본): 기존 정점 색만 수정(인벤/도감 등 그대로). 4정점이면 GPU가 선형 보간.
+        if (!curved)
         {
-            var v = _verts[i];
-            float t = (v.position.y - minY) / h;   // 0 아래 ~ 1 위
-            // 기존 vertex 색(Image.color)에 그라데이션을 곱함. Image.color=흰색이면 예전과 동일,
-            // 다른 색이면 런타임 틴트(등급 오로라 등)에 쓸 수 있음.
-            Color grad = Color.Lerp(bottomColor, topColor, t);
-            v.color = (Color)v.color * grad;
-            _verts[i] = v;
+            for (int i = 0; i < _verts.Count; i++)
+            {
+                var v = _verts[i];
+                float t = (v.position.y - minY) / h;   // 0 아래 ~ 1 위
+                v.color = (Color)v.color * Color.Lerp(bottomColor, topColor, t);
+                _verts[i] = v;
+            }
+            vh.Clear();
+            vh.AddUIVertexTriangleStream(_verts);
+            return;
         }
 
+        // 곡선(상단 집중): 세로 N분할 재생성. (정점 4개뿐이면 pow 가 0/1 고정점이라 안 먹어 분할 필수.)
+        var baseV = _verts[0];                 // UV/노멀/탄젠트 템플릿
+        Color baseCol = (Color)baseV.color;    // Image.color (보통 흰색)
         vh.Clear();
-        vh.AddUIVertexTriangleStream(_verts);
+        const int N = 48;
+        for (int r = 0; r <= N; r++)
+        {
+            float ty = r / (float)N;                       // 0 아래 ~ 1 위
+            float y  = Mathf.Lerp(minY, maxY, ty);
+            float tb = Mathf.Pow(ty, topBias);             // 상단 집중
+            Color col = baseCol * Color.Lerp(bottomColor, topColor, tb);
+            var vl = baseV; vl.position = new Vector3(minX, y, baseV.position.z); vl.color = col;
+            var vr = baseV; vr.position = new Vector3(maxX, y, baseV.position.z); vr.color = col;
+            vh.AddVert(vl);
+            vh.AddVert(vr);
+        }
+        for (int r = 0; r < N; r++)
+        {
+            int b = r * 2;                 // row r: b(좌), b+1(우) / row r+1: b+2(좌), b+3(우)
+            vh.AddTriangle(b, b + 2, b + 3);
+            vh.AddTriangle(b, b + 3, b + 1);
+        }
     }
+
+#if UNITY_EDITOR
+    // 인스펙터에서 topBias/색 바꾸면 즉시 메쉬 갱신(라이브 튜닝).
+    protected override void OnValidate()
+    {
+        base.OnValidate();
+        if (graphic != null) graphic.SetVerticesDirty();
+    }
+#endif
 }
