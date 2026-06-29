@@ -222,11 +222,17 @@ public static class MachineUIBuilder
         blur.Common.cameraReference = PickBuildCamera();
         blur.Common.featureNumber = 0;
         blur.Common.unrankedLayer = 1;
+        // ★인벤의 "작동하는" BlurredImage 설정과 동일(인벤도 같은 Overlay 캔버스에 패널 자식 BlurredImage,
+        //   튜너 없이 정적 설정으로 블러 멀쩡함 = overlayCompatibilityFix 로 Overlay 지원됨).
+        //   ★내가 붙였던 MachineBlurTuner 가 매 프레임 refRes=540/hqResample 로 덮어써서 블러가 죽었던 것 -> 제거.
         var bs = blur.Common.blurInstanceSettings;
         if (bs != null)
         {
-            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 7; sec.sampleDistance = 2.2f; }
-            bs.vibrancy = 0f; bs.brightness = 0f; bs.contrast = 0f; bs.referenceResolution = 1080;   // 톤은 그래디언트가 담당(블러 밝기 중립)
+            // 렌더 경로는 인벤과 동일(튜너X / refRes 1080 / brightness 0.02). 강도만 인벤보다 위로.
+            // 렌더식: 샘플거리 = sampleDistance + blurAdditionalDistancePerIteration x iterations.
+            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 7; sec.sampleDistance = 2.5f; }
+            bs.blurAdditionalDistancePerIteration = 4f;
+            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
         }
         blur.Common.ValidateBlur();
 
@@ -238,8 +244,10 @@ public static class MachineUIBuilder
         bgrt.anchorMin = Vector2.zero; bgrt.anchorMax = Vector2.one; bgrt.offsetMin = Vector2.zero; bgrt.offsetMax = Vector2.zero;
         var bgImg = bgGo.GetComponent<Image>(); bgImg.sprite = null; bgImg.type = Image.Type.Simple; bgImg.raycastTarget = false;
         var bgGrad = bgGo.AddComponent<UIFrostGradient>();
-        bgGrad.topColor = RGBA(212, 220, 233, 0.66f); bgGrad.bottomColor = RGBA(11, 15, 24, 0.82f);
-        bgGrad.topBias = 4f;   // 밝음을 상단 ~20%에 몰고 빠르게 어둡게(엔필 비율). 1=선형(밝음 절반).
+        // 엔필 스샷 스포이드 근사: 상단=라이트 실버그레이 / 본문=미디엄 그레이(★까망 금지=전체 밝게).
+        // 2색이라 본문을 미디엄으로 올려 전반 밝기를 맞춤(엔필처럼 하단만 더 어둡게는 3색 필요 - 추후).
+        bgGrad.topColor = RGBA(202, 207, 214, 0.6f); bgGrad.bottomColor = RGBA(88, 94, 106, 0.72f);
+        bgGrad.topBias = 3f;   // 밝음 상단 ~25% 집중(낮출수록 더 퍼짐). 본문은 미디엄 그레이.
 
         // (옛 밝은 BodyFrost/HeaderFrost 층 제거 = 어두운 글라스로 전환. 헤더/푸터는 divider 선으로만 구분.)
     }

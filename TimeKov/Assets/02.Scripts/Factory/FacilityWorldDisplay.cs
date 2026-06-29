@@ -16,6 +16,10 @@ namespace TIMEKOV.Factory
     [DisallowMultipleComponent]
     public class FacilityWorldDisplay : MonoBehaviour
     {
+        // 설비 UI(MachineUI) 등이 열린 동안 모든 월드 표시(이름표/제작아이콘/막힘) 억제.
+        // onTop 머티리얼(_ZTestMode=8)이라 패널 블러 위로 뚫고 올라오므로, 패널 열 때 true.
+        public static bool SuppressWorldLabels;
+
         [Header("공통")]
         [Tooltip("월드 캔버스 스케일 (픽셀→월드 변환 배수). 0.01이면 100px = 1m.")]
         public float worldScale = 0.01f;
@@ -208,6 +212,7 @@ namespace TIMEKOV.Factory
         // ── 매 프레임 갱신 ───────────────────────────────────────────────
         private void LateUpdate()
         {
+            if (SuppressWorldLabels) { HideAll(); return; }   // 설비 패널 열림 = 월드 표시 끔(블러 위로 뚫고 나오는 것 차단)
             if (_cam == null) { _cam = Camera.main; if (_cam == null) return; }
             UpdateBounds();   // 매 프레임 갱신 — 첫 프레임 바운즈 오류/늦은 로드에도 견고
 
