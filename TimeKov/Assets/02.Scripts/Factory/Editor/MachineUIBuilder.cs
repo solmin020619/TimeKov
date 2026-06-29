@@ -42,7 +42,7 @@ public static class MachineUIBuilder
     static Color SlotBody   => RGBA(26, 34, 46, 0.36f);     // 함몰 슬롯 몸체(쿨)
 
     // ── 레이아웃 상수 (패널 = 스트레치 near-fullscreen, 영역은 패널 가장자리 기준 앵커) ──
-    const float HeaderH = 64f, FooterH = 70f;
+    const float HeaderH = 64f, FooterH = 90f;   // 푸터=엔필식 액션바(공식 스트립+버튼+얇은 진행선)
     const float SidePad = 26f;       // 패널 안쪽 여백
     const float Gap = 20f;           // 영역 간 간격
     const float BagWidth = 540f;     // 좌 가방 칼럼 고정폭(나머지는 생산부가 채움)
@@ -633,11 +633,12 @@ public static class MachineUIBuilder
     }
 
     // ═════════════════════════════════════════════════════════════════
-    // 단계 4 : 하단 액션 (진행바 + 모두받기 노란버튼 + 재료회수)
+    // 단계 4 : 하단 액션 = 엔필식 액션바
+    //   [재료회수 작게] [현재 생산 공식 스트립] ...... [모두받기 크게] + 맨아래 얇은 진행선
     // ═════════════════════════════════════════════════════════════════
     static void BuildFooter(RectTransform prt, SerializedObject so)
     {
-        float fy = FooterH * 0.5f;   // 푸터 밴드 중앙(하단 가장자리 기준)
+        float rowY = 52f;   // 액션 행 중심(하단 가장자리 기준)
 
         // 하단 액션바 구분 = 같은 면 위 divider 한 줄(별도 패널 아님).
         var footDiv = MakeImage("FooterDivider", prt, Vector2.zero, Vector2.zero, HeaderHair);
@@ -646,24 +647,56 @@ public static class MachineUIBuilder
         fdRt.offsetMin = new Vector2(3, FooterH); fdRt.offsetMax = new Vector2(-3, FooterH + 1.5f);
         footDiv.GetComponent<Image>().raycastTarget = false;
 
-        // 진행 바 (하단 중앙)
-        var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 16));
+        // 진행 바 = 맨 아래 얇은 전폭 선(노란 fill + 노브).
+        var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 10));
         var brRt = bar.GetComponent<RectTransform>();
-        brRt.anchorMin = brRt.anchorMax = new Vector2(0.5f, 0); brRt.pivot = new Vector2(0.5f, 0.5f); brRt.anchoredPosition = new Vector2(0, fy);
+        brRt.anchorMin = new Vector2(0, 0); brRt.anchorMax = new Vector2(1, 0); brRt.pivot = new Vector2(0.5f, 0);
+        brRt.offsetMin = new Vector2(SidePad, 12); brRt.offsetMax = new Vector2(-SidePad, 22);
         SetRef(so, "progressBar", bar);
         SetRef(so, "progressKnob", bar.transform.Find("Knob") as RectTransform);
 
-        // 모두 받기 (하단 우, 노랑)
-        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(210, 46), Yellow, YellowBd, YellowTx, 20);
-        var toRt = takeOut.GetComponent<RectTransform>();
-        toRt.anchorMin = toRt.anchorMax = new Vector2(1, 0); toRt.pivot = new Vector2(1, 0.5f); toRt.anchoredPosition = new Vector2(-(SidePad + 10), fy);
-        SetRef(so, "takeOutputBtn", takeOut);
-
-        // 재료 회수 (하단 좌, 보조)
-        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(150, 38), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 16);
+        // 재료 회수 (하단 좌, 보조 작게)
+        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(124, 38), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 15);
         var tiRt = takeIn.GetComponent<RectTransform>();
-        tiRt.anchorMin = tiRt.anchorMax = new Vector2(0, 0); tiRt.pivot = new Vector2(0, 0.5f); tiRt.anchoredPosition = new Vector2(SidePad + 10, fy);
+        tiRt.anchorMin = tiRt.anchorMax = new Vector2(0, 0); tiRt.pivot = new Vector2(0, 0.5f); tiRt.anchoredPosition = new Vector2(SidePad, rowY);
         SetRef(so, "takeInputsBtn", takeIn);
+
+        // 현재 생산 공식 스트립 (재료회수 우측, 딱 그 크기 개별 패널)
+        BuildRecipeFormula(prt, so, new Vector2(SidePad + 124 + 12, rowY));
+
+        // 모두 받기 (하단 우, 노랑 크게)
+        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(240, 52), Yellow, YellowBd, YellowTx, 21);
+        var toRt = takeOut.GetComponent<RectTransform>();
+        toRt.anchorMin = toRt.anchorMax = new Vector2(1, 0); toRt.pivot = new Vector2(1, 0.5f); toRt.anchoredPosition = new Vector2(-SidePad, rowY);
+        SetRef(so, "takeOutputBtn", takeOut);
+    }
+
+    // 현재 생산 공식 = 작은 개별 패널. [상태 라벨][재료아이콘 > 결과아이콘] 을 런타임이 채운다.
+    static void BuildRecipeFormula(RectTransform prt, SerializedObject so, Vector2 pos)
+    {
+        var panel = MakeRounded("RecipeFormula", prt, new Vector2(560, 52), Vector2.zero, RGBA(20, 28, 40, 0.34f));
+        var pr = panel.GetComponent<RectTransform>();
+        pr.anchorMin = pr.anchorMax = new Vector2(0, 0); pr.pivot = new Vector2(0, 0.5f); pr.anchoredPosition = pos;
+        AddOutline(panel, Chrome, new Vector2(1f, -1f));
+        panel.GetComponent<Image>().raycastTarget = false;
+
+        // 상태 라벨(좌) = 런타임이 생산중/대기중 토글.
+        var st = MakeTMP("FormulaStatus", panel.transform, "대기 중", 13, TxtSub, TextAlignmentOptions.Left);
+        var stRt = st.rectTransform; stRt.anchorMin = stRt.anchorMax = new Vector2(0, 0.5f); stRt.pivot = new Vector2(0, 0.5f);
+        stRt.sizeDelta = new Vector2(58, 40); stRt.anchoredPosition = new Vector2(14, 0);
+        st.fontStyle = FontStyles.Bold;
+        SetRef(so, "formulaStatusText", st);
+
+        // 공식 내용 컨테이너(상태 라벨 우측) = 런타임이 아이콘 엔트리 채움(HLG 좌측정렬).
+        var content = MakeEmpty("FormulaContent", panel.transform, Vector2.zero, Vector2.zero);
+        var cr = content.GetComponent<RectTransform>();
+        cr.anchorMin = new Vector2(0, 0); cr.anchorMax = new Vector2(1, 1); cr.pivot = new Vector2(0, 0.5f);
+        cr.offsetMin = new Vector2(78, 4); cr.offsetMax = new Vector2(-12, -4);
+        var hlg = content.AddComponent<HorizontalLayoutGroup>();
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        hlg.spacing = 6; hlg.childAlignment = TextAnchor.MiddleLeft;
+        SetRef(so, "formulaContent", content.transform);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -706,13 +739,29 @@ public static class MachineUIBuilder
         var time = MakeTMP("Time", go.transform, "", 14, Hex("e6c24a"), TextAlignmentOptions.Bottom);
         var trt = time.rectTransform;
         trt.anchorMin = new Vector2(0, 0); trt.anchorMax = new Vector2(1, 0); trt.pivot = new Vector2(0.5f, 0);
-        trt.offsetMin = new Vector2(0, 2); trt.offsetMax = new Vector2(0, 22);
+        trt.offsetMin = new Vector2(0, 12); trt.offsetMax = new Vector2(0, 30);   // 게이지 위로 올림
+
+        // 연료 게이지(#41) = 슬롯 하단 얇은 노란 fill 바. 런타임이 fillAmount 갱신.
+        var gaugeGo = new GameObject("Gauge", typeof(RectTransform), typeof(Image));
+        gaugeGo.transform.SetParent(go.transform, false);
+        var grt = gaugeGo.GetComponent<RectTransform>();
+        grt.anchorMin = new Vector2(0, 0); grt.anchorMax = new Vector2(1, 0); grt.pivot = new Vector2(0, 0);
+        grt.offsetMin = new Vector2(6, 5); grt.offsetMax = new Vector2(-6, 10);
+        var gimg = gaugeGo.GetComponent<Image>();
+        gimg.sprite = RoundedSprite(); gimg.type = Image.Type.Filled;
+        gimg.fillMethod = Image.FillMethod.Horizontal; gimg.fillOrigin = (int)Image.OriginHorizontal.Left;
+        gimg.fillAmount = 0f; gimg.color = Yellow; gimg.raycastTarget = false; gimg.enabled = false;
+
         var label = MakeTMP("Label", go.transform, "", 13, Color.white, TextAlignmentOptions.Center);
         FillRect(label.rectTransform);
 
         var wso = new SerializedObject(fds);
         SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", border);
         SetRef(wso, "amountText", amount); SetRef(wso, "timeText", time); SetRef(wso, "labelText", label);
+        SetRef(wso, "fuelGauge", gimg);
+        // 빈 슬롯 실루엣을 순흑 -> 부드러운 반투명 슬레이트(밝은 UI에서 "낙서"처럼 튀던 것 완화).
+        var silhProp = wso.FindProperty("emptySilhouetteColor");
+        if (silhProp != null) silhProp.colorValue = RGBA(40, 52, 68, 0.5f);
         wso.ApplyModifiedProperties();
         return fds;
     }

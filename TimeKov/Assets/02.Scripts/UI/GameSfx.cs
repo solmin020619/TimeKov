@@ -19,6 +19,10 @@ public enum SfxId
     CodexTabClick,
     SettingsClick,
     SettingsTabClick,
+    MachineOpen,
+    MachineClose,
+    MachineTabClick,
+    MachineTakeOutput,
 }
 
 // 런타임 UI/이벤트 효과음 재생기 (지연 싱글톤, 씬 세팅 불필요).

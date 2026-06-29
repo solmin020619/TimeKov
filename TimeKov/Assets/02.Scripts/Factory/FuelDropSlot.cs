@@ -21,6 +21,7 @@ public class FuelDropSlot : MonoBehaviour,
     [SerializeField] private TextMeshProUGUI amountText; // 스택 수 (예: "x3")
     [SerializeField] private TextMeshProUGUI timeText;   // 남은 가동 시간 (예: "80초")
     [SerializeField] private TextMeshProUGUI labelText;  // hover 시 "연료 넣기" 표시
+    [SerializeField] private Image           fuelGauge;  // 현재 연료 1개분 남은 연소 비율 바(#41)
 
     [Header("Hover 색상")]
     [SerializeField] private Color normalBorderColor = new Color(1f, 1f, 1f, 0f);
@@ -143,6 +144,13 @@ public class FuelDropSlot : MonoBehaviour,
                 timeText.text  = "";
                 timeText.enabled = false;
             }
+        }
+
+        // 연료 게이지(#41) = 현재 타고 있는 1개의 남은 연소 비율(0~1).
+        if (fuelGauge != null)
+        {
+            fuelGauge.fillAmount = t > 0f ? Mathf.Clamp01(currentTime / secs) : 0f;
+            fuelGauge.enabled = t > 0f;
         }
 
         // 연료 상태 변경 시 아이콘도 갱신
