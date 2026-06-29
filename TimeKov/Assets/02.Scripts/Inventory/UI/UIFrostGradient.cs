@@ -13,6 +13,8 @@ public class UIFrostGradient : BaseMeshEffect
     public Color topColor = new Color(0.745f, 0.839f, 0.941f, 0.10f);
     [Tooltip("아래쪽 색 (투명)")]
     public Color bottomColor = new Color(0.745f, 0.839f, 0.941f, 0f);
+    [Tooltip("위쪽 색이 상단에 몰리는 정도. 1=선형(기본, 인벤/도감 그대로). 클수록 상단 일부만 밝고 빠르게 아래색으로(엔필식 상단 집중).")]
+    public float topBias = 1f;
 
     private static readonly List<UIVertex> _verts = new List<UIVertex>();
 
@@ -35,6 +37,8 @@ public class UIFrostGradient : BaseMeshEffect
         {
             var v = _verts[i];
             float t = (v.position.y - minY) / h;   // 0 아래 ~ 1 위
+            // 상단 집중 바이어스: t^bias (bias>1 이면 상단 일부만 topColor, 나머지는 빠르게 bottomColor).
+            if (topBias > 0f && topBias != 1f) t = Mathf.Pow(t, topBias);
             // 기존 vertex 색(Image.color)에 그라데이션을 곱함. Image.color=흰색이면 예전과 동일,
             // 다른 색이면 런타임 틴트(등급 오로라 등)에 쓸 수 있음.
             Color grad = Color.Lerp(bottomColor, topColor, t);
