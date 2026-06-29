@@ -26,6 +26,14 @@ public static class MainMenuButtonsBuilder
     private static readonly Color HoverColor  = new Color(0.498f, 0.816f, 1f, 1f);     // #7FD0FF
     private static readonly Color HoverBgColor = new Color(1f, 1f, 1f, 15f / 255f);
 
+    // ── 게임 종료 확인 모달 색상 (WorldSelectUIBuilder와 동일 톤 — 프로젝트 전반 다크 네이비 통일) ──
+    private static readonly Color ModalBoxColor = Hex("0A1018", 255);
+    private static readonly Color ModalLineColor = Hex("FFFFFF", 40);
+    private static readonly Color ModalTickColor = Hex("FFFFFF", 120);
+    private static readonly Color FlatBtnBg = Hex("4A5562", 200);
+    private static readonly Color FlatBtnBorder = Hex("FFFFFF", 70);
+    private static readonly Color FlatBtnText = Hex("F2F5F8", 255);
+
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
         _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/남양주고딕Light (OTF) SDF.asset");
@@ -122,8 +130,9 @@ public static class MainMenuButtonsBuilder
         else
             Debug.LogWarning("[MainMenuButtonsBuilder] 제작진 패널 생성 실패로 '제작진' 연결을 건너뜀.");
 
-        // ── 클릭 연결: 게임 종료 → 기존 MainMenuQuitButton 컴포넌트 재사용 ─
-        quitItem.AddComponent<MainMenuQuitButton>();
+        // ── 클릭 연결: 게임 종료 → 확인 모달을 띄우는 MainMenuQuitButton 컴포넌트 ─
+        var quitComp = quitItem.AddComponent<MainMenuQuitButton>();
+        BuildQuitConfirmModal(canvasGO.transform, quitComp);
 
         Undo.CollapseUndoOperations(undoGroup);
         EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
@@ -197,6 +206,127 @@ public static class MainMenuButtonsBuilder
     static void ApplyFont(TMP_Text t)
     {
         if (t != null && KoreanFont != null) t.font = KoreanFont;
+    }
+
+    // ── 게임 종료 확인 모달 (팰월드 "게임을 종료하시겠습니까?" 팝업 참고 — 코너 틱 + 가운데
+    // 메시지 + 구분선 + 예/아니요) — MainMenuQuitButton이 transform.root.Find로 이름 찾아
+    // 쓰므로 캔버스 바로 아래 "QuitConfirmModal"이라는 이름으로 둔다(인스펙터 와이어링 불필요). ──
+    static void BuildQuitConfirmModal(Transform canvasTransform, MainMenuQuitButton quitComp)
+    {
+        var existing = canvasTransform.Find("QuitConfirmModal");
+        if (existing != null) Undo.DestroyObjectImmediate(existing.gameObject);
+
+        var modalRoot = new GameObject("QuitConfirmModal", typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(modalRoot, "Create QuitConfirmModal");
+        modalRoot.transform.SetParent(canvasTransform, false);
+        StretchFull(modalRoot.GetComponent<RectTransform>());
+
+        var backdropGo = new GameObject("Backdrop", typeof(RectTransform), typeof(Image), typeof(Button));
+        backdropGo.transform.SetParent(modalRoot.transform, false);
+        StretchFull(backdropGo.GetComponent<RectTransform>());
+        backdropGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+        var backdropBtn = backdropGo.GetComponent<Button>();
+        backdropBtn.targetGraphic = backdropGo.GetComponent<Image>();
+        UnityEventTools.AddPersistentListener(backdropBtn.onClick, quitComp.CancelQuit);
+
+        const float boxW = 700f, boxH = 300f;
+        var box = MakeRect("Box", modalRoot.transform, new Vector2(boxW, boxH), Vector2.zero, ModalBoxColor);
+
+        var msg = MakeLabel("Message", box.transform, new Vector2(boxW - 80f, 50f), new Vector2(0f, 55f),
+            "게임을 종료하시겠습니까?", 26f, NormalColor, TextAlignmentOptions.Center);
+        ApplyFont(msg);
+
+        MakeRect("Sep", box.transform, new Vector2(boxW - 80f, 1f), new Vector2(0f, -12f), ModalLineColor);
+
+        var yesBtn = MakeFlatDialogButton("Btn_Yes", box.transform, new Vector2(260f, 56f), new Vector2(-150f, -90f), "예");
+        UnityEventTools.AddPersistentListener(yesBtn.GetComponent<Button>().onClick, quitComp.ConfirmQuit);
+
+        var noBtn = MakeFlatDialogButton("Btn_No", box.transform, new Vector2(260f, 56f), new Vector2(150f, -90f), "아니요");
+        UnityEventTools.AddPersistentListener(noBtn.GetComponent<Button>().onClick, quitComp.CancelQuit);
+
+        // 모서리 틱(팰월드 미니멀 코너 브래킷 근사 — 단순 대시 4개, WorldSelectUIBuilder 모달과 동일 스타일)
+        float hx = boxW * 0.5f, hy = boxH * 0.5f;
+        MakeRect("TickTL", box.transform, new Vector2(14f, 2f), new Vector2(-hx, hy), ModalTickColor);
+        MakeRect("TickTR", box.transform, new Vector2(14f, 2f), new Vector2(hx, hy), ModalTickColor);
+        MakeRect("TickBL", box.transform, new Vector2(14f, 2f), new Vector2(-hx, -hy), ModalTickColor);
+        MakeRect("TickBR", box.transform, new Vector2(14f, 2f), new Vector2(hx, -hy), ModalTickColor);
+
+        modalRoot.SetActive(false);
+    }
+
+    static void StretchFull(RectTransform rt)
+    {
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+    }
+
+    static GameObject MakeRect(string name, Transform parent, Vector2 size, Vector2 pos, Color color)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+        go.GetComponent<Image>().color = color;
+        return go;
+    }
+
+    static TextMeshProUGUI MakeLabel(string name, Transform parent, Vector2 size, Vector2 pos,
+        string text, float fontSize, Color color, TextAlignmentOptions align)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = fontSize;
+        tmp.color = color;
+        tmp.alignment = align;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        return tmp;
+    }
+
+    // 예/아니요 버튼 — WorldSelectUIBuilder 하단 액션 바와 동일한 무채색 평면 + 얇은 외곽선 스타일.
+    static GameObject MakeFlatDialogButton(string name, Transform parent, Vector2 size, Vector2 pos, string label)
+    {
+        const float borderThickness = 1.5f;
+        var border = MakeRect(name + "_Border", parent, size + Vector2.one * (borderThickness * 2f), pos, FlatBtnBorder);
+
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+        go.GetComponent<Image>().color = FlatBtnBg;
+        go.GetComponent<Button>().targetGraphic = go.GetComponent<Image>();
+
+        var txtGo = new GameObject("Text", typeof(RectTransform));
+        txtGo.transform.SetParent(go.transform, false);
+        var txtRt = txtGo.GetComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero;
+        txtRt.anchorMax = Vector2.one;
+        txtRt.offsetMin = txtRt.offsetMax = Vector2.zero;
+        var tmp = txtGo.AddComponent<TextMeshProUGUI>();
+        tmp.text = label;
+        tmp.fontSize = 20f;
+        tmp.color = FlatBtnText;
+        tmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(tmp);
+
+        return go;
+    }
+
+    static Color Hex(string hex, int alpha = 255)
+    {
+        ColorUtility.TryParseHtmlString("#" + hex, out Color c);
+        c.a = alpha / 255f;
+        return c;
     }
 }
 #endif

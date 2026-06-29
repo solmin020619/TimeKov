@@ -1,9 +1,10 @@
 // =====================================================================
 // WorldSelectUI.cs
 // 타이틀 화면에서 띄우는 월드(세이브 슬롯) 선택 패널 — 팰월드 WORLD SELECT 참고.
-// 행 클릭 = 선택(하이라이트)만 함. 하단 우측 액션 바(시작/삭제/뒤로가기)가 현재
+// 행 클릭 = 선택(하이라이트)만 함. 하단 우측 액션 바(게임 시작/삭제)가 현재
 // 선택된 슬롯을 대상으로 동작한다. "+ 신규 월드 생성하기"는 별도 — 이름 입력
-// 모달 -> 확정 -> 곧장 입장.
+// 모달 -> 확정 -> 곧장 입장. 뒤로가기는 별도 버튼 없이 ESC로 처리(모달이 열려있으면
+// 모달부터 닫고, 아니면 메인메뉴로 복귀).
 // =====================================================================
 
 using System.Collections.Generic;
@@ -19,9 +20,8 @@ public class WorldSelectUI : MonoBehaviour
     [SerializeField] Button createRowButton;   // "+ 신규 월드 생성하기" 행 — 이름 입력 모달을 띔
 
     [Header("하단 액션 바 (선택된 슬롯 대상)")]
-    [SerializeField] Button enterButton;  // "시작"
+    [SerializeField] Button enterButton;  // "게임 시작"
     [SerializeField] Button deleteButton; // "삭제"
-    [SerializeField] Button cancelButton; // "뒤로가기" — 메인메뉴로 복귀
 
     [Header("이름 입력 모달")]
     [SerializeField] GameObject createModal;
@@ -43,6 +43,17 @@ public class WorldSelectUI : MonoBehaviour
 
     void Awake()
     {
+        // mainMenuList는 MainMenuButtonsBuilder가 실행될 때마다 "MenuList"를 통째로
+        // 지우고 새로 만든다 — 이 WorldSelectUI를 다시 빌드하지 않은 채로 그 builder를
+        // 나중에 또 돌리면 여기 직렬화된 참조가 파괴된 옛 GameObject를 가리키게 되어(=null
+        // 취급) 메인메뉴 버튼들이 안 가려지는 버그가 난다. 빌드 순서에 의존하지 않도록
+        // 참조가 비어있으면 이름으로 직접 찾아 자가 복구한다.
+        if (mainMenuList == null)
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas != null) mainMenuList = canvas.transform.Find("MenuList")?.gameObject;
+        }
+
         // panelRoot는 보통 이 컴포넌트와 같은 GameObject — 에디터 빌더가 이미 비활성 상태로
         // 저장해두므로 여기서 다시 SetActive(false)하면 Show()가 막 활성화한 직후 자기 자신을
         // 도로 꺼버리는 꼴이 된다. 그래서 Awake에서는 건드리지 않는다.
@@ -51,7 +62,15 @@ public class WorldSelectUI : MonoBehaviour
         if (modalBackdropButton != null) modalBackdropButton.onClick.AddListener(CloseCreateModal);
         if (enterButton != null) enterButton.onClick.AddListener(OnClickEnter);
         if (deleteButton != null) deleteButton.onClick.AddListener(OnClickDelete);
-        if (cancelButton != null) cancelButton.onClick.AddListener(Hide);
+    }
+
+    void Update()
+    {
+        if (panelRoot == null || !panelRoot.activeSelf) return;
+        if (!Input.GetKeyDown(KeyCode.Escape)) return;
+
+        if (createModal != null && createModal.activeSelf) CloseCreateModal();
+        else Hide();
     }
 
     public void Show()
