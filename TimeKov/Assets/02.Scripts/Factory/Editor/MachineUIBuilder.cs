@@ -41,10 +41,11 @@ public static class MachineUIBuilder
     static Color YellowTx   => Hex("4a3c0a");
     static Color SlotBody   => RGBA(26, 34, 46, 0.36f);     // 함몰 슬롯 몸체(쿨)
 
-    // ── 레이아웃 상수 (패널 1400x740, 중심 원점) ──
-    const float HalfW = 700f, HalfH = 370f;
-    const float HeaderH = 64f, FooterH = 60f;
-    const float BagLeft = -688f, BagRight = -320f;          // 좌측 가방 칼럼
+    // ── 레이아웃 상수 (패널 = 스트레치 near-fullscreen, 영역은 패널 가장자리 기준 앵커) ──
+    const float HeaderH = 64f, FooterH = 70f;
+    const float SidePad = 26f;       // 패널 안쪽 여백
+    const float Gap = 20f;           // 영역 간 간격
+    const float BagWidth = 540f;     // 좌 가방 칼럼 고정폭(나머지는 생산부가 채움)
 
     // ── 위젯 슬롯 프레임 / 가방 슬롯 프리팹 ──
     const string SlotPrefabPath = "Assets/05.Prefabs/Inventory/InventorySlot.prefab";
@@ -91,11 +92,18 @@ public static class MachineUIBuilder
             panel.transform.SetParent(ui.transform, false);
         }
 
-        // ── 패널 (간유리 PNG + 둥근 코너 Mask). 크기/위치 강제(중앙 1400x740). ──
+        // ── 패널 (간유리 PNG + 둥근 코너 Mask). ──
+        // ★중요1: 부모("Panels")가 100x100 중앙 앵커 컨테이너라 절대 stretch 금지
+        //   (stretch 하면 100-여백 = 음수폭 -> 패널 0크기 invisible = "F 안켜짐"의 진범).
+        //   sizeDelta(절대값) center 앵커라야 부모크기 무관하게 렌더됨.
+        // ★중요2: 패널 localScale 이 0.5625(=1080/1920 stale) 로 박혀있어 sizeDelta 만 키워도
+        //   실제론 56%로 줄어 보였음 -> localScale = 1 로 리셋해야 제 크기로 뜸.
+        //   CanvasScaler ref 1920x1080(match=width). 1700x830 = 레퍼런스(사진2~5)급 가로형, HP바 안 덮음.
         var prt = panel.GetComponent<RectTransform>();
         if (prt == null) prt = panel.AddComponent<RectTransform>();
         prt.anchorMin = prt.anchorMax = prt.pivot = new Vector2(0.5f, 0.5f);
-        prt.sizeDelta = new Vector2(1400f, 740f);
+        prt.localScale = Vector3.one;
+        prt.sizeDelta = new Vector2(1700f, 830f);
         prt.anchoredPosition = Vector2.zero;
 
         var pimg = panel.GetComponent<Image>();
@@ -392,35 +400,39 @@ public static class MachineUIBuilder
     // ═════════════════════════════════════════════════════════════════
     static void BuildBag(RectTransform prt, SerializedObject so)
     {
-        float top = HalfH - HeaderH - 10f;       // 헤더 바로 아래
-        float bot = -HalfH + FooterH + 10f;      // 푸터 바로 위
-        float colW = BagRight - BagLeft;
-        float colCx = (BagLeft + BagRight) * 0.5f;
+        // 좌 가방 칼럼: 좌측 고정폭(BagWidth), 헤더~푸터 세로 스트레치.
+        var col = Region("BagColumn", prt, new Vector2(0, 0), new Vector2(0, 1),
+            new Vector2(SidePad, FooterH + Gap), new Vector2(SidePad + BagWidth, -(HeaderH + Gap)));
+        var ct = col.transform;
 
-        // 가방 캡션 (아이콘 + "가방")
-        var bagIcon = MakeImage("BagIcon", prt, new Vector2(26, 26), new Vector2(BagLeft + 18, top - 14), TxtMain);
-        var biImg = bagIcon.GetComponent<Image>(); biImg.raycastTarget = false; biImg.preserveAspect = true;
-        var bagSpr = LoadPartSprite(PartDir + "/ic_bag.png", Vector4.zero);
-        if (bagSpr != null) biImg.sprite = bagSpr;
+        // ── 가방/창고 탭 + 용량 (칼럼 상단). 런타임 MachineUI 가 활성탭 알파 토글. ──
+        var bagTab = MakeTextButton("BagTab", ct, "가방", Vector2.zero, new Vector2(96, 34), RGBA(150, 178, 205, 0.22f), Chrome, TxtMain, 16);
+        var btRt = bagTab.GetComponent<RectTransform>();
+        btRt.anchorMin = btRt.anchorMax = new Vector2(0, 1); btRt.pivot = new Vector2(0, 1); btRt.anchoredPosition = new Vector2(4, -4);
+        SetRef(so, "bagTabBtn", bagTab);
 
-        var bagLabel = MakeTMP("BagLabel", prt, "가방", 19, TxtMain, TextAlignmentOptions.Left);
-        bagLabel.fontStyle = FontStyles.Bold;
-        var blRt = bagLabel.rectTransform;
-        blRt.sizeDelta = new Vector2(160, 28); blRt.anchoredPosition = new Vector2(BagLeft + 44, top - 14);
+        var stoTab = MakeTextButton("StorageTab", ct, "창고", Vector2.zero, new Vector2(96, 34), RGBA(150, 178, 205, 0.22f), Chrome, TxtMain, 16);
+        var stoRt = stoTab.GetComponent<RectTransform>();
+        stoRt.anchorMin = stoRt.anchorMax = new Vector2(0, 1); stoRt.pivot = new Vector2(0, 1); stoRt.anchoredPosition = new Vector2(106, -4);
+        SetRef(so, "storageTabBtn", stoTab);
 
-        // 가방 well (옅은 함몰 틴트 — 반투명만, 블러 죽이지 않음)
-        float wellTop = top - 36f;
-        var well = MakeRounded("BagWell", prt, new Vector2(colW, wellTop - bot), new Vector2(colCx, (wellTop + bot) * 0.5f), RGBA(18, 24, 34, 0.30f));
+        var cap = MakeTMP("BagCapacity", ct, "용량 0 / 35", 14, TxtSub, TextAlignmentOptions.Right);
+        var capRt = cap.rectTransform; capRt.anchorMin = capRt.anchorMax = new Vector2(1, 1); capRt.pivot = new Vector2(1, 1);
+        capRt.sizeDelta = new Vector2(160, 22); capRt.anchoredPosition = new Vector2(-6, -12);
+        SetRef(so, "bagCapacityText", cap);
+
+        // 가방 well (옅은 함몰 틴트 — 탭 아래 전체)
+        var well = MakeRounded("BagWell", ct, Vector2.zero, Vector2.zero, RGBA(18, 24, 34, 0.30f));
+        var wRt = well.GetComponent<RectTransform>();
+        wRt.anchorMin = new Vector2(0, 0); wRt.anchorMax = new Vector2(1, 1); wRt.offsetMin = Vector2.zero; wRt.offsetMax = new Vector2(0, -46);
         well.GetComponent<Image>().raycastTarget = false;
 
-        // 뷰포트 (RectMask2D + ScrollRect + 드롭존)
+        // 뷰포트 (RectMask2D + ScrollRect + 드롭존), well 안쪽
         var vpGo = new GameObject("BagViewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
-        vpGo.transform.SetParent(prt, false);
+        vpGo.transform.SetParent(ct, false);
         var vpRt = vpGo.GetComponent<RectTransform>();
-        vpRt.anchorMin = vpRt.anchorMax = vpRt.pivot = new Vector2(0.5f, 0.5f);
-        float pad = 10f;
-        vpRt.sizeDelta = new Vector2(colW - pad * 2, (wellTop - bot) - pad * 2);
-        vpRt.anchoredPosition = new Vector2(colCx, (wellTop + bot) * 0.5f);
+        vpRt.anchorMin = new Vector2(0, 0); vpRt.anchorMax = new Vector2(1, 1);
+        vpRt.offsetMin = new Vector2(8, 8); vpRt.offsetMax = new Vector2(-8, -52);
         var vpImg = vpGo.GetComponent<Image>(); vpImg.color = new Color(1, 1, 1, 0f); vpImg.raycastTarget = true;  // 드롭 raycast 캐치
 
         // 드롭존 (출력/재료/연료 슬롯 -> 가방 반환). highlightImage = 뷰포트 자신.
@@ -430,10 +442,11 @@ public static class MachineUIBuilder
         dzso.ApplyModifiedProperties();
         SetRef(so, "inventoryDropZone", dz);
 
-        // Content (그리드 + 사이즈피터)
+        // Content (그리드). 칼럼 폭 고정이라 셀 크기 빌드시점 계산 가능.
         int cols = 4;
-        Vector2 spacing = new Vector2(6, 6);
-        float cell = Mathf.Floor((vpRt.sizeDelta.x - spacing.x * (cols - 1)) / cols);
+        Vector2 spacing = new Vector2(8, 8);
+        float innerW = BagWidth - 16f;   // 뷰포트 좌우 offset 8+8
+        float cell = Mathf.Floor((innerW - spacing.x * (cols - 1)) / cols);
 
         var contentGo = new GameObject("BagContent", typeof(RectTransform));
         var content = contentGo.GetComponent<RectTransform>();
@@ -465,48 +478,48 @@ public static class MachineUIBuilder
     // ═════════════════════════════════════════════════════════════════
     static void BuildProduction(RectTransform prt, SerializedObject so)
     {
-        float bodyTop = HalfH - HeaderH - 6f;     // 300
-        float bodyBot = -HalfH + FooterH + 8f;    // -302
-        float left = -300f, right = 620f;
-        float cx = (left + right) * 0.5f;
-        float cy = (bodyTop + bodyBot) * 0.5f;
-        float w = right - left, h = bodyTop - bodyBot;
+        // 생산부: 가방 칼럼 오른쪽 ~ 패널 우측, 헤더~푸터 채움(스트레치).
+        var pt = Region("Production", prt, new Vector2(0, 0), new Vector2(1, 1),
+            new Vector2(SidePad + BagWidth + Gap, FooterH + Gap), new Vector2(-SidePad, -(HeaderH + Gap)));
 
-        // 생산부 컨테이너 (자식들은 이 컨테이너 로컬좌표 = 원점이 생산부 중앙)
-        var prod = MakeEmpty("Production", prt, new Vector2(w, h), new Vector2(cx, cy));
-        var pt = prod.transform;
-
-        // 무채색 도면 플레이트 (중앙 = 파랑 금지, 뉴트럴 그레이 함몰판)
-        var plate = MakeRounded("Blueprint", pt, new Vector2(w, h), Vector2.zero, RGBA(64, 72, 82, 0.42f));
+        // 무채색 도면 플레이트 (채움, 파랑 금지)
+        var plate = MakeRounded("Blueprint", pt, Vector2.zero, Vector2.zero, RGBA(64, 72, 82, 0.42f));
+        var plRt = plate.GetComponent<RectTransform>();
+        plRt.anchorMin = Vector2.zero; plRt.anchorMax = Vector2.one; plRt.offsetMin = new Vector2(6, 6); plRt.offsetMax = new Vector2(-6, -6);
         plate.GetComponent<Image>().raycastTarget = false;
         AddOutline(plate, RGBA(150, 165, 180, 0.40f), new Vector2(1.5f, -1.5f));
 
-        // 설비 실루엣 placeholder (PNG 7종은 추후 연결, 지금은 빈 영역 + 워터마크)
-        var sil = CenterIcon("FacilitySilhouette", pt, 220f);
-        sil.sprite = null; sil.color = RGBA(180, 190, 200, 0.10f);
-        sil.rectTransform.anchoredPosition = new Vector2(0, 30f);
-        var wm = MakeTMP("BlueprintWatermark", pt, "설비 도면", 20, RGBA(200, 210, 222, 0.16f), TextAlignmentOptions.Center);
-        wm.rectTransform.sizeDelta = new Vector2(260, 30); wm.rectTransform.anchoredPosition = new Vector2(0, -42f);
+        // 설비 도면 = 퀵슬롯 설비 모델 렌더(500x500 투명, facilityId 1~7) 재사용.
+        // 런타임 OpenFor 가 FacilityIconDatabase 로 sprite 세팅 -> enabled.
+        var fac = CenterIcon("FacilityImage", pt, 440f);
+        var facRt = fac.rectTransform; facRt.anchorMin = facRt.anchorMax = new Vector2(0.5f, 0.5f); facRt.anchoredPosition = new Vector2(0, 55f);
+        fac.color = Color.white; fac.enabled = false;   // sprite 세팅 전엔 숨김(흰 박스 방지)
+        SetRef(so, "facilityImage", fac);
 
         var slotFrame = LoadSlotFrame();
 
-        // ── 레시피 선택 네비 (상단) ──
-        var prevBtn = MakeMiniButton("RecipePrev", pt, "<", new Vector2(-150, 265), 38f);
+        // ── 레시피 네비 (상단 중앙) ──
+        var nav = MakeEmpty("RecipeNav", pt, new Vector2(560, 40), Vector2.zero);
+        var navRt = nav.GetComponent<RectTransform>();
+        navRt.anchorMin = navRt.anchorMax = new Vector2(0.5f, 1); navRt.pivot = new Vector2(0.5f, 1); navRt.anchoredPosition = new Vector2(0, -6);
+        var prevBtn = MakeMiniButton("RecipePrev", nav.transform, "<", new Vector2(-220, 0), 40f);
         SetRef(so, "recipePrevBtn", prevBtn);
-        var idx = MakeTMP("RecipeIndex", pt, "", 18, TxtMain, TextAlignmentOptions.Center);
-        idx.fontStyle = FontStyles.Bold;
-        idx.rectTransform.sizeDelta = new Vector2(80, 28); idx.rectTransform.anchoredPosition = new Vector2(-80, 265);
+        var idx = MakeTMP("RecipeIndex", nav.transform, "", 18, TxtMain, TextAlignmentOptions.Center);
+        idx.fontStyle = FontStyles.Bold; idx.rectTransform.sizeDelta = new Vector2(90, 30); idx.rectTransform.anchoredPosition = new Vector2(-150, 0);
         SetRef(so, "recipeIndexText", idx);
-        var nm = MakeTMP("RecipeName", pt, "", 18, TxtMain, TextAlignmentOptions.Left);
-        nm.rectTransform.sizeDelta = new Vector2(220, 28); nm.rectTransform.anchoredPosition = new Vector2(70, 265);
+        var nm = MakeTMP("RecipeName", nav.transform, "", 18, TxtMain, TextAlignmentOptions.Left);
+        nm.rectTransform.sizeDelta = new Vector2(240, 30); nm.rectTransform.anchoredPosition = new Vector2(40, 0);
         SetRef(so, "recipeNameText", nm);
-        var nextBtn = MakeMiniButton("RecipeNext", pt, ">", new Vector2(190, 265), 38f);
+        var nextBtn = MakeMiniButton("RecipeNext", nav.transform, ">", new Vector2(230, 0), 40f);
         SetRef(so, "recipeNextBtn", nextBtn);
 
-        // ── 재료(input) 슬롯 — 좌측 세로 스택 ──
+        // ── 재료 슬롯 — 기계 왼쪽 가까이 세로 스택(클러스터) ──
         var capMat = MakeTMP("CapMaterial", pt, "재료", 15, TxtSub, TextAlignmentOptions.Center);
-        capMat.rectTransform.sizeDelta = new Vector2(100, 22); capMat.rectTransform.anchoredPosition = new Vector2(-350, 245);
-        var inputArea = MakeEmpty("InputArea", pt, new Vector2(110, 430), new Vector2(-350, 10));
+        var cmRt = capMat.rectTransform; cmRt.anchorMin = cmRt.anchorMax = new Vector2(0.5f, 0.5f); cmRt.pivot = new Vector2(0.5f, 0.5f);
+        cmRt.sizeDelta = new Vector2(110, 22); cmRt.anchoredPosition = new Vector2(-330, 305);
+        var inputArea = MakeEmpty("InputArea", pt, new Vector2(110, 400), Vector2.zero);
+        var iaRt = inputArea.GetComponent<RectTransform>();
+        iaRt.anchorMin = iaRt.anchorMax = new Vector2(0.5f, 0.5f); iaRt.pivot = new Vector2(0.5f, 0.5f); iaRt.anchoredPosition = new Vector2(-330, 90);
         var vlg = inputArea.AddComponent<VerticalLayoutGroup>();
         vlg.childControlWidth = false; vlg.childControlHeight = false;
         vlg.childForceExpandWidth = false; vlg.childForceExpandHeight = false;
@@ -514,7 +527,7 @@ public static class MachineUIBuilder
 
         var recipeSlots = new System.Collections.Generic.List<RecipeDropSlot>();
         for (int i = 0; i < 4; i++)
-            recipeSlots.Add(MakeRecipeSlot(inputArea.transform, 84f, slotFrame));
+            recipeSlots.Add(MakeRecipeSlot(inputArea.transform, 88f, slotFrame));
         var arr = so.FindProperty("recipeDropSlots");
         if (arr != null)
         {
@@ -523,32 +536,40 @@ public static class MachineUIBuilder
                 arr.GetArrayElementAtIndex(i).objectReferenceValue = recipeSlots[i];
         }
 
-        // ── 연료 슬롯 (좌하단) ──
+        // ── 연료 슬롯 (재료 스택 아래) ──
         var capFuel = MakeTMP("CapFuel", pt, "연료", 15, TxtSub, TextAlignmentOptions.Center);
-        capFuel.rectTransform.sizeDelta = new Vector2(100, 22); capFuel.rectTransform.anchoredPosition = new Vector2(-350, -185);
-        var fuel = MakeFuelSlot(pt, 84f, slotFrame);
-        fuel.GetComponent<RectTransform>().anchoredPosition = new Vector2(-350, -235);
+        var cfRt = capFuel.rectTransform; cfRt.anchorMin = cfRt.anchorMax = new Vector2(0.5f, 0.5f); cfRt.pivot = new Vector2(0.5f, 0.5f);
+        cfRt.sizeDelta = new Vector2(110, 22); cfRt.anchoredPosition = new Vector2(-330, -130);
+        var fuel = MakeFuelSlot(pt, 88f, slotFrame);
+        var fRt = fuel.GetComponent<RectTransform>();
+        fRt.anchorMin = fRt.anchorMax = new Vector2(0.5f, 0.5f); fRt.pivot = new Vector2(0.5f, 0.5f); fRt.anchoredPosition = new Vector2(-330, -200);
         SetRef(so, "fuelDropSlot", fuel);
 
         // ── 진행 게이지 (중앙 가로 바) ──
-        var gauge = MakeGauge(pt, new Vector2(320, 26), new Vector2(0, -150));
+        var gauge = MakeGauge(pt, new Vector2(380, 28), Vector2.zero);
+        var gRt = gauge.GetComponent<RectTransform>();
+        gRt.anchorMin = gRt.anchorMax = new Vector2(0.5f, 0.5f); gRt.pivot = new Vector2(0.5f, 0.5f); gRt.anchoredPosition = new Vector2(0, -205);
         SetRef(so, "processingGauge", gauge);
 
         // ── 상태 텍스트 (연료 부족/제작시간 클론 부모). 런타임이 (-14,98) 에 클론 띄움. ──
         var status = MakeTMP("StatusText", pt, "", 18, Color.white, TextAlignmentOptions.Center);
         status.fontStyle = FontStyles.Bold;
-        status.rectTransform.sizeDelta = new Vector2(320, 30); status.rectTransform.anchoredPosition = new Vector2(0, -205);
+        var stRt = status.rectTransform; stRt.anchorMin = stRt.anchorMax = new Vector2(0.5f, 0.5f); stRt.pivot = new Vector2(0.5f, 0.5f);
+        stRt.sizeDelta = new Vector2(360, 30); stRt.anchoredPosition = new Vector2(0, -255);
         SetRef(so, "statusText", status);
 
-        // ── 출력 슬롯 (우측, 추가 출력은 런타임이 같은 부모에 stack) ──
+        // ── 출력 슬롯 (기계 오른쪽 가까이, 추가 출력은 런타임이 같은 부모에 stack) ──
         var capOut = MakeTMP("CapOutput", pt, "결과", 15, TxtSub, TextAlignmentOptions.Center);
-        capOut.rectTransform.sizeDelta = new Vector2(120, 22); capOut.rectTransform.anchoredPosition = new Vector2(330, 110);
-        var outputArea = MakeEmpty("OutputArea", pt, new Vector2(210, 150), new Vector2(330, 20));
+        var coRt = capOut.rectTransform; coRt.anchorMin = coRt.anchorMax = new Vector2(0.5f, 0.5f); coRt.pivot = new Vector2(0.5f, 0.5f);
+        coRt.sizeDelta = new Vector2(150, 22); coRt.anchoredPosition = new Vector2(345, 178);
+        var outputArea = MakeEmpty("OutputArea", pt, new Vector2(190, 180), Vector2.zero);
+        var oaRt = outputArea.GetComponent<RectTransform>();
+        oaRt.anchorMin = oaRt.anchorMax = new Vector2(0.5f, 0.5f); oaRt.pivot = new Vector2(0.5f, 0.5f); oaRt.anchoredPosition = new Vector2(345, 70);
         var hlg = outputArea.AddComponent<HorizontalLayoutGroup>();
         hlg.childControlWidth = false; hlg.childControlHeight = false;
         hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
         hlg.spacing = 8; hlg.childAlignment = TextAnchor.MiddleCenter;
-        var output = MakeOutputSlot(outputArea.transform, new Vector2(118, 140), slotFrame);
+        var output = MakeOutputSlot(outputArea.transform, new Vector2(150, 170), slotFrame);
         SetRef(so, "outputSlot", output);
     }
 
@@ -557,15 +578,24 @@ public static class MachineUIBuilder
     // ═════════════════════════════════════════════════════════════════
     static void BuildFooter(RectTransform prt, SerializedObject so)
     {
-        float fy = -HalfH + FooterH * 0.5f;       // 푸터 중앙 y = -340
+        float fy = FooterH * 0.5f;   // 푸터 밴드 중앙(하단 가장자리 기준)
 
-        var bar = MakeProgressBar(prt, new Vector2(40, fy), new Vector2(380, 16));
+        // 진행 바 (하단 중앙)
+        var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 16));
+        var brRt = bar.GetComponent<RectTransform>();
+        brRt.anchorMin = brRt.anchorMax = new Vector2(0.5f, 0); brRt.pivot = new Vector2(0.5f, 0.5f); brRt.anchoredPosition = new Vector2(0, fy);
         SetRef(so, "progressBar", bar);
 
-        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", new Vector2(560, fy), new Vector2(180, 42), Yellow, YellowBd, YellowTx, 19);
+        // 모두 받기 (하단 우, 노랑)
+        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(210, 46), Yellow, YellowBd, YellowTx, 20);
+        var toRt = takeOut.GetComponent<RectTransform>();
+        toRt.anchorMin = toRt.anchorMax = new Vector2(1, 0); toRt.pivot = new Vector2(1, 0.5f); toRt.anchoredPosition = new Vector2(-(SidePad + 10), fy);
         SetRef(so, "takeOutputBtn", takeOut);
 
-        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", new Vector2(-560, fy), new Vector2(150, 36), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 16);
+        // 재료 회수 (하단 좌, 보조)
+        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(150, 38), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 16);
+        var tiRt = takeIn.GetComponent<RectTransform>();
+        tiRt.anchorMin = tiRt.anchorMax = new Vector2(0, 0); tiRt.pivot = new Vector2(0, 0.5f); tiRt.anchoredPosition = new Vector2(SidePad + 10, fy);
         SetRef(so, "takeInputsBtn", takeIn);
     }
 
@@ -705,6 +735,17 @@ public static class MachineUIBuilder
     }
 
     // ── 위젯 공통 소품 ──
+
+    // 패널 가장자리 기준 앵커 영역(빈 RectTransform). offMin=좌하, offMax=우상 오프셋.
+    static RectTransform Region(string name, Transform parent, Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = aMin; rt.anchorMax = aMax; rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.offsetMin = offMin; rt.offsetMax = offMax;
+        return rt;
+    }
 
     static Image FillImage(string name, Transform parent, Sprite spr, Image.Type type, Color col, float inset = 0f)
     {
