@@ -228,11 +228,15 @@ public static class MachineUIBuilder
         var bs = blur.Common.blurInstanceSettings;
         if (bs != null)
         {
-            // 렌더 경로는 인벤과 동일(튜너X / refRes 1080 / brightness 0.02). 강도만 인벤보다 위로.
-            // 렌더식: 샘플거리 = sampleDistance + blurAdditionalDistancePerIteration x iterations.
-            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 7; sec.sampleDistance = 2.5f; }
-            bs.blurAdditionalDistancePerIteration = 4f;
-            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
+            // ★형태 소멸(색만 남는 엔필 블러) = 저해상 다운샘플이 핵심. 렌더(FlexibleBlurFeature.cs:1012-1015):
+            //   블러 RT 높이 = (referenceResolution / 화면높이) x 영역높이. refRes 낮추면 저해상으로 그려져 형태가 뭉개짐.
+            //   가우시안 샘플(iterations/sampleDistance)은 부드럽게만 할 뿐 실루엣 못 지움 -> refRes 가 진짜 레버.
+            if (bs.downscaleSections != null) foreach (var sec in bs.downscaleSections) { sec.iterations = 3; sec.sampleDistance = 2f; }
+            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 2f; }
+            bs.blurAdditionalDistancePerIteration = 2f;
+            bs.referenceResolution = 240;    // ★형태 소멸 레버. 1080=형태유지(이전), 낮출수록 색만. 240=엔필급.
+            bs.hqResample = true;            // 저해상 노이즈/떨림 억제
+            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f;
         }
         blur.Common.ValidateBlur();
 
