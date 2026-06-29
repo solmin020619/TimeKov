@@ -25,6 +25,7 @@ public class GameUIController : MonoBehaviour
         Inventory,    // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
         PlayerStat,   // 플레이어 스탯창 (C키)
         CoreUpgrade,  // 코어 강화 UI (터미널 상호작용)
+        BaseUpgrade,  // 기지(핵심 구역) 업그레이드 UI (터미널 상호작용) - 구역 확장 / 창고 추출기
         ChestOpen,    // 상자 오픈 팝업
         Codex         // 도감 (K키, 전체화면 정지) - 지금은 골격 placeholder
     }
@@ -283,6 +284,22 @@ public class GameUIController : MonoBehaviour
     public void CloseCoreUpgradeUI()
     {
         if (_currentState != UIState.CoreUpgrade) return;
+        SetState(UIState.None);
+    }
+
+    // ── 기지(핵심 구역) 업그레이드 UI ─────────────────────────────────
+    // CoreUpgrade 와 동일 패턴: 상태만 전환(커서/입력/HUD는 ApplyState가 일괄 처리),
+    // 실제 패널 표시는 BaseUpgradeUI 가 직접 관리. WindowManager 미등록(MapStateToWindowId=null).
+
+    public void OpenBaseUpgradeUI()
+    {
+        if (_currentState != UIState.None) return;
+        SetState(UIState.BaseUpgrade);
+    }
+
+    public void CloseBaseUpgradeUI()
+    {
+        if (_currentState != UIState.BaseUpgrade) return;
         SetState(UIState.None);
     }
 
