@@ -6,4 +6,9 @@ public class CreditsPanelController : MonoBehaviour
 {
     public void OpenCredits() => gameObject.SetActive(true);
     public void CloseCredits() => gameObject.SetActive(false);
+
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape)) CloseCredits();
+    }
 }

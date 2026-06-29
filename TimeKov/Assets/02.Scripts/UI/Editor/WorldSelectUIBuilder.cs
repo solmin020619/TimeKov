@@ -45,6 +45,12 @@ public static class WorldSelectUIBuilder
     private static readonly Color ModalLabelTx = Hex("0D1218", 255);
     private static readonly Color InputBg      = Hex("050B12", 230);
 
+    // 하단 액션 바 버튼 — 팰월드 레퍼런스처럼 빨강/시안 강조 없이 전부 같은 무채색 평면 버튼
+    // + 얇은 외곽선. 강조는 색이 아니라 위치(가장 우측 = 게임 시작)로만 준다.
+    private static readonly Color FlatBtnBg     = Hex("4A5562", 200);
+    private static readonly Color FlatBtnBorder = Hex("FFFFFF", 70);
+    private static readonly Color FlatBtnText   = Hex("F2F5F8", 255);
+
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
         _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/남양주고딕Light (OTF) SDF.asset");
@@ -95,13 +101,19 @@ public static class WorldSelectUIBuilder
         AnchorTopLeft(titleTick);
 
         // ── 헤더 행 (데이터 행과 동일한 HorizontalLayoutGroup 폭 배분으로 컬럼 정렬 보장) ──
-        var headerRow = BuildRowSkeleton("HeaderRow", root.transform, new Vector2(LeftMargin, -190f), withBg: false);
+        const float HeaderTop = -190f;
+        const float HeaderGap = 16f; // 헤더 줄과 목록 사이 여백
+        float headerBottom = HeaderTop - RowHeight; // 헤더 행 박스의 실제 아래쪽 끝
+
+        var headerRow = BuildRowSkeleton("HeaderRow", root.transform, new Vector2(LeftMargin, HeaderTop), withBg: false);
         var headerName = MakeColumnTMP(headerRow, "월드명", HeaderColor, TextAlignmentOptions.MidlineLeft, flexible: true);
         headerName.fontStyle = FontStyles.Bold;
         var headerLevel = MakeColumnTMP(headerRow, "강화 Lv.", HeaderColor, TextAlignmentOptions.MidlineRight, flexible: false, fixedWidth: LevelColWidth);
         headerLevel.fontStyle = FontStyles.Bold;
 
-        var headerLine = MakeRect("HeaderLine", root.transform, new Vector2(ContentWidth, 1f), new Vector2(LeftMargin, -224f), Hex("FFFFFF", 50));
+        // 기존엔 -224로 박혀있어 헤더 행 박스(-190~-274) 안쪽, 즉 "월드명"/"강화 Lv." 글자 한가운데를
+        // 가로질러 버그처럼 보였다 — 헤더 행의 실제 아래쪽 끝(headerBottom)에 맞춘다.
+        var headerLine = MakeRect("HeaderLine", root.transform, new Vector2(ContentWidth, 1f), new Vector2(LeftMargin, headerBottom), Hex("FFFFFF", 50));
         AnchorTopLeft(headerLine);
 
         // ── 목록 컨테이너 (스크롤 없이 VerticalLayoutGroup — 슬롯이 적어 스크롤 불필요) ──
@@ -109,7 +121,7 @@ public static class WorldSelectUIBuilder
         listGo.transform.SetParent(root.transform, false);
         var listRt = listGo.GetComponent<RectTransform>();
         AnchorTopLeft(listRt);
-        listRt.anchoredPosition = new Vector2(LeftMargin, -240f);
+        listRt.anchoredPosition = new Vector2(LeftMargin, headerBottom - HeaderGap);
         listRt.sizeDelta = new Vector2(ContentWidth, 0f);
         var listVlg = listGo.AddComponent<VerticalLayoutGroup>();
         listVlg.spacing = RowSpacing;
@@ -135,20 +147,17 @@ public static class WorldSelectUIBuilder
         createBtn.targetGraphic = createRow.GetComponent<Image>();
         SetRef(so, "createRowButton", createBtn);
 
-        // ── 하단 우측 액션 바: 시작 / 삭제 / 뒤로가기 (뒤로가기가 가장 우측 모서리) ──
+        // ── 하단 우측 액션 바: 삭제 / 게임 시작 (게임 시작이 가장 우측 모서리 — 팰월드 참고,
+        // 뒤로가기는 별도 버튼 없이 ESC로 처리) ──
         // 행을 클릭하면 선택(하이라이트)만 되고, 실제 입장/삭제는 여기 버튼이 현재
-        // 선택된 슬롯을 대상으로 처리한다(선택 전엔 시작/삭제 비활성).
+        // 선택된 슬롯을 대상으로 처리한다(선택 전엔 게임 시작/삭제 비활성).
         const float actBtnW = 160f, actBtnH = 52f, actSpacing = 16f, actBottom = 50f, actRight = LeftMargin;
-        var cancelBtn = MakeBottomRightButton("Btn_Cancel", root.transform, new Vector2(actBtnW, actBtnH),
-            actRight, actBottom, "뒤로가기", Hex("1A2A3C"), Color.white);
-        SetRef(so, "cancelButton", cancelBtn.GetComponent<Button>());
-
         var deleteActionBtn = MakeBottomRightButton("Btn_Delete", root.transform, new Vector2(actBtnW, actBtnH),
-            actRight + actBtnW + actSpacing, actBottom, "삭제", Hex("3A1414"), Hex("FF8A8A"));
+            actRight + actBtnW + actSpacing, actBottom, "삭제");
         SetRef(so, "deleteButton", deleteActionBtn.GetComponent<Button>());
 
         var enterBtn = MakeBottomRightButton("Btn_Enter", root.transform, new Vector2(actBtnW, actBtnH),
-            actRight + (actBtnW + actSpacing) * 2f, actBottom, "시작", AccentCyan, Hex("0A1018"));
+            actRight, actBottom, "게임 시작");
         SetRef(so, "enterButton", enterBtn.GetComponent<Button>());
 
         // 선택된 슬롯이 없는 평소 상태 — 인터랙터블 토글은 WorldSelectUI.SelectRow()가 담당.
@@ -306,6 +315,9 @@ public static class WorldSelectUIBuilder
             placeholder.text = "새 월드 이름";
             placeholder.fontSize = 22f;
             placeholder.color = Hex("A9BBCB", 160);
+            // TMP_InputField 기본 템플릿의 정렬값은 TopLeft라, 56px짜리 필드 안에서 글자가
+            // 위쪽에 붙어버린다 — 세로 중앙에 오도록 Midline로 바꾼다.
+            placeholder.alignment = TextAlignmentOptions.MidlineLeft;
             ApplyFont(placeholder);
         }
         var inputText = inputGo.transform.Find("Text Area/Text")?.GetComponent<TextMeshProUGUI>();
@@ -313,6 +325,7 @@ public static class WorldSelectUIBuilder
         {
             inputText.fontSize = 22f;
             inputText.color = Hex("FFFFFF", 255);
+            inputText.alignment = TextAlignmentOptions.MidlineLeft;
         }
         ApplyFont(inputText);
         SetRef(so, "newWorldNameInput", input);
@@ -500,15 +513,29 @@ public static class WorldSelectUIBuilder
         return go;
     }
 
-    // 화면 우하단 모서리 기준 고정 배치 버튼(액션 바: 입장하기/삭제/취소). xFromRight/yFromBottom은
-    // 버튼의 우측/하단 가장자리가 화면 가장자리에서 떨어진 거리.
+    // 화면 우하단 모서리 기준 고정 배치 버튼(액션 바: 게임 시작/삭제). xFromRight/yFromBottom은
+    // 버튼의 우측/하단 가장자리가 화면 가장자리에서 떨어진 거리. 팰월드 레퍼런스처럼 색으로
+    // 강조하지 않고 전부 같은 무채색 평면 버튼 + 얇은 외곽선으로 통일한다.
     static GameObject MakeBottomRightButton(string name, Transform parent, Vector2 size,
-        float xFromRight, float yFromBottom, string label, Color bgColor, Color textColor)
+        float xFromRight, float yFromBottom, string label)
     {
-        var go = MakeButton(name, parent, size, Vector2.zero, label, 20f, bgColor, textColor);
+        var anchoredPos = new Vector2(-xFromRight - size.x * 0.5f, yFromBottom + size.y * 0.5f);
+
+        // 외곽선 — 채우기보다 한 단계 큰 같은 위치의 사각형을 먼저 깔아 얇은 테두리처럼 보이게 한다.
+        const float borderThickness = 1.5f;
+        var border = MakeRect(name + "_Border", parent, size + Vector2.one * (borderThickness * 2f), Vector2.zero, FlatBtnBorder);
+        var borderRt = border.GetComponent<RectTransform>();
+        borderRt.anchorMin = borderRt.anchorMax = borderRt.pivot = new Vector2(1f, 0f);
+        borderRt.anchoredPosition = anchoredPos;
+
+        var go = MakeButton(name, parent, size, Vector2.zero, label, 20f, FlatBtnBg, FlatBtnText);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 0f);
-        rt.anchoredPosition = new Vector2(-xFromRight - size.x * 0.5f, yFromBottom + size.y * 0.5f);
+        rt.anchoredPosition = anchoredPos;
+
+        // MakeButton은 기본적으로 굵게 만드는데, 레퍼런스 버튼은 일반 굵기라 여기서만 되돌린다.
+        var labelTmp = go.transform.Find("Text")?.GetComponent<TextMeshProUGUI>();
+        if (labelTmp != null) labelTmp.fontStyle = FontStyles.Normal;
         return go;
     }
 
