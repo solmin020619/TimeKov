@@ -53,6 +53,19 @@ public class MachineUI : MonoBehaviour
     [Tooltip("가운데 화살표 자리의 ProcessingGauge. 비워두면 게이지 동작 안 함.")]
     [SerializeField] private ProcessingGauge processingGauge;
 
+    [Header("설비 도면 이미지")]
+    [Tooltip("중앙 설비 모델 렌더. OpenFor에서 facilityId로 자동 세팅(FacilityIconDatabase).")]
+    [SerializeField] private Image facilityImage;
+
+    [Header("가방/창고 탭")]
+    [Tooltip("좌측 인벤 용량 표시 (예: 용량 11 / 35).")]
+    [SerializeField] private TextMeshProUGUI bagCapacityText;
+    [Tooltip("가방 보기 탭 버튼.")]
+    [SerializeField] private Button bagTabBtn;
+    [Tooltip("창고(Storage) 보기 탭 버튼.")]
+    [SerializeField] private Button storageTabBtn;
+    private bool _showStorage;
+
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
 
@@ -84,6 +97,8 @@ public class MachineUI : MonoBehaviour
         if (recipeNextBtn != null)  recipeNextBtn.onClick.AddListener(NextRecipe);
         if (takeInputsBtn != null)  takeInputsBtn.onClick.AddListener(TakeAllInputs);
         if (takeOutputBtn != null)  takeOutputBtn.onClick.AddListener(TakeAll);
+        if (bagTabBtn != null)      bagTabBtn.onClick.AddListener(ShowBag);
+        if (storageTabBtn != null)  storageTabBtn.onClick.AddListener(ShowStorage);
 
         SetupDropZone();
         SetupProcessTimeText();
@@ -150,11 +165,22 @@ public class MachineUI : MonoBehaviour
 
         if (machineTitleText != null) machineTitleText.text = title;
 
+        // 중앙 설비 도면 = 퀵슬롯 설비 모델 렌더 재사용 (facilityId 매핑)
+        if (facilityImage != null)
+        {
+            var fIcon = FacilityIconDatabase.Instance != null
+                ? FacilityIconDatabase.Instance.GetIcon(machine.FacilityId) : null;
+            facilityImage.sprite = fIcon;
+            facilityImage.enabled = fIcon != null;
+        }
+
         // 모든 슬롯을 먼저 구성한 뒤 패널을 활성화 —
         // SetActive 이전에 Setup을 완료해야 RecipeDropSlot의 Start/OnEnable
         // 기본 상태("재료 넣기" + 흰 박스)가 한 프레임 깜빡이는 현상을 방지한다.
+        _showStorage = false;   // 열 때 항상 가방 뷰부터
         BuildRecipeSlots();
         BuildInventorySlots();
+        UpdateTabVisual();
         RefreshOutputSlots();
 
         // 연료 슬롯 초기화
@@ -253,7 +279,7 @@ public class MachineUI : MonoBehaviour
 
     private void BuildInventorySlots()
     {
-        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        var inv = ActiveInv();
         int slotCount = inv != null ? inv.GetMaxSlots() : inventorySlotCount;
 
         if (_invSlots.Count != slotCount)
@@ -277,7 +303,9 @@ public class MachineUI : MonoBehaviour
 
     public void RefreshInventorySlots()
     {
-        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        var inv = ActiveInv();
+        if (bagCapacityText != null && inv != null)
+            bagCapacityText.text = $"용량 {inv.GetUsedSlotCount()} / {inv.GetMaxSlots()}";
         if (inv == null)
         {
             foreach (var slot in _invSlots)
@@ -292,6 +320,39 @@ public class MachineUI : MonoBehaviour
             InventorySlot slotData = i < slots.Count ? slots[i] : null;
             _invSlots[i].Refresh(slotData, inv);
         }
+    }
+
+    // ── 가방/창고 탭 ─────────────────────────────────────────────
+    // 기본 _showStorage=false -> 가방(player) 뷰. 창고 탭 누르면 StorageInstance(50칸) 뷰.
+    // 드래그 출처는 InventorySlotUI.Refresh(slotData, inv) 가 Owner=inv 로 잡아주므로
+    // 재료/연료 슬롯으로 드래그하면 해당 인벤(가방 or 창고)에서 차감된다.
+
+    private InventoryManager ActiveInv()
+        => _showStorage ? InventoryManager.StorageInstance
+                        : (playerInventory != null ? playerInventory : InventoryManager.Instance);
+
+    public void ShowBag()     => SetView(false);
+    public void ShowStorage() => SetView(true);
+
+    private void SetView(bool storage)
+    {
+        if (_showStorage == storage) return;
+        _showStorage = storage;
+        BuildInventorySlots();   // 칸 수(가방35/창고50) 다를 수 있어 재구성 + 갱신
+        UpdateTabVisual();
+    }
+
+    private void UpdateTabVisual()
+    {
+        SetTabActive(bagTabBtn, !_showStorage);
+        SetTabActive(storageTabBtn, _showStorage);
+    }
+
+    // 선택 탭은 또렷(알파 0.9), 비선택은 흐리게(0.2). 색 RGB는 빌더값 유지, 알파만 토글.
+    private static void SetTabActive(Button b, bool on)
+    {
+        if (b == null || b.image == null) return;
+        var c = b.image.color; c.a = on ? 0.9f : 0.2f; b.image.color = c;
     }
 
     // ── 재료 슬롯 ───────────────────────────────────────────────
