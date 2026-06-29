@@ -222,6 +222,7 @@ public class MachineUI : MonoBehaviour
 
         uiPanel.SetActive(true);
         GameSfx.Play(SfxId.MachineOpen);
+        FacilityWorldDisplay.SuppressWorldLabels = true;   // 월드 이름표/제작아이콘이 패널 블러 위로 뚫지 않게
 
         ShowFirstMachineHintIfNeeded();
 
@@ -284,6 +285,7 @@ public class MachineUI : MonoBehaviour
     public void Close()
     {
         GameSfx.Play(SfxId.MachineClose);
+        FacilityWorldDisplay.SuppressWorldLabels = false;   // 패널 닫으면 월드 표시 복구
         if (_machine != null) _machine.OnBufferChanged -= OnBufferChanged;
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
