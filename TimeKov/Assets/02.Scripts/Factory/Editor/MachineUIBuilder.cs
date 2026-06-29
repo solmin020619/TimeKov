@@ -176,6 +176,10 @@ public static class MachineUIBuilder
         BuildProduction(prt, so);
         BuildFooter(prt, so);
 
+        // 이전에 잘못 추가한 FactoryScreenDim 정리(이제 안 씀)
+        var cv = panel.GetComponentInParent<Canvas>();
+        if (cv != null) { var od = cv.transform.Find("FactoryScreenDim"); if (od != null) Object.DestroyImmediate(od.gameObject); }
+
         // ── uiPanel 배선 (재활용이면 자기 자신, 신규면 자식 패널) ──
         SetRef(so, "uiPanel", panel);
 
@@ -221,13 +225,16 @@ public static class MachineUIBuilder
         bgrt.anchorMin = Vector2.zero; bgrt.anchorMax = Vector2.one; bgrt.offsetMin = Vector2.zero; bgrt.offsetMax = Vector2.zero;
         var bgImg = bgGo.GetComponent<Image>(); bgImg.sprite = null; bgImg.type = Image.Type.Simple; bgImg.raycastTarget = false;
         var bgGrad = bgGo.AddComponent<UIFrostGradient>();
-        bgGrad.topColor = RGBA(22, 28, 40, 0.26f); bgGrad.bottomColor = RGBA(10, 14, 22, 0.52f);
+        // 위아래 거의 균일(바닥만 살짝) = 하나의 면. 옛날 바닥 0.52 는 아래가 어두운 별도 패널처럼 보였음.
+        bgGrad.topColor = RGBA(22, 28, 40, 0.26f); bgGrad.bottomColor = RGBA(20, 26, 38, 0.32f);
 
-        // 본문 밝은 표면 = 풀폭 틴트(Mask가 코너 둥글림). inset 3 = 좌우 배경 은은히만 비침.
+        // 본문 밝은 표면 = 헤더 아래 ~ 바닥까지 한 면(엔필처럼 하나의 패널). 푸터를 따로 안 비움.
+        // (옛날엔 offsetMin.y=footerH 라 바닥 60px 가 BgDark 만 남아 어두운 띠=별도 패널처럼 보였음.
+        //  하단 액션바는 같은 면 위 divider 선으로만 구분한다.)
         var cardGo = MakeImage("BodyFrost", prt, Vector2.zero, Vector2.zero, Color.white);
         var crt = cardGo.GetComponent<RectTransform>();
         crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one;
-        crt.offsetMin = new Vector2(inset, footerH); crt.offsetMax = new Vector2(-inset, -titleH);
+        crt.offsetMin = new Vector2(inset, inset); crt.offsetMax = new Vector2(-inset, -titleH);
         var cImg = cardGo.GetComponent<Image>(); cImg.sprite = null; cImg.type = Image.Type.Simple; cImg.raycastTarget = false;
         var cGrad = cardGo.AddComponent<UIFrostGradient>();
         cGrad.topColor = RGBA(216, 224, 237, 0.34f); cGrad.bottomColor = RGBA(199, 209, 223, 0.26f);
