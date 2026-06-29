@@ -297,9 +297,23 @@ public static class WorldSelectUIBuilder
         if (inputImg != null) inputImg.color = InputBg;
         var input = inputGo.GetComponent<TMP_InputField>();
         input.characterLimit = 24;
+        // "GameObject/UI/Input Field - TextMeshPro" 메뉴로 생성한 기본 템플릿은 폰트 크기가
+        // 작고(14) 텍스트 색이 어두운 기본값이라, 이 모달의 어두운 InputBg 배경 위에서 거의
+        // 안 보였다 — 박스 안 다른 텍스트(22)와 맞추고 색도 밝게 올린다.
         var placeholder = inputGo.transform.Find("Text Area/Placeholder")?.GetComponent<TextMeshProUGUI>();
-        if (placeholder != null) { placeholder.text = "새 월드 이름"; ApplyFont(placeholder); }
+        if (placeholder != null)
+        {
+            placeholder.text = "새 월드 이름";
+            placeholder.fontSize = 22f;
+            placeholder.color = Hex("A9BBCB", 160);
+            ApplyFont(placeholder);
+        }
         var inputText = inputGo.transform.Find("Text Area/Text")?.GetComponent<TextMeshProUGUI>();
+        if (inputText != null)
+        {
+            inputText.fontSize = 22f;
+            inputText.color = Hex("FFFFFF", 255);
+        }
         ApplyFont(inputText);
         SetRef(so, "newWorldNameInput", input);
 
