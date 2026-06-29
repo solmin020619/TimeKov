@@ -423,18 +423,26 @@ public static class MachineUIBuilder
         stoRt.anchorMin = stoRt.anchorMax = new Vector2(0, 1); stoRt.pivot = new Vector2(0, 1); stoRt.anchoredPosition = new Vector2(106, -4);
         SetRef(so, "storageTabBtn", stoTab);
 
+        // 두 탭 사이 얇은 세로 divider
+        var tabDiv = MakeImage("TabDivider", ct, new Vector2(1.5f, 22), new Vector2(101, -21), Chrome);
+        var tdRt = tabDiv.GetComponent<RectTransform>();
+        tdRt.anchorMin = tdRt.anchorMax = new Vector2(0, 1); tdRt.pivot = new Vector2(0.5f, 1);
+        tabDiv.GetComponent<Image>().raycastTarget = false;
+
         var cap = MakeTMP("BagCapacity", ct, "용량 0 / 35", 14, TxtSub, TextAlignmentOptions.Right);
         var capRt = cap.rectTransform; capRt.anchorMin = capRt.anchorMax = new Vector2(1, 1); capRt.pivot = new Vector2(1, 1);
         capRt.sizeDelta = new Vector2(160, 22); capRt.anchoredPosition = new Vector2(-6, -12);
         SetRef(so, "bagCapacityText", cap);
 
-        // 가방 well (옅은 함몰 틴트 — 탭 아래 전체)
-        var well = MakeRounded("BagWell", ct, Vector2.zero, Vector2.zero, RGBA(18, 24, 34, 0.30f));
-        var wRt = well.GetComponent<RectTransform>();
-        wRt.anchorMin = new Vector2(0, 0); wRt.anchorMax = new Vector2(1, 1); wRt.offsetMin = Vector2.zero; wRt.offsetMax = new Vector2(0, -46);
-        well.GetComponent<Image>().raycastTarget = false;
+        // ★큰 함몰박스(BagWell) 제거 = 슬롯이 한 면 위에 "구멍 뚫린" 것처럼 보이게(엔필식).
+        //   탭/그리드 아래 얇은 divider 한 줄로만 구분(선 기반).
+        var bagDiv = MakeImage("BagHeaderDivider", ct, Vector2.zero, Vector2.zero, HeaderHair);
+        var bdRt = bagDiv.GetComponent<RectTransform>();
+        bdRt.anchorMin = new Vector2(0, 1); bdRt.anchorMax = new Vector2(1, 1); bdRt.pivot = new Vector2(0.5f, 1);
+        bdRt.offsetMin = new Vector2(2, -46); bdRt.offsetMax = new Vector2(-2, -45);
+        bagDiv.GetComponent<Image>().raycastTarget = false;
 
-        // 뷰포트 (RectMask2D + ScrollRect + 드롭존), well 안쪽
+        // 뷰포트 (RectMask2D + ScrollRect + 드롭존)
         var vpGo = new GameObject("BagViewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
         vpGo.transform.SetParent(ct, false);
         var vpRt = vpGo.GetComponent<RectTransform>();
@@ -489,12 +497,12 @@ public static class MachineUIBuilder
         var pt = Region("Production", prt, new Vector2(0, 0), new Vector2(1, 1),
             new Vector2(SidePad + BagWidth + Gap, FooterH + Gap), new Vector2(-SidePad, -(HeaderH + Gap)));
 
-        // 무채색 도면 플레이트 (채움, 파랑 금지)
-        var plate = MakeRounded("Blueprint", pt, Vector2.zero, Vector2.zero, RGBA(64, 72, 82, 0.42f));
+        // ★큰 도면판(Blueprint) 제거 = 기계/슬롯이 한 면 위에 직접 얹힘(엔필식 "큰 박스로 안 덮음").
+        //   투명 처리만(오브젝트는 남김). 중앙 비주얼은 추후 설비 도면 PNG 가 채운다.
+        var plate = MakeImage("Blueprint", pt, Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
         var plRt = plate.GetComponent<RectTransform>();
         plRt.anchorMin = Vector2.zero; plRt.anchorMax = Vector2.one; plRt.offsetMin = new Vector2(6, 6); plRt.offsetMax = new Vector2(-6, -6);
         plate.GetComponent<Image>().raycastTarget = false;
-        AddOutline(plate, RGBA(150, 165, 180, 0.40f), new Vector2(1.5f, -1.5f));
 
         // 설비 도면 = 퀵슬롯 설비 모델 렌더(500x500 투명, facilityId 1~7) 재사용.
         // 런타임 OpenFor 가 FacilityIconDatabase 로 sprite 세팅 -> enabled.
@@ -543,6 +551,12 @@ public static class MachineUIBuilder
                 arr.GetArrayElementAtIndex(i).objectReferenceValue = recipeSlots[i];
         }
 
+        // 입력 -> 기계 흐름 표시(노란 셰브론). 입력 클러스터 우측, 기계 입구 방향.
+        var inFlow = MakeTMP("InputFlow", pt, ">", 30, Yellow, TextAlignmentOptions.Center);
+        inFlow.fontStyle = FontStyles.Bold;
+        var ifRt = inFlow.rectTransform; ifRt.anchorMin = ifRt.anchorMax = new Vector2(0.5f, 0.5f); ifRt.pivot = new Vector2(0.5f, 0.5f);
+        ifRt.sizeDelta = new Vector2(40, 40); ifRt.anchoredPosition = new Vector2(-250, 55);
+
         // ── 연료 슬롯 (재료 스택 아래) ──
         var capFuel = MakeTMP("CapFuel", pt, "연료", 15, TxtSub, TextAlignmentOptions.Center);
         var cfRt = capFuel.rectTransform; cfRt.anchorMin = cfRt.anchorMax = new Vector2(0.5f, 0.5f); cfRt.pivot = new Vector2(0.5f, 0.5f);
@@ -586,6 +600,13 @@ public static class MachineUIBuilder
     static void BuildFooter(RectTransform prt, SerializedObject so)
     {
         float fy = FooterH * 0.5f;   // 푸터 밴드 중앙(하단 가장자리 기준)
+
+        // 하단 액션바 구분 = 같은 면 위 divider 한 줄(별도 패널 아님).
+        var footDiv = MakeImage("FooterDivider", prt, Vector2.zero, Vector2.zero, HeaderHair);
+        var fdRt = footDiv.GetComponent<RectTransform>();
+        fdRt.anchorMin = new Vector2(0, 0); fdRt.anchorMax = new Vector2(1, 0); fdRt.pivot = new Vector2(0.5f, 0);
+        fdRt.offsetMin = new Vector2(3, FooterH); fdRt.offsetMax = new Vector2(-3, FooterH + 1.5f);
+        footDiv.GetComponent<Image>().raycastTarget = false;
 
         // 진행 바 (하단 중앙)
         var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 16));
@@ -701,6 +722,7 @@ public static class MachineUIBuilder
         var go = MakeRounded(name, parent, new Vector2(size, size), pos, RGBA(44, 56, 72, 0.55f));
         AddOutline(go, Chrome, new Vector2(1f, -1f));
         var btn = go.AddComponent<Button>(); btn.targetGraphic = go.GetComponent<Image>();
+        ApplyHover(btn);
         var t = MakeTMP("Text", go.transform, label, 22, Hex("dfe7f0"), TextAlignmentOptions.Center);
         t.fontStyle = FontStyles.Bold; FillRect(t.rectTransform);
         return btn;
@@ -711,9 +733,23 @@ public static class MachineUIBuilder
         var go = MakeRounded(name, parent, size, pos, bg);
         AddOutline(go, bd, new Vector2(1f, -1f));
         var btn = go.AddComponent<Button>(); btn.targetGraphic = go.GetComponent<Image>();
+        ApplyHover(btn);
         var t = MakeTMP("Text", go.transform, label, fontSize, tx, TextAlignmentOptions.Center);
         t.fontStyle = FontStyles.Bold; FillRect(t.rectTransform);
         return btn;
+    }
+
+    // 호버/프레스 ColorTint(베이스색에 곱연산: 호버 살짝 밝게, 프레스 어둡게).
+    static void ApplyHover(Button btn)
+    {
+        var c = btn.colors;
+        c.normalColor      = Color.white;
+        c.highlightedColor = new Color(1.12f, 1.12f, 1.12f, 1f);
+        c.pressedColor     = new Color(0.88f, 0.88f, 0.88f, 1f);
+        c.selectedColor    = Color.white;
+        c.disabledColor    = new Color(0.6f, 0.6f, 0.6f, 0.5f);
+        c.colorMultiplier  = 1f; c.fadeDuration = 0.08f;
+        btn.colors = c;
     }
 
     static Slider MakeProgressBar(Transform parent, Vector2 pos, Vector2 size)
