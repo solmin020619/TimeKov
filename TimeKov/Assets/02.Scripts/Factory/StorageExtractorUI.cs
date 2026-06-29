@@ -51,6 +51,8 @@ public class StorageExtractorUI : MonoBehaviour
         _machine = machine;
 
         uiPanel.SetActive(true);
+        // 닫기 슬라이드 도중 재오픈하면 SetActive(true)가 no-op이라 슬라이드가 복구 안 되므로 명시 호출 (인벤과 동일)
+        uiPanel.GetComponent<UISlideEffect>()?.Open();
         if (titleText != null) titleText.text = title;
 
         itemSelectSlot?.Setup(machine);
@@ -58,6 +60,9 @@ public class StorageExtractorUI : MonoBehaviour
 
         var inv = InventoryManager.StorageInstance;
         if (inv != null) inv.OnInventoryChanged += RefreshInventorySlots;
+
+        // 창고 그리드 아이템 더블클릭 = 추출 품목 지정 (인벤 이동은 슬롯 owner=null로 차단)
+        InventorySlotUI.OnAnySlotDoubleClicked += OnGridSlotDoubleClicked;
     }
 
     public void Close()
@@ -69,8 +74,16 @@ public class StorageExtractorUI : MonoBehaviour
         var inv = InventoryManager.StorageInstance;
         if (inv != null) inv.OnInventoryChanged -= RefreshInventorySlots;
 
+        InventorySlotUI.OnAnySlotDoubleClicked -= OnGridSlotDoubleClicked;
+
         _machine = null;
-        uiPanel.SetActive(false);
+
+        // 인벤·창고 패널과 동일: UISlideEffect가 있으면 가로 슬라이드 아웃 후 비활성화, 없으면 즉시 비활성화
+        var slide = uiPanel.GetComponent<UISlideEffect>();
+        if (slide != null && uiPanel.activeInHierarchy)
+            slide.Close();
+        else
+            uiPanel.SetActive(false);
 
         GameUIController.Instance?.CloseFactoryUI();
     }
@@ -84,16 +97,20 @@ public class StorageExtractorUI : MonoBehaviour
         float remaining = _machine.TimerRemaining;
         float interval  = _machine.ExtractInterval;
 
+        bool hasBelt = _machine.HasOutputBelt;
+
         if (timerText != null)
         {
             if (_machine.SelectedItemId <= 0)
                 timerText.text = "아이템을 선택하세요";
+            else if (!hasBelt)
+                timerText.text = "벨트 연결 필요";
             else
                 timerText.text = $"추출까지: {remaining:F1}초";
         }
 
         if (timerSlider != null)
-            timerSlider.value = interval > 0f ? 1f - (remaining / interval) : 0f;
+            timerSlider.value = (hasBelt && interval > 0f) ? 1f - (remaining / interval) : 0f;
     }
 
     // ── 인벤토리 슬롯 ────────────────────────────────────────────────
@@ -130,7 +147,19 @@ public class StorageExtractorUI : MonoBehaviour
         {
             if (_invSlots[i] == null) continue;
             InventorySlot slotData = i < slots.Count ? slots[i] : null;
-            _invSlots[i].Refresh(slotData, inv);
+            // owner=null로 바인딩: 표시는 slotData로 그대로 하되, InventoryUIController의
+            // 더블클릭(창고→가방 이동)·그리드 간 스왑 분기가 owner 매칭에서 전부 빠져 차단된다.
+            _invSlots[i].Refresh(slotData, null);
         }
+    }
+
+    // 창고 그리드 아이템 더블클릭 → 추출 품목으로 지정 (인벤 이동은 owner=null로 이미 차단됨)
+    private void OnGridSlotDoubleClicked(InventorySlotUI slot)
+    {
+        if (_machine == null || slot == null || slot.IsEmpty) return;
+        if (!_invSlots.Contains(slot)) return;   // 이 패널의 그리드 슬롯만 처리
+
+        _machine.SetTargetItem(slot.SlotData.itemId);
+        UISoundManager.Instance?.PlayItemDrop();
     }
 }
