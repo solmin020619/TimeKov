@@ -222,21 +222,18 @@ public static class MachineUIBuilder
         blur.Common.cameraReference = PickBuildCamera();
         blur.Common.featureNumber = 0;
         blur.Common.unrankedLayer = 1;
-        // ★인벤의 "작동하는" BlurredImage 설정과 동일(인벤도 같은 Overlay 캔버스에 패널 자식 BlurredImage,
-        //   튜너 없이 정적 설정으로 블러 멀쩡함 = overlayCompatibilityFix 로 Overlay 지원됨).
-        //   ★내가 붙였던 MachineBlurTuner 가 매 프레임 refRes=540/hqResample 로 덮어써서 블러가 죽었던 것 -> 제거.
+        blur.Common.blurStrength = 1f;
+        // 블러 설정 = "작동하는" 인벤 PanelBlur 와 한 글자도 다르지 않게 맞춤. 같은 카메라/Mask/베일 구조라
+        //   인벤이 블러되면 여기도 똑같이 블러된다(워크플로 검증: 카메라/Mask/feature 전부 동일, 차이는 이 한 줄뿐이었음).
+        // [진범] 다운스케일 깊이를 6 으로 올린 것이 범인이었다. RT 높이 = refH / pow(1+alpha, iter+1) 라
+        //   alpha=1, iter=6 이면 RT 가 ~10px 까지 붕괴 -> 디테일 0 인 균일한 색칠(평면 와시) = "블러 아니라 오퍼시티" 증상.
+        //   인벤은 다운스케일을 안 건드려 기본 깊이 2(약 200px) 라 디테일이 남아 진짜 블러로 보인다.
+        // -> 다운스케일은 절대 건드리지 않는다(기본 2 유지). 더 센 블러가 필요하면 blurSections.iterations/sampleDistance 만 올린다.
         var bs = blur.Common.blurInstanceSettings;
         if (bs != null)
         {
-            // ★형태 소멸(색만 남는 엔필 블러) = 저해상 다운샘플이 핵심. 렌더(FlexibleBlurFeature.cs:1012-1015):
-            //   블러 RT 높이 = (referenceResolution / 화면높이) x 영역높이. refRes 낮추면 저해상으로 그려져 형태가 뭉개짐.
-            //   가우시안 샘플(iterations/sampleDistance)은 부드럽게만 할 뿐 실루엣 못 지움 -> refRes 가 진짜 레버.
-            if (bs.downscaleSections != null) foreach (var sec in bs.downscaleSections) { sec.iterations = 3; sec.sampleDistance = 2f; }
-            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 2f; }
-            bs.blurAdditionalDistancePerIteration = 2f;
-            bs.referenceResolution = 240;    // ★형태 소멸 레버. 1080=형태유지(이전), 낮출수록 색만. 240=엔필급.
-            bs.hqResample = true;            // 저해상 노이즈/떨림 억제
-            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f;
+            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 1.5f; }
+            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
         }
         blur.Common.ValidateBlur();
 
@@ -248,9 +245,9 @@ public static class MachineUIBuilder
         bgrt.anchorMin = Vector2.zero; bgrt.anchorMax = Vector2.one; bgrt.offsetMin = Vector2.zero; bgrt.offsetMax = Vector2.zero;
         var bgImg = bgGo.GetComponent<Image>(); bgImg.sprite = null; bgImg.type = Image.Type.Simple; bgImg.raycastTarget = false;
         var bgGrad = bgGo.AddComponent<UIFrostGradient>();
-        // 엔필 스샷 스포이드 근사: 상단=라이트 실버그레이 / 본문=미디엄 그레이(★까망 금지=전체 밝게).
-        // 2색이라 본문을 미디엄으로 올려 전반 밝기를 맞춤(엔필처럼 하단만 더 어둡게는 3색 필요 - 추후).
-        bgGrad.topColor = RGBA(202, 207, 214, 0.6f); bgGrad.bottomColor = RGBA(88, 94, 106, 0.72f);
+        // ★알파 확 낮춤 = 이게 높으면(0.6/0.72) 블러를 회색으로 덮어 죽인다(블러 안보임의 진범).
+        //   블러가 비치게 낮은 톤만. (인벤도 0.26/0.52). 톤 부족하면 살짝 올림.
+        bgGrad.topColor = RGBA(202, 207, 214, 0.18f); bgGrad.bottomColor = RGBA(88, 94, 106, 0.4f);
         bgGrad.topBias = 3f;   // 밝음 상단 ~25% 집중(낮출수록 더 퍼짐). 본문은 미디엄 그레이.
 
         // (옛 밝은 BodyFrost/HeaderFrost 층 제거 = 어두운 글라스로 전환. 헤더/푸터는 divider 선으로만 구분.)
