@@ -66,6 +66,18 @@ public class MachineUI : MonoBehaviour
     [SerializeField] private Button storageTabBtn;
     private bool _showStorage;
 
+    [Header("헤더 설비 아이콘")]
+    [Tooltip("헤더 좌측 설비 아이콘. OpenFor 가 facilityImage 와 같은 sprite 로 세팅.")]
+    [SerializeField] private Image headerIconImage;
+
+    [Header("진행바 노브 / 빈가방 / 가동글로우")]
+    [Tooltip("푸터 진행바 fill 끝 노브. value 로 x 이동, 가공 중만 표시.")]
+    [SerializeField] private RectTransform progressKnob;
+    [Tooltip("가방이 비었을 때 표시하는 '비어있음' 텍스트.")]
+    [SerializeField] private TextMeshProUGUI bagEmptyText;
+    [Tooltip("가공 중 기계 뒤 노란 글로우. 알파 펄스(unscaled).")]
+    [SerializeField] private Image machineGlow;
+
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
 
@@ -166,12 +178,12 @@ public class MachineUI : MonoBehaviour
         if (machineTitleText != null) machineTitleText.text = title;
 
         // 중앙 설비 도면 = 퀵슬롯 설비 모델 렌더 재사용 (facilityId 매핑)
-        if (facilityImage != null)
+        if (facilityImage != null || headerIconImage != null)
         {
             var fIcon = FacilityIconDatabase.Instance != null
                 ? FacilityIconDatabase.Instance.GetIcon(machine.FacilityId) : null;
-            facilityImage.sprite = fIcon;
-            facilityImage.enabled = fIcon != null;
+            if (facilityImage != null) { facilityImage.sprite = fIcon; facilityImage.enabled = fIcon != null; }
+            if (headerIconImage != null) { headerIconImage.sprite = fIcon; headerIconImage.enabled = fIcon != null; }
         }
 
         // 모든 슬롯을 먼저 구성한 뒤 패널을 활성화 —
@@ -304,8 +316,10 @@ public class MachineUI : MonoBehaviour
     public void RefreshInventorySlots()
     {
         var inv = ActiveInv();
+        int used = inv != null ? inv.GetUsedSlotCount() : 0;
         if (bagCapacityText != null && inv != null)
-            bagCapacityText.text = $"용량 {inv.GetUsedSlotCount()} / {inv.GetMaxSlots()}";
+            bagCapacityText.text = $"용량 {used} / {inv.GetMaxSlots()}";
+        if (bagEmptyText != null) bagEmptyText.gameObject.SetActive(used == 0);
         if (inv == null)
         {
             foreach (var slot in _invSlots)
@@ -353,6 +367,8 @@ public class MachineUI : MonoBehaviour
     {
         if (b == null || b.image == null) return;
         var c = b.image.color; c.a = on ? 0.9f : 0.2f; b.image.color = c;
+        var underline = b.transform.Find("Underline");
+        if (underline != null) underline.gameObject.SetActive(on);
     }
 
     // ── 재료 슬롯 ───────────────────────────────────────────────
@@ -412,6 +428,21 @@ public class MachineUI : MonoBehaviour
     private void RefreshOutputSlots()
     {
         if (outputSlot == null || _machine == null) return;
+
+        // 모두받기 버튼 = 출력 버퍼 있을 때만 활성(없으면 dim). interactable 만 토글, 좌표/색 규칙 무변경.
+        if (takeOutputBtn != null)
+        {
+            int totalOut = 0;
+            var rcs = _machine.Recipes;
+            if (rcs != null && rcs.Count > 0)
+            {
+                int ri = Mathf.Clamp(_selectedRecipeIndex, 0, rcs.Count - 1);
+                var outs = rcs[ri]?.outputs;
+                if (outs != null)
+                    foreach (var o in outs) totalOut += _machine.OutputBuffer.GetAmount(o.itemId);
+            }
+            takeOutputBtn.interactable = totalOut > 0;
+        }
 
         // 이전에 동적으로 생성된 추가 슬롯 제거
         foreach (var s in _extraOutputSlots)
@@ -573,6 +604,34 @@ public class MachineUI : MonoBehaviour
 
         if (progressBar != null)
             progressBar.value = isSelectedRecipeActive ? _machine.Progress : 0f;
+
+        // 진행바 노브 = fill 끝점으로 이동(가공 중만 표시).
+        if (progressKnob != null)
+        {
+            bool knobShow = isSelectedRecipeActive && _machine.IsProcessing;
+            if (progressKnob.gameObject.activeSelf != knobShow) progressKnob.gameObject.SetActive(knobShow);
+            if (knobShow && progressBar != null)
+            {
+                const float fillInset = 2f;   // Fill Area 2px 인셋 보정(fill 시작/끝과 노브 정렬)
+                float w = ((RectTransform)progressBar.transform).rect.width;
+                var kp = progressKnob.anchoredPosition;
+                progressKnob.anchoredPosition = new Vector2(fillInset + progressBar.value * (w - fillInset * 2f), kp.y);
+            }
+        }
+
+        // 가동 글로우 = 가공 중 노란빛 알파 펄스(unscaled = timeScale 0 안전).
+        if (machineGlow != null)
+        {
+            if (isSelectedRecipeActive && _machine.IsProcessing)
+            {
+                float a = 0.10f + 0.10f * Mathf.PingPong(Time.unscaledTime * 1.6f, 1f);
+                var gc = machineGlow.color; gc.a = a; machineGlow.color = gc;
+            }
+            else if (machineGlow.color.a != 0f)
+            {
+                var gc = machineGlow.color; gc.a = 0f; machineGlow.color = gc;
+            }
+        }
 
         // [Gauge] 현재 표시된 레시피가 실제 생산 중일 때만 게이지 진행도 동기, 아니면 숨김
         // progressBar 와 같은 조건 — UI 일관성 유지

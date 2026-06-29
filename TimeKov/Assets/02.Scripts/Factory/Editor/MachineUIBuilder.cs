@@ -129,12 +129,14 @@ public static class MachineUIBuilder
         StretchTop(header.GetComponent<RectTransform>(), headerH, 0, 0);
         header.GetComponent<Image>().raycastTarget = false;
 
-        // 설비 아이콘 (좌, 어두운 틴트 = 밝은 표면 위)
-        var icon = MakeImage("TitleIcon", header.transform, new Vector2(34, 34), Vector2.zero, TxtMain);
+        // 설비 아이콘 (좌). 런타임 OpenFor 가 FacilityIconDatabase 로 sprite 세팅(없으면 숨김).
+        var icon = MakeImage("TitleIcon", header.transform, new Vector2(36, 36), Vector2.zero, Color.white);
         var icRt = icon.GetComponent<RectTransform>();
         icRt.anchorMin = icRt.anchorMax = new Vector2(0, 0.5f); icRt.pivot = new Vector2(0, 0.5f);
         icRt.anchoredPosition = new Vector2(22, 0);
         var icImg = icon.GetComponent<Image>(); icImg.preserveAspect = true; icImg.raycastTarget = false;
+        icImg.enabled = false;                 // sprite 세팅 전엔 숨김(흰 박스 방지)
+        SetRef(so, "headerIconImage", icImg);
 
         // 제목(설비 이름) - SetRef. 런타임 OpenFor(title)에서 채움.
         var title = MakeTMP("Title", header.transform, "설비", 24, TxtMain, TextAlignmentOptions.Left);
@@ -175,6 +177,15 @@ public static class MachineUIBuilder
         BuildBag(prt, so);
         BuildProduction(prt, so);
         BuildFooter(prt, so);
+
+        // 가방 칼럼과 생산부 사이 세로 구분선(같은 면 위 선 한 줄 = 큰 박스 아님).
+        var vdiv = MakeImage("BagProdDivider", prt, Vector2.zero, Vector2.zero, HeaderHair);
+        var vdRt = vdiv.GetComponent<RectTransform>();
+        vdRt.anchorMin = new Vector2(0, 0); vdRt.anchorMax = new Vector2(0, 1); vdRt.pivot = new Vector2(0.5f, 0.5f);
+        float vx = SidePad + BagWidth + Gap * 0.5f;
+        vdRt.offsetMin = new Vector2(vx - 0.75f, FooterH + 8);
+        vdRt.offsetMax = new Vector2(vx + 0.75f, -(HeaderH + 8));
+        vdiv.GetComponent<Image>().raycastTarget = false;
 
         // 이전에 잘못 추가한 FactoryScreenDim 정리(이제 안 씀)
         var cv = panel.GetComponentInParent<Canvas>();
@@ -423,15 +434,20 @@ public static class MachineUIBuilder
         stoRt.anchorMin = stoRt.anchorMax = new Vector2(0, 1); stoRt.pivot = new Vector2(0, 1); stoRt.anchoredPosition = new Vector2(106, -4);
         SetRef(so, "storageTabBtn", stoTab);
 
+        // 활성 탭 노란 밑줄(런타임 SetTabActive 가 on/off). 기본 off.
+        AddTabUnderline(bagTab.transform);
+        AddTabUnderline(stoTab.transform);
+
         // 두 탭 사이 얇은 세로 divider
         var tabDiv = MakeImage("TabDivider", ct, new Vector2(1.5f, 22), new Vector2(101, -21), Chrome);
         var tdRt = tabDiv.GetComponent<RectTransform>();
         tdRt.anchorMin = tdRt.anchorMax = new Vector2(0, 1); tdRt.pivot = new Vector2(0.5f, 1);
         tabDiv.GetComponent<Image>().raycastTarget = false;
 
+        // 용량 = 탭 행 우측 끝에 세로 중앙 정렬(탭과 한 줄).
         var cap = MakeTMP("BagCapacity", ct, "용량 0 / 35", 14, TxtSub, TextAlignmentOptions.Right);
-        var capRt = cap.rectTransform; capRt.anchorMin = capRt.anchorMax = new Vector2(1, 1); capRt.pivot = new Vector2(1, 1);
-        capRt.sizeDelta = new Vector2(160, 22); capRt.anchoredPosition = new Vector2(-6, -12);
+        var capRt = cap.rectTransform; capRt.anchorMin = capRt.anchorMax = new Vector2(1, 1); capRt.pivot = new Vector2(1, 0.5f);
+        capRt.sizeDelta = new Vector2(160, 22); capRt.anchoredPosition = new Vector2(-6, -21);
         SetRef(so, "bagCapacityText", cap);
 
         // ★큰 함몰박스(BagWell) 제거 = 슬롯이 한 면 위에 "구멍 뚫린" 것처럼 보이게(엔필식).
@@ -447,7 +463,7 @@ public static class MachineUIBuilder
         vpGo.transform.SetParent(ct, false);
         var vpRt = vpGo.GetComponent<RectTransform>();
         vpRt.anchorMin = new Vector2(0, 0); vpRt.anchorMax = new Vector2(1, 1);
-        vpRt.offsetMin = new Vector2(8, 8); vpRt.offsetMax = new Vector2(-8, -52);
+        vpRt.offsetMin = new Vector2(8, 30); vpRt.offsetMax = new Vector2(-8, -52);   // 하단 30 = 드롭 힌트 자리
         var vpImg = vpGo.GetComponent<Image>(); vpImg.color = new Color(1, 1, 1, 0f); vpImg.raycastTarget = true;  // 드롭 raycast 캐치
 
         // 드롭존 (출력/재료/연료 슬롯 -> 가방 반환). highlightImage = 뷰포트 자신.
@@ -482,6 +498,20 @@ public static class MachineUIBuilder
         scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 30f; scroll.viewport = vpRt; scroll.content = content;
 
+        // 빈 가방 안내(아이템 0개일 때만 런타임이 표시). 뷰포트 위에 얹어 그리드 위로.
+        var empty = MakeTMP("BagEmpty", vpGo.transform, "비어있음", 16, TxtSub, TextAlignmentOptions.Center);
+        FillRect(empty.rectTransform);
+        var ecol = empty.color; ecol.a = 0.42f; empty.color = ecol;
+        empty.gameObject.SetActive(false);
+        SetRef(so, "bagEmptyText", empty);
+
+        // 하단 드롭 힌트(상시 흐리게) = 결과물 슬롯을 여기로 끌어 회수.
+        var hint = MakeTMP("DropHint", ct, "결과물을 여기로 드래그해 회수", 13, TxtSub, TextAlignmentOptions.Center);
+        var hRt = hint.rectTransform;
+        hRt.anchorMin = new Vector2(0, 0); hRt.anchorMax = new Vector2(1, 0); hRt.pivot = new Vector2(0.5f, 0);
+        hRt.offsetMin = new Vector2(8, 6); hRt.offsetMax = new Vector2(-8, 28);
+        var hcol = hint.color; hcol.a = 0.5f; hint.color = hcol;
+
         SetRef(so, "inventorySlotParent", content);
         var slotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SlotPrefabPath);
         if (slotPrefab != null) SetRef(so, "inventorySlotPrefab", slotPrefab);
@@ -503,6 +533,11 @@ public static class MachineUIBuilder
         var plRt = plate.GetComponent<RectTransform>();
         plRt.anchorMin = Vector2.zero; plRt.anchorMax = Vector2.one; plRt.offsetMin = new Vector2(6, 6); plRt.offsetMax = new Vector2(-6, -6);
         plate.GetComponent<Image>().raycastTarget = false;
+
+        // 가동 글로우 = 가공 중 기계 뒤 노란빛(런타임 알파 펄스). 기본 알파 0. 기계보다 먼저 생성 = 뒤.
+        var glow = MakeImage("MachineGlow", pt, new Vector2(520, 520), new Vector2(0, 55f), new Color(Yellow.r, Yellow.g, Yellow.b, 0f));
+        var glowImg = glow.GetComponent<Image>(); glowImg.sprite = RoundedSprite(); glowImg.type = Image.Type.Sliced; glowImg.raycastTarget = false;
+        SetRef(so, "machineGlow", glowImg);
 
         // 설비 도면 = 퀵슬롯 설비 모델 렌더(500x500 투명, facilityId 1~7) 재사용.
         // 런타임 OpenFor 가 FacilityIconDatabase 로 sprite 세팅 -> enabled.
@@ -532,6 +567,7 @@ public static class MachineUIBuilder
         var capMat = MakeTMP("CapMaterial", pt, "재료", 15, TxtSub, TextAlignmentOptions.Center);
         var cmRt = capMat.rectTransform; cmRt.anchorMin = cmRt.anchorMax = new Vector2(0.5f, 0.5f); cmRt.pivot = new Vector2(0.5f, 0.5f);
         cmRt.sizeDelta = new Vector2(110, 22); cmRt.anchoredPosition = new Vector2(-330, 305);
+        CaptionBadge(pt, cmRt);
         var inputArea = MakeEmpty("InputArea", pt, new Vector2(110, 400), Vector2.zero);
         var iaRt = inputArea.GetComponent<RectTransform>();
         iaRt.anchorMin = iaRt.anchorMax = new Vector2(0.5f, 0.5f); iaRt.pivot = new Vector2(0.5f, 0.5f); iaRt.anchoredPosition = new Vector2(-330, 90);
@@ -561,6 +597,7 @@ public static class MachineUIBuilder
         var capFuel = MakeTMP("CapFuel", pt, "연료", 15, TxtSub, TextAlignmentOptions.Center);
         var cfRt = capFuel.rectTransform; cfRt.anchorMin = cfRt.anchorMax = new Vector2(0.5f, 0.5f); cfRt.pivot = new Vector2(0.5f, 0.5f);
         cfRt.sizeDelta = new Vector2(110, 22); cfRt.anchoredPosition = new Vector2(-330, -130);
+        CaptionBadge(pt, cfRt);
         var fuel = MakeFuelSlot(pt, 88f, slotFrame);
         var fRt = fuel.GetComponent<RectTransform>();
         fRt.anchorMin = fRt.anchorMax = new Vector2(0.5f, 0.5f); fRt.pivot = new Vector2(0.5f, 0.5f); fRt.anchoredPosition = new Vector2(-330, -200);
@@ -583,6 +620,7 @@ public static class MachineUIBuilder
         var capOut = MakeTMP("CapOutput", pt, "결과", 15, TxtSub, TextAlignmentOptions.Center);
         var coRt = capOut.rectTransform; coRt.anchorMin = coRt.anchorMax = new Vector2(0.5f, 0.5f); coRt.pivot = new Vector2(0.5f, 0.5f);
         coRt.sizeDelta = new Vector2(150, 22); coRt.anchoredPosition = new Vector2(345, 178);
+        CaptionBadge(pt, coRt);
         var outputArea = MakeEmpty("OutputArea", pt, new Vector2(190, 180), Vector2.zero);
         var oaRt = outputArea.GetComponent<RectTransform>();
         oaRt.anchorMin = oaRt.anchorMax = new Vector2(0.5f, 0.5f); oaRt.pivot = new Vector2(0.5f, 0.5f); oaRt.anchoredPosition = new Vector2(345, 70);
@@ -613,6 +651,7 @@ public static class MachineUIBuilder
         var brRt = bar.GetComponent<RectTransform>();
         brRt.anchorMin = brRt.anchorMax = new Vector2(0.5f, 0); brRt.pivot = new Vector2(0.5f, 0.5f); brRt.anchoredPosition = new Vector2(0, fy);
         SetRef(so, "progressBar", bar);
+        SetRef(so, "progressKnob", bar.transform.Find("Knob") as RectTransform);
 
         // 모두 받기 (하단 우, 노랑)
         var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(210, 46), Yellow, YellowBd, YellowTx, 20);
@@ -739,6 +778,29 @@ public static class MachineUIBuilder
         return btn;
     }
 
+    // 활성 탭 강조용 노란 밑줄(런타임 SetTabActive 가 on/off). 기본 off, 버튼 하단 3px.
+    static void AddTabUnderline(Transform tab)
+    {
+        var go = new GameObject("Underline", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(tab, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(1, 0); rt.pivot = new Vector2(0.5f, 0);
+        rt.offsetMin = new Vector2(6, 0); rt.offsetMax = new Vector2(-6, 3);
+        var img = go.GetComponent<Image>();
+        img.sprite = RoundedSprite(); img.type = Image.Type.Sliced;
+        img.color = Yellow; img.raycastTarget = false;
+        go.SetActive(false);
+    }
+
+    // 구역 캡션(재료/연료/결과) 뒤 얇은 알약 배경 = 작은 개별 패널(큰 박스 아님).
+    static void CaptionBadge(Transform parent, RectTransform capRt)
+    {
+        var go = MakeRounded("CapBadge", parent, capRt.sizeDelta + new Vector2(20, 8), capRt.anchoredPosition, RGBA(20, 28, 40, 0.32f));
+        go.GetComponent<Image>().raycastTarget = false;
+        AddOutline(go, Chrome, new Vector2(1f, -1f));
+        go.transform.SetAsFirstSibling();      // 캡션 글자 뒤로
+    }
+
     // 호버/프레스 ColorTint(베이스색에 곱연산: 호버 살짝 밝게, 프레스 어둡게).
     static void ApplyHover(Button btn)
     {
@@ -766,6 +828,15 @@ public static class MachineUIBuilder
         var fill = FillImage("Fill", fillArea.transform, RoundedSprite(), Image.Type.Sliced, Hex("e6c24a"));
         fill.type = Image.Type.Filled; fill.fillMethod = Image.FillMethod.Horizontal;
         fill.fillOrigin = (int)Image.OriginHorizontal.Left; fill.fillAmount = 0f;
+
+        // 진행 노브 = fill 끝점 도트(런타임이 value 로 x 이동). 좌측 앵커 기준, 기본 off.
+        var knob = MakeImage("Knob", go.transform, new Vector2(20, 20), Vector2.zero, Yellow);
+        var kImg = knob.GetComponent<Image>(); kImg.sprite = RoundedSprite(); kImg.type = Image.Type.Sliced; kImg.raycastTarget = false;
+        var kRt = knob.GetComponent<RectTransform>();
+        kRt.anchorMin = kRt.anchorMax = new Vector2(0, 0.5f); kRt.pivot = new Vector2(0.5f, 0.5f);
+        kRt.anchoredPosition = Vector2.zero;
+        AddOutline(knob, YellowBd, new Vector2(1f, -1f));
+        knob.SetActive(false);
 
         var slider = go.GetComponent<Slider>();
         slider.transition = Selectable.Transition.None;
