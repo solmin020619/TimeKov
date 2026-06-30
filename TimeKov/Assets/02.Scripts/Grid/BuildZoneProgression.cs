@@ -82,16 +82,11 @@ public class BuildZoneProgression : MonoBehaviour, ISaveable
         SaveSlotManager.Instance?.Register(this);
     }
 
-    private void OnEnable()
-    {
-        // QuestManager 가 아직 준비 안 됐을 수 있으니 가드. 준비됐으면 즉시 구독.
-        TrySubscribe();
-    }
-
     private void Start()
     {
-        // Awake 순서 문제로 OnEnable 때 QuestManager 가 없었을 경우 한 번 더 시도
-        TrySubscribe();
+        // [2026-06] 확장 트리거를 퀘스트 → 기지 업그레이드(BaseUpgradeManager, 재료 제출)로 이관.
+        //  여기서는 더 이상 QuestManager 를 구독하지 않는다. stages 리스트(크기 정의)와
+        //  ApplyStage()·세이브 인프라는 그대로 두고, 외부(BaseUpgradeManager)가 ApplyStage 를 호출한다.
 
         // 시작 단계(questId 비어있는 첫 stage, 없으면 stages[0]) 적용
         ApplyInitialStage();
@@ -104,9 +99,6 @@ public class BuildZoneProgression : MonoBehaviour, ISaveable
 
     private void OnDestroy()
     {
-        if (QuestManager.Instance != null)
-            QuestManager.Instance.OnQuestCompleted -= HandleQuestCompleted;
-
         SaveSlotManager.Instance?.Unregister(this);
     }
 
@@ -124,15 +116,6 @@ public class BuildZoneProgression : MonoBehaviour, ISaveable
         int saved = SaveSlotManager.Instance.Data.buildZoneStageIndex;
         if (saved >= 0)
             ApplyStage(saved);
-    }
-
-    private bool _subscribed;
-    private void TrySubscribe()
-    {
-        if (_subscribed) return;
-        if (QuestManager.Instance == null) return;
-        QuestManager.Instance.OnQuestCompleted += HandleQuestCompleted;
-        _subscribed = true;
     }
 
     private void CaptureBase()
@@ -156,25 +139,10 @@ public class BuildZoneProgression : MonoBehaviour, ISaveable
         _captured = true;
     }
 
-    // ── 퀘스트 완료 콜백 ──────────────────────────────────────────
-
-    private void HandleQuestCompleted(CategoryRuntime rt, QuestSO quest)
-    {
-        if (quest == null || string.IsNullOrEmpty(quest.id)) return;
-
-        for (int i = 0; i < stages.Count; i++)
-        {
-            var s = stages[i];
-            if (s == null || string.IsNullOrEmpty(s.questId)) continue;
-            if (s.questId == quest.id)
-            {
-                ApplyStage(i);
-                return;
-            }
-        }
-    }
-
     // ── 단계 적용 ─────────────────────────────────────────────────
+
+    /// <summary>정의된 확장 단계 수. BaseUpgradeManager 가 단계 항목 검증에 사용.</summary>
+    public int StageCount => stages != null ? stages.Count : 0;
 
     private void ApplyInitialStage()
     {
