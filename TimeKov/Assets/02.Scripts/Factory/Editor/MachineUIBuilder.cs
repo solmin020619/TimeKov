@@ -205,43 +205,34 @@ public static class MachineUIBuilder
             "확인 후 Ctrl+S.", "확인");
     }
 
-    // ── 블러 = 단일 표면(패널 자식 BlurredImage 한 겹) + 프로스트 3겹. 인벤 빌더 레시피 그대로 복제. ──
+    // ── 블러 = 패널 자식 UIBlur 한 겹(프레임버퍼 직접 블러) + BgDark 그래디언트 한 겹. ──
     static void BuildFrost(RectTransform prt, Sprite panelSprite)
     {
-        if (panelSprite == null) return;
-
-        // 통합 블러 = 패널 자식 (별도 Screen Space-Camera 캔버스 없음). 둥근 패널 스프라이트 + Mask로 코너 일치.
-        var blurGo = new GameObject("PanelBlur", typeof(RectTransform));
+        // 블러 = UIBlur 컴포넌트(데모 "Diverse Blurs" Tile3 = 종욱이 고른 룩, World 게임씬에 그대로 떨궈서 완벽 작동 검증).
+        //   [진짜 원인] 우리가 쓰던 BlurredImage 는 blur RT 를 materialForRendering 으로 바인딩하는데 우리 빌드에선
+        //   그게 폴백남(DefaultBlurMaterial = 그냥 반투명) -> 설정을 뭘 바꿔도 무반응 = "똑같은데"의 정체.
+        //   UIBlur 는 Image 가 아니라 프레임버퍼 영역을 직접 흐려서 그 폴백 경로 자체가 없음 = 확실히 작동.
+        //   Camera=null -> Camera.main (World 씬서 작동한 Tile3 와 동일, PickBuildCamera 는 폴백 위험이라 안 씀).
+        //   코너는 사각(둥근 코너는 추후 별도 처리). 설정값은 World 씬서 검증된 Tile3 그대로.
+        var blurGo = new GameObject("PanelBlur", typeof(RectTransform), typeof(CanvasRenderer), typeof(UIBlur));
         blurGo.transform.SetParent(prt, false);
         var blRt = blurGo.GetComponent<RectTransform>();
         blRt.anchorMin = Vector2.zero; blRt.anchorMax = Vector2.one; blRt.offsetMin = Vector2.zero; blRt.offsetMax = Vector2.zero;
-        var blur = blurGo.AddComponent<BlurredImage>();
-        blur.sprite = panelSprite; blur.type = Image.Type.Sliced; blur.pixelsPerUnitMultiplier = 1f;
-        blur.color = Color.white; blur.raycastTarget = false;
+        var blur = blurGo.GetComponent<UIBlur>();
         blur.Common.blurReferencesFrom = UIBlurCommon.BlurReferencesFrom.Self;
-        blur.Common.cameraReference = PickBuildCamera();
+        blur.Common.cameraReference = null;
         blur.Common.featureNumber = 0;
-        blur.Common.unrankedLayer = 1;
+        blur.Common.unrankedLayer = 0;
         blur.Common.blurStrength = 1f;
-        // 블러 설정 = "작동하는" 인벤 PanelBlur 와 한 글자도 다르지 않게 맞춤. 같은 카메라/Mask/베일 구조라
-        //   인벤이 블러되면 여기도 똑같이 블러된다(워크플로 검증: 카메라/Mask/feature 전부 동일, 차이는 이 한 줄뿐이었음).
-        // [진범] 다운스케일 깊이를 6 으로 올린 것이 범인이었다. RT 높이 = refH / pow(1+alpha, iter+1) 라
-        //   alpha=1, iter=6 이면 RT 가 ~10px 까지 붕괴 -> 디테일 0 인 균일한 색칠(평면 와시) = "블러 아니라 오퍼시티" 증상.
-        //   인벤은 다운스케일을 안 건드려 기본 깊이 2(약 200px) 라 디테일이 남아 진짜 블러로 보인다.
-        // -> 다운스케일은 절대 건드리지 않는다(기본 2 유지). 더 센 블러가 필요하면 blurSections.iterations/sampleDistance 만 올린다.
+        // 데모 Tile3 검증값: downscale 5-Tap Star iter2 / blur Gaussian(3+3 Taps) iter4 / refRes 1080 / dither 0.25 / vibrancy 1.
+        //   더 세게/약하게는 blurSections.iterations(4) / sampleDistance(1.5) 만 조절(downscale 은 그대로).
         var bs = blur.Common.blurInstanceSettings;
         if (bs != null)
         {
-            // 데모 "Diverse Blurs" 3번 타일(종욱이 고른 엔필 "번짐" 룩) 설정을 1:1 복제.
-            // [진짜 차이] blur 패스 알고리즘 = Gaussian(3+3 Taps). 우리 기본 4-Tap Cross 는 듬성해서 번짐이 안 남.
-            //   데모는 UIBlur 컴포넌트지만 블러 연산(downscale/blur 섹션)은 BlurredImage 와 같은 함수라 설정만 같으면 룩 동일.
             if (bs.downscaleSections != null) foreach (var sec in bs.downscaleSections) { sec.SetAlgorithm(BlurAlgorithm.Tap5Star); sec.iterations = 2; sec.sampleDistance = 1.5f; }
             if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.SetAlgorithm(BlurAlgorithm.Gaussian); sec.horizontalSamplesPerSide = 1; sec.verticalSamplesPerSide = 1; sec.iterations = 4; sec.sampleDistance = 1.5f; }
             bs.blurAdditionalDistancePerIteration = 1f;
-            // ★referenceResolution = 블러 내부텍스처 크기 = refRes/화면높이 x 패널높이. 우리 패널이 데모타일(250x280)보다
-            //   2~3배 커서 같은 설정도 묽게 퍼짐 -> refRes 낮춰 텍스처를 작게(=데모처럼 빽빽한 블러). 1080->350.
-            //   (옛 "refRes 무효"는 삭제된 MachineBlurTuner 가 매프레임 540 으로 덮어써서였음. 이제 유효.)
-            bs.referenceResolution = 350;
+            bs.referenceResolution = 1080;
             bs.hqResample = false;
             bs.ditherStrength = 0.25f;
             bs.vibrancy = 1f; bs.brightness = 0f; bs.contrast = 0f;
@@ -258,8 +249,10 @@ public static class MachineUIBuilder
         var bgGrad = bgGo.AddComponent<UIFrostGradient>();
         // ★알파 확 낮춤 = 이게 높으면(0.6/0.72) 블러를 회색으로 덮어 죽인다(블러 안보임의 진범).
         //   블러가 비치게 낮은 톤만. (인벤도 0.26/0.52). 톤 부족하면 살짝 올림.
-        bgGrad.topColor = RGBA(202, 207, 214, 0.18f); bgGrad.bottomColor = RGBA(88, 94, 106, 0.4f);
-        bgGrad.topBias = 3f;   // 밝음 상단 ~25% 집중(낮출수록 더 퍼짐). 본문은 미디엄 그레이.
+        // 종욱 라이브튜닝 확정: top 순백(#FFFFFF) 알파 0.9 = 강한 frosted 화이트 / bottom 깊은 쿨 블랙(#12141A) 0.85.
+        //   중간은 UIFrostGradient 자동 보간. 강한 블러 위로 톤이 읽히게 알파 세게.
+        bgGrad.topColor = RGBA(255, 255, 255, 0.9f); bgGrad.bottomColor = RGBA(16, 18, 24, 0.85f);
+        bgGrad.topBias = 3f;   // 밝음 상단 ~30%로 퍼뜨림(높을수록 위로 쏠림).
 
         // (옛 밝은 BodyFrost/HeaderFrost 층 제거 = 어두운 글라스로 전환. 헤더/푸터는 divider 선으로만 구분.)
     }
