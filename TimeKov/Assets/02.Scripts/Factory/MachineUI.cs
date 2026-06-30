@@ -505,6 +505,8 @@ public class MachineUI : MonoBehaviour
     private const float FR_PortX = 360f, FR_BusX = 252f, FR_SlotEdgeX = 225f;
     private const float FR_PortPitch = 68f, FR_SlotPitch = 152f;
     private const float FR_RailThin = 3f;      // 가로레일/버스 = 얇은 한 트레이스
+    private const float FR_PortTickW = 7f;      // 포트 단자 두께(굵게 강조)
+    private const float FR_PortTickH = 48f;     // 포트 단자 길이(연결지점 세로 = 길게, 레일이 이쁘게 들어옴)
     private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
     private static readonly Color FR_RailWhite = new Color(0.86f, 0.89f, 0.94f, 0.95f); // 입력 가로레일(흰)
@@ -572,7 +574,7 @@ public class MachineUI : MonoBehaviour
             bool c = conn != null && j < conn.Length && conn[j];
             Color tickCol = c ? Color.Lerp(portColor, Color.white, 0.55f) : portColor;
             Color railCol = c ? Color.Lerp(railColor, Color.white, 0.30f) : railColor;
-            MakeRailLine("Port", new Vector2(portX, py), new Vector2(7f, 28f), tickCol);   // 단자만 굵게(7px)
+            MakeRailLine("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);   // 단자만 굵게 + 길게(연결지점 세로)
             MakeRailLine("PortRail", new Vector2((portX + busX) * 0.5f, py),
                          new Vector2(Mathf.Abs(busX - portX), FR_RailThin), railCol);
             if (c)
@@ -655,6 +657,7 @@ public class MachineUI : MonoBehaviour
     }
 
     // 포트별 실제 벨트 연결 상태(연결됨 = true). 순서 = GetComponentsInChildren(단자 그리는 순서와 동일).
+    // ★연결 판정 = BeltSegment 실판정(레일 형상). connectionCount 장부는 실제 연결을 안 잡아서 폐기.
     private bool[] ReadPortConn(PortType type, int n)
     {
         var arr = new bool[Mathf.Max(n, 1)];
@@ -664,7 +667,7 @@ public class MachineUI : MonoBehaviour
         foreach (var p in ports)
         {
             if (p == null || p.portType != type) continue;
-            if (pi < arr.Length) arr[pi] = p.connectionCount > 0;
+            if (pi < arr.Length) arr[pi] = BeltSegment.IsPortConnected(p);
             pi++;
         }
         return arr;

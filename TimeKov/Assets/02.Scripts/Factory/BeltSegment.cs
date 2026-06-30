@@ -476,6 +476,25 @@ namespace TIMEKOV.Factory
             return false;
         }
 
+        // ── UI 표시용: 포트별 실제 연결 판정 ──────────────────────────────
+        /// <summary>주어진 BuildPort 가 실제 레일(벨트)에 head-on 으로 연결돼 있는지.
+        /// GridDetectConnections 의 포트 매칭과 동일 기준(connectionCount 장부가 아닌 실제 레일 형상).
+        /// 설비 UI 가 포트별 연결 상태를 표시할 때 사용한다.</summary>
+        public static bool IsPortConnected(BuildPort port)
+        {
+            if (port == null || port.OwnerBuilding == null) return false;
+            Vector2Int front = port.GetFrontCell();
+            Vector2Int dir   = port.GetWorldDirection();
+            foreach (var seg in All)
+            {
+                if (seg == null || !seg._cellsInitialized) continue;
+                if (seg._beltCell != front) continue;
+                if (!seg.RailConnectsToward(dir)) continue;
+                return true;
+            }
+            return false;
+        }
+
         // ── 레거시 물리 감지 (폴백) ──────────────────────────────────────
 
         private void LegacyDetectConnections()
