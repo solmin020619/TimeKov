@@ -22,6 +22,7 @@ public class FuelDropSlot : MonoBehaviour,
     [SerializeField] private TextMeshProUGUI timeText;   // 남은 가동 시간 (예: "80초")
     [SerializeField] private TextMeshProUGUI labelText;  // hover 시 "연료 넣기" 표시
     [SerializeField] private Image           fuelGauge;  // 현재 연료 1개분 남은 연소 비율 바(#41)
+    [SerializeField] private Image           gradeAurora; // 연료색 오로라(하단 그라데이션, 인벤 슬롯과 동일. GradeVisual.FuelColor)
 
     [Header("Hover 색상")]
     [SerializeField] private Color normalBorderColor = new Color(1f, 1f, 1f, 0f);
@@ -81,6 +82,13 @@ public class FuelDropSlot : MonoBehaviour,
         // UI 초기 상태 리셋
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
+
+        // 연료 오로라 = 연료 전용색(브론즈). 등급과 별개라 항상 같은 색.
+        if (gradeAurora != null)
+        {
+            Color fc = GradeVisual.FuelColor;
+            gradeAurora.color = new Color(fc.r, fc.g, fc.b, fc.a * 0.9f);
+        }
 
         RefreshIcon();
         RefreshTime();

@@ -83,6 +83,12 @@ public class MachineUI : MonoBehaviour
     [SerializeField] private Transform formulaContent;
     [Tooltip("공식 스트립 좌측 상태 라벨(생산 중 / 대기 중).")]
     [SerializeField] private TextMeshProUGUI formulaStatusText;
+    [Tooltip("흐름 레일(기계->출력). 입력 레일은 슬롯 자식이라 별도 ref 불필요.")]
+    [SerializeField] private Image outputRail;
+    [Tooltip("입력 수직 버스(합류선). 길이/위치는 런타임이 입력 칸수로 세팅.")]
+    [SerializeField] private Image inputBus;
+    [Tooltip("버스->기계 가로 연결.")]
+    [SerializeField] private Image busToMachine;
 
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
@@ -469,6 +475,23 @@ public class MachineUI : MonoBehaviour
             }
         }
 
+        // 입력 수직 버스: 활성 입력 칸수에 맞춰 길이/위치(슬롯 Y = 246 - i*100, 위 정렬 결정론. 기계 Y=55).
+        if (inputBus != null)
+        {
+            int activeInputs = Mathf.Min(inputs.Length, recipeDropSlots.Length);
+            if (activeInputs <= 1)   // 입력 1개면 가로 레일이 바로 기계로(버스 불필요)
+            {
+                inputBus.gameObject.SetActive(false);
+            }
+            else
+            {
+                // 입력 슬롯이 기계 높이(Y=55)에 가운데정렬(MiddleCenter, 피치 100)이라 버스 길이=100*(N-1), 중심은 빌더 고정(Y=55).
+                inputBus.gameObject.SetActive(true);
+                var rt = (RectTransform)inputBus.transform;
+                rt.sizeDelta = new Vector2(rt.sizeDelta.x, 152f * (activeInputs - 1));   // 슬롯 140 + 간격 12 = 피치 152
+            }
+        }
+
         BuildFormula();
         ShowRecipeHintIfQuestActive();
     }
@@ -719,6 +742,40 @@ public class MachineUI : MonoBehaviour
 
     // ── 진행 바 ─────────────────────────────────────────────────
 
+    private static readonly Color RailFlowColor = new Color(0.90f, 0.76f, 0.29f, 1f);   // 생산중(노랑=실제 레일색)
+    private static readonly Color RailIdleColor = new Color(0.66f, 0.58f, 0.32f, 0.85f);  // 대기(엔필 idle 벨트처럼 또렷한 머스타드 골드)
+
+    // 흐름 레일 색 동기화: 활성 입력 슬롯의 "Rail" 자식 + 출력 레일을 생산상태에 맞춰 칠함(생산중=노랑/대기=어둠).
+    private void UpdateFlowRails(bool flowing)
+    {
+        Color c = flowing ? RailFlowColor : RailIdleColor;
+        if (recipeDropSlots != null)
+        {
+            foreach (var s in recipeDropSlots)
+            {
+                if (s == null || !s.gameObject.activeSelf) continue;
+                var railT = s.transform.Find("Rail");
+                if (railT == null) continue;
+                var img = railT.GetComponent<Image>(); if (img != null) img.color = c;
+                var arrT = railT.Find("RailArrow");
+                if (arrT != null) { var t = arrT.GetComponent<TextMeshProUGUI>(); if (t != null) t.color = c; }
+            }
+        }
+        if (outputRail != null)
+        {
+            outputRail.color = c;
+            var oArr = outputRail.transform.Find("OutputRailArrow");
+            if (oArr != null) { var t = oArr.GetComponent<TextMeshProUGUI>(); if (t != null) t.color = c; }
+        }
+        if (inputBus != null) inputBus.color = c;
+        if (busToMachine != null)
+        {
+            busToMachine.color = c;
+            var bArr = busToMachine.transform.Find("BusArrow");
+            if (bArr != null) { var t = bArr.GetComponent<TextMeshProUGUI>(); if (t != null) t.color = c; }
+        }
+    }
+
     private void Update()
     {
         if (_machine == null || !uiPanel.activeSelf) return;
@@ -800,6 +857,9 @@ public class MachineUI : MonoBehaviour
             else
             { formulaStatusText.text = "대기 중"; formulaStatusText.color = new Color(0.72f, 0.77f, 0.82f, 1f); }
         }
+
+        // 흐름 레일(엔필식): 생산 중이면 노랑(실제 레일색), 아니면 어둡게.
+        UpdateFlowRails(isSelectedRecipeActive && _machine.IsProcessing);
 
         if (statusText == null) return;
 
