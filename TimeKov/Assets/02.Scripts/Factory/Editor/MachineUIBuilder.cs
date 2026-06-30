@@ -588,7 +588,7 @@ public static class MachineUIBuilder
         vlg.spacing = 12; vlg.childAlignment = TextAnchor.MiddleCenter;   // 기계 높이에 가운데정렬
 
         var recipeSlots = new System.Collections.Generic.List<RecipeDropSlot>();
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 5; i++)   // 설비 입력 포트 최대 5개(5x5). 런타임이 inputSlotCount 만큼만 활성.
             recipeSlots.Add(MakeRecipeSlot(inputArea.transform, 140f, slotFrame));
         var arr = so.FindProperty("recipeDropSlots");
         if (arr != null)
@@ -598,22 +598,14 @@ public static class MachineUIBuilder
                 arr.GetArrayElementAtIndex(i).objectReferenceValue = recipeSlots[i];
         }
 
-        // ── 입력 수직 버스 (엔필 합류선): 입력 레일들을 수직으로 모음. 길이/위치는 런타임이 입력 칸수로 세팅(여기선 기본값). ──
-        var inputBus = MakeImage("InputBus", pt, new Vector2(6f, 200f), new Vector2(-55f, 0f), RailDim);
-        var ibRt = inputBus.GetComponent<RectTransform>();
-        ibRt.anchorMin = ibRt.anchorMax = new Vector2(0.5f, 0.5f); ibRt.pivot = new Vector2(0.5f, 0.5f);
-        var inputBusImg = inputBus.GetComponent<Image>(); inputBusImg.raycastTarget = false;
-        SetRef(so, "inputBus", inputBusImg);
-        // 버스 -> 기계 가로 연결 + ▶ (기계 입구 방향).
-        var b2m = MakeImage("BusToMachine", pt, new Vector2(140f, 6f), new Vector2(15f, 0f), RailDim);
-        var b2mRt = b2m.GetComponent<RectTransform>();
-        b2mRt.anchorMin = b2mRt.anchorMax = new Vector2(0.5f, 0.5f); b2mRt.pivot = new Vector2(0.5f, 0.5f);
-        var b2mImg = b2m.GetComponent<Image>(); b2mImg.raycastTarget = false;
-        var b2mArrow = MakeTMP("BusArrow", b2m.transform, ">", 22, RailDim, TextAlignmentOptions.Center);
-        b2mArrow.fontStyle = FontStyles.Bold; b2mArrow.raycastTarget = false;
-        var baRt = b2mArrow.rectTransform; baRt.anchorMin = baRt.anchorMax = new Vector2(1f, 0.5f); baRt.pivot = new Vector2(0.5f, 0.5f);
-        baRt.sizeDelta = new Vector2(26, 26); baRt.anchoredPosition = new Vector2(2f, 0f);
-        SetRef(so, "busToMachine", b2mImg);
+        // ── 중앙 흐름 화살표 = 재료 -> 결과 (엔필: 가운데는 ">" 하나뿐. 옛 세로버스/가로트렁크선은 종욱 지시로 제거). ──
+        //   색 동기화 위해 busToMachine 필드 재사용: 투명 컨테이너 + "BusArrow" 자식(>).
+        //   (InputBus 미생성 = inputBus 필드 런타임 null 가드. 입력 레일은 포트 기반으로 추후 재설계.)
+        var flowGo = MakeImage("BusToMachine", pt, new Vector2(44, 44), new Vector2(0, 0), new Color(0, 0, 0, 0));
+        var flowImg = flowGo.GetComponent<Image>(); flowImg.raycastTarget = false;
+        var flowArrow = MakeTMP("BusArrow", flowGo.transform, ">", 30, RailDim, TextAlignmentOptions.Center);
+        flowArrow.fontStyle = FontStyles.Bold; flowArrow.raycastTarget = false; FillRect(flowArrow.rectTransform);
+        SetRef(so, "busToMachine", flowImg);
 
         // (연료 슬롯은 BuildFooter 로 이동 = 옛 "현재 생산 공식 스트립" 자리.)
 
@@ -642,15 +634,19 @@ public static class MachineUIBuilder
         var output = MakeOutputSlot(outputArea.transform, new Vector2(140, 140), slotFrame);   // 입력칸과 동일 크기(엔필: 칸 크기 전부 같음)
         SetRef(so, "outputSlot", output);
 
-        // ── 출력 흐름 레일 (기계 -> 출력). 색은 런타임 갱신(생산중=노랑/대기=어둠). ──
-        var outRail = MakeImage("OutputRail", pt, new Vector2(70f, 6f), new Vector2(260f, 0f), RailDim);
-        var orRt = outRail.GetComponent<RectTransform>();
-        orRt.anchorMin = orRt.anchorMax = new Vector2(0.5f, 0.5f); orRt.pivot = new Vector2(0.5f, 0.5f);
+        // ── 출력 흐름 레일 = 짧은 가로 한 줄(출력 -> 오른쪽 배출구). 엔필 사진2처럼 출구에 딱 한 줄(옛 ㄴ자는 종욱 지시로 제거). ──
+        //   (포트 기반 정식 배치는 조사 후 재설계. 지금은 임시 단일 레일.)
+        var outRail = MakeImage("OutputRail", pt, new Vector2(90f, 6f), new Vector2(272f, 0f), RailDim);
+        var orRt = outRail.GetComponent<RectTransform>(); orRt.anchorMin = orRt.anchorMax = orRt.pivot = new Vector2(0.5f, 0.5f);
         var outRailImg = outRail.GetComponent<Image>(); outRailImg.raycastTarget = false;
         var outArrow = MakeTMP("OutputRailArrow", outRail.transform, ">", 22, RailDim, TextAlignmentOptions.Center);
         outArrow.fontStyle = FontStyles.Bold; outArrow.raycastTarget = false;
         var oArRt = outArrow.rectTransform; oArRt.anchorMin = oArRt.anchorMax = new Vector2(1f, 0.5f); oArRt.pivot = new Vector2(0.5f, 0.5f);
-        oArRt.sizeDelta = new Vector2(26, 26); oArRt.anchoredPosition = new Vector2(2f, 0f);
+        oArRt.sizeDelta = new Vector2(26, 26); oArRt.anchoredPosition = new Vector2(4f, 0f);
+        var optick = MakeImage("PortTick", outRail.transform, new Vector2(6f, 26f), Vector2.zero, RailDim);   // 바깥 끝 세로 포트 연결구
+        var optRt = optick.GetComponent<RectTransform>();
+        optRt.anchorMin = optRt.anchorMax = new Vector2(1f, 0.5f); optRt.pivot = new Vector2(0.5f, 0.5f);
+        optick.GetComponent<Image>().raycastTarget = false;
         SetRef(so, "outputRail", outRailImg);
     }
 
@@ -745,17 +741,22 @@ public static class MachineUIBuilder
         var label = MakeTMP("Label", go.transform, "", 14, Color.white, TextAlignmentOptions.Center);
         FillRect(label.rectTransform);
 
-        // 흐름 레일(엔필 입력 벨트): 슬롯 오른쪽 -> 수직 버스(x≈-185)까지 가는 짧은 가로 레일 + ▶. 슬롯 자식이라 비활성 칸은 같이 숨음.
-        //   색은 런타임 MachineUI.UpdateFlowRails 가 생산상태로 갱신(생산중=노랑/대기=어둠).
-        var rail = MakeImage("Rail", go.transform, new Vector2(30f, 6f), Vector2.zero, RailDim);
+        // ── 입력 포트 레일 = 슬롯 왼쪽 바깥으로 뻗는 짧은 가로(입력 벨트 연결구) + 끝에 포트 틱 + ">"(벨트->슬롯). ──
+        //   각 입력이 독자 포트(엔필 사진5 = 병렬, 중앙 합류버스 없음). 색은 UpdateFlowRails 가 Rail 자식 전부 갱신.
+        //   슬롯 자식이라 비활성 칸은 레일도 같이 숨음.
+        var rail = MakeImage("Rail", go.transform, new Vector2(78f, 6f), Vector2.zero, RailDim);
         var railRt = rail.GetComponent<RectTransform>();
-        railRt.anchorMin = railRt.anchorMax = new Vector2(1f, 0.5f); railRt.pivot = new Vector2(0f, 0.5f);
-        railRt.anchoredPosition = new Vector2(2f, 0f);
+        railRt.anchorMin = railRt.anchorMax = new Vector2(0f, 0.5f); railRt.pivot = new Vector2(1f, 0.5f);   // 슬롯 왼쪽 바깥
+        railRt.anchoredPosition = new Vector2(-4f, 0f);
         rail.GetComponent<Image>().raycastTarget = false;
-        var railArrow = MakeTMP("RailArrow", rail.transform, ">", 22, RailDim, TextAlignmentOptions.Center);
+        var ptick = MakeImage("PortTick", rail.transform, new Vector2(6f, 26f), Vector2.zero, RailDim);     // 바깥 끝 세로 포트 연결구
+        var ptRt = ptick.GetComponent<RectTransform>();
+        ptRt.anchorMin = ptRt.anchorMax = new Vector2(0f, 0.5f); ptRt.pivot = new Vector2(0.5f, 0.5f);
+        ptick.GetComponent<Image>().raycastTarget = false;
+        var railArrow = MakeTMP("RailArrow", rail.transform, ">", 20, RailDim, TextAlignmentOptions.Center); // 슬롯쪽 끝(벨트->슬롯)
         railArrow.fontStyle = FontStyles.Bold; railArrow.raycastTarget = false;
         var raRt = railArrow.rectTransform; raRt.anchorMin = raRt.anchorMax = new Vector2(1f, 0.5f); raRt.pivot = new Vector2(0.5f, 0.5f);
-        raRt.sizeDelta = new Vector2(26, 26); raRt.anchoredPosition = new Vector2(2f, 0f);
+        raRt.sizeDelta = new Vector2(24, 24); raRt.anchoredPosition = new Vector2(-2f, 0f);
 
         var wso = new SerializedObject(rds);
         SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", glow);

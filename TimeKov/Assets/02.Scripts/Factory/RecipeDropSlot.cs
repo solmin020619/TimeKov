@@ -85,6 +85,7 @@ public class RecipeDropSlot : MonoBehaviour,
 
     public void Setup(int itemId, int amount, ProcessingMachine machine, InventoryManager inventory = null, int recipeIndex = -1)
     {
+        var body0 = GetComponent<Image>(); if (body0 != null) body0.raycastTarget = true;   // 빈 포트로 쓰였다 재사용 시 상호작용 복구
         RequiredItemId = itemId;
         RequiredAmount = amount;
         CurrentAmount = 0;
@@ -130,6 +131,20 @@ public class RecipeDropSlot : MonoBehaviour,
         }
 
         PublicRefresh();
+    }
+
+    /// <summary>빈 입력 포트(레시피 재료 없음) = 아이콘/수량 없이 포트 자리만. 드롭 비활성(벨트 연결구 표시용).
+    /// 설비 입력 포트 수(inputSlotCount) > 레시피 재료수 일 때 남는 칸에 쓰인다.</summary>
+    public void SetupEmptyPort()
+    {
+        RequiredItemId = 0; RequiredAmount = 0; CurrentAmount = 0;
+        if (labelText != null) labelText.text = "";
+        if (amountText != null) amountText.text = "";
+        if (iconImage != null) iconImage.enabled = false;
+        if (rarityBorder != null) rarityBorder.color = new Color(0f, 0f, 0f, 0f);
+        if (gradeAurora != null) gradeAurora.color = new Color(0f, 0f, 0f, 0f);
+        SetBorderAlpha(0f);
+        var body = GetComponent<Image>(); if (body != null) body.raycastTarget = false;
     }
 
     public void OnPointerEnter(PointerEventData e)

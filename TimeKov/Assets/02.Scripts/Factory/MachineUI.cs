@@ -459,6 +459,8 @@ public class MachineUI : MonoBehaviour
         RefreshRecipeSelectionUI(recipes.Count);
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        // 입력칸 = 설비 입력 포트 수(시트 inputSlotCount, 3x3=3). 레시피 재료수보다 많으면 나머지는 빈 포트로 표시.
+        int inPorts = InputPortCount();
         for (int i = 0; i < recipeDropSlots.Length; i++)
         {
             if (recipeDropSlots[i] == null) continue;
@@ -469,31 +471,45 @@ public class MachineUI : MonoBehaviour
                 // _selectedRecipeIndex 전달 — 재료 드랍 시 해당 레시피로 생산 고정
                 recipeDropSlots[i].Setup(inputs[i].itemId, inputs[i].amount, _machine, inv, _selectedRecipeIndex);
             }
+            else if (i < inPorts)
+            {
+                recipeDropSlots[i].gameObject.SetActive(true);
+                recipeDropSlots[i].SetupEmptyPort();   // 빈 입력 포트(재료 요구 없음 = 벨트 연결구만)
+            }
             else
             {
                 recipeDropSlots[i].gameObject.SetActive(false);
             }
         }
 
-        // 입력 수직 버스: 활성 입력 칸수에 맞춰 길이/위치(슬롯 Y = 246 - i*100, 위 정렬 결정론. 기계 Y=55).
-        if (inputBus != null)
-        {
-            int activeInputs = Mathf.Min(inputs.Length, recipeDropSlots.Length);
-            if (activeInputs <= 1)   // 입력 1개면 가로 레일이 바로 기계로(버스 불필요)
-            {
-                inputBus.gameObject.SetActive(false);
-            }
-            else
-            {
-                // 입력 슬롯이 기계 높이(Y=55)에 가운데정렬(MiddleCenter, 피치 100)이라 버스 길이=100*(N-1), 중심은 빌더 고정(Y=55).
-                inputBus.gameObject.SetActive(true);
-                var rt = (RectTransform)inputBus.transform;
-                rt.sizeDelta = new Vector2(rt.sizeDelta.x, 152f * (activeInputs - 1));   // 슬롯 140 + 간격 12 = 피치 152
-            }
-        }
+        // 입력 포트별 실제 벨트 연결상태 읽기(인덱스로 슬롯과 매핑). UpdateFlowRails 가 미연결 포트 레일을 흐리게.
+        ReadInputPortConnections();
 
         BuildFormula();
         ShowRecipeHintIfQuestActive();
+    }
+
+    // 설비 입력 포트 수(시트 inputSlotCount). 설비 데이터 없으면 최소 1.
+    private int InputPortCount()
+    {
+        if (_machine == null) return 1;
+        var fac = GameDataUtility.GetFacility(_machine.FacilityId);
+        return Mathf.Max(fac != null ? fac.inputSlotCount : 0, 1);
+    }
+
+    // 입력 BuildPort 들의 벨트 연결상태를 등장순서로 _inputPortConnected 에 채운다(열 때/레시피 변경 시 1회).
+    private void ReadInputPortConnections()
+    {
+        for (int i = 0; i < _inputPortConnected.Length; i++) _inputPortConnected[i] = false;
+        if (_machine == null) return;
+        var ports = _machine.GetComponentsInChildren<BuildPort>();
+        int pi = 0;
+        foreach (var p in ports)
+        {
+            if (p == null || p.portType != PortType.Input) continue;
+            if (pi < _inputPortConnected.Length) _inputPortConnected[pi] = p.connectionCount > 0;
+            pi++;
+        }
     }
 
     // ── 현재 생산 공식 스트립 ─────────────────────────────────────
@@ -744,6 +760,8 @@ public class MachineUI : MonoBehaviour
 
     private static readonly Color RailFlowColor = new Color(0.90f, 0.76f, 0.29f, 1f);   // 생산중(노랑=실제 레일색)
     private static readonly Color RailIdleColor = new Color(0.66f, 0.58f, 0.32f, 0.85f);  // 대기(엔필 idle 벨트처럼 또렷한 머스타드 골드)
+    private static readonly Color RailOffColor  = new Color(0.5f, 0.52f, 0.58f, 0.28f);   // 벨트 미연결 포트(흐릿 = 연결 안 됨)
+    private readonly bool[] _inputPortConnected = new bool[8];   // 입력 포트 인덱스별 실제 벨트 연결상태
 
     // 흐름 레일 색 동기화: 활성 입력 슬롯의 "Rail" 자식 + 출력 레일을 생산상태에 맞춰 칠함(생산중=노랑/대기=어둠).
     private void UpdateFlowRails(bool flowing)
@@ -751,21 +769,23 @@ public class MachineUI : MonoBehaviour
         Color c = flowing ? RailFlowColor : RailIdleColor;
         if (recipeDropSlots != null)
         {
-            foreach (var s in recipeDropSlots)
+            for (int idx = 0; idx < recipeDropSlots.Length; idx++)
             {
+                var s = recipeDropSlots[idx];
                 if (s == null || !s.gameObject.activeSelf) continue;
                 var railT = s.transform.Find("Rail");
                 if (railT == null) continue;
-                var img = railT.GetComponent<Image>(); if (img != null) img.color = c;
-                var arrT = railT.Find("RailArrow");
-                if (arrT != null) { var t = arrT.GetComponent<TextMeshProUGUI>(); if (t != null) t.color = c; }
+                // 미연결 포트 레일은 흐리게, 벨트 연결된 포트만 생산상태색(노랑/머스타드).
+                Color rc = (idx < _inputPortConnected.Length && _inputPortConnected[idx]) ? c : RailOffColor;
+                foreach (var im in railT.GetComponentsInChildren<Image>(true)) im.color = rc;
+                foreach (var a in railT.GetComponentsInChildren<TextMeshProUGUI>(true)) a.color = rc;
             }
         }
         if (outputRail != null)
         {
-            outputRail.color = c;
-            var oArr = outputRail.transform.Find("OutputRailArrow");
-            if (oArr != null) { var t = oArr.GetComponent<TextMeshProUGUI>(); if (t != null) t.color = c; }
+            // 출력 레일 = 컨테이너 + 자식 세그먼트(가로/세로/갈고리). 자식 Image/화살표 전부 칠함.
+            foreach (var im in outputRail.GetComponentsInChildren<Image>(true)) im.color = c;
+            foreach (var a in outputRail.GetComponentsInChildren<TextMeshProUGUI>(true)) a.color = c;
         }
         if (inputBus != null) inputBus.color = c;
         if (busToMachine != null)
