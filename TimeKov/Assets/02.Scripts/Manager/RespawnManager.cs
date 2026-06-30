@@ -28,9 +28,13 @@ public class RespawnManager : MonoBehaviour
     // OnDead 이벤트가 짧은 시간에 여러 번 호출돼도 코루틴이 하나만 돌도록 보장
     private bool _isRespawning = false;
 
+    // 사망 시 캐릭터를 서서히 사라지게 하는 페이드(있으면 사용). Player 에 부착돼 있을 때만.
+    private PlayerDeathFade _deathFade;
+
     void Start()
     {
         _player.Stat.OnDead += HandleDead;
+        _deathFade = _player.GetComponent<PlayerDeathFade>();
 
         // deathOverlay 미연결 시 씬에서 자동 탐색
         if (deathOverlay == null)
@@ -72,9 +76,10 @@ public class RespawnManager : MonoBehaviour
         // 죽는 애니를 덮어써 가끔 사망 모션이 안 나오던 문제 방지 (#11)
         _player.Skill?.Interrupt();
 
-        // 1. 죽는 애니메이션 + 이동 잠금
+        // 1. 죽는 애니메이션 + 이동 잠금 + 서서히 사라지기(페이드 아웃 + 작은 이펙트)
         _player.Anim.PlayDie();
         _player.Movement.LockMovement(true);
+        _deathFade?.FadeOut();
 
         // 2. 사망 즉시 아이템 드롭.
         //    예전엔 튜토리얼 진행 중(IsTutorialActive)엔 드롭을 막았으나, 그게 튜토리얼
@@ -122,6 +127,9 @@ public class RespawnManager : MonoBehaviour
 
         // 5. 애니메이션 리셋 (Base Layer → Blend Tree, Action Layer → Empty)
         _player.Anim.ResetToIdle();
+
+        // 페이드로 사라졌던 캐릭터를 다시 보이게 복구(렌더러 on + 원본 머티리얼).
+        _deathFade?.RestoreImmediate();
 
         // 5. 이동 잠금 해제
         _player.Movement.LockMovement(false);
