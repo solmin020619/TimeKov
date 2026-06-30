@@ -232,8 +232,19 @@ public static class MachineUIBuilder
         var bs = blur.Common.blurInstanceSettings;
         if (bs != null)
         {
-            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.iterations = 5; sec.sampleDistance = 1.5f; }
-            bs.vibrancy = 0f; bs.brightness = 0.02f; bs.contrast = 0f; bs.referenceResolution = 1080;
+            // 데모 "Diverse Blurs" 3번 타일(종욱이 고른 엔필 "번짐" 룩) 설정을 1:1 복제.
+            // [진짜 차이] blur 패스 알고리즘 = Gaussian(3+3 Taps). 우리 기본 4-Tap Cross 는 듬성해서 번짐이 안 남.
+            //   데모는 UIBlur 컴포넌트지만 블러 연산(downscale/blur 섹션)은 BlurredImage 와 같은 함수라 설정만 같으면 룩 동일.
+            if (bs.downscaleSections != null) foreach (var sec in bs.downscaleSections) { sec.SetAlgorithm(BlurAlgorithm.Tap5Star); sec.iterations = 2; sec.sampleDistance = 1.5f; }
+            if (bs.blurSections != null) foreach (var sec in bs.blurSections) { sec.SetAlgorithm(BlurAlgorithm.Gaussian); sec.horizontalSamplesPerSide = 1; sec.verticalSamplesPerSide = 1; sec.iterations = 4; sec.sampleDistance = 1.5f; }
+            bs.blurAdditionalDistancePerIteration = 1f;
+            // ★referenceResolution = 블러 내부텍스처 크기 = refRes/화면높이 x 패널높이. 우리 패널이 데모타일(250x280)보다
+            //   2~3배 커서 같은 설정도 묽게 퍼짐 -> refRes 낮춰 텍스처를 작게(=데모처럼 빽빽한 블러). 1080->350.
+            //   (옛 "refRes 무효"는 삭제된 MachineBlurTuner 가 매프레임 540 으로 덮어써서였음. 이제 유효.)
+            bs.referenceResolution = 350;
+            bs.hqResample = false;
+            bs.ditherStrength = 0.25f;
+            bs.vibrancy = 1f; bs.brightness = 0f; bs.contrast = 0f;
         }
         blur.Common.ValidateBlur();
 
