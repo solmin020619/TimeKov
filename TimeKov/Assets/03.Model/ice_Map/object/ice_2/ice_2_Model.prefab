@@ -61,6 +61,10 @@ PrefabInstance:
       value: -90
       objectReference: {fileID: 0}
     - target: {fileID: -7511558181221131132, guid: 74e7fd6e92a23c241ab12adcf84340ea, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 74e7fd6e92a23c241ab12adcf84340ea, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: eb027c242b8032641a65256be3f1189a, type: 2}
@@ -68,8 +72,42 @@ PrefabInstance:
       propertyPath: m_Name
       value: ice_2_Model
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 74e7fd6e92a23c241ab12adcf84340ea, type: 3}
+      propertyPath: m_Layer
+      value: 7
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 74e7fd6e92a23c241ab12adcf84340ea, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6838789801140600216}
   m_SourcePrefab: {fileID: 100100000, guid: 74e7fd6e92a23c241ab12adcf84340ea, type: 3}
+--- !u!1 &7016285822465934310 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 74e7fd6e92a23c241ab12adcf84340ea, type: 3}
+  m_PrefabInstance: {fileID: 7899229195660443319}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &6838789801140600216
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7016285822465934310}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -2907462421268956602, guid: 74e7fd6e92a23c241ab12adcf84340ea, type: 3}
