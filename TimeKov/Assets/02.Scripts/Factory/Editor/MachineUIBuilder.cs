@@ -249,8 +249,10 @@ public static class MachineUIBuilder
         var bgGrad = bgGo.AddComponent<UIFrostGradient>();
         // ★알파 확 낮춤 = 이게 높으면(0.6/0.72) 블러를 회색으로 덮어 죽인다(블러 안보임의 진범).
         //   블러가 비치게 낮은 톤만. (인벤도 0.26/0.52). 톤 부족하면 살짝 올림.
-        bgGrad.topColor = RGBA(202, 207, 214, 0.18f); bgGrad.bottomColor = RGBA(88, 94, 106, 0.4f);
-        bgGrad.topBias = 3f;   // 밝음 상단 ~25% 집중(낮출수록 더 퍼짐). 본문은 미디엄 그레이.
+        // 종욱 라이브튜닝 확정: top 순백(#FFFFFF) 알파 0.9 = 강한 frosted 화이트 / bottom 깊은 쿨 블랙(#12141A) 0.85.
+        //   중간은 UIFrostGradient 자동 보간. 강한 블러 위로 톤이 읽히게 알파 세게.
+        bgGrad.topColor = RGBA(255, 255, 255, 0.9f); bgGrad.bottomColor = RGBA(16, 18, 24, 0.85f);
+        bgGrad.topBias = 3f;   // 밝음 상단 ~30%로 퍼뜨림(높을수록 위로 쏠림).
 
         // (옛 밝은 BodyFrost/HeaderFrost 층 제거 = 어두운 글라스로 전환. 헤더/푸터는 divider 선으로만 구분.)
     }
