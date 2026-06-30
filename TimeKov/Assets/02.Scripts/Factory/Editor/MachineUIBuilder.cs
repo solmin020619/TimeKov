@@ -41,9 +41,12 @@ public static class MachineUIBuilder
     static Color YellowBd   => Hex("b89a2e");
     static Color YellowTx   => Hex("4a3c0a");
     static Color SlotBody   => RGBA(26, 34, 46, 0.36f);     // 함몰 슬롯 몸체(쿨)
+    static Color SlotBodySolid => RGBA(20, 26, 38, 0.9f);   // 불투명 슬롯 몸체 = 빈 칸도 또렷한 박스로 보임(인벤처럼). 연료 안보이던 문제 해결.
+    static Color SlotEdge   => RGBA(150, 178, 205, 0.5f);   // 슬롯 중립 테두리(등급테두리 없는 연료용)
+    static Color RailDim    => RGBA(170, 148, 82, 0.8f);    // 흐름 레일 비활성(엔필 idle 벨트처럼 또렷한 머스타드 골드). 활성은 더 밝은 Yellow.
 
     // ── 레이아웃 상수 (패널 = 스트레치 near-fullscreen, 영역은 패널 가장자리 기준 앵커) ──
-    const float HeaderH = 64f, FooterH = 90f;   // 푸터=엔필식 액션바(공식 스트립+버튼+얇은 진행선)
+    const float HeaderH = 64f, FooterH = 150f;  // 푸터=생산영역 하단 밴드(연료 140 슬롯 + 액션버튼 + 얇은 진행선). 가방 아래엔 안 깔림(가방이 풀높이).
     const float SidePad = 26f;       // 패널 안쪽 여백
     const float Gap = 20f;           // 영역 간 간격
     const float BagWidth = 540f;     // 좌 가방 칼럼 고정폭(나머지는 생산부가 채움)
@@ -184,7 +187,7 @@ public static class MachineUIBuilder
         var vdRt = vdiv.GetComponent<RectTransform>();
         vdRt.anchorMin = new Vector2(0, 0); vdRt.anchorMax = new Vector2(0, 1); vdRt.pivot = new Vector2(0.5f, 0.5f);
         float vx = SidePad + BagWidth + Gap * 0.5f;
-        vdRt.offsetMin = new Vector2(vx - 0.75f, FooterH + 8);
+        vdRt.offsetMin = new Vector2(vx - 0.75f, 30);   // 가방 풀높이라 divider 도 하단까지(푸터 밴드는 우측 생산영역에만)
         vdRt.offsetMax = new Vector2(vx + 0.75f, -(HeaderH + 8));
         vdiv.GetComponent<Image>().raycastTarget = false;
 
@@ -217,7 +220,11 @@ public static class MachineUIBuilder
         var blurGo = new GameObject("PanelBlur", typeof(RectTransform), typeof(CanvasRenderer), typeof(UIBlur));
         blurGo.transform.SetParent(prt, false);
         var blRt = blurGo.GetComponent<RectTransform>();
-        blRt.anchorMin = Vector2.zero; blRt.anchorMax = Vector2.one; blRt.offsetMin = Vector2.zero; blRt.offsetMax = Vector2.zero;
+        // 종욱 제안 = 둥근 코너: 블러를 코너 반경만큼 안쪽으로 인셋 -> 직사각 모서리가 둥근 그래디언트(Mask 클립) 뒤로 숨음.
+        //   가장자리 ~16px는 블러 안 먹지만 그래디언트가 꽤 불투명하게 덮어서 안 보임.
+        const float blurInset = 16f;
+        blRt.anchorMin = Vector2.zero; blRt.anchorMax = Vector2.one;
+        blRt.offsetMin = new Vector2(blurInset, blurInset); blRt.offsetMax = new Vector2(-blurInset, -blurInset);
         var blur = blurGo.GetComponent<UIBlur>();
         blur.Common.blurReferencesFrom = UIBlurCommon.BlurReferencesFrom.Self;
         blur.Common.cameraReference = null;
@@ -415,9 +422,9 @@ public static class MachineUIBuilder
     // ═════════════════════════════════════════════════════════════════
     static void BuildBag(RectTransform prt, SerializedObject so)
     {
-        // 좌 가방 칼럼: 좌측 고정폭(BagWidth), 헤더~푸터 세로 스트레치.
+        // 좌 가방 칼럼: 좌측 고정폭(BagWidth). 헤더~하단 가까이까지 풀높이(엔필식: 가방은 끝까지, 푸터 밴드는 우측 생산영역 아래에만).
         var col = Region("BagColumn", prt, new Vector2(0, 0), new Vector2(0, 1),
-            new Vector2(SidePad, FooterH + Gap), new Vector2(SidePad + BagWidth, -(HeaderH + Gap)));
+            new Vector2(SidePad, 28), new Vector2(SidePad + BagWidth, -(HeaderH + Gap)));
         var ct = col.transform;
 
         // ── 가방/창고 탭 + 용량 (칼럼 상단). 런타임 MachineUI 가 활성탭 알파 토글. ──
@@ -532,50 +539,65 @@ public static class MachineUIBuilder
         plate.GetComponent<Image>().raycastTarget = false;
 
         // 가동 글로우 = 가공 중 기계 뒤 노란빛(런타임 알파 펄스). 기본 알파 0. 기계보다 먼저 생성 = 뒤.
-        var glow = MakeImage("MachineGlow", pt, new Vector2(520, 520), new Vector2(0, 55f), new Color(Yellow.r, Yellow.g, Yellow.b, 0f));
+        var glow = MakeImage("MachineGlow", pt, new Vector2(820, 820), new Vector2(0, 0f), new Color(Yellow.r, Yellow.g, Yellow.b, 0f));
         var glowImg = glow.GetComponent<Image>(); glowImg.sprite = RoundedSprite(); glowImg.type = Image.Type.Sliced; glowImg.raycastTarget = false;
         SetRef(so, "machineGlow", glowImg);
 
         // 설비 도면 = 퀵슬롯 설비 모델 렌더(500x500 투명, facilityId 1~7) 재사용.
         // 런타임 OpenFor 가 FacilityIconDatabase 로 sprite 세팅 -> enabled.
-        var fac = CenterIcon("FacilityImage", pt, 440f);
-        var facRt = fac.rectTransform; facRt.anchorMin = facRt.anchorMax = new Vector2(0.5f, 0.5f); facRt.anchoredPosition = new Vector2(0, 55f);
+        var fac = CenterIcon("FacilityImage", pt, 720f);   // 기계 PNG 크게(생산영역 채우게). 슬롯/레일은 별도 앵커라 PNG 키워도 안 움직임.
+        var facRt = fac.rectTransform; facRt.anchorMin = facRt.anchorMax = new Vector2(0.5f, 0.5f); facRt.anchoredPosition = new Vector2(0, 0f);
         fac.color = Color.white; fac.enabled = false;   // sprite 세팅 전엔 숨김(흰 박스 방지)
         SetRef(so, "facilityImage", fac);
 
+        // ── 공정 흐름 레일 컨테이너 (런타임 BuildFlowRails 가 설비 포트수/레시피에 맞춰 채움). ──
+        //   기계 PNG 뒤가 아니라 앞·슬롯 뒤(여기 생성 순서). 0크기 = 생산영역 중심 기준 좌표.
+        var flowRails = MakeEmpty("FlowRails", pt, Vector2.zero, Vector2.zero);
+        var frRt = flowRails.GetComponent<RectTransform>();
+        frRt.anchorMin = frRt.anchorMax = frRt.pivot = new Vector2(0.5f, 0.5f);
+        frRt.sizeDelta = Vector2.zero; frRt.anchoredPosition = Vector2.zero;
+        SetRef(so, "flowRailsRoot", frRt);
+
         var slotFrame = LoadSlotFrame();
 
-        // ── 레시피 네비 (상단 중앙) ──
-        var nav = MakeEmpty("RecipeNav", pt, new Vector2(560, 40), Vector2.zero);
+        // ── 레시피 네비 (상단 중앙). 화살표 좌우 대칭 + index/name 은 HLG 로 정중앙 정렬(이름 길이 무관). ──
+        var nav = MakeEmpty("RecipeNav", pt, new Vector2(600, 40), Vector2.zero);
         var navRt = nav.GetComponent<RectTransform>();
         navRt.anchorMin = navRt.anchorMax = new Vector2(0.5f, 1); navRt.pivot = new Vector2(0.5f, 1); navRt.anchoredPosition = new Vector2(0, -6);
-        var prevBtn = MakeMiniButton("RecipePrev", nav.transform, "<", new Vector2(-220, 0), 40f);
+        var prevBtn = MakeMiniButton("RecipePrev", nav.transform, "<", new Vector2(-250, 0), 40f);
         SetRef(so, "recipePrevBtn", prevBtn);
-        var idx = MakeTMP("RecipeIndex", nav.transform, "", 18, TxtDark, TextAlignmentOptions.Center);
-        idx.fontStyle = FontStyles.Bold; idx.rectTransform.sizeDelta = new Vector2(90, 30); idx.rectTransform.anchoredPosition = new Vector2(-150, 0);
-        SetRef(so, "recipeIndexText", idx);
-        var nm = MakeTMP("RecipeName", nav.transform, "", 18, TxtDark, TextAlignmentOptions.Left);
-        nm.rectTransform.sizeDelta = new Vector2(240, 30); nm.rectTransform.anchoredPosition = new Vector2(40, 0);
-        SetRef(so, "recipeNameText", nm);
-        var nextBtn = MakeMiniButton("RecipeNext", nav.transform, ">", new Vector2(230, 0), 40f);
+        var nextBtn = MakeMiniButton("RecipeNext", nav.transform, ">", new Vector2(250, 0), 40f);
         SetRef(so, "recipeNextBtn", nextBtn);
 
+        // index + name 을 가운데 컨테이너(HLG)로 묶어 화살표 사이 정중앙. childControl + name 의 ContentSizeFitter 라 이름 길이 달라도 중앙 유지.
+        var navCenter = MakeEmpty("RecipeNavCenter", nav.transform, new Vector2(420, 36), Vector2.zero);
+        var ncHlg = navCenter.AddComponent<HorizontalLayoutGroup>();
+        ncHlg.childControlWidth = true; ncHlg.childControlHeight = true;
+        ncHlg.childForceExpandWidth = false; ncHlg.childForceExpandHeight = false;
+        ncHlg.spacing = 14; ncHlg.childAlignment = TextAnchor.MiddleCenter;
+        var idx = MakeTMP("RecipeIndex", navCenter.transform, "", 18, TxtDark, TextAlignmentOptions.Center);
+        idx.fontStyle = FontStyles.Bold;
+        var idxLE = idx.gameObject.AddComponent<LayoutElement>(); idxLE.minWidth = 46f; idxLE.preferredHeight = 30f;
+        SetRef(so, "recipeIndexText", idx);
+        var nm = MakeTMP("RecipeName", navCenter.transform, "", 18, TxtDark, TextAlignmentOptions.Left);
+        var nmFit = nm.gameObject.AddComponent<ContentSizeFitter>();
+        nmFit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize; nmFit.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+        var nmLE = nm.gameObject.AddComponent<LayoutElement>(); nmLE.preferredHeight = 30f;
+        SetRef(so, "recipeNameText", nm);
+
         // ── 재료 슬롯 — 기계 왼쪽 가까이 세로 스택(클러스터) ──
-        var capMat = MakeTMP("CapMaterial", pt, "재료", 15, TxtSub, TextAlignmentOptions.Center);
-        var cmRt = capMat.rectTransform; cmRt.anchorMin = cmRt.anchorMax = new Vector2(0.5f, 0.5f); cmRt.pivot = new Vector2(0.5f, 0.5f);
-        cmRt.sizeDelta = new Vector2(110, 22); cmRt.anchoredPosition = new Vector2(-330, 305);
-        CaptionBadge(pt, cmRt);
-        var inputArea = MakeEmpty("InputArea", pt, new Vector2(110, 400), Vector2.zero);
+        // (재료/결과 라벨 제거 - 레일로 흐름 보이면 자명. 종욱 지시.)
+        var inputArea = MakeEmpty("InputArea", pt, new Vector2(140, 400), Vector2.zero);
         var iaRt = inputArea.GetComponent<RectTransform>();
-        iaRt.anchorMin = iaRt.anchorMax = new Vector2(0.5f, 0.5f); iaRt.pivot = new Vector2(0.5f, 0.5f); iaRt.anchoredPosition = new Vector2(-330, 90);
+        iaRt.anchorMin = iaRt.anchorMax = new Vector2(0.5f, 0.5f); iaRt.pivot = new Vector2(0.5f, 0.5f); iaRt.anchoredPosition = new Vector2(-155, 0);   // 기계 왼쪽에 얹음(PNG 위)
         var vlg = inputArea.AddComponent<VerticalLayoutGroup>();
         vlg.childControlWidth = false; vlg.childControlHeight = false;
         vlg.childForceExpandWidth = false; vlg.childForceExpandHeight = false;
-        vlg.spacing = 12; vlg.childAlignment = TextAnchor.UpperCenter;
+        vlg.spacing = 12; vlg.childAlignment = TextAnchor.MiddleCenter;   // 기계 높이에 가운데정렬
 
         var recipeSlots = new System.Collections.Generic.List<RecipeDropSlot>();
-        for (int i = 0; i < 4; i++)
-            recipeSlots.Add(MakeRecipeSlot(inputArea.transform, 88f, slotFrame));
+        for (int i = 0; i < 5; i++)   // 설비 입력 포트 최대 5개(5x5). 런타임이 inputSlotCount 만큼만 활성.
+            recipeSlots.Add(MakeRecipeSlot(inputArea.transform, 140f, slotFrame));
         var arr = so.FindProperty("recipeDropSlots");
         if (arr != null)
         {
@@ -584,21 +606,9 @@ public static class MachineUIBuilder
                 arr.GetArrayElementAtIndex(i).objectReferenceValue = recipeSlots[i];
         }
 
-        // 입력 -> 기계 흐름 표시(노란 셰브론). 입력 클러스터 우측, 기계 입구 방향.
-        var inFlow = MakeTMP("InputFlow", pt, ">", 30, Yellow, TextAlignmentOptions.Center);
-        inFlow.fontStyle = FontStyles.Bold;
-        var ifRt = inFlow.rectTransform; ifRt.anchorMin = ifRt.anchorMax = new Vector2(0.5f, 0.5f); ifRt.pivot = new Vector2(0.5f, 0.5f);
-        ifRt.sizeDelta = new Vector2(40, 40); ifRt.anchoredPosition = new Vector2(-250, 55);
+        // (중앙 화살표 + 입력/출력 레일 = 런타임 BuildFlowRails 가 그림. 빌더는 컨테이너만.)
 
-        // ── 연료 슬롯 (재료 스택 아래) ──
-        var capFuel = MakeTMP("CapFuel", pt, "연료", 15, TxtSub, TextAlignmentOptions.Center);
-        var cfRt = capFuel.rectTransform; cfRt.anchorMin = cfRt.anchorMax = new Vector2(0.5f, 0.5f); cfRt.pivot = new Vector2(0.5f, 0.5f);
-        cfRt.sizeDelta = new Vector2(110, 22); cfRt.anchoredPosition = new Vector2(-330, -130);
-        CaptionBadge(pt, cfRt);
-        var fuel = MakeFuelSlot(pt, 88f, slotFrame);
-        var fRt = fuel.GetComponent<RectTransform>();
-        fRt.anchorMin = fRt.anchorMax = new Vector2(0.5f, 0.5f); fRt.pivot = new Vector2(0.5f, 0.5f); fRt.anchoredPosition = new Vector2(-330, -200);
-        SetRef(so, "fuelDropSlot", fuel);
+        // (연료 슬롯은 BuildFooter 로 이동 = 옛 "현재 생산 공식 스트립" 자리.)
 
         // ── 진행 게이지 (중앙 가로 바) ──
         var gauge = MakeGauge(pt, new Vector2(380, 28), Vector2.zero);
@@ -614,19 +624,18 @@ public static class MachineUIBuilder
         SetRef(so, "statusText", status);
 
         // ── 출력 슬롯 (기계 오른쪽 가까이, 추가 출력은 런타임이 같은 부모에 stack) ──
-        var capOut = MakeTMP("CapOutput", pt, "결과", 15, TxtSub, TextAlignmentOptions.Center);
-        var coRt = capOut.rectTransform; coRt.anchorMin = coRt.anchorMax = new Vector2(0.5f, 0.5f); coRt.pivot = new Vector2(0.5f, 0.5f);
-        coRt.sizeDelta = new Vector2(150, 22); coRt.anchoredPosition = new Vector2(345, 178);
-        CaptionBadge(pt, coRt);
+        // (결과 라벨 제거)
         var outputArea = MakeEmpty("OutputArea", pt, new Vector2(190, 180), Vector2.zero);
         var oaRt = outputArea.GetComponent<RectTransform>();
-        oaRt.anchorMin = oaRt.anchorMax = new Vector2(0.5f, 0.5f); oaRt.pivot = new Vector2(0.5f, 0.5f); oaRt.anchoredPosition = new Vector2(345, 70);
+        oaRt.anchorMin = oaRt.anchorMax = new Vector2(0.5f, 0.5f); oaRt.pivot = new Vector2(0.5f, 0.5f); oaRt.anchoredPosition = new Vector2(155, 0);   // 기계 오른쪽에 얹음
         var hlg = outputArea.AddComponent<HorizontalLayoutGroup>();
         hlg.childControlWidth = false; hlg.childControlHeight = false;
         hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
         hlg.spacing = 8; hlg.childAlignment = TextAnchor.MiddleCenter;
-        var output = MakeOutputSlot(outputArea.transform, new Vector2(150, 170), slotFrame);
+        var output = MakeOutputSlot(outputArea.transform, new Vector2(140, 140), slotFrame);   // 입력칸과 동일 크기(엔필: 칸 크기 전부 같음)
         SetRef(so, "outputSlot", output);
+
+        // (출력 흐름 레일 = 런타임 BuildFlowRails 가 그림.)
     }
 
     // ═════════════════════════════════════════════════════════════════
@@ -635,37 +644,41 @@ public static class MachineUIBuilder
     // ═════════════════════════════════════════════════════════════════
     static void BuildFooter(RectTransform prt, SerializedObject so)
     {
-        float rowY = 52f;   // 액션 행 중심(하단 가장자리 기준)
+        // 푸터 밴드 = 생산영역(우측) 하단에만. 가방칼럼 아래엔 안 깔림(가방이 풀높이 = 빈칸 없음).
+        float prodLeft = SidePad + BagWidth + Gap;   // 생산영역 좌측 시작 x(패널 좌측 기준)
 
-        // 하단 액션바 구분 = 같은 면 위 divider 한 줄(별도 패널 아님).
-        var footDiv = MakeImage("FooterDivider", prt, Vector2.zero, Vector2.zero, HeaderHair);
-        var fdRt = footDiv.GetComponent<RectTransform>();
-        fdRt.anchorMin = new Vector2(0, 0); fdRt.anchorMax = new Vector2(1, 0); fdRt.pivot = new Vector2(0.5f, 0);
-        fdRt.offsetMin = new Vector2(3, FooterH); fdRt.offsetMax = new Vector2(-3, FooterH + 1.5f);
-        footDiv.GetComponent<Image>().raycastTarget = false;
-
-        // 진행 바 = 맨 아래 얇은 전폭 선(노란 fill + 노브).
+        // 진행 바 = 맨 아래 얇은 선(생산영역 폭만큼). 노란 fill + 노브.
         var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 10));
         var brRt = bar.GetComponent<RectTransform>();
         brRt.anchorMin = new Vector2(0, 0); brRt.anchorMax = new Vector2(1, 0); brRt.pivot = new Vector2(0.5f, 0);
-        brRt.offsetMin = new Vector2(SidePad, 12); brRt.offsetMax = new Vector2(-SidePad, 22);
+        brRt.offsetMin = new Vector2(prodLeft, 12); brRt.offsetMax = new Vector2(-SidePad, 22);
         SetRef(so, "progressBar", bar);
         SetRef(so, "progressKnob", bar.transform.Find("Knob") as RectTransform);
 
-        // 재료 회수 (하단 좌, 보조 작게)
-        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(124, 38), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 15);
-        var tiRt = takeIn.GetComponent<RectTransform>();
-        tiRt.anchorMin = tiRt.anchorMax = new Vector2(0, 0); tiRt.pivot = new Vector2(0, 0.5f); tiRt.anchoredPosition = new Vector2(SidePad, rowY);
-        SetRef(so, "takeInputsBtn", takeIn);
+        // 연료 슬롯 (하단 좌 = 생산영역 시작점). 재료칸과 동일 140 크기/모양 = 복붙, 로직만 연료.
+        var fuelFrame = LoadSlotFrame();
+        var fuel = MakeFuelSlot(prt, 140f, fuelFrame);
+        var fRt = fuel.GetComponent<RectTransform>();
+        fRt.anchorMin = fRt.anchorMax = new Vector2(0, 0); fRt.pivot = new Vector2(0, 0);
+        fRt.anchoredPosition = new Vector2(prodLeft + 6f, 28f);
+        SetRef(so, "fuelDropSlot", fuel);
 
-        // 현재 생산 공식 스트립 (재료회수 우측, 딱 그 크기 개별 패널)
-        BuildRecipeFormula(prt, so, new Vector2(SidePad + 124 + 12, rowY));
+        // "연료" 캡션 = 슬롯 위 작은 라벨.
+        var capFuel = MakeTMP("CapFuel", prt, "연료", 14, TxtSub, TextAlignmentOptions.Center);
+        var cfRt = capFuel.rectTransform; cfRt.anchorMin = cfRt.anchorMax = new Vector2(0, 0); cfRt.pivot = new Vector2(0, 0);
+        cfRt.sizeDelta = new Vector2(140, 20); cfRt.anchoredPosition = new Vector2(prodLeft + 6f, 170f);
 
-        // 모두 받기 (하단 우, 노랑 크게)
-        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(240, 52), Yellow, YellowBd, YellowTx, 21);
+        // 액션 버튼 = 우측(밴드 세로 중앙). 모두받기(노랑 크게) + 그 왼쪽 재료회수.
+        float rowY = 86f;
+        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(270, 64), Yellow, YellowBd, YellowTx, 22);
         var toRt = takeOut.GetComponent<RectTransform>();
         toRt.anchorMin = toRt.anchorMax = new Vector2(1, 0); toRt.pivot = new Vector2(1, 0.5f); toRt.anchoredPosition = new Vector2(-SidePad, rowY);
         SetRef(so, "takeOutputBtn", takeOut);
+
+        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(160, 54), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 16);
+        var tiRt = takeIn.GetComponent<RectTransform>();
+        tiRt.anchorMin = tiRt.anchorMax = new Vector2(1, 0); tiRt.pivot = new Vector2(1, 0.5f); tiRt.anchoredPosition = new Vector2(-(SidePad + 270 + 16), rowY);
+        SetRef(so, "takeInputsBtn", takeIn);
     }
 
     // 현재 생산 공식 = 작은 개별 패널. [상태 라벨][재료아이콘 > 결과아이콘] 을 런타임이 채운다.
@@ -705,18 +718,22 @@ public static class MachineUIBuilder
         var go = MakeEmpty("RecipeSlot", parent, new Vector2(size, size), Vector2.zero);
         var rds = go.AddComponent<RecipeDropSlot>();          // RequireComponent(Image) -> 몸체
         var body = go.GetComponent<Image>();
-        body.sprite = RoundedSprite(); body.type = Image.Type.Sliced; body.color = SlotBody; body.raycastTarget = true;
+        body.sprite = RoundedSprite(); body.type = Image.Type.Sliced; body.color = SlotBodySolid; body.raycastTarget = true;
+        AddOutline(go, SlotEdge, new Vector2(1f, -1f));   // 깔끔한 얇은 테두리(옛 장식 프레임 hl_slot_frame 제거 = "더러움" 해결)
 
-        var rarity = FillImage("Rarity", go.transform, frame, Image.Type.Sliced, new Color(1, 1, 1, 0f));
+        var aurora = AddGradeAurora(go.transform, size * 0.34f);   // 하단 등급 오로라(인벤과 동일, 아이콘 뒤)
+        var glow = FillImage("Glow", go.transform, RoundedSprite(), Image.Type.Sliced, new Color(0.37f, 0.77f, 1f, 0f));   // 드래그 호버 글로우(라운드 오버레이, 아이콘 뒤)
         var icon = CenterIcon("Icon", go.transform, size * 0.62f);
-        var glow = FillImage("Glow", go.transform, frame, Image.Type.Sliced, new Color(0.47f, 0.78f, 1f, 0f));
         var amount = MakeTMP("Amount", go.transform, "0/0", 16, Color.white, TextAlignmentOptions.BottomRight);
         BadgeRectBottom(amount.rectTransform); amount.fontStyle = FontStyles.Bold;
         var label = MakeTMP("Label", go.transform, "", 14, Color.white, TextAlignmentOptions.Center);
         FillRect(label.rectTransform);
 
+        // (슬롯별 레일 제거 = 포트/버스/레일 구조는 런타임 MachineUI.BuildFlowRails 가 별도로 그린다.)
+
         var wso = new SerializedObject(rds);
-        SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", glow); SetRef(wso, "rarityBorder", rarity);
+        SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", glow);
+        SetRef(wso, "gradeAurora", aurora);
         SetRef(wso, "amountText", amount); SetRef(wso, "labelText", label);
         wso.ApplyModifiedProperties();
         return rds;
@@ -727,10 +744,12 @@ public static class MachineUIBuilder
         var go = MakeEmpty("FuelSlot", parent, new Vector2(size, size), Vector2.zero);
         var fds = go.AddComponent<FuelDropSlot>();            // RequireComponent(Image) -> 몸체
         var body = go.GetComponent<Image>();
-        body.sprite = RoundedSprite(); body.type = Image.Type.Sliced; body.color = SlotBody; body.raycastTarget = true;
+        body.sprite = RoundedSprite(); body.type = Image.Type.Sliced; body.color = SlotBodySolid; body.raycastTarget = true;
+        AddOutline(go, SlotEdge, new Vector2(1f, -1f));   // 깔끔한 얇은 테두리(장식 프레임 제거 = "더러움" 해결). 등급/연료색은 하단 오로라가 담당.
 
-        var border = FillImage("Border", go.transform, frame, Image.Type.Sliced, new Color(1, 1, 1, 0f));
-        var icon = CenterIcon("Icon", go.transform, size * 0.58f);
+        var aurora = AddGradeAurora(go.transform, size * 0.34f);   // 하단 연료색 오로라(브론즈)
+        var border = FillImage("Border", go.transform, RoundedSprite(), Image.Type.Sliced, new Color(1, 1, 1, 0f));   // 호버 글로우(라운드 오버레이)
+        var icon = CenterIcon("Icon", go.transform, size * 0.62f);   // 재료칸(MakeRecipeSlot)과 동일 비율 = 복붙 느낌
         var amount = MakeTMP("Amount", go.transform, "", 16, Color.white, TextAlignmentOptions.TopRight);
         BadgeRectTop(amount.rectTransform); amount.fontStyle = FontStyles.Bold;
         var time = MakeTMP("Time", go.transform, "", 14, Hex("e6c24a"), TextAlignmentOptions.Bottom);
@@ -755,7 +774,7 @@ public static class MachineUIBuilder
         var wso = new SerializedObject(fds);
         SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", border);
         SetRef(wso, "amountText", amount); SetRef(wso, "timeText", time); SetRef(wso, "labelText", label);
-        SetRef(wso, "fuelGauge", gimg);
+        SetRef(wso, "fuelGauge", gimg); SetRef(wso, "gradeAurora", aurora);
         // 빈 슬롯 실루엣을 순흑 -> 부드러운 반투명 슬레이트(밝은 UI에서 "낙서"처럼 튀던 것 완화).
         var silhProp = wso.FindProperty("emptySilhouetteColor");
         if (silhProp != null) silhProp.colorValue = RGBA(40, 52, 68, 0.5f);
@@ -768,9 +787,10 @@ public static class MachineUIBuilder
         var go = MakeEmpty("OutputSlot", parent, size, Vector2.zero);
         var msw = go.AddComponent<MachineSlotWidget>();       // RequireComponent 없음 -> Image 수동
         var body = go.AddComponent<Image>();
-        body.sprite = RoundedSprite(); body.type = Image.Type.Sliced; body.color = RGBA(30, 40, 54, 0.42f); body.raycastTarget = true;
+        body.sprite = RoundedSprite(); body.type = Image.Type.Sliced; body.color = SlotBodySolid; body.raycastTarget = true;
+        AddOutline(go, SlotEdge, new Vector2(1f, -1f));   // 깔끔한 얇은 테두리(장식 프레임 제거)
 
-        var rarity = FillImage("Rarity", go.transform, frame, Image.Type.Sliced, new Color(1, 1, 1, 0f));
+        var aurora = AddGradeAurora(go.transform, size.x * 0.34f);   // 하단 등급 오로라(인벤과 동일)
         var icon = CenterIcon("Icon", go.transform, size.x * 0.56f);
         icon.rectTransform.anchoredPosition = new Vector2(0, 14f);
         var nameTx = MakeTMP("Name", go.transform, "", 15, Color.white, TextAlignmentOptions.Center);
@@ -781,7 +801,8 @@ public static class MachineUIBuilder
         BadgeRectTop(amount.rectTransform); amount.fontStyle = FontStyles.Bold;
 
         var wso = new SerializedObject(msw);
-        SetRef(wso, "iconImage", icon); SetRef(wso, "rarityBorder", rarity);
+        SetRef(wso, "iconImage", icon);
+        SetRef(wso, "gradeAurora", aurora);
         SetRef(wso, "itemNameText", nameTx); SetRef(wso, "amountText", amount);
         wso.ApplyModifiedProperties();
         return msw;
@@ -925,6 +946,20 @@ public static class MachineUIBuilder
         var go = MakeImage(name, parent, new Vector2(size, size), Vector2.zero, Color.white);
         var img = go.GetComponent<Image>();
         img.raycastTarget = false; img.preserveAspect = true;
+        return img;
+    }
+
+    // 등급 오로라 = 인벤 슬롯과 동일(하단서 위로 번지는 그라데이션). 색은 런타임 위젯이 등급/연료색으로 Image.color 틴트.
+    //   UIFrostGradient: 아래 흰 1 -> 위 투명 (Image.color 에 곱해짐). 칸 아래에 깔리는 "무지개" 글로우.
+    static Image AddGradeAurora(Transform slot, float height)
+    {
+        var go = new GameObject("GradeAurora", typeof(RectTransform), typeof(Image), typeof(UIFrostGradient));
+        go.transform.SetParent(slot, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(1, 0); rt.pivot = new Vector2(0.5f, 0);
+        rt.sizeDelta = new Vector2(0, height); rt.anchoredPosition = new Vector2(0, 6f);
+        var img = go.GetComponent<Image>(); img.sprite = null; img.color = new Color(1, 1, 1, 0f); img.raycastTarget = false;
+        var grad = go.GetComponent<UIFrostGradient>(); grad.topColor = new Color(1, 1, 1, 0f); grad.bottomColor = new Color(1, 1, 1, 1f);
         return img;
     }
 

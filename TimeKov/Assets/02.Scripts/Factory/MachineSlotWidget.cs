@@ -18,6 +18,7 @@ namespace TIMEKOV.Factory
     {
         [SerializeField] private Image iconImage;
         [SerializeField] private Image rarityBorder;
+        [SerializeField] private Image gradeAurora;   // 등급 오로라(하단 그라데이션, 인벤 슬롯과 동일)
         [SerializeField] private TextMeshProUGUI itemNameText;
         [SerializeField] private TextMeshProUGUI amountText;
 
@@ -86,6 +87,13 @@ namespace TIMEKOV.Factory
                 int gradeIndex = itemData != null ? (int)itemData.itemGrade : 0;
                 rarityBorder.color = GradeVisual.GetColor(gradeIndex);
             }
+            // 등급 오로라(하단 글로우) - 인벤 슬롯과 동일.
+            if (gradeAurora != null)
+            {
+                int gi = itemData != null ? (int)itemData.itemGrade : 0;
+                Color gc = GradeVisual.GetColor(gi);
+                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.9f);
+            }
 
             if (itemNameText != null)
                 itemNameText.text = name;
@@ -125,6 +133,13 @@ namespace TIMEKOV.Factory
                 Color c = GradeVisual.GetColor(gradeIndex);
                 c.a *= 0.3f; // 테두리도 흐리게
                 rarityBorder.color = c;
+            }
+            if (gradeAurora != null)
+            {
+                int gi = itemData != null ? (int)itemData.itemGrade : 0;
+                Color gc = GradeVisual.GetColor(gi);
+                gc.a *= 0.3f; // 미리보기는 오로라도 흐리게
+                gradeAurora.color = gc;
             }
 
             // 미리보기에는 이름/수량 표시 안 함

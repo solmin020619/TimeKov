@@ -14,6 +14,7 @@ public class RecipeDropSlot : MonoBehaviour,
     [SerializeField] private Image iconImage;
     [SerializeField] private Image borderImage;   // 드래그 hover glow 전용
     [SerializeField] private Image rarityBorder;  // 등급 테두리 색상 전용
+    [SerializeField] private Image gradeAurora;   // 등급 오로라(하단 그라데이션, 인벤 슬롯과 동일). 등급색 틴트.
     [SerializeField] private TextMeshProUGUI amountText;
     [SerializeField] private TextMeshProUGUI labelText;
 
@@ -84,6 +85,7 @@ public class RecipeDropSlot : MonoBehaviour,
 
     public void Setup(int itemId, int amount, ProcessingMachine machine, InventoryManager inventory = null, int recipeIndex = -1)
     {
+        var body0 = GetComponent<Image>(); if (body0 != null) body0.raycastTarget = true;   // 빈 포트로 쓰였다 재사용 시 상호작용 복구
         RequiredItemId = itemId;
         RequiredAmount = amount;
         CurrentAmount = 0;
@@ -114,8 +116,35 @@ public class RecipeDropSlot : MonoBehaviour,
                 rarityBorder.color = new Color(0f, 0f, 0f, 0f);
             }
         }
+        // 등급 오로라(하단 글로우) - 인벤 슬롯과 동일하게 등급색 틴트.
+        if (gradeAurora != null)
+        {
+            if (itemData != null)
+            {
+                Color gc = GradeVisual.GetColor((int)itemData.itemGrade);
+                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.9f);
+            }
+            else
+            {
+                gradeAurora.color = new Color(0f, 0f, 0f, 0f);
+            }
+        }
 
         PublicRefresh();
+    }
+
+    /// <summary>빈 입력 포트(레시피 재료 없음) = 아이콘/수량 없이 포트 자리만. 드롭 비활성(벨트 연결구 표시용).
+    /// 설비 입력 포트 수(inputSlotCount) > 레시피 재료수 일 때 남는 칸에 쓰인다.</summary>
+    public void SetupEmptyPort()
+    {
+        RequiredItemId = 0; RequiredAmount = 0; CurrentAmount = 0;
+        if (labelText != null) labelText.text = "";
+        if (amountText != null) amountText.text = "";
+        if (iconImage != null) iconImage.enabled = false;
+        if (rarityBorder != null) rarityBorder.color = new Color(0f, 0f, 0f, 0f);
+        if (gradeAurora != null) gradeAurora.color = new Color(0f, 0f, 0f, 0f);
+        SetBorderAlpha(0f);
+        var body = GetComponent<Image>(); if (body != null) body.raycastTarget = false;
     }
 
     public void OnPointerEnter(PointerEventData e)

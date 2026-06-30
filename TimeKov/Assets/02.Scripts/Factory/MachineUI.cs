@@ -83,6 +83,14 @@ public class MachineUI : MonoBehaviour
     [SerializeField] private Transform formulaContent;
     [Tooltip("공식 스트립 좌측 상태 라벨(생산 중 / 대기 중).")]
     [SerializeField] private TextMeshProUGUI formulaStatusText;
+    [Tooltip("흐름 레일(기계->출력). 입력 레일은 슬롯 자식이라 별도 ref 불필요.")]
+    [SerializeField] private Image outputRail;
+    [Tooltip("입력 수직 버스(합류선). 길이/위치는 런타임이 입력 칸수로 세팅.")]
+    [SerializeField] private Image inputBus;
+    [Tooltip("버스->기계 가로 연결.")]
+    [SerializeField] private Image busToMachine;
+    [Tooltip("공정 흐름 레일 컨테이너(런타임이 포트/버스/레일 생성). 0크기 = 생산영역 중심 기준 좌표.")]
+    [SerializeField] private RectTransform flowRailsRoot;
 
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
@@ -453,6 +461,7 @@ public class MachineUI : MonoBehaviour
         RefreshRecipeSelectionUI(recipes.Count);
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        // 슬롯 = 레시피 기준(재료칸 = 재료 수, 결과칸 = 1). 포트 구조는 BuildFlowRails 가 따로 그린다.
         for (int i = 0; i < recipeDropSlots.Length; i++)
         {
             if (recipeDropSlots[i] == null) continue;
@@ -469,8 +478,199 @@ public class MachineUI : MonoBehaviour
             }
         }
 
+        // 공정 흐름 레일(포트 -> 세로 버스 -> 슬롯) 재생성.
+        BuildFlowRails();
+
         BuildFormula();
         ShowRecipeHintIfQuestActive();
+    }
+
+    // 설비 입력/출력 포트 수 = 실제 BuildPort 개수(3x3=3, 5x5=5). 시트 slotCount 아님(다를 수 있음).
+    private int InputPortCount() => CountPorts(PortType.Input);
+
+    private int CountPorts(PortType type)
+    {
+        if (_machine == null) return 1;
+        int n = 0;
+        var ports = _machine.GetComponentsInChildren<BuildPort>();
+        foreach (var p in ports) if (p != null && p.portType == type) n++;
+        return Mathf.Max(n, 1);
+    }
+
+    private int OutputPortCount() => CountPorts(PortType.Output);
+
+    // ── 공정 흐름 레일: 설비 포트(N) -> 세로 버스 -> 재료/결과칸. 입력=회색/흰, 출력=파랑. ──
+    //   버스/가로레일은 얇게(한 트레이스), 포트 단자만 굵게 강조. 포트별 실제 벨트연결 반영(연결=밝게 + 가동 시 흰 펄스).
+    // FR_SlotEdgeX = 슬롯 왼쪽 모서리(InputArea x=-155, 슬롯폭140 -> 모서리 ±225). 버스는 그 바로 바깥, 포트는 더 바깥.
+    private const float FR_PortX = 360f, FR_BusX = 252f, FR_SlotEdgeX = 225f;
+    private const float FR_PortPitch = 68f, FR_SlotPitch = 152f;
+    private const float FR_RailThin = 3f;      // 가로레일/버스 = 얇은 한 트레이스
+    private const float FR_PortTickW = 7f;      // 포트 단자 두께(굵게 강조)
+    private const float FR_PortTickH = 48f;     // 포트 단자 길이(연결지점 세로 = 길게, 레일이 이쁘게 들어옴)
+    private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
+    private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
+    private static readonly Color FR_RailWhite = new Color(0.86f, 0.89f, 0.94f, 0.95f); // 입력 가로레일(흰)
+    private static readonly Color FR_PortGray  = new Color(0.66f, 0.70f, 0.75f, 1f);    // 입력 포트단자(회색, 강조)
+    private static readonly Color FR_Blue      = new Color(0.30f, 0.66f, 0.90f, 0.95f); // 출력 = 파랑(버스/레일/단자)
+    private static Sprite _frCircle;
+    // 가동 중 레일을 따라 흐르는 흰 펄스. 각 펄스는 a->b 를 반복 이동.
+    private struct RailPulse { public RectTransform dot; public Image img; public Vector2 a, b; public float phase; }
+    private readonly System.Collections.Generic.List<RailPulse> _railPulses = new();
+    private readonly System.Collections.Generic.List<TextMeshProUGUI> _centerChevrons = new();
+
+    private void BuildFlowRails()
+    {
+        if (flowRailsRoot == null || _machine == null) return;
+        for (int i = flowRailsRoot.childCount - 1; i >= 0; i--)
+            Destroy(flowRailsRoot.GetChild(i).gameObject);
+        _railPulses.Clear();
+        _centerChevrons.Clear();
+
+        var recipes = _machine.Recipes;
+        if (recipes == null || recipes.Count == 0) return;
+        int ri = Mathf.Clamp(_selectedRecipeIndex, 0, recipes.Count - 1);
+        var recipe = recipes[ri];
+        int inSlots  = recipe != null && recipe.inputs  != null ? recipe.inputs.Length : 0;
+        int outSlots = recipe != null && recipe.outputs != null && recipe.outputs.Length > 0 ? 1 : 0;
+
+        // 입력 = 회색 단자 / 흰 레일 / 회색 버스, 출력 = 전부 파랑
+        BuildRailSide(true,  InputPortCount(),  inSlots,  FR_RailWhite, FR_BusGray, FR_PortGray);
+        BuildRailSide(false, OutputPortCount(), outSlots, FR_Blue,      FR_Blue,    FR_Blue);
+
+        // 중앙 흐름 화살표 2개(재료->결과). 회색 기본 + 가동 시 흰 펄스(UpdateFlowRails 가 좌->우로 칠함).
+        for (int i = 0; i < 2; i++)
+        {
+            var go = new GameObject("FlowChevron", typeof(RectTransform));
+            go.transform.SetParent(flowRailsRoot, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(30f, 38f); rt.anchoredPosition = new Vector2(-9f + i * 17f, 0f);
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = ">"; tmp.fontSize = 30; tmp.fontStyle = FontStyles.Bold;
+            tmp.color = FR_BusGray; tmp.alignment = TextAlignmentOptions.Center; tmp.raycastTarget = false;
+            _centerChevrons.Add(tmp);
+        }
+    }
+
+    // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
+    // 버스/가로레일 = 얇은 한 트레이스, 포트 단자만 굵게 강조. 연결된 포트 = 밝게(+가동 시 흰 펄스).
+    private void BuildRailSide(bool isInput, int nPorts, int slotCount, Color railColor, Color busColor, Color portColor)
+    {
+        if (nPorts <= 0) return;
+        float sign = isInput ? -1f : 1f;
+        float portX = sign * FR_PortX, busX = sign * FR_BusX, slotEdge = sign * FR_SlotEdgeX;
+        bool[] conn = ReadPortConn(isInput ? PortType.Input : PortType.Output, nPorts);
+
+        float portTop = (nPorts - 1) * 0.5f * FR_PortPitch;
+        float slotTop = (slotCount - 1) * 0.5f * FR_SlotPitch;
+        float busHalf = Mathf.Max(portTop, Mathf.Max(slotTop, 1f));
+        // 세로 버스 = 얇은 한 트레이스(가로레일과 같은 굵기)
+        MakeRailLine("Bus", new Vector2(busX, 0f), new Vector2(FR_RailThin, busHalf * 2f), busColor);
+
+        // 포트 단자(굵게 강조) + 포트->버스 가로레일(얇게). 연결된 포트 = 밝게 + 흰 펄스.
+        for (int j = 0; j < nPorts; j++)
+        {
+            float py = portTop - j * FR_PortPitch;
+            bool c = conn != null && j < conn.Length && conn[j];
+            Color tickCol = c ? Color.Lerp(portColor, Color.white, 0.55f) : portColor;
+            Color railCol = c ? Color.Lerp(railColor, Color.white, 0.30f) : railColor;
+            MakeRailLine("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);   // 단자만 굵게 + 길게(연결지점 세로)
+            MakeRailLine("PortRail", new Vector2((portX + busX) * 0.5f, py),
+                         new Vector2(Mathf.Abs(busX - portX), FR_RailThin), railCol);
+            if (c)
+            {
+                // 가동 시 흰 펄스 2개(간격 0.5)가 포트<->버스를 좌->우로 흐름. 입력=포트->버스, 출력=버스->포트.
+                Vector2 pa = new Vector2(isInput ? portX : busX, py);
+                Vector2 pb = new Vector2(isInput ? busX : portX, py);
+                for (int s = 0; s < 2; s++)
+                {
+                    var img = MakePulseDot();
+                    _railPulses.Add(new RailPulse { dot = img.rectTransform, img = img, a = pa, b = pb, phase = s * 0.5f });
+                }
+            }
+        }
+
+        // 버스->슬롯 가로레일(얇게) + 연결점 동그라미
+        for (int k = 0; k < slotCount; k++)
+        {
+            float sy = slotTop - k * FR_SlotPitch;
+            MakeRailLine("SlotRail", new Vector2((slotEdge + busX) * 0.5f, sy),
+                         new Vector2(Mathf.Abs(slotEdge - busX), FR_RailThin), railColor);
+            MakeDot(new Vector2(slotEdge, sy), 9f, railColor);
+        }
+    }
+
+    private void MakeRailLine(string name, Vector2 pos, Vector2 size, Color color)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(flowRailsRoot, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size; rt.anchoredPosition = pos;
+        var img = go.GetComponent<Image>(); img.color = color; img.raycastTarget = false;
+    }
+
+    private void MakeDot(Vector2 pos, float d, Color color)
+    {
+        var go = new GameObject("Dot", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(flowRailsRoot, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(d, d); rt.anchoredPosition = pos;
+        var img = go.GetComponent<Image>(); img.sprite = CircleSprite(); img.color = color; img.raycastTarget = false;
+    }
+
+    // 런타임 생성 원형 스프라이트(빌트인 Knob 리소스가 런타임에 안 잡혀서 직접 생성). 흰색 + 1px 소프트 엣지, Image.color 로 틴트.
+    private static Sprite CircleSprite()
+    {
+        if (_frCircle != null) return _frCircle;
+        const int S = 32;
+        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[S * S];
+        float r = S * 0.5f - 1f, c = S * 0.5f;
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float dx = x + 0.5f - c, dy = y + 0.5f - c;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                byte a = (byte)(Mathf.Clamp01(r - dist + 0.5f) * 255f);
+                px[y * S + x] = new Color32(255, 255, 255, a);
+            }
+        tex.SetPixels32(px); tex.Apply();
+        _frCircle = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f));
+        return _frCircle;
+    }
+
+    // 가동 중 레일을 따라 흐르는 흰 펄스 도트.
+    private Image MakePulseDot()
+    {
+        var go = new GameObject("Pulse", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(flowRailsRoot, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(10f, 10f);
+        var img = go.GetComponent<Image>();
+        img.sprite = CircleSprite();
+        img.color = new Color(1f, 1f, 1f, 0.95f);   // 흰 펄스
+        img.raycastTarget = false;
+        return img;
+    }
+
+    // 포트별 실제 벨트 연결 상태(연결됨 = true). 순서 = GetComponentsInChildren(단자 그리는 순서와 동일).
+    // ★연결 판정 = BeltSegment 실판정(레일 형상). connectionCount 장부는 실제 연결을 안 잡아서 폐기.
+    private bool[] ReadPortConn(PortType type, int n)
+    {
+        var arr = new bool[Mathf.Max(n, 1)];
+        if (_machine == null) return arr;
+        var ports = _machine.GetComponentsInChildren<BuildPort>();
+        int pi = 0;
+        foreach (var p in ports)
+        {
+            if (p == null || p.portType != type) continue;
+            if (pi < arr.Length) arr[pi] = BeltSegment.IsPortConnected(p);
+            pi++;
+        }
+        return arr;
     }
 
     // ── 현재 생산 공식 스트립 ─────────────────────────────────────
@@ -719,6 +919,29 @@ public class MachineUI : MonoBehaviour
 
     // ── 진행 바 ─────────────────────────────────────────────────
 
+    // 흐름 펄스: 가동 시에만 연결된 레일을 따라 흰 펄스가 좌->우로 흐름. 중앙 화살표도 가동 시 흰 펄스.
+    private void UpdateFlowRails(bool operating)
+    {
+        float t = Time.unscaledTime * FR_PulseSpeed;
+        for (int i = 0; i < _railPulses.Count; i++)
+        {
+            var p = _railPulses[i];
+            if (p.dot == null) continue;
+            if (p.img != null) p.img.enabled = operating;   // 미가동 = 펄스 숨김
+            if (!operating) continue;
+            float frac = Mathf.Repeat(t + p.phase, 1f);
+            p.dot.anchoredPosition = Vector2.Lerp(p.a, p.b, frac);
+        }
+        // 중앙 화살표 2개: 가동 시 흰 펄스가 좌->우로 지나감(위상차), 미가동 = 회색.
+        for (int i = 0; i < _centerChevrons.Count; i++)
+        {
+            var ch = _centerChevrons[i];
+            if (ch == null) continue;
+            float w = operating ? Mathf.Clamp01(Mathf.Sin(Time.unscaledTime * 3.2f - i * 0.7f) * 0.5f + 0.5f) : 0f;
+            ch.color = Color.Lerp(FR_BusGray, Color.white, w);
+        }
+    }
+
     private void Update()
     {
         if (_machine == null || !uiPanel.activeSelf) return;
@@ -800,6 +1023,9 @@ public class MachineUI : MonoBehaviour
             else
             { formulaStatusText.text = "대기 중"; formulaStatusText.color = new Color(0.72f, 0.77f, 0.82f, 1f); }
         }
+
+        // 흐름 레일: 가동 시에만 흰 펄스 흐름(연결된 포트 + 중앙 화살표).
+        UpdateFlowRails(isSelectedRecipeActive && _machine.IsProcessing);
 
         if (statusText == null) return;
 
