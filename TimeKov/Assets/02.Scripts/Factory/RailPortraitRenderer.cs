@@ -18,7 +18,8 @@ public class RailPortraitRenderer : MonoBehaviour
     public int   tileCount = 3;     // 레일 토막 개수(길이). 앞뒤로 이어붙임.
     public float tileGap   = 1f;    // 토막 간격(레일 한 칸 크기)
     public float camYaw    = 0f;    // 카메라 좌우 각
-    public float camPitch  = 25f;   // 위에서 내려보는 각
+    public float camPitch  = 90f;   // 위에서 내려보는 각(90=탑뷰, 레퍼런스처럼 깔끔)
+    public float railYaw   = 270f;  // 레일 스트립 회전(90/270=가로, 180도 차이로 흐름방향 반전). 270=오른쪽으로 흐름
     public float fov       = 28f;
     public float fill      = 0.82f; // 화면 채움(작을수록 크게)
 
@@ -67,7 +68,7 @@ public class RailPortraitRenderer : MonoBehaviour
         _current = new GameObject("RailStrip");
         _current.transform.SetParent(_holder, false);
         _current.transform.localPosition = Vector3.zero;
-        _current.transform.localRotation = Quaternion.identity;
+        _current.transform.localRotation = Quaternion.Euler(0f, railYaw, 0f);   // 90 = 가로 흐름
 
         int n = Mathf.Max(1, tileCount);
         for (int i = 0; i < n; i++)
