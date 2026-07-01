@@ -512,6 +512,9 @@ public class MachineUI : MonoBehaviour
     private const float FR_RailThin = 14f;     // 가로레일/버스 두께(에디터 작은뷰서 보이는 최소값)
     private const float FR_PortTickW = 7f;      // 포트 단자 두께(굵게 강조)
     private const float FR_PortTickH = 48f;     // 포트 단자 길이(연결지점 세로 = 길게, 레일이 이쁘게 들어옴)
+    // 실제 게임 레일(RenderTexture) 표시. 정사각 텍스처 = 가운데 가로 스트립 + 나머지 투명이라 정사각으로 얹으면 왜곡 없음.
+    private const float FR_RailStripSize = 120f; // 포트 바깥에 얹는 실제 레일 RT 크기
+    private const float FR_RailStripOut  = 60f;  // 포트에서 바깥으로 밀어내는 거리(스트립 안쪽 끝이 포트에 닿게)
     private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
     private static readonly Color FR_RailWhite = new Color(0.82f, 0.93f, 1.0f, 1f);     // 입력 가로레일(밝은 시안화이트)
@@ -555,20 +558,6 @@ public class MachineUI : MonoBehaviour
             tmp.color = FR_BusGray; tmp.alignment = TextAlignmentOptions.Center; tmp.raycastTarget = false;
             _centerChevrons.Add(tmp);
         }
-
-        // [1단계 테스트] 실제 레일 RT 가 UI 에 뜨는지 확인용(고정 위치, 크게). 되면 연결 포트 배치로 확장.
-        var railTex = EnsureRailTexture();
-        if (railTex != null)
-        {
-            var rgo = new GameObject("RailTest", typeof(RectTransform), typeof(RawImage));
-            rgo.transform.SetParent(flowRailsRoot, false);
-            var rrt = rgo.GetComponent<RectTransform>();
-            rrt.anchorMin = rrt.anchorMax = rrt.pivot = new Vector2(0.5f, 0.5f);
-            rrt.sizeDelta = new Vector2(240f, 240f);
-            rrt.anchoredPosition = new Vector2(430f, 0f);   // 오른쪽 바깥(잘 보이는 곳)
-            var rraw = rgo.GetComponent<RawImage>();
-            rraw.texture = railTex; rraw.raycastTarget = false;
-        }
     }
 
     // 실제 레일 프리팹 -> RenderTexture (1회 렌더 후 캐시, 카메라가 매프레임 흐름 갱신).
@@ -585,6 +574,22 @@ public class MachineUI : MonoBehaviour
         }
         _railTex = _railPortrait.Render(rbm.StraightRailPrefab, 256, 256);
         return _railTex;
+    }
+
+    // 연결된 포트 바깥쪽에 실제 게임 레일(RenderTexture)을 얹는다.
+    //   정사각 텍스처 = 가운데 가로 레일 + 나머지 투명 -> 정사각 RawImage 로 얹으면 왜곡/크롭 없이 가로 레일만 보인다.
+    private void MakeRailStrip(Vector2 pos)
+    {
+        var tex = EnsureRailTexture();
+        if (tex == null) return;
+        var go = new GameObject("PortRailReal", typeof(RectTransform), typeof(RawImage));
+        go.transform.SetParent(flowRailsRoot, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(FR_RailStripSize, FR_RailStripSize);
+        rt.anchoredPosition = pos;
+        var raw = go.GetComponent<RawImage>();
+        raw.texture = tex; raw.raycastTarget = false;
     }
 
     // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
@@ -614,6 +619,10 @@ public class MachineUI : MonoBehaviour
                          new Vector2(Mathf.Abs(busX - portX), FR_RailThin), railCol);
             if (c)
             {
+                // 연결된 포트 = 실제 게임 레일(RenderTexture)을 포트 바깥쪽으로 얹는다.
+                //   입력=왼쪽 바깥, 출력=오른쪽 바깥. RT 는 오른쪽으로 흐름(railYaw270) = 입력은 안으로 유입 / 출력은 밖으로 배출 둘 다 맞음.
+                MakeRailStrip(new Vector2(portX + sign * FR_RailStripOut, py));
+
                 // 가동 시 흰 펄스 2개(간격 0.5)가 포트<->버스를 좌->우로 흐름. 입력=포트->버스, 출력=버스->포트.
                 Vector2 pa = new Vector2(isInput ? portX : busX, py);
                 Vector2 pb = new Vector2(isInput ? busX : portX, py);
