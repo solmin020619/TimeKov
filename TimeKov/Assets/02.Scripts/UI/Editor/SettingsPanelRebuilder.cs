@@ -96,14 +96,21 @@ public static class SettingsPanelRebuilder
     [MenuItem(MenuPath)]
     static void Rebuild()
     {
-        var canvasGO = GameObject.Find("Canvas");
-        if (canvasGO == null) { Debug.LogError("[SettingsRebuilder] 'Canvas'를 찾을 수 없습니다."); return; }
+        // Canvas 이름은 씬마다 다를 수 있어(MainMenu_Cinematic 등) 이름 대신
+        // GlobalSettingsManager 컴포넌트를 통해 SettingsPanel을 직접 찾는다.
+        var settingsMgr = Object.FindAnyObjectByType<GlobalSettingsManager>(FindObjectsInactive.Include);
+        if (settingsMgr == null) { Debug.LogError("[SettingsRebuilder] GlobalSettingsManager를 찾을 수 없습니다."); return; }
 
-        Transform settingsPanelT = canvasGO.transform.Find("Panels/SettingsPanel");
-        if (settingsPanelT == null) { Debug.LogError("[SettingsRebuilder] 'Panels/SettingsPanel'을 찾을 수 없습니다."); return; }
-
-        var settingsMgr = settingsPanelT.GetComponent<GlobalSettingsManager>();
-        if (settingsMgr == null) { Debug.LogError("[SettingsRebuilder] GlobalSettingsManager 컴포넌트가 없습니다."); return; }
+        Transform settingsPanelT = settingsMgr.transform.parent;
+        while (settingsPanelT != null && settingsPanelT.name != "SettingsPanel")
+            settingsPanelT = settingsPanelT.parent;
+        if (settingsPanelT == null)
+        {
+            // 폴백: 이름으로 직접 찾기
+            var found = GameObject.Find("SettingsPanel");
+            if (found != null) settingsPanelT = found.transform;
+        }
+        if (settingsPanelT == null) { Debug.LogError("[SettingsRebuilder] 'SettingsPanel'을 찾을 수 없습니다."); return; }
 
         Transform settingsBG = settingsPanelT.Find("Option/BG/Settings");
         if (settingsBG == null) { Debug.LogError("[SettingsRebuilder] 'Option/BG/Settings'를 찾을 수 없습니다."); return; }
