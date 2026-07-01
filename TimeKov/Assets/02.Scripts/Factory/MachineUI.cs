@@ -91,6 +91,9 @@ public class MachineUI : MonoBehaviour
     [SerializeField] private Image busToMachine;
     [Tooltip("공정 흐름 레일 컨테이너(런타임이 포트/버스/레일 생성). 0크기 = 생산영역 중심 기준 좌표.")]
     [SerializeField] private RectTransform flowRailsRoot;
+    // 실제 레일(RailPiece 프리팹)을 RenderTexture 로 렌더해 UI 에 표시(도감 초상화 방식). 연결된 포트에만.
+    private RailPortraitRenderer _railPortrait;
+    private Texture _railTex;
 
     [Header("플레이어 인벤토리")]
     public InventoryManager playerInventory;
@@ -504,14 +507,16 @@ public class MachineUI : MonoBehaviour
     // FR_SlotEdgeX = 슬롯 왼쪽 모서리(InputArea x=-155, 슬롯폭140 -> 모서리 ±225). 버스는 그 바로 바깥, 포트는 더 바깥.
     private const float FR_PortX = 360f, FR_BusX = 252f, FR_SlotEdgeX = 225f;
     private const float FR_PortPitch = 68f, FR_SlotPitch = 152f;
-    private const float FR_RailThin = 3f;      // 가로레일/버스 = 얇은 한 트레이스
+    // ★가시성 = 두께(작은 게임뷰서 얇은 선 묻힘) + 색대비(흰/파랑이 파랑-회색 배경에 묻힘, 마젠타로 확정).
+    //   해결 = 14px 두께 + 밝은 시안색 + 어두운 외곽선(MakeRailLine, 배경서 뜯어냄).
+    private const float FR_RailThin = 14f;     // 가로레일/버스 두께(에디터 작은뷰서 보이는 최소값)
     private const float FR_PortTickW = 7f;      // 포트 단자 두께(굵게 강조)
     private const float FR_PortTickH = 48f;     // 포트 단자 길이(연결지점 세로 = 길게, 레일이 이쁘게 들어옴)
     private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
-    private static readonly Color FR_RailWhite = new Color(0.86f, 0.89f, 0.94f, 0.95f); // 입력 가로레일(흰)
+    private static readonly Color FR_RailWhite = new Color(0.82f, 0.93f, 1.0f, 1f);     // 입력 가로레일(밝은 시안화이트)
     private static readonly Color FR_PortGray  = new Color(0.66f, 0.70f, 0.75f, 1f);    // 입력 포트단자(회색, 강조)
-    private static readonly Color FR_Blue      = new Color(0.30f, 0.66f, 0.90f, 0.95f); // 출력 = 파랑(버스/레일/단자)
+    private static readonly Color FR_Blue      = new Color(0.28f, 0.80f, 1.0f, 1f);     // 출력 = 밝은 시안(실제 벨트색, 버스/레일/단자)
     private static Sprite _frCircle;
     // 가동 중 레일을 따라 흐르는 흰 펄스. 각 펄스는 a->b 를 반복 이동.
     private struct RailPulse { public RectTransform dot; public Image img; public Vector2 a, b; public float phase; }
@@ -550,6 +555,36 @@ public class MachineUI : MonoBehaviour
             tmp.color = FR_BusGray; tmp.alignment = TextAlignmentOptions.Center; tmp.raycastTarget = false;
             _centerChevrons.Add(tmp);
         }
+
+        // [1단계 테스트] 실제 레일 RT 가 UI 에 뜨는지 확인용(고정 위치, 크게). 되면 연결 포트 배치로 확장.
+        var railTex = EnsureRailTexture();
+        if (railTex != null)
+        {
+            var rgo = new GameObject("RailTest", typeof(RectTransform), typeof(RawImage));
+            rgo.transform.SetParent(flowRailsRoot, false);
+            var rrt = rgo.GetComponent<RectTransform>();
+            rrt.anchorMin = rrt.anchorMax = rrt.pivot = new Vector2(0.5f, 0.5f);
+            rrt.sizeDelta = new Vector2(240f, 240f);
+            rrt.anchoredPosition = new Vector2(430f, 0f);   // 오른쪽 바깥(잘 보이는 곳)
+            var rraw = rgo.GetComponent<RawImage>();
+            rraw.texture = railTex; rraw.raycastTarget = false;
+        }
+    }
+
+    // 실제 레일 프리팹 -> RenderTexture (1회 렌더 후 캐시, 카메라가 매프레임 흐름 갱신).
+    private Texture EnsureRailTexture()
+    {
+        if (_railTex != null) return _railTex;
+        var rbm = FindFirstObjectByType<RailBuildManager>();
+        if (rbm == null || rbm.StraightRailPrefab == null) return null;
+        if (_railPortrait == null)
+        {
+            var go = new GameObject("RailPortrait");
+            go.transform.SetParent(transform, false);
+            _railPortrait = go.AddComponent<RailPortraitRenderer>();
+        }
+        _railTex = _railPortrait.Render(rbm.StraightRailPrefab, 256, 256);
+        return _railTex;
     }
 
     // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
@@ -601,6 +636,15 @@ public class MachineUI : MonoBehaviour
     }
 
     private void MakeRailLine(string name, Vector2 pos, Vector2 size, Color color)
+    {
+        // 수동 검은 뒷판(살짝 큰 검은 사각) + 그 위 색레일 = 확실한 외곽선.
+        //   가로레일이 기계 와이어프레임(밝은 청백 선) 위에서 묻히던 걸 검은 테두리로 뜯어냄.
+        //   Outline 컴포넌트는 안 먹혀서 수동 뒷판으로(Image 는 확실히 렌더=마젠타로 검증).
+        MakeQuad(name + "Edge", pos, new Vector2(size.x + 7f, size.y + 7f), new Color(0f, 0f, 0f, 0.85f));
+        MakeQuad(name, pos, size, color);
+    }
+
+    private void MakeQuad(string name, Vector2 pos, Vector2 size, Color color)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image));
         go.transform.SetParent(flowRailsRoot, false);

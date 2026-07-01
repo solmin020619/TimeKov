@@ -18,6 +18,9 @@ public class RailBuildManager : MonoBehaviour
     [SerializeField] private GameObject straightPrefab;
     [SerializeField] private GameObject cornerPrefab;
 
+    /// <summary>설비 UI 가 실제 레일을 RenderTexture 로 렌더할 때 쓰는 직선 레일 프리팹.</summary>
+    public GameObject StraightRailPrefab => straightPrefab;
+
     [Header("Preview")]
     [SerializeField] private GameObject previewPrefab;
     [SerializeField] private Material previewValidMaterial;
