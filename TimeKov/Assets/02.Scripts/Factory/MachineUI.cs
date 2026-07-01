@@ -516,9 +516,13 @@ public class MachineUI : MonoBehaviour
     private const float FR_PortTickH = 64f;     // 포트 단자 길이(연결지점 세로 강조) - 레일(벨트 RT)이 여기 맞춰 들어가므로 넉넉히
     private const float FR_PortWrapGap = 28f;   // 포트가 슬롯을 감쌀 때 슬롯 최외곽에서 더 벌리는 여유(포트단자가 슬롯과 안 겹치게)
     private const float FR_SlotDotOut = 8f;     // 슬롯쪽 레일 끝(=연결점)을 슬롯 모서리에서 버스쪽으로 뺀 거리(박스에 안 가리게)
-    // 실제 게임 레일(RenderTexture) 표시. 정사각 텍스처 = 가운데 가로 스트립 + 나머지 투명이라 정사각으로 얹으면 왜곡 없음.
-    private const float FR_RailStripSize = 160f; // 포트 바깥에 얹는 실제 레일 RT 크기(포트단자 키운 만큼 벨트도 크게)
-    private const float FR_RailStripOut  = 80f;  // 포트에서 바깥으로 밀어내는 거리 = 크기의 절반(스트립 안쪽 끝이 포트에 닿게)
+    // 실제 게임 레일(RenderTexture) = 정사각 텍스처의 가운데 가로 스트립(band) + 나머지 투명.
+    //   벨트를 포트단자(FR_PortTickH)에 자동으로 맞춘다: band 높이 = 포트단자 높이가 되게 표시크기를 역산.
+    //   렌더러 프레이밍(fov28/fill0.82/3타일) 상 band 높이 = 0.273*표시크기, band 좌우여백 = 0.09*표시크기.
+    private const float FR_BeltSizePerTick = 3.66f; // 표시크기 = 포트단자높이 / 0.273. 벨트가 세로선보다 크거나 작으면 이 값만 조정.
+    private const float FR_BeltInnerFrac   = 0.41f; // 밀어낼 거리 = 표시크기 * (0.5-0.09). band 안쪽 끝이 포트에 딱(공백 남으면 이 값만 조정).
+    private const float FR_BeltSize = FR_PortTickH * FR_BeltSizePerTick;  // ★포트단자 조정하면 벨트가 자동으로 이 크기에 맞음
+    private const float FR_BeltOut  = FR_BeltSize * FR_BeltInnerFrac;
     private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
     private static readonly Color FR_RailWhite = new Color(0.82f, 0.93f, 1.0f, 1f);     // 입력 가로레일(밝은 시안화이트)
@@ -589,7 +593,7 @@ public class MachineUI : MonoBehaviour
         go.transform.SetParent(flowRailsRoot, false);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(FR_RailStripSize, FR_RailStripSize);
+        rt.sizeDelta = new Vector2(FR_BeltSize, FR_BeltSize);
         rt.anchoredPosition = pos;
         var raw = go.GetComponent<RawImage>();
         raw.texture = tex; raw.raycastTarget = false;
@@ -621,14 +625,13 @@ public class MachineUI : MonoBehaviour
             bool c = conn != null && j < conn.Length && conn[j];
             Color tickCol = c ? Color.Lerp(baseColor, Color.white, 0.55f) : baseColor;
             Color railCol = c ? Color.Lerp(baseColor, Color.white, 0.30f) : baseColor;
-            MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선
-            MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로)
+            // 연결된 포트 = 실제 게임 레일(RenderTexture)을 "먼저"(맨 뒤에) 깐다 -> 포트단자/가로선이 그 위를 덮어 겹침 색 얼룩(블렌딩) 방지.
+            //   입력=왼쪽 바깥, 출력=오른쪽 바깥. RT 는 오른쪽 흐름(railYaw270) = 입력 유입 / 출력 배출 둘 다 맞음.
+            if (c) MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
+            MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선(벨트 위)
+            MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로, 벨트 위에 덮여 얼룩 가림)
             if (c)
             {
-                // 연결된 포트 = 실제 게임 레일(RenderTexture)을 포트 바깥쪽으로 얹는다.
-                //   입력=왼쪽 바깥, 출력=오른쪽 바깥. RT 는 오른쪽으로 흐름(railYaw270) = 입력은 안으로 유입 / 출력은 밖으로 배출 둘 다 맞음.
-                MakeRailStrip(new Vector2(portX + sign * FR_RailStripOut, py));
-
                 // 가동 시 흰 펄스 2개(간격 0.5)가 포트<->버스를 좌->우로 흐름. 입력=포트->버스, 출력=버스->포트.
                 Vector2 pa = new Vector2(isInput ? portX : busX, py);
                 Vector2 pb = new Vector2(isInput ? busX : portX, py);
