@@ -524,6 +524,7 @@ public class MachineUI : MonoBehaviour
     private const float FR_BeltSize = FR_PortTickH * FR_BeltSizePerTick;  // ★포트단자 조정하면 벨트가 자동으로 이 크기에 맞음
     private const float FR_BeltOut  = FR_BeltSize * FR_BeltInnerFrac;
     private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
+    private const float FR_BeltItemSpeed = 0.32f; // 벨트 위 아이템 아이콘 흐름 속도(펄스보다 느리게)
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
     private static readonly Color FR_RailWhite = new Color(0.82f, 0.93f, 1.0f, 1f);     // 입력 가로레일(밝은 시안화이트)
     private static readonly Color FR_Blue      = new Color(0.28f, 0.80f, 1.0f, 1f);     // 출력 = 밝은 시안(실제 벨트색, 버스/레일/단자)
@@ -531,6 +532,9 @@ public class MachineUI : MonoBehaviour
     // 가동 중 레일을 따라 흐르는 흰 펄스. 각 펄스는 a->b 를 반복 이동.
     private struct RailPulse { public RectTransform dot; public Image img; public Vector2 a, b; public float phase; }
     private readonly System.Collections.Generic.List<RailPulse> _railPulses = new();
+    // 연결된 포트별 벨트 위 아이템 아이콘. 실제 벨트 occupant 를 실시간 폴링해 유입/배출 아이템을 표시(아이템 올 때만).
+    private class BeltFlow { public RectTransform rt; public Image img; public Vector2 a, b; public BuildPort port; public int shownId = -1; }
+    private readonly System.Collections.Generic.List<BeltFlow> _beltFlows = new();
     private readonly System.Collections.Generic.List<TextMeshProUGUI> _centerChevrons = new();
 
     private void BuildFlowRails()
@@ -539,6 +543,7 @@ public class MachineUI : MonoBehaviour
         for (int i = flowRailsRoot.childCount - 1; i >= 0; i--)
             Destroy(flowRailsRoot.GetChild(i).gameObject);
         _railPulses.Clear();
+        _beltFlows.Clear();
         _centerChevrons.Clear();
 
         var recipes = _machine.Recipes;
@@ -599,6 +604,20 @@ public class MachineUI : MonoBehaviour
         raw.texture = tex; raw.raycastTarget = false;
     }
 
+    // 포트별 벨트 아이템 아이콘 생성(처음엔 숨김). UpdateFlowRails 가 매 프레임 실제 벨트 occupant 를 읽어 표시/숨김+아이콘 갱신+흐름.
+    private void MakeBeltFlow(BuildPort port, Vector2 a, Vector2 b)
+    {
+        var go = new GameObject("BeltItem", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(flowRailsRoot, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        float d = FR_PortTickH * 0.9f;
+        rt.sizeDelta = new Vector2(d, d);
+        var img = go.GetComponent<Image>();
+        img.preserveAspect = true; img.raycastTarget = false; img.enabled = false;   // 실제 아이템 올 때만 켬
+        _beltFlows.Add(new BeltFlow { rt = rt, img = img, a = a, b = b, port = port });
+    }
+
     // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
     // 버스/가로레일/포트단자 전부 같은 색(하나의 회로) + 조각을 서로 겹쳐 이음새 제거. 포트 단자만 굵게 강조.
     private void BuildRailSide(bool isInput, int nPorts, int slotCount, Color baseColor)
@@ -606,7 +625,7 @@ public class MachineUI : MonoBehaviour
         if (nPorts <= 0) return;
         float sign = isInput ? -1f : 1f;
         float portX = sign * FR_PortX, busX = sign * FR_BusX, slotEdge = sign * FR_SlotEdgeX;
-        bool[] conn = ReadPortConn(isInput ? PortType.Input : PortType.Output, nPorts);
+        var ports = PortsOfType(isInput ? PortType.Input : PortType.Output);   // 틱 순서 = 이 배열 순서(실제 포트)
 
         float slotTop = (slotCount - 1) * 0.5f * FR_SlotPitch;
         float portNatural = (nPorts - 1) * 0.5f * FR_PortPitch;
@@ -622,12 +641,22 @@ public class MachineUI : MonoBehaviour
         for (int j = 0; j < nPorts; j++)
         {
             float py = portTop - j * portPitch;
-            bool c = conn != null && j < conn.Length && conn[j];
+            BuildPort port = j < ports.Length ? ports[j] : null;
+            bool c = port != null && BeltSegment.IsPortConnected(port);
             Color tickCol = c ? Color.Lerp(baseColor, Color.white, 0.55f) : baseColor;
             Color railCol = c ? Color.Lerp(baseColor, Color.white, 0.30f) : baseColor;
             // 연결된 포트 = 실제 게임 레일(RenderTexture)을 "먼저"(맨 뒤에) 깐다 -> 포트단자/가로선이 그 위를 덮어 겹침 색 얼룩(블렌딩) 방지.
             //   입력=왼쪽 바깥, 출력=오른쪽 바깥. RT 는 오른쪽 흐름(railYaw270) = 입력 유입 / 출력 배출 둘 다 맞음.
-            if (c) MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
+            if (c)
+            {
+                MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
+                // 벨트 위 실제 유입/배출 아이템: 그 레일에 실제로 아이템이 올라와 있을 때만 그 아이콘을 표시(실시간, 폴링).
+                float innerX = portX;                          // 포트(안쪽 끝)
+                float outerX = portX + sign * 2f * FR_BeltOut; // 벨트 바깥 끝
+                Vector2 ia = isInput ? new Vector2(outerX, py) : new Vector2(innerX, py);   // 입력=바깥에서 시작(유입) / 출력=포트에서
+                Vector2 ib = isInput ? new Vector2(innerX, py) : new Vector2(outerX, py);   // ...끝(입력=포트로 / 출력=바깥으로 배출)
+                MakeBeltFlow(port, ia, ib);
+            }
             MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선(벨트 위)
             MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로, 벨트 위에 덮여 얼룩 가림)
             if (c)
@@ -720,21 +749,14 @@ public class MachineUI : MonoBehaviour
         return img;
     }
 
-    // 포트별 실제 벨트 연결 상태(연결됨 = true). 순서 = GetComponentsInChildren(단자 그리는 순서와 동일).
-    // ★연결 판정 = BeltSegment 실판정(레일 형상). connectionCount 장부는 실제 연결을 안 잡아서 폐기.
-    private bool[] ReadPortConn(PortType type, int n)
+    // 설비의 해당 타입 포트들(단자 그리는 순서 = 이 배열 순서). 연결 판정/유입아이템은 각 포트로 BeltSegment 에 질의.
+    private BuildPort[] PortsOfType(PortType type)
     {
-        var arr = new bool[Mathf.Max(n, 1)];
-        if (_machine == null) return arr;
-        var ports = _machine.GetComponentsInChildren<BuildPort>();
-        int pi = 0;
-        foreach (var p in ports)
-        {
-            if (p == null || p.portType != type) continue;
-            if (pi < arr.Length) arr[pi] = BeltSegment.IsPortConnected(p);
-            pi++;
-        }
-        return arr;
+        var list = new System.Collections.Generic.List<BuildPort>();
+        if (_machine != null)
+            foreach (var p in _machine.GetComponentsInChildren<BuildPort>())
+                if (p != null && p.portType == type) list.Add(p);
+        return list.ToArray();
     }
 
     // ── 현재 생산 공식 스트립 ─────────────────────────────────────
@@ -995,6 +1017,27 @@ public class MachineUI : MonoBehaviour
             if (!operating) continue;
             float frac = Mathf.Repeat(t + p.phase, 1f);
             p.dot.anchoredPosition = Vector2.Lerp(p.a, p.b, frac);
+        }
+
+        // 벨트 위 아이템: 실제 벨트가 지금 싣고 있는 아이템만 표시(occupant 폴링). 없으면 숨김. 입력=유입/출력=배출 방향으로 흐름 + 양끝 페이드.
+        float bt = Time.unscaledTime * FR_BeltItemSpeed;
+        for (int i = 0; i < _beltFlows.Count; i++)
+        {
+            var bf = _beltFlows[i];
+            if (bf.rt == null || bf.img == null) continue;
+            int id = bf.port != null ? BeltSegment.IncomingItemId(bf.port) : -1;
+            if (id < 0) { if (bf.img.enabled) bf.img.enabled = false; bf.shownId = -1; continue; }
+            if (id != bf.shownId)   // 실린 아이템이 바뀌면 아이콘 갱신
+            {
+                var itemData = GameDataUtility.GetItem(id);
+                bf.img.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
+                bf.shownId = id;
+            }
+            if (bf.img.sprite == null) { bf.img.enabled = false; continue; }
+            bf.img.enabled = true;
+            float frac = Mathf.Repeat(bt, 1f);
+            bf.rt.anchoredPosition = Vector2.Lerp(bf.a, bf.b, frac);
+            var col = bf.img.color; col.a = Mathf.Sin(frac * Mathf.PI); bf.img.color = col;
         }
         // 중앙 화살표 2개: 가동 시 흰 펄스가 좌->우로 지나감(위상차), 미가동 = 회색.
         for (int i = 0; i < _centerChevrons.Count; i++)

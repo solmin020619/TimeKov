@@ -495,6 +495,22 @@ namespace TIMEKOV.Factory
             return false;
         }
 
+        /// <summary>포트 앞 칸의 벨트가 지금 싣고 있는 아이템 id (없으면 -1). 설비 UI 가 실제 유입/배출 아이템을 표시할 때 씀(관찰 전용, 로직 불변).</summary>
+        public static int IncomingItemId(BuildPort port)
+        {
+            if (port == null || port.OwnerBuilding == null) return -1;
+            Vector2Int front = port.GetFrontCell();
+            Vector2Int dir   = port.GetWorldDirection();
+            foreach (var seg in All)
+            {
+                if (seg == null || !seg._cellsInitialized) continue;
+                if (seg._beltCell != front) continue;
+                if (!seg.RailConnectsToward(dir)) continue;
+                return seg._occupant != null ? seg._occupant.itemId : -1;
+            }
+            return -1;
+        }
+
         // ── 레거시 물리 감지 (폴백) ──────────────────────────────────────
 
         private void LegacyDetectConnections()
