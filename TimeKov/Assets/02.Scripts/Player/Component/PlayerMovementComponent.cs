@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -28,10 +27,6 @@ public class PlayerMovementComponent : MonoBehaviour
     public float MaxSlopeAngle   = 45f;   // 최대 등반 가능 경사각
     public float SlopeSlideSpeed = 4f;    // 가파른 경사에서 미끄러지는 속도
 
-    [Header("Death")]
-    [Tooltip("죽은 뒤 바닥에 안착(공중=낙하/경사=안착)되기를 기다리는 최대 시간(초). 지나면 강제로 지면 스냅 후 고정.")]
-    public float DeathSettleMaxTime = 3f;
-
     private Player _player;
     private Rigidbody _rb;
     private CapsuleCollider _capsule;
@@ -56,10 +51,10 @@ public class PlayerMovementComponent : MonoBehaviour
     private const float POST_UNLOCK_PHYS = 0.15f; // 물리 dead zone 길이
     private const float POST_UNLOCK_ANIM = 0.20f; // anim sync 길이 (dead zone + 1프레임 여유)
 
-    private Coroutine _settleCo;
     private bool _deadHandled;         // 사망 안착 트리거 1회 가드(OnDead 이벤트/FixedUpdate 어느 쪽이 먼저 불러도 한 번만)
+    private Vector3 _deathPos;          // 죽은 자리(안착 위치). 사망 중 매 프레임 이 자리로 강제 고정 = 경사 미끄러짐/보간 밀림 방지
 
-    // 사망 처리: 죽는 순간 즉시 고정하지 않고, 중력으로 바닥까지 떨어뜨리거나 경사에 안착시킨 뒤 고정(BeginDeathSettle -> SettleThenFreezeRoutine).
+    // 사망 처리: 죽는 즉시 발밑 지면으로 스냅해 '박히듯' 안착시킨 뒤 물리 고정(BeginDeathSettle). 공중사망도 낙하 없이 그 자리 바로 아래 바닥에서 죽는다.
 
     // Slash
     private bool _isSlashing;
@@ -108,59 +103,28 @@ public class PlayerMovementComponent : MonoBehaviour
     }
 
     /// <summary>
-    /// 사망 처리: 죽는 순간 즉시 고정하지 않고, 중력으로 바닥까지 떨어뜨린(공중) 뒤 안착되면 고정한다.
+    /// 사망 처리: 죽는 즉시 발밑 지면으로 스냅해 '박히듯' 안착시킨 뒤 물리 고정한다.
+    /// 공중사망(낙하 중 사망)이어도 떨어지며 사라지지 않고, 그 자리 바로 아래 바닥에서 죽는다.
     /// OnDead 이벤트 + FixedUpdate(IsDead) 양쪽에서 호출되며 _deadHandled 가드로 1회만 실행 = 이벤트 누락에 의존 안 함.
-    /// - 공중사망: 동적 유지 + 중력으로 빠르게 수직 낙하 -> 접지 후 고정.
-    /// - 경사/지상사망: 그 자리 안착 + yaw만 유지(가로로 안 눕혀 맵 뚫림 방지).
-    /// - 안착 판정은 GroundMask가 아니라 발밑 레이캐스트(지면까지 거리) = 새 터레인이 GroundMask에 없어도 동작 + 점프 정점 오발 없음.
+    /// - 지면 탐색은 GroundMask 1순위 + 아무 표면 폴백(SnapDownToGround) = 새 터레인이 GroundMask에 없어도 동작.
+    /// - yaw만 유지(가로로 안 눕혀 맵 뚫림 방지). 지면을 전혀 못 찾으면(완전 허공) 현재 위치에서 고정.
     /// </summary>
     private void BeginDeathSettle()
     {
         if (_deadHandled) return;   // 이벤트/FixedUpdate 어느 쪽이 먼저 불러도 1회만
         _deadHandled = true;
-        _rb.angularVelocity = Vector3.zero;
-        _rb.linearVelocity = new Vector3(0f, Mathf.Min(0f, _rb.linearVelocity.y), 0f);   // 수평 관성 제거 + 위로 솟던 점프속도 제거(낙하만 남김)
-        UprightYaw();
-        if (_settleCo != null) StopCoroutine(_settleCo);
-        _settleCo = StartCoroutine(SettleThenFreezeRoutine());
-    }
 
-    // 발밑 지면에 거의 닿고(레이캐스트) 수직이 거의 멈출 때까지(또는 타임아웃) 기다렸다 지면 스냅 + kinematic 고정.
-    private IEnumerator SettleThenFreezeRoutine()
-    {
-        yield return new WaitForFixedUpdate();
-        float t = 0f, rest = 0f, lastY = _rb.position.y;
-        while (t < DeathSettleMaxTime)
-        {
-            // 안착 = 발밑 지면 거의 닿음(GroundMask 무관 레이캐스트) + 수직 거의 정지.
-            // 점프 정점(vy~0)에선 지면까지 거리가 멀어 nearGround=false -> 공중 조기 안착(부유) 방지.
-            bool nearGround = GroundGapBelow() <= 0.12f;
-            bool vStopped   = Mathf.Abs(_rb.position.y - lastY) < 0.015f
-                              && Mathf.Abs(_rb.linearVelocity.y) < 0.8f;
-            lastY = _rb.position.y;
-            rest = (nearGround && vStopped) ? rest + Time.fixedDeltaTime : 0f;
-            if (rest >= 0.12f) break;
-            t += Time.fixedDeltaTime;
-            yield return new WaitForFixedUpdate();
-        }
-        SnapDownToGround();   // 최종 정렬(폴백 포함 = 못 찾아도 안전)
-        UprightYaw();
+        // 죽는 순간 즉시: 관성 제거 -> 발밑 지면으로 스냅 -> 똑바로 세움 -> kinematic 고정.
+        // (예전의 '중력으로 떨어뜨린 뒤 안착' 방식을 없애 공중사망이 낙하 없이 바로 바닥에서 죽게 함)
         _rb.linearVelocity  = Vector3.zero;
         _rb.angularVelocity = Vector3.zero;
+        SnapDownToGround();   // 현재 위치 바로 아래 지면으로 즉시 안착(폴백 포함 = 못 찾아도 안전)
+        UprightYaw();
         _rb.isKinematic = true;
-        _settleCo = null;
-    }
+        _deathPos = transform.position;   // 죽은 자리 확정 → 사망 중 매 프레임 이 자리로 고정(경사 미끄러짐 방지)
 
-    // 캡슐 바닥에서 아래 지면까지 거리(플레이어 레이어 제외, GroundMask 무관). 못 찾으면 큰 값.
-    private float GroundGapBelow()
-    {
-        float capsuleBottomLocalY = _capsule.center.y - _capsule.height * 0.5f;
-        Vector3 bottom = transform.position + Vector3.up * (capsuleBottomLocalY * transform.lossyScale.y);
-        Vector3 origin = bottom + Vector3.up * 0.15f;   // 살짝 위에서 쏴 자기 바닥 자가충돌 회피
-        int mask = ~(1 << gameObject.layer);
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 300f, mask, QueryTriggerInteraction.Ignore))
-            return Mathf.Max(0f, hit.distance - 0.15f);
-        return 999f;
+        // 죽는 시점에 보고 있던 카메라 시점 그대로 고정 + 플레이어 카메라 조작 차단.
+        ThirdPersonCamera.Instance?.LockForDeath();
     }
 
     // 똑바로 세우기(yaw만). 경사 법선 정렬 안 함 = 가로로 눕혀 맵 뚫리던 것 방지.
@@ -199,10 +163,12 @@ public class PlayerMovementComponent : MonoBehaviour
     /// <summary>부활 시 Rigidbody 복구 (PlayerStatComponent.Respawn에서 호출됨)</summary>
     public void UnfreezeOnRespawn()
     {
-        if (_settleCo != null) { StopCoroutine(_settleCo); _settleCo = null; }   // 안착 코루틴 진행 중이면 중단
         _deadHandled = false;
         _rb.isKinematic = false;
         UprightYaw();
+
+        // 사망 시점 시점 잠금 해제 → 마우스 카메라 제어 복구.
+        ThirdPersonCamera.Instance?.UnlockAfterRespawn();
     }
 
     void Update()
@@ -226,22 +192,19 @@ public class PlayerMovementComponent : MonoBehaviour
 
     void FixedUpdate()
     {
-        // 사망 시 모든 물리 이동 정지 (경사면 미끄러짐 방지)
-        // FreezeOnDeath가 kinematic으로 전환하지만, 전환 직전 1프레임이나
-        // HandleGravity의 경사 밀착(중력 Y를 경사면 접선으로 투영)이 잔류 XZ 속도를
-        // 다시 만들 수 있어, 핸들러 진입 전에 여기서 확실히 차단한다.
+        // 사망 시 모든 물리 이동 정지 (경사면 미끄러짐 방지).
+        // BeginDeathSettle이 죽는 즉시 발밑 지면으로 스냅 + kinematic 고정한다. 그 뒤엔
+        // 죽은 자리(_deathPos)로 매 프레임 강제 고정 = 경사 잔여 슬라이드/Interpolate 보간 밀림까지 원천 차단.
         if (_player.Stat.IsDead)
         {
             _currentSpeed = 0f;
-            if (!_deadHandled) BeginDeathSettle();   // 이벤트(OnDead) 누락 대비 - 죽는 순간 1회 트리거
-            if (!_rb.isKinematic)
+            if (!_deadHandled)
+                BeginDeathSettle();   // 이벤트(OnDead) 누락 대비 - 죽는 순간 1회 즉시 안착+고정
+            else
             {
-                // 안착 전: 수평 관성만 제거 + 중력으로 빠르게 낙하(공중사망도 즉시 떨어짐).
-                // (예전의 'Y까지 0' 박제 분기를 없앰 = 동적이면 무조건 낙하 -> 공중 부유 불가.)
-                Vector3 v = _rb.linearVelocity;
-                v.x = 0f; v.z = 0f;
-                _rb.linearVelocity = v;
-                _rb.AddForce(Vector3.up * Gravity * FallMultiplier, ForceMode.Acceleration);   // Gravity<0라 아래로
+                // 이미 사망 고정됨: 어떤 이유로든 위치가 밀리면 죽은 자리로 다시 못박음.
+                _rb.position = _deathPos;
+                transform.position = _deathPos;   // 보간(Interpolate) 시각 밀림까지 즉시 차단
             }
             return;
         }
