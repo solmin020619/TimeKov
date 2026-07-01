@@ -504,17 +504,21 @@ public class MachineUI : MonoBehaviour
 
     // ── 공정 흐름 레일: 설비 포트(N) -> 세로 버스 -> 재료/결과칸. 입력=회색/흰, 출력=파랑. ──
     //   버스/가로레일은 얇게(한 트레이스), 포트 단자만 굵게 강조. 포트별 실제 벨트연결 반영(연결=밝게 + 가동 시 흰 펄스).
-    // FR_SlotEdgeX = 슬롯 왼쪽 모서리(InputArea x=-155, 슬롯폭140 -> 모서리 ±225). 버스는 그 바로 바깥, 포트는 더 바깥.
-    private const float FR_PortX = 360f, FR_BusX = 252f, FR_SlotEdgeX = 225f;
-    private const float FR_PortPitch = 68f, FR_SlotPitch = 152f;
+    // FR_SlotEdgeX = 슬롯 모서리(±225), FR_PortX = 포트(±360). 그 사이를 버스가 나눔.
+    //   버스를 포트쪽으로 붙여 슬롯쪽 가로선을 길게(±310) -> 포트쪽 50 : 슬롯쪽 85. (레퍼런스처럼 슬롯쪽이 더 김)
+    private const float FR_PortX = 360f, FR_BusX = 310f, FR_SlotEdgeX = 225f;
+    // FR_PortPitch = 포트 세로 간격. 포트단자를 키우면(FR_PortTickH) 출력(포트 최다 3개)에서 안 붙게 간격도 넉넉히.
+    private const float FR_PortPitch = 80f, FR_SlotPitch = 152f;
     // ★레퍼런스(엔필)처럼 = 버스/가로레일은 다 얇은 회로선 하나로 이어지게, 포트 연결 세로선만 굵게 강조.
     //   이음새 끊김 해결 = 가로선을 세로선 속으로 한 두께 겹치게(MakeHRail) + 같은 색 통일 + 버스 끝 늘리기.
     private const float FR_RailThin = 4f;      // 버스/가로레일 = 얇은 회로선(가늘게, 하나로 이어지게)
     private const float FR_PortTickW = 8f;      // 포트 단자 = 유일하게 강조(굵은 세로선). 얇은 레일보다 확실히 굵게.
-    private const float FR_PortTickH = 44f;     // 포트 단자 길이(연결지점 세로 강조)
+    private const float FR_PortTickH = 64f;     // 포트 단자 길이(연결지점 세로 강조) - 레일(벨트 RT)이 여기 맞춰 들어가므로 넉넉히
+    private const float FR_PortWrapGap = 28f;   // 포트가 슬롯을 감쌀 때 슬롯 최외곽에서 더 벌리는 여유(포트단자가 슬롯과 안 겹치게)
+    private const float FR_SlotDotOut = 8f;     // 슬롯쪽 레일 끝(=연결점)을 슬롯 모서리에서 버스쪽으로 뺀 거리(박스에 안 가리게)
     // 실제 게임 레일(RenderTexture) 표시. 정사각 텍스처 = 가운데 가로 스트립 + 나머지 투명이라 정사각으로 얹으면 왜곡 없음.
-    private const float FR_RailStripSize = 120f; // 포트 바깥에 얹는 실제 레일 RT 크기
-    private const float FR_RailStripOut  = 60f;  // 포트에서 바깥으로 밀어내는 거리(스트립 안쪽 끝이 포트에 닿게)
+    private const float FR_RailStripSize = 160f; // 포트 바깥에 얹는 실제 레일 RT 크기(포트단자 키운 만큼 벨트도 크게)
+    private const float FR_RailStripOut  = 80f;  // 포트에서 바깥으로 밀어내는 거리 = 크기의 절반(스트립 안쪽 끝이 포트에 닿게)
     private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
     private static readonly Color FR_RailWhite = new Color(0.82f, 0.93f, 1.0f, 1f);     // 입력 가로레일(밝은 시안화이트)
@@ -600,20 +604,24 @@ public class MachineUI : MonoBehaviour
         float portX = sign * FR_PortX, busX = sign * FR_BusX, slotEdge = sign * FR_SlotEdgeX;
         bool[] conn = ReadPortConn(isInput ? PortType.Input : PortType.Output, nPorts);
 
-        float portTop = (nPorts - 1) * 0.5f * FR_PortPitch;
         float slotTop = (slotCount - 1) * 0.5f * FR_SlotPitch;
-        float busHalf = Mathf.Max(portTop, Mathf.Max(slotTop, 1f));
-        // 세로 버스 = 얇은 한 트레이스. 위아래로 한 두께 늘려(끝 코너 seam 덮기) 모든 가지가 T자로 파고들게.
-        MakeQuad("Bus", new Vector2(busX, 0f), new Vector2(FR_RailThin, busHalf * 2f + FR_RailThin * 2f), baseColor);
+        float portNatural = (nPorts - 1) * 0.5f * FR_PortPitch;
+        // 포트가 슬롯을 위아래로 감싸게(바깥) -> 슬롯은 안쪽에서 엇갈림, 버스 끝은 최외곽 포트에 딱(맨살 스텁 없음).
+        //   슬롯이 있으면 포트 span 을 슬롯+gap 이상으로 벌린다. 슬롯이 좁거나 없으면(출력=슬롯1개 중앙) 포트는 자연 간격.
+        float portHalf  = slotTop > 0f ? Mathf.Max(portNatural, slotTop + FR_PortWrapGap) : portNatural;
+        float busHalf   = Mathf.Max(portHalf, 1f);
+        float portTop   = nPorts > 1 ? portHalf : 0f;                      // 포트 1개면 중앙
+        float portPitch = nPorts > 1 ? (portHalf * 2f) / (nPorts - 1) : 0f;
+        MakeQuad("Bus", new Vector2(busX, 0f), new Vector2(FR_RailThin, busHalf * 2f), baseColor);
 
         // 포트 단자(굵게 강조) + 포트->버스 가로레일. 연결된 포트 = 밝게 + 실제 레일 + 흰 펄스.
         for (int j = 0; j < nPorts; j++)
         {
-            float py = portTop - j * FR_PortPitch;
+            float py = portTop - j * portPitch;
             bool c = conn != null && j < conn.Length && conn[j];
             Color tickCol = c ? Color.Lerp(baseColor, Color.white, 0.55f) : baseColor;
             Color railCol = c ? Color.Lerp(baseColor, Color.white, 0.30f) : baseColor;
-            MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선(양끝 파고듦)
+            MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선
             MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로)
             if (c)
             {
@@ -632,22 +640,24 @@ public class MachineUI : MonoBehaviour
             }
         }
 
-        // 버스->슬롯 가로레일 + 슬롯 연결점.
+        // 버스->슬롯 가로레일 + 버스 탭 노드 + 재료칸쪽 연결점.
         for (int k = 0; k < slotCount; k++)
         {
             float sy = slotTop - k * FR_SlotPitch;
-            MakeHRail("SlotRail", busX, slotEdge, sy, baseColor);
-            MakeDot(new Vector2(slotEdge, sy), 9f, baseColor);
+            // 레일 끝(=연결점)을 슬롯 박스 밖(버스쪽)으로 빼서 박스에 안 가리게. 점은 항상 레일 끝에.
+            float slotEnd = slotEdge + sign * FR_SlotDotOut;
+            MakeHRail("SlotRail", slotEnd, busX, sy, baseColor);
+            MakeDot(new Vector2(slotEnd, sy), 9f, baseColor);
         }
     }
 
-    // 두 X 지점을 잇는 가로레일. 양끝을 반 두께(=버스 절반폭)만 늘린다.
-    //   버스를 딱 반대쪽 모서리까지 건너 flush 하게 붙어 이음새는 없애되, 반대편으로 삐져나오는 "+" 스텁은 안 생기게.
-    private void MakeHRail(string name, float xA, float xB, float y, Color color)
+    // 두 X 지점(바깥끝, 버스중심)을 정확히 잇는다. 늘리지 않음.
+    //   버스 쪽 끝이 버스 중심(xB=busX)에서 딱 끝나 = 버스 절반과 겹쳐 틈 없이 붙되, 반대쪽으로 삐져나오는 스텁이 안 생긴다.
+    //   바깥끝(포트단자/슬롯점)은 그 위에 덮이는 단자/동그라미가 가려줘서 별도 겹침 불필요.
+    private void MakeHRail(string name, float xOuter, float xBus, float y, Color color)
     {
-        float ext = FR_RailThin * 0.5f;
-        float lo = Mathf.Min(xA, xB) - ext;
-        float hi = Mathf.Max(xA, xB) + ext;
+        float lo = Mathf.Min(xOuter, xBus);
+        float hi = Mathf.Max(xOuter, xBus);
         MakeQuad(name, new Vector2((lo + hi) * 0.5f, y), new Vector2(hi - lo, FR_RailThin), color);
     }
 
