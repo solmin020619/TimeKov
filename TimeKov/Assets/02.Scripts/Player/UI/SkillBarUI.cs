@@ -329,7 +329,7 @@ public class SkillBarUI : MonoBehaviour
 
         bool outside = _player.Stat == null || !_player.Stat.IsInBase;
         bool coachmark = TutorialOverlay.HasInstance && TutorialOverlay.I.IsActive;
-        bool show = !anyUI && (outside || coachmark || _showTimer > 0f);
+        bool show = !anyUI && !DeathOverlayUI.IsOpen && (outside || coachmark || _showTimer > 0f);
 
         // 페이드 없이 즉시 on/off (화면전환 느낌 - 딱딱). 부드러운 페이드는 의도적으로 안 씀.
         _cg.alpha = show ? 1f : 0f;
