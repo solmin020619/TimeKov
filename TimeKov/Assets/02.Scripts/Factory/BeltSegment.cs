@@ -495,19 +495,29 @@ namespace TIMEKOV.Factory
             return false;
         }
 
-        /// <summary>포트 앞 칸의 벨트가 지금 싣고 있는 아이템 id (없으면 -1). 설비 UI 가 실제 유입/배출 아이템을 표시할 때 씀(관찰 전용, 로직 불변).</summary>
+        /// <summary>포트에 연결된 레일 "체인 전체" 중 설비에 가장 가까운 아이템 id (없으면 -1).
+        /// 설비 붙은 칸에서 시작해 prev/next 로 체인을 훑는다 = 아이템이 레일 타고 오는 내내 표시된다.
+        /// 설비 UI 표시 전용(관찰만, 벨트 로직 불변).</summary>
         public static int IncomingItemId(BuildPort port)
         {
             if (port == null || port.OwnerBuilding == null) return -1;
             Vector2Int front = port.GetFrontCell();
             Vector2Int dir   = port.GetWorldDirection();
+            BeltSegment seg0 = null;
             foreach (var seg in All)
             {
                 if (seg == null || !seg._cellsInitialized) continue;
                 if (seg._beltCell != front) continue;
                 if (!seg.RailConnectsToward(dir)) continue;
-                return seg._occupant != null ? seg._occupant.itemId : -1;
+                seg0 = seg; break;
             }
+            if (seg0 == null) return -1;
+            // seg0(설비 붙은 칸)부터 바깥으로 훑어 가장 가까운 점유 아이템 반환. 한 방향은 설비(=null)라 사실상 레일 체인만 훑는다.
+            int guard = 0;
+            for (var s = seg0; s != null && guard < 256; s = s.prevSegment, guard++)
+                if (s._occupant != null) return s._occupant.itemId;
+            for (var s = seg0.nextSegment; s != null && guard < 256; s = s.nextSegment, guard++)
+                if (s._occupant != null) return s._occupant.itemId;
             return -1;
         }
 
