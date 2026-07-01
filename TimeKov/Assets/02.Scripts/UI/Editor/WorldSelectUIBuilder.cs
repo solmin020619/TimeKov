@@ -33,7 +33,7 @@ public static class WorldSelectUIBuilder
     // 글자색도 채도가 낮아 글자가 배경에 묻혀 안 보이는 문제가 있었음 — 전부 대비를 크게 올림.
     private static readonly Color DimOverlayColor = Hex("050B12", 150); // 화면 전체를 깔아 글자 대비 확보
     private static readonly Color TitleColor   = Hex("F2F5F8", 255);
-    private static readonly Color LineColor    = Hex("FFFFFF", 120);
+    private static readonly Color LineColor    = Hex("FFFFFF", 60);
     private static readonly Color HeaderColor  = Hex("C7D2DC", 255);
     private static readonly Color RowBgColor   = Hex("0A1018", 235);
     private static readonly Color CreateBgColor = Hex("0A1018", 190);
@@ -89,26 +89,46 @@ public static class WorldSelectUIBuilder
         AnchorTopLeft(title.rectTransform);
         ApplyFont(title);
 
-        var titleLine = MakeRect("TitleLine", root.transform, new Vector2(360, 2), new Vector2(LeftMargin, -130f), LineColor);
+        var titleLine = MakeRect("TitleLine", root.transform, new Vector2(360, 2), new Vector2(LeftMargin, -120f), LineColor);
         AnchorTopLeft(titleLine);
-        var titleTick = MakeRect("TitleTick", root.transform, new Vector2(3, 12), new Vector2(LeftMargin, -126f), Hex("FFFFFF", 140));
+        var titleTick = MakeRect("TitleTick", root.transform, new Vector2(3, 12), new Vector2(LeftMargin, -116f), Hex("FFFFFF", 140));
         AnchorTopLeft(titleTick);
 
         // ── 헤더 행 (데이터 행과 동일한 HorizontalLayoutGroup 폭 배분으로 컬럼 정렬 보장) ──
-        const float HeaderTop = -190f;
-        const float HeaderGap = 16f; // 헤더 줄과 목록 사이 여백
-        float headerBottom = HeaderTop - RowHeight; // 헤더 행 박스의 실제 아래쪽 끝
+        const float HeaderTop = -150f;
+        const float HeaderRowH = 44f;   // 레퍼런스 기준 헤더는 데이터 행보다 얇게
+        const float HeaderGap = 12f;    // 헤더 줄과 목록 사이 여백
+        float headerBottom = HeaderTop - HeaderRowH;
 
         var headerRow = BuildRowSkeleton("HeaderRow", root.transform, new Vector2(LeftMargin, HeaderTop), withBg: false);
+        // BuildRowSkeleton은 RowHeight(84)로 sizeDelta를 설정하므로 헤더 전용으로 덮어씀
+        headerRow.GetComponent<RectTransform>().sizeDelta = new Vector2(ContentWidth, HeaderRowH);
         var headerName = MakeColumnTMP(headerRow, "월드명", HeaderColor, TextAlignmentOptions.MidlineLeft, flexible: true);
         headerName.fontStyle = FontStyles.Bold;
-        var headerLevel = MakeColumnTMP(headerRow, "강화 Lv.", HeaderColor, TextAlignmentOptions.MidlineRight, flexible: false, fixedWidth: LevelColWidth);
+        var headerLevel = MakeColumnTMP(headerRow, "코어 레벨", HeaderColor, TextAlignmentOptions.MidlineRight, flexible: false, fixedWidth: LevelColWidth);
         headerLevel.fontStyle = FontStyles.Bold;
 
-        // 기존엔 -224로 박혀있어 헤더 행 박스(-190~-274) 안쪽, 즉 "월드명"/"강화 Lv." 글자 한가운데를
-        // 가로질러 버그처럼 보였다 — 헤더 행의 실제 아래쪽 끝(headerBottom)에 맞춘다.
-        var headerLine = MakeRect("HeaderLine", root.transform, new Vector2(ContentWidth, 1f), new Vector2(LeftMargin, headerBottom), Hex("FFFFFF", 50));
+        var headerLine = MakeRect("HeaderLine", root.transform, new Vector2(ContentWidth, 1f), new Vector2(LeftMargin, headerBottom), Hex("FFFFFF", 25));
         AnchorTopLeft(headerLine);
+
+        // 헤더 구분선 위 그라데이션 — 구분선 쪽이 짙고 위로 갈수록 투명해짐
+        // RawImage + Texture2D 에셋 방식(씬 저장 시 참조 유지)
+        var gradTex = BuildHeaderGradTex();
+        if (gradTex != null)
+        {
+            const float GradH = 30f;
+            var gradGo = new GameObject("HeaderGradient", typeof(RectTransform), typeof(UnityEngine.UI.RawImage));
+            gradGo.transform.SetParent(root.transform, false);
+            var gradRt = gradGo.GetComponent<RectTransform>();
+            gradRt.anchorMin = gradRt.anchorMax = gradRt.pivot = new Vector2(0f, 1f);
+            gradRt.anchoredPosition = new Vector2(LeftMargin, headerBottom + GradH);
+            gradRt.sizeDelta  = new Vector2(ContentWidth, GradH);
+            var rawImg = gradGo.GetComponent<UnityEngine.UI.RawImage>();
+            rawImg.texture = gradTex;
+            rawImg.raycastTarget = false;
+            // DimOverlay(index 0) 바로 위에 렌더 — 텍스트/행보다 먼저 그려짐
+            gradGo.transform.SetSiblingIndex(1);
+        }
 
         // ── 목록 컨테이너 (스크롤 없이 VerticalLayoutGroup — 슬롯이 적어 스크롤 불필요) ──
         var listGo = new GameObject("RowContainer", typeof(RectTransform));
@@ -163,7 +183,7 @@ public static class WorldSelectUIBuilder
             new Vector2(ContentWidth, 2f), Vector2.zero, new Color(1f, 1f, 1f, 0.30f));
         var actLineRt = actLine.GetComponent<RectTransform>();
         actLineRt.anchorMin = actLineRt.anchorMax = actLineRt.pivot = new Vector2(0f, 0f);
-        actLineRt.anchoredPosition = new Vector2(LeftMargin, actBottom + actBtnH + 80f);
+        actLineRt.anchoredPosition = new Vector2(LeftMargin, actBottom + actBtnH + 55f);
         actLine.GetComponent<Image>().raycastTarget = false;
 
         // ── 이름 입력 모달 (팰월드 WORLD SETTING의 "월드명" 변경 팝업 참고) ──
@@ -637,6 +657,30 @@ public static class WorldSelectUIBuilder
         ColorUtility.TryParseHtmlString("#" + hex, out Color c);
         c.a = alpha / 255f;
         return c;
+    }
+
+    // 헤더 그라데이션 텍스처 생성/로드 (1×64 — 아래=짙은 네이비, 위=투명)
+    static Texture2D BuildHeaderGradTex()
+    {
+        const string path = "Assets/05.Prefabs/UI/WorldSelectHeaderGrad.asset";
+        System.IO.Directory.CreateDirectory("Assets/05.Prefabs/UI");
+
+        // 이미 있으면 재생성(색 변경 시 반영되도록 항상 덮어씀)
+        var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (existing != null) AssetDatabase.DeleteAsset(path);
+
+        var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode   = TextureWrapMode.Clamp;
+        for (int y = 0; y < 64; y++)
+        {
+            float t = (float)y / 63f;           // 0=bottom(구분선쪽), 1=top(투명쪽)
+            float a = (1f - t) * (1f - t) * 0.12f; // 이차곡선: 구분선 바로 위만 밝고 빠르게 페이드
+            tex.SetPixel(0, y, new Color(1f, 1f, 1f, a));
+        }
+        tex.Apply();
+        AssetDatabase.CreateAsset(tex, path);
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
 }
 #endif
