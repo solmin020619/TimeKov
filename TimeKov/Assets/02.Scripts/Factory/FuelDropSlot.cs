@@ -87,7 +87,7 @@ public class FuelDropSlot : MonoBehaviour,
         if (gradeAurora != null)
         {
             Color fc = GradeVisual.FuelColor;
-            gradeAurora.color = new Color(fc.r, fc.g, fc.b, fc.a * 0.9f);
+            gradeAurora.color = new Color(fc.r, fc.g, fc.b, fc.a * 0.4f);
         }
 
         RefreshIcon();

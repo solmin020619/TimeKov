@@ -122,7 +122,7 @@ public class RecipeDropSlot : MonoBehaviour,
             if (itemData != null)
             {
                 Color gc = GradeVisual.GetColor((int)itemData.itemGrade);
-                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.9f);
+                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.4f);
             }
             else
             {
@@ -365,9 +365,9 @@ public class RecipeDropSlot : MonoBehaviour,
 
         int current = _machine.InputBuffer.GetAmount(RequiredItemId);
         CurrentAmount = current;
-        // 아이콘은 Setup()에서 항상 표시되므로 수량 텍스트만 갱신
         if (amountText != null)
             amountText.text = $"{current}/{RequiredAmount}";
+        ApplyLoadedVisual(current > 0);
     }
 
     private void RefreshAmount()
@@ -378,5 +378,23 @@ public class RecipeDropSlot : MonoBehaviour,
 
         if (amountText != null)
             amountText.text = $"{current}/{RequiredAmount}";
+        ApplyLoadedVisual(current > 0);
+    }
+
+    // 재료 로드 여부로 구분: 안 들어옴 = 유령 아이콘 + 발광 끔(뭘 넣는지 힌트만), 들어옴 = 선명 + 등급 테두리/오로라.
+    private void ApplyLoadedVisual(bool loaded)
+    {
+        if (RequiredItemId <= 0) return;   // 빈 포트는 SetupEmptyPort 가 처리
+        var itemData = GameDataUtility.GetItem(RequiredItemId);
+        Color gc = itemData != null ? GradeVisual.GetColor((int)itemData.itemGrade) : Color.white;
+
+        if (iconImage != null && iconImage.sprite != null)
+            iconImage.color = loaded ? Color.white : new Color(1f, 1f, 1f, 0.26f);
+        if (rarityBorder != null)
+            rarityBorder.color = (loaded && itemData != null) ? gc : new Color(0f, 0f, 0f, 0f);
+        if (gradeAurora != null)
+            gradeAurora.color = (loaded && itemData != null)
+                ? new Color(gc.r, gc.g, gc.b, gc.a * 0.4f)
+                : new Color(0f, 0f, 0f, 0f);
     }
 }

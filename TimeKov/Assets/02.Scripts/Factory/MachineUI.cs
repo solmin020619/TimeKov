@@ -481,6 +481,8 @@ public class MachineUI : MonoBehaviour
             }
         }
 
+        // 재료칸/결과칸 위치·세로간격을 코드에서 통제(매니폴드 상수와 일치). 그 다음 레일 재생성.
+        AdjustSlotLayout();
         // 공정 흐름 레일(포트 -> 세로 버스 -> 슬롯) 재생성.
         BuildFlowRails();
 
@@ -504,11 +506,19 @@ public class MachineUI : MonoBehaviour
 
     // ── 공정 흐름 레일: 설비 포트(N) -> 세로 버스 -> 재료/결과칸. 입력=회색/흰, 출력=파랑. ──
     //   버스/가로레일은 얇게(한 트레이스), 포트 단자만 굵게 강조. 포트별 실제 벨트연결 반영(연결=밝게 + 가동 시 흰 펄스).
-    // FR_SlotEdgeX = 슬롯 모서리(±225), FR_PortX = 포트(±360). 그 사이를 버스가 나눔.
-    //   버스를 포트쪽으로 붙여 슬롯쪽 가로선을 길게(±310) -> 포트쪽 50 : 슬롯쪽 85. (레퍼런스처럼 슬롯쪽이 더 김)
-    private const float FR_PortX = 360f, FR_BusX = 310f, FR_SlotEdgeX = 225f;
-    // FR_PortPitch = 포트 세로 간격. 포트단자를 키우면(FR_PortTickH) 출력(포트 최다 3개)에서 안 붙게 간격도 넉넉히.
-    private const float FR_PortPitch = 80f, FR_SlotPitch = 152f;
+    // ── 재료칸/결과칸 레이아웃(코드에서 통제 = AdjustSlotLayout 이 실제 슬롯에 적용). 매니폴드가 여기서 파생돼 항상 맞음. ──
+    //   ★조절 노브 두 개: FR_SlotAreaX(가로), FR_SlotVGap(세로). 나머지는 자동으로 따라옴.
+    private const float FR_SlotAreaX = 125f;   // 재료칸/결과칸 중심 X(중앙에서 거리). 줄이면 입력-출력이 가로로 가까워짐.
+    private const float FR_SlotVGap  = 32f;     // 재료칸 세로 간격(VLG spacing). 늘리면 재료칸끼리 세로로 벌어짐.
+    // 슬롯 모서리 = 칸중심 ± 칸폭절반(140/2). 그 바깥으로 버스/포트가 튜닝 간격만큼.
+    private const float FR_SlotEdgeX  = FR_SlotAreaX + 70f;         // 195
+    private const float FR_SlotBusGap = 85f;    // 슬롯<->버스 가로선 길이(레퍼런스처럼 슬롯쪽이 김)
+    private const float FR_BusPortGap = 50f;    // 버스<->포트 가로선 길이(포트쪽 짧게)
+    private const float FR_BusX  = FR_SlotEdgeX + FR_SlotBusGap;    // 280
+    private const float FR_PortX = FR_BusX + FR_BusPortGap;         // 330
+    // FR_PortPitch = 포트 세로 간격(포트단자 키우면 출력 3개서 안 붙게 넉넉히). FR_SlotPitch = 칸높이140 + 세로간격.
+    private const float FR_PortPitch = 80f;
+    private const float FR_SlotPitch = 140f + FR_SlotVGap;          // 172
     // ★레퍼런스(엔필)처럼 = 버스/가로레일은 다 얇은 회로선 하나로 이어지게, 포트 연결 세로선만 굵게 강조.
     //   이음새 끊김 해결 = 가로선을 세로선 속으로 한 두께 겹치게(MakeHRail) + 같은 색 통일 + 버스 끝 늘리기.
     private const float FR_RailThin = 4f;      // 버스/가로레일 = 얇은 회로선(가늘게, 하나로 이어지게)
@@ -536,6 +546,22 @@ public class MachineUI : MonoBehaviour
     private class BeltFlow { public RectTransform rt; public Image img; public Vector2 a, b; public BuildPort port; public int shownId = -1; }
     private readonly System.Collections.Generic.List<BeltFlow> _beltFlows = new();
     private readonly System.Collections.Generic.List<TextMeshProUGUI> _centerChevrons = new();
+
+    // 재료칸(InputArea)/결과칸(OutputArea) 실제 위치·세로간격을 코드에서 통제 -> 매니폴드 상수와 항상 일치(빌더 재실행 불필요).
+    private void AdjustSlotLayout()
+    {
+        if (recipeDropSlots != null && recipeDropSlots.Length > 0 && recipeDropSlots[0] != null
+            && recipeDropSlots[0].transform.parent is RectTransform ia)
+        {
+            var p = ia.anchoredPosition; p.x = -FR_SlotAreaX; ia.anchoredPosition = p;
+            var vlg = ia.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            if (vlg != null) vlg.spacing = FR_SlotVGap;
+        }
+        if (outputSlot != null && outputSlot.transform.parent is RectTransform oa)
+        {
+            var p = oa.anchoredPosition; p.x = FR_SlotAreaX; oa.anchoredPosition = p;
+        }
+    }
 
     private void BuildFlowRails()
     {
@@ -1037,7 +1063,12 @@ public class MachineUI : MonoBehaviour
             bf.img.enabled = true;
             float frac = Mathf.Repeat(bt, 1f);
             bf.rt.anchoredPosition = Vector2.Lerp(bf.a, bf.b, frac);
-            var col = bf.img.color; col.a = Mathf.Sin(frac * Mathf.PI); bf.img.color = col;
+            // 입력 레일인데 설비가 못 받는(레시피 불일치) 아이템 = 레일 탔지만 못 들어감 -> 빨강(실패 직관, 엔필식).
+            bool rejected = bf.port != null && bf.port.portType == PortType.Input
+                            && _machine != null && !_machine.CanReceive(id);
+            Color tint = rejected ? new Color(1f, 0.32f, 0.28f) : Color.white;
+            tint.a = Mathf.Sin(frac * Mathf.PI);
+            bf.img.color = tint;
         }
         // 중앙 화살표 2개: 가동 시 흰 펄스가 좌->우로 지나감(위상차), 미가동 = 회색.
         for (int i = 0; i < _centerChevrons.Count; i++)
@@ -1086,18 +1117,10 @@ public class MachineUI : MonoBehaviour
             outputSlot.transform.localScale = new Vector3(s, s, 1f);
         }
 
-        // 가동 글로우 = 가공 중 노란빛 알파 펄스(unscaled = timeScale 0 안전).
-        if (machineGlow != null)
+        // 가동 글로우(가공 중 노란빛 오버레이) 제거 - 패널을 노랗게 덮어 거슬려서 항상 끔.
+        if (machineGlow != null && machineGlow.color.a != 0f)
         {
-            if (isSelectedRecipeActive && _machine.IsProcessing)
-            {
-                float a = 0.10f + 0.10f * Mathf.PingPong(Time.unscaledTime * 1.6f, 1f);
-                var gc = machineGlow.color; gc.a = a; machineGlow.color = gc;
-            }
-            else if (machineGlow.color.a != 0f)
-            {
-                var gc = machineGlow.color; gc.a = 0f; machineGlow.color = gc;
-            }
+            var gc = machineGlow.color; gc.a = 0f; machineGlow.color = gc;
         }
 
         // [Gauge] 현재 표시된 레시피가 실제 생산 중일 때만 게이지 진행도 동기, 아니면 숨김

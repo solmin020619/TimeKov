@@ -92,7 +92,7 @@ namespace TIMEKOV.Factory
             {
                 int gi = itemData != null ? (int)itemData.itemGrade : 0;
                 Color gc = GradeVisual.GetColor(gi);
-                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.9f);
+                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.4f);   // 바닥 선명 + 오로라 은은
             }
 
             if (itemNameText != null)
@@ -118,29 +118,20 @@ namespace TIMEKOV.Factory
             if (itemData != null && !string.IsNullOrEmpty(itemData.iconKey))
                 sprite = ItemDatabase.GetIcon(itemData.iconKey);
 
+            // 미생산(빈 칸) = 유령 아이콘만, 등급 테두리/오로라는 끔 -> 완성(선명+발광)과 확실히 구분.
             if (iconImage != null)
             {
                 iconImage.sprite = sprite;
                 iconImage.color  = sprite != null
-                    ? new Color(1f, 1f, 1f, 0.3f)
-                    : new Color(1f, 1f, 1f, 0.12f);
+                    ? new Color(1f, 1f, 1f, 0.22f)
+                    : new Color(1f, 1f, 1f, 0.1f);
                 iconImage.enabled = true;
             }
 
             if (rarityBorder != null)
-            {
-                int gradeIndex = itemData != null ? (int)itemData.itemGrade : 0;
-                Color c = GradeVisual.GetColor(gradeIndex);
-                c.a *= 0.3f; // 테두리도 흐리게
-                rarityBorder.color = c;
-            }
+                rarityBorder.color = new Color(0f, 0f, 0f, 0f);   // 빈 칸 = 테두리 발광 없음
             if (gradeAurora != null)
-            {
-                int gi = itemData != null ? (int)itemData.itemGrade : 0;
-                Color gc = GradeVisual.GetColor(gi);
-                gc.a *= 0.3f; // 미리보기는 오로라도 흐리게
-                gradeAurora.color = gc;
-            }
+                gradeAurora.color = new Color(0f, 0f, 0f, 0f);    // 빈 칸 = 오로라 없음
 
             // 미리보기에는 이름/수량 표시 안 함
             if (itemNameText != null) itemNameText.text = "";

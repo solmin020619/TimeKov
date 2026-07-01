@@ -29,6 +29,11 @@ public class InventorySlotUI : MonoBehaviour,
     [Tooltip("드롭 대상으로 강조될 때 슬롯이 커지는 배율 (살짝 커지는 팝). 1=안 커짐.")]
     [SerializeField] private float dropPopScale = 1.08f;
 
+    // 등급 바/오로라 지오메트리(빌더값 대신 코드 통제 = 굵은 바닥선 + 그 위에서 시작하는 은은 오로라, 선/오로라 딱 구분).
+    private const float GradeBarH     = 6f;   // 바닥 등급선 두께(솔리드 크리스프 직선)
+    private const float GradeBarInsetX = 6f;  // 선 좌우 인셋(슬롯 밖/둥근 모서리로 안 튀게, 아이콘 마진과 맞춤)
+    private const float GradeAuroraH  = 30f;  // 오로라 높이(선 위에서 시작해 위로, 별개 효과)
+
     // 등급 색은 공용 GradeVisual 로 이동(중앙화). 일반(0)은 인벤에서 숨김.
 
     private InventorySlot _slot;
@@ -184,13 +189,25 @@ public class InventorySlotUI : MonoBehaviour,
         bool isFuel = data != null && FuelConfig.Instance != null && FuelConfig.Instance.fuelItemId == slot.itemId;
         Color slotColor = isFuel ? GradeVisual.FuelColor : GradeVisual.GetColor(gradeIndex);
 
-        // 칸 하단 등급 테두리 (모든 등급에 색)
+        // 칸 하단 등급선 = 딱 솔리드 크리스프 직선(오로라 느낌 X). grade_bar.png(알파 페이드) 스프라이트 제거해 플랫 색 사각으로.
         if (rarityBorder != null)
+        {
             rarityBorder.color = slotColor;
+            rarityBorder.sprite = null;
+            rarityBorder.type = Image.Type.Simple;
+            var brt = rarityBorder.rectTransform;
+            brt.anchoredPosition = new Vector2(0f, brt.anchoredPosition.y);
+            brt.sizeDelta = new Vector2(-GradeBarInsetX * 2f, GradeBarH);   // 좌우 인셋 = 슬롯 밖으로 안 튀게
+        }
 
-        // 등급/연료 오로라 색 (모든 등급. 일반도 은은하게)
+        // 오로라 효과는 그 선 "위로" 별개로 번짐(선과 완전 분리). 은은하게.
         if (gradeAurora != null)
-            gradeAurora.color = new Color(slotColor.r, slotColor.g, slotColor.b, slotColor.a * 0.9f);
+        {
+            gradeAurora.color = new Color(slotColor.r, slotColor.g, slotColor.b, slotColor.a * 0.4f);
+            var art = gradeAurora.rectTransform;
+            art.anchoredPosition = new Vector2(0f, GradeBarH);
+            art.sizeDelta = new Vector2(-GradeBarInsetX * 2f, GradeAuroraH);   // 선과 같은 폭
+        }
 
         if (countText != null)
         {
