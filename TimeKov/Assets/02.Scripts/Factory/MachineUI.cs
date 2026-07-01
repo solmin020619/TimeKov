@@ -507,18 +507,17 @@ public class MachineUI : MonoBehaviour
     // FR_SlotEdgeX = 슬롯 왼쪽 모서리(InputArea x=-155, 슬롯폭140 -> 모서리 ±225). 버스는 그 바로 바깥, 포트는 더 바깥.
     private const float FR_PortX = 360f, FR_BusX = 252f, FR_SlotEdgeX = 225f;
     private const float FR_PortPitch = 68f, FR_SlotPitch = 152f;
-    // ★가시성 = 두께(작은 게임뷰서 얇은 선 묻힘) + 색대비(흰/파랑이 파랑-회색 배경에 묻힘, 마젠타로 확정).
-    //   해결 = 14px 두께 + 밝은 시안색 + 어두운 외곽선(MakeRailLine, 배경서 뜯어냄).
-    private const float FR_RailThin = 14f;     // 가로레일/버스 두께(에디터 작은뷰서 보이는 최소값)
-    private const float FR_PortTickW = 7f;      // 포트 단자 두께(굵게 강조)
-    private const float FR_PortTickH = 48f;     // 포트 단자 길이(연결지점 세로 = 길게, 레일이 이쁘게 들어옴)
+    // ★레퍼런스(엔필)처럼 = 버스/가로레일은 다 얇은 회로선 하나로 이어지게, 포트 연결 세로선만 굵게 강조.
+    //   이음새 끊김 해결 = 가로선을 세로선 속으로 한 두께 겹치게(MakeHRail) + 같은 색 통일 + 버스 끝 늘리기.
+    private const float FR_RailThin = 4f;      // 버스/가로레일 = 얇은 회로선(가늘게, 하나로 이어지게)
+    private const float FR_PortTickW = 8f;      // 포트 단자 = 유일하게 강조(굵은 세로선). 얇은 레일보다 확실히 굵게.
+    private const float FR_PortTickH = 44f;     // 포트 단자 길이(연결지점 세로 강조)
     // 실제 게임 레일(RenderTexture) 표시. 정사각 텍스처 = 가운데 가로 스트립 + 나머지 투명이라 정사각으로 얹으면 왜곡 없음.
     private const float FR_RailStripSize = 120f; // 포트 바깥에 얹는 실제 레일 RT 크기
     private const float FR_RailStripOut  = 60f;  // 포트에서 바깥으로 밀어내는 거리(스트립 안쪽 끝이 포트에 닿게)
     private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
     private static readonly Color FR_RailWhite = new Color(0.82f, 0.93f, 1.0f, 1f);     // 입력 가로레일(밝은 시안화이트)
-    private static readonly Color FR_PortGray  = new Color(0.66f, 0.70f, 0.75f, 1f);    // 입력 포트단자(회색, 강조)
     private static readonly Color FR_Blue      = new Color(0.28f, 0.80f, 1.0f, 1f);     // 출력 = 밝은 시안(실제 벨트색, 버스/레일/단자)
     private static Sprite _frCircle;
     // 가동 중 레일을 따라 흐르는 흰 펄스. 각 펄스는 a->b 를 반복 이동.
@@ -541,9 +540,9 @@ public class MachineUI : MonoBehaviour
         int inSlots  = recipe != null && recipe.inputs  != null ? recipe.inputs.Length : 0;
         int outSlots = recipe != null && recipe.outputs != null && recipe.outputs.Length > 0 ? 1 : 0;
 
-        // 입력 = 회색 단자 / 흰 레일 / 회색 버스, 출력 = 전부 파랑
-        BuildRailSide(true,  InputPortCount(),  inSlots,  FR_RailWhite, FR_BusGray, FR_PortGray);
-        BuildRailSide(false, OutputPortCount(), outSlots, FR_Blue,      FR_Blue,    FR_Blue);
+        // 한 색 회로 하나로: 입력=흰(시안화이트) 전부, 출력=파랑 전부. 포트단자만 굵기로 강조.
+        BuildRailSide(true,  InputPortCount(),  inSlots,  FR_RailWhite);
+        BuildRailSide(false, OutputPortCount(), outSlots, FR_Blue);
 
         // 중앙 흐름 화살표 2개(재료->결과). 회색 기본 + 가동 시 흰 펄스(UpdateFlowRails 가 좌->우로 칠함).
         for (int i = 0; i < 2; i++)
@@ -593,8 +592,8 @@ public class MachineUI : MonoBehaviour
     }
 
     // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
-    // 버스/가로레일 = 얇은 한 트레이스, 포트 단자만 굵게 강조. 연결된 포트 = 밝게(+가동 시 흰 펄스).
-    private void BuildRailSide(bool isInput, int nPorts, int slotCount, Color railColor, Color busColor, Color portColor)
+    // 버스/가로레일/포트단자 전부 같은 색(하나의 회로) + 조각을 서로 겹쳐 이음새 제거. 포트 단자만 굵게 강조.
+    private void BuildRailSide(bool isInput, int nPorts, int slotCount, Color baseColor)
     {
         if (nPorts <= 0) return;
         float sign = isInput ? -1f : 1f;
@@ -604,19 +603,18 @@ public class MachineUI : MonoBehaviour
         float portTop = (nPorts - 1) * 0.5f * FR_PortPitch;
         float slotTop = (slotCount - 1) * 0.5f * FR_SlotPitch;
         float busHalf = Mathf.Max(portTop, Mathf.Max(slotTop, 1f));
-        // 세로 버스 = 얇은 한 트레이스(가로레일과 같은 굵기)
-        MakeRailLine("Bus", new Vector2(busX, 0f), new Vector2(FR_RailThin, busHalf * 2f), busColor);
+        // 세로 버스 = 얇은 한 트레이스. 위아래로 한 두께 늘려(끝 코너 seam 덮기) 모든 가지가 T자로 파고들게.
+        MakeQuad("Bus", new Vector2(busX, 0f), new Vector2(FR_RailThin, busHalf * 2f + FR_RailThin * 2f), baseColor);
 
-        // 포트 단자(굵게 강조) + 포트->버스 가로레일(얇게). 연결된 포트 = 밝게 + 흰 펄스.
+        // 포트 단자(굵게 강조) + 포트->버스 가로레일. 연결된 포트 = 밝게 + 실제 레일 + 흰 펄스.
         for (int j = 0; j < nPorts; j++)
         {
             float py = portTop - j * FR_PortPitch;
             bool c = conn != null && j < conn.Length && conn[j];
-            Color tickCol = c ? Color.Lerp(portColor, Color.white, 0.55f) : portColor;
-            Color railCol = c ? Color.Lerp(railColor, Color.white, 0.30f) : railColor;
-            MakeRailLine("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);   // 단자만 굵게 + 길게(연결지점 세로)
-            MakeRailLine("PortRail", new Vector2((portX + busX) * 0.5f, py),
-                         new Vector2(Mathf.Abs(busX - portX), FR_RailThin), railCol);
+            Color tickCol = c ? Color.Lerp(baseColor, Color.white, 0.55f) : baseColor;
+            Color railCol = c ? Color.Lerp(baseColor, Color.white, 0.30f) : baseColor;
+            MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선(양끝 파고듦)
+            MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로)
             if (c)
             {
                 // 연결된 포트 = 실제 게임 레일(RenderTexture)을 포트 바깥쪽으로 얹는다.
@@ -634,23 +632,23 @@ public class MachineUI : MonoBehaviour
             }
         }
 
-        // 버스->슬롯 가로레일(얇게) + 연결점 동그라미
+        // 버스->슬롯 가로레일 + 슬롯 연결점.
         for (int k = 0; k < slotCount; k++)
         {
             float sy = slotTop - k * FR_SlotPitch;
-            MakeRailLine("SlotRail", new Vector2((slotEdge + busX) * 0.5f, sy),
-                         new Vector2(Mathf.Abs(slotEdge - busX), FR_RailThin), railColor);
-            MakeDot(new Vector2(slotEdge, sy), 9f, railColor);
+            MakeHRail("SlotRail", busX, slotEdge, sy, baseColor);
+            MakeDot(new Vector2(slotEdge, sy), 9f, baseColor);
         }
     }
 
-    private void MakeRailLine(string name, Vector2 pos, Vector2 size, Color color)
+    // 두 X 지점을 잇는 가로레일. 양끝을 반 두께(=버스 절반폭)만 늘린다.
+    //   버스를 딱 반대쪽 모서리까지 건너 flush 하게 붙어 이음새는 없애되, 반대편으로 삐져나오는 "+" 스텁은 안 생기게.
+    private void MakeHRail(string name, float xA, float xB, float y, Color color)
     {
-        // 수동 검은 뒷판(살짝 큰 검은 사각) + 그 위 색레일 = 확실한 외곽선.
-        //   가로레일이 기계 와이어프레임(밝은 청백 선) 위에서 묻히던 걸 검은 테두리로 뜯어냄.
-        //   Outline 컴포넌트는 안 먹혀서 수동 뒷판으로(Image 는 확실히 렌더=마젠타로 검증).
-        MakeQuad(name + "Edge", pos, new Vector2(size.x + 7f, size.y + 7f), new Color(0f, 0f, 0f, 0.85f));
-        MakeQuad(name, pos, size, color);
+        float ext = FR_RailThin * 0.5f;
+        float lo = Mathf.Min(xA, xB) - ext;
+        float hi = Mathf.Max(xA, xB) + ext;
+        MakeQuad(name, new Vector2((lo + hi) * 0.5f, y), new Vector2(hi - lo, FR_RailThin), color);
     }
 
     private void MakeQuad(string name, Vector2 pos, Vector2 size, Color color)
