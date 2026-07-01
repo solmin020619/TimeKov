@@ -39,7 +39,10 @@ public class TitleManager : MonoBehaviour
         Time.timeScale = 1f;   // 게임 시작 전 시간 정상화(메뉴에서 멈춰 있었을 수 있음)
 
         if (worldSelectUI != null)
-            worldSelectUI.Show();   // 월드 선택/생성 후 그 안에서 씬 전환
+        {
+            worldSelectUI.Show();
+            _isStarting = false; // 패널만 열었으므로 ESC 후 재클릭 허용
+        }
         else
             SceneManager.LoadScene(nextSceneName);   // 폴백(미연결 시 기존 동작)
     }

@@ -22,6 +22,7 @@ public class WorldSelectUI : MonoBehaviour
     [Header("하단 액션 바 (선택된 슬롯 대상)")]
     [SerializeField] Button enterButton;  // "게임 시작"
     [SerializeField] Button deleteButton; // "삭제"
+    [SerializeField] Button cancelButton; // "취소" — WorldSelect 닫기
 
     [Header("이름 입력 모달")]
     [SerializeField] GameObject createModal;
@@ -62,6 +63,7 @@ public class WorldSelectUI : MonoBehaviour
         if (modalBackdropButton != null) modalBackdropButton.onClick.AddListener(CloseCreateModal);
         if (enterButton != null) enterButton.onClick.AddListener(OnClickEnter);
         if (deleteButton != null) deleteButton.onClick.AddListener(OnClickDelete);
+        if (cancelButton != null) cancelButton.onClick.AddListener(Hide);
     }
 
     void Update()

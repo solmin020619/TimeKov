@@ -45,15 +45,9 @@ public static class WorldSelectUIBuilder
     private static readonly Color ModalLabelTx = Hex("0D1218", 255);
     private static readonly Color InputBg      = Hex("050B12", 230);
 
-    // 하단 액션 바 버튼 — 팰월드 레퍼런스처럼 빨강/시안 강조 없이 전부 같은 무채색 평면 버튼
-    // + 얇은 외곽선. 강조는 색이 아니라 위치(가장 우측 = 게임 시작)로만 준다.
-    private static readonly Color FlatBtnBg     = Hex("4A5562", 200);
-    private static readonly Color FlatBtnBorder = Hex("FFFFFF", 70);
-    private static readonly Color FlatBtnText   = Hex("F2F5F8", 255);
-
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
-        _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/남양주고딕Light (OTF) SDF.asset");
+        _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/Pretendard-SemiBold SDF.asset");
 
     [MenuItem(MenuPath)]
     static void Build()
@@ -147,17 +141,21 @@ public static class WorldSelectUIBuilder
         createBtn.targetGraphic = createRow.GetComponent<Image>();
         SetRef(so, "createRowButton", createBtn);
 
-        // ── 하단 우측 액션 바: 삭제 / 게임 시작 (게임 시작이 가장 우측 모서리 — 팰월드 참고,
-        // 뒤로가기는 별도 버튼 없이 ESC로 처리) ──
+        // ── 하단 우측 액션 바: 취소 / 삭제 / 게임 시작 (우측부터 정렬) ──────────────────
         // 행을 클릭하면 선택(하이라이트)만 되고, 실제 입장/삭제는 여기 버튼이 현재
         // 선택된 슬롯을 대상으로 처리한다(선택 전엔 게임 시작/삭제 비활성).
         const float actBtnW = 160f, actBtnH = 52f, actSpacing = 16f, actBottom = 50f, actRight = LeftMargin;
+
+        var cancelActionBtn = MakeBottomRightButton("Btn_Cancel", root.transform, new Vector2(actBtnW, actBtnH),
+            actRight + (actBtnW + actSpacing) * 2, actBottom, "취소");
+        SetRef(so, "cancelButton", cancelActionBtn.GetComponent<Button>());
+
         var deleteActionBtn = MakeBottomRightButton("Btn_Delete", root.transform, new Vector2(actBtnW, actBtnH),
             actRight + actBtnW + actSpacing, actBottom, "삭제");
         SetRef(so, "deleteButton", deleteActionBtn.GetComponent<Button>());
 
         var enterBtn = MakeBottomRightButton("Btn_Enter", root.transform, new Vector2(actBtnW, actBtnH),
-            actRight, actBottom, "게임 시작");
+            actRight, actBottom, "게임 시작", isPrimary: true);
         SetRef(so, "enterButton", enterBtn.GetComponent<Button>());
 
         // 선택된 슬롯이 없는 평소 상태 — 인터랙터블 토글은 WorldSelectUI.SelectRow()가 담당.
@@ -410,13 +408,22 @@ public static class WorldSelectUIBuilder
         levelTMP.name = "LevelText";
         levelTMP.fontStyle = FontStyles.Bold;
 
+        // 호버 아웃라인 — 평소 투명, 마우스를 올리면 시안 테두리
+        var outline = rowGo.AddComponent<UnityEngine.UI.Outline>();
+        outline.effectColor = Color.clear;
+        outline.effectDistance = new Vector2(2.5f, 2.5f);
+        outline.useGraphicAlpha = false;
+
         // 선택 버튼(행 전체) — 클릭하면 선택(하이라이트)만 됨. 입장/삭제는 하단 액션 바가 처리.
+        // Button의 내장 색 전환(ColorBlock)을 끄고 WorldSelectRow가 직접 시각 상태를 관리한다.
         var selectBtn = rowGo.AddComponent<Button>();
         selectBtn.targetGraphic = rowGo.GetComponent<Image>();
+        selectBtn.transition = Selectable.Transition.None;
 
         var rowComp = rowGo.AddComponent<WorldSelectRow>();
         var rowSO = new SerializedObject(rowComp);
         SetRef(rowSO, "background", rowGo.GetComponent<Image>());
+        SetRef(rowSO, "hoverOutline", outline);
         SetRef(rowSO, "nameText", nameTMP);
         SetRef(rowSO, "dateText", dateTMP);
         SetRef(rowSO, "levelText", levelTMP);
@@ -513,29 +520,66 @@ public static class WorldSelectUIBuilder
         return go;
     }
 
-    // 화면 우하단 모서리 기준 고정 배치 버튼(액션 바: 게임 시작/삭제). xFromRight/yFromBottom은
-    // 버튼의 우측/하단 가장자리가 화면 가장자리에서 떨어진 거리. 팰월드 레퍼런스처럼 색으로
-    // 강조하지 않고 전부 같은 무채색 평면 버튼 + 얇은 외곽선으로 통일한다.
+    // 화면 우하단 모서리 기준 고정 배치 버튼 — B 스타일: 왼쪽 시안 액센트 바 + 다크 배경.
+    // isPrimary=true인 버튼(게임 시작)은 평소에도 시안으로 강조.
     static GameObject MakeBottomRightButton(string name, Transform parent, Vector2 size,
-        float xFromRight, float yFromBottom, string label)
+        float xFromRight, float yFromBottom, string label, bool isPrimary = false)
     {
         var anchoredPos = new Vector2(-xFromRight - size.x * 0.5f, yFromBottom + size.y * 0.5f);
 
-        // 외곽선 — 채우기보다 한 단계 큰 같은 위치의 사각형을 먼저 깔아 얇은 테두리처럼 보이게 한다.
-        const float borderThickness = 1.5f;
-        var border = MakeRect(name + "_Border", parent, size + Vector2.one * (borderThickness * 2f), Vector2.zero, FlatBtnBorder);
-        var borderRt = border.GetComponent<RectTransform>();
-        borderRt.anchorMin = borderRt.anchorMax = borderRt.pivot = new Vector2(1f, 0f);
-        borderRt.anchoredPosition = anchoredPos;
-
-        var go = MakeButton(name, parent, size, Vector2.zero, label, 20f, FlatBtnBg, FlatBtnText);
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(parent, false);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 0f);
+        rt.sizeDelta = size;
         rt.anchoredPosition = anchoredPos;
 
-        // MakeButton은 기본적으로 굵게 만드는데, 레퍼런스 버튼은 일반 굵기라 여기서만 되돌린다.
-        var labelTmp = go.transform.Find("Text")?.GetComponent<TextMeshProUGUI>();
-        if (labelTmp != null) labelTmp.fontStyle = FontStyles.Normal;
+        var bg = go.GetComponent<Image>();
+        bg.color = new Color32(0x0F, 0x1E, 0x2D, 0xEB);
+
+        // 왼쪽 액센트 바 (3px) — 호버 시 시안으로 전환
+        var barGo = new GameObject("AccentBar", typeof(RectTransform), typeof(Image));
+        barGo.transform.SetParent(go.transform, false);
+        var barRt = barGo.GetComponent<RectTransform>();
+        barRt.anchorMin = new Vector2(0f, 0f);
+        barRt.anchorMax = new Vector2(0f, 1f);
+        barRt.pivot     = new Vector2(0f, 0.5f);
+        barRt.anchoredPosition = Vector2.zero;
+        barRt.sizeDelta = new Vector2(3f, 0f);
+        var barImg = barGo.GetComponent<Image>();
+        barImg.color = isPrimary
+            ? new Color32(0x4D, 0xC8, 0xFF, 0xFF)
+            : new Color32(0x1E, 0x3A, 0x50, 0xFF);
+
+        // 텍스트 (좌측 14px 패딩으로 액센트 바 오른쪽에 배치)
+        var txtGo = new GameObject("Text", typeof(RectTransform));
+        txtGo.transform.SetParent(go.transform, false);
+        var txtRt = txtGo.GetComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero;
+        txtRt.anchorMax = Vector2.one;
+        txtRt.offsetMin = new Vector2(14f, 0f);
+        txtRt.offsetMax = Vector2.zero;
+        var tmp = txtGo.AddComponent<TextMeshProUGUI>();
+        tmp.text      = label;
+        tmp.fontSize  = 20f;
+        tmp.color     = isPrimary
+            ? new Color32(0x4D, 0xC8, 0xFF, 0xFF)
+            : new Color32(0xC5, 0xD5, 0xE5, 0xFF);
+        tmp.alignment = TextAlignmentOptions.Center;
+        ApplyFont(tmp);
+
+        var btn = go.AddComponent<Button>();
+        btn.targetGraphic = bg;
+        btn.transition    = Selectable.Transition.None;
+
+        var fx = go.AddComponent<ButtonAccentHoverFx>();
+        var fxSO = new SerializedObject(fx);
+        SetRef(fxSO, "accentBar", barImg);
+        SetRef(fxSO, "label", tmp);
+        var primProp = fxSO.FindProperty("isPrimary");
+        if (primProp != null) primProp.boolValue = isPrimary;
+        fxSO.ApplyModifiedProperties();
+
         return go;
     }
 

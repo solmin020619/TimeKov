@@ -9,11 +9,13 @@ using System;
 using System.Globalization;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class WorldSelectRow : MonoBehaviour
+public class WorldSelectRow : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     [SerializeField] Image background;
+    [SerializeField] UnityEngine.UI.Outline hoverOutline;
     [SerializeField] TextMeshProUGUI nameText;
     [SerializeField] TextMeshProUGUI dateText;
     [SerializeField] TextMeshProUGUI levelText;
@@ -21,7 +23,9 @@ public class WorldSelectRow : MonoBehaviour
 
     static readonly Color NormalColor   = new Color32(0x0A, 0x10, 0x18, 0xEB);
     static readonly Color SelectedColor = new Color32(0x1E, 0x46, 0x60, 0xF5);
+    static readonly Color OutlineHover  = new Color32(0x4D, 0xC8, 0xFF, 0xCC);
 
+    bool _isSelected;
     public string SlotId { get; private set; }
 
     public void Set(SaveSlotMeta meta, Action onSelect)
@@ -41,7 +45,18 @@ public class WorldSelectRow : MonoBehaviour
 
     public void SetSelected(bool selected)
     {
+        _isSelected = selected;
         if (background != null) background.color = selected ? SelectedColor : NormalColor;
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (hoverOutline != null) hoverOutline.effectColor = OutlineHover;
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        if (hoverOutline != null) hoverOutline.effectColor = Color.clear;
     }
 
     static string FormatDate(string iso)

@@ -31,7 +31,7 @@ public static class SettingsPanelRebuilder
     // 글자(그래픽/오디오/볼륨 등)가 깨져 나온다(□). 한글이 전부 포함된 폰트로 통일.
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
-        _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/남양주고딕Light (OTF) SDF.asset");
+        _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/Pretendard-SemiBold SDF.asset");
 
     // 버튼을 엔드필드처럼 확실하게 둥글게 만드는 전용 스프라이트.
     // Unity 기본 제공 UI/Skin/UISprite.psd는 모서리가 텍스처 10px / PPU 200이라
