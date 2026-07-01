@@ -50,6 +50,7 @@ public class ThirdPersonCamera : MonoBehaviour
     private float _pitchDisplay;
     private float _yawVel;                 // SmoothDampAngle 내부 속도
     private float _pitchVel;
+    private bool  _deathLocked;            // 사망 시: 마우스 회전 입력 차단 + 죽는 시점 캐릭터 방향으로 yaw 고정
     private float _currentDist;
     private float _targetDist;
     private float _sensitivityMult = 1f;  // 설정창 감도 슬라이더 배율
@@ -129,7 +130,9 @@ public class ThirdPersonCamera : MonoBehaviour
         Vector3 desired = FollowTarget.position + FollowOffset;
 
         // 순간이동(리스폰/탑뷰 복귀 등) 감지: 너무 멀어지면 보간 없이 즉시 스냅. SmoothTime 0이면 즉시.
-        if (FollowSmoothTime <= 0f ||
+        // 사망 중(_deathLocked)엔 항상 즉시 스냅: 공중사망 시 캐릭터가 바닥으로 순간 스냅되는데
+        // follow 지연으로 카메라가 뒤따라오면 그 사이 캐릭터가 프레임 밖으로 빠져 안 보이던 것 방지.
+        if (_deathLocked || FollowSmoothTime <= 0f ||
             (desired - cur).sqrMagnitude > FollowSnapDistance * FollowSnapDistance)
         {
             transform.position = desired;
@@ -185,13 +188,18 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void HandleRotation()
     {
-        // IsUIOpen 또는 GameUIController 기준 둘 다 차단
-        if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
+        // 사망 중: 마우스 입력을 무시하고 죽는 시점에 고정해 둔 방향(_yaw = 캐릭터 정면)으로만
+        // 부드럽게 수렴시킨다. UI 차단 분기보다 먼저 처리해야 사망 중에도 회전이 계속 적용됨.
+        if (!_deathLocked)
+        {
+            // IsUIOpen 또는 GameUIController 기준 둘 다 차단
+            if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
 
-        // 마우스 입력에 감도 배율 적용 (목표 각도 누적)
-        _yaw += Input.GetAxis("Mouse X") * SensitivityX * _sensitivityMult;
-        _pitch -= Input.GetAxis("Mouse Y") * SensitivityY * _sensitivityMult;
-        _pitch = Mathf.Clamp(_pitch, MinPitchAngle, MaxPitchAngle);
+            // 마우스 입력에 감도 배율 적용 (목표 각도 누적)
+            _yaw += Input.GetAxis("Mouse X") * SensitivityX * _sensitivityMult;
+            _pitch -= Input.GetAxis("Mouse Y") * SensitivityY * _sensitivityMult;
+            _pitch = Mathf.Clamp(_pitch, MinPitchAngle, MaxPitchAngle);
+        }
 
         // 목표 각도(_yaw/_pitch)를 display 각도가 부드럽게 따라감 -> 마우스 휙 돌릴 때 쿠션.
         // 0이면 즉시 1:1 (기존 동작).
@@ -262,6 +270,27 @@ public class ThirdPersonCamera : MonoBehaviour
 
     // 이동 방향 기준축은 "보이는 카메라 방향"(display yaw)으로 맞춤 -> 시점과 이동이 한 덩어리로 움직임.
     public Quaternion GetYawRotation() => Quaternion.Euler(0, _yawDisplay, 0);
+
+    // ── 사망 시 시점 잠금 ─────────────────────────────────────────────
+    /// <summary>
+    /// 사망 시 호출: 마우스 회전 입력을 막고, 죽는 시점에 보고 있던 카메라 시점 '그대로' 고정한다.
+    /// 목표각(_yaw/_pitch)을 현재 표시각(_yawDisplay/_pitchDisplay)에 맞춰 재정렬 없이 얼려
+    /// 옆으로 틀어지는 현상을 없앤다.
+    /// </summary>
+    public void LockForDeath()
+    {
+        _deathLocked = true;
+        _yaw      = _yawDisplay;    // 현재 보고 있는 방향 그대로 고정(재정렬 X = 옆으로 안 틀어짐)
+        _pitch    = _pitchDisplay;
+        _yawVel   = 0f;
+        _pitchVel = 0f;
+    }
+
+    /// <summary>부활 시 호출: 사망 시점 시점 잠금 해제 → 마우스 카메라 제어 복구.</summary>
+    public void UnlockAfterRespawn()
+    {
+        _deathLocked = false;
+    }
 
     // ── Camera Shake API ─────────────────────────────────────────────
     /// <summary>

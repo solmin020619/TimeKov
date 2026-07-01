@@ -91,7 +91,8 @@ namespace TimeKov.UI
 
         void Update()
         {
-            if (listenEscapeKey && Input.GetKeyDown(KeyCode.Escape))
+            // 사망 오버레이 중엔 ESC 무시(부활 화면 위로 설정 모달이 뜨는 것 방지).
+            if (listenEscapeKey && Input.GetKeyDown(KeyCode.Escape) && !DeathOverlayUI.IsOpen)
                 HandleEscape();
         }
 
