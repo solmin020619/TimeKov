@@ -141,14 +141,10 @@ public static class WorldSelectUIBuilder
         createBtn.targetGraphic = createRow.GetComponent<Image>();
         SetRef(so, "createRowButton", createBtn);
 
-        // ── 하단 우측 액션 바: 취소 / 삭제 / 게임 시작 (우측부터 정렬) ──────────────────
+        // ── 하단 우측 액션 바: 삭제 / 게임 시작 (우측부터 정렬) ──────────────────
         // 행을 클릭하면 선택(하이라이트)만 되고, 실제 입장/삭제는 여기 버튼이 현재
         // 선택된 슬롯을 대상으로 처리한다(선택 전엔 게임 시작/삭제 비활성).
-        const float actBtnW = 160f, actBtnH = 52f, actSpacing = 16f, actBottom = 50f, actRight = LeftMargin;
-
-        var cancelActionBtn = MakeBottomRightButton("Btn_Cancel", root.transform, new Vector2(actBtnW, actBtnH),
-            actRight + (actBtnW + actSpacing) * 2, actBottom, "취소");
-        SetRef(so, "cancelButton", cancelActionBtn.GetComponent<Button>());
+        const float actBtnW = 220f, actBtnH = 52f, actSpacing = 16f, actBottom = 50f, actRight = 90f;
 
         var deleteActionBtn = MakeBottomRightButton("Btn_Delete", root.transform, new Vector2(actBtnW, actBtnH),
             actRight + actBtnW + actSpacing, actBottom, "삭제");
@@ -161,6 +157,14 @@ public static class WorldSelectUIBuilder
         // 선택된 슬롯이 없는 평소 상태 — 인터랙터블 토글은 WorldSelectUI.SelectRow()가 담당.
         enterBtn.GetComponent<Button>().interactable = false;
         deleteActionBtn.GetComponent<Button>().interactable = false;
+
+        // 액션 바 상단 구분선 (레퍼런스의 버튼 위 흰색 라인)
+        var actLine = MakeRect("ActionLine", root.transform,
+            new Vector2(ContentWidth, 2f), Vector2.zero, new Color(1f, 1f, 1f, 0.30f));
+        var actLineRt = actLine.GetComponent<RectTransform>();
+        actLineRt.anchorMin = actLineRt.anchorMax = actLineRt.pivot = new Vector2(0f, 0f);
+        actLineRt.anchoredPosition = new Vector2(LeftMargin, actBottom + actBtnH + 80f);
+        actLine.GetComponent<Image>().raycastTarget = false;
 
         // ── 이름 입력 모달 (팰월드 WORLD SETTING의 "월드명" 변경 팝업 참고) ──
         BuildCreateModal(root.transform, so);
@@ -520,51 +524,60 @@ public static class WorldSelectUIBuilder
         return go;
     }
 
-    // 화면 우하단 모서리 기준 고정 배치 버튼 — B 스타일: 왼쪽 시안 액센트 바 + 다크 배경.
-    // isPrimary=true인 버튼(게임 시작)은 평소에도 시안으로 강조.
+    // 화면 우하단 모서리 기준 고정 배치 버튼.
+    // 흰색 반투명 테두리 + 각 모서리에 L-브래킷 장식(팰월드 "축소" 버튼 스타일).
     static GameObject MakeBottomRightButton(string name, Transform parent, Vector2 size,
         float xFromRight, float yFromBottom, string label, bool isPrimary = false)
     {
         var anchoredPos = new Vector2(-xFromRight - size.x * 0.5f, yFromBottom + size.y * 0.5f);
 
+        // 보더 rect — 흰색 반투명 테두리 (primary는 살짝 더 밝게)
+        var border = MakeRect(name + "_Border", parent, size + Vector2.one * 2f, Vector2.zero,
+            new Color(1f, 1f, 1f, isPrimary ? 0.50f : 0.35f));
+        var borderRt = border.GetComponent<RectTransform>();
+        borderRt.anchorMin = borderRt.anchorMax = borderRt.pivot = new Vector2(1f, 0f);
+        borderRt.anchoredPosition = anchoredPos;
+
+        // 버튼 본체
         var go = new GameObject(name, typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 0f);
         rt.sizeDelta = size;
         rt.anchoredPosition = anchoredPos;
-
         var bg = go.GetComponent<Image>();
-        bg.color = new Color32(0x0F, 0x1E, 0x2D, 0xEB);
+        bg.color = new Color32(0x62, 0x66, 0x6C, 0xFF);
 
-        // 왼쪽 액센트 바 (3px) — 호버 시 시안으로 전환
-        var barGo = new GameObject("AccentBar", typeof(RectTransform), typeof(Image));
-        barGo.transform.SetParent(go.transform, false);
-        var barRt = barGo.GetComponent<RectTransform>();
-        barRt.anchorMin = new Vector2(0f, 0f);
-        barRt.anchorMax = new Vector2(0f, 1f);
-        barRt.pivot     = new Vector2(0f, 0.5f);
-        barRt.anchoredPosition = Vector2.zero;
-        barRt.sizeDelta = new Vector2(3f, 0f);
-        var barImg = barGo.GetComponent<Image>();
-        barImg.color = isPrimary
-            ? new Color32(0x4D, 0xC8, 0xFF, 0xFF)
-            : new Color32(0x1E, 0x3A, 0x50, 0xFF);
+        // 모서리 L-브래킷 (4개 × H+V 두 획 = 8개 rect, 흰색 반투명)
+        float hw = size.x * 0.5f, hh = size.y * 0.5f;
+        const float tLen = 10f, tThk = 2f;
+        var tc = new Color(1f, 1f, 1f, 0.80f);
+        int[] cxs = { -1,  1, -1,  1 };
+        int[] cys = {  1,  1, -1, -1 };
+        for (int i = 0; i < 4; i++)
+        {
+            float cx = cxs[i], cy = cys[i];
+            // 수평 획
+            AddChildImage(go.transform, new Vector2(tLen, tThk),
+                new Vector2(cx * (hw - tLen * 0.5f), cy * (hh - tThk * 0.5f)), tc);
+            // 수직 획
+            AddChildImage(go.transform, new Vector2(tThk, tLen),
+                new Vector2(cx * (hw - tThk * 0.5f), cy * (hh - tLen * 0.5f)), tc);
+        }
 
-        // 텍스트 (좌측 14px 패딩으로 액센트 바 오른쪽에 배치)
+        // 텍스트
         var txtGo = new GameObject("Text", typeof(RectTransform));
         txtGo.transform.SetParent(go.transform, false);
         var txtRt = txtGo.GetComponent<RectTransform>();
         txtRt.anchorMin = Vector2.zero;
         txtRt.anchorMax = Vector2.one;
-        txtRt.offsetMin = new Vector2(14f, 0f);
-        txtRt.offsetMax = Vector2.zero;
+        txtRt.offsetMin = txtRt.offsetMax = Vector2.zero;
         var tmp = txtGo.AddComponent<TextMeshProUGUI>();
         tmp.text      = label;
         tmp.fontSize  = 20f;
         tmp.color     = isPrimary
-            ? new Color32(0x4D, 0xC8, 0xFF, 0xFF)
-            : new Color32(0xC5, 0xD5, 0xE5, 0xFF);
+            ? new Color32(0xD8, 0xE2, 0xEC, 0xFF)
+            : new Color32(0xBB, 0xC4, 0xCE, 0xFF);
         tmp.alignment = TextAlignmentOptions.Center;
         ApplyFont(tmp);
 
@@ -574,13 +587,26 @@ public static class WorldSelectUIBuilder
 
         var fx = go.AddComponent<ButtonAccentHoverFx>();
         var fxSO = new SerializedObject(fx);
-        SetRef(fxSO, "accentBar", barImg);
         SetRef(fxSO, "label", tmp);
         var primProp = fxSO.FindProperty("isPrimary");
         if (primProp != null) primProp.boolValue = isPrimary;
         fxSO.ApplyModifiedProperties();
 
         return go;
+    }
+
+    // 버튼 내부 장식용 — raycastTarget 꺼서 버튼 클릭 방해하지 않음
+    static void AddChildImage(Transform parent, Vector2 size, Vector2 pos, Color color)
+    {
+        var go = new GameObject("_tick", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+        var img = go.GetComponent<Image>();
+        img.color = color;
+        img.raycastTarget = false;
     }
 
     static void ApplyFont(TMP_Text t)
