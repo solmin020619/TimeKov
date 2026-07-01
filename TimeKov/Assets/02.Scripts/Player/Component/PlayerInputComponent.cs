@@ -37,7 +37,7 @@ public class PlayerInputComponent : MonoBehaviour
 
     void Update()
     {
-        if (IsBlocked) // UI 열림 시 모든 입력 차단
+        if (IsBlocked || DeathOverlayUI.IsOpen) // UI 열림 또는 사망 중 모든 입력 차단(우클릭 대시·스킬·공격 포함)
         {
             MoveInput       = Vector2.zero;
             JumpPressed     = false;

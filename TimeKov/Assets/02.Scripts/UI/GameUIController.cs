@@ -68,6 +68,7 @@ public class GameUIController : MonoBehaviour
     private BuildManager _buildManager;
     private CanvasGroup _questHudGroup;
     private bool _tutorialCoachActive;   // 튜토리얼 코치마크(오버레이) 표시 중 — 퀘스트 트래커 숨김
+    private bool _deathWasOpen;          // 사망 오버레이 진입/해제 감지용(전환 시 HUD·입력 재적용)
     /// <summary>튜토리얼 코치마크 표시 중인지 — BuildManager 입력 게이트가 조회.</summary>
     public bool IsTutorialCoachActive => _tutorialCoachActive;
 
@@ -121,11 +122,19 @@ public class GameUIController : MonoBehaviour
 
     protected virtual void Update()
     {
-        // ESC는 어떤 상황에서도 최우선 — 게임 일시정지/설정. 코치마크 중에도 항상 작동.
-        if (Input.GetKeyDown(KeyCode.Escape))
+        // ESC는 일시정지/설정 — 단, 사망 오버레이 중엔 막는다(부활 화면 위로 설정창이 뜨는 것 방지).
+        if (Input.GetKeyDown(KeyCode.Escape) && !DeathOverlayUI.IsOpen)
             HandleEscape();
 
-        // 사망 오버레이 중에는 ESC(위에서 처리)와 부활 버튼 외 모든 키 차단 (J/C 등).
+        // 사망 오버레이 진입/해제 시 HUD·입력·커서를 재적용(자동 동기화). 죽으면 HUD 숨김+입력 차단,
+        // 부활하면 원상복구. RespawnManager 호출 순서에 의존하지 않도록 여기서 IsOpen 전환을 감지한다.
+        if (DeathOverlayUI.IsOpen != _deathWasOpen)
+        {
+            _deathWasOpen = DeathOverlayUI.IsOpen;
+            ApplyState();
+        }
+
+        // 사망 오버레이 중에는 부활 버튼 외 모든 키 차단 (ESC 포함).
         if (DeathOverlayUI.IsOpen)
             return;
 
@@ -443,7 +452,7 @@ public class GameUIController : MonoBehaviour
         RefreshPlayerHudActive();   // 코치마크 중엔 플레이어 HUD 켜둠 — 시간바 등을 스포트라이트로 가리킬 때 보여야 함(예: 코어강화 직후 "최대 시간 증가" 안내)
         // 코치마크 동안 이동/공격/대시/스킬/카메라 차단 (C키·오버레이 진행은 raw Input이라 영향 없음).
         // 넘기면 Hide -> SetTutorialCoachActive(false)로 복귀.
-        SetGameplayInputEnabled(_currentState == UIState.None && !_tutorialCoachActive);
+        SetGameplayInputEnabled(_currentState == UIState.None && !_tutorialCoachActive && !DeathOverlayUI.IsOpen);
     }
 
     // 플레이어 HUD(HP/시간) 활성 — 평소엔 다른 UI 열리면 숨김.
@@ -451,7 +460,7 @@ public class GameUIController : MonoBehaviour
     void RefreshPlayerHudActive()
     {
         if (playerHud == null) return;
-        playerHud.SetActive(_currentState == UIState.None || _tutorialCoachActive);
+        playerHud.SetActive((_currentState == UIState.None || _tutorialCoachActive) && !DeathOverlayUI.IsOpen);
     }
 
     // 퀘스트 HUD 알파는 DriveQuestHudFade(LateUpdate)가 매 프레임 구동. 여기선 입력 차단만 보장.
@@ -470,7 +479,9 @@ public class GameUIController : MonoBehaviour
         if (_questHudGroup == null) return;
 
         float target;
-        if (_tutorialCoachActive)
+        if (DeathOverlayUI.IsOpen)
+            target = 0f;   // 사망 중 퀘스트 트래커 숨김
+        else if (_tutorialCoachActive)
             target = 0f;
         else if (_currentState == UIState.None || _currentState == UIState.Build)
             target = 1f;   // 평소 게임플레이/건설 - 퀘스트 계속 표시
@@ -532,8 +543,10 @@ public class GameUIController : MonoBehaviour
         // 설정창
         SetPanelActive(settingsPanel, _currentState == UIState.Settings);
 
-        // 퀵슬롯 UI — 건설 모드에서만 표시
-        SetPanelActive(quickSlotUI, _currentState == UIState.Build);
+        bool dead = DeathOverlayUI.IsOpen;   // 사망 중엔 모든 게임플레이 HUD 숨김 + 입력 차단
+
+        // 퀵슬롯 UI — 건설 모드에서만 표시 (사망 중엔 숨김)
+        SetPanelActive(quickSlotUI, _currentState == UIState.Build && !dead);
 
         // 퀘스트 팝업 — Quest 상태에서만 표시
         SetPanelActive(questPanel, _currentState == UIState.Quest);
@@ -556,13 +569,14 @@ public class GameUIController : MonoBehaviour
         if (playerInfoRoot != null)
         {
             bool showPlayerInfo = _currentState != UIState.Settings
-                               && _currentState != UIState.Build;
+                               && _currentState != UIState.Build
+                               && !dead;
             playerInfoRoot.SetActive(showPlayerInfo);
         }
 
         // 커서 + 입력 플래그
-        // None 상태 + 코치마크(튜토 오버레이) 아님일 때만 게임플레이 입력 활성화
-        bool gameplay = _currentState == UIState.None && !_tutorialCoachActive;
+        // None 상태 + 코치마크(튜토 오버레이) 아님 + 사망 아님일 때만 게임플레이 입력 활성화
+        bool gameplay = _currentState == UIState.None && !_tutorialCoachActive && !dead;
         SetGameplayInputEnabled(gameplay);
 
         // 설정창 또는 도감이 열릴 때 시간 정지
