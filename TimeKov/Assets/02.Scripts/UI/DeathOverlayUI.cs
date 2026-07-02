@@ -59,11 +59,16 @@ public class DeathOverlayUI : MonoBehaviour
     private RectTransform _glitchBar;       // 세로로 훑는 글리치 바
     private RectTransform _frame;           // 코너 브래킷용 풀스크린 프레임(비네트 위)
     private TMP_Text      _title, _titleR, _titleC;   // 메인 + 적/청 크로마틱 고스트
-    private TMP_Text      _countdown;
+
+    // 리스폰 대기 링(카운트다운) → 완료 시 버튼으로 전환
+    private CanvasGroup   _ringGroup;
+    private RectTransform _ringRt;
+    private TMP_Text      _ringNumber;      // 링 중앙 카운트다운 숫자
 
     private Button        _respawnButton;
     private CanvasGroup   _buttonGroup;
     private DeathRespawnButton _buttonFx;
+    private Coroutine     _morphRoutine;
 
     // ── 상태 ───────────────────────────────────────────────────────
     private float   _countdown0;
@@ -72,7 +77,7 @@ public class DeathOverlayUI : MonoBehaviour
     private int     _lastSecs = -1;
     private float   _numPop;                // 카운트다운 숫자 팝
     private Action  _onRespawn;
-    private Coroutine _fadeRoutine, _cursorRoutine, _btnRoutine;
+    private Coroutine _fadeRoutine, _cursorRoutine;
 
     private bool    _built;
     private float   _t;                     // Show 이후 누적 시간(unscaled)
@@ -159,17 +164,15 @@ public class DeathOverlayUI : MonoBehaviour
         {
             _lastSecs = secs;
             _numPop = 1f;   // 매 초 숫자 팝
-            if (_countdown != null)
-                _countdown.text =
-                    $"RESYNC IN   <size=175%><color=#8FB6C2><b>{secs:00}</b></color></size>   SEC";
+            if (_ringNumber != null)
+                _ringNumber.text = secs.ToString();
         }
 
         if (_countdown0 <= 0f)
         {
             _counting = false;
-            if (_countdown != null)
-                _countdown.text = "<color=#8FB6C2>RESYNC READY</color>";
-            SetButtonReady(true);
+            if (_ringNumber != null) _ringNumber.text = "";
+            SetButtonReady(true);   // 링 → 버튼 전환
         }
     }
 
@@ -283,45 +286,84 @@ public class DeathOverlayUI : MonoBehaviour
         }
 
         // 카운트다운 숫자 팝(스케일)
-        if (_countdown != null)
+        if (_ringNumber != null)
         {
             float s = 1f + _numPop * 0.14f;
-            SetScale(_countdown.rectTransform, s);
+            SetScale(_ringNumber.rectTransform, s);
         }
     }
 
     // ── 내부: 상태/버튼 ──────────────────────────────────────────
     void OnRespawnClicked()
     {
-        SetButtonReady(false);
+        // 클릭 시 링을 되살리지 않고, 버튼만 스르륵 사라지게 한다.
+        if (_morphRoutine != null) { StopCoroutine(_morphRoutine); _morphRoutine = null; }
+        if (_respawnButton != null) _respawnButton.interactable = false;
+        if (_buttonGroup != null) { _buttonGroup.interactable = false; _buttonGroup.blocksRaycasts = false; }
+        _morphRoutine = StartCoroutine(MorphButtonOut());
         _onRespawn?.Invoke();
+    }
+
+    // 버튼 클릭 후: 버튼을 축소·페이드아웃(링은 건드리지 않음).
+    IEnumerator MorphButtonOut()
+    {
+        var btnRt = _respawnButton != null ? _respawnButton.transform as RectTransform : null;
+        float dur = 0.5f, e = 0f;
+        while (e < dur)
+        {
+            e += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(e / dur);
+            if (_buttonGroup != null) _buttonGroup.alpha = 1f - t;
+            if (btnRt != null) btnRt.localScale = Vector3.one * Mathf.Lerp(1f, 0.6f, t);
+            yield return null;
+        }
+        if (_buttonGroup != null) _buttonGroup.alpha = 0f;
+        _morphRoutine = null;
     }
 
     void SetButtonReady(bool ready)
     {
+        if (_morphRoutine != null) { StopCoroutine(_morphRoutine); _morphRoutine = null; }
         if (_respawnButton != null) _respawnButton.interactable = ready;
-        if (_buttonGroup == null) return;
 
-        if (_btnRoutine != null) StopCoroutine(_btnRoutine);
         if (ready)
         {
-            _buttonGroup.interactable   = true;
-            _buttonGroup.blocksRaycasts = true;
-            _btnRoutine = StartCoroutine(FadeGroup(_buttonGroup, 1f, 0.35f));
+            // 링 → 버튼 스르륵 전환
+            if (_buttonGroup != null) { _buttonGroup.interactable = true; _buttonGroup.blocksRaycasts = true; }
+            _morphRoutine = StartCoroutine(MorphRingToButton());
         }
         else
         {
-            _buttonGroup.interactable   = false;
-            _buttonGroup.blocksRaycasts = false;
-            _buttonGroup.alpha = 0f;
+            // 대기 상태: 링 보이고 버튼 숨김
+            if (_ringGroup != null) { _ringGroup.alpha = 1f; if (_ringRt != null) _ringRt.localScale = Vector3.one; }
+            if (_buttonGroup != null)
+            {
+                _buttonGroup.interactable   = false;
+                _buttonGroup.blocksRaycasts = false;
+                _buttonGroup.alpha = 0f;
+            }
         }
     }
 
-    IEnumerator FadeGroup(CanvasGroup g, float target, float dur)
+    // 카운트다운 완료: 대기 링을 축소·페이드아웃하며 버튼을 페이드인.
+    IEnumerator MorphRingToButton()
     {
-        float start = g.alpha, e = 0f;
-        while (e < dur) { e += Time.unscaledDeltaTime; g.alpha = Mathf.Lerp(start, target, e / dur); yield return null; }
-        g.alpha = target;
+        float dur = 0.5f, e = 0f;
+        while (e < dur)
+        {
+            e += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(e / dur);
+            if (_ringGroup != null)
+            {
+                _ringGroup.alpha = 1f - t;
+                if (_ringRt != null) _ringRt.localScale = Vector3.one * Mathf.Lerp(1f, 0.6f, t);
+            }
+            if (_buttonGroup != null) _buttonGroup.alpha = t;
+            yield return null;
+        }
+        if (_ringGroup != null) { _ringGroup.alpha = 0f; _ringGroup.blocksRaycasts = false; }
+        if (_buttonGroup != null) _buttonGroup.alpha = 1f;
+        _morphRoutine = null;
     }
 
     IEnumerator ForceCursorWhileOpen()
@@ -391,7 +433,7 @@ public class DeathOverlayUI : MonoBehaviour
         _grid = gridRt.gameObject.AddComponent<RawImage>();
         _grid.texture = MakeGrid(38);
         _grid.raycastTarget = false;
-        _grid.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.022f);
+        _grid.color = new Color(ColCyan.r * 0.6f, ColCyan.g * 0.6f, ColCyan.b * 0.65f, 0.03f);
 
         // 2) 비네트(가장자리 어둡게) — 중성 블랙에 아주 옅은 적갈만 섞어 무겁게
         _vignette = NewImage("Vignette", root);
@@ -471,9 +513,6 @@ public class DeathOverlayUI : MonoBehaviour
         Center(kicker.rectTransform, 1000f, 28f, new Vector2(0f, 74f));
         kicker.characterSpacing = 18f;
 
-        // 4e) 시간 엠블럼 — 타이틀 위 빈 공간(크레스트). 남은 시간이 줄어드는 링(카운트다운 연동).
-        BuildTimeEmblem(_center);
-
         // 5~6) 아이템 드롭 안내 — 위·아래 다이아몬드 캡 라인으로 감싸 캡션처럼
         MakeCapLine(root, 380f, new Vector2(0f, -80f));
 
@@ -482,13 +521,11 @@ public class DeathOverlayUI : MonoBehaviour
 
         MakeCapLine(root, 380f, new Vector2(0f, -144f));
 
-        // 7) 카운트다운
-        _countdown = NewText("Countdown", root, "", 26f, ColSub, FontStyles.Normal, TextAlignmentOptions.Center);
-        _countdown.richText = true;
-        Center(_countdown.rectTransform, 1000f, 44f, new Vector2(0f, -235f));
-
-        // 7) 버튼
-        BuildButton(root);
+        // 7) 리스폰 컨트롤 — 같은 자리에 '대기 링(카운트다운)'과 '버튼'을 겹쳐 두고,
+        //    카운트다운 완료 시 링 → 버튼으로 스르륵 전환.
+        Vector2 respawnPos = new Vector2(0f, -400f);
+        BuildCountdownRing(root, respawnPos);
+        BuildButton(root, respawnPos);
 
         FitFullscreen();
     }
@@ -595,21 +632,25 @@ public class DeathOverlayUI : MonoBehaviour
         }
     }
 
-    // 시간 엠블럼(크로노 게이지): 후광 + 외곽 프레임 + 세그먼트 게이지(남은 시간 밝게/지난 시간 어둡게)
-    // + 안쪽 미세눈금 링 + 중심 코어(링+점) + 12시 크림슨 눈금. 카운트다운과 연동.
-    void BuildTimeEmblem(Transform parent)
+    // 리스폰 대기 링(크로노 게이지): 후광 + 외곽 프레임 + 세그먼트 게이지(남은 시간 밝게/지난 시간 어둡게)
+    // + 안쪽 미세눈금 링 + 중앙 카운트다운 숫자 + 12시 크림슨 눈금. 카운트다운과 연동, 완료 시 버튼으로 전환.
+    void BuildCountdownRing(Transform parent, Vector2 pos)
     {
-        var em = NewRect("TimeRing", parent);
-        Center(em, 84f, 84f, new Vector2(0f, 210f));   // 다이아몬드 위 크레스트(정중앙 상단)
+        var ringRt = NewRect("CountdownRing", parent);
+        Center(ringRt, 96f, 96f, pos);
+        _ringRt = ringRt;
+        _ringGroup = ringRt.gameObject.AddComponent<CanvasGroup>();
+        _ringGroup.alpha = 1f;
+        _ringGroup.blocksRaycasts = false;   // 모달 차단은 백드롭이 담당, 링은 클릭 막지 않음
 
         // 후광
-        var halo = NewImage("Halo", em);
-        Center(halo.rectTransform, 140f, 140f, Vector2.zero);
+        var halo = NewImage("Halo", ringRt);
+        Center(halo.rectTransform, 150f, 150f, Vector2.zero);
         halo.sprite = SpriteOf(MakeRadial(128));
         halo.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.13f);
 
         // 외곽 프레임 링(얇게)
-        var frameRing = NewImage("FrameRing", em);
+        var frameRing = NewImage("FrameRing", ringRt);
         Stretch(frameRing.rectTransform);
         frameRing.sprite = SpriteOf(MakeRing(256, 3f));
         frameRing.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.42f);
@@ -617,14 +658,14 @@ public class DeathOverlayUI : MonoBehaviour
         var seg = SpriteOf(MakeSegmentedRing(256, 22f, 20, 7f));   // 볼드 세그먼트(트랙/아크 공용)
 
         // 세그먼트 트랙(전체, 어둡게)
-        var track = NewImage("SegTrack", em);
-        Center(track.rectTransform, 74f, 74f, Vector2.zero);
+        var track = NewImage("SegTrack", ringRt);
+        Center(track.rectTransform, 84f, 84f, Vector2.zero);
         track.sprite = seg;
         track.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.2f);
 
-        // 세그먼트 진행(남은 시간, 밝게) — 12시에서 시계방향 감소
-        _timeArc = NewImage("SegArc", em);
-        Center(_timeArc.rectTransform, 74f, 74f, Vector2.zero);
+        // 세그먼트 진행(남은 시간, 밝게) — 12시 크림슨 눈금에서 시계방향 감소
+        _timeArc = NewImage("SegArc", ringRt);
+        Center(_timeArc.rectTransform, 84f, 84f, Vector2.zero);
         _timeArc.sprite = seg;
         _timeArc.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.95f);
         _timeArc.type = Image.Type.Filled;
@@ -634,26 +675,18 @@ public class DeathOverlayUI : MonoBehaviour
         _timeArc.fillAmount = 1f;
 
         // 안쪽 미세눈금 링
-        var minor = NewImage("MinorTicks", em);
-        Center(minor.rectTransform, 45f, 45f, Vector2.zero);
+        var minor = NewImage("MinorTicks", ringRt);
+        Center(minor.rectTransform, 52f, 52f, Vector2.zero);
         minor.sprite = SpriteOf(MakeSegmentedRing(128, 4f, 36, 5f));
-        minor.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.35f);
+        minor.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.3f);
 
-        // 중심 코어(작은 링)
-        var core = NewImage("Core", em);
-        Center(core.rectTransform, 26f, 26f, Vector2.zero);
-        core.sprite = SpriteOf(MakeRing(96, 3f));
-        core.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.5f);
+        // 중앙 카운트다운 숫자
+        _ringNumber = NewText("RingNumber", ringRt, "", 34f, ColCyan, FontStyles.Bold, TextAlignmentOptions.Center);
+        Center(_ringNumber.rectTransform, 80f, 50f, Vector2.zero);
 
-        // 중심점(크림슨)
-        var dot = NewImage("CoreDot", em);
-        Center(dot.rectTransform, 6f, 6f, Vector2.zero);
-        dot.sprite = SpriteOf(MakeRadial(32));
-        dot.color = ColRed;
-
-        // 12시 크림슨 눈금
-        var top = NewImage("TopTick", em);
-        Center(top.rectTransform, 3f, 13f, new Vector2(0f, 36f));
+        // 12시 크림슨 눈금(감소 시작점)
+        var top = NewImage("TopTick", ringRt);
+        Center(top.rectTransform, 3f, 15f, new Vector2(0f, 42f));
         top.color = ColRed;
     }
 
@@ -690,10 +723,10 @@ public class DeathOverlayUI : MonoBehaviour
         }
     }
 
-    void BuildButton(Transform parent)
+    void BuildButton(Transform parent, Vector2 pos)
     {
         var btnRt = NewRect("RespawnButton", parent);
-        Center(btnRt, 320f, 62f, new Vector2(0f, -325f));
+        Center(btnRt, 320f, 62f, pos);
 
         _buttonGroup = btnRt.gameObject.AddComponent<CanvasGroup>();
         _buttonGroup.alpha = 0f;
@@ -717,6 +750,29 @@ public class DeathOverlayUI : MonoBehaviour
         border.type = Image.Type.Sliced;
         border.color = new Color(ColRed.r, ColRed.g, ColRed.b, 0.5f);
         border.raycastTarget = false;
+
+        // ── 기본 상태 장식(호버 전에도 밋밋하지 않게) ─────────────────
+        // 안쪽 보조 프레임(살짝 인셋, 스틸 톤) — 깊이감
+        var inner = NewImage("BtnInner", btnRt);
+        Center(inner.rectTransform, 320f - 12f, 62f - 12f, Vector2.zero);
+        inner.sprite = SlicedOutline(64, 1);
+        inner.type = Image.Type.Sliced;
+        inner.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.18f);
+        inner.raycastTarget = false;
+
+        // 상단 미세 하이라이트 라인
+        var sheen = NewImage("BtnSheen", btnRt);
+        Center(sheen.rectTransform, 320f - 44f, 1f, new Vector2(0f, 62f * 0.5f - 7f));
+        sheen.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.12f);
+
+        // 라벨 좌우 액센트(세로 더블틱) — 텍스트를 감싸는 프레이밍
+        foreach (float sx in new[] { -1f, 1f })
+            for (int k = 0; k < 2; k++)
+            {
+                var tick = NewImage("BtnSideTick", btnRt);
+                Center(tick.rectTransform, 2f, 16f, new Vector2(sx * (132f + k * 7f), 0f));
+                tick.color = new Color(ColRed.r, ColRed.g, ColRed.b, 0.5f - k * 0.2f);
+            }
 
         var label = NewText("BtnLabel", btnRt, buttonString, 28f, new Color(ColText.r, ColText.g, ColText.b, 0.9f), FontStyles.Bold, TextAlignmentOptions.Center);
         Stretch(label.rectTransform);
@@ -744,34 +800,53 @@ public class DeathOverlayUI : MonoBehaviour
         BuildButtonBrackets(btnRt);
     }
 
-    // 버튼 네 모서리 L자 브래킷(살짝 바깥). 버튼과 함께 페이드/스케일.
+    // 버튼 네 모서리 L자 브래킷. 평소엔 숨김; 호버 시 바깥에서 코너 안쪽으로 모아지며
+    // 계속 미세하게 움직인다(DeathRespawnButton 이 애니메이션 담당).
     void BuildButtonBrackets(RectTransform btn)
     {
-        float len = 11f, thick = 2f, off = 3f;
-        var col = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.8f);
+        float len = 11f, thick = 2f;
+        var col = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.85f);
         var corners = new (Vector2 a, float hx, float vy)[]
         {
-            (new Vector2(0f, 1f),  1f, -1f),
-            (new Vector2(1f, 1f), -1f, -1f),
-            (new Vector2(0f, 0f),  1f,  1f),
-            (new Vector2(1f, 0f), -1f,  1f),
+            (new Vector2(0f, 1f),  1f, -1f),   // 좌상
+            (new Vector2(1f, 1f), -1f, -1f),   // 우상
+            (new Vector2(0f, 0f),  1f,  1f),   // 좌하
+            (new Vector2(1f, 0f), -1f,  1f),   // 우하
         };
+
+        var list = new System.Collections.Generic.List<DeathRespawnButton.CornerBracket>(4);
         foreach (var c in corners)
         {
-            Vector2 o = new Vector2(-c.hx * off, -c.vy * off);   // 코너 바깥쪽으로
-            var h = NewImage("BtnBracketH", btn);
+            // 코너에 고정된 컨테이너(피벗=코너). 위치/투명도는 컨테이너 단위로 제어.
+            var cont = NewRect("BtnBracket", btn);
+            cont.anchorMin = cont.anchorMax = cont.pivot = c.a;
+            cont.sizeDelta = new Vector2(len, len);
+            cont.anchoredPosition = Vector2.zero;
+            var cg = cont.gameObject.AddComponent<CanvasGroup>();
+            cg.alpha = 0f;   // 평소엔 숨김
+
+            var h = NewImage("H", cont);
             var hr = h.rectTransform;
             hr.anchorMin = hr.anchorMax = hr.pivot = c.a;
             hr.sizeDelta = new Vector2(len, thick);
-            hr.anchoredPosition = o + new Vector2(c.hx * len * 0.5f, 0f);
+            hr.anchoredPosition = new Vector2(c.hx * len * 0.5f, 0f);
             h.color = col;
-            var v = NewImage("BtnBracketV", btn);
+
+            var v = NewImage("V", cont);
             var vr = v.rectTransform;
             vr.anchorMin = vr.anchorMax = vr.pivot = c.a;
             vr.sizeDelta = new Vector2(thick, len);
-            vr.anchoredPosition = o + new Vector2(0f, c.vy * len * 0.5f);
+            vr.anchoredPosition = new Vector2(0f, c.vy * len * 0.5f);
             v.color = col;
+
+            list.Add(new DeathRespawnButton.CornerBracket
+            {
+                rt = cont,
+                cg = cg,
+                outDir = new Vector2(-c.hx, -c.vy).normalized,   // 코너 바깥 방향
+            });
         }
+        _buttonFx.brackets = list.ToArray();
     }
 
     // ── 최상단 캔버스(모달) ───────────────────────────────────────
