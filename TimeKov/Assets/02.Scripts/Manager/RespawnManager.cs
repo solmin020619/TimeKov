@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class RespawnManager : MonoBehaviour
+public class RespawnManager : MonoBehaviour, ISaveLoadListener
 {
     public Transform RespawnPoint;
     public float RespawnDelay = 2f;
@@ -31,6 +31,11 @@ public class RespawnManager : MonoBehaviour
     // 사망 시 캐릭터를 서서히 사라지게 하는 페이드(있으면 사용). Player 에 부착돼 있을 때만.
     private PlayerDeathFade _deathFade;
 
+    void Awake()
+    {
+        SaveSlotManager.Instance?.RegisterListener(this);
+    }
+
     void Start()
     {
         _player.Stat.OnDead += HandleDead;
@@ -39,20 +44,14 @@ public class RespawnManager : MonoBehaviour
         // deathOverlay 미연결 시 씬에서 자동 탐색
         if (deathOverlay == null)
             deathOverlay = Object.FindAnyObjectByType<DeathOverlayUI>(FindObjectsInactive.Include);
-
-        // 세이브 복원 시점에 이미 사망 상태(HP=0)로 로드되는 경우를 대비한다 — 죽은 채로 저장(자동저장/
-        // 종료저장)되면 PlayerStatComponent.ApplyCoreStats가 CurrentHp를 0으로 맞추기만 할 뿐 OnDead를
-        // 다시 발화시키지 않아, 부활 루틴이 한 번도 안 돌고 영구히 멈춰버린다(움직임도 안 됨). 이번 프레임의
-        // 모든 Start()(CoreUpgradeManager의 스탯 적용 포함)가 끝난 다음 프레임에 직접 확인해 강제로
-        // 부활 흐름을 태운다.
-        StartCoroutine(CheckAlreadyDeadOnLoad());
     }
 
-    IEnumerator CheckAlreadyDeadOnLoad()
+    // ISaveLoadListener — SaveSlotManager가 씬 로드 후 Start() 전체 완료 다음 프레임에 호출.
+    // 죽은 채 저장된 세이브를 로드하면 ApplyCoreStats()가 CurrentHp=0으로 복원하지만
+    // OnDead는 다시 발화하지 않는다 — 여기서 직접 확인해 부활 흐름을 태운다.
+    public void OnAfterLoad()
     {
-        yield return null;
-        if (_player.Stat.IsDead)
-            HandleDead();
+        if (_player != null && _player.Stat.IsDead) HandleDead();
     }
 
     void HandleDead()
@@ -181,5 +180,9 @@ public class RespawnManager : MonoBehaviour
             Debug.LogWarning("[RespawnManager] 생성된 LootBox 프리팹에 LootBox 컴포넌트가 없습니다.");
     }
 
-    void OnDestroy() => _player.Stat.OnDead -= HandleDead;
+    void OnDestroy()
+    {
+        _player.Stat.OnDead -= HandleDead;
+        SaveSlotManager.Instance?.UnregisterListener(this);
+    }
 }

@@ -19,10 +19,12 @@
 // =====================================================================
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class SaveSlotManager : MonoBehaviour
 {
@@ -35,6 +37,7 @@ public class SaveSlotManager : MonoBehaviour
     public bool HasActiveSlot => Data != null && !string.IsNullOrEmpty(ActiveSlotId);
 
     readonly List<ISaveable> _saveables = new();
+    readonly List<ISaveLoadListener> _loadListeners = new();
     CodexSaveBridge _codexBridge;
 
     static string SavesRoot => Path.Combine(Application.persistentDataPath, "Saves");
@@ -66,6 +69,7 @@ public class SaveSlotManager : MonoBehaviour
         Instance = this;
         Directory.CreateDirectory(SavesRoot);
         InvokeRepeating(nameof(AutoSaveTick), AutoSaveIntervalSeconds, AutoSaveIntervalSeconds);
+        SceneManager.sceneLoaded += OnSceneLoaded;
 
         // CodexSaveBridge는 static 클래스(ItemDiscovery 등)를 ISaveable로 잇는 다리.
         // 여기서 직접 스폰해야 그 Awake가 도는 시점에 Instance(바로 위)가 이미 보장된다 —
@@ -75,6 +79,11 @@ public class SaveSlotManager : MonoBehaviour
         DontDestroyOnLoad(bridgeGo);
     }
 
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
     void AutoSaveTick()
     {
         if (HasActiveSlot) SaveActive();
@@ -82,8 +91,9 @@ public class SaveSlotManager : MonoBehaviour
 
     void OnApplicationQuit() => SaveActive();
 
-    // ── ISaveable 등록 ────────────────────────────────────────────────
-    // 각 시스템은 자기 Awake에서 Register(this)를 호출. SaveActive()가 이 목록을 순회해 Capture한다.
+    // ── ISaveable / ISaveLoadListener 등록 ───────────────────────────
+    // ISaveable: 각 시스템이 자기 Awake에서 Register(this). SaveActive()가 순회해 Capture.
+    // ISaveLoadListener: 씬 로드 후 OnAfterLoad()가 필요한 시스템이 Awake에서 RegisterListener.
 
     public void Register(ISaveable s)
     {
@@ -91,6 +101,35 @@ public class SaveSlotManager : MonoBehaviour
     }
 
     public void Unregister(ISaveable s) => _saveables.Remove(s);
+
+    public void RegisterListener(ISaveLoadListener l)
+    {
+        if (l != null && !_loadListeners.Contains(l)) _loadListeners.Add(l);
+    }
+
+    public void UnregisterListener(ISaveLoadListener l) => _loadListeners.Remove(l);
+
+    // 씬 로드 후 모든 Start()가 끝난 다음 프레임에 리스너들에게 OnAfterLoad 발화.
+    // sceneLoaded는 Awake 이후 Start 이전에 발화하므로, yield return null 1회로
+    // "이 씬의 Start 전체 완료"를 보장할 수 있다.
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (HasActiveSlot) StartCoroutine(FireAfterLoad());
+    }
+
+    IEnumerator FireAfterLoad()
+    {
+        yield return null;
+        foreach (var l in _loadListeners)
+        {
+            if (l == null) continue;
+            try { l.OnAfterLoad(); }
+            catch (Exception e)
+            {
+                Debug.LogError($"[SaveSlotManager] {l.GetType().Name}.OnAfterLoad() 실패: {e}");
+            }
+        }
+    }
 
     // ── 슬롯 목록 ──────────────────────────────────────────────────────
 
@@ -205,7 +244,14 @@ public class SaveSlotManager : MonoBehaviour
         }
 
         foreach (var s in _saveables)
-            s?.Capture(Data);
+        {
+            if (s == null) continue;
+            try { s.Capture(Data); }
+            catch (Exception e)
+            {
+                Debug.LogError($"[SaveSlotManager] {s.GetType().Name}.Capture() 실패, 나머지는 계속 저장: {e}");
+            }
+        }
 
         ActiveMeta.lastPlayedIso = DateTime.UtcNow.ToString("o");
         ActiveMeta.coreLevelSnapshot = Data.coreLevel;

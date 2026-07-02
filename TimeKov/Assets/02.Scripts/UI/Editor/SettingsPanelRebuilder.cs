@@ -31,7 +31,7 @@ public static class SettingsPanelRebuilder
     // 글자(그래픽/오디오/볼륨 등)가 깨져 나온다(□). 한글이 전부 포함된 폰트로 통일.
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
-        _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/남양주고딕Light (OTF) SDF.asset");
+        _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/Pretendard-SemiBold SDF.asset");
 
     // 버튼을 엔드필드처럼 확실하게 둥글게 만드는 전용 스프라이트.
     // Unity 기본 제공 UI/Skin/UISprite.psd는 모서리가 텍스처 10px / PPU 200이라
@@ -96,14 +96,21 @@ public static class SettingsPanelRebuilder
     [MenuItem(MenuPath)]
     static void Rebuild()
     {
-        var canvasGO = GameObject.Find("Canvas");
-        if (canvasGO == null) { Debug.LogError("[SettingsRebuilder] 'Canvas'를 찾을 수 없습니다."); return; }
+        // Canvas 이름은 씬마다 다를 수 있어(MainMenu_Cinematic 등) 이름 대신
+        // GlobalSettingsManager 컴포넌트를 통해 SettingsPanel을 직접 찾는다.
+        var settingsMgr = Object.FindAnyObjectByType<GlobalSettingsManager>(FindObjectsInactive.Include);
+        if (settingsMgr == null) { Debug.LogError("[SettingsRebuilder] GlobalSettingsManager를 찾을 수 없습니다."); return; }
 
-        Transform settingsPanelT = canvasGO.transform.Find("Panels/SettingsPanel");
-        if (settingsPanelT == null) { Debug.LogError("[SettingsRebuilder] 'Panels/SettingsPanel'을 찾을 수 없습니다."); return; }
-
-        var settingsMgr = settingsPanelT.GetComponent<GlobalSettingsManager>();
-        if (settingsMgr == null) { Debug.LogError("[SettingsRebuilder] GlobalSettingsManager 컴포넌트가 없습니다."); return; }
+        Transform settingsPanelT = settingsMgr.transform.parent;
+        while (settingsPanelT != null && settingsPanelT.name != "SettingsPanel")
+            settingsPanelT = settingsPanelT.parent;
+        if (settingsPanelT == null)
+        {
+            // 폴백: 이름으로 직접 찾기
+            var found = GameObject.Find("SettingsPanel");
+            if (found != null) settingsPanelT = found.transform;
+        }
+        if (settingsPanelT == null) { Debug.LogError("[SettingsRebuilder] 'SettingsPanel'을 찾을 수 없습니다."); return; }
 
         Transform settingsBG = settingsPanelT.Find("Option/BG/Settings");
         if (settingsBG == null) { Debug.LogError("[SettingsRebuilder] 'Option/BG/Settings'를 찾을 수 없습니다."); return; }
