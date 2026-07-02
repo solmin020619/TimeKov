@@ -132,10 +132,11 @@ public class MachineUI : MonoBehaviour
     // 펼친 쪽 = 그리드, 접힌 쪽 = "여기로 드래그하여 보관" 박스(=드롭 타겟 + 클릭하면 펼침).
     private const float SEC_HeaderH = 34f;   // 섹션 헤더(기존 탭 버튼 재배치) 높이
     private const float SEC_BoxH    = 64f;   // 접힘 박스 높이
-    private const float SEC_RailW   = 34f;   // 좌측 아이콘 레일 탭 한 변
+    private const float SEC_RailW   = 34f;   // 좌측 아이콘 레일 탭 가로
+    private const float SEC_RailH   = 88f;   // 좌측 아이콘 레일 탭 세로(엔필식 세로로 긴 탭)
     private const float SEC_LeftX   = 44f;   // 레일 오른쪽 = 컨텐츠 시작 x (헤더/박스/그리드 전부)
     private const float SEC_ColW    = 540f;  // 가방 칼럼 폭(빌더 BagWidth 미러 - 그리드 셀 재계산용)
-    private const float SEC_FilterH = 44f;   // 창고 카테고리 필터 행 높이
+    private const float SEC_FilterH = 58f;   // 창고 카테고리 필터 행 높이(0.85 스케일 실높이 약 53)
     private RectTransform _bagBoxRt;         // 가방 접힘 박스(창고 펼침일 때 표시)
     private RectTransform _stoBoxRt;         // 창고 접힘 박스(가방 펼침일 때 표시)
     private RectTransform _bagViewportRt;    // 스크롤 뷰포트(펼친 섹션 자리로 이동)
@@ -303,6 +304,17 @@ public class MachineUI : MonoBehaviour
         StyleSectionHeader(bagTabBtn);
         StyleSectionHeader(storageTabBtn);
 
+        // 용량 = 가방 헤더 아래 왼쪽 정렬 한 줄(엔필식). 창고 뷰에선 숨김(ApplySectionLayout).
+        if (bagCapacityText != null)
+        {
+            var crt = bagCapacityText.rectTransform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0f, 1f);
+            crt.pivot = new Vector2(0f, 1f);
+            crt.sizeDelta = new Vector2(240f, 20f);
+            bagCapacityText.alignment = TextAlignmentOptions.Left;
+            bagCapacityText.fontSize = 13;
+        }
+
         // 좌측 아이콘 레일(진짜 탭). 컨텐츠는 레일 오른쪽(SEC_LeftX)부터 -> 그리드 셀 폭 재계산.
         _railBagRt = MakeRailTab(col, false, out _railBagBg, out _railBagIcon);
         _railStoRt = MakeRailTab(col, true,  out _railStoBg, out _railStoIcon);
@@ -310,7 +322,8 @@ public class MachineUI : MonoBehaviour
         if (grid != null)
         {
             float innerW = SEC_ColW - SEC_LeftX - 8f;   // 뷰포트 좌 SEC_LeftX / 우 8
-            float cell = Mathf.Floor((innerW - grid.spacing.x * 3f) / 4f);
+            // 그리드 padding 까지 빼야 4열이 마스크에 안 잘린다(빌더 공식엔 padding 누락).
+            float cell = Mathf.Floor((innerW - grid.padding.horizontal - grid.spacing.x * 3f) / 4f);
             grid.cellSize = new Vector2(cell, cell);
         }
 
@@ -325,6 +338,8 @@ public class MachineUI : MonoBehaviour
             _filterRowRt.anchorMin = _filterRowRt.anchorMax = new Vector2(0f, 1f);
             _filterRowRt.pivot = new Vector2(0f, 1f);
             _filterRowRt.localScale = new Vector3(0.85f, 0.85f, 1f);   // 칼럼 폭에 맞게 살짝 축소
+            // 원본은 stretch 앵커라 sizeDelta.x=0 -> 앵커 교체 후 폭을 명시해야 탭들이 행 안에 온다.
+            _filterRowRt.sizeDelta = new Vector2((SEC_ColW - SEC_LeftX - 8f) / 0.85f, 62f);
             _storageFilterUI = cloneGo.GetComponent<CategoryFilterUI>();
             _storageFilterUI.OnFilterChanged += f => { _storageFilter = f; RefreshInventorySlots(); };
         }
@@ -341,7 +356,7 @@ public class MachineUI : MonoBehaviour
             typeof(RectTransform), typeof(Image), typeof(Button));
         go.transform.SetParent(col, false);
         var rt = (RectTransform)go.transform;
-        rt.sizeDelta = new Vector2(SEC_RailW, SEC_RailW);
+        rt.sizeDelta = new Vector2(SEC_RailW, SEC_RailH);
 
         bg = go.GetComponent<Image>();
         bg.sprite = UISpriteFactory.RoundedRect(48, 10);
@@ -373,10 +388,11 @@ public class MachineUI : MonoBehaviour
 
     private static void StyleRailTab(Image bg, Image[] icons, bool on)
     {
-        if (bg != null) bg.color = on ? new Color(0.92f, 0.95f, 0.98f, 0.30f) : new Color(0.92f, 0.95f, 0.98f, 0.08f);
+        // 엔필식: 활성 탭 = 밝은(흰) 탭 + 어두운 아이콘 / 비활성 = 어두운 탭 + 흐린 밝은 아이콘.
+        if (bg != null) bg.color = on ? new Color(0.92f, 0.95f, 0.98f, 0.88f) : new Color(0.92f, 0.95f, 0.98f, 0.10f);
         if (icons == null) return;
         foreach (var i in icons)
-            if (i != null) i.color = on ? new Color(1f, 1f, 1f, 0.95f) : new Color(1f, 1f, 1f, 0.35f);
+            if (i != null) i.color = on ? new Color(0.16f, 0.20f, 0.26f, 0.95f) : new Color(1f, 1f, 1f, 0.40f);
     }
 
     private static void StyleSectionHeader(Button b)
@@ -388,6 +404,15 @@ public class MachineUI : MonoBehaviour
             tmp.alignment = TextAlignmentOptions.Left;
             tmp.margin = new Vector4(12f, 0f, 0f, 0f);
         }
+        // 상시 얇은 밑줄(엔필 헤더의 옅은 구분선). 활성 노란 밑줄(Underline)과 별개.
+        var line = new GameObject("HairLine", typeof(RectTransform), typeof(Image));
+        line.transform.SetParent(b.transform, false);
+        var lrt = (RectTransform)line.transform;
+        lrt.anchorMin = new Vector2(0f, 0f); lrt.anchorMax = new Vector2(1f, 0f); lrt.pivot = new Vector2(0.5f, 0f);
+        lrt.offsetMin = Vector2.zero; lrt.offsetMax = new Vector2(0f, 2f);
+        var li = line.GetComponent<Image>();
+        li.color = new Color(0.85f, 0.89f, 0.94f, 0.28f);
+        li.raycastTarget = false;
     }
 
     // 접힘 박스: 라운드 반투명 + 안내 텍스트. 드롭 = 반대 컨테이너로 이동, 클릭 = 그 섹션 펼침.
@@ -470,8 +495,12 @@ public class MachineUI : MonoBehaviour
                 _railStoRt.anchoredPosition = new Vector2(4f, 14f + SEC_BoxH);
             }
             _bagViewportRt.offsetMin = new Vector2(lx, 20f + SEC_BoxH + SEC_HeaderH);
-            _bagViewportRt.offsetMax = new Vector2(-8f, -(10f + SEC_HeaderH));
-            if (bagCapacityText != null) bagCapacityText.rectTransform.anchoredPosition = new Vector2(-6f, -4f - SEC_HeaderH * 0.5f);
+            _bagViewportRt.offsetMax = new Vector2(-8f, -(4f + SEC_HeaderH + 28f));   // 헤더 + 용량 줄 아래부터
+            if (bagCapacityText != null)
+            {
+                bagCapacityText.gameObject.SetActive(true);
+                bagCapacityText.rectTransform.anchoredPosition = new Vector2(lx + 2f, -(8f + SEC_HeaderH));
+            }
         }
         else
         {
@@ -500,7 +529,7 @@ public class MachineUI : MonoBehaviour
             }
             _bagViewportRt.offsetMin = new Vector2(lx, 8f);
             _bagViewportRt.offsetMax = new Vector2(-8f, -(stoHeadTop + SEC_HeaderH + 6f + filterH));
-            if (bagCapacityText != null) bagCapacityText.rectTransform.anchoredPosition = new Vector2(-6f, -(stoHeadTop + SEC_HeaderH * 0.5f));
+            if (bagCapacityText != null) bagCapacityText.gameObject.SetActive(false);   // 레퍼런스처럼 창고 뷰엔 용량 줄 없음
         }
     }
 
@@ -588,6 +617,7 @@ public class MachineUI : MonoBehaviour
         // SetActive 이전에 Setup을 완료해야 RecipeDropSlot의 Start/OnEnable
         // 기본 상태("재료 넣기" + 흰 박스)가 한 프레임 깜빡이는 현상을 방지한다.
         _showStorage = false;   // 열 때 항상 가방 뷰부터
+        _pendingViewSwitch = -1;   // 직전 세션의 드롭 자동전환 예약이 새로 열 때 발화하지 않게
         BuildRecipeSlots();
         BuildInventorySlots();
         // 탭 페이드(#17)가 닫힘으로 중단돼 알파가 덜 찼을 수 있어 열 때 1로 리셋.
@@ -761,6 +791,7 @@ public class MachineUI : MonoBehaviour
 
         // 창고 카테고리 필터: 일치 아이템만 앞에서부터 컴팩트 표시.
         // slotData 가 자기 slotIndex 를 갖고 있어 표시 위치가 달라도 드래그/이동은 정상 동작.
+        // 남는 칸은 비활성(통합 창고 그리드와 동일) - SlotData=null 인 활성 칸에 드롭하면 NRE 나므로 절대 활성으로 안 남긴다.
         if (_showStorage && _storageFilter != null)
         {
             int w = 0;
@@ -770,10 +801,17 @@ public class MachineUI : MonoBehaviour
                 if (sd == null || sd.itemId <= 0) continue;
                 var d = GameDataUtility.GetItem(sd.itemId);
                 if (d == null || d.itemCategory != _storageFilter.Value) continue;
-                if (_invSlots[w] != null) _invSlots[w].Refresh(sd, inv);
+                var ui = _invSlots[w];
+                if (ui != null)
+                {
+                    if (!ui.gameObject.activeSelf) ui.gameObject.SetActive(true);
+                    ui.Refresh(sd, inv);
+                }
                 w++;
             }
-            for (; w < _invSlots.Count; w++) _invSlots[w]?.Refresh(null, inv);
+            for (; w < _invSlots.Count; w++)
+                if (_invSlots[w] != null && _invSlots[w].gameObject.activeSelf)
+                    _invSlots[w].gameObject.SetActive(false);
             if (bagEmptyText != null) bagEmptyText.gameObject.SetActive(false);   // 필터 중 "비어있음" 혼동 방지
             return;
         }
@@ -781,6 +819,7 @@ public class MachineUI : MonoBehaviour
         for (int i = 0; i < _invSlots.Count; i++)
         {
             if (_invSlots[i] == null) continue;
+            if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);   // 필터로 꺼졌던 칸 복구
             InventorySlot slotData = i < slots.Count ? slots[i] : null;
             _invSlots[i].Refresh(slotData, inv);
         }
@@ -842,14 +881,21 @@ public class MachineUI : MonoBehaviour
     }
 
     /// <summary>접힘 박스 드롭 성공 직후 호출: 다음 프레임에 그 섹션으로 자동 전환(엔필식).
-    /// 드롭 이벤트 도중 그리드를 재구성하면 드래그 종료 처리와 얽혀서 한 프레임 미룬다.</summary>
-    public void RequestViewSwitch(bool storage) => _pendingViewSwitch = storage ? 1 : 0;
+    /// 드롭 이벤트 도중 그리드를 재구성하면 드래그 종료 처리와 얽혀서 한 프레임 미룬다.
+    /// itemId 를 주면 창고 필터가 그 아이템을 숨길 때 해당 카테고리 탭으로 자동 전환(안 보이면 "사라짐"으로 오해).</summary>
+    public void RequestViewSwitch(bool storage, int itemId = -1)
+    {
+        _pendingViewSwitch = storage ? 1 : 0;
+        _pendingSwitchItemId = itemId;
+    }
+    private int _pendingSwitchItemId = -1;
 
     // 선택 탭은 또렷(알파 0.9), 비선택은 흐리게(0.2). 색 RGB는 빌더값 유지, 알파만 토글.
     private static void SetTabActive(Button b, bool on)
     {
         if (b == null || b.image == null) return;
-        var c = b.image.color; c.a = on ? 0.9f : 0.2f; b.image.color = c;
+        // 헤더는 은은한 밴드(엔필식) - 진한 바 금지. 활성/비활성은 미묘한 알파 + 노란 밑줄로만 구분.
+        var c = b.image.color; c.a = on ? 0.10f : 0.04f; b.image.color = c;
         var underline = b.transform.Find("Underline");
         if (underline != null) underline.gameObject.SetActive(on);
     }
@@ -1628,8 +1674,16 @@ public class MachineUI : MonoBehaviour
         if (_pendingViewSwitch >= 0)
         {
             bool toStorage = _pendingViewSwitch == 1;
-            _pendingViewSwitch = -1;
+            int movedId = _pendingSwitchItemId;
+            _pendingViewSwitch = -1; _pendingSwitchItemId = -1;
             SetView(toStorage);
+            // 창고로 입고했는데 현재 필터가 그 아이템을 숨기면 해당 카테고리 탭으로 전환(통합 창고와 동일 동작).
+            if (toStorage && movedId > 0 && _storageFilterUI != null && _storageFilter != null)
+            {
+                var d = GameDataUtility.GetItem(movedId);
+                if (d != null && d.itemCategory != _storageFilter.Value)
+                    _storageFilterUI.SelectByCategory(d.itemCategory);
+            }
         }
 
         // 현재 화면에 표시된 레시피가 실제 생산 중인 레시피와 일치할 때만 진행 바 표시
@@ -1890,17 +1944,19 @@ public class MachineTransferDropBox : MonoBehaviour, IDropHandler
         var fromSlot = dragged.SlotData;
         if (fromSlot == null) { dh.EndDrag(); return; }
 
+        int movedItemId = fromSlot.itemId;   // 이동하면 원본 칸이 비므로 미리 캡처
+        bool moved;
         if (dh.IsSplitDrag)
         {
             int t = tgt.FindTargetSlotIndexForItem(fromSlot.itemId);
-            if (t >= 0) src.MoveAmountToSlot(fromSlot.slotIndex, dh.DragAmount, tgt, t);
+            moved = t >= 0 && src.MoveAmountToSlot(fromSlot.slotIndex, dh.DragAmount, tgt, t);
         }
         else
-            src.MoveSlot(fromSlot.slotIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
+            moved = src.MoveSlot(fromSlot.slotIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
 
         dh.EndDrag();
-        // 엔필식: 넣은 쪽 섹션이 자동으로 펼쳐진다(드롭 이벤트 밖, 다음 프레임에).
-        if (owner != null) owner.RequestViewSwitch(toStorage);
+        // 엔필식: 실제로 옮겨졌을 때만 넣은 쪽 섹션이 자동으로 펼쳐진다(드롭 이벤트 밖, 다음 프레임).
+        if (moved && owner != null) owner.RequestViewSwitch(toStorage, movedItemId);
     }
 
     private void OnDisable()
