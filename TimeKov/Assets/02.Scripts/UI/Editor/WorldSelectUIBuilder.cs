@@ -41,9 +41,9 @@ public static class WorldSelectUIBuilder
     private static readonly Color DateColor    = Hex("A9BBCB", 255);
     private static readonly Color AccentCyan   = Hex("8FD8FF", 255);
     private static readonly Color ModalBg      = Hex("0A1018", 255);
-    private static readonly Color ModalLabelBg = Hex("4A5868", 255);
-    private static readonly Color ModalLabelTx = Hex("0D1218", 255);
-    private static readonly Color InputBg      = Hex("050B12", 230);
+    private static readonly Color ModalLabelBg = Hex("5A5A5A", 255);
+    private static readonly Color ModalLabelTx = Hex("C8D8E4", 255);
+    private static readonly Color InputBg      = Hex("0D1820", 235);
 
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
@@ -304,26 +304,38 @@ public static class WorldSelectUIBuilder
         backdropBtn.targetGraphic = backdropGo.GetComponent<Image>();
         SetRef(so, "modalBackdropButton", backdropBtn);
 
-        const float boxW = 620f, boxH = 230f;
+        const float boxW = 1000f, boxH = 360f;
         var box = MakeRect("Box", modalRoot.transform, new Vector2(boxW, boxH), Vector2.zero, ModalBg);
 
-        // 라벨 스트립 — 배경(Image)과 텍스트(TMP)를 같은 오브젝트에 두면 같은 GameObject 안에서는
-        // 컴포넌트 추가 순서가 그대로 렌더 순서가 되어(SetAsFirstSibling은 형제 간에만 영향) 배경이
-        // 텍스트를 덮어버린다 — 배경 전용 오브젝트를 따로 만들고 텍스트를 그 자식으로 둔다.
-        var labelStrip = MakeRect("LabelStrip", box.transform, new Vector2(boxW, 44f), new Vector2(0f, 93f), ModalLabelBg);
+        // 라벨 스트립 — 팰월드 참고: 라벨이 박스 최상단에 바로 붙음
+        // 배경 전용 오브젝트 + 자식 텍스트 구조 (같은 GO 안 컴포넌트 순서 문제 회피)
+        // 팰월드 비율: 컨텐츠 폭=박스의 67%, 상단 90px / 하단 35px 여백
+        // 컨텐츠 블록이 박스 중앙에 부유 — label center y = 180-90-36 = 54
+        // 레퍼런스: label top = box top에서 86px 아래, center = 74
+        const float innerW = 460f;
+        const float labelH = 41f;
+        const float labelW = 560f;
+        var labelStrip = MakeRect("LabelStrip", box.transform, new Vector2(labelW, labelH),
+            new Vector2(0f, 74f), ModalLabelBg);
         var label = MakeTMP("Text", labelStrip.transform, Vector2.zero, Vector2.zero,
             "월드명", 20f, ModalLabelTx, TextAlignmentOptions.Center);
         StretchFull(label.rectTransform);
-        label.fontStyle = FontStyles.Bold;
         ApplyFont(label);
 
-        // 입력 필드
+        // 인풋 테두리 (인풋 뒤에 렌더, 얇은 흰색 아웃라인)
+        // boxH=360: label bottom=126, gap=7 → input top=119 → input center=91
+        // label bottom=18, gap=5 → input top=13, center=13-33=-20, height=66
+        // label bottom=53, gap=4 → input top=49, center=28, height=43
+        // label bottom=53.5, gap=12 → input top=41.5, center=20
+        MakeRect("InputBorder", box.transform, new Vector2(innerW + 2f, 47f), new Vector2(0f, 20f), new Color(1f, 1f, 1f, 0.25f));
+
+        // 입력 필드 — 높이 43px
         var inputGo = CreateUIElementViaMenu("GameObject/UI/Input Field - TextMeshPro", box.transform);
         inputGo.name = "Input_WorldName";
         var inputRt = inputGo.GetComponent<RectTransform>();
         inputRt.anchorMin = inputRt.anchorMax = inputRt.pivot = new Vector2(0.5f, 0.5f);
-        inputRt.sizeDelta = new Vector2(boxW - 40f, 56f);
-        inputRt.anchoredPosition = new Vector2(0f, 28f);
+        inputRt.sizeDelta = new Vector2(innerW, 43f);
+        inputRt.anchoredPosition = new Vector2(0f, 20f);
         var inputImg = inputGo.GetComponent<Image>();
         if (inputImg != null) inputImg.color = InputBg;
         var input = inputGo.GetComponent<TMP_InputField>();
@@ -337,9 +349,8 @@ public static class WorldSelectUIBuilder
             placeholder.text = "새 월드 이름";
             placeholder.fontSize = 22f;
             placeholder.color = Hex("A9BBCB", 160);
-            // TMP_InputField 기본 템플릿의 정렬값은 TopLeft라, 56px짜리 필드 안에서 글자가
-            // 위쪽에 붙어버린다 — 세로 중앙에 오도록 Midline로 바꾼다.
-            placeholder.alignment = TextAlignmentOptions.MidlineLeft;
+            placeholder.fontStyle = FontStyles.Normal;
+            placeholder.alignment = TextAlignmentOptions.Center;
             ApplyFont(placeholder);
         }
         var inputText = inputGo.transform.Find("Text Area/Text")?.GetComponent<TextMeshProUGUI>();
@@ -347,25 +358,37 @@ public static class WorldSelectUIBuilder
         {
             inputText.fontSize = 22f;
             inputText.color = Hex("FFFFFF", 255);
-            inputText.alignment = TextAlignmentOptions.MidlineLeft;
+            inputText.alignment = TextAlignmentOptions.Center;
         }
         ApplyFont(inputText);
         SetRef(so, "newWorldNameInput", input);
 
-        // 구분선
-        MakeRect("Sep", box.transform, new Vector2(boxW - 40f, 1f), new Vector2(0f, -12f), Hex("FFFFFF", 35));
+        // 구분선 — input bottom=91-28=63, gap=20 → sep y=43
+        // input bottom=7, gap=54 → sep y=-47
+        MakeRect("Sep", box.transform, new Vector2(innerW, 1f), new Vector2(0f, -47f), Hex("FFFFFF", 50));
 
-        // 결정 버튼
-        var confirmBtn = MakeButton("Btn_Confirm", box.transform, new Vector2(boxW - 40f, 52f),
-            new Vector2(0f, -54f), "결정", 20f, Hex("E8ECEF"), Hex("16202B"));
+        // sep=-47, gap=29 → button top=-76, center=-97, height=41
+        MakeRect("Btn_Confirm_Border", box.transform, new Vector2(322f, 43f), new Vector2(0f, -97f), new Color(1f, 1f, 1f, 0.30f));
+        var confirmBtn = MakeButton("Btn_Confirm", box.transform, new Vector2(320f, 41f),
+            new Vector2(0f, -97f), "결정", 20f, Hex("5A5A5A"), Hex("E8ECEF"));
         SetRef(so, "confirmCreateButton", confirmBtn.GetComponent<Button>());
 
-        // 모서리 틱(팰월드 미니멀 코너 브래킷 근사 — 단순 대시 4개)
+        // 모서리 틱 — center pivot 기준으로 박스 안쪽 경계에 정렬 (H+V L자)
         float hx = boxW * 0.5f, hy = boxH * 0.5f;
-        MakeRect("TickTL", box.transform, new Vector2(14, 2), new Vector2(-hx, hy), Hex("FFFFFF", 120));
-        MakeRect("TickTR", box.transform, new Vector2(14, 2), new Vector2(hx, hy), Hex("FFFFFF", 120));
-        MakeRect("TickBL", box.transform, new Vector2(14, 2), new Vector2(-hx, -hy), Hex("FFFFFF", 120));
-        MakeRect("TickBR", box.transform, new Vector2(14, 2), new Vector2(hx, -hy), Hex("FFFFFF", 120));
+        const float tw = 12f, th = 2f; // 가로 틱 크기
+        Color tickCol = Hex("FFFFFF", 120);
+        // TL
+        MakeRect("TickTL_H", box.transform, new Vector2(tw, th), new Vector2(-hx + tw * 0.5f,  hy - th * 0.5f), tickCol);
+        MakeRect("TickTL_V", box.transform, new Vector2(th, tw), new Vector2(-hx + th * 0.5f,  hy - tw * 0.5f), tickCol);
+        // TR
+        MakeRect("TickTR_H", box.transform, new Vector2(tw, th), new Vector2( hx - tw * 0.5f,  hy - th * 0.5f), tickCol);
+        MakeRect("TickTR_V", box.transform, new Vector2(th, tw), new Vector2( hx - th * 0.5f,  hy - tw * 0.5f), tickCol);
+        // BL
+        MakeRect("TickBL_H", box.transform, new Vector2(tw, th), new Vector2(-hx + tw * 0.5f, -hy + th * 0.5f), tickCol);
+        MakeRect("TickBL_V", box.transform, new Vector2(th, tw), new Vector2(-hx + th * 0.5f, -hy + tw * 0.5f), tickCol);
+        // BR
+        MakeRect("TickBR_H", box.transform, new Vector2(tw, th), new Vector2( hx - tw * 0.5f, -hy + th * 0.5f), tickCol);
+        MakeRect("TickBR_V", box.transform, new Vector2(th, tw), new Vector2( hx - th * 0.5f, -hy + tw * 0.5f), tickCol);
     }
 
     static GameObject CreateUIElementViaMenu(string menuPath, Transform parent)
