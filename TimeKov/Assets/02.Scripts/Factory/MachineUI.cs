@@ -505,7 +505,7 @@ public class MachineUI : MonoBehaviour
     private int OutputPortCount() => CountPorts(PortType.Output);
 
     // ── 공정 흐름 레일: 설비 포트(N) -> 세로 버스 -> 재료/결과칸. 입력=회색/흰, 출력=파랑. ──
-    //   버스/가로레일은 얇게(한 트레이스), 포트 단자만 굵게 강조. 포트별 실제 벨트연결 반영(연결=밝게 + 가동 시 흰 펄스).
+    //   버스/가로레일은 얇게(한 트레이스), 포트 단자만 굵게 강조. 포트별 실제 벨트연결 반영(연결=밝게 + 아이템 통과 순간 연출).
     // ── 재료칸/결과칸 레이아웃(코드에서 통제 = AdjustSlotLayout 이 실제 슬롯에 적용). 매니폴드가 여기서 파생돼 항상 맞음. ──
     //   ★조절 노브 두 개: FR_SlotAreaX(가로), FR_SlotVGap(세로). 나머지는 자동으로 따라옴.
     private const float FR_SlotAreaX = 125f;   // 재료칸/결과칸 중심 X(중앙에서 거리). 줄이면 입력-출력이 가로로 가까워짐.
@@ -533,18 +533,41 @@ public class MachineUI : MonoBehaviour
     private const float FR_BeltInnerFrac   = 0.41f; // 밀어낼 거리 = 표시크기 * (0.5-0.09). band 안쪽 끝이 포트에 딱(공백 남으면 이 값만 조정).
     private const float FR_BeltSize = FR_PortTickH * FR_BeltSizePerTick;  // ★포트단자 조정하면 벨트가 자동으로 이 크기에 맞음
     private const float FR_BeltOut  = FR_BeltSize * FR_BeltInnerFrac;
-    private const float FR_PulseSpeed = 0.8f;  // 가동 시 흰 펄스 흐름 속도
-    private const float FR_BeltItemSpeed = 0.32f; // 벨트 위 아이템 아이콘 흐름 속도(펄스보다 느리게)
+    // 유입/배출 순간 연출(엔필식): 계속 흐르는 루프가 아니라, 실제 아이템이 포트를 지나는 "순간"에 1회 발동.
+    //   입력 = 아이콘 휙(밖->포트) -> 다 들어간 순간 경로 한번에 점등 -> 슬롯 점 반짝.
+    //   출력 = 점 반짝 -> 경로 점등 -> 아이콘 휙(포트->밖).
+    //   레일 그림은 디자인일 뿐, 아이콘 휙은 실제 레일 길이와 무관하게 고정 시간.
+    private const float FR_PipeLightThick = 6f;   // 경로 점등 두께(얇은 레일보다 살짝 굵게)
+    private const float FR_RailDim  = 0.45f;      // 평소 회로 밝기(어둡게 깔아 점등 대비 확보). 1 = 원래 밝기.
+    private const float FX_IconTime = 0.8f;       // 아이템 PNG 휙 지나가는 시간(가공 5초라 여유 있게)
+    private const float FX_PathOn   = 0.06f;      // 경로 점등 램프(사실상 한번에 탁)
+    private const float FX_PathHold = 0.30f;      // 경로 점등 유지
+    private const float FX_PathFade = 0.35f;      // 경로 페이드아웃
+    private const float FX_DotTime  = 0.45f;      // 슬롯 점 반짝 지속
+    private const float FX_Total    = 1.8f;       // 연출 전체 길이(지나면 상태 리셋)
+
+    // 평소 회로 색(어둡게). 점등 오버레이/점 반짝과의 대비용.
+    private static Color DimRail(Color c) => new Color(c.r * FR_RailDim, c.g * FR_RailDim, c.b * FR_RailDim, c.a);
     private static readonly Color FR_BusGray   = new Color(0.55f, 0.58f, 0.63f, 0.9f);  // 입력 버스(회색)
     private static readonly Color FR_RailWhite = new Color(0.82f, 0.93f, 1.0f, 1f);     // 입력 가로레일(밝은 시안화이트)
     private static readonly Color FR_Blue      = new Color(0.28f, 0.80f, 1.0f, 1f);     // 출력 = 밝은 시안(실제 벨트색, 버스/레일/단자)
     private static Sprite _frCircle;
-    // 가동 중 레일을 따라 흐르는 흰 펄스. 각 펄스는 a->b 를 반복 이동.
-    private struct RailPulse { public RectTransform dot; public Image img; public Vector2 a, b; public float phase; }
-    private readonly System.Collections.Generic.List<RailPulse> _railPulses = new();
-    // 연결된 포트별 벨트 위 아이템 아이콘. 실제 벨트 occupant 를 실시간 폴링해 유입/배출 아이템을 표시(아이템 올 때만).
-    private class BeltFlow { public RectTransform rt; public Image img; public Vector2 a, b; public BuildPort port; public int shownId = -1; }
-    private readonly System.Collections.Generic.List<BeltFlow> _beltFlows = new();
+    // 포트별 순간 연출 유닛: 경로 점등 조각(항상 풀사이즈, 알파로만 점등) + 아이템 아이콘 + 대상 슬롯 점.
+    //   prevFrontId = 포트 앞 벨트 칸 폴링값. 변화(있다->없다 / 없다->있다)가 곧 발동 신호.
+    private class PipeSeg { public RectTransform rt; public Image img; }
+    private class PortFx
+    {
+        public BuildPort port; public bool isInput; public Color baseColor;
+        public readonly System.Collections.Generic.List<PipeSeg> segs = new();
+        public Image dot; public RectTransform dotRt;
+        public Image icon; public RectTransform iconRt; public Vector2 iconA, iconB;
+        public int prevFrontId = -1;
+        public float t = -1f;          // 연출 경과 시간. -1 = 대기
+        public bool rejected;          // 입력인데 레시피 불일치(못 받는) 아이템 = 빨강
+    }
+    private readonly System.Collections.Generic.List<PortFx> _portFx = new();
+    // 연출 대기 데이터(BuildRailSide 포트 루프에서 수집 -> 슬롯 점까지 그린 뒤 마지막에 생성).
+    private struct PendingFx { public BuildPort port; public Vector2[] pts; public int slotIndex; public Vector2 iconA, iconB; }
     private readonly System.Collections.Generic.List<TextMeshProUGUI> _centerChevrons = new();
 
     // 재료칸(InputArea)/결과칸(OutputArea) 실제 위치·세로간격을 코드에서 통제 -> 매니폴드 상수와 항상 일치(빌더 재실행 불필요).
@@ -568,8 +591,7 @@ public class MachineUI : MonoBehaviour
         if (flowRailsRoot == null || _machine == null) return;
         for (int i = flowRailsRoot.childCount - 1; i >= 0; i--)
             Destroy(flowRailsRoot.GetChild(i).gameObject);
-        _railPulses.Clear();
-        _beltFlows.Clear();
+        _portFx.Clear();
         _centerChevrons.Clear();
 
         var recipes = _machine.Recipes;
@@ -630,20 +652,6 @@ public class MachineUI : MonoBehaviour
         raw.texture = tex; raw.raycastTarget = false;
     }
 
-    // 포트별 벨트 아이템 아이콘 생성(처음엔 숨김). UpdateFlowRails 가 매 프레임 실제 벨트 occupant 를 읽어 표시/숨김+아이콘 갱신+흐름.
-    private void MakeBeltFlow(BuildPort port, Vector2 a, Vector2 b)
-    {
-        var go = new GameObject("BeltItem", typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(flowRailsRoot, false);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        float d = FR_PortTickH * 0.9f;
-        rt.sizeDelta = new Vector2(d, d);
-        var img = go.GetComponent<Image>();
-        img.preserveAspect = true; img.raycastTarget = false; img.enabled = false;   // 실제 아이템 올 때만 켬
-        _beltFlows.Add(new BeltFlow { rt = rt, img = img, a = a, b = b, port = port });
-    }
-
     // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
     // 버스/가로레일/포트단자 전부 같은 색(하나의 회로) + 조각을 서로 겹쳐 이음새 제거. 포트 단자만 굵게 강조.
     private void BuildRailSide(bool isInput, int nPorts, int slotCount, Color baseColor)
@@ -661,52 +669,76 @@ public class MachineUI : MonoBehaviour
         float busHalf   = Mathf.Max(portHalf, 1f);
         float portTop   = nPorts > 1 ? portHalf : 0f;                      // 포트 1개면 중앙
         float portPitch = nPorts > 1 ? (portHalf * 2f) / (nPorts - 1) : 0f;
-        MakeQuad("Bus", new Vector2(busX, 0f), new Vector2(FR_RailThin, busHalf * 2f), baseColor);
+        // 평소 회로는 어둡게 깔고, 아이템 통과 순간 점등(PathLight)이 원색+흰빛으로 켜져 대비가 생긴다.
+        Color dimBase = DimRail(baseColor);
+        MakeQuad("Bus", new Vector2(busX, 0f), new Vector2(FR_RailThin, busHalf * 2f), dimBase);
 
-        // 포트 단자(굵게 강조) + 포트->버스 가로레일. 연결된 포트 = 밝게 + 실제 레일 + 흰 펄스.
+        // 연결 포트별 연출 대기 데이터. 실제 생성은 슬롯 레일/점까지 다 그린 뒤(연출이 맨 위에 오도록).
+        var pending = new System.Collections.Generic.List<PendingFx>();
+
+        // 포트 단자(굵게 강조) + 포트->버스 가로레일. 연결된 포트 = 밝게 + 실제 레일 + 아이템 통과 순간 연출.
         for (int j = 0; j < nPorts; j++)
         {
             float py = portTop - j * portPitch;
             BuildPort port = j < ports.Length ? ports[j] : null;
             bool c = port != null && BeltSegment.IsPortConnected(port);
-            Color tickCol = c ? Color.Lerp(baseColor, Color.white, 0.55f) : baseColor;
-            Color railCol = c ? Color.Lerp(baseColor, Color.white, 0.30f) : baseColor;
+            // 연결 포트만 어두운 기본색에서 원색 쪽으로 살짝 밝게(구분), 점등만큼 밝진 않게.
+            Color tickCol = c ? Color.Lerp(dimBase, baseColor, 0.55f) : dimBase;
+            Color railCol = c ? Color.Lerp(dimBase, baseColor, 0.30f) : dimBase;
             // 연결된 포트 = 실제 게임 레일(RenderTexture)을 "먼저"(맨 뒤에) 깐다 -> 포트단자/가로선이 그 위를 덮어 겹침 색 얼룩(블렌딩) 방지.
             //   입력=왼쪽 바깥, 출력=오른쪽 바깥. RT 는 오른쪽 흐름(railYaw270) = 입력 유입 / 출력 배출 둘 다 맞음.
             if (c)
-            {
                 MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
-                // 벨트 위 실제 유입/배출 아이템: 그 레일에 실제로 아이템이 올라와 있을 때만 그 아이콘을 표시(실시간, 폴링).
-                float innerX = portX;                          // 포트(안쪽 끝)
-                float outerX = portX + sign * 2f * FR_BeltOut; // 벨트 바깥 끝
-                Vector2 ia = isInput ? new Vector2(outerX, py) : new Vector2(innerX, py);   // 입력=바깥에서 시작(유입) / 출력=포트에서
-                Vector2 ib = isInput ? new Vector2(innerX, py) : new Vector2(outerX, py);   // ...끝(입력=포트로 / 출력=바깥으로 배출)
-                MakeBeltFlow(port, ia, ib);
-            }
             MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선(벨트 위)
             MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로, 벨트 위에 덮여 얼룩 가림)
             if (c)
             {
-                // 가동 시 흰 펄스 2개(간격 0.5)가 포트<->버스를 좌->우로 흐름. 입력=포트->버스, 출력=버스->포트.
-                Vector2 pa = new Vector2(isInput ? portX : busX, py);
-                Vector2 pb = new Vector2(isInput ? busX : portX, py);
-                for (int s = 0; s < 2; s++)
+                // 연출 경로 = 시작점->끝점 전체. 입력 = 포트 -> 버스 -> 가장 가까운 재료칸, 출력 = 결과칸 -> 버스 -> 포트.
+                // 아이콘 휙 구간 = 벨트(바깥) <-> 포트. 발동은 포트 앞 칸 폴링(UpdateFlowRails)이 담당.
+                Vector2 pPort = new Vector2(portX, py), pBusP = new Vector2(busX, py);
+                float outerX = portX + sign * 2f * FR_BeltOut;
+                Vector2[] pts; int slotIdx = -1;
+                if (slotCount > 0)
                 {
-                    var img = MakePulseDot();
-                    _railPulses.Add(new RailPulse { dot = img.rectTransform, img = img, a = pa, b = pb, phase = s * 0.5f });
+                    int k = 0; float best = float.MaxValue;
+                    for (int q = 0; q < slotCount; q++)
+                    {
+                        float qy = slotTop - q * FR_SlotPitch;
+                        float dd = Mathf.Abs(qy - py);
+                        if (dd < best) { best = dd; k = q; }
+                    }
+                    float sy = slotTop - k * FR_SlotPitch;
+                    Vector2 pBusS = new Vector2(busX, sy);
+                    Vector2 pSlot = new Vector2(slotEdge + sign * FR_SlotDotOut, sy);
+                    pts = isInput ? new[] { pPort, pBusP, pBusS, pSlot } : new[] { pSlot, pBusS, pBusP, pPort };
+                    slotIdx = k;
                 }
+                else
+                    pts = isInput ? new[] { pPort, pBusP } : new[] { pBusP, pPort };
+                pending.Add(new PendingFx
+                {
+                    port = port, pts = pts, slotIndex = slotIdx,
+                    iconA = isInput ? new Vector2(outerX, py) : new Vector2(portX, py),
+                    iconB = isInput ? new Vector2(portX, py) : new Vector2(outerX, py),
+                });
             }
         }
 
-        // 버스->슬롯 가로레일 + 버스 탭 노드 + 재료칸쪽 연결점.
+        // 버스->슬롯 가로레일 + 재료칸쪽 연결점. 점은 연출(반짝)에 쓰이므로 참조를 남긴다.
+        var dots = new Image[Mathf.Max(slotCount, 1)];
         for (int k = 0; k < slotCount; k++)
         {
             float sy = slotTop - k * FR_SlotPitch;
             // 레일 끝(=연결점)을 슬롯 박스 밖(버스쪽)으로 빼서 박스에 안 가리게. 점은 항상 레일 끝에.
             float slotEnd = slotEdge + sign * FR_SlotDotOut;
-            MakeHRail("SlotRail", slotEnd, busX, sy, baseColor);
-            MakeDot(new Vector2(slotEnd, sy), 9f, baseColor);
+            MakeHRail("SlotRail", slotEnd, busX, sy, dimBase);
+            dots[k] = MakeDot(new Vector2(slotEnd, sy), 9f, dimBase);
         }
+
+        // 연출 유닛은 레일/점 위에 그려져야 하므로 마지막에 생성(형제 순서 = 그리기 순서).
+        foreach (var p in pending)
+            BuildPortFx(p, isInput, baseColor,
+                p.slotIndex >= 0 && p.slotIndex < dots.Length ? dots[p.slotIndex] : null);
     }
 
     // 두 X 지점(바깥끝, 버스중심)을 정확히 잇는다. 늘리지 않음.
@@ -729,7 +761,7 @@ public class MachineUI : MonoBehaviour
         var img = go.GetComponent<Image>(); img.color = color; img.raycastTarget = false;
     }
 
-    private void MakeDot(Vector2 pos, float d, Color color)
+    private Image MakeDot(Vector2 pos, float d, Color color)
     {
         var go = new GameObject("Dot", typeof(RectTransform), typeof(Image));
         go.transform.SetParent(flowRailsRoot, false);
@@ -737,6 +769,7 @@ public class MachineUI : MonoBehaviour
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
         rt.sizeDelta = new Vector2(d, d); rt.anchoredPosition = pos;
         var img = go.GetComponent<Image>(); img.sprite = CircleSprite(); img.color = color; img.raycastTarget = false;
+        return img;
     }
 
     // 런타임 생성 원형 스프라이트(빌트인 Knob 리소스가 런타임에 안 잡혀서 직접 생성). 흰색 + 1px 소프트 엣지, Image.color 로 틴트.
@@ -760,19 +793,44 @@ public class MachineUI : MonoBehaviour
         return _frCircle;
     }
 
-    // 가동 중 레일을 따라 흐르는 흰 펄스 도트.
-    private Image MakePulseDot()
+    // 연결 포트 하나의 연출 유닛 생성: 경로 점등 조각(풀사이즈, 알파 0) + 아이템 아이콘(숨김) + 슬롯 점 참조.
+    private void BuildPortFx(PendingFx pf, bool isInput, Color baseColor, Image dot)
     {
-        var go = new GameObject("Pulse", typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(flowRailsRoot, false);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(10f, 10f);
-        var img = go.GetComponent<Image>();
-        img.sprite = CircleSprite();
-        img.color = new Color(1f, 1f, 1f, 0.95f);   // 흰 펄스
-        img.raycastTarget = false;
-        return img;
+        // fx.baseColor = 점 반짝 끝나고 돌아갈 평소(어두운) 색. 점등(lit)은 원색 기준 밝은 색.
+        var fx = new PortFx { port = pf.port, isInput = isInput, baseColor = DimRail(baseColor), dot = dot };
+        Color lit = Color.Lerp(baseColor, Color.white, 0.85f);
+        for (int i = 0; i < pf.pts.Length - 1; i++)
+        {
+            Vector2 a = pf.pts[i], b = pf.pts[i + 1];
+            float len = Vector2.Distance(a, b);
+            if (len < 0.5f) continue;   // 포트와 슬롯 높이가 같으면 버스 구간 길이 0 -> 생략
+            var go = new GameObject("PathLight", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(flowRailsRoot, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = (a + b) * 0.5f;
+            bool horiz = Mathf.Abs(b.x - a.x) > Mathf.Abs(b.y - a.y);
+            rt.sizeDelta = horiz ? new Vector2(len, FR_PipeLightThick) : new Vector2(FR_PipeLightThick, len);
+            var img = go.GetComponent<Image>();
+            img.color = new Color(lit.r, lit.g, lit.b, 0f);
+            img.raycastTarget = false; img.enabled = false;
+            fx.segs.Add(new PipeSeg { rt = rt, img = img });
+        }
+        // 아이템 아이콘: 발동 순간에만 벨트 위를 휙 지나간다.
+        var igo = new GameObject("BeltItem", typeof(RectTransform), typeof(Image));
+        igo.transform.SetParent(flowRailsRoot, false);
+        var irt = igo.GetComponent<RectTransform>();
+        irt.anchorMin = irt.anchorMax = irt.pivot = new Vector2(0.5f, 0.5f);
+        float d = FR_PortTickH * 0.9f;
+        irt.sizeDelta = new Vector2(d, d);
+        var iimg = igo.GetComponent<Image>();
+        iimg.preserveAspect = true; iimg.raycastTarget = false; iimg.enabled = false;
+        fx.icon = iimg; fx.iconRt = irt; fx.iconA = pf.iconA; fx.iconB = pf.iconB;
+        // 점은 연출이 위에서 반짝여야 하므로 맨 위로(여러 포트가 같은 슬롯 점을 공유해도 무해).
+        if (dot != null) { fx.dotRt = dot.rectTransform; dot.transform.SetAsLastSibling(); }
+        // 창을 열 때 이미 포트 앞에 놓여 있던 아이템로 오발동하지 않게 현재값으로 초기화.
+        fx.prevFrontId = BeltSegment.PortFrontItemId(pf.port);
+        _portFx.Add(fx);
     }
 
     // 설비의 해당 타입 포트들(단자 그리는 순서 = 이 배열 순서). 연결 판정/유입아이템은 각 포트로 BeltSegment 에 질의.
@@ -1031,44 +1089,87 @@ public class MachineUI : MonoBehaviour
 
     // ── 진행 바 ─────────────────────────────────────────────────
 
-    // 흐름 펄스: 가동 시에만 연결된 레일을 따라 흰 펄스가 좌->우로 흐름. 중앙 화살표도 가동 시 흰 펄스.
+    // 흐름 연출: 실제 아이템이 포트를 지나는 "순간"에만 1회 발동(포트 앞 칸 폴링). 중앙 화살표만 가동 시 펄스.
     private void UpdateFlowRails(bool operating)
     {
-        float t = Time.unscaledTime * FR_PulseSpeed;
-        for (int i = 0; i < _railPulses.Count; i++)
+        for (int i = 0; i < _portFx.Count; i++)
         {
-            var p = _railPulses[i];
-            if (p.dot == null) continue;
-            if (p.img != null) p.img.enabled = operating;   // 미가동 = 펄스 숨김
-            if (!operating) continue;
-            float frac = Mathf.Repeat(t + p.phase, 1f);
-            p.dot.anchoredPosition = Vector2.Lerp(p.a, p.b, frac);
-        }
+            var fx = _portFx[i];
+            if (fx.icon == null || fx.iconRt == null) continue;
 
-        // 벨트 위 아이템: 실제 벨트가 지금 싣고 있는 아이템만 표시(occupant 폴링). 없으면 숨김. 입력=유입/출력=배출 방향으로 흐름 + 양끝 페이드.
-        float bt = Time.unscaledTime * FR_BeltItemSpeed;
-        for (int i = 0; i < _beltFlows.Count; i++)
-        {
-            var bf = _beltFlows[i];
-            if (bf.rt == null || bf.img == null) continue;
-            int id = bf.port != null ? BeltSegment.IncomingItemId(bf.port) : -1;
-            if (id < 0) { if (bf.img.enabled) bf.img.enabled = false; bf.shownId = -1; continue; }
-            if (id != bf.shownId)   // 실린 아이템이 바뀌면 아이콘 갱신
+            // 발동 감지: 입력 = 포트 앞 칸에서 사라짐(설비로 들어간 순간) / 출력 = 포트 앞 칸에 나타남(설비서 나온 순간).
+            int cur = BeltSegment.PortFrontItemId(fx.port);
+            bool fire = fx.isInput ? (fx.prevFrontId >= 0 && cur < 0) : (fx.prevFrontId < 0 && cur >= 0);
+            int fireId = fx.isInput ? fx.prevFrontId : cur;
+            fx.prevFrontId = cur;
+            if (fire && fireId >= 0)
             {
-                var itemData = GameDataUtility.GetItem(id);
-                bf.img.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
-                bf.shownId = id;
+                var itemData = GameDataUtility.GetItem(fireId);
+                fx.icon.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
+                fx.rejected = fx.isInput && _machine != null && !_machine.CanReceive(fireId);
+                fx.t = 0f;   // 연출 시작(진행 중이었으면 새 아이템로 재시작)
             }
-            if (bf.img.sprite == null) { bf.img.enabled = false; continue; }
-            bf.img.enabled = true;
-            float frac = Mathf.Repeat(bt, 1f);
-            bf.rt.anchoredPosition = Vector2.Lerp(bf.a, bf.b, frac);
-            // 입력 레일인데 설비가 못 받는(레시피 불일치) 아이템 = 레일 탔지만 못 들어감 -> 빨강(실패 직관, 엔필식).
-            bool rejected = bf.port != null && bf.port.portType == PortType.Input
-                            && _machine != null && !_machine.CanReceive(id);
-            Color tint = rejected ? new Color(1f, 0.32f, 0.28f) : Color.white;
-            tint.a = Mathf.Sin(frac * Mathf.PI);
-            bf.img.color = tint;
+            if (fx.t < 0f) continue;
+            fx.t += Time.unscaledDeltaTime;
+            float t = fx.t;
+
+            // 순서(엔필식): 입력 = 아이콘이 레일을 다 지나간 "순간" 경로 한번에 점등 -> 슬롯 점 반짝.
+            //             출력 = 점 반짝 -> 경로 점등 -> 아이콘 휙(밖으로).
+            float iconStart = fx.isInput ? 0f : 0.25f;
+            float pathStart = fx.isInput ? FX_IconTime : 0.12f;
+            float dotStart  = fx.isInput ? FX_IconTime + 0.15f : 0f;
+
+            // 아이템 PNG 휙(레일 길이 무관 고정 시간, 양끝 페이드). 못 받는 아이템 = 빨강.
+            float iu = (t - iconStart) / FX_IconTime;
+            if (iu >= 0f && iu <= 1f && fx.icon.sprite != null)
+            {
+                if (!fx.icon.enabled) fx.icon.enabled = true;
+                fx.iconRt.anchoredPosition = Vector2.Lerp(fx.iconA, fx.iconB, iu);
+                Color ic = fx.rejected ? new Color(1f, 0.32f, 0.28f) : Color.white;
+                ic.a = Mathf.Sin(iu * Mathf.PI);
+                fx.icon.color = ic;
+            }
+            else if (fx.icon.enabled) fx.icon.enabled = false;
+
+            // 경로 전체 점등: 한번에 탁 켜지고 -> 유지 -> 페이드아웃.
+            float pt = t - pathStart, pa = 0f;
+            if (pt >= 0f)
+            {
+                if (pt < FX_PathOn) pa = pt / FX_PathOn;
+                else if (pt < FX_PathOn + FX_PathHold) pa = 1f;
+                else pa = 1f - Mathf.Clamp01((pt - FX_PathOn - FX_PathHold) / FX_PathFade);
+            }
+            for (int s = 0; s < fx.segs.Count; s++)
+            {
+                var seg = fx.segs[s];
+                if (seg.img == null) continue;
+                bool on = pa > 0.01f;
+                if (seg.img.enabled != on) seg.img.enabled = on;
+                if (on) { var c = seg.img.color; c.a = 0.95f * pa; seg.img.color = c; }
+            }
+
+            // 슬롯 연결점 반짝(스케일 + 흰빛 펄스 후 원상복귀).
+            if (fx.dot != null && fx.dotRt != null)
+            {
+                float du = (t - dotStart) / FX_DotTime;
+                if (du >= 0f && du <= 1f)
+                {
+                    float pulse = Mathf.Sin(du * Mathf.PI);
+                    fx.dotRt.localScale = Vector3.one * (1f + 0.9f * pulse);
+                    fx.dot.color = Color.Lerp(fx.baseColor, Color.white, pulse);
+                }
+                else if (du > 1f)
+                {
+                    fx.dotRt.localScale = Vector3.one;
+                    fx.dot.color = fx.baseColor;
+                }
+            }
+
+            if (t > FX_Total)
+            {
+                fx.t = -1f;
+                if (fx.icon.enabled) fx.icon.enabled = false;
+            }
         }
         // 중앙 화살표 2개: 가동 시 흰 펄스가 좌->우로 지나감(위상차), 미가동 = 회색.
         for (int i = 0; i < _centerChevrons.Count; i++)
@@ -1154,7 +1255,7 @@ public class MachineUI : MonoBehaviour
             { formulaStatusText.text = "대기 중"; formulaStatusText.color = new Color(0.72f, 0.77f, 0.82f, 1f); }
         }
 
-        // 흐름 레일: 가동 시에만 흰 펄스 흐름(연결된 포트 + 중앙 화살표).
+        // 흐름 레일: 아이템 통과 순간 연출은 항상 감지(가동 여부 무관), 중앙 화살표 펄스만 가동 시.
         UpdateFlowRails(isSelectedRecipeActive && _machine.IsProcessing);
 
         if (statusText == null) return;
