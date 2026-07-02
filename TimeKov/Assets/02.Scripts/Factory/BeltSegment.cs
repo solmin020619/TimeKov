@@ -495,12 +495,14 @@ namespace TIMEKOV.Factory
             return false;
         }
 
-        /// <summary>포트 바로 앞 벨트 칸에 실린 아이템 id (없거나 미연결이면 -1).
-        /// 설비 UI 가 매 프레임 폴링해 값의 변화로 "들어간 순간(있다->없다) / 나온 순간(없다->있다)"을 감지한다.
+        /// <summary>포트 바로 앞 벨트 칸의 적재물 인스턴스(없거나 미연결이면 null)와 itemId(out, 없으면 -1).
+        /// 설비 UI 가 매 프레임 폴링해 인스턴스 "교체"로 들어간/나온 순간을 감지한다.
+        /// (배출이 밀리면 칸이 비는 프레임 없이 같은 id 로 즉시 다시 차므로 id 비교로는 놓친다.)
         /// 표시 전용(관찰만, 벨트 로직 불변).</summary>
-        public static int PortFrontItemId(BuildPort port)
+        public static object PortFrontOccupant(BuildPort port, out int itemId)
         {
-            if (port == null || port.OwnerBuilding == null) return -1;
+            itemId = -1;
+            if (port == null || port.OwnerBuilding == null) return null;
             Vector2Int front = port.GetFrontCell();
             Vector2Int dir   = port.GetWorldDirection();
             foreach (var seg in All)
@@ -508,9 +510,10 @@ namespace TIMEKOV.Factory
                 if (seg == null || !seg._cellsInitialized) continue;
                 if (seg._beltCell != front) continue;
                 if (!seg.RailConnectsToward(dir)) continue;
-                return seg._occupant != null ? seg._occupant.itemId : -1;
+                if (seg._occupant != null) { itemId = seg._occupant.itemId; return seg._occupant; }
+                return null;
             }
-            return -1;
+            return null;
         }
 
         // ── 레거시 물리 감지 (폴백) ──────────────────────────────────────

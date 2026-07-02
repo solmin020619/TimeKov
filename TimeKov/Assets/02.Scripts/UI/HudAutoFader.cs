@@ -126,8 +126,11 @@ public class HudAutoFader : MonoBehaviour
         bool building = GameUIController.Instance != null
             && GameUIController.Instance.GetCurrentState() == GameUIController.UIState.Build;
 
-        // 결계 밖 / 스탯창 / 코치마크 설명 중 / 결계 안에서 방금 평타,피격 -> 표시. 단 건축모드면 숨김.
-        bool show = !building && (outside || statOpen || coachmark || _showTimer > 0f);
+        // 설비 UI가 떠 있으면 HUD 전부 숨김 - 패널 아래로 시간바가 비쳐 지저분(설비 안은 결계 안이라 안전).
+        bool machineOpen = MachineUI.IsAnyOpen;
+
+        // 결계 밖 / 스탯창 / 코치마크 설명 중 / 결계 안에서 방금 평타,피격 -> 표시. 단 건축모드/설비UI면 숨김.
+        bool show = !building && !machineOpen && (outside || statOpen || coachmark || _showTimer > 0f);
 
         float target = show ? 1f : hiddenAlpha;
         _alpha = Mathf.MoveTowards(_alpha, target, fadeSpeed * Time.deltaTime);
@@ -154,12 +157,13 @@ public class HudAutoFader : MonoBehaviour
         }
 
         // 항상 표시 묶음 (체력/시간바) - 결계 안에서도 안 숨김. 표시 전용이라 클릭 가로채지 않게 raycast 끔.
+        // 예외: 설비 UI 열림 중엔 이것도 숨김(패널 하단 밑으로 비쳐 보임).
         if (_alwaysOnGroups != null)
         {
             foreach (var g in _alwaysOnGroups)
             {
                 if (g == null) continue;
-                g.alpha = 1f;
+                g.alpha = machineOpen ? 0f : 1f;
                 g.blocksRaycasts = false;
                 g.interactable   = false;
             }

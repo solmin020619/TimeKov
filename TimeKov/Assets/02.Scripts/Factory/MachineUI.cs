@@ -113,6 +113,19 @@ public class MachineUI : MonoBehaviour
     // statusText(연료 부족 — 연료 칸 위)와 분리된 제작 시간 표시용.
     // statusText를 복제해 원래 중앙(진행바 위) 위치에 배치한다.
     private TextMeshProUGUI _processTimeText;
+
+    // 깔끔 게이지(엔필식): 얇은 선 + 양끝 점 + 좌->우 채움 + 선 위 "N초".
+    // 옛 하단 슬라이더(progressBar+Knob)/트레이 노란 게이지(ProcessingGauge)를 화면에서 대체한다.
+    private RectTransform _gaugeRoot;
+    private Image _gaugeFill;
+    private const float GA_W = 300f;   // 게이지 선 길이
+    private const float GA_H = 3f;     // 게이지 선 두께
+    // 하단 중앙 상태(">>> 생산 중" + 밑줄) - 옛 진행 슬라이더 자리.
+    private TextMeshProUGUI _bottomStatusText;
+    private Image _bottomStatusLine;
+
+    // 설비 UI 열림 여부(HUD 자동 페이드 등 외부에서 참조).
+    public static bool IsAnyOpen { get; private set; }
     private readonly List<InventorySlotUI> _invSlots = new();
     /// <summary>outputSlot 외에 동적으로 생성된 추가 출력 슬롯들.</summary>
     private readonly List<MachineSlotWidget> _extraOutputSlots = new();
@@ -135,6 +148,7 @@ public class MachineUI : MonoBehaviour
 
         SetupDropZone();
         SetupProcessTimeText();
+        SetupCleanGauge();
     }
 
     // ── 제작 시간 텍스트 분리 ───────────────────────────────────────────
@@ -152,6 +166,112 @@ public class MachineUI : MonoBehaviour
         // statusText가 원래 있던 중앙(진행바 위) 위치로 복귀.
         _processTimeText.rectTransform.anchoredPosition = new Vector2(-14.001f, 98f);
         _processTimeText.text = "";
+    }
+
+    // ── 깔끔 게이지 + 하단 상태 (엔필식 정리) ─────────────────────────
+    // 정리: 하단 슬라이더/노브 끔, 트레이 노란 게이지 끔, 공식 스트립 상태라벨 끔, 하단 드롭힌트 끔.
+    // 생성: (1) 도면 아래 얇은 선 게이지(양끝 점 + 좌->우 채움) + 그 위 "N초"(기존 텍스트 이사)
+    //       (2) 패널 하단 중앙 ">>> 생산 중" + 밑줄(옛 슬라이더 자리).
+    private void SetupCleanGauge()
+    {
+        if (_gaugeRoot != null || uiPanel == null) return;
+
+        RectTransform pbRt = progressBar != null ? (RectTransform)progressBar.transform : null;
+
+        // 게이지 위치 = 옛 트레이 게이지 자리 재사용(도면과 정렬 유지).
+        Transform gaugeParent = uiPanel.transform;
+        Vector2 gaugePos = new Vector2(0f, -260f);
+        if (processingGauge != null)
+        {
+            var gRt = (RectTransform)processingGauge.transform;
+            gaugeParent = gRt.parent; gaugePos = gRt.anchoredPosition;
+            processingGauge.gameObject.SetActive(false);
+        }
+        if (progressBar != null) progressBar.gameObject.SetActive(false);
+        if (progressKnob != null) progressKnob.gameObject.SetActive(false);
+        if (formulaStatusText != null) formulaStatusText.gameObject.SetActive(false);
+        var hint = FindDeep(uiPanel.transform, "DropHint");
+        if (hint != null) hint.gameObject.SetActive(false);
+
+        // (1) 게이지: 트랙(흐린 선) + 채움(밝은 선) + 양끝 점.
+        _gaugeRoot = MakeRect("CleanGauge", gaugeParent, new Vector2(GA_W, 22f), gaugePos);
+        MakeChildImage("Track", _gaugeRoot, new Vector2(GA_W, GA_H), Vector2.zero, new Color(1f, 1f, 1f, 0.28f), null);
+        _gaugeFill = MakeChildImage("Fill", _gaugeRoot, new Vector2(0f, GA_H), new Vector2(-GA_W * 0.5f, 0f),
+                                    new Color(1f, 1f, 1f, 0.95f), null);
+        _gaugeFill.rectTransform.pivot = new Vector2(0f, 0.5f);
+        MakeChildImage("DotL", _gaugeRoot, new Vector2(8f, 8f), new Vector2(-GA_W * 0.5f, 0f), new Color(1f, 1f, 1f, 0.9f), CircleSprite());
+        MakeChildImage("DotR", _gaugeRoot, new Vector2(8f, 8f), new Vector2(GA_W * 0.5f, 0f), new Color(1f, 1f, 1f, 0.9f), CircleSprite());
+
+        // "N초" 텍스트를 게이지 바로 위 중앙으로 이사(도면 한가운데 떠 있던 것).
+        if (_processTimeText != null)
+        {
+            var tr = _processTimeText.rectTransform;
+            tr.SetParent(_gaugeRoot, false);
+            tr.anchorMin = tr.anchorMax = tr.pivot = new Vector2(0.5f, 0.5f);
+            tr.sizeDelta = new Vector2(220f, 26f);
+            tr.anchoredPosition = new Vector2(0f, 20f);
+            _processTimeText.alignment = TextAlignmentOptions.Center;
+        }
+
+        // (2) 하단 중앙 상태: 옛 진행 슬라이더의 가로 범위를 그대로 물려받아 그 자리에.
+        var srt = MakeRect("BottomStatus", pbRt != null ? pbRt.parent : uiPanel.transform, Vector2.zero, Vector2.zero);
+        if (pbRt != null)
+        {
+            srt.anchorMin = pbRt.anchorMin; srt.anchorMax = pbRt.anchorMax;
+            srt.pivot = new Vector2(0.5f, 0f);
+            srt.offsetMin = new Vector2(pbRt.offsetMin.x, 8f);
+            srt.offsetMax = new Vector2(pbRt.offsetMax.x, 46f);
+        }
+        var line = new GameObject("Line", typeof(RectTransform), typeof(Image));
+        line.transform.SetParent(srt, false);
+        var lrt = (RectTransform)line.transform;
+        lrt.anchorMin = new Vector2(0f, 0f); lrt.anchorMax = new Vector2(1f, 0f); lrt.pivot = new Vector2(0.5f, 0f);
+        lrt.offsetMin = new Vector2(60f, 0f); lrt.offsetMax = new Vector2(-60f, GA_H);
+        _bottomStatusLine = line.GetComponent<Image>();
+        _bottomStatusLine.raycastTarget = false;
+
+        var st = new GameObject("Text", typeof(RectTransform));
+        st.transform.SetParent(srt, false);
+        var strt = (RectTransform)st.transform;
+        strt.anchorMin = new Vector2(0f, 0f); strt.anchorMax = new Vector2(1f, 1f);
+        strt.offsetMin = new Vector2(0f, GA_H + 3f); strt.offsetMax = Vector2.zero;
+        _bottomStatusText = st.AddComponent<TextMeshProUGUI>();
+        if (formulaStatusText != null) _bottomStatusText.font = formulaStatusText.font;   // 한글 폰트 유지
+        _bottomStatusText.fontSize = 15;
+        _bottomStatusText.alignment = TextAlignmentOptions.Center;
+        _bottomStatusText.raycastTarget = false;
+        _bottomStatusText.text = "";
+    }
+
+    private static RectTransform MakeRect(string name, Transform parent, Vector2 size, Vector2 pos)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size; rt.anchoredPosition = pos;
+        return rt;
+    }
+
+    private static Image MakeChildImage(string name, Transform parent, Vector2 size, Vector2 pos, Color color, Sprite sprite)
+    {
+        var rt = MakeRect(name, parent, size, pos);
+        var img = rt.gameObject.AddComponent<Image>();
+        img.color = color; img.raycastTarget = false;
+        if (sprite != null) img.sprite = sprite;
+        return img;
+    }
+
+    private static Transform FindDeep(Transform root, string name)
+    {
+        if (root == null) return null;
+        if (root.name == name) return root;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            var f = FindDeep(root.GetChild(i), name);
+            if (f != null) return f;
+        }
+        return null;
     }
 
     // ── 드롭존 자동 설정 ────────────────────────────────────────
@@ -232,6 +352,7 @@ public class MachineUI : MonoBehaviour
         fuelDropSlot?.Setup(machine, inv2);
 
         uiPanel.SetActive(true);
+        IsAnyOpen = true;   // HUD 자동 페이드가 하단 시간바를 숨기게(패널 밑으로 비쳐 지저분)
         GameSfx.Play(SfxId.MachineOpen);
         FacilityWorldDisplay.SuppressWorldLabels = true;   // 월드 이름표/제작아이콘이 패널 블러 위로 뚫지 않게
 
@@ -295,6 +416,7 @@ public class MachineUI : MonoBehaviour
 
     public void Close()
     {
+        IsAnyOpen = false;
         GameSfx.Play(SfxId.MachineClose);
         FacilityWorldDisplay.SuppressWorldLabels = false;   // 패널 닫으면 월드 표시 복구
         if (_machine != null) _machine.OnBufferChanged -= OnBufferChanged;
@@ -329,6 +451,12 @@ public class MachineUI : MonoBehaviour
             uiPanel.SetActive(false);
 
         GameUIController.Instance?.CloseFactoryUI();
+    }
+
+    // 씬 전환 등으로 Close() 없이 꺼질 때 열림 플래그가 남지 않게.
+    private void OnDisable()
+    {
+        IsAnyOpen = false;
     }
 
     public void AddItemFromInventory(int itemId, int amount)
@@ -553,7 +681,7 @@ public class MachineUI : MonoBehaviour
     private static readonly Color FR_Blue      = new Color(0.28f, 0.80f, 1.0f, 1f);     // 출력 = 밝은 시안(실제 벨트색, 버스/레일/단자)
     private static Sprite _frCircle;
     // 포트별 순간 연출 유닛: 경로 점등 조각(항상 풀사이즈, 알파로만 점등) + 아이템 아이콘 + 대상 슬롯 점.
-    //   prevFrontId = 포트 앞 벨트 칸 폴링값. 변화(있다->없다 / 없다->있다)가 곧 발동 신호.
+    //   prevOcc = 포트 앞 벨트 칸 적재물 인스턴스(직전 프레임). 인스턴스 교체가 곧 발동 신호(같은 id 연속 통과도 감지).
     private class PipeSeg { public RectTransform rt; public Image img; }
     private class PortFx
     {
@@ -561,7 +689,9 @@ public class MachineUI : MonoBehaviour
         public readonly System.Collections.Generic.List<PipeSeg> segs = new();
         public Image dot; public RectTransform dotRt;
         public Image icon; public RectTransform iconRt; public Vector2 iconA, iconB;
-        public int prevFrontId = -1;
+        public object prevOcc;         // 직전 프레임 적재물 인스턴스
+        public int prevId = -1;        // 그 인스턴스의 itemId
+        public int jamId = -1;         // 잼(레시피 불일치 정체) 표시 중인 아이템 id. 스프라이트 재조회 방지
         public float t = -1f;          // 연출 경과 시간. -1 = 대기
         public bool rejected;          // 입력인데 레시피 불일치(못 받는) 아이템 = 빨강
     }
@@ -828,8 +958,8 @@ public class MachineUI : MonoBehaviour
         fx.icon = iimg; fx.iconRt = irt; fx.iconA = pf.iconA; fx.iconB = pf.iconB;
         // 점은 연출이 위에서 반짝여야 하므로 맨 위로(여러 포트가 같은 슬롯 점을 공유해도 무해).
         if (dot != null) { fx.dotRt = dot.rectTransform; dot.transform.SetAsLastSibling(); }
-        // 창을 열 때 이미 포트 앞에 놓여 있던 아이템로 오발동하지 않게 현재값으로 초기화.
-        fx.prevFrontId = BeltSegment.PortFrontItemId(pf.port);
+        // 창을 열 때 이미 포트 앞에 놓여 있던 아이템로 오발동하지 않게 현재 상태로 초기화.
+        fx.prevOcc = BeltSegment.PortFrontOccupant(pf.port, out fx.prevId);
         _portFx.Add(fx);
     }
 
@@ -1097,19 +1227,50 @@ public class MachineUI : MonoBehaviour
             var fx = _portFx[i];
             if (fx.icon == null || fx.iconRt == null) continue;
 
-            // 발동 감지: 입력 = 포트 앞 칸에서 사라짐(설비로 들어간 순간) / 출력 = 포트 앞 칸에 나타남(설비서 나온 순간).
-            int cur = BeltSegment.PortFrontItemId(fx.port);
-            bool fire = fx.isInput ? (fx.prevFrontId >= 0 && cur < 0) : (fx.prevFrontId < 0 && cur >= 0);
-            int fireId = fx.isInput ? fx.prevFrontId : cur;
-            fx.prevFrontId = cur;
+            // 발동 감지(인스턴스 교체 기준 - 배출이 밀려 칸이 비는 프레임 없이 즉시 다시 차는 경우도 놓치지 않게):
+            //   입력 = 있던 인스턴스가 사라지거나 교체됨(이전 아이템이 설비로 들어간 순간)
+            //   출력 = 새 인스턴스가 나타남(설비가 방금 내보낸 순간, 같은 id 연속 배출 포함)
+            object curOcc = BeltSegment.PortFrontOccupant(fx.port, out int curId);
+            bool fire; int fireId;
+            if (fx.isInput) { fire = fx.prevOcc != null && !ReferenceEquals(curOcc, fx.prevOcc); fireId = fx.prevId; }
+            else            { fire = curOcc != null && !ReferenceEquals(curOcc, fx.prevOcc);      fireId = curId; }
+            fx.prevOcc = curOcc; fx.prevId = curId;
             if (fire && fireId >= 0)
             {
                 var itemData = GameDataUtility.GetItem(fireId);
                 fx.icon.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
                 fx.rejected = fx.isInput && _machine != null && !_machine.CanReceive(fireId);
+                fx.jamId = -1;
                 fx.t = 0f;   // 연출 시작(진행 중이었으면 새 아이템로 재시작)
+                // 재시작 시 이전 연출 잔상(점 확대/흰빛) 즉시 원복 - 새 펄스 시작 전까지 멈춘 채 남는 팝 방지.
+                if (fx.dot != null && fx.dotRt != null) { fx.dotRt.localScale = Vector3.one; fx.dot.color = fx.baseColor; }
             }
-            if (fx.t < 0f) continue;
+            if (fx.t < 0f)
+            {
+                // 대기 중 잼 표시: 레시피 불일치 아이템이 입력 포트 앞에 멈춰 서 있으면 빨간 아이콘 정지 표시(깜빡).
+                if (fx.isInput && curOcc != null && _machine != null && !_machine.CanReceive(curId))
+                {
+                    if (fx.jamId != curId)
+                    {
+                        fx.jamId = curId;
+                        var jd = GameDataUtility.GetItem(curId);
+                        fx.icon.sprite = jd != null ? ItemDatabase.GetIcon(jd.iconKey) : null;
+                    }
+                    if (fx.icon.sprite != null)
+                    {
+                        if (!fx.icon.enabled) fx.icon.enabled = true;
+                        fx.iconRt.anchoredPosition = (fx.iconA + fx.iconB) * 0.5f;
+                        float blink = 0.55f + 0.35f * Mathf.PingPong(Time.unscaledTime * 1.6f, 1f);
+                        fx.icon.color = new Color(1f, 0.32f, 0.28f, blink);
+                    }
+                }
+                else if (fx.icon.enabled || fx.jamId != -1)
+                {
+                    fx.jamId = -1;
+                    if (fx.icon.enabled) fx.icon.enabled = false;
+                }
+                continue;
+            }
             fx.t += Time.unscaledDeltaTime;
             float t = fx.t;
 
@@ -1194,21 +1355,12 @@ public class MachineUI : MonoBehaviour
             && _selectedRecipeIndex < recipes.Count
             && recipes[_selectedRecipeIndex] == _machine.ActiveRecipe;
 
-        if (progressBar != null)
-            progressBar.value = isSelectedRecipeActive ? _machine.Progress : 0f;
-
-        // 진행바 노브 = fill 끝점으로 이동(가공 중만 표시).
-        if (progressKnob != null)
+        // 깔끔 게이지(엔필식): 얇은 선을 좌->우로 채움. 생산 중 아니면 빈 선만 남는다.
+        // (옛 하단 슬라이더/노브/트레이 게이지는 SetupCleanGauge 에서 껐다.)
+        if (_gaugeFill != null)
         {
-            bool knobShow = isSelectedRecipeActive && _machine.IsProcessing;
-            if (progressKnob.gameObject.activeSelf != knobShow) progressKnob.gameObject.SetActive(knobShow);
-            if (knobShow && progressBar != null)
-            {
-                const float fillInset = 2f;   // Fill Area 2px 인셋 보정(fill 시작/끝과 노브 정렬)
-                float w = ((RectTransform)progressBar.transform).rect.width;
-                var kp = progressKnob.anchoredPosition;
-                progressKnob.anchoredPosition = new Vector2(fillInset + progressBar.value * (w - fillInset * 2f), kp.y);
-            }
+            float p = isSelectedRecipeActive ? Mathf.Clamp01(_machine.Progress) : 0f;
+            _gaugeFill.rectTransform.sizeDelta = new Vector2(GA_W * p, GA_H);
         }
 
         // 출력 펄스(#40): 받을 결과물 있으면 출력 슬롯 살짝 맥동(수령 유도). unscaled.
@@ -1224,35 +1376,22 @@ public class MachineUI : MonoBehaviour
             var gc = machineGlow.color; gc.a = 0f; machineGlow.color = gc;
         }
 
-        // [Gauge] 현재 표시된 레시피가 실제 생산 중일 때만 게이지 진행도 동기, 아니면 숨김
-        // progressBar 와 같은 조건 — UI 일관성 유지
-        // [Sync Fix] StartProcessing() 호출 금지 — 자체 타이머(3.5초 사이클)가 켜져서
-        // _machine.Progress(실제 가공 시간) 와 충돌하면 게이지가 "지맘대로" 갔다가 다시 가는 현상 발생.
-        // GO만 활성화하고 SetProgress 로만 외부 동기 모드 운영.
-        if (processingGauge != null)
-        {
-            if (isSelectedRecipeActive && _machine.IsProcessing)
-            {
-                if (!processingGauge.gameObject.activeSelf)
-                    processingGauge.gameObject.SetActive(true);
-                processingGauge.SetProgress(_machine.Progress);
-            }
-            else
-            {
-                if (processingGauge.gameObject.activeSelf)
-                    processingGauge.StopAndHide();
-            }
-        }
+        // (옛 ProcessingGauge/공식 스트립 상태라벨은 깔끔 게이지 + 하단 상태로 대체 - SetupCleanGauge 에서 비활성.)
 
-        // 공식 스트립 상태 라벨(#31): 생산 중 / 연료 부족 / 대기 중.
-        if (formulaStatusText != null)
+        // 하단 중앙 상태(#31 이사): ">>> 생산 중" / 연료 부족 / 대기 중 + 밑줄 색 동기.
+        if (_bottomStatusText != null)
         {
-            if (isSelectedRecipeActive && _machine.IsProcessing)
-            { formulaStatusText.text = "생산 중"; formulaStatusText.color = new Color(0.90f, 0.76f, 0.29f, 1f); }
+            Color c;
+            bool producing = isSelectedRecipeActive && _machine.IsProcessing;
+            if (producing)
+            { _bottomStatusText.text = ">>>  생산 중"; c = new Color(0.90f, 0.76f, 0.29f, 1f); }
             else if (_machine.Status == MachineStatus.NoFuel)
-            { formulaStatusText.text = "연료 부족"; formulaStatusText.color = new Color(0.88f, 0.45f, 0.40f, 1f); }
+            { _bottomStatusText.text = "연료 부족"; c = new Color(0.88f, 0.45f, 0.40f, 1f); }
             else
-            { formulaStatusText.text = "대기 중"; formulaStatusText.color = new Color(0.72f, 0.77f, 0.82f, 1f); }
+            { _bottomStatusText.text = "대기 중"; c = new Color(0.72f, 0.77f, 0.82f, 0.9f); }
+            _bottomStatusText.color = c;
+            if (_bottomStatusLine != null)
+                _bottomStatusLine.color = new Color(c.r, c.g, c.b, producing ? 0.9f : 0.22f);
         }
 
         // 흐름 레일: 아이템 통과 순간 연출은 항상 감지(가동 여부 무관), 중앙 화살표 펄스만 가동 시.
