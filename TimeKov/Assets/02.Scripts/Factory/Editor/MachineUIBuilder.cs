@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // MachineUIBuilder.cs (Editor Only)
 // Tools/TIMEKOV/공장 UI 생성
 // 공장(설비) UI를 엔드필드식 간유리 톤으로 빌더 신설. 인벤 빌더(InventoryUIBuilder)의
@@ -30,6 +30,8 @@ public static class MachineUIBuilder
     const string SprDir = "Assets/11.UI/Inventory UI/sprites/";      // 아이콘 PNG 폴더
 
     // ── 색 (인벤 팔레트 복제 + 공장 노란 액센트) ──
+    //   [07-02 교훈] 웜(베이지) 틴트 전면 교체는 오답이었음(안 어울림). 엔필의 톤 = 무색 유리 + 밝은 투과.
+    //   팔레트는 인벤과 동일 유지, 밝기는 BgDark 그라데이션 bottom 알파(0.85 -> 0.62)로만 조절한다.
     static Color BaseDark   => RGBA(230, 223, 211, 0.38f);   // PNG 폴백색(정상시 패널이 PNG라 안쓰임)
     static Color TxtMain    => Hex("e9eef5");                // 밝은 텍스트(그래디언트 어두운 하단 위)
     static Color TxtSub     => Hex("9aabbf");                // 밝은 보조 텍스트
@@ -220,9 +222,10 @@ public static class MachineUIBuilder
         var blurGo = new GameObject("PanelBlur", typeof(RectTransform), typeof(CanvasRenderer), typeof(UIBlur));
         blurGo.transform.SetParent(prt, false);
         var blRt = blurGo.GetComponent<RectTransform>();
-        // 종욱 제안 = 둥근 코너: 블러를 코너 반경만큼 안쪽으로 인셋 -> 직사각 모서리가 둥근 그래디언트(Mask 클립) 뒤로 숨음.
-        //   가장자리 ~16px는 블러 안 먹지만 그래디언트가 꽤 불투명하게 덮어서 안 보임.
-        const float blurInset = 16f;
+        // [07-02] 인셋 16 -> 6: 블러는 직각이고 패널은 라운드라 코너가 삐져나오지 않게만 "티 안 나게" 살짝 인셋.
+        //   16 이던 시절엔 그래디언트 bottom 0.85 가 테두리를 가려줬지만 0.62 로 밝히자 무블러 띠가 드러나
+        //   "패널 두 개"처럼 보였음. 0 이면 모서리 사각 블러가 코너 밖으로 삐짐. 6 = 절충 확정.
+        const float blurInset = 6f;
         blRt.anchorMin = Vector2.zero; blRt.anchorMax = Vector2.one;
         blRt.offsetMin = new Vector2(blurInset, blurInset); blRt.offsetMax = new Vector2(-blurInset, -blurInset);
         var blur = blurGo.GetComponent<UIBlur>();
@@ -256,9 +259,9 @@ public static class MachineUIBuilder
         var bgGrad = bgGo.AddComponent<UIFrostGradient>();
         // ★알파 확 낮춤 = 이게 높으면(0.6/0.72) 블러를 회색으로 덮어 죽인다(블러 안보임의 진범).
         //   블러가 비치게 낮은 톤만. (인벤도 0.26/0.52). 톤 부족하면 살짝 올림.
-        // 종욱 라이브튜닝 확정: top 순백(#FFFFFF) 알파 0.9 = 강한 frosted 화이트 / bottom 깊은 쿨 블랙(#12141A) 0.85.
-        //   중간은 UIFrostGradient 자동 보간. 강한 블러 위로 톤이 읽히게 알파 세게.
-        bgGrad.topColor = RGBA(255, 255, 255, 0.9f); bgGrad.bottomColor = RGBA(16, 18, 24, 0.85f);
+        // [07-02] top 순백 0.9 유지 / bottom 알파 0.85 -> 0.62 로 밝힘 = 인벤(0.52)처럼 블러 배경이 톤을 지배.
+        //   설비 UI 가 어두워 보이던 진범이 bottom 0.85. 웜 RGB 틴트 실험은 오답이라 되돌림(무색 유리가 정답).
+        bgGrad.topColor = RGBA(255, 255, 255, 0.9f); bgGrad.bottomColor = RGBA(18, 20, 26, 0.62f);
         bgGrad.topBias = 3f;   // 밝음 상단 ~30%로 퍼뜨림(높을수록 위로 쏠림).
 
         // (옛 밝은 BodyFrost/HeaderFrost 층 제거 = 어두운 글라스로 전환. 헤더/푸터는 divider 선으로만 구분.)
