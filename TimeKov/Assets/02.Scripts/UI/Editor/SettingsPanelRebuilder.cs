@@ -572,10 +572,20 @@ public static class SettingsPanelRebuilder
         if (label != null) { label.color = PillText; label.fontSize = 24f; label.fontStyle = FontStyles.Bold; ApplyFont(label); }
         // 둥근 필 모양이 되면서 텍스트가 곡선 시작점에 너무 붙어 보여 왼쪽 여백을 한 칸 더 띄움.
         var labelRect = label?.GetComponent<RectTransform>();
-        if (labelRect != null) labelRect.offsetMin = new Vector2(labelRect.offsetMin.x + 14f, labelRect.offsetMin.y);
+        if (labelRect != null)
+        {
+            labelRect.offsetMin = new Vector2(16f, labelRect.offsetMin.y);
+            labelRect.offsetMax = new Vector2(-58f, labelRect.offsetMax.y); // arrow area (30+12+16=58)
+        }
 
         var arrowRt = dd.transform.Find("Arrow")?.GetComponent<RectTransform>();
-        if (arrowRt != null) arrowRt.sizeDelta = new Vector2(24f, 24f);
+        if (arrowRt != null)
+        {
+            arrowRt.anchorMin = arrowRt.anchorMax = new Vector2(1f, 0.5f);
+            arrowRt.pivot = new Vector2(0.5f, 0.5f);
+            arrowRt.sizeDelta = new Vector2(22f, 22f);
+            arrowRt.anchoredPosition = new Vector2(-30f, 0f); // 오른쪽에서 30px 안쪽
+        }
         var arrow = dd.transform.Find("Arrow")?.GetComponent<Image>();
         if (arrow != null) arrow.color = PillText;
 
@@ -620,7 +630,11 @@ public static class SettingsPanelRebuilder
         // 더 얇아 보여 "폰트가 다른 것처럼" 보였음 — 닫힌 박스와 동일하게 Bold로 맞춤.
         if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; itemLabel.fontStyle = FontStyles.Bold; ApplyFont(itemLabel); }
         var itemLabelRect = itemLabel?.GetComponent<RectTransform>();
-        if (itemLabelRect != null) itemLabelRect.offsetMin = new Vector2(itemLabelRect.offsetMin.x + 14f, itemLabelRect.offsetMin.y);
+        if (itemLabelRect != null)
+        {
+            itemLabelRect.offsetMin = new Vector2(16f, itemLabelRect.offsetMin.y);
+            itemLabelRect.offsetMax = new Vector2(-16f, itemLabelRect.offsetMax.y);
+        }
 
         // 항목 행 높이가 기본값(20)에 묶여 있어 24pt 폰트가 한 줄을 다 못 채우고
         // 다음 행과 겹쳐 보임 — 행 높이를 키워 글자가 자연스럽게 들어가게 한다.
@@ -863,7 +877,7 @@ public static class SettingsPanelRebuilder
         groupRect.pivot     = new Vector2(1f, 0.5f);
         groupRect.anchoredPosition = Vector2.zero;
         float groupWidth = SliderWidth + ValueLabelWidth + 12f + (icon != null ? 60f : 0f);
-        groupRect.sizeDelta = new Vector2(groupWidth, 56f);
+        groupRect.sizeDelta = new Vector2(groupWidth, ControlHeight);
         var groupHlg = groupGO.AddComponent<HorizontalLayoutGroup>();
         groupHlg.childAlignment = TextAnchor.MiddleLeft;
         groupHlg.spacing = 12f;
@@ -1024,7 +1038,7 @@ public static class SettingsPanelRebuilder
         var row = CreateRow(content, label, out var slot);
 
         var btnGO = CreateUIElementViaMenu("GameObject/UI/Button - TextMeshPro", slot);
-        FillSlot(btnGO, slot, 200f, 52f);
+        FillSlot(btnGO, slot, 200f, ControlHeight);
 
         var img = btnGO.GetComponent<Image>();
         if (img != null)

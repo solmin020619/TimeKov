@@ -27,12 +27,14 @@ public static class MainMenuButtonsBuilder
     private static readonly Color HoverBgColor = new Color(1f, 1f, 1f, 15f / 255f);
 
     // ── 게임 종료 확인 모달 색상 (WorldSelectUIBuilder와 동일 톤 — 프로젝트 전반 다크 네이비 통일) ──
-    private static readonly Color ModalBoxColor = Hex("0A1018", 255);
-    private static readonly Color ModalLineColor = Hex("FFFFFF", 40);
-    private static readonly Color ModalTickColor = Hex("FFFFFF", 120);
-    private static readonly Color FlatBtnBg = Hex("4A5562", 200);
-    private static readonly Color FlatBtnBorder = Hex("FFFFFF", 70);
-    private static readonly Color FlatBtnText = Hex("F2F5F8", 255);
+    private static readonly Color ModalBoxColor   = Hex("0A1018", 255);
+    private static readonly Color ModalLabelBg    = Hex("5A5A5A", 255);
+    private static readonly Color ModalLabelTx    = Hex("C8D8E4", 255);
+    private static readonly Color ModalLineColor  = Hex("FFFFFF", 40);
+    private static readonly Color ModalTickColor  = Hex("FFFFFF", 120);
+    private static readonly Color FlatBtnBg       = Hex("5A5A5A", 255);
+    private static readonly Color FlatBtnBorder   = Hex("FFFFFF", 70);
+    private static readonly Color FlatBtnText     = Hex("E8ECEF", 255);
 
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
@@ -232,24 +234,32 @@ public static class MainMenuButtonsBuilder
         const float boxW = 700f, boxH = 300f;
         var box = MakeRect("Box", modalRoot.transform, new Vector2(boxW, boxH), Vector2.zero, ModalBoxColor);
 
-        var msg = MakeLabel("Message", box.transform, new Vector2(boxW - 80f, 50f), new Vector2(0f, 55f),
-            "게임을 종료하시겠습니까?", 26f, NormalColor, TextAlignmentOptions.Center);
-        ApplyFont(msg);
+        // 회색 라벨 스트립 (CreateModal LabelStrip과 동일 스타일)
+        const float stripW = 580f, stripH = 41f;
+        MakeRect("LabelStrip", box.transform, new Vector2(stripW, stripH), new Vector2(0f, 72f), ModalLabelBg);
+        var msgTmp = MakeLabel("Message", box.transform, new Vector2(stripW, stripH), new Vector2(0f, 72f),
+            "게임을 종료하시겠습니까?", 22f, ModalLabelTx, TextAlignmentOptions.Center);
+        ApplyFont(msgTmp);
 
-        MakeRect("Sep", box.transform, new Vector2(boxW - 80f, 1f), new Vector2(0f, -12f), ModalLineColor);
+        MakeRect("Sep", box.transform, new Vector2(stripW, 1f), new Vector2(0f, 10f), ModalLineColor);
 
-        var yesBtn = MakeFlatDialogButton("Btn_Yes", box.transform, new Vector2(260f, 56f), new Vector2(-150f, -90f), "예");
+        var yesBtn = MakeFlatDialogButton("Btn_Yes", box.transform, new Vector2(240f, 43f), new Vector2(-130f, -68f), "예");
         UnityEventTools.AddPersistentListener(yesBtn.GetComponent<Button>().onClick, quitComp.ConfirmQuit);
 
-        var noBtn = MakeFlatDialogButton("Btn_No", box.transform, new Vector2(260f, 56f), new Vector2(150f, -90f), "아니요");
+        var noBtn = MakeFlatDialogButton("Btn_No", box.transform, new Vector2(240f, 43f), new Vector2(130f, -68f), "아니요");
         UnityEventTools.AddPersistentListener(noBtn.GetComponent<Button>().onClick, quitComp.CancelQuit);
 
-        // 모서리 틱(팰월드 미니멀 코너 브래킷 근사 — 단순 대시 4개, WorldSelectUIBuilder 모달과 동일 스타일)
+        // L자 코너 틱 — center pivot 기준 박스 안쪽 경계에 정렬 (WorldSelectUIBuilder 동일 방식)
         float hx = boxW * 0.5f, hy = boxH * 0.5f;
-        MakeRect("TickTL", box.transform, new Vector2(14f, 2f), new Vector2(-hx, hy), ModalTickColor);
-        MakeRect("TickTR", box.transform, new Vector2(14f, 2f), new Vector2(hx, hy), ModalTickColor);
-        MakeRect("TickBL", box.transform, new Vector2(14f, 2f), new Vector2(-hx, -hy), ModalTickColor);
-        MakeRect("TickBR", box.transform, new Vector2(14f, 2f), new Vector2(hx, -hy), ModalTickColor);
+        const float tw = 14f, th = 2f;
+        MakeRect("TickTL_H", box.transform, new Vector2(tw, th), new Vector2(-hx + tw * 0.5f,  hy - th * 0.5f), ModalTickColor);
+        MakeRect("TickTL_V", box.transform, new Vector2(th, tw), new Vector2(-hx + th * 0.5f,  hy - tw * 0.5f), ModalTickColor);
+        MakeRect("TickTR_H", box.transform, new Vector2(tw, th), new Vector2( hx - tw * 0.5f,  hy - th * 0.5f), ModalTickColor);
+        MakeRect("TickTR_V", box.transform, new Vector2(th, tw), new Vector2( hx - th * 0.5f,  hy - tw * 0.5f), ModalTickColor);
+        MakeRect("TickBL_H", box.transform, new Vector2(tw, th), new Vector2(-hx + tw * 0.5f, -hy + th * 0.5f), ModalTickColor);
+        MakeRect("TickBL_V", box.transform, new Vector2(th, tw), new Vector2(-hx + th * 0.5f, -hy + tw * 0.5f), ModalTickColor);
+        MakeRect("TickBR_H", box.transform, new Vector2(tw, th), new Vector2( hx - tw * 0.5f, -hy + th * 0.5f), ModalTickColor);
+        MakeRect("TickBR_V", box.transform, new Vector2(th, tw), new Vector2( hx - th * 0.5f, -hy + tw * 0.5f), ModalTickColor);
 
         modalRoot.SetActive(false);
     }

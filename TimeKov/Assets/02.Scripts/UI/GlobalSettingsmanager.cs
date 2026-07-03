@@ -82,7 +82,7 @@ public class GlobalSettingsManager : MonoBehaviour
     [Header("Scene")]
     public string mainMenuSceneName = "MainMenu";
 
-    private static readonly string[] ShadowQualityLabels  = { "낮음", "보통", "높음", "매우 높음" };
+    private static readonly string[] ShadowQualityLabels  = { "매우 높음", "높음", "보통", "낮음" };
     private static readonly string[] TextureQualityLabels = { "매우 높음", "높음", "보통", "낮음" };
 
     private List<Resolution> _resolutions = new();
@@ -460,12 +460,13 @@ public class GlobalSettingsManager : MonoBehaviour
         UnityEngine.ShadowResolution legacyRes;
         int urpRes;
         float distance;
+        // 인덱스 0="매우 높음"(best)→3="낮음"(worst) — ShadowQualityLabels 내림차순과 동기화
         switch (level)
         {
-            case 0:  legacyRes = UnityEngine.ShadowResolution.Low;      urpRes = 512;  distance = 20f;  break;
-            case 1:  legacyRes = UnityEngine.ShadowResolution.Medium;   urpRes = 1024; distance = 50f;  break;
-            case 2:  legacyRes = UnityEngine.ShadowResolution.High;     urpRes = 2048; distance = 100f; break;
-            default: legacyRes = UnityEngine.ShadowResolution.VeryHigh; urpRes = 4096; distance = 150f; break;
+            case 0:  legacyRes = UnityEngine.ShadowResolution.VeryHigh; urpRes = 4096; distance = 150f; break;
+            case 1:  legacyRes = UnityEngine.ShadowResolution.High;     urpRes = 2048; distance = 100f; break;
+            case 2:  legacyRes = UnityEngine.ShadowResolution.Medium;   urpRes = 1024; distance = 50f;  break;
+            default: legacyRes = UnityEngine.ShadowResolution.Low;      urpRes = 512;  distance = 20f;  break;
         }
 
         // QualitySettings.shadowResolution/shadowDistance는 Built-in 렌더러 전용 필드라
@@ -483,6 +484,7 @@ public class GlobalSettingsManager : MonoBehaviour
 
     private void ApplyTextureQuality(int level)
     {
+        // 인덱스 0="매우 높음"(mipmapLimit=0) → 3="낮음"(mipmapLimit=3) — TextureQualityLabels 내림차순과 동기화
         QualitySettings.globalTextureMipmapLimit = Mathf.Clamp(level, 0, 3);
     }
 
