@@ -121,6 +121,7 @@ public class MachineUI : MonoBehaviour
     private Image _gaugeFill;
     private const float GA_W = 300f;   // 게이지 선 길이
     private const float GA_H = 3f;     // 게이지 선 두께
+    private const bool ShowBottomStatus = false;   // 하단 ">>> 생산 중" 표시(종욱: 일단 제거, 나중에 조정 예정)
     // 하단 중앙 상태(">>> 생산 중" + 밑줄) - 옛 진행 슬라이더 자리.
     private TextMeshProUGUI _bottomStatusText;
     private Image _bottomStatusLine;
@@ -234,6 +235,9 @@ public class MachineUI : MonoBehaviour
             tr.anchoredPosition = new Vector2(0f, 20f);
             _processTimeText.alignment = TextAlignmentOptions.Center;
         }
+
+        // 하단 상태는 일단 표시 안 함(플래그) - 켜면 아래 생성 코드가 그대로 복귀.
+        if (!ShowBottomStatus) return;
 
         // (2) 하단 중앙 상태: 옛 진행 슬라이더의 가로 범위를 그대로 물려받아 그 자리에.
         var srt = MakeRect("BottomStatus", pbRt != null ? pbRt.parent : uiPanel.transform, Vector2.zero, Vector2.zero);

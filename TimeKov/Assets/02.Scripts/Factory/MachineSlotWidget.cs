@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // MachineSlotWidget.cs
 // 설비 출력 슬롯 위젯
 // =====================================================================
@@ -92,7 +92,7 @@ namespace TIMEKOV.Factory
             {
                 int gi = itemData != null ? (int)itemData.itemGrade : 0;
                 Color gc = GradeVisual.GetColor(gi);
-                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.4f);   // 바닥 선명 + 오로라 은은
+                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.6f);   // 바닥 선명 + 오로라 은은
             }
 
             if (itemNameText != null)

@@ -31,8 +31,9 @@ public class InventorySlotUI : MonoBehaviour,
 
     // 등급 바/오로라 지오메트리(빌더값 대신 코드 통제 = 굵은 바닥선 + 그 위에서 시작하는 은은 오로라, 선/오로라 딱 구분).
     private const float GradeBarH     = 6f;   // 바닥 등급선 두께(솔리드 크리스프 직선)
-    private const float GradeBarInsetX = 6f;  // 선 좌우 인셋(슬롯 밖/둥근 모서리로 안 튀게, 아이콘 마진과 맞춤)
+    private const float GradeBarInsetX = 0f;  // 선 좌우 인셋 0 = 슬롯 폭에 딱 맞춤(선이 슬롯과 어긋나 보이던 것 통일)
     private const float GradeAuroraH  = 30f;  // 오로라 높이(선 위에서 시작해 위로, 별개 효과)
+    private const float GradeAuroraA  = 0.6f; // 오로라 강도(0.4는 안 보여서 업). 설비 슬롯들과 같은 값 유지할 것
 
     // 등급 색은 공용 GradeVisual 로 이동(중앙화). 일반(0)은 인벤에서 숨김.
 
@@ -203,7 +204,7 @@ public class InventorySlotUI : MonoBehaviour,
         // 오로라 효과는 그 선 "위로" 별개로 번짐(선과 완전 분리). 은은하게.
         if (gradeAurora != null)
         {
-            gradeAurora.color = new Color(slotColor.r, slotColor.g, slotColor.b, slotColor.a * 0.4f);
+            gradeAurora.color = new Color(slotColor.r, slotColor.g, slotColor.b, slotColor.a * GradeAuroraA);
             var art = gradeAurora.rectTransform;
             art.anchoredPosition = new Vector2(0f, GradeBarH);
             art.sizeDelta = new Vector2(-GradeBarInsetX * 2f, GradeAuroraH);   // 선과 같은 폭

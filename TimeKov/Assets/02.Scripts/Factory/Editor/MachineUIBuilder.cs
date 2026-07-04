@@ -725,6 +725,7 @@ public static class MachineUIBuilder
         AddOutline(go, SlotEdge, new Vector2(1f, -1f));   // 깔끔한 얇은 테두리(옛 장식 프레임 hl_slot_frame 제거 = "더러움" 해결)
 
         var aurora = AddGradeAurora(go.transform, size * 0.34f);   // 하단 등급 오로라(인벤과 동일, 아이콘 뒤)
+        var gradeBar = AddGradeBar(go.transform);                  // 바닥 솔리드 등급선(인벤과 통일)
         var glow = FillImage("Glow", go.transform, RoundedSprite(), Image.Type.Sliced, new Color(0.37f, 0.77f, 1f, 0f));   // 드래그 호버 글로우(라운드 오버레이, 아이콘 뒤)
         var icon = CenterIcon("Icon", go.transform, size * 0.62f);
         var amount = MakeTMP("Amount", go.transform, "0/0", 16, Color.white, TextAlignmentOptions.BottomRight);
@@ -736,7 +737,7 @@ public static class MachineUIBuilder
 
         var wso = new SerializedObject(rds);
         SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", glow);
-        SetRef(wso, "gradeAurora", aurora);
+        SetRef(wso, "gradeAurora", aurora); SetRef(wso, "rarityBorder", gradeBar);
         SetRef(wso, "amountText", amount); SetRef(wso, "labelText", label);
         wso.ApplyModifiedProperties();
         return rds;
@@ -764,8 +765,9 @@ public static class MachineUIBuilder
         var gaugeGo = new GameObject("Gauge", typeof(RectTransform), typeof(Image));
         gaugeGo.transform.SetParent(go.transform, false);
         var grt = gaugeGo.GetComponent<RectTransform>();
+        // 게이지 = 연료 슬롯의 "바닥 선" 역할(등급선과 동일 지오메트리: 슬롯 폭 딱 맞게 h6, 맨 아래).
         grt.anchorMin = new Vector2(0, 0); grt.anchorMax = new Vector2(1, 0); grt.pivot = new Vector2(0, 0);
-        grt.offsetMin = new Vector2(6, 5); grt.offsetMax = new Vector2(-6, 10);
+        grt.offsetMin = new Vector2(0, 0); grt.offsetMax = new Vector2(0, 6);
         var gimg = gaugeGo.GetComponent<Image>();
         gimg.sprite = RoundedSprite(); gimg.type = Image.Type.Filled;
         gimg.fillMethod = Image.FillMethod.Horizontal; gimg.fillOrigin = (int)Image.OriginHorizontal.Left;
@@ -794,6 +796,7 @@ public static class MachineUIBuilder
         AddOutline(go, SlotEdge, new Vector2(1f, -1f));   // 깔끔한 얇은 테두리(장식 프레임 제거)
 
         var aurora = AddGradeAurora(go.transform, size.x * 0.34f);   // 하단 등급 오로라(인벤과 동일)
+        var gradeBar = AddGradeBar(go.transform);                    // 바닥 솔리드 등급선(인벤과 통일)
         var icon = CenterIcon("Icon", go.transform, size.x * 0.56f);
         icon.rectTransform.anchoredPosition = new Vector2(0, 14f);
         var nameTx = MakeTMP("Name", go.transform, "", 15, Color.white, TextAlignmentOptions.Center);
@@ -805,7 +808,7 @@ public static class MachineUIBuilder
 
         var wso = new SerializedObject(msw);
         SetRef(wso, "iconImage", icon);
-        SetRef(wso, "gradeAurora", aurora);
+        SetRef(wso, "gradeAurora", aurora); SetRef(wso, "rarityBorder", gradeBar);
         SetRef(wso, "itemNameText", nameTx); SetRef(wso, "amountText", amount);
         wso.ApplyModifiedProperties();
         return msw;
@@ -986,4 +989,19 @@ public static class MachineUIBuilder
 
     static Sprite LoadSlotFrame()
         => LoadPartSprite(SlotFramePath, new Vector4(SlotFrameSlice, SlotFrameSlice, SlotFrameSlice, SlotFrameSlice));
+
+    // 등급 바닥 선 = 슬롯 폭에 딱 맞는 솔리드 직선(h6). 인벤 InventorySlotUI 와 동일 지오메트리로 전 슬롯 통일.
+    //   색은 런타임 위젯(rarityBorder)이 등급색으로 칠하고, 빈 칸은 투명. 오로라(y6~)가 이 선 위에서 시작한다.
+    static Image AddGradeBar(Transform slot)
+    {
+        var go = new GameObject("GradeBar", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(slot, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(1, 0); rt.pivot = new Vector2(0.5f, 0);
+        rt.offsetMin = Vector2.zero; rt.offsetMax = new Vector2(0, 6f);
+        var img = go.GetComponent<Image>();
+        img.color = new Color(0, 0, 0, 0);
+        img.raycastTarget = false;
+        return img;
+    }
 }

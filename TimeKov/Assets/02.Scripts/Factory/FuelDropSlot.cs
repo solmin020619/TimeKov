@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
@@ -52,6 +52,16 @@ public class FuelDropSlot : MonoBehaviour,
     private Canvas            _canvas;
     private bool              _dragHighlighted; // 인벤 드래그 시작으로 강조 중인지
 
+    // ── 화로(버너) 패널: 슬롯 오른쪽 빈 공간에 연소 상태를 크게 표시 ──
+    //   도화선(fuse) 게이지 = 게이지 자체가 "타들어가는 연료". fill 끝점에 잉걸불 글로우가 일렁이고
+    //   끝단 구간은 밝게(뜨거운 부분). 불꽃 아이콘 없음(물방울로 읽혀 폐기). + "나뭇가지 xN - M초" / 빈 상태 안내.
+    //   런타임 생성(빌더 재실행 불필요). 큰 박스 없이 요소만 얹는다(단일 면 원칙). 슬롯의 수량/시간 텍스트는 여기로 이사.
+    private RectTransform _burnerRt;
+    private Image _burnFill, _emberGlow, _emberCore;
+    private TextMeshProUGUI _burnInfo;
+    private const float BurnerGaugeX = 16f;    // 게이지 시작 x(패널 안)
+    private const float BurnerGaugeW = 330f;   // 도화선 게이지 길이
+
     private void Awake()
     {
         _canvas = GetComponentInParent<Canvas>();
@@ -87,11 +97,108 @@ public class FuelDropSlot : MonoBehaviour,
         if (gradeAurora != null)
         {
             Color fc = GradeVisual.FuelColor;
-            gradeAurora.color = new Color(fc.r, fc.g, fc.b, fc.a * 0.4f);
+            gradeAurora.color = new Color(fc.r, fc.g, fc.b, fc.a * 0.6f);
         }
 
+        EnsureBurnerPanel();
         RefreshIcon();
         RefreshTime();
+    }
+
+    // ── 화로 패널 생성/갱신 ─────────────────────────────────────────────
+
+    private void EnsureBurnerPanel()
+    {
+        if (_burnerRt != null) return;
+        var slotRt = transform as RectTransform;
+        if (slotRt == null || slotRt.parent == null) return;
+
+        var go = new GameObject("FuelBurnerPanel", typeof(RectTransform));
+        go.transform.SetParent(slotRt.parent, false);
+        _burnerRt = (RectTransform)go.transform;
+        _burnerRt.anchorMin = slotRt.anchorMin; _burnerRt.anchorMax = slotRt.anchorMax;
+        _burnerRt.pivot = new Vector2(0f, 0f);
+        _burnerRt.sizeDelta = new Vector2(380f, slotRt.sizeDelta.y);
+        _burnerRt.anchoredPosition = slotRt.anchoredPosition + new Vector2(slotRt.sizeDelta.x + 16f, 0f);
+
+        // 슬롯과 화로 사이 얇은 세로 구분선(박스 대신 선 - 단일 면 원칙)
+        MakeBurnerImage("Divider", new Vector2(-10f, 0f), new Vector2(1.5f, 96f), new Color(0.55f, 0.62f, 0.70f, 0.25f), null);
+
+        // 상태 라인("나뭇가지 x2 - 34초" / 빈 안내)
+        var info = new GameObject("Info", typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
+        info.transform.SetParent(_burnerRt, false);
+        var irt = info.rectTransform;
+        irt.anchorMin = irt.anchorMax = new Vector2(0f, 0.5f); irt.pivot = new Vector2(0f, 0.5f);
+        irt.sizeDelta = new Vector2(330f, 26f); irt.anchoredPosition = new Vector2(BurnerGaugeX, 16f);
+        if (timeText != null) info.font = timeText.font;   // 한글 폰트 유지
+        info.fontSize = 15; info.alignment = TextAlignmentOptions.Left; info.raycastTarget = false;
+        _burnInfo = info;
+
+        // 도화선 게이지: 트랙 + 단색 fill + 잉걸불 글로우 2겹(끝점, 가동 중 일렁임). 색 구간 분리 없음(두 색으로 보여서 폐기).
+        MakeBurnerImage("FuseTrack", new Vector2(BurnerGaugeX, -14f), new Vector2(BurnerGaugeW, 6f), new Color(1f, 1f, 1f, 0.14f), null);
+        _burnFill = MakeBurnerImage("FuseFill", new Vector2(BurnerGaugeX, -14f), new Vector2(0f, 6f), Color.white, null);
+        _emberGlow = MakeBurnerImage("EmberGlow", new Vector2(BurnerGaugeX, -14f), new Vector2(26f, 26f), new Color(1f, 0.55f, 0.18f, 0.55f), UISpriteFactory.Disc(64));
+        _emberCore = MakeBurnerImage("EmberCore", new Vector2(BurnerGaugeX, -14f), new Vector2(10f, 10f), new Color(1f, 0.93f, 0.72f, 0.95f), UISpriteFactory.Disc(64));
+        _emberGlow.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        _emberCore.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        _emberGlow.enabled = _emberCore.enabled = false;
+    }
+
+    private Image MakeBurnerImage(string name, Vector2 pos, Vector2 size, Color color, Sprite sprite)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(_burnerRt, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.sizeDelta = size; rt.anchoredPosition = pos;
+        var img = go.GetComponent<Image>();
+        img.color = color; img.raycastTarget = false;
+        if (sprite != null) img.sprite = sprite;
+        return img;
+    }
+
+    private void UpdateBurnerPanel(float t, float secs, float currentTime, int queued)
+    {
+        if (_burnerRt == null) return;
+        bool lit = t > 0f;
+        Color fc = GradeVisual.FuelColor;
+        float fillW = lit ? BurnerGaugeW * Mathf.Clamp01(currentTime / secs) : 0f;
+
+        // 도화선: fill 이 오른쪽에서 왼쪽으로 타들어간다. 끝단은 밝게(뜨거움), 끝점엔 잉걸불.
+        if (_burnFill != null)
+        {
+            _burnFill.color = Color.Lerp(fc, Color.white, 0.15f);
+            _burnFill.rectTransform.sizeDelta = new Vector2(fillW, 6f);
+        }
+        if (_emberGlow != null && _emberCore != null)
+        {
+            Vector2 tip = new Vector2(BurnerGaugeX + fillW, -14f);
+            _emberGlow.rectTransform.anchoredPosition = tip;
+            _emberCore.rectTransform.anchoredPosition = tip;
+            if (_emberGlow.enabled != lit) { _emberGlow.enabled = lit; _emberCore.enabled = lit; }
+        }
+
+        if (_burnInfo != null)
+        {
+            string fuelName = "연료";
+            var cfg = FuelConfig.Instance;
+            if (cfg != null)
+            {
+                var d = GameDataUtility.GetItem(cfg.fuelItemId);
+                if (d != null) fuelName = d.itemName;
+            }
+            if (lit)
+            {
+                _burnInfo.text = $"{fuelName}  x{queued + 1}  -  {currentTime:F0}초";
+                _burnInfo.color = new Color(0.92f, 0.94f, 0.97f, 0.95f);
+            }
+            else
+            {
+                _burnInfo.text = $"연료 없음  -  {fuelName} 필요";
+                _burnInfo.color = new Color(0.80f, 0.58f, 0.52f, 0.85f);
+            }
+        }
     }
 
     public void Cleanup()
@@ -106,8 +213,29 @@ public class FuelDropSlot : MonoBehaviour,
 
     private void Update()
     {
-        if (_machine != null && _machine.Status == MachineStatus.Processing)
+        if (_machine == null) return;
+        bool processing = _machine.Status == MachineStatus.Processing;
+        if (processing)
             RefreshTime();
+
+        // 잉걸불 일렁임(가동 중에만). 멈추면 원래 크기/밝기로.
+        if (_emberGlow != null && _emberCore != null && _emberGlow.enabled)
+        {
+            if (processing && _machine.FuelTimeRemaining > 0f)
+            {
+                float n1 = Mathf.PerlinNoise(Time.unscaledTime * 6f, 0.37f) - 0.5f;
+                float n2 = Mathf.PerlinNoise(Time.unscaledTime * 9f, 1.73f) - 0.5f;
+                _emberGlow.rectTransform.localScale = Vector3.one * (1f + 0.30f * n1);
+                _emberCore.rectTransform.localScale = Vector3.one * (1f + 0.40f * n2);
+                var gc = _emberGlow.color; gc.a = 0.45f + 0.20f * (n1 + 0.5f); _emberGlow.color = gc;
+            }
+            else if (_emberGlow.rectTransform.localScale != Vector3.one)
+            {
+                _emberGlow.rectTransform.localScale = Vector3.one;
+                _emberCore.rectTransform.localScale = Vector3.one;
+                var gc = _emberGlow.color; gc.a = 0.55f; _emberGlow.color = gc;
+            }
+        }
     }
 
     // ── 이벤트 콜백 ────────────────────────────────────────────────────
@@ -133,13 +261,13 @@ public class FuelDropSlot : MonoBehaviour,
         float currentTime = t % secs;
         if (currentTime < 0.01f && t > 0f) currentTime = secs;
 
-        // 대기 중인 아이템만 개수 표시 (현재 연소 중인 1개는 표시 안 함)
+        // 수량/시간 표시는 화로 패널로 이사(중복 방지). 화로가 없을 때만 슬롯에 직접 표시(폴백).
         if (amountText != null)
-            amountText.text = queued > 0 ? $"x{queued}" : "";
+            amountText.text = (_burnerRt == null && queued > 0) ? $"x{queued}" : "";
 
         if (timeText != null)
         {
-            if (t > 0f)
+            if (_burnerRt == null && t > 0f)
             {
                 // 현재 아이템 1개분의 남은 시간만 표시
                 timeText.text  = $"{currentTime:F0}초";
@@ -154,12 +282,22 @@ public class FuelDropSlot : MonoBehaviour,
             }
         }
 
-        // 연료 게이지(#41) = 현재 타고 있는 1개의 남은 연소 비율(0~1).
+        // 슬롯 바닥 = 인벤 등급선처럼 연료색 솔리드 선(연료 있을 때만). 잔량 fill 은 화로 와이드 게이지가 담당.
         if (fuelGauge != null)
         {
-            fuelGauge.fillAmount = t > 0f ? Mathf.Clamp01(currentTime / secs) : 0f;
+            fuelGauge.fillAmount = 1f;
+            fuelGauge.color = GradeVisual.FuelColor;
             fuelGauge.enabled = t > 0f;
         }
+        // 오로라도 인벤 문법과 통일: 연료 있을 때만(빈 칸 = 선/오로라 없음).
+        if (gradeAurora != null)
+        {
+            Color fca = GradeVisual.FuelColor;
+            gradeAurora.color = t > 0f ? new Color(fca.r, fca.g, fca.b, fca.a * 0.6f) : new Color(0f, 0f, 0f, 0f);
+        }
+
+        // 화로 패널(불꽃/와이드 게이지/상태 라인) 동기.
+        UpdateBurnerPanel(t, secs, currentTime, queued);
 
         // 연료 상태 변경 시 아이콘도 갱신
         RefreshIcon();

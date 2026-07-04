@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
@@ -122,7 +122,7 @@ public class RecipeDropSlot : MonoBehaviour,
             if (itemData != null)
             {
                 Color gc = GradeVisual.GetColor((int)itemData.itemGrade);
-                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.4f);
+                gradeAurora.color = new Color(gc.r, gc.g, gc.b, gc.a * 0.6f);
             }
             else
             {
@@ -394,7 +394,7 @@ public class RecipeDropSlot : MonoBehaviour,
             rarityBorder.color = (loaded && itemData != null) ? gc : new Color(0f, 0f, 0f, 0f);
         if (gradeAurora != null)
             gradeAurora.color = (loaded && itemData != null)
-                ? new Color(gc.r, gc.g, gc.b, gc.a * 0.4f)
+                ? new Color(gc.r, gc.g, gc.b, gc.a * 0.6f)
                 : new Color(0f, 0f, 0f, 0f);
     }
 }
