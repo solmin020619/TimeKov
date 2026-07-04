@@ -26,7 +26,13 @@ public class FuelDropSlot : MonoBehaviour,
 
     [Header("Hover 색상")]
     [SerializeField] private Color normalBorderColor = new Color(1f, 1f, 1f, 0f);
-    [SerializeField] private Color hoverBorderColor  = new Color(1f, 0.8f, 0.2f, 0.8f);
+    // 옛 노란 통짜(1, 0.8, 0.2, 0.8)는 화면이 노랗게 떡져서 폐기 -> 은은한 시안 워시 + 물결 프레임이 강조 담당.
+    [SerializeField] private Color hoverBorderColor  = new Color(0.37f, 0.77f, 1f, 0.14f);
+
+    [Header("드래그 강조 프레임")]
+    [Tooltip("통합 인벤과 동일한 hl_region_frame 스프라이트(빌더 배선). 비우면 시안 4변 폴백.")]
+    [SerializeField] private Sprite highlightFrameSprite;
+    private GameObject _highlightFrame;
     [SerializeField] private Color noFuelTextColor   = new Color(1f, 0.3f, 0.3f, 1f);
     [SerializeField] private Color normalTextColor   = new Color(1f, 1f, 1f, 1f);
 
@@ -58,6 +64,7 @@ public class FuelDropSlot : MonoBehaviour,
     //   런타임 생성(빌더 재실행 불필요). 큰 박스 없이 요소만 얹는다(단일 면 원칙). 슬롯의 수량/시간 텍스트는 여기로 이사.
     private RectTransform _burnerRt;
     private Image _burnFill, _emberGlow, _emberCore;
+    private Image _burnItemIcon;    // 지금 타는 1개의 아이콘(도화선 = 항상 나뭇가지 1개 분)
     private TextMeshProUGUI _burnInfo;
     private const float BurnerGaugeX = 16f;    // 게이지 시작 x(패널 안)
     private const float BurnerGaugeW = 330f;   // 도화선 게이지 길이
@@ -70,6 +77,14 @@ public class FuelDropSlot : MonoBehaviour,
         // 초기 상태 명시적 초기화
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
+
+        // 드래그 대상 강조 프레임(물결) - 통합 인벤과 동일 문법.
+        _highlightFrame = DropHighlightFrame.Build((RectTransform)transform, highlightFrameSprite);
+    }
+
+    private void SetFrame(bool on)
+    {
+        if (_highlightFrame != null && _highlightFrame.activeSelf != on) _highlightFrame.SetActive(on);
     }
 
     private void OnDisable()
@@ -124,7 +139,11 @@ public class FuelDropSlot : MonoBehaviour,
         // 슬롯과 화로 사이 얇은 세로 구분선(박스 대신 선 - 단일 면 원칙)
         MakeBurnerImage("Divider", new Vector2(-10f, 0f), new Vector2(1.5f, 96f), new Color(0.55f, 0.62f, 0.70f, 0.25f), null);
 
-        // 상태 라인("나뭇가지 x2 - 34초" / 빈 안내)
+        // 상태 라인: [타는 중인 나뭇가지 1개 아이콘] + "연소 중 - 31초" / 빈 상태 안내.
+        _burnItemIcon = MakeBurnerImage("BurnItem", new Vector2(BurnerGaugeX, 16f), new Vector2(26f, 26f), Color.white, null);
+        _burnItemIcon.preserveAspect = true;
+        _burnItemIcon.enabled = false;
+
         var info = new GameObject("Info", typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
         info.transform.SetParent(_burnerRt, false);
         var irt = info.rectTransform;
@@ -179,6 +198,17 @@ public class FuelDropSlot : MonoBehaviour,
             if (_emberGlow.enabled != lit) { _emberGlow.enabled = lit; _emberCore.enabled = lit; }
         }
 
+        // 상태 라인: 도화선은 항상 "지금 타는 1개"만 대표한다(수량은 투입구 슬롯 담당).
+        if (_burnItemIcon != null)
+        {
+            if (lit && _burnItemIcon.sprite == null)
+            {
+                var cfg0 = FuelConfig.Instance;
+                var d0 = cfg0 != null ? GameDataUtility.GetItem(cfg0.fuelItemId) : null;
+                _burnItemIcon.sprite = d0 != null ? ItemDatabase.GetIcon(d0.iconKey) : null;
+            }
+            _burnItemIcon.enabled = lit && _burnItemIcon.sprite != null;
+        }
         if (_burnInfo != null)
         {
             string fuelName = "연료";
@@ -188,9 +218,11 @@ public class FuelDropSlot : MonoBehaviour,
                 var d = GameDataUtility.GetItem(cfg.fuelItemId);
                 if (d != null) fuelName = d.itemName;
             }
+            bool iconShown = _burnItemIcon != null && _burnItemIcon.enabled;
+            _burnInfo.rectTransform.anchoredPosition = new Vector2(BurnerGaugeX + (iconShown ? 34f : 0f), 16f);
             if (lit)
             {
-                _burnInfo.text = $"{fuelName}  x{queued + 1}  -  {currentTime:F0}초";
+                _burnInfo.text = $"연소 중  -  {currentTime:F0}초";
                 _burnInfo.color = new Color(0.92f, 0.94f, 0.97f, 0.95f);
             }
             else
@@ -261,9 +293,9 @@ public class FuelDropSlot : MonoBehaviour,
         float currentTime = t % secs;
         if (currentTime < 0.01f && t > 0f) currentTime = secs;
 
-        // 수량/시간 표시는 화로 패널로 이사(중복 방지). 화로가 없을 때만 슬롯에 직접 표시(폴백).
+        // 투입구 모델: 슬롯 = 대기 중인 연료(xN). 타는 중인 1개는 옆 도화선이 담당.
         if (amountText != null)
-            amountText.text = (_burnerRt == null && queued > 0) ? $"x{queued}" : "";
+            amountText.text = queued > 0 ? $"x{queued}" : "";
 
         if (timeText != null)
         {
@@ -282,18 +314,18 @@ public class FuelDropSlot : MonoBehaviour,
             }
         }
 
-        // 슬롯 바닥 = 인벤 등급선처럼 연료색 솔리드 선(연료 있을 때만). 잔량 fill 은 화로 와이드 게이지가 담당.
+        // 슬롯 바닥 = 인벤 등급선처럼 연료색 솔리드 선. 투입구 모델이라 "대기 연료가 있을 때"만 켠다.
         if (fuelGauge != null)
         {
             fuelGauge.fillAmount = 1f;
             fuelGauge.color = GradeVisual.FuelColor;
-            fuelGauge.enabled = t > 0f;
+            fuelGauge.enabled = queued > 0;
         }
-        // 오로라도 인벤 문법과 통일: 연료 있을 때만(빈 칸 = 선/오로라 없음).
+        // 오로라도 인벤 문법과 통일: 대기 연료 있을 때만(빈 투입구 = 선/오로라 없음).
         if (gradeAurora != null)
         {
             Color fca = GradeVisual.FuelColor;
-            gradeAurora.color = t > 0f ? new Color(fca.r, fca.g, fca.b, fca.a * 0.6f) : new Color(0f, 0f, 0f, 0f);
+            gradeAurora.color = queued > 0 ? new Color(fca.r, fca.g, fca.b, fca.a * 0.6f) : new Color(0f, 0f, 0f, 0f);
         }
 
         // 화로 패널(불꽃/와이드 게이지/상태 라인) 동기.
@@ -334,14 +366,20 @@ public class FuelDropSlot : MonoBehaviour,
         }
 
         // 현재 연소 중인 1개를 제외한 대기 아이템 수
-        // queued == 0 이면 마지막 1개가 타는 중 → 아이콘 숨김, 시간만 표시
         float t      = _machine.FuelTimeRemaining;
         float secs   = cfg.secondsPerFuel;
         int   queued = Mathf.Max(0, Mathf.CeilToInt(t / secs) - 1);
 
         if (queued <= 0)
         {
-            iconImage.enabled = false;
+            // 투입구 모델: 대기 연료가 없으면 빈 칸(실루엣). 타는 중인 1개는 옆 도화선이 보여주므로 모순 없음.
+            if (sprite != null)
+            {
+                iconImage.sprite  = sprite;
+                iconImage.color   = emptySilhouetteColor;
+                iconImage.enabled = true;
+            }
+            else iconImage.enabled = false;
             return;
         }
 
@@ -365,6 +403,7 @@ public class FuelDropSlot : MonoBehaviour,
         _dragHighlighted = on;
         if (borderImage != null) borderImage.color = on ? hoverBorderColor : normalBorderColor;
         if (labelText   != null) labelText.text    = on ? "연료 넣기" : "";
+        SetFrame(on);
     }
 
     // ── Hover (인벤토리 → 연료슬롯 방향) ────────────────────────────────
@@ -392,6 +431,7 @@ public class FuelDropSlot : MonoBehaviour,
 
         if (borderImage != null) borderImage.color = hoverBorderColor;
         if (labelText   != null) labelText.text    = "연료 넣기";
+        SetFrame(true);
     }
 
     public void OnPointerExit(PointerEventData e)
@@ -407,6 +447,7 @@ public class FuelDropSlot : MonoBehaviour,
         }
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
+        SetFrame(false);
     }
 
     // ── Drop (인벤토리 → 연료슬롯) ───────────────────────────────────────
@@ -416,6 +457,7 @@ public class FuelDropSlot : MonoBehaviour,
         _dragHighlighted = false;
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
+        SetFrame(false);
 
         if (_machine == null) return;
 

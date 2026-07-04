@@ -51,7 +51,7 @@ public static class MachineUIBuilder
     const float HeaderH = 64f, FooterH = 150f;  // 푸터=생산영역 하단 밴드(연료 140 슬롯 + 액션버튼 + 얇은 진행선). 가방 아래엔 안 깔림(가방이 풀높이).
     const float SidePad = 26f;       // 패널 안쪽 여백
     const float Gap = 20f;           // 영역 간 간격
-    const float BagWidth = 540f;     // 좌 가방 칼럼 고정폭(나머지는 생산부가 채움)
+    const float BagWidth = 620f;     // 좌 가방 칼럼 고정폭(엔필 비례로 확대. 셀 135 x 4열). MachineUI.SEC_ColW 와 동기 필수.
 
     // ── 위젯 슬롯 프레임 / 가방 슬롯 프리팹 ──
     const string SlotPrefabPath = "Assets/05.Prefabs/Inventory/InventorySlot.prefab";
@@ -171,6 +171,12 @@ public static class MachineUIBuilder
         ccb.colorMultiplier  = 1f; ccb.fadeDuration = 0.1f;
         closeButton.colors = ccb;
         SetRef(so, "closeBtn", closeButton);
+
+        // 좌측 레일 탭 아이콘(클로드디자인 PNG, 흰색 = 런타임 틴트). 없으면 런타임 절차 도형 폴백.
+        SetRef(so, "railBagSprite", LoadPartSprite(PartDir + "/tab_bag.png", Vector4.zero));
+        SetRef(so, "railStorageSprite", LoadPartSprite(PartDir + "/tab_storage.png", Vector4.zero));
+        // 드래그 대상 강조 프레임(통합 인벤과 동일 hl_region_frame) - 접힘 박스 물결 강조용.
+        SetRef(so, "regionFrameSprite", LoadPartSprite(PartDir + "/hl_region_frame_open@2x.png", new Vector4(52, 52, 52, 52)));
 
         // 헤더 밑 구분선 (그래디언트 밝은 상단 위라 어두운 선으로 또렷하게)
         var hair = MakeImage("HeaderDivider", prt, Vector2.zero, Vector2.zero, RGBA(70, 84, 104, 0.5f));
@@ -727,7 +733,7 @@ public static class MachineUIBuilder
         var aurora = AddGradeAurora(go.transform, size * 0.34f);   // 하단 등급 오로라(인벤과 동일, 아이콘 뒤)
         var gradeBar = AddGradeBar(go.transform);                  // 바닥 솔리드 등급선(인벤과 통일)
         var glow = FillImage("Glow", go.transform, RoundedSprite(), Image.Type.Sliced, new Color(0.37f, 0.77f, 1f, 0f));   // 드래그 호버 글로우(라운드 오버레이, 아이콘 뒤)
-        var icon = CenterIcon("Icon", go.transform, size * 0.62f);
+        var icon = CenterIcon("Icon", go.transform, size * 0.85f);   // 인벤 비율과 통일(종욱: 슬롯의 85% 채우기)
         var amount = MakeTMP("Amount", go.transform, "0/0", 16, Color.white, TextAlignmentOptions.BottomRight);
         BadgeRectBottom(amount.rectTransform); amount.fontStyle = FontStyles.Bold;
         var label = MakeTMP("Label", go.transform, "", 14, Color.white, TextAlignmentOptions.Center);
@@ -753,7 +759,7 @@ public static class MachineUIBuilder
 
         var aurora = AddGradeAurora(go.transform, size * 0.34f);   // 하단 연료색 오로라(브론즈)
         var border = FillImage("Border", go.transform, RoundedSprite(), Image.Type.Sliced, new Color(1, 1, 1, 0f));   // 호버 글로우(라운드 오버레이)
-        var icon = CenterIcon("Icon", go.transform, size * 0.62f);   // 재료칸(MakeRecipeSlot)과 동일 비율 = 복붙 느낌
+        var icon = CenterIcon("Icon", go.transform, size * 0.85f);   // 재료칸(MakeRecipeSlot)과 동일 비율 = 복붙 느낌
         var amount = MakeTMP("Amount", go.transform, "", 16, Color.white, TextAlignmentOptions.TopRight);
         BadgeRectTop(amount.rectTransform); amount.fontStyle = FontStyles.Bold;
         var time = MakeTMP("Time", go.transform, "", 14, Hex("e6c24a"), TextAlignmentOptions.Bottom);
@@ -780,6 +786,7 @@ public static class MachineUIBuilder
         SetRef(wso, "iconImage", icon); SetRef(wso, "borderImage", border);
         SetRef(wso, "amountText", amount); SetRef(wso, "timeText", time); SetRef(wso, "labelText", label);
         SetRef(wso, "fuelGauge", gimg); SetRef(wso, "gradeAurora", aurora);
+        SetRef(wso, "highlightFrameSprite", LoadPartSprite(PartDir + "/hl_region_frame_open@2x.png", new Vector4(52, 52, 52, 52)));
         // 빈 슬롯 실루엣을 순흑 -> 부드러운 반투명 슬레이트(밝은 UI에서 "낙서"처럼 튀던 것 완화).
         var silhProp = wso.FindProperty("emptySilhouetteColor");
         if (silhProp != null) silhProp.colorValue = RGBA(40, 52, 68, 0.5f);
@@ -797,8 +804,8 @@ public static class MachineUIBuilder
 
         var aurora = AddGradeAurora(go.transform, size.x * 0.34f);   // 하단 등급 오로라(인벤과 동일)
         var gradeBar = AddGradeBar(go.transform);                    // 바닥 솔리드 등급선(인벤과 통일)
-        var icon = CenterIcon("Icon", go.transform, size.x * 0.56f);
-        icon.rectTransform.anchoredPosition = new Vector2(0, 14f);
+        var icon = CenterIcon("Icon", go.transform, size.x * 0.85f);   // 인벤 비율과 통일
+        icon.rectTransform.anchoredPosition = new Vector2(0, 6f);     // 85% 아이콘이 칸 위로 안 삐지는 오프셋(하단 이름줄 살짝 겹침은 텍스트가 위층이라 OK)
         var nameTx = MakeTMP("Name", go.transform, "", 15, Color.white, TextAlignmentOptions.Center);
         var nrt = nameTx.rectTransform;
         nrt.anchorMin = new Vector2(0, 0); nrt.anchorMax = new Vector2(1, 0); nrt.pivot = new Vector2(0.5f, 0);
