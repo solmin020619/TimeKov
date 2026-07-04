@@ -142,7 +142,12 @@ public class InventoryGridUI : MonoBehaviour
         }
     }
 
-    // 창고: 비어있지 않고 필터에 맞는 슬롯만 앞으로 압축 표시(빈칸 없음). 칸이 모자라면 생성.
+    // 창고 기본 표시 칸 수(종욱: 처음부터 빈 칸 깔아두기). 이 수를 넘어가면 기존 동적 증식 방식 그대로.
+    private const int MinShownSlots = 100;
+    private int _shownEmptyCount;   // 현재 표시 중인 빈 칸 수(드롭 강조 분기용)
+
+    // 창고: 필터 일치 아이템을 첫 칸부터 압축 표시 + 이어서 실제 빈 슬롯을 MinShownSlots 까지 미리 표시.
+    // 빈 칸도 전부 유효 slotIndex 를 가진 실제 슬롯이라 드롭이 그 칸으로 정상 동작.
     private void RefreshDynamic()
     {
         HideAppendPreview();   // 데이터 변경 시 미리보기 정리(드롭존이 다음 프레임 재표시)
@@ -160,11 +165,18 @@ public class InventoryGridUI : MonoBehaviour
         }
         _dynamicVisibleCount = visible.Count;
 
-        // 창고가 비면 빈 칸 1개는 보여준다(완전 빈 패널 = 버그처럼 보임 방지). placeholder = 첫 빈 슬롯(유효 slotIndex).
-        InventorySlot placeholder = null;
-        if (visible.Count == 0)
-            foreach (var s in slots) { if (s.IsEmpty) { placeholder = s; break; } }
-        int shown = (placeholder != null) ? 1 : visible.Count;
+        // 아이템 뒤로 실제 빈 슬롯을 이어붙인다(합계 MinShownSlots 까지. 실제 빈 슬롯 수가 상한).
+        var empties = new List<InventorySlot>();
+        int need = MinShownSlots - visible.Count;
+        if (need > 0)
+            foreach (var s in slots)
+            {
+                if (!s.IsEmpty) continue;
+                empties.Add(s);
+                if (empties.Count >= need) break;
+            }
+        _shownEmptyCount = empties.Count;
+        int shown = visible.Count + empties.Count;
 
         while (_slotUIs.Count < shown)
             if (CreateSlotUI(_slotUIs.Count) == null) break;
@@ -173,17 +185,17 @@ public class InventoryGridUI : MonoBehaviour
         for (int i = 0; i < _slotUIs.Count; i++)
         {
             if (_slotUIs[i] == null) continue;
-            if (i < visible.Count)
+            if (i < shown)
             {
                 _slotUIs[i].gameObject.SetActive(true);
                 if (!revealing) _slotUIs[i].transform.localScale = Vector3.one;   // 등장 애니 중이 아니면 스케일 정상화
-                _slotUIs[i].Refresh(visible[i], _manager);
-            }
-            else if (i < shown)
-            {
-                _slotUIs[i].gameObject.SetActive(true);
-                if (!revealing) _slotUIs[i].transform.localScale = Vector3.one;
-                _slotUIs[i].Refresh(placeholder, _manager);   // 빈 칸 placeholder(첫 빈 슬롯)
+                bool isItem = i < visible.Count;
+                _slotUIs[i].Refresh(isItem ? visible[i] : empties[i - visible.Count], _manager);
+                // 빈 칸은 레이캐스트 통과 필수: 드롭이 슬롯(MoveSlotTo)이 아니라 뒤 드롭존(AddItem)으로 가야
+                // 스택 병합 + 창고 자동 탭 전환이 산다. 칸이 가로채면 필터에 숨은 아이템이 "증발"해 보이고 중복 스택 생김.
+                var cg = _slotUIs[i].GetComponent<CanvasGroup>();
+                if (cg == null) cg = _slotUIs[i].gameObject.AddComponent<CanvasGroup>();
+                cg.blocksRaycasts = isItem;
             }
             else
             {
@@ -260,16 +272,15 @@ public class InventoryGridUI : MonoBehaviour
             return;
         }
 
-        // 새 종류 = 새로 생길 칸을 미리 보여줌
+        // 새 종류: 빈 칸이 이미 깔려 있으면 첫 빈 칸 강조(실제로 들어갈 자리). 표시 칸이 아이템으로 다 찼으면 끝에 미리보기.
         SetDropTargetHighlight(-1);   // 매칭 강조 해제
-        // 아이템 있을 때만 끝에 미리보기 칸 추가. 빈 창고는 이미 placeholder 빈 칸이 있으니 그걸 강조.
-        if (_dynamicVisibleCount > 0)
-            ShowAppendPreview();
-        else
+        if (_shownEmptyCount > 0 || _dynamicVisibleCount == 0)
         {
             HideAppendPreview();
             SetDropTargetHighlight(_manager.FindEmptySlotIndex());
         }
+        else
+            ShowAppendPreview();
     }
 
     // 화면좌표 밑에 있는 활성 슬롯 UI (없으면 null)
