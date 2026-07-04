@@ -782,14 +782,21 @@ public static class SettingsPanelRebuilder
         var item = template.Find("Viewport/Content/Item") as RectTransform;
         if (item != null) item.sizeDelta = new Vector2(item.sizeDelta.x, 64f);
 
-        // 스크롤바: 시각적으로만 숨김 — Scrollbar 컴포넌트는 ScrollRect가 쓰므로 유지
-        var scrollbar = template.Find("Scrollbar");
-        if (scrollbar != null)
+        // 스크롤바: ScrollRect 참조 해제 + GameObject 비활성 → 마우스휠/드래그 스크롤은 유지
+        var scrollRect = template.GetComponent<ScrollRect>();
+        if (scrollRect != null)
         {
-            var sbImg = scrollbar.GetComponent<Image>();
-            if (sbImg != null) sbImg.color = new Color(0, 0, 0, 0);
-            var handleImg = scrollbar.Find("Sliding Area/Handle")?.GetComponent<Image>();
-            if (handleImg != null) handleImg.color = new Color(0, 0, 0, 0);
+            scrollRect.verticalScrollbar = null;
+            scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        }
+        var scrollbarGO = template.Find("Scrollbar")?.gameObject;
+        if (scrollbarGO != null) scrollbarGO.SetActive(false);
+        // Viewport 전체 너비로 확장 — 스크롤바 자리 공백 제거
+        var viewportRt = viewportGO?.GetComponent<RectTransform>();
+        if (viewportRt != null)
+        {
+            viewportRt.offsetMin = new Vector2(0f, viewportRt.offsetMin.y);
+            viewportRt.offsetMax = new Vector2(0f, viewportRt.offsetMax.y);
         }
 
         // DropdownStyleSwitcher: 열릴 때 버튼 → RoundedTopSprite(위만 둥근)
