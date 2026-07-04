@@ -273,8 +273,12 @@ public class RecipeDropSlot : MonoBehaviour,
             int buffered = _machine.InputBuffer.GetAmount(RequiredItemId);
             if (buffered <= 0) return;
 
-            _machine.InputBuffer.Consume(RequiredItemId, buffered);
-            (_inventory != null ? _inventory : InventoryManager.Instance)?.AddItem(RequiredItemId, buffered);
+            // 먼저 넣어보고 들어간 만큼만 차감 - 가방 가득 시 초과분 증발 방지(남는 건 설비 유지).
+            var recInv = _inventory != null ? _inventory : InventoryManager.Instance;
+            int leftover = recInv != null ? recInv.AddItem(RequiredItemId, buffered) : buffered;
+            int taken = buffered - leftover;
+            if (taken > 0) _machine.InputBuffer.Consume(RequiredItemId, taken);
+            if (leftover > 0) ToastManager.Warning("가방이 가득 찼습니다");
 
             _machine.PublicNotifyBufferChanged();
         }
@@ -301,6 +305,7 @@ public class RecipeDropSlot : MonoBehaviour,
 
         int itemId  = draggedSlot.SlotData.itemId;
         int dragAmt = draggedSlot.SlotData.amount;
+        if (handler.IsSplitDrag) dragAmt = Mathf.Min(handler.DragAmount, dragAmt);   // ALT 분할 드래그 = 든 수량만
 
         if (itemId != RequiredItemId) { ToastManager.Warning("요구하는 재료와 다릅니다"); return; }
         if (dragAmt <= 0) return;

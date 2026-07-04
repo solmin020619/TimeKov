@@ -474,6 +474,7 @@ public class FuelDropSlot : MonoBehaviour,
         if (itemId != cfg.fuelItemId) { ToastManager.Warning("연료만 넣을 수 있습니다"); return; }
 
         int amount = draggedSlot.SlotData.amount;
+        if (handler.IsSplitDrag) amount = Mathf.Min(handler.DragAmount, amount);   // ALT 분할 드래그 = 든 수량만
         if (amount <= 0) return;
 
         // 같은 아이템이 여러 칸에 나뉘어 있어도 실제로 드래그한 칸에서만 차감
@@ -579,7 +580,13 @@ public class FuelDropSlot : MonoBehaviour,
         if (count <= 0) return;
 
         var inv = _inventory != null ? _inventory : InventoryManager.Instance;
-        inv?.AddItem(cfg.fuelItemId, count);
+        // 못 들어간 만큼은 설비 연료로 되돌림 - 가방 가득 시 증발 방지.
+        int leftover = inv != null ? inv.AddItem(cfg.fuelItemId, count) : count;
+        if (leftover > 0)
+        {
+            _machine.AddFuel(leftover);
+            ToastManager.Warning("가방이 가득 찼습니다");
+        }
         inv?.ForceRefreshUI();
 
         // 회수로 슬롯이 비었으므로 호버 툴팁 즉시 숨김 (마우스가 그대로면 Exit가 안 뜸)

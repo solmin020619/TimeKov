@@ -871,6 +871,14 @@ public class MachineUI : MonoBehaviour
             trt.sizeDelta = new Vector2(460f, 44f);
             trt.anchoredPosition = new Vector2(82f, 0f);   // 아이콘 48 + 간격 12 에 맞춰 우측으로
         }
+        if (closeBtn != null)
+        {
+            // X 버튼을 헤더(64) 칸에 꽉 차게(종욱: 너무 작음). 빌더 48/아이콘 28 -> 60/44.
+            var crt = (RectTransform)closeBtn.transform;
+            crt.sizeDelta = new Vector2(60f, 60f);
+            var xIcon = closeBtn.transform.Find("Icon") as RectTransform;
+            if (xIcon != null) xIcon.sizeDelta = new Vector2(44f, 44f);
+        }
     }
 
     // 중앙 도면 로드: Resources/Image/UI_Icon/FacilityBlueprint/ 에서 "{id}" 또는 "{id}_이름" 스프라이트.
@@ -2172,15 +2180,22 @@ public class MachineUI : MonoBehaviour
         var inputs    = recipes[recipeIdx]?.inputs;
         if (inputs == null) return;
 
-        var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
+        // 회수 대상 = 현재 보고 있는 인벤(가방 뷰=가방 / 창고 뷰=창고). 옛 가방 고정은 창고 뷰에서 혼란.
+        var inv = ActiveInv();
 
+        bool someLeft = false;
         foreach (var input in inputs)
         {
             int buffered = _machine.InputBuffer.GetAmount(input.itemId);
             if (buffered <= 0) continue;
-            _machine.InputBuffer.Consume(input.itemId, buffered);
-            inv?.AddItem(input.itemId, buffered);
+            // 먼저 넣어보고 들어간 만큼만 버퍼에서 차감 - 가방 가득 시 초과분이 증발하던 버그 방지(남는 건 설비 유지).
+            int leftover = inv != null ? inv.AddItem(input.itemId, buffered) : buffered;
+            int taken = buffered - leftover;
+            if (taken > 0) _machine.InputBuffer.Consume(input.itemId, taken);
+            if (leftover > 0) someLeft = true;
         }
+        if (someLeft) ToastManager.Warning("가방이 가득 찼습니다");
+        inv?.ForceRefreshUI();
 
         _machine.PublicNotifyBufferChanged();
         RefreshInventorySlots();

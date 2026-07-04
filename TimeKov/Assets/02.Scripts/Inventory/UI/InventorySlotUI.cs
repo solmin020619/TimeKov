@@ -69,6 +69,11 @@ public class InventorySlotUI : MonoBehaviour,
         _wasDragSource = false;
         transform.localScale = Vector3.one;   // 팝 스케일 잔재 제거
         if (_dropFrame != null) { SetFrameAlpha(0f); }   // 프레임 잔재 제거
+
+        // 이 칸을 드래그 중인데 패널이 닫히면(ESC 등) OnEndDrag 가 영영 안 와서
+        // 고스트 아이콘이 화면에 영구 잔존한다 - 여기서 드래그를 강제 종료.
+        var dh = InventoryDragHandler.Instance;
+        if (dh != null && dh.DraggedSlot == this) dh.EndDrag();
     }
 
     private void Update()

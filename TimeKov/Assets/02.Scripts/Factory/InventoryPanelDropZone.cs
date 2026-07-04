@@ -106,7 +106,13 @@ public class InventoryPanelDropZone : MonoBehaviour, IDropHandler, IPointerEnter
         int count = machine.TakeFuel();
         if (count <= 0) return;
 
-        inv?.AddItem(itemId, count);
+        // 못 들어간 만큼은 설비 연료로 되돌림 - 가방 가득 시 증발 방지.
+        int leftover = inv != null ? inv.AddItem(itemId, count) : count;
+        if (leftover > 0)
+        {
+            machine.AddFuel(leftover);
+            ToastManager.Warning("가방이 가득 찼습니다");
+        }
         inv?.ForceRefreshUI();
         machine.PublicNotifyBufferChanged();
     }
@@ -134,8 +140,11 @@ public class InventoryPanelDropZone : MonoBehaviour, IDropHandler, IPointerEnter
         int amount = machine.InputBuffer.GetAmount(itemId);
         if (amount <= 0) return;
 
-        machine.InputBuffer.Consume(itemId, amount);
-        inv?.AddItem(itemId, amount);
+        // 먼저 넣어보고 들어간 만큼만 차감 - 가방 가득 시 초과분 증발 방지(남는 건 설비 유지).
+        int leftover = inv != null ? inv.AddItem(itemId, amount) : amount;
+        int taken = amount - leftover;
+        if (taken > 0) machine.InputBuffer.Consume(itemId, taken);
+        if (leftover > 0) ToastManager.Warning("가방이 가득 찼습니다");
         inv?.ForceRefreshUI();
         machine.PublicNotifyBufferChanged();
     }
