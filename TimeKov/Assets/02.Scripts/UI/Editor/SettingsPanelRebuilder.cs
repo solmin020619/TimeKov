@@ -40,6 +40,125 @@ public static class SettingsPanelRebuilder
     private static Sprite _roundedPillSprite;
     private const string RoundedPillPath = "Assets/Resources/Image/UI_Icon/Setting/Generated_RoundedPill.png";
 
+    // 드롭다운 열렸을 때 버튼용: 위쪽만 둥근 모서리, 아래는 직사각
+    private static Sprite _roundedTopSprite;
+    private const string RoundedTopPath = "Assets/Resources/Image/UI_Icon/Setting/Generated_RoundedTop.png";
+
+    private static Sprite RoundedTopSprite()
+    {
+        if (_roundedTopSprite != null) return _roundedTopSprite;
+        var existing = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedTopPath);
+        if (existing != null) { _roundedTopSprite = existing; return existing; }
+
+        const int size = 64;
+        const int radius = 28;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var pixels = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float alpha;
+                if (y < size - radius) // 하단부(y < 36): 완전 불투명 사각형
+                {
+                    alpha = 1f;
+                }
+                else // 상단부(y >= 36): 위쪽 모서리만 둥글게
+                {
+                    float dx = Mathf.Max(Mathf.Abs(x + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
+                    float dy = Mathf.Max(y - (size - radius - 0.5f), 0f);
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    alpha = Mathf.Clamp01(radius - dist + 0.5f);
+                }
+                pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255));
+            }
+        }
+        tex.SetPixels32(pixels);
+        tex.Apply();
+
+        var pngBytes = tex.EncodeToPNG();
+        Directory.CreateDirectory(Path.GetDirectoryName(RoundedTopPath));
+        File.WriteAllBytes(RoundedTopPath, pngBytes);
+        AssetDatabase.ImportAsset(RoundedTopPath);
+
+        var importer = AssetImporter.GetAtPath(RoundedTopPath) as TextureImporter;
+        if (importer != null)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 100f;
+            importer.spriteBorder = new Vector4(radius, 0, radius, radius); // L,B=0,R,T: 하단 보더 없음
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Bilinear;
+            EditorUtility.SetDirty(importer);
+            importer.SaveAndReimport();
+        }
+
+        _roundedTopSprite = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedTopPath);
+        return _roundedTopSprite;
+    }
+
+    // 드롭다운 펼침 목록 전용: 위쪽은 완전 불투명 사각형, 아래쪽만 둥근 모서리
+    // 버튼 위로 28px 겹쳐서 버튼 라벨이 비치지 않도록 상단을 불투명하게 유지
+    private static Sprite _roundedBottomSprite;
+    private const string RoundedBottomPath = "Assets/Resources/Image/UI_Icon/Setting/Generated_RoundedBottom.png";
+
+    private static Sprite RoundedBottomSprite()
+    {
+        if (_roundedBottomSprite != null) return _roundedBottomSprite;
+        var existing = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedBottomPath);
+        if (existing != null) { _roundedBottomSprite = existing; return existing; }
+
+        const int size = 64;
+        const int radius = 28;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var pixels = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float alpha;
+                if (y >= radius) // 상단부(y=radius 이상): 완전 불투명 사각형
+                {
+                    alpha = 1f;
+                }
+                else // 하단부(y < radius): 좌우 아래 모서리만 둥글게
+                {
+                    float dx = Mathf.Max(Mathf.Abs(x + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
+                    float dy = Mathf.Max((radius - 0.5f) - y, 0f);
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    alpha = Mathf.Clamp01(radius - dist + 0.5f);
+                }
+                pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255));
+            }
+        }
+        tex.SetPixels32(pixels);
+        tex.Apply();
+
+        var pngBytes = tex.EncodeToPNG();
+        Directory.CreateDirectory(Path.GetDirectoryName(RoundedBottomPath));
+        File.WriteAllBytes(RoundedBottomPath, pngBytes);
+        AssetDatabase.ImportAsset(RoundedBottomPath);
+
+        var importer = AssetImporter.GetAtPath(RoundedBottomPath) as TextureImporter;
+        if (importer != null)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 100f;
+            importer.spriteBorder = new Vector4(radius, radius, radius, 0); // L,B,R,T: top=0(상단 둥근모서리 없음)
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Bilinear;
+            EditorUtility.SetDirty(importer);
+            importer.SaveAndReimport();
+        }
+
+        _roundedBottomSprite = AssetDatabase.LoadAssetAtPath<Sprite>(RoundedBottomPath);
+        return _roundedBottomSprite;
+    }
+
     private static Sprite RoundedPillSprite()
     {
         if (_roundedPillSprite != null) return _roundedPillSprite;
@@ -556,98 +675,140 @@ public static class SettingsPanelRebuilder
         return dd;
     }
 
-    // 드롭다운 박스 + 펼침 목록을 다크 네이비 팔레트로 재도색
+    // 드롭다운 — 팰월드 레퍼런스 라이트+라운드 스타일
+    // 닫힌 박스: 라운드 흰 박스 / 열린 목록: flat 직사각형(닫힌 박스 위에 겹쳐 사각형처럼 보임)
     private static void StyleDropdown(TMP_Dropdown dd)
     {
-        // 닫힌 박스도 펼침 목록(PillBg/PillText)과 같은 밝은 톤으로 통일 — 흰 배경 + 검은 텍스트.
+        // 닫힌 박스: 라이트 배경 + 라운드
         var rootImg = dd.GetComponent<Image>();
         if (rootImg != null)
         {
-            rootImg.color = PillBg;
             rootImg.sprite = RoundedPillSprite();
-            rootImg.type = Image.Type.Sliced;
+            rootImg.type   = Image.Type.Sliced;
+            rootImg.color  = PillBg;
         }
 
         var label = dd.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
-        if (label != null) { label.color = PillText; label.fontSize = 24f; label.fontStyle = FontStyles.Bold; ApplyFont(label); }
-        // 둥근 필 모양이 되면서 텍스트가 곡선 시작점에 너무 붙어 보여 왼쪽 여백을 한 칸 더 띄움.
+        if (label != null) { label.color = PillText; label.fontSize = 24f; label.fontStyle = FontStyles.Normal; label.alignment = TextAlignmentOptions.MidlineLeft; ApplyFont(label); }
         var labelRect = label?.GetComponent<RectTransform>();
         if (labelRect != null)
         {
-            labelRect.offsetMin = new Vector2(16f, labelRect.offsetMin.y);
-            labelRect.offsetMax = new Vector2(-58f, labelRect.offsetMax.y); // arrow area (30+12+16=58)
+            labelRect.offsetMin = new Vector2(20f, 0f);
+            labelRect.offsetMax = new Vector2(-52f, 0f);
         }
 
+        // 화살표: 오른쪽에서 28px, 어두운색
         var arrowRt = dd.transform.Find("Arrow")?.GetComponent<RectTransform>();
         if (arrowRt != null)
         {
             arrowRt.anchorMin = arrowRt.anchorMax = new Vector2(1f, 0.5f);
-            arrowRt.pivot = new Vector2(0.5f, 0.5f);
-            arrowRt.sizeDelta = new Vector2(22f, 22f);
-            arrowRt.anchoredPosition = new Vector2(-30f, 0f); // 오른쪽에서 30px 안쪽
+            arrowRt.pivot     = new Vector2(0.5f, 0.5f);
+            arrowRt.sizeDelta = new Vector2(20f, 20f);
+            arrowRt.anchoredPosition = new Vector2(-28f, 0f);
         }
         var arrow = dd.transform.Find("Arrow")?.GetComponent<Image>();
         if (arrow != null) arrow.color = PillText;
 
         var template = dd.transform.Find("Template");
         if (template == null) return;
-        // 펼침 목록은 레퍼런스처럼 라이트 그레이 — 닫힌 박스(다크)와 대비되는 톤.
-        // 닫힌 박스와 같은 RoundedPillSprite를 써서 펼침 목록도 위 버튼처럼 둥글게 보이도록 함
-        // (기존엔 각진 기본 UISprite라 닫힌 박스만 둥글고 펼침 목록은 사각형으로 어긋나 보였음).
+
+        // 펼침 목록: 위쪽 직사각 + 아래쪽만 둥근 스프라이트 — TMP_Dropdown이 런타임에 Template 위치를 덮어쓰므로
+        // anchoredPosition 오프셋 없이 기본 위치(버튼 바로 아래)를 그대로 사용
         var templateImg = template.GetComponent<Image>();
         if (templateImg != null)
         {
-            templateImg.color = PillBg;
-            templateImg.sprite = RoundedPillSprite();
-            templateImg.type = Image.Type.Sliced;
+            templateImg.sprite = RoundedBottomSprite();
+            templateImg.type   = Image.Type.Sliced;
+            templateImg.color  = PillBg;
         }
 
-        // Viewport의 Mask는 자기 Image의 스프라이트 모양대로 자식(Content/Item)을 잘라낸다 —
-        // 기본 각진 UIMask 그대로면 배경은 둥글어졌어도 목록 내용은 모서리가 각지게 잘려 어긋남.
-        var viewportImg = template.Find("Viewport")?.GetComponent<Image>();
+        // Viewport: Mask가 자식을 잘라내려면 Image alpha가 0이면 안 됨 — 흰색 불투명 유지 + showMaskGraphic=false
+        var viewportGO  = template.Find("Viewport");
+        var viewportImg = viewportGO?.GetComponent<Image>();
         if (viewportImg != null)
         {
-            viewportImg.sprite = RoundedPillSprite();
-            viewportImg.type = Image.Type.Sliced;
+            viewportImg.sprite = null;
+            viewportImg.type   = Image.Type.Simple;
+            viewportImg.color  = Color.white;
         }
+        var viewportMask = viewportGO?.GetComponent<Mask>();
+        if (viewportMask != null) viewportMask.showMaskGraphic = false;
 
         var itemBg = template.Find("Viewport/Content/Item/Item Background")?.GetComponent<Image>();
-        if (itemBg != null) itemBg.color = PillBg;
+        if (itemBg != null)
+        {
+            itemBg.sprite = null;
+            itemBg.type   = Image.Type.Simple;
+            itemBg.color  = PillBg;
+        }
 
-        // 현재 선택된 항목만 더 짙은 회색으로 강조 (레퍼런스: 사용자 설정 드롭다운 펼침 목록 참고)
-        var itemToggle = template.Find("Viewport/Content/Item")?.GetComponent<Toggle>();
+        // 선택 항목 강조 (중복 방지)
+        var itemGO     = template.Find("Viewport/Content/Item")?.gameObject;
+        var itemToggle = itemGO?.GetComponent<Toggle>();
         if (itemBg != null && itemToggle != null)
         {
-            var tint = template.Find("Viewport/Content/Item").gameObject.AddComponent<DropdownItemSelectedTint>();
-            tint.background = itemBg;
-            tint.toggle = itemToggle;
-            tint.selectedColor = new Color(0.62f, 0.62f, 0.62f, 1f);
+            var existTint = itemGO.GetComponent<DropdownItemSelectedTint>();
+            if (existTint != null) UnityEngine.Object.DestroyImmediate(existTint);
+            var tint = itemGO.AddComponent<DropdownItemSelectedTint>();
+            tint.background      = itemBg;
+            tint.toggle          = itemToggle;
+            tint.selectedColor   = new Color(0.75f, 0.79f, 0.84f, 1f); // 선택: 중간 회색
             tint.unselectedColor = PillBg;
         }
 
+        // 항목 라벨: 어두운색, 좌우 여백
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
-        // 닫힌 박스 라벨은 Bold인데 펼침 목록 항목 라벨엔 Bold가 빠져있어서 같은 폰트/크기인데도
-        // 더 얇아 보여 "폰트가 다른 것처럼" 보였음 — 닫힌 박스와 동일하게 Bold로 맞춤.
-        if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; itemLabel.fontStyle = FontStyles.Bold; ApplyFont(itemLabel); }
+        if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; itemLabel.fontStyle = FontStyles.Normal; itemLabel.alignment = TextAlignmentOptions.MidlineLeft; ApplyFont(itemLabel); }
         var itemLabelRect = itemLabel?.GetComponent<RectTransform>();
         if (itemLabelRect != null)
         {
-            itemLabelRect.offsetMin = new Vector2(16f, itemLabelRect.offsetMin.y);
-            itemLabelRect.offsetMax = new Vector2(-16f, itemLabelRect.offsetMax.y);
+            itemLabelRect.offsetMin = new Vector2(20f, 0f);
+            itemLabelRect.offsetMax = new Vector2(-52f, 0f);
         }
 
-        // 항목 행 높이가 기본값(20)에 묶여 있어 24pt 폰트가 한 줄을 다 못 채우고
-        // 다음 행과 겹쳐 보임 — 행 높이를 키워 글자가 자연스럽게 들어가게 한다.
-        // (TMP_Dropdown은 표시 시점에 이 Item의 sizeDelta.y를 행 간격으로 그대로 사용한다.)
-        // 닫힌 박스와 똑같은 높이(56)로 맞췄더니 항목이 하나뿐인 목록(화면 품질="Medium" 등)이
-        // 풍선처럼 과하게 커 보임 — 해상도 목록처럼 여러 줄이 촘촘하게 쌓이는 컴팩트한 높이로 되돌림.
-        var item = template.Find("Viewport/Content/Item") as RectTransform;
-        if (item != null) item.sizeDelta = new Vector2(item.sizeDelta.x, 44f);
-
+        // 체크마크: 오른쪽으로 이동
         var checkmark = template.Find("Viewport/Content/Item/Item Checkmark") as RectTransform;
-        if (checkmark != null) checkmark.sizeDelta = new Vector2(22f, 22f);
+        if (checkmark != null)
+        {
+            checkmark.anchorMin = checkmark.anchorMax = new Vector2(1f, 0.5f);
+            checkmark.pivot     = new Vector2(0.5f, 0.5f);
+            checkmark.sizeDelta = new Vector2(20f, 20f);
+            checkmark.anchoredPosition = new Vector2(-26f, 0f);
+        }
         var checkmarkImg = checkmark?.GetComponent<Image>();
-        if (checkmarkImg != null) checkmarkImg.color = PillText; // 라이트 배경 위라 체크 색도 어둡게
+        if (checkmarkImg != null) checkmarkImg.color = DdText;
+
+        // 항목 높이: 닫힌 박스(64)와 동일하게
+        var item = template.Find("Viewport/Content/Item") as RectTransform;
+        if (item != null) item.sizeDelta = new Vector2(item.sizeDelta.x, 64f);
+
+        // 스크롤바: ScrollRect 참조 해제 + GameObject 비활성 → 마우스휠/드래그 스크롤은 유지
+        var scrollRect = template.GetComponent<ScrollRect>();
+        if (scrollRect != null)
+        {
+            scrollRect.verticalScrollbar = null;
+            scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        }
+        var scrollbarGO = template.Find("Scrollbar")?.gameObject;
+        if (scrollbarGO != null) scrollbarGO.SetActive(false);
+        // Viewport 전체 너비로 확장 — 스크롤바 자리 공백 제거
+        var viewportRt = viewportGO?.GetComponent<RectTransform>();
+        if (viewportRt != null)
+        {
+            viewportRt.offsetMin = new Vector2(0f, viewportRt.offsetMin.y);
+            viewportRt.offsetMax = new Vector2(0f, viewportRt.offsetMax.y);
+        }
+
+        // DropdownStyleSwitcher: 열릴 때 버튼 → RoundedTopSprite(위만 둥근)
+        //                        닫힐 때 버튼 → RoundedPillSprite(전체 둥근)
+        // Template = RoundedBottomSprite(아래만 둥근) → 둘이 맞닿으면 하나의 완전한 둥근 사각형
+        var existFixer = dd.GetComponent<DropdownOverlapFixer>();
+        if (existFixer != null) UnityEngine.Object.DestroyImmediate(existFixer);
+        var existSwitcher = dd.GetComponent<DropdownStyleSwitcher>();
+        if (existSwitcher != null) UnityEngine.Object.DestroyImmediate(existSwitcher);
+        var switcher = dd.gameObject.AddComponent<DropdownStyleSwitcher>();
+        switcher.closedSprite = RoundedPillSprite();
+        switcher.openSprite   = RoundedTopSprite();
     }
 
     // 엔드필드 스타일 섹션 헤더: ■ 노란 막대 + 굵은 노란 글씨 + 우측으로 뻗는 얇은 선
@@ -780,9 +941,15 @@ public static class SettingsPanelRebuilder
             -edgePad - (btnWidth + spacing) * 2f, y, mainMenuBtnWidth, btnHeight, mgr.QuitToMainMenu);
     }
 
-    private static readonly Color PillBg       = new Color(0.93f, 0.93f, 0.93f, 1f);
-    private static readonly Color PillText     = new Color(0.12f, 0.12f, 0.14f, 1f);
-    private static readonly Color PillCircleBg = new Color(0.16f, 0.17f, 0.19f, 0.95f);
+    private static readonly Color PillBg        = new Color(0.93f, 0.93f, 0.93f, 1f);
+    private static readonly Color PillText      = new Color(0.12f, 0.12f, 0.14f, 1f);
+    private static readonly Color PillCircleBg  = new Color(0.16f, 0.17f, 0.19f, 0.95f);
+
+    // 드롭다운 다크 팔레트 (레퍼런스: 팰월드 설정창 3·4번)
+    private static readonly Color DdBoxBg      = new Color(0.13f, 0.17f, 0.22f, 1f);  // 닫힌 박스
+    private static readonly Color DdListBg     = new Color(0.11f, 0.14f, 0.18f, 1f);  // 펼침 목록 배경
+    private static readonly Color DdSelectedBg = new Color(0.22f, 0.30f, 0.40f, 1f);  // 선택 항목 강조
+    private static readonly Color DdText       = new Color(0.88f, 0.93f, 0.97f, 1f);  // 밝은 텍스트/아이콘
 
     // 알약형 버튼: 가운데 텍스트 + 오른쪽 안쪽에 들어간 원형 아이콘(rightIcon으로 버튼마다
     // 구분: 새로고침/체크 등). 좌측 아이콘은 제거 — 흰 버튼 밖으로 삐져나오지 않게 전부 안쪽에 배치.
