@@ -75,7 +75,8 @@ public enum FacilityType
     BioSeparator,     // 생체 분리기 (5번)
     CoreSynthesizer,  // 코어 합성기 (6번)
     EnergyConverter,  // 에너지 변환기 (7번)
-    Storage           // 저장고 (8번)
+    Storage,          // 저장고 (8번)
+    StoragePort       // 창고 출력 포트 (9번, 테두리 설치)
 }
 
 // 드롭 출처 유형
