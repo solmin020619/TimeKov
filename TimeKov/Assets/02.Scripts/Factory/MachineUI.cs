@@ -1023,44 +1023,24 @@ public class MachineUI : MonoBehaviour
 
         var slots = inv.GetSlots();
 
-        // 창고 뷰 = 실제 창고 UI(InventoryGridUI.RefreshDynamic)와 같은 규칙(종욱: 통일):
-        //   (필터 일치) 아이템을 첫 칸부터 압축 -> 이어서 실제 빈 슬롯 표시 -> 남는 칸만 비활성.
-        // 빈 칸도 전부 유효 slotIndex 실슬롯 매핑이라 드롭 정상. SlotData=null 활성 칸은 여전히 금지(NRE).
+        // 창고 뷰 = 실제 창고 UI 와 같은 모델(종욱 확정): 칸 위치 고정(실제 slotIndex 그대로), 압축 표시 폐기.
+        //   압축은 드래그 중 입고로 화면 칸이 딴 아이템로 재바인딩되는 버그(12번, 재현됨)의 원천이었음.
+        // 필터 = 안 맞는 아이템 칸만 비워 보이게(자리 유지, 실 slotIndex 를 가진 빈 표시라 드롭 안전).
         if (_showStorage)
         {
-            int w = 0;
-            for (int i = 0; i < slots.Count && w < _invSlots.Count; i++)
+            for (int i = 0; i < _invSlots.Count; i++)
             {
-                var sd = slots[i];
-                if (sd == null || sd.itemId <= 0) continue;
-                if (_storageFilter != null)
+                if (_invSlots[i] == null) continue;
+                if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);
+                InventorySlot sd = i < slots.Count ? slots[i] : null;
+                if (sd != null && sd.itemId > 0 && _storageFilter != null)
                 {
                     var d = GameDataUtility.GetItem(sd.itemId);
-                    if (d == null || d.itemCategory != _storageFilter.Value) continue;
+                    if (d == null || d.itemCategory != _storageFilter.Value)
+                        sd = new InventorySlot { slotIndex = sd.slotIndex };   // 필터로 가림(자리 유지)
                 }
-                var ui = _invSlots[w];
-                if (ui != null)
-                {
-                    if (!ui.gameObject.activeSelf) ui.gameObject.SetActive(true);
-                    ui.Refresh(sd, inv);
-                }
-                w++;
+                _invSlots[i].Refresh(sd, inv);
             }
-            for (int i = 0; i < slots.Count && w < _invSlots.Count; i++)
-            {
-                var sd = slots[i];
-                if (sd == null || sd.itemId > 0) continue;   // 빈 실슬롯만 이어붙임
-                var ui = _invSlots[w];
-                if (ui != null)
-                {
-                    if (!ui.gameObject.activeSelf) ui.gameObject.SetActive(true);
-                    ui.Refresh(sd, inv);
-                }
-                w++;
-            }
-            for (; w < _invSlots.Count; w++)
-                if (_invSlots[w] != null && _invSlots[w].gameObject.activeSelf)
-                    _invSlots[w].gameObject.SetActive(false);
             return;
         }
 
