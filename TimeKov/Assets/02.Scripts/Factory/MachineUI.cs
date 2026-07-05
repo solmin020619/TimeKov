@@ -1976,6 +1976,8 @@ public class MachineUI : MonoBehaviour
             if (fx.isInput) { fire = fx.prevOcc != null && !ReferenceEquals(curOcc, fx.prevOcc); fireId = fx.prevId; }
             else            { fire = curOcc != null && !ReferenceEquals(curOcc, fx.prevOcc);      fireId = curId; }
             fx.prevOcc = curOcc; fx.prevId = curId;
+            // 아이템 실린 벨트가 "철거"돼 칸이 사라진 경우를 입고로 오인하지 않게 - 정상 입고는 항상 연결 상태.
+            if (fire && !BeltSegment.IsPortConnected(fx.port)) fire = false;
             if (fire && fireId >= 0)
             {
                 var itemData = GameDataUtility.GetItem(fireId);
