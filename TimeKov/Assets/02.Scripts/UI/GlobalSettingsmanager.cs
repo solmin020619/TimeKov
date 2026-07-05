@@ -82,6 +82,7 @@ public class GlobalSettingsManager : MonoBehaviour
     [Header("Scene")]
     public string mainMenuSceneName = "MainMenu";
 
+    private static readonly string[] QualityLabels        = { "낮음", "보통", "높음" }; // QualitySettings: Low(0)/Medium(1)/High(2)
     private static readonly string[] ShadowQualityLabels  = { "매우 높음", "높음", "보통", "낮음" };
     private static readonly string[] TextureQualityLabels = { "매우 높음", "높음", "보통", "낮음" };
 
@@ -540,7 +541,7 @@ public class GlobalSettingsManager : MonoBehaviour
         if (qualityDropdown != null)
         {
             qualityDropdown.ClearOptions();
-            qualityDropdown.AddOptions(new List<string>(QualitySettings.names));
+            qualityDropdown.AddOptions(new List<string>(QualityLabels));
         }
         if (shadowQualityDropdown != null)
         {
