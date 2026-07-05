@@ -17,7 +17,6 @@ public class PlayerDashComponent : MonoBehaviour
     public bool DashVfxParentToPlayer = true;
 
     private Player _player;
-    private Rigidbody _rb;
     private float _cooldownTimer;
 
     public bool IsDashing { get; private set; }
@@ -56,7 +55,6 @@ public class PlayerDashComponent : MonoBehaviour
     void Awake()
     {
         _player = GetComponent<Player>();
-        _rb = GetComponent<Rigidbody>();
         CoreUpgradeManager.OnLevelChanged += OnCoreLevelChanged;
     }
 
@@ -111,7 +109,17 @@ public class PlayerDashComponent : MonoBehaviour
         // GetDashDirection()이 입력 없으면 transform.forward 를 반환하므로 방향은 안전.
         if (IsOnCooldown) return;
         if (_player.Stat.CurrentStamina < EffectiveDashCost) return;
-        if (_player.Skill.IsExecuting) return;
+
+        // 스킬/콤보 시전 중이면 대쉬로 캔슬한다(선·후딜 도중에도 즉시 대쉬).
+        // 데미지는 HitSphere/OnAttackHit로 그 시점에 이미 적용되므로, 코루틴을 중단하면
+        // 캔슬 직전까지의 히트는 그대로 남고 아직 발생 안 한 히트만 취소된다(요구사항 충족).
+        // Interrupt()가 OnInterrupt 정리 + 이동잠금 해제 + 공격 사운드 정지까지 처리한다.
+        if (_player.Skill != null && _player.Skill.IsExecuting)
+        {
+            _player.Skill.Interrupt();
+            // 액션 레이어의 스킬/공격 클립을 확실히 끊고 대쉬 트리거가 정상 전환되게 한다.
+            _player.Anim?.ReturnToLocomotion();
+        }
 
         StartCoroutine(DashRoutine());
     }
@@ -128,11 +136,9 @@ public class PlayerDashComponent : MonoBehaviour
 
         Vector3 dashDir = _player.Movement.GetDashDirection();
 
-        _rb.linearVelocity = new Vector3(
-            dashDir.x * DashForce,
-            _rb.linearVelocity.y,
-            dashDir.z * DashForce
-        );
+        // 대쉬 물리는 이동 컴포넌트가 구동한다(경사 투영 + 지면 스냅).
+        // 수평 속도를 직접 넣으면 오르막에서 램프처럼 튕겨 슈퍼점프 되므로 그 처리를 위임.
+        _player.Movement.BeginDashDrive(new Vector3(dashDir.x, 0f, dashDir.z), DashForce);
 
         _player.Anim.PlayDash(dashDir);
         _player.Audio?.PlayDash();
@@ -151,7 +157,7 @@ public class PlayerDashComponent : MonoBehaviour
         // [미끄러짐 수정] 대시 물리 이동이 끝나면 대시 끝자세(자세 낮춘) 클립이 길게
         // 재생되며 미끄러지던 문제 — 클립 끝까지 기다리지 않고 즉시 이동으로 부드럽게 전환.
         // (기존엔 WaitUntil(!IsInActionAnim) 로 끝자세 클립이 끝날 때까지 잠가서 미끄러짐 발생.)
-        _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+        _player.Movement.EndDashDrive();   // 대쉬 구동 해제 + 수평 속도 제거
         _player.Anim.EndDash();   // 대시 클립 -> 이동(Blend Tree) 짧게 블렌딩 (즉시 컷 아님)
         _player.Movement.LockMovement(false, applyPostUnlockDelay: false);
         IsDashing = false;
