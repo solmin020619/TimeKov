@@ -560,6 +560,7 @@ public class InventoryUIController : MonoBehaviour
                 if (IsInBase && warehouseOpen && storage != null)
                 {
                     int movedItemId = slot.SlotData.itemId;   // MoveSlot 후 칸이 비므로 미리 캡처
+                    StorageInflowNotice.SuppressBriefly();    // 더블클릭 수동 입고 - 공용 자동입고 알림 제외
                     owner.MoveSlot(slot.SlotData.slotIndex, storage);
                     OnDepositedToWarehouse(movedItemId);
                 }
@@ -625,6 +626,7 @@ public class InventoryUIController : MonoBehaviour
         if (player == null || storage == null) return;
 
         var filter = bagFilterUI != null ? bagFilterUI.CurrentFilter : null;
+        StorageInflowNotice.SuppressBriefly();   // 전체 보내기 버튼 = 수동 입고 - 공용 자동입고 알림 제외
         player.MoveFilteredTo(storage, filter);
         RefreshCapacityText();
     }

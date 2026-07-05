@@ -154,13 +154,11 @@ public class BuildDemolisher
         var inputItems  = new Dictionary<int, int>(machine.InputBuffer.Stock);
         var outputItems = new Dictionary<int, int>(machine.OutputBuffer.Stock);
 
-        bool returnedAny = false;
-
         foreach (var kv in inputItems)
-            if (kv.Value > 0) { storage.AddItem(kv.Key, kv.Value); returnedAny = true; }
+            if (kv.Value > 0) storage.AddItem(kv.Key, kv.Value);
 
         foreach (var kv in outputItems)
-            if (kv.Value > 0) { storage.AddItem(kv.Key, kv.Value); returnedAny = true; }
+            if (kv.Value > 0) storage.AddItem(kv.Key, kv.Value);
 
         // 연료 아이템 회수 (FuelTimeRemaining → 아이템 개수로 역산)
         var cfg = FuelConfig.Instance;
@@ -168,16 +166,10 @@ public class BuildDemolisher
         {
             int fuelCount = machine.TakeFuel();
             if (fuelCount > 0)
-            {
                 storage.AddItem(cfg.fuelItemId, fuelCount);
-                returnedAny = true;
-            }
         }
 
-        // 왜 창고로 갔는지(가동 중 철거 -> 공장 정지)를 분명히. Warning 스타일로 경고.
-        // (벨트 운송 중 아이템 구조 토스트와 문구 통일 -> 같은 철거 동작이면 한 토스트로 합쳐짐)
-        if (returnedAny)
-            ToastManager.Warning("가동 중 철거 - 아이템 창고로 회수");
+        // 토스트는 StorageInflowNotice(창고 자동 유입 공용 알림)가 담당 - 철거/레일 회수/자동입고 문구 통일.
     }
 
     private void DemolishRail(Vector2Int cell)

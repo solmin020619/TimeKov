@@ -1286,6 +1286,8 @@ public class MachineUI : MonoBehaviour
         public readonly System.Collections.Generic.List<PipeSeg> segs = new();
         public Image dot; public RectTransform dotRt;
         public Image icon; public RectTransform iconRt; public Vector2 iconA, iconB;
+        public RawImage rail;          // 이 포트의 실레일 RT(잼 시 빨간 틴트용)
+        public Vector2 jamPos;         // 잼 아이템 아이콘 표시 위치(포트 앞 레일 끝)
         public object prevOcc;         // 직전 프레임 적재물 인스턴스
         public int prevId = -1;        // 그 인스턴스의 itemId
         public int jamId = -1;         // 잼(레시피 불일치 정체) 표시 중인 아이템 id. 스프라이트 재조회 방지
@@ -1294,7 +1296,7 @@ public class MachineUI : MonoBehaviour
     }
     private readonly System.Collections.Generic.List<PortFx> _portFx = new();
     // 연출 대기 데이터(BuildRailSide 포트 루프에서 수집 -> 슬롯 점까지 그린 뒤 마지막에 생성).
-    private struct PendingFx { public BuildPort port; public Vector2[] pts; public int slotIndex; public Vector2 iconA, iconB; }
+    private struct PendingFx { public BuildPort port; public Vector2[] pts; public int slotIndex; public Vector2 iconA, iconB; public RawImage rail; }
     private readonly System.Collections.Generic.List<TextMeshProUGUI> _centerChevrons = new();
 
     // 재료칸(InputArea)/결과칸(OutputArea) 실제 위치·세로간격을 코드에서 통제 -> 매니폴드 상수와 항상 일치(빌더 재실행 불필요).
@@ -1365,10 +1367,10 @@ public class MachineUI : MonoBehaviour
 
     // 연결된 포트 바깥쪽에 실제 게임 레일(RenderTexture)을 얹는다.
     //   정사각 텍스처 = 가운데 가로 레일 + 나머지 투명 -> 정사각 RawImage 로 얹으면 왜곡/크롭 없이 가로 레일만 보인다.
-    private void MakeRailStrip(Vector2 pos)
+    private RawImage MakeRailStrip(Vector2 pos)
     {
         var tex = EnsureRailTexture();
-        if (tex == null) return;
+        if (tex == null) return null;
         var go = new GameObject("PortRailReal", typeof(RectTransform), typeof(RawImage));
         go.transform.SetParent(flowRailsRoot, false);
         var rt = go.GetComponent<RectTransform>();
@@ -1377,6 +1379,7 @@ public class MachineUI : MonoBehaviour
         rt.anchoredPosition = pos;
         var raw = go.GetComponent<RawImage>();
         raw.texture = tex; raw.raycastTarget = false;
+        return raw;   // 잼 시 빨간 틴트용 참조
     }
 
     // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
@@ -1414,8 +1417,9 @@ public class MachineUI : MonoBehaviour
             Color railCol = c ? Color.Lerp(dimBase, baseColor, 0.30f) : dimBase;
             // 연결된 포트 = 실제 게임 레일(RenderTexture)을 "먼저"(맨 뒤에) 깐다 -> 포트단자/가로선이 그 위를 덮어 겹침 색 얼룩(블렌딩) 방지.
             //   입력=왼쪽 바깥, 출력=오른쪽 바깥. RT 는 오른쪽 흐름(railYaw270) = 입력 유입 / 출력 배출 둘 다 맞음.
+            RawImage railRaw = null;
             if (c)
-                MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
+                railRaw = MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
             MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선(벨트 위)
             MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로, 벨트 위에 덮여 얼룩 가림)
             if (c)
@@ -1447,6 +1451,7 @@ public class MachineUI : MonoBehaviour
                     port = port, pts = pts, slotIndex = slotIdx,
                     iconA = isInput ? new Vector2(outerX, py) : new Vector2(portX, py),
                     iconB = isInput ? new Vector2(portX, py) : new Vector2(outerX, py),
+                    rail = railRaw,
                 });
             }
         }
@@ -1553,6 +1558,12 @@ public class MachineUI : MonoBehaviour
         var iimg = igo.GetComponent<Image>();
         iimg.preserveAspect = true; iimg.raycastTarget = false; iimg.enabled = false;
         fx.icon = iimg; fx.iconRt = irt; fx.iconA = pf.iconA; fx.iconB = pf.iconB;
+        fx.rail = pf.rail;
+        // 잼 아이템 표시 위치 = 포트 앞 레일 끝(중앙 아님 - 실제로 막혀 서 있는 자리).
+        Vector2 mid = (pf.iconA + pf.iconB) * 0.5f;
+        Vector2 toPort = (isInput ? pf.iconB - pf.iconA : pf.iconA - pf.iconB).normalized;
+        fx.jamPos = mid + toPort * (FR_BeltSize * 0.30f);
+
         // 점은 연출이 위에서 반짝여야 하므로 맨 위로(여러 포트가 같은 슬롯 점을 공유해도 무해).
         if (dot != null) { fx.dotRt = dot.rectTransform; dot.transform.SetAsLastSibling(); }
         // 창을 열 때 이미 포트 앞에 놓여 있던 아이템로 오발동하지 않게 현재 상태로 초기화.
@@ -1890,6 +1901,7 @@ public class MachineUI : MonoBehaviour
         if (leftover > 0)
         {
             var storage = InventoryManager.StorageInstance;
+            StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
             if (storage != null) storage.AddItem(itemId, leftover);
             ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
         }
@@ -1970,6 +1982,8 @@ public class MachineUI : MonoBehaviour
                 fx.icon.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
                 fx.rejected = fx.isInput && _machine != null && !_machine.CanReceive(fireId);
                 fx.jamId = -1;
+                // 잼 표시 중이었다면(레시피 변경 등으로 방금 해소) 레일 원복.
+                if (fx.rail != null) fx.rail.color = Color.white;
                 fx.t = 0f;   // 연출 시작(진행 중이었으면 새 아이템로 재시작)
                 // 재시작 시 이전 연출 잔상(점 확대/흰빛) 즉시 원복 - 새 펄스 시작 전까지 멈춘 채 남는 팝 방지.
                 if (fx.dot != null && fx.dotRt != null) { fx.dotRt.localScale = Vector3.one; fx.dot.color = fx.baseColor; }
@@ -1988,15 +2002,18 @@ public class MachineUI : MonoBehaviour
                     if (fx.icon.sprite != null)
                     {
                         if (!fx.icon.enabled) fx.icon.enabled = true;
-                        fx.iconRt.anchoredPosition = (fx.iconA + fx.iconB) * 0.5f;
+                        fx.iconRt.anchoredPosition = fx.jamPos;   // 포트 앞 레일 끝(막혀 서 있는 자리)
                         float blink = 0.55f + 0.35f * Mathf.PingPong(Time.unscaledTime * 1.6f, 1f);
                         fx.icon.color = new Color(1f, 0.32f, 0.28f, blink);
                     }
+                    // 레일도 빨갛게(월드 벨트의 잼 표시와 동일 언어 - 종욱)
+                    if (fx.rail != null) fx.rail.color = new Color(1f, 0.40f, 0.36f, 1f);
                 }
                 else if (fx.icon.enabled || fx.jamId != -1)
                 {
                     fx.jamId = -1;
                     if (fx.icon.enabled) fx.icon.enabled = false;
+                    if (fx.rail != null) fx.rail.color = Color.white;
                 }
                 continue;
             }
@@ -2228,7 +2245,12 @@ public class MachineUI : MonoBehaviour
                     if (buffered > 0 && _machine.TryTakeOutput(output.itemId, buffered))
                     {
                         int leftover = inv != null ? inv.AddItem(output.itemId, buffered) : buffered;
-                        if (leftover > 0 && storage != null) { storage.AddItem(output.itemId, leftover); movedToStorage = true; }
+                        if (leftover > 0 && storage != null)
+                        {
+                            StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
+                            storage.AddItem(output.itemId, leftover);
+                            movedToStorage = true;
+                        }
                         GameEvents.RaiseItemAcquired(output.itemId, buffered);
                     }
                 }
@@ -2395,11 +2417,12 @@ public static class DropHighlightFrame
 
         if (frameSpr != null)
         {
+            // 원래 물결(바깥 -> 안 수렴) 유지. 시작 거리만 14 -> 6 으로 줄여 슬롯 밖 삐져나옴 최소화(종욱).
             const float rippleDepth = 1f;
             MakeLayer(rt, frameSpr, 2f, rippleDepth);                 // 안쪽 고정(굵음)
             var outer = MakeLayer(rt, frameSpr, 3f, 0f);              // 바깥(얇음) = 물결
             var ripple = outer.gameObject.AddComponent<RegionFrameRipple>();
-            ripple.rippleDepth = rippleDepth; ripple.startOut = 14f; ripple.period = 0.8f;
+            ripple.rippleDepth = rippleDepth; ripple.startOut = 6f; ripple.period = 0.8f;
         }
         else
         {

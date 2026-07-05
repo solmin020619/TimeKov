@@ -80,6 +80,7 @@ public class LootBox : MonoBehaviour, IInteractable
                 // 가방에 못 들어간 분량은 창고로 (창고는 거의 무한). 획득 자체는 인정.
                 if (remaining > 0 && storage != null)
                 {
+                    StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
                     int afterStore = storage.AddItem(itemId, remaining);
                     int addedToStore = remaining - afterStore;
                     if (addedToStore > 0)

@@ -192,6 +192,9 @@ public class PlacedBuilding : MonoBehaviour
 
     public void SetupLabel(string facilityName, int gridW = 5, int gridH = 5, float cellSize = 1f)
     {
+        // [임시] 창고 출력 포트(9)는 탑뷰 이름표 끔 - 몸체가 작아 라벨이 다 가림(종욱). 라벨 개선 때 다시 켤 것.
+        if (facilityId == 9) return;
+
         _labelUI = GetComponent<BuildingLabelUI>();
         if (_labelUI == null)
             _labelUI = gameObject.AddComponent<BuildingLabelUI>();

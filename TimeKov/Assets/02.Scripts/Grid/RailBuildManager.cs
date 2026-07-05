@@ -577,11 +577,13 @@ public class RailBuildManager : MonoBehaviour
     }
 
     // 설비 배치 프리뷰(고스트)에 입구/출구 화살표를 붙인다(고스트의 자식 -> 이동/회전을 자동으로 따라감).
-    // 프리뷰엔 연결 판정(레일)이 없으므로 X는 안 쓰고 방향 화살표만. 위치/방향은 배치된 포트 화살표와 동일 규칙.
-    // 고스트는 그리드 originCell 이 없으므로 셀 좌표 대신 고스트 로컬 좌표(중심 기준)로 계산한다.
-    public void ShowGhostPortArrows(GameObject ghost)
+    // 프리뷰엔 연결 판정(레일)이 없으므로 X는 안 쓰고 방향 화살표만.
+    // 위치 = 배치 후 인디케이터(CellToWorld(front cell))와 완전히 같은 자리(front cell 중심)를 로컬로 환산.
+    // 옛 근사식(오프셋 + 방향 x 1.5칸)은 홀수 크기(3x3/5x5) 전제라 짝수 깊이(3x2 창고포트)에서 한 칸 어긋났음.
+    public void ShowGhostPortArrows(GameObject ghost, Vector2Int footprintSize)
     {
         if (ghost == null || portArrowPrefab == null) return;
+        if (footprintSize.x <= 0 || footprintSize.y <= 0) footprintSize = new Vector2Int(3, 3);
 
         BuildPort[] ports = ghost.GetComponentsInChildren<BuildPort>(true);
         for (int i = 0; i < ports.Length; i++)
@@ -590,10 +592,16 @@ public class RailBuildManager : MonoBehaviour
             Vector2Int d = port.localDirection;
             if (d == Vector2Int.zero) continue;
 
-            Vector3 localDir = new Vector3(d.x, 0f, d.y).normalized;
-            // 포트 셀 중심(중심 기준 오프셋) -> 방향으로 1.5칸 바깥 = 배치된 화살표와 같은 위치.
-            Vector3 localPos = new Vector3(port.localCellOffset.x, 0f, port.localCellOffset.y) * cellSize
-                             + localDir * cellSize * 1.5f;
+            // 셀 인덱스 변환은 BuildPort.CenterToStartOffset 와 동일(size/2 정수 나눗셈).
+            Vector2Int portIdx = new Vector2Int(
+                port.localCellOffset.x + footprintSize.x / 2,
+                port.localCellOffset.y + footprintSize.y / 2);
+            Vector2Int frontIdx = portIdx + d;
+            // 배치 인디케이터(CreateIndicator)와 동일: front cell 중심 + 방향으로 반 칸(경계선 위).
+            Vector3 localPos = new Vector3(
+                (frontIdx.x + 0.5f - footprintSize.x * 0.5f) * cellSize + d.x * cellSize * 0.5f,
+                0f,
+                (frontIdx.y + 0.5f - footprintSize.y * 0.5f) * cellSize + d.y * cellSize * 0.5f);
             localPos.y += indicatorYOffset;
 
             // 방향: 배치 화살표와 동일(헤드가 시설 안쪽 모델 -> Output 은 +180 으로 바깥을 가리킴).
@@ -1394,6 +1402,7 @@ public class RailBuildManager : MonoBehaviour
     {
         // [BuildZone] 레일도 시설과 동일하게 건축존 안에서만 배치. 존 밖 셀은 거부.
         // 프리뷰/라우팅/실제배치 전부 이 메서드를 거치므로 한 곳만 막으면 모두 적용됨.
+        // (창고포트가 존 안쪽 테두리 배치로 확정되면서 존 밖 예외는 불필요해져 원복)
         if (owner != null && !owner.IsCellInBuildZone(cell))
             return false;
 

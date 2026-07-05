@@ -904,7 +904,8 @@ public class BuildManager : MonoBehaviour, ISaveable
         return maxCx >= minCx && maxCz >= minCz;
     }
 
-    // 커서 -> 가장 가까운 구역 변 바깥에 딱 붙는 배치 계산. 변을 따라 슬라이드, 회전은 변 방향 자동.
+    // 커서 -> 가장 가까운 구역 변의 "안쪽" 테두리 줄에 딱 붙는 배치 계산(종욱: 바깥 배치 폐기).
+    // 변을 따라 슬라이드, 회전은 변 방향 자동(포트가 존 안쪽을 바라봄 = 벨트는 존 안에서 연결).
     private bool TryGetEdgeSnap(Vector3 cursor, Vector2Int rawSize,
         out Vector2Int startCell, out Vector3 snappedPos, out Quaternion rotation, out Vector2Int rotatedSize)
     {
@@ -921,7 +922,7 @@ public class BuildManager : MonoBehaviour, ISaveable
         float dN = Mathf.Abs(cursor.z - zb.max.z);
         float best = Mathf.Min(dW, Mathf.Min(dE, Mathf.Min(dS, dN)));
 
-        // 변별 기본 방향 = 구역을 바라보게. 모델 정면 축이 다르면 edgeFacilityYawOffset(0/180)로 보정.
+        // 변별 기본 방향 = 포트가 존 안쪽(내부)을 바라보게. 모델 정면 축이 다르면 edgeFacilityYawOffset(0/180)로 보정.
         int yaw;
         if      (best == dS) yaw = 0;
         else if (best == dN) yaw = 180;
@@ -937,14 +938,14 @@ public class BuildManager : MonoBehaviour, ISaveable
         {
             int startX = Mathf.RoundToInt((cursor.x - o.x) / cellSize - rotatedSize.x * 0.5f);
             startX = Mathf.Clamp(startX, minCx, Mathf.Max(minCx, maxCx - rotatedSize.x + 1));
-            int startZ = (best == dS) ? minCz - rotatedSize.y : maxCz + 1;
+            int startZ = (best == dS) ? minCz : maxCz - rotatedSize.y + 1;   // 존 안쪽 첫/마지막 줄
             startCell = new Vector2Int(startX, startZ);
         }
         else
         {
             int startZ = Mathf.RoundToInt((cursor.z - o.z) / cellSize - rotatedSize.y * 0.5f);
             startZ = Mathf.Clamp(startZ, minCz, Mathf.Max(minCz, maxCz - rotatedSize.y + 1));
-            int startX = (best == dW) ? minCx - rotatedSize.x : maxCx + 1;
+            int startX = (best == dW) ? minCx : maxCx - rotatedSize.x + 1;   // 존 안쪽 첫/마지막 열
             startCell = new Vector2Int(startX, startZ);
         }
 
@@ -1023,7 +1024,7 @@ public class BuildManager : MonoBehaviour, ISaveable
 
         // 프리뷰에 입구/출구 화살표 표시 - 놓기 전에 방향을 보고 맞춰 놓게(잘못 놓고 지우는 과정 제거).
         // 프리뷰엔 연결 판정이 없어 X는 안 뜸. 화살표는 고스트 자식이라 이동/회전을 따라감.
-        railBuildManager?.ShowGhostPortArrows(previewMarker);
+        railBuildManager?.ShowGhostPortArrows(previewMarker, GetCurrentFacilitySize());
 
         previewMarker.SetActive(false);
     }
@@ -1180,7 +1181,7 @@ public class BuildManager : MonoBehaviour, ISaveable
             return false;
         }
 
-        // 테두리 설비(창고 출력 포트): 구역 안이 아니라 구역 경계선 바깥에 딱 붙여 설치.
+        // 테두리 설비(창고 출력 포트): 구역 안쪽 테두리 줄에 딱 붙여 설치.
         // 커서에 가장 가까운 변으로 스냅해 변을 따라 슬라이드, 회전은 변에 맞춰 자동.
         if (IsEdgeFacility(currentPrefab))
         {
@@ -1196,6 +1197,7 @@ public class BuildManager : MonoBehaviour, ISaveable
             bool limitOk = !FacilityBuildLimit.HasLimit(fid)
                         || CountPlacedFacilities(fid) < FacilityBuildLimit.GetMax(fid);
             canBuild = limitOk
+                    && IsFootprintInBuildZone(footprintCells)
                     && !IsAnyCellOccupied(footprintCells)
                     && !IsAnyCellOnRail(footprintCells)
                     && !IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
