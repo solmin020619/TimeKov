@@ -6,7 +6,8 @@ using UnityEngine;
 [DefaultExecutionOrder(-100)]
 public class PlayerInputComponent : MonoBehaviour
 {
-    public Vector2 MoveInput     { get; private set; }  // WASD 이동 입력
+    public Vector2 MoveInput     { get; private set; }  // WASD 이동 입력(스킬/피격 중 0으로 차단됨)
+    public Vector2 MoveInputRaw  { get; private set; }  // 차단과 무관한 원시 WASD(대쉬 방향 등에 사용, UI/사망 시엔 0)
     public bool    JumpPressed   { get; private set; }  // 점프 입력 (프레임 단위)
     public bool    JumpHeld      { get; private set; }  // 점프 홀드 (누르는 동안 true)
     public bool    JumpUp        { get; private set; }  // 점프 키 뗀 순간 (프레임 단위)
@@ -40,6 +41,7 @@ public class PlayerInputComponent : MonoBehaviour
         if (IsBlocked || DeathOverlayUI.IsOpen) // UI 열림 또는 사망 중 모든 입력 차단(우클릭 대시·스킬·공격 포함)
         {
             MoveInput       = Vector2.zero;
+            MoveInputRaw    = Vector2.zero;
             JumpPressed     = false;
             JumpHeld        = false;
             JumpUp          = false;
@@ -55,6 +57,7 @@ public class PlayerInputComponent : MonoBehaviour
         }
 
         MoveInput       = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        MoveInputRaw    = MoveInput;   // 차단 전 원시값 보존(대쉬 방향 등). 아래에서 MoveInput만 0으로 차단됨.
         JumpPressed     = Input.GetKeyDown(KeyBindings.Jump);
         JumpHeld        = Input.GetKey(KeyBindings.Jump);
         JumpUp          = Input.GetKeyUp(KeyBindings.Jump);
@@ -77,7 +80,8 @@ public class PlayerInputComponent : MonoBehaviour
             JumpHeld      = false;
             JumpUp        = false;
             AttackPressed = false;         // 좌클릭 차단
-            DashPressed   = false;         // 우클릭 차단
+            // 대쉬(우클릭)는 스킬/평타 캔슬용으로 허용 → PlayerDashComponent가 Interrupt로 캔슬 후 대쉬.
+            DashPressed   = Input.GetKeyDown(KeyBindings.Dash);
             Skill1Pressed = false;         // 스킬 입력도 차단 (기존 누락 — 스킬 중 스킬 재입력 방지)
             Skill2Pressed = false;
             Skill3Pressed = false;
