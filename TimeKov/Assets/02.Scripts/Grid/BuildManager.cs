@@ -415,6 +415,22 @@ public class BuildManager : MonoBehaviour, ISaveable
             return;
         }
 
+        // 설치 상한 도달 설비는 선택 자체를 막고 안내 (창고 출력 포트 등)
+        if (buildSlots != null && index >= 0 && index < buildSlots.Length)
+        {
+            int fid = buildSlots[index].facilityId;
+            if (fid > 0 && FacilityBuildLimit.HasLimit(fid))
+            {
+                int max = FacilityBuildLimit.GetMax(fid);
+                int placed = CountPlacedFacilities(fid);
+                if (placed >= max)
+                {
+                    ToastManager.Warning($"설치 한도에 도달했습니다 ({placed}/{max})");
+                    return;
+                }
+            }
+        }
+
         // 해제 모드(X) 중 슬롯 키를 누르면 해제에서 빠져나와 바로 건축 모드로 (편의)
         bool fromDemolish = isDemolishMode;
         if (fromDemolish)
@@ -833,7 +849,107 @@ public class BuildManager : MonoBehaviour, ISaveable
     {
         int facilityId = GetCurrentFacilityId();
         if (facilityId == 0) yield break;
-        yield return placer.PlaceRoutine(facilityId, position, rotation, footprintCells);
+
+        // 홀로그램 연출(1.2초) 동안엔 PlacedBuilding 이 아직 없어서 설치 상한을 연타로 뚫을 수 있음
+        // -> 진행 중 배치도 개수에 포함(finally 라 코루틴 강제 종료에도 안 샌다).
+        _pendingPlaceCounts.TryGetValue(facilityId, out int pending);
+        _pendingPlaceCounts[facilityId] = pending + 1;
+        try
+        {
+            yield return placer.PlaceRoutine(facilityId, position, rotation, footprintCells);
+        }
+        finally
+        {
+            if (_pendingPlaceCounts.TryGetValue(facilityId, out int p))
+                _pendingPlaceCounts[facilityId] = Mathf.Max(0, p - 1);
+        }
+    }
+
+    // ── 테두리 설비 + 설치 상한 ──────────────────────────────────────────
+
+    [Header("테두리 설비 (창고 출력 포트)")]
+    [Tooltip("테두리 설비의 방향 보정(도). 포트가 구역 반대편을 보면 180으로. 0/180만 사용(90은 크기축이 어긋남).")]
+    public int edgeFacilityYawOffset = 0;
+
+    // 배치 연출 진행 중(아직 PlacedBuilding 없음)인 설비 수. 상한 판정에 합산.
+    private readonly Dictionary<int, int> _pendingPlaceCounts = new Dictionary<int, int>();
+
+    // 테두리 설비 판정 = 프리팹에 StorageExtractor 가 있으면. (마커 역할 - 확장 시 별도 마커로 승격)
+    private bool IsEdgeFacility(GameObject prefab)
+        => prefab != null && prefab.GetComponentInChildren<TIMEKOV.Factory.StorageExtractor>(true) != null;
+
+    /// <summary>현재 배치된(연출 진행 중 포함) 특정 설비 개수. 설치 상한 판정용.</summary>
+    public int CountPlacedFacilities(int facilityId)
+    {
+        int n = 0;
+        if (buildParent != null)
+            foreach (var pb in buildParent.GetComponentsInChildren<PlacedBuilding>())
+                if (pb != null && pb.facilityId == facilityId) n++;
+        if (_pendingPlaceCounts.TryGetValue(facilityId, out int pending)) n += pending;
+        return n;
+    }
+
+    // 구역 AABB -> "완전히 안에 들어가는" 셀 범위 (validator.IsCellInBuildZone 과 동일 기준).
+    private bool TryGetZoneCellRect(out int minCx, out int maxCx, out int minCz, out int maxCz)
+    {
+        minCx = maxCx = minCz = maxCz = 0;
+        if (buildZoneCollider == null) return false;
+        Bounds zb = buildZoneCollider.bounds;
+        Vector3 o = GridOriginPos;
+        const float eps = 0.01f;
+        minCx = Mathf.CeilToInt((zb.min.x - o.x) / cellSize - eps);
+        maxCx = Mathf.FloorToInt((zb.max.x - o.x) / cellSize + eps) - 1;
+        minCz = Mathf.CeilToInt((zb.min.z - o.z) / cellSize - eps);
+        maxCz = Mathf.FloorToInt((zb.max.z - o.z) / cellSize + eps) - 1;
+        return maxCx >= minCx && maxCz >= minCz;
+    }
+
+    // 커서 -> 가장 가까운 구역 변 바깥에 딱 붙는 배치 계산. 변을 따라 슬라이드, 회전은 변 방향 자동.
+    private bool TryGetEdgeSnap(Vector3 cursor, Vector2Int rawSize,
+        out Vector2Int startCell, out Vector3 snappedPos, out Quaternion rotation, out Vector2Int rotatedSize)
+    {
+        startCell = default; snappedPos = default;
+        rotation = Quaternion.identity; rotatedSize = rawSize;
+
+        if (!TryGetZoneCellRect(out int minCx, out int maxCx, out int minCz, out int maxCz))
+            return false;
+
+        Bounds zb = buildZoneCollider.bounds;
+        float dW = Mathf.Abs(cursor.x - zb.min.x);
+        float dE = Mathf.Abs(cursor.x - zb.max.x);
+        float dS = Mathf.Abs(cursor.z - zb.min.z);
+        float dN = Mathf.Abs(cursor.z - zb.max.z);
+        float best = Mathf.Min(dW, Mathf.Min(dE, Mathf.Min(dS, dN)));
+
+        // 변별 기본 방향 = 구역을 바라보게. 모델 정면 축이 다르면 edgeFacilityYawOffset(0/180)로 보정.
+        int yaw;
+        if      (best == dS) yaw = 0;
+        else if (best == dN) yaw = 180;
+        else if (best == dW) yaw = 90;
+        else                 yaw = 270;
+        yaw = (yaw + edgeFacilityYawOffset + 360) % 360;
+
+        rotatedSize = GetRotatedSize(rawSize, yaw);
+        rotation = Quaternion.Euler(0f, yaw, 0f);
+
+        Vector3 o = GridOriginPos;
+        if (best == dS || best == dN)
+        {
+            int startX = Mathf.RoundToInt((cursor.x - o.x) / cellSize - rotatedSize.x * 0.5f);
+            startX = Mathf.Clamp(startX, minCx, Mathf.Max(minCx, maxCx - rotatedSize.x + 1));
+            int startZ = (best == dS) ? minCz - rotatedSize.y : maxCz + 1;
+            startCell = new Vector2Int(startX, startZ);
+        }
+        else
+        {
+            int startZ = Mathf.RoundToInt((cursor.z - o.z) / cellSize - rotatedSize.y * 0.5f);
+            startZ = Mathf.Clamp(startZ, minCz, Mathf.Max(minCz, maxCz - rotatedSize.y + 1));
+            int startX = (best == dW) ? minCx - rotatedSize.x : maxCx + 1;
+            startCell = new Vector2Int(startX, startZ);
+        }
+
+        snappedPos = StartCellToWorldCenter(startCell, rotatedSize);
+        return true;
     }
 
     // ===== 외부(레일/일반 배치)에서 쓰는 Public Helper =====
@@ -1062,6 +1178,30 @@ public class BuildManager : MonoBehaviour, ISaveable
         {
             SetPreviewActive(false);
             return false;
+        }
+
+        // 테두리 설비(창고 출력 포트): 구역 안이 아니라 구역 경계선 바깥에 딱 붙여 설치.
+        // 커서에 가장 가까운 변으로 스냅해 변을 따라 슬라이드, 회전은 변에 맞춰 자동.
+        if (IsEdgeFacility(currentPrefab))
+        {
+            if (!TryGetEdgeSnap(hit.point, GetCurrentFacilitySize(),
+                    out startCell, out snappedPos, out rotation, out rotatedSize))
+            {
+                SetPreviewActive(false);
+                return false;
+            }
+            footprintCells = GetFootprintCellsFromStartCell(startCell, rotatedSize);
+
+            int fid = GetCurrentFacilityId();
+            bool limitOk = !FacilityBuildLimit.HasLimit(fid)
+                        || CountPlacedFacilities(fid) < FacilityBuildLimit.GetMax(fid);
+            canBuild = limitOk
+                    && !IsAnyCellOccupied(footprintCells)
+                    && !IsAnyCellOnRail(footprintCells)
+                    && !IsBlockedByPhysics(snappedPos, rotatedSize, rotation);
+
+            UpdatePreview(snappedPos, rotation, canBuild);
+            return true;
         }
 
         rotation = Quaternion.Euler(0f, currentRotationY, 0f);
