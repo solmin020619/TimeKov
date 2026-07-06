@@ -35,6 +35,13 @@ public class InventoryGridUI : MonoBehaviour
     private bool _eventCamResolved;
     private bool _withinDragDriving;   // 같은 인벤 안 슬롯끼리 드래그 강조를 이 그리드가 구동 중인지
 
+    // 필터 컴팩트 표시용 매칭 슬롯 버퍼(매 갱신 재사용, GC 회피)
+    private readonly List<InventorySlot> _filterBuf = new List<InventorySlot>();
+
+    // A안: 드래그 중엔 그리드 재배치를 미뤘다가 놓는 순간 flush(컴팩트 뷰에서 든 칸 잔상 방지).
+    // 정확성 자체는 B(드롭 시 스냅샷 검증)가 이미 보장하므로 이건 순수 시각 안정화.
+    private bool _refreshPending;
+
     // 인벤토리 매니저 바인딩
     public void Bind(InventoryManager manager)
     {
@@ -109,45 +116,52 @@ public class InventoryGridUI : MonoBehaviour
 
         var slots = _manager.GetSlots();
 
+        // 필터 시: 매칭 아이템을 slotIndex 순서로 앞 칸부터 컴팩트 배치(종욱: "1번 칸부터가 직관적").
+        //   매칭 칸은 실슬롯을 그대로 물어 드래그가 올바른 실칸을 집는다(B 스냅샷 전제라 재바인딩 안전).
+        //   남는 칸은 빈 표시 + 레이캐스트 통과 -> 드롭이 뒤 드롭존으로 가서 입출고/취소 처리.
+        bool filtered = _currentFilter != null;
+        if (filtered)
+        {
+            _filterBuf.Clear();
+            for (int i = 0; i < slots.Count; i++)
+                if (!slots[i].IsEmpty && MatchesFilter(slots[i])) _filterBuf.Add(slots[i]);
+        }
+
         for (int i = 0; i < _slotUIs.Count; i++)
         {
             if (_slotUIs[i] == null) continue;
 
+            if (filtered)
+            {
+                _slotUIs[i].gameObject.SetActive(true);
+                bool showItem = i < _filterBuf.Count;
+                _slotUIs[i].Refresh(showItem ? _filterBuf[i] : new InventorySlot(), _manager);
+                SetCellRaycast(_slotUIs[i], showItem);
+                continue;
+            }
+
+            // 전체(필터 없음): 자리 고정. 모든 칸 레이캐스트 복구(필터에서 꺼졌던 칸 되살림).
             if (i >= slots.Count)
             {
                 _slotUIs[i].Refresh(null, _manager);
                 _slotUIs[i].gameObject.SetActive(false);
                 continue;
             }
-
-            var slot = slots[i];
             _slotUIs[i].gameObject.SetActive(true);
-
-            // 카테고리 필터
-            if (!slot.IsEmpty && _currentFilter != null)
-            {
-                var data = ItemDatabase.GetItem(slot.itemId);
-                bool match = data != null && data.itemCategory == _currentFilter.Value;
-
-                if (!match)
-                {
-                    _slotUIs[i].Refresh(new InventorySlot(), _manager);
-                    continue;
-                }
-            }
-
-            _slotUIs[i].Refresh(slot, _manager);
+            _slotUIs[i].Refresh(slots[i], _manager);
+            SetCellRaycast(_slotUIs[i], true);
         }
     }
 
     // 창고 기본 표시 칸 수(종욱: 처음부터 빈 칸 깔아두기). 이 수를 넘게 쓰면 그때부터 칸 증식.
     private const int MinShownSlots = 100;
 
-    // 창고 = "칸 위치 고정인 큰 인벤"(종욱 확정 모델).
-    // 압축(아이템만 앞으로 당겨) 표시는 폐기: 드래그 중 입고가 화면 칸을 딴 아이템로 재바인딩시키는
-    // 버그(12번, 재현됨)의 원천이었음. 이제 표시 위치 = 실제 slotIndex 그대로라 재배치 자체가 없다.
-    // 표시 칸 수 = 최소 MinShownSlots, 그 너머는 실제로 쓰인 마지막 칸까지(101개째부터 자연 증식).
-    // 빈 구멍 정리는 정렬 버튼 몫. 필터 = 안 맞는 아이템 칸만 비워 보이게(가방 필터와 동일 문법).
+    // 창고 표시 모델:
+    //  - 전체(필터 없음) = "칸 위치 고정인 큰 인벤"(종욱 확정). 표시 위치 = 실제 slotIndex 그대로라 재배치 없음.
+    //  - 필터 = 매칭 아이템을 slotIndex 순서로 앞 칸부터 컴팩트("1번 칸부터가 직관적"). 매칭 칸은 실슬롯을
+    //    그대로 물어 드래그가 올바른 실칸을 집는다(B 스냅샷 전제라 드래그 중 재렌더돼도 재바인딩 안전).
+    // 표시 칸 수 = 최소 MinShownSlots, 그 너머는 실제로 쓰인 마지막 칸까지(필터 여부와 무관하게 동일 -> 그리드 크기 안 흔들림).
+    // 빈 칸/패딩은 레이캐스트 통과: 드롭이 슬롯이 아니라 뒤 드롭존(AddItem)으로 가야 스택 병합 + 창고 자동 탭 전환이 산다.
     private void RefreshDynamic()
     {
         var slots = _manager.GetSlots();
@@ -160,6 +174,14 @@ public class InventoryGridUI : MonoBehaviour
         while (_slotUIs.Count < shown)
             if (CreateSlotUI(_slotUIs.Count) == null) break;
 
+        bool filtered = _currentFilter != null;
+        if (filtered)
+        {
+            _filterBuf.Clear();
+            for (int i = 0; i < slots.Count; i++)
+                if (!slots[i].IsEmpty && MatchesFilter(slots[i])) _filterBuf.Add(slots[i]);
+        }
+
         bool revealing = _revealCo != null;
         for (int i = 0; i < _slotUIs.Count; i++)
         {
@@ -169,17 +191,21 @@ public class InventoryGridUI : MonoBehaviour
                 _slotUIs[i].gameObject.SetActive(true);
                 if (!revealing) _slotUIs[i].transform.localScale = Vector3.one;   // 등장 애니 중이 아니면 스케일 정상화
 
-                var slot = i < slots.Count ? slots[i] : null;
-                bool hiddenByFilter = slot != null && !slot.IsEmpty && _currentFilter != null && !MatchesFilter(slot);
-                bool showItem = slot != null && !slot.IsEmpty && !hiddenByFilter;
-                // 필터로 가린 칸은 실제 slotIndex 를 유지한 빈 표시(자리 고정).
-                _slotUIs[i].Refresh(hiddenByFilter ? new InventorySlot { slotIndex = slot.slotIndex } : slot, _manager);
-
-                // 빈 칸/가린 칸은 레이캐스트 통과: 드롭이 슬롯(MoveSlotTo)이 아니라 뒤 드롭존(AddItem)으로 가야
-                // 스택 병합 + 창고 자동 탭 전환이 산다.
-                var cg = _slotUIs[i].GetComponent<CanvasGroup>();
-                if (cg == null) cg = _slotUIs[i].gameObject.AddComponent<CanvasGroup>();
-                cg.blocksRaycasts = showItem;
+                InventorySlot disp;
+                bool showItem;
+                if (filtered)
+                {
+                    showItem = i < _filterBuf.Count;
+                    disp = showItem ? _filterBuf[i] : new InventorySlot();
+                }
+                else
+                {
+                    var slot = i < slots.Count ? slots[i] : null;
+                    showItem = slot != null && !slot.IsEmpty;
+                    disp = slot;
+                }
+                _slotUIs[i].Refresh(disp, _manager);
+                SetCellRaycast(_slotUIs[i], showItem);
             }
             else
             {
@@ -193,6 +219,15 @@ public class InventoryGridUI : MonoBehaviour
     {
         var data = ItemDatabase.GetItem(slot.itemId);
         return data != null && data.itemCategory == _currentFilter.Value;
+    }
+
+    // 칸의 레이캐스트 차단 토글(빈 칸/컴팩트 패딩은 통과시켜 뒤 드롭존이 받게). CanvasGroup 없으면 생성.
+    private void SetCellRaycast(InventorySlotUI ui, bool blocks)
+    {
+        if (ui == null) return;
+        var cg = ui.GetComponent<CanvasGroup>();
+        if (cg == null) cg = ui.gameObject.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = blocks;
     }
 
     // 첫 칸부터 순차 등장(스케일 팝). 단일 코루틴.
@@ -332,11 +367,28 @@ public class InventoryGridUI : MonoBehaviour
 
     // (옛 "새 칸 미리보기"는 압축 표시 폐기와 함께 제거 - 실칸 표시라 들어갈 빈 칸이 항상 화면에 있다)
 
-    private void OnDataChanged() => RefreshAll();
+    private void OnDataChanged()
+    {
+        // A안: 드래그 중이면 재배치를 미룬다(컴팩트 뷰에서 든 칸이 딴 칸으로 튀는 잔상 방지).
+        // 놓는 순간 Update 가 밀린 갱신을 flush. 정확성은 B(스냅샷 검증)가 이미 보장.
+        if (InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging)
+        {
+            _refreshPending = true;
+            return;
+        }
+        RefreshAll();
+    }
 
     // 같은 인벤 안에서 슬롯끼리 드래그할 때도 커서 밑 칸 강조. (창<->창 입출고는 InventoryDropZone이 담당)
     private void Update()
     {
+        // A안 flush: 드래그가 끝났는데 미뤄둔 갱신이 있으면 반영.
+        if (_refreshPending && (InventoryDragHandler.Instance == null || !InventoryDragHandler.Instance.IsDragging))
+        {
+            _refreshPending = false;
+            RefreshAll();
+        }
+
         var dh = InventoryDragHandler.Instance;
         bool within = dh != null && dh.IsDragging && dh.DraggedSlot != null
                       && !dh.DraggedSlot.IsEmpty && _manager != null && dh.DraggedSlot.Owner == _manager;

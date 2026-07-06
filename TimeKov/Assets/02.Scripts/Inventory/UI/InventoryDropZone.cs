@@ -86,24 +86,23 @@ public class InventoryDropZone : MonoBehaviour, IDropHandler
 
         if (dh == null || !dh.IsDragging) { dh?.EndDrag(); return; }
 
-        var dragged = dh.DraggedSlot;
         var src = Source;
         var tgt = Target;
-        if (dragged == null || dragged.IsEmpty || src == null || tgt == null || dragged.Owner != src) { dh.EndDrag(); return; }
+        // 라이브 시각 칸(DraggedSlot.SlotData) 대신 드래그 시작 때 박제한 출발 슬롯 사용.
+        // 컴팩트 표시에서 드래그 중 그리드가 재렌더되면 시각 칸이 딴 실슬롯을 물어 엉뚱한 아이템이 이동될 수 있다.
+        if (src == null || tgt == null || dh.SrcManager != src || !dh.SourceStillValid()) { dh.EndDrag(); return; }
 
-        var fromSlot = dragged.SlotData;
-        if (fromSlot == null) { dh.EndDrag(); return; }
-
-        int movedItemId = fromSlot.itemId;   // 이동 후 칸이 비므로 미리 캡처
+        int fromIndex   = dh.SrcSlotIndex;
+        int movedItemId = dh.SrcItemId;   // 이동 후 칸이 비므로 미리 캡처
 
         if (dh.IsSplitDrag)
         {
-            int t = tgt.FindTargetSlotIndexForItem(fromSlot.itemId);
-            if (t >= 0) src.MoveAmountToSlot(fromSlot.slotIndex, dh.DragAmount, tgt, t);
+            int t = tgt.FindTargetSlotIndexForItem(movedItemId);
+            if (t >= 0) src.MoveAmountToSlot(fromIndex, dh.DragAmount, tgt, t);
         }
         else
         {
-            src.MoveSlot(fromSlot.slotIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
+            src.MoveSlot(fromIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
         }
 
         // 가방 -> 창고 입고면, 옮긴 아이템 카테고리 탭으로 창고 자동 전환(현재 탭이 숨기는 경우만)

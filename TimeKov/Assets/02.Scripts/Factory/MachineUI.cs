@@ -159,6 +159,10 @@ public class MachineUI : MonoBehaviour
     private ItemCategory? _storageFilter;               // null = 전체
     private int _pendingViewSwitch = -1;                // 드롭 직후 자동 전환 예약(-1 없음/0 가방/1 창고)
     private readonly List<InventorySlotUI> _invSlots = new();
+    // 창고 필터 컴팩트 표시용 매칭 슬롯 버퍼(매 갱신 재사용, GC 회피)
+    private readonly List<InventorySlot> _invFilterBuf = new();
+    // A안: 드래그 중엔 인벤 재배치를 미뤘다가 놓으면 Update 가 flush(컴팩트 잔상 방지, 정확성은 B 스냅샷이 보장)
+    private bool _invRefreshPending;
     /// <summary>outputSlot 외에 동적으로 생성된 추가 출력 슬롯들.</summary>
     private readonly List<MachineSlotWidget> _extraOutputSlots = new();
 
@@ -1009,6 +1013,13 @@ public class MachineUI : MonoBehaviour
 
     public void RefreshInventorySlots()
     {
+        // A안: 드래그 중엔 재배치를 미룬다(컴팩트 잔상 방지). 놓으면 Update 가 flush. 정확성은 B 스냅샷이 보장.
+        if (InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging)
+        {
+            _invRefreshPending = true;
+            return;
+        }
+
         var inv = ActiveInv();
         int used = inv != null ? inv.GetUsedSlotCount() : 0;
         if (bagCapacityText != null && inv != null)
@@ -1023,23 +1034,46 @@ public class MachineUI : MonoBehaviour
 
         var slots = inv.GetSlots();
 
-        // 창고 뷰 = 실제 창고 UI 와 같은 모델(종욱 확정): 칸 위치 고정(실제 slotIndex 그대로), 압축 표시 폐기.
-        //   압축은 드래그 중 입고로 화면 칸이 딴 아이템로 재바인딩되는 버그(12번, 재현됨)의 원천이었음.
-        // 필터 = 안 맞는 아이템 칸만 비워 보이게(자리 유지, 실 slotIndex 를 가진 빈 표시라 드롭 안전).
+        // 창고 뷰:
+        //   - 전체(필터 없음) = 칸 위치 고정(실제 slotIndex 그대로). 모든 칸 레이캐스트 유지(실칸 드롭).
+        //   - 필터 = 매칭 아이템을 slotIndex 순서로 앞 칸부터 컴팩트("1번 칸부터가 직관적"). 매칭 칸은 실슬롯을
+        //     그대로 물어 드래그가 올바른 실칸을 집는다(B 스냅샷 전제라 재바인딩 안전). 남는 칸은 빈 표시 +
+        //     레이캐스트 통과 -> 드롭이 뒤 패널 드롭존으로 가서 출력/회수 처리(일반 드래그는 무해 취소).
         if (_showStorage)
         {
+            bool filtered = _storageFilter != null;
+            if (filtered)
+            {
+                _invFilterBuf.Clear();
+                for (int i = 0; i < slots.Count; i++)
+                {
+                    var s = slots[i];
+                    if (s == null || s.IsEmpty) continue;
+                    var d = GameDataUtility.GetItem(s.itemId);
+                    if (d != null && d.itemCategory == _storageFilter.Value) _invFilterBuf.Add(s);
+                }
+            }
+
             for (int i = 0; i < _invSlots.Count; i++)
             {
                 if (_invSlots[i] == null) continue;
                 if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);
-                InventorySlot sd = i < slots.Count ? slots[i] : null;
-                if (sd != null && sd.itemId > 0 && _storageFilter != null)
+
+                InventorySlot disp;
+                bool showItem;
+                if (filtered)
                 {
-                    var d = GameDataUtility.GetItem(sd.itemId);
-                    if (d == null || d.itemCategory != _storageFilter.Value)
-                        sd = new InventorySlot { slotIndex = sd.slotIndex };   // 필터로 가림(자리 유지)
+                    showItem = i < _invFilterBuf.Count;
+                    disp = showItem ? _invFilterBuf[i] : new InventorySlot();
                 }
-                _invSlots[i].Refresh(sd, inv);
+                else
+                {
+                    disp = i < slots.Count ? slots[i] : null;
+                    showItem = disp != null && !disp.IsEmpty;
+                }
+                _invSlots[i].Refresh(disp, inv);
+                // 전체 뷰는 실칸이라 모든 칸 드롭 허용, 필터 패딩만 통과.
+                SetInvCellRaycast(_invSlots[i], filtered ? showItem : true);
             }
             return;
         }
@@ -1050,7 +1084,17 @@ public class MachineUI : MonoBehaviour
             if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);   // 필터로 꺼졌던 칸 복구
             InventorySlot slotData = i < slots.Count ? slots[i] : null;
             _invSlots[i].Refresh(slotData, inv);
+            SetInvCellRaycast(_invSlots[i], true);   // 가방 뷰: 창고 필터에서 꺼졌던 레이캐스트 복구(칸 공유)
         }
+    }
+
+    // 인벤 칸 레이캐스트 차단 토글(컴팩트 패딩은 통과시켜 뒤 패널 드롭존이 받게). CanvasGroup 없으면 생성.
+    private void SetInvCellRaycast(InventorySlotUI ui, bool blocks)
+    {
+        if (ui == null) return;
+        var cg = ui.GetComponent<CanvasGroup>();
+        if (cg == null) cg = ui.gameObject.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = blocks;
     }
 
     // ── 가방/창고 탭 ─────────────────────────────────────────────
@@ -2074,6 +2118,13 @@ public class MachineUI : MonoBehaviour
     {
         if (_machine == null || !uiPanel.activeSelf) return;
 
+        // A안 flush: 드래그가 끝났는데 미뤄둔 인벤 갱신이 있으면 반영.
+        if (_invRefreshPending && (InventoryDragHandler.Instance == null || !InventoryDragHandler.Instance.IsDragging))
+        {
+            _invRefreshPending = false;
+            RefreshInventorySlots();
+        }
+
         // 접힘 박스 드롭 성공 -> 다음 프레임에 그 섹션 자동 펼침(엔필식 컬럼 전환).
         if (_pendingViewSwitch >= 0)
         {
@@ -2353,24 +2404,22 @@ public class MachineTransferDropBox : MonoBehaviour, IDropHandler
         var dh = InventoryDragHandler.Instance;
         if (dh == null || !dh.IsDragging) { dh?.EndDrag(); return; }
 
-        var dragged = dh.DraggedSlot;
         var src = Source;
         var tgt = Target;
-        if (dragged == null || dragged.IsEmpty || src == null || tgt == null || dragged.Owner != src)
+        // 라이브 시각 칸 대신 박제한 출발 슬롯 사용(컴팩트 표시에서 드래그 중 재렌더로 엉뚱한 아이템 이동 방지).
+        if (src == null || tgt == null || dh.SrcManager != src || !dh.SourceStillValid())
         { dh.EndDrag(); return; }
 
-        var fromSlot = dragged.SlotData;
-        if (fromSlot == null) { dh.EndDrag(); return; }
-
-        int movedItemId = fromSlot.itemId;   // 이동하면 원본 칸이 비므로 미리 캡처
+        int fromIndex   = dh.SrcSlotIndex;
+        int movedItemId = dh.SrcItemId;   // 이동하면 원본 칸이 비므로 미리 캡처
         bool moved;
         if (dh.IsSplitDrag)
         {
-            int t = tgt.FindTargetSlotIndexForItem(fromSlot.itemId);
-            moved = t >= 0 && src.MoveAmountToSlot(fromSlot.slotIndex, dh.DragAmount, tgt, t);
+            int t = tgt.FindTargetSlotIndexForItem(movedItemId);
+            moved = t >= 0 && src.MoveAmountToSlot(fromIndex, dh.DragAmount, tgt, t);
         }
         else
-            moved = src.MoveSlot(fromSlot.slotIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
+            moved = src.MoveSlot(fromIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
 
         dh.EndDrag();
         // 엔필식: 실제로 옮겨졌을 때만 넣은 쪽 섹션이 자동으로 펼쳐진다(드롭 이벤트 밖, 다음 프레임).

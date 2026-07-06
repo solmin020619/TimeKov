@@ -690,14 +690,17 @@ public class InventoryUIController : MonoBehaviour
         var gui = GameUIController.Instance;
         if (gui != null && gui.GetCurrentState() != GameUIController.UIState.Inventory) return;
 
+        // 라이브 시각 칸 대신 드래그 시작 때 박제한 출발 슬롯 사용(컴팩트 재렌더 시 엉뚱한 아이템이 버려지는 것 방지).
         var dh = InventoryDragHandler.Instance;
-        int amount = (dh != null && dh.IsSplitDrag) ? dh.DragAmount : slot.SlotData.amount;
-        if (amount <= 0) return;
+        if (dh == null || !dh.SourceStillValid()) return;
 
-        int itemId  = slot.SlotData.itemId;
-        int slotIdx = slot.SlotData.slotIndex;
-        var owner   = slot.Owner;
-        if (owner == null) return;
+        var owner   = dh.SrcManager;
+        int slotIdx = dh.SrcSlotIndex;
+        int itemId  = dh.SrcItemId;
+        var real    = owner.GetSlot(slotIdx);
+        if (real == null) return;
+        int amount  = dh.IsSplitDrag ? Mathf.Min(dh.DragAmount, real.amount) : real.amount;
+        if (amount <= 0) return;
 
         owner.RemoveFromSlot(slotIdx, amount);
         SpawnDroppedItem(itemId, amount);

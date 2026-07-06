@@ -303,21 +303,21 @@ public class RecipeDropSlot : MonoBehaviour,
         var draggedSlot = handler.DraggedSlot;
         if (draggedSlot == null || draggedSlot.IsEmpty) return;
 
-        int itemId  = draggedSlot.SlotData.itemId;
-        int dragAmt = draggedSlot.SlotData.amount;
-        if (handler.IsSplitDrag) dragAmt = Mathf.Min(handler.DragAmount, dragAmt);   // ALT 분할 드래그 = 든 수량만
+        // 라이브 시각 칸 대신 박제한 출발 슬롯 사용(컴팩트 표시에서 드래그 중 재렌더로 엉뚱한 재료 차감 방지).
+        if (!handler.SourceStillValid()) return;
+        int itemId    = handler.SrcItemId;
+        int srcIndex  = handler.SrcSlotIndex;
+        var sourceInv = handler.SrcManager;
+        int have      = sourceInv.GetSlot(srcIndex).amount;
+        int dragAmt   = handler.IsSplitDrag ? Mathf.Min(handler.DragAmount, have) : have;   // ALT 분할 드래그 = 든 수량만
 
         if (itemId != RequiredItemId) { ToastManager.Warning("요구하는 재료와 다릅니다"); return; }
         if (dragAmt <= 0) return;
 
         // 같은 아이템이 여러 칸에 나뉘어 있어도 실제로 드래그한 칸에서만 차감
-        var sourceInv = draggedSlot.Owner != null ? draggedSlot.Owner : _inventory;
         int take = dragAmt;
-        if (sourceInv != null)
-        {
-            if (!sourceInv.RemoveFromSlot(draggedSlot.SlotData.slotIndex, take)) return;
-            sourceInv.ForceRefreshUI();
-        }
+        if (!sourceInv.RemoveFromSlot(srcIndex, take)) return;
+        sourceInv.ForceRefreshUI();
 
         // 재료를 실제로 넣을 때 이 슬롯의 레시피로 생산 레시피를 고정
         if (_recipeIndex >= 0)

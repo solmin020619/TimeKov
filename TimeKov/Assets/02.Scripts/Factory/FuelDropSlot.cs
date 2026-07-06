@@ -470,18 +470,19 @@ public class FuelDropSlot : MonoBehaviour,
         var cfg = FuelConfig.Instance;
         if (cfg == null) { Debug.LogWarning("[FuelDropSlot] FuelConfig 없음."); return; }
 
-        int itemId = draggedSlot.SlotData.itemId;
+        // 라이브 시각 칸 대신 박제한 출발 슬롯 사용(컴팩트 표시에서 드래그 중 재렌더로 엉뚱한 아이템 차감 방지).
+        if (!handler.SourceStillValid()) return;
+        int itemId = handler.SrcItemId;
         if (itemId != cfg.fuelItemId) { ToastManager.Warning("연료만 넣을 수 있습니다"); return; }
 
-        int amount = draggedSlot.SlotData.amount;
-        if (handler.IsSplitDrag) amount = Mathf.Min(handler.DragAmount, amount);   // ALT 분할 드래그 = 든 수량만
+        var inv      = handler.SrcManager;
+        int srcIndex = handler.SrcSlotIndex;
+        int have     = inv.GetSlot(srcIndex).amount;
+        int amount   = handler.IsSplitDrag ? Mathf.Min(handler.DragAmount, have) : have;   // ALT 분할 드래그 = 든 수량만
         if (amount <= 0) return;
 
         // 같은 아이템이 여러 칸에 나뉘어 있어도 실제로 드래그한 칸에서만 차감
-        var inv = draggedSlot.Owner != null ? draggedSlot.Owner
-                : (_inventory != null ? _inventory : InventoryManager.Instance);
-        if (inv == null || !inv.RemoveFromSlot(draggedSlot.SlotData.slotIndex, amount)) return;
-
+        if (!inv.RemoveFromSlot(srcIndex, amount)) return;
         inv.ForceRefreshUI();
         _machine.AddFuel(amount);
         RefreshTime();
