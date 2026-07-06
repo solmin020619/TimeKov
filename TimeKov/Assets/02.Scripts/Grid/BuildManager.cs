@@ -387,7 +387,8 @@ public class BuildManager : MonoBehaviour, ISaveable
         if (Input.GetKeyDown(KeyCode.Alpha6)) SelectFacilitySlot(5);
         if (Input.GetKeyDown(KeyCode.Alpha7)) SelectFacilitySlot(6);
         if (Input.GetKeyDown(KeyCode.Alpha8)) SelectFacilitySlot(7);
-        if (Input.GetKeyDown(KeyCode.Alpha9)) SelectFacilitySlot(8);
+        // 창고 출력 포트(슬롯 index 8) = 전용 T 키(레일 E 처럼 숫자에서 분리). 숫자 9 는 이제 미배정.
+        if (Input.GetKeyDown(KeyCode.T)) SelectFacilitySlot(8);
     }
 
     private void SelectRailMode()
