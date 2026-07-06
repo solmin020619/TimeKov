@@ -37,10 +37,11 @@ public class StorageExtractorUI : MonoBehaviour
     private bool _built;
 
     // 런타임 생성 참조
-    private TextMeshProUGUI _titleText, _statusText, _storageHeaderLabel;
+    private TextMeshProUGUI _titleText, _statusText, _stockText;
     private Slider _gauge;
     private Transform _invParent;
     private RectTransform _filterRow, _flowRailsRoot;
+    private Image _dropHighlight;   // 드래그 중 추출슬롯 강조 프레임
 
     private readonly List<InventorySlotUI> _invSlots = new();
 
@@ -53,6 +54,15 @@ public class StorageExtractorUI : MonoBehaviour
     // 레일 RT
     private RailPortraitRenderer _railPortrait;
     private Texture _railTex;
+
+    // 흐름 연출(선택 아이템이 창고 -> 포트 -> 벨트로 좌->우 이동) + 중앙 홀로그램
+    private Image _hologram;
+    private Image _flowIcon;
+    private BuildPort _outPort;
+    private object _prevOcc;
+    private int _prevOccId = -1;
+    private float _flowT = -1f;
+    private Vector2 _flowFrom, _flowTo;
 
     // ── 열기 / 닫기 ───────────────────────────────────────────────────
 
@@ -70,7 +80,6 @@ public class StorageExtractorUI : MonoBehaviour
         EnsureFilterUI();
         BuildInventorySlots();
         BuildRail();
-        UpdateStorageHeaderLabel();
 
         var inv = InventoryManager.StorageInstance;
         if (inv != null) inv.OnInventoryChanged += RefreshInventorySlots;
@@ -122,6 +131,60 @@ public class StorageExtractorUI : MonoBehaviour
         }
         if (_gauge != null)
             _gauge.value = (hasBelt && interval > 0f) ? 1f - (remaining / interval) : 0f;
+
+        // 선택 아이템 창고 재고수(현재 출력 슬롯 아래)
+        if (_stockText != null)
+        {
+            var inv = InventoryManager.StorageInstance;
+            int id = _machine.SelectedItemId;
+            _stockText.text = (id > 0 && inv != null) ? $"창고 {inv.GetTotalItemCount(id)}개" : "";
+        }
+
+        // 드래그 중 추출 슬롯 강조 프레임 펄스(공장/인벤 드롭 강조와 동일 개념)
+        if (_dropHighlight != null)
+        {
+            bool dragging = InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging;
+            float target = dragging ? (0.32f + 0.20f * Mathf.Sin(Time.unscaledTime * 5f)) : 0f;
+            var c = _dropHighlight.color;
+            c.a = Mathf.MoveTowards(c.a, target, Time.unscaledDeltaTime * (dragging ? 8f : 5f));
+            _dropHighlight.color = c;
+        }
+
+        UpdateFlow();
+    }
+
+    // 선택 아이템이 실제로 배출될 때(출력 포트 앞 벨트에 새 인스턴스 등장) 슬롯 -> 벨트로 아이콘이 흐른다.
+    // 타이머가 아니라 실제 벨트 점유자 인스턴스 변화로 발동(버퍼 밀림 시 desync 방지).
+    private void UpdateFlow()
+    {
+        if (_flowIcon == null) return;
+
+        if (_outPort != null)
+        {
+            object occ = BeltSegment.PortFrontOccupant(_outPort, out int occId);
+            bool fire = occ != null && !ReferenceEquals(occ, _prevOcc);
+            _prevOcc = occ; _prevOccId = occId;
+            if (fire && occId > 0 && _flowT < 0f)
+            {
+                var d = ItemDatabase.GetItem(occId);
+                var icon = d != null ? ItemDatabase.GetIcon(d.iconKey) : null;
+                if (icon != null) { _flowIcon.sprite = icon; _flowT = 0f; }
+            }
+        }
+
+        if (_flowT >= 0f)
+        {
+            _flowT += Time.unscaledDeltaTime;
+            const float dur = 0.9f;
+            float u = _flowT / dur;
+            if (u >= 1f) { _flowT = -1f; _flowIcon.enabled = false; }
+            else
+            {
+                _flowIcon.enabled = true;
+                _flowIcon.rectTransform.anchoredPosition = Vector2.Lerp(_flowFrom, _flowTo, u);
+                var c = _flowIcon.color; c.a = Mathf.Sin(u * Mathf.PI); _flowIcon.color = c;
+            }
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -201,29 +264,23 @@ public class StorageExtractorUI : MonoBehaviour
         col.anchorMin = new Vector2(0, 0); col.anchorMax = new Vector2(0, 1); col.pivot = new Vector2(0.5f, 0.5f);
         col.offsetMin = new Vector2(SidePad, 28); col.offsetMax = new Vector2(SidePad + LeftW, -(HeaderH + Gap));
 
-        // 창고 헤더 라벨
-        _storageHeaderLabel = NewText("StoLabel", col, "창고", 18, TxtMain, TextAlignmentOptions.Left);
-        var sl = _storageHeaderLabel.rectTransform;
-        sl.anchorMin = sl.anchorMax = new Vector2(0, 1); sl.pivot = new Vector2(0, 1);
-        sl.sizeDelta = new Vector2(300, 30); sl.anchoredPosition = new Vector2(4, -6);
-
-        // 필터행(런타임 CategoryFilterUI 클론 자리)
+        // 필터행(런타임 CategoryFilterUI 클론 자리) - 좌측 최상단("창고|전체" 라벨 제거)
         _filterRow = NewRect("FilterRow", col);
         _filterRow.anchorMin = new Vector2(0, 1); _filterRow.anchorMax = new Vector2(1, 1); _filterRow.pivot = new Vector2(0.5f, 1);
-        _filterRow.offsetMin = new Vector2(0, -44 - 52); _filterRow.offsetMax = new Vector2(0, -44);
+        _filterRow.offsetMin = new Vector2(0, -54); _filterRow.offsetMax = new Vector2(0, -2);
 
-        // 헤더/그리드 구분선
+        // 필터/그리드 구분선
         var div = NewImage("ColHair", col, HeaderHair); div.raycastTarget = false;
         var dr = div.rectTransform;
         dr.anchorMin = new Vector2(0, 1); dr.anchorMax = new Vector2(1, 1); dr.pivot = new Vector2(0.5f, 1);
-        dr.offsetMin = new Vector2(2, -44 - 52 - 8 - 1); dr.offsetMax = new Vector2(-2, -44 - 52 - 8);
+        dr.offsetMin = new Vector2(2, -64); dr.offsetMax = new Vector2(-2, -63);
 
         // 스크롤 뷰포트
         var vpGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
         vpGo.transform.SetParent(col, false);
         var vpRt = vpGo.GetComponent<RectTransform>();
         vpRt.anchorMin = new Vector2(0, 0); vpRt.anchorMax = new Vector2(1, 1);
-        vpRt.offsetMin = new Vector2(8, 8); vpRt.offsetMax = new Vector2(-8, -(44 + 52 + 8 + 8));
+        vpRt.offsetMin = new Vector2(8, 8); vpRt.offsetMax = new Vector2(-8, -72);
         var vpImg = vpGo.GetComponent<Image>(); vpImg.color = new Color(1, 1, 1, 0f); vpImg.raycastTarget = true;
 
         int cols = 4;
@@ -255,52 +312,84 @@ public class StorageExtractorUI : MonoBehaviour
         area.anchorMin = new Vector2(0, 0); area.anchorMax = new Vector2(1, 1); area.pivot = new Vector2(0.5f, 0.5f);
         area.offsetMin = new Vector2(SidePad + LeftW + Gap, 28); area.offsetMax = new Vector2(-SidePad, -(HeaderH + Gap));
 
-        // 설명문
-        var desc = NewText("Desc", area,
-            "아이템을 선택하여 현지 창고에서 꺼낼 수 있는 출력 포트입니다.\n창고 입출력 라인에 붙여야만 배치할 수 있습니다.",
-            18, TxtSub, TextAlignmentOptions.TopLeft);
-        desc.textWrappingMode = TextWrappingModes.Normal;
-        var drt = desc.rectTransform;
-        drt.anchorMin = new Vector2(0, 1); drt.anchorMax = new Vector2(1, 1); drt.pivot = new Vector2(0.5f, 1);
-        drt.offsetMin = new Vector2(20, -120); drt.offsetMax = new Vector2(-20, -10);
+        const float flowY = 60f;   // 흐름 레인 세로 위치(영역 중앙 기준 약간 위)
 
-        // "현재 출력" 라벨
-        var cur = NewText("CurrentLabel", area, "현재 출력", 20, TxtMain, TextAlignmentOptions.Left);
-        var clr = cur.rectTransform;
-        clr.anchorMin = clr.anchorMax = new Vector2(0, 0.5f); clr.pivot = new Vector2(0, 0.5f);
-        clr.sizeDelta = new Vector2(220, 30); clr.anchoredPosition = new Vector2(30, 170);
+        // 흐름 레인 밴드(좌->우 강조, 은은)
+        var band = NewImage("FlowBand", area, new Color(72/255f, 205/255f, 255/255f, 0.05f));
+        band.raycastTarget = false;
+        band.rectTransform.anchoredPosition = new Vector2(0, flowY);
+        band.rectTransform.sizeDelta = new Vector2(940, 210);
 
-        // 추출 품목 슬롯(보존) 재배치
+        // 중앙 홀로그램(도면 PNG 자리). Resources 에 있으면 자동 로드, 없으면 숨김(PNG 대기).
+        _hologram = NewImage("Hologram", area, Color.white);
+        _hologram.raycastTarget = false; _hologram.preserveAspect = true;
+        _hologram.rectTransform.anchoredPosition = new Vector2(0, flowY);
+        _hologram.rectTransform.sizeDelta = new Vector2(400, 400);
+        var holo = Resources.Load<Sprite>("Image/UI_Icon/FacilityBlueprint/9_창고 출력 포트");
+        if (holo != null) { _hologram.sprite = holo; _hologram.enabled = true; }
+        else _hologram.enabled = false;
+
+        // 좌측: "현재 출력" + 추출 품목 슬롯(보존)
+        var cur = NewText("CurrentLabel", area, "현재 출력", 20, TxtMain, TextAlignmentOptions.Center);
+        cur.rectTransform.anchoredPosition = new Vector2(-340, flowY + 120);
+        cur.rectTransform.sizeDelta = new Vector2(200, 30);
+
+        // 드래그 강조 프레임(슬롯 뒤, 드래그 중 표시) - 공장/인벤 드롭 강조와 동일 개념
+        _dropHighlight = NewImage("DropHighlight", area, new Color(72/255f, 205/255f, 255/255f, 0f));
+        _dropHighlight.sprite = UISpriteFactory.RoundedRect(64, 18);
+        _dropHighlight.type = Image.Type.Sliced;
+        _dropHighlight.raycastTarget = false;
+        _dropHighlight.rectTransform.anchoredPosition = new Vector2(-340, flowY);
+        _dropHighlight.rectTransform.sizeDelta = new Vector2(212, 212);
+
         if (keep != null)
         {
             keep.SetParent(area, false);
             var ssRt = keep.GetComponent<RectTransform>();
             if (ssRt != null)
             {
-                ssRt.anchorMin = ssRt.anchorMax = new Vector2(0, 0.5f); ssRt.pivot = new Vector2(0, 0.5f);
-                ssRt.sizeDelta = new Vector2(190, 190);
-                ssRt.anchoredPosition = new Vector2(30, 30);
+                ssRt.anchorMin = ssRt.anchorMax = ssRt.pivot = new Vector2(0.5f, 0.5f);
+                ssRt.sizeDelta = new Vector2(180, 180);
+                ssRt.anchoredPosition = new Vector2(-340, flowY);
             }
         }
 
-        // 레일 스트립 루트(런타임 레일 RawImage)
+        // 선택 아이템 창고 재고수(슬롯 아래) - 창고쪽 안 봐도 몇 개 남았는지 보이게
+        _stockText = NewText("StockText", area, "", 18, new Color(72/255f, 205/255f, 255/255f, 0.95f), TextAlignmentOptions.Center);
+        _stockText.fontStyle = FontStyles.Bold;
+        _stockText.rectTransform.anchoredPosition = new Vector2(-340, flowY - 118);
+        _stockText.rectTransform.sizeDelta = new Vector2(230, 30);
+
+        // 방향 화살표(정적) - 슬롯->홀로그램, 홀로그램->벨트
+        MakeChevron(area, new Vector2(-210, flowY));
+        MakeChevron(area, new Vector2(210, flowY));
+
+        // 우측: 레일 스트립(벨트) + "물류 출력"
         _flowRailsRoot = NewRect("FlowRailsRoot", area);
-        _flowRailsRoot.anchorMin = _flowRailsRoot.anchorMax = new Vector2(0, 0.5f); _flowRailsRoot.pivot = new Vector2(0.5f, 0.5f);
+        _flowRailsRoot.anchoredPosition = new Vector2(340, flowY);
         _flowRailsRoot.sizeDelta = new Vector2(FR_BeltSize, FR_BeltSize);
-        _flowRailsRoot.anchoredPosition = new Vector2(30 + 190 + 90, 30);
+        var outLbl = NewText("OutputLabel", area, "물류 출력", 18, TxtSub, TextAlignmentOptions.Center);
+        outLbl.rectTransform.anchoredPosition = new Vector2(340, flowY + 120);
+        outLbl.rectTransform.sizeDelta = new Vector2(200, 30);
 
-        // "물류 출력" 라벨(오른쪽 끝)
-        var outLbl = NewText("OutputLabel", area, "물류 출력", 18, TxtSub, TextAlignmentOptions.Right);
-        var olr = outLbl.rectTransform;
-        olr.anchorMin = olr.anchorMax = new Vector2(1, 0.5f); olr.pivot = new Vector2(1, 0.5f);
-        olr.sizeDelta = new Vector2(200, 30); olr.anchoredPosition = new Vector2(-10, 30);
+        // 흐름 연출용 아이콘(기본 숨김). 슬롯 -> 벨트로 이동.
+        _flowFrom = new Vector2(-340, flowY);
+        _flowTo   = new Vector2(340, flowY);
+        _flowIcon = NewImage("FlowIcon", area, Color.white);
+        _flowIcon.raycastTarget = false; _flowIcon.preserveAspect = true; _flowIcon.enabled = false;
+        _flowIcon.rectTransform.sizeDelta = new Vector2(72, 72);
 
-        // 하단 게이지(얇은 선) + 상태
+        // 게이지 "다음 배출까지"
+        var glabel = NewText("GaugeLabel", area, "다음 배출까지", 15, TxtSub, TextAlignmentOptions.Left);
+        glabel.rectTransform.pivot = new Vector2(0, 0.5f);
+        glabel.rectTransform.anchoredPosition = new Vector2(-380, -150);
+        glabel.rectTransform.sizeDelta = new Vector2(300, 26);
+
         var track = NewImage("GaugeTrack", area, new Color(150/255f, 178/255f, 205/255f, 0.28f));
         track.raycastTarget = false;
         var tkr = track.rectTransform;
-        tkr.anchorMin = tkr.anchorMax = new Vector2(0, 0.5f); tkr.pivot = new Vector2(0, 0.5f);
-        tkr.sizeDelta = new Vector2(520, 3); tkr.anchoredPosition = new Vector2(30, -150);
+        tkr.pivot = new Vector2(0, 0.5f);
+        tkr.sizeDelta = new Vector2(760, 4); tkr.anchoredPosition = new Vector2(-380, -178);
 
         var fillImg = NewImage("GaugeFill", track.transform, new Color(72/255f, 205/255f, 255/255f, 0.95f));
         fillImg.raycastTarget = false;
@@ -315,10 +404,35 @@ public class StorageExtractorUI : MonoBehaviour
         _gauge.fillRect = flr;
         _gauge.targetGraphic = fillImg;
 
-        _statusText = NewText("StatusText", area, "아이템을 선택하세요", 18, TxtMain, TextAlignmentOptions.Left);
-        var str = _statusText.rectTransform;
-        str.anchorMin = str.anchorMax = new Vector2(0, 0.5f); str.pivot = new Vector2(0, 0.5f);
-        str.sizeDelta = new Vector2(520, 30); str.anchoredPosition = new Vector2(30, -185);
+        _statusText = NewText("StatusText", area, "아이템을 선택하세요", 17, TxtMain, TextAlignmentOptions.Left);
+        _statusText.rectTransform.pivot = new Vector2(0, 0.5f);
+        _statusText.rectTransform.anchoredPosition = new Vector2(-380, -206);
+        _statusText.rectTransform.sizeDelta = new Vector2(600, 28);
+
+        // 하단 설명 정보 패널 - 입체(둥근 + 세로 그라데이션 엠보스 + 밝은 림), 텍스트 꽉차게 (공장 박스 방식)
+        var info = NewImage("InfoPanel", area, Color.white);
+        info.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(52, 60, 74, 224), new Color32(18, 23, 32, 206), 64, 16);
+        info.type = Image.Type.Sliced;
+        info.raycastTarget = false;
+        info.rectTransform.anchoredPosition = new Vector2(0, -286);
+        info.rectTransform.sizeDelta = new Vector2(860, 100);
+        var infoRim = info.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        infoRim.effectColor = new Color(0.55f, 0.66f, 0.80f, 0.34f); infoRim.effectDistance = new Vector2(0f, -1.5f);
+        var ibody = NewText("InfoBody", info.transform,
+            "선택한 아이템 1종을 창고에서 자동으로 꺼내 벨트(물류 라인)로 내보내는 설비입니다.\n창고 입출력 라인에 붙여야만 배치할 수 있습니다.",
+            20, TxtMain, TextAlignmentOptions.Center);
+        ibody.textWrappingMode = TextWrappingModes.Normal;
+        ibody.enableAutoSizing = true; ibody.fontSizeMin = 15f; ibody.fontSizeMax = 24f;   // 패널 크기에 꽉 차게
+        var ibrt = ibody.rectTransform;
+        ibrt.anchorMin = Vector2.zero; ibrt.anchorMax = Vector2.one; ibrt.offsetMin = new Vector2(22, 10); ibrt.offsetMax = new Vector2(-22, -10);
+    }
+
+    private void MakeChevron(Transform parent, Vector2 pos)
+    {
+        var t = NewText("Chevron", parent, ">", 44, new Color(72/255f, 205/255f, 255/255f, 0.5f), TextAlignmentOptions.Center);
+        t.fontStyle = FontStyles.Bold;
+        t.rectTransform.anchoredPosition = pos;
+        t.rectTransform.sizeDelta = new Vector2(44, 54);
     }
 
     private void BuildFrost(RectTransform prt)
@@ -424,27 +538,7 @@ public class StorageExtractorUI : MonoBehaviour
     private void OnFilterChanged(ItemCategory? cat)
     {
         _storageFilter = cat;
-        UpdateStorageHeaderLabel();
         RefreshInventorySlots();
-    }
-
-    private void UpdateStorageHeaderLabel()
-    {
-        if (_storageHeaderLabel == null) return;
-        _storageHeaderLabel.text = _storageFilter == null ? "창고 | 전체" : "창고 | " + CategoryName(_storageFilter.Value);
-    }
-
-    private static string CategoryName(ItemCategory c)
-    {
-        switch (c)
-        {
-            case ItemCategory.RawMaterial:        return "원재료";
-            case ItemCategory.ProcessedTier1:     return "1차 가공";
-            case ItemCategory.ProcessedTier2:     return "2차 가공";
-            case ItemCategory.TacticalConsumable: return "전술 소모품";
-            case ItemCategory.CoreUpgrade:        return "핵심 강화";
-            default:                              return "특수";
-        }
     }
 
     // ── 창고 그리드 (선택 전용) ───────────────────────────────────────
@@ -530,7 +624,12 @@ public class StorageExtractorUI : MonoBehaviour
         BuildPort outPort = null;
         foreach (var p in _machine.GetComponentsInChildren<BuildPort>())
             if (p.portType == PortType.Output) { outPort = p; break; }
+        _outPort = outPort;
+        _prevOcc = null; _prevOccId = -1;
         if (outPort == null || !BeltSegment.IsPortConnected(outPort)) return;
+
+        // 이미 포트 앞에 아이템이 있으면 오픈 즉시 오발동 안 하게 초기 점유자 기록.
+        _prevOcc = BeltSegment.PortFrontOccupant(outPort, out _prevOccId);
 
         var tex = EnsureRailTexture();
         if (tex == null) return;

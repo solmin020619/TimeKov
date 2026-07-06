@@ -2448,12 +2448,14 @@ public static class DropHighlightFrame
 
         if (frameSpr != null)
         {
-            // 원래 물결(바깥 -> 안 수렴) 유지. 시작 거리만 14 -> 6 으로 줄여 슬롯 밖 삐져나옴 최소화(종욱).
+            // 물결(바깥 -> 안 수렴). [07-06] 다겹 캐스케이드: 잔잔하게 수렴 + 오버레이 렌더(마스크 밖 = 안 잘림).
+            //   슬롯 크기(88~140px) 프레임이라 reach 는 기본값(44, 대형 패널용)보다 작게.
+            //   튜닝 노브: reach(간격/거리) / reachBottom(하단) / cycle(속도) / layers(겹 수).
             const float rippleDepth = 1f;
             MakeLayer(rt, frameSpr, 2f, rippleDepth);                 // 안쪽 고정(굵음)
             var outer = MakeLayer(rt, frameSpr, 3f, 0f);              // 바깥(얇음) = 물결
             var ripple = outer.gameObject.AddComponent<RegionFrameRipple>();
-            ripple.rippleDepth = rippleDepth; ripple.startOut = 6f; ripple.period = 0.8f;
+            ripple.rippleDepth = rippleDepth; ripple.reach = 16f; ripple.cycle = 2.4f;
         }
         else
         {

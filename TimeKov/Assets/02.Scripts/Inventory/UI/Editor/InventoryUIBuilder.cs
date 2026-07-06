@@ -1324,14 +1324,14 @@ public static class InventoryUIBuilder
         if (regionSpr != null)
         {
             // 두 겹: 안쪽 굵은 선 = 고정 / 바깥 얇은 선 = 물결처럼 안으로 반복 수렴(RegionFrameRipple).
-            // ★물결 조절값 3개 (바꾼 뒤 이 메뉴 재실행해야 반영):
+            // [07-06] 다겹 캐스케이드(기본 4겹, 컴포넌트가 런타임 복제) + 여유 간격/잔잔 속도.
+            //   ★물결 튜닝(reach/cycle/layers)은 여기서 베이크하지 않고 RegionFrameRipple 코드 기본값이
+            //   지배(베이크하면 코드 튜닝 때마다 이 메뉴 재실행해야 해서 일부러 안 박음).
             const float rippleDepth = 1f;       // 안쪽 고정선 위치(작을수록 슬롯에서 멀어짐 = 겹침↓)
-            const float rippleStartOut = 14f;   // 물결 시작 거리 = 프레임 밖 이만큼서 옴(클수록 멀리서)
-            const float ripplePeriod = 0.8f;    // 물결 주기(초, 작을수록 빠름)
             MakeRegionFrameLayer(region.transform, regionSpr, 2f, rippleDepth);    // 안쪽 고정(굵음)
             var outer = MakeRegionFrameLayer(region.transform, regionSpr, 3f, 0f); // 바깥(얇음)
             var ripple = outer.gameObject.AddComponent<RegionFrameRipple>();
-            ripple.rippleDepth = rippleDepth; ripple.startOut = rippleStartOut; ripple.period = ripplePeriod;
+            ripple.rippleDepth = rippleDepth;
         }
         else
         {
