@@ -29,12 +29,12 @@ public class PlayerMovementComponent : MonoBehaviour
     public float SlopeSlideSpeed = 4f;    // 가파른 경사에서 미끄러지는 속도
 
     [Header("Feel (가감속·공중·코요테)")]
-    [Tooltip("지상 가속(목표 속도까지). 클수록 즉각적(딱딱), 작을수록 부드럽게 밀림(무거움). 원신류=짧고 부드러운 램프")]
-    public float MoveAccel = 32f;
-    [Tooltip("지상 감속(정지까지). 클수록 딱 멈춤, 작을수록 미끄러지듯 정지")]
-    public float MoveDecel = 26f;
+    [Tooltip("지상 가속(목표 속도까지). 클수록 즉각적(빠릿), 작을수록 관성 크게(레이싱처럼 굼뜸). 방향전환이 굼뜨면 ↑")]
+    public float MoveAccel = 120f;
+    [Tooltip("지상 감속(정지까지). 클수록 딱 멈춤, 작을수록 미끄러지듯 정지. 방향전환 텀에도 영향")]
+    public float MoveDecel = 130f;
     [Tooltip("공중 수평 제어 가속(작을수록 관성 유지)")]
-    public float AirAccel  = 18f;
+    public float AirAccel  = 40f;
     [Tooltip("낭떠러지 이탈 후 이 시간 동안 점프 허용(코요테 타임)")]
     public float CoyoteTime = 0.12f;
 
@@ -804,12 +804,14 @@ public class PlayerMovementComponent : MonoBehaviour
         _stepping  = false;   // 진행 중이던 턱 오르기 취소(대쉬는 스텝 핸들러를 건너뛰므로 잔여 상태 제거)
     }
 
-    /// <summary>대쉬 종료: 구동 해제 + 수평 속도 제거(수직은 유지).</summary>
+    /// <summary>대쉬 종료: 구동 해제. 이동 입력이 있으면 그 방향으로 이어서 달린다(정지→재가속 텀 제거).</summary>
     public void EndDashDrive()
     {
         _dashDriving = false;
-        _planarVel = Vector3.zero;   // 대쉬 후 가감속을 0에서 다시 시작
-        _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+        // 대쉬 중엔 _movementLocked로 _moveDir이 0이므로, 차단과 무관한 원시 입력으로 실제 방향키를 읽는다.
+        Vector3 held = GetMoveDirection(_player.Input.MoveInputRaw);
+        _planarVel = held.sqrMagnitude > 0.01f ? held * MoveSpeed : Vector3.zero;
+        _rb.linearVelocity = new Vector3(_planarVel.x, _rb.linearVelocity.y, _planarVel.z);
     }
 
     // 설비·건물 등 GroundMask 가 아닌 콜라이더에 닿은 채 이동 입력이 없으면
