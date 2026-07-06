@@ -624,7 +624,7 @@ public static class SettingsPanelRebuilder
         var tmp = labelGO.AddComponent<TextMeshProUGUI>();
         tmp.text = label;
         tmp.fontSize = 26f;
-        tmp.color = new Color(0.9f, 0.93f, 0.96f);
+        tmp.color = new Color(0.76f, 0.78f, 0.81f);
         tmp.alignment = TextAlignmentOptions.MidlineLeft;
         ApplyFont(tmp);
         var labelLE = labelGO.AddComponent<LayoutElement>();
@@ -660,9 +660,9 @@ public static class SettingsPanelRebuilder
     // 엔드필드 레퍼런스 팔레트 — 다크 올리브 + 옐로우 액센트
     // (이전 값은 B>G>R인 네이비톤이라 올리브가 아니라 청록빛 다크였음 — R>=G>B로 수정)
     private static readonly Color ControlBg     = new Color(0.165f, 0.158f, 0.125f, 0.95f);
-    private static readonly Color AccentColor  = new Color(0.85f, 0.78f, 0.24f, 1f);
-    private static readonly Color TextPrimary   = new Color(0.929f, 0.937f, 0.949f, 1f);
-    private static readonly Color TextMuted     = new Color(0.604f, 0.631f, 0.671f, 1f);
+    private static readonly Color AccentColor  = new Color(0.76f, 0.70f, 0.20f, 1f);
+    private static readonly Color TextPrimary   = new Color(0.78f, 0.79f, 0.81f, 1f);
+    private static readonly Color TextMuted     = new Color(0.55f, 0.57f, 0.60f, 1f);
     private static readonly Color SliderLineGray = new Color(0.29f, 0.30f, 0.32f, 1f); // 얇은 트랙 라인 색
 
     private static TMP_Dropdown CreateDropdownRow(Transform content, string label)
@@ -714,15 +714,16 @@ public static class SettingsPanelRebuilder
 
         // 펼침 목록: 위쪽 직사각 + 아래쪽만 둥근 스프라이트 — TMP_Dropdown이 런타임에 Template 위치를 덮어쓰므로
         // anchoredPosition 오프셋 없이 기본 위치(버튼 바로 아래)를 그대로 사용
+        // 펼침 목록 외곽: 흰색 배경 + 아래쪽 둥근 스프라이트
         var templateImg = template.GetComponent<Image>();
         if (templateImg != null)
         {
             templateImg.sprite = RoundedBottomSprite();
             templateImg.type   = Image.Type.Sliced;
-            templateImg.color  = PillBg;
+            templateImg.color  = DdClosedBg; // 흰색
         }
 
-        // Viewport: Mask가 자식을 잘라내려면 Image alpha가 0이면 안 됨 — 흰색 불투명 유지 + showMaskGraphic=false
+        // Viewport: Mask용 불투명 유지 + showMaskGraphic=false
         var viewportGO  = template.Find("Viewport");
         var viewportImg = viewportGO?.GetComponent<Image>();
         if (viewportImg != null)
@@ -739,26 +740,19 @@ public static class SettingsPanelRebuilder
         {
             itemBg.sprite = null;
             itemBg.type   = Image.Type.Simple;
-            itemBg.color  = PillBg;
+            itemBg.color  = DdClosedBg; // 흰색
         }
 
-        // 선택 항목 강조 (중복 방지)
-        var itemGO     = template.Find("Viewport/Content/Item")?.gameObject;
-        var itemToggle = itemGO?.GetComponent<Toggle>();
-        if (itemBg != null && itemToggle != null)
-        {
-            var existTint = itemGO.GetComponent<DropdownItemSelectedTint>();
-            if (existTint != null) UnityEngine.Object.DestroyImmediate(existTint);
-            var tint = itemGO.AddComponent<DropdownItemSelectedTint>();
-            tint.background      = itemBg;
-            tint.toggle          = itemToggle;
-            tint.selectedColor   = new Color(0.75f, 0.79f, 0.84f, 1f); // 선택: 중간 회색
-            tint.unselectedColor = PillBg;
-        }
-
-        // 항목 라벨: 어두운색, 좌우 여백
+        // 항목 라벨: 초기값 어두운색 (선택 시 tint가 밝게 전환)
         var itemLabel = template.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
-        if (itemLabel != null) { itemLabel.color = PillText; itemLabel.fontSize = 24f; itemLabel.fontStyle = FontStyles.Normal; itemLabel.alignment = TextAlignmentOptions.MidlineLeft; ApplyFont(itemLabel); }
+        if (itemLabel != null)
+        {
+            itemLabel.color     = DdClosedText;
+            itemLabel.fontSize  = 24f;
+            itemLabel.fontStyle = FontStyles.Normal;
+            itemLabel.alignment = TextAlignmentOptions.MidlineLeft;
+            ApplyFont(itemLabel);
+        }
         var itemLabelRect = itemLabel?.GetComponent<RectTransform>();
         if (itemLabelRect != null)
         {
@@ -766,7 +760,24 @@ public static class SettingsPanelRebuilder
             itemLabelRect.offsetMax = new Vector2(-52f, 0f);
         }
 
-        // 체크마크: 오른쪽으로 이동
+        // 선택 항목 강조 — 배경+텍스트 동시 전환 (중복 방지)
+        var itemGO     = template.Find("Viewport/Content/Item")?.gameObject;
+        var itemToggle = itemGO?.GetComponent<Toggle>();
+        if (itemBg != null && itemToggle != null)
+        {
+            var existTint = itemGO.GetComponent<DropdownItemSelectedTint>();
+            if (existTint != null) UnityEngine.Object.DestroyImmediate(existTint);
+            var tint = itemGO.AddComponent<DropdownItemSelectedTint>();
+            tint.background         = itemBg;
+            tint.toggle             = itemToggle;
+            tint.label              = itemLabel;
+            tint.selectedColor      = DdSelected;
+            tint.unselectedColor    = DdClosedBg;
+            tint.selectedTextColor  = DdClosedText;  // 선택 시도 어두운 텍스트 (연한 배경에 맞게)
+            tint.unselectedTextColor = DdClosedText; // 미선택 시 어두운 텍스트
+        }
+
+        // 체크마크: 오른쪽으로 이동, 밝은색(선택 항목 어두운 배경 위에 보여야 함)
         var checkmark = template.Find("Viewport/Content/Item/Item Checkmark") as RectTransform;
         if (checkmark != null)
         {
@@ -776,11 +787,32 @@ public static class SettingsPanelRebuilder
             checkmark.anchoredPosition = new Vector2(-26f, 0f);
         }
         var checkmarkImg = checkmark?.GetComponent<Image>();
-        if (checkmarkImg != null) checkmarkImg.color = DdText;
+        if (checkmarkImg != null) checkmarkImg.color = DdClosedText; // 어두운색 (연한 선택 배경에 맞게)
 
         // 항목 높이: 닫힌 박스(64)와 동일하게
         var item = template.Find("Viewport/Content/Item") as RectTransform;
         if (item != null) item.sizeDelta = new Vector2(item.sizeDelta.x, 64f);
+
+        // 아이템 구분선 — 흰 배경에서 모든 아이템 경계를 동일하게 보이게 함
+        // (선택된 아이템만 어두운 배경이라 경계가 뚜렷해 높이가 달라 보이는 착시 방지)
+        var itemParentGO = template.Find("Viewport/Content/Item")?.gameObject;
+        if (itemParentGO != null)
+        {
+            var existSep = itemParentGO.transform.Find("Separator");
+            if (existSep != null) UnityEngine.Object.DestroyImmediate(existSep.gameObject);
+            var sepGO = new GameObject("Separator", typeof(RectTransform));
+            sepGO.transform.SetParent(itemParentGO.transform, false);
+            var sepRt = sepGO.GetComponent<RectTransform>();
+            sepRt.anchorMin = new Vector2(0f, 0f);
+            sepRt.anchorMax = new Vector2(1f, 0f);
+            sepRt.pivot     = new Vector2(0.5f, 0f);
+            sepRt.offsetMin = new Vector2(16f, 0f);
+            sepRt.offsetMax = new Vector2(-16f, 1f); // 1px 높이
+            var sepImg = sepGO.AddComponent<Image>();
+            sepImg.sprite = null;
+            sepImg.color  = new Color(0.72f, 0.73f, 0.75f, 1f); // 연한 구분선
+            sepImg.raycastTarget = false;
+        }
 
         // 스크롤바: ScrollRect 참조 해제 + GameObject 비활성 → 마우스휠/드래그 스크롤은 유지
         var scrollRect = template.GetComponent<ScrollRect>();
@@ -791,12 +823,12 @@ public static class SettingsPanelRebuilder
         }
         var scrollbarGO = template.Find("Scrollbar")?.gameObject;
         if (scrollbarGO != null) scrollbarGO.SetActive(false);
-        // Viewport 전체 너비로 확장 — 스크롤바 자리 공백 제거
+        // Viewport: 전체 너비 + 상단 8px 여백 (첫 아이템이 버튼에 바짝 붙어 보이지 않게)
         var viewportRt = viewportGO?.GetComponent<RectTransform>();
         if (viewportRt != null)
         {
-            viewportRt.offsetMin = new Vector2(0f, viewportRt.offsetMin.y);
-            viewportRt.offsetMax = new Vector2(0f, viewportRt.offsetMax.y);
+            viewportRt.offsetMin = new Vector2(0f, 8f);
+            viewportRt.offsetMax = new Vector2(0f, -24f);
         }
 
         // DropdownStyleSwitcher: 열릴 때 버튼 → RoundedTopSprite(위만 둥근)
@@ -807,8 +839,12 @@ public static class SettingsPanelRebuilder
         var existSwitcher = dd.GetComponent<DropdownStyleSwitcher>();
         if (existSwitcher != null) UnityEngine.Object.DestroyImmediate(existSwitcher);
         var switcher = dd.gameObject.AddComponent<DropdownStyleSwitcher>();
-        switcher.closedSprite = RoundedPillSprite();
-        switcher.openSprite   = RoundedTopSprite();
+        switcher.closedSprite    = RoundedPillSprite();
+        switcher.openSprite      = RoundedTopSprite();
+        switcher.closedColor     = DdClosedBg;
+        switcher.openColor       = DdOpenBg;
+        switcher.closedTextColor = DdClosedText;
+        switcher.openTextColor   = DdOpenText;
     }
 
     // 엔드필드 스타일 섹션 헤더: ■ 노란 막대 + 굵은 노란 글씨 + 우측으로 뻗는 얇은 선
@@ -941,15 +977,24 @@ public static class SettingsPanelRebuilder
             -edgePad - (btnWidth + spacing) * 2f, y, mainMenuBtnWidth, btnHeight, mgr.QuitToMainMenu);
     }
 
-    private static readonly Color PillBg        = new Color(0.93f, 0.93f, 0.93f, 1f);
-    private static readonly Color PillText      = new Color(0.12f, 0.12f, 0.14f, 1f);
-    private static readonly Color PillCircleBg  = new Color(0.16f, 0.17f, 0.19f, 0.95f);
+    // 드롭다운 리스트(열린 상태): 완전 불투명 — alpha < 1이면 뒤 UI가 비쳐 보임
+    private static readonly Color PillBg        = new Color(0.32f, 0.33f, 0.35f, 1.0f); // 불투명 회색
+    private static readonly Color PillText      = new Color(0.76f, 0.78f, 0.80f, 1f);   // 밝은 텍스트
+    private static readonly Color PillCircleBg  = new Color(0.18f, 0.19f, 0.20f, 1.0f); // 아이콘 원형 배경
+    private static readonly Color DdSelected    = new Color(0.78f, 0.79f, 0.81f, 1f);   // 선택 항목 강조 (연한 회색)
 
-    // 드롭다운 다크 팔레트 (레퍼런스: 팰월드 설정창 3·4번)
-    private static readonly Color DdBoxBg      = new Color(0.13f, 0.17f, 0.22f, 1f);  // 닫힌 박스
-    private static readonly Color DdListBg     = new Color(0.11f, 0.14f, 0.18f, 1f);  // 펼침 목록 배경
-    private static readonly Color DdSelectedBg = new Color(0.22f, 0.30f, 0.40f, 1f);  // 선택 항목 강조
-    private static readonly Color DdText       = new Color(0.88f, 0.93f, 0.97f, 1f);  // 밝은 텍스트/아이콘
+    // 드롭다운 버튼 상태별 색 — 닫힌: 흰색 / 열린: 리스트와 동일한 회색
+    private static readonly Color DdClosedBg   = new Color(0.93f, 0.93f, 0.93f, 1f);
+    private static readonly Color DdClosedText = new Color(0.12f, 0.12f, 0.14f, 1f);
+    private static readonly Color DdOpenBg     = new Color(0.32f, 0.33f, 0.35f, 1f);
+    private static readonly Color DdOpenText   = new Color(0.76f, 0.78f, 0.80f, 1f);
+
+    // 풋터 버튼: 어두운 설정창 안에서 CTA로 눈에 띄도록 밝은 알약형 유지
+    private static readonly Color FooterBtnBg   = new Color(0.93f, 0.93f, 0.93f, 1f);
+    private static readonly Color FooterBtnText = new Color(0.12f, 0.12f, 0.14f, 1f);
+
+    // 구버전 호환용 별칭 (코드 내 다른 참조 방지)
+    private static readonly Color DdText       = new Color(0.87f, 0.90f, 0.95f, 1f);
 
     // 알약형 버튼: 가운데 텍스트 + 오른쪽 안쪽에 들어간 원형 아이콘(rightIcon으로 버튼마다
     // 구분: 새로고침/체크 등). 좌측 아이콘은 제거 — 흰 버튼 밖으로 삐져나오지 않게 전부 안쪽에 배치.
@@ -967,7 +1012,7 @@ public static class SettingsPanelRebuilder
         var pillImg = btnGO.AddComponent<Image>();
         pillImg.sprite = RoundedPillSprite();
         pillImg.type = Image.Type.Sliced;
-        pillImg.color = PillBg;
+        pillImg.color = FooterBtnBg;
 
         var btn = btnGO.AddComponent<Button>();
         UnityEditor.Events.UnityEventTools.AddPersistentListener(btn.onClick, onClick);
@@ -981,7 +1026,7 @@ public static class SettingsPanelRebuilder
         tmp.text = text;
         tmp.fontSize = 20f;
         tmp.fontStyle = FontStyles.Bold;
-        tmp.color = PillText;
+        tmp.color = FooterBtnText;
         tmp.alignment = TextAlignmentOptions.Center;
         ApplyFont(tmp);
         var labelRt = labelGO.GetComponent<RectTransform>();

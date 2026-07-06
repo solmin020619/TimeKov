@@ -91,12 +91,16 @@ public class BuildPort : MonoBehaviour
         if (OwnerBuilding == null)
             return Vector2Int.zero;
 
-        Vector2Int size = GetOwnerSize();
-
-        Vector2Int offsetFromStart = CenterToStartOffset(localCellOffset, size);
+        Vector2Int size = GetOwnerSize();   // 월드(회전 후) footprint 크기
 
         int rot = NormalizeRotation(OwnerBuilding.transform.eulerAngles.y);
-        Vector2Int rotatedOffset = RotateOffsetInFootprint(offsetFromStart, size, rot);
+
+        // 회전 수식은 "회전 전" 크기 기준이라 90/270이면 크기를 되돌려서 계산한다.
+        // 정사각 설비(3x3/5x5)는 두 크기가 같아 기존 동작과 완전히 동일 - 비정사각(3x2 창고포트)만 교정됨.
+        Vector2Int unrotated = (rot == 90 || rot == 270) ? new Vector2Int(size.y, size.x) : size;
+
+        Vector2Int offsetFromStart = CenterToStartOffset(localCellOffset, unrotated);
+        Vector2Int rotatedOffset = RotateOffsetInFootprint(offsetFromStart, unrotated, rot);
 
         Vector2Int worldCell = OwnerBuilding.originCell + rotatedOffset;
 

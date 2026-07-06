@@ -1401,7 +1401,9 @@ public static class InventoryUIBuilder
         var srt = scrollGo.GetComponent<RectTransform>();
         srt.anchorMin = aMin; srt.anchorMax = aMax;
         // 스크롤 없는 컴팩트(파밍상자, 패널 300px)는 top inset을 줄여 슬롯 행을 위로 -> 하단/푸터 겹침 방지.
-        float topInset = withScroll ? 76f : 50f;
+        // 스크롤 그리드는 88: 필터줄과의 간격을 뷰포트 경계로 확보(내부 padding 은 스크롤하면 사라져서
+        // 칸이 필터에 딱 붙던 문제 - 종욱). 마스크 위 확장(-12) 포함해도 옛 정지 위치(76+20)보다 안 올라옴.
+        float topInset = withScroll ? 88f : 50f;
         srt.offsetMin = new Vector2(14, 8); srt.offsetMax = new Vector2(-rightInset, -topInset);   // 우측 인셋 클수록 스크롤바가 seam에서 멀어짐
         var scrollImg = scrollGo.AddComponent<Image>(); scrollImg.color = Color.clear;
         var scrollMask = scrollGo.AddComponent<RectMask2D>();
@@ -1422,7 +1424,9 @@ public static class InventoryUIBuilder
         grid.cellSize = new Vector2(90, 90); grid.spacing = new Vector2(9, 9);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = columns;
         grid.childAlignment = TextAnchor.UpperLeft;   // 좌상단부터 채우기(순서 유지). 좌우대칭은 콘텐츠를 블록 폭으로 가운데 둬서 처리.
-        grid.padding = new RectOffset(0, 0, 20, 0);   // 윗줄을 내려 범위강조 프레임 상단 코너 + 호버 커짐이 첫 칸과 안 겹치게
+        // 스크롤 그리드는 간격을 뷰포트(topInset 88)로 옮겼으므로 내부 top padding 축소(합계 96 = 옛 76+20 과 동일).
+        // 컴팩트(상자)는 기존 20 유지(스크롤이 없어 붙는 문제 없음).
+        grid.padding = new RectOffset(0, 0, withScroll ? 8 : 20, 0);
         var csf = content.AddComponent<ContentSizeFitter>();
         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scroll.viewport = srt;

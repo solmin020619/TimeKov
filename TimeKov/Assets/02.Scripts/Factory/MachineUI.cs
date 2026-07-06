@@ -159,6 +159,10 @@ public class MachineUI : MonoBehaviour
     private ItemCategory? _storageFilter;               // null = 전체
     private int _pendingViewSwitch = -1;                // 드롭 직후 자동 전환 예약(-1 없음/0 가방/1 창고)
     private readonly List<InventorySlotUI> _invSlots = new();
+    // 창고 필터 컴팩트 표시용 매칭 슬롯 버퍼(매 갱신 재사용, GC 회피)
+    private readonly List<InventorySlot> _invFilterBuf = new();
+    // A안: 드래그 중엔 인벤 재배치를 미뤘다가 놓으면 Update 가 flush(컴팩트 잔상 방지, 정확성은 B 스냅샷이 보장)
+    private bool _invRefreshPending;
     /// <summary>outputSlot 외에 동적으로 생성된 추가 출력 슬롯들.</summary>
     private readonly List<MachineSlotWidget> _extraOutputSlots = new();
 
@@ -1009,6 +1013,13 @@ public class MachineUI : MonoBehaviour
 
     public void RefreshInventorySlots()
     {
+        // A안: 드래그 중엔 재배치를 미룬다(컴팩트 잔상 방지). 놓으면 Update 가 flush. 정확성은 B 스냅샷이 보장.
+        if (InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging)
+        {
+            _invRefreshPending = true;
+            return;
+        }
+
         var inv = ActiveInv();
         int used = inv != null ? inv.GetUsedSlotCount() : 0;
         if (bagCapacityText != null && inv != null)
@@ -1023,44 +1034,47 @@ public class MachineUI : MonoBehaviour
 
         var slots = inv.GetSlots();
 
-        // 창고 뷰 = 실제 창고 UI(InventoryGridUI.RefreshDynamic)와 같은 규칙(종욱: 통일):
-        //   (필터 일치) 아이템을 첫 칸부터 압축 -> 이어서 실제 빈 슬롯 표시 -> 남는 칸만 비활성.
-        // 빈 칸도 전부 유효 slotIndex 실슬롯 매핑이라 드롭 정상. SlotData=null 활성 칸은 여전히 금지(NRE).
+        // 창고 뷰:
+        //   - 전체(필터 없음) = 칸 위치 고정(실제 slotIndex 그대로). 모든 칸 레이캐스트 유지(실칸 드롭).
+        //   - 필터 = 매칭 아이템을 slotIndex 순서로 앞 칸부터 컴팩트("1번 칸부터가 직관적"). 매칭 칸은 실슬롯을
+        //     그대로 물어 드래그가 올바른 실칸을 집는다(B 스냅샷 전제라 재바인딩 안전). 남는 칸은 빈 표시 +
+        //     레이캐스트 통과 -> 드롭이 뒤 패널 드롭존으로 가서 출력/회수 처리(일반 드래그는 무해 취소).
         if (_showStorage)
         {
-            int w = 0;
-            for (int i = 0; i < slots.Count && w < _invSlots.Count; i++)
+            bool filtered = _storageFilter != null;
+            if (filtered)
             {
-                var sd = slots[i];
-                if (sd == null || sd.itemId <= 0) continue;
-                if (_storageFilter != null)
+                _invFilterBuf.Clear();
+                for (int i = 0; i < slots.Count; i++)
                 {
-                    var d = GameDataUtility.GetItem(sd.itemId);
-                    if (d == null || d.itemCategory != _storageFilter.Value) continue;
+                    var s = slots[i];
+                    if (s == null || s.IsEmpty) continue;
+                    var d = GameDataUtility.GetItem(s.itemId);
+                    if (d != null && d.itemCategory == _storageFilter.Value) _invFilterBuf.Add(s);
                 }
-                var ui = _invSlots[w];
-                if (ui != null)
-                {
-                    if (!ui.gameObject.activeSelf) ui.gameObject.SetActive(true);
-                    ui.Refresh(sd, inv);
-                }
-                w++;
             }
-            for (int i = 0; i < slots.Count && w < _invSlots.Count; i++)
+
+            for (int i = 0; i < _invSlots.Count; i++)
             {
-                var sd = slots[i];
-                if (sd == null || sd.itemId > 0) continue;   // 빈 실슬롯만 이어붙임
-                var ui = _invSlots[w];
-                if (ui != null)
+                if (_invSlots[i] == null) continue;
+                if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);
+
+                InventorySlot disp;
+                bool showItem;
+                if (filtered)
                 {
-                    if (!ui.gameObject.activeSelf) ui.gameObject.SetActive(true);
-                    ui.Refresh(sd, inv);
+                    showItem = i < _invFilterBuf.Count;
+                    disp = showItem ? _invFilterBuf[i] : new InventorySlot();
                 }
-                w++;
+                else
+                {
+                    disp = i < slots.Count ? slots[i] : null;
+                    showItem = disp != null && !disp.IsEmpty;
+                }
+                _invSlots[i].Refresh(disp, inv);
+                // 전체 뷰는 실칸이라 모든 칸 드롭 허용, 필터 패딩만 통과.
+                SetInvCellRaycast(_invSlots[i], filtered ? showItem : true);
             }
-            for (; w < _invSlots.Count; w++)
-                if (_invSlots[w] != null && _invSlots[w].gameObject.activeSelf)
-                    _invSlots[w].gameObject.SetActive(false);
             return;
         }
 
@@ -1070,7 +1084,17 @@ public class MachineUI : MonoBehaviour
             if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);   // 필터로 꺼졌던 칸 복구
             InventorySlot slotData = i < slots.Count ? slots[i] : null;
             _invSlots[i].Refresh(slotData, inv);
+            SetInvCellRaycast(_invSlots[i], true);   // 가방 뷰: 창고 필터에서 꺼졌던 레이캐스트 복구(칸 공유)
         }
+    }
+
+    // 인벤 칸 레이캐스트 차단 토글(컴팩트 패딩은 통과시켜 뒤 패널 드롭존이 받게). CanvasGroup 없으면 생성.
+    private void SetInvCellRaycast(InventorySlotUI ui, bool blocks)
+    {
+        if (ui == null) return;
+        var cg = ui.GetComponent<CanvasGroup>();
+        if (cg == null) cg = ui.gameObject.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = blocks;
     }
 
     // ── 가방/창고 탭 ─────────────────────────────────────────────
@@ -1286,6 +1310,8 @@ public class MachineUI : MonoBehaviour
         public readonly System.Collections.Generic.List<PipeSeg> segs = new();
         public Image dot; public RectTransform dotRt;
         public Image icon; public RectTransform iconRt; public Vector2 iconA, iconB;
+        public RawImage rail;          // 이 포트의 실레일 RT(잼 시 빨간 틴트용)
+        public Vector2 jamPos;         // 잼 아이템 아이콘 표시 위치(포트 앞 레일 끝)
         public object prevOcc;         // 직전 프레임 적재물 인스턴스
         public int prevId = -1;        // 그 인스턴스의 itemId
         public int jamId = -1;         // 잼(레시피 불일치 정체) 표시 중인 아이템 id. 스프라이트 재조회 방지
@@ -1294,7 +1320,7 @@ public class MachineUI : MonoBehaviour
     }
     private readonly System.Collections.Generic.List<PortFx> _portFx = new();
     // 연출 대기 데이터(BuildRailSide 포트 루프에서 수집 -> 슬롯 점까지 그린 뒤 마지막에 생성).
-    private struct PendingFx { public BuildPort port; public Vector2[] pts; public int slotIndex; public Vector2 iconA, iconB; }
+    private struct PendingFx { public BuildPort port; public Vector2[] pts; public int slotIndex; public Vector2 iconA, iconB; public RawImage rail; }
     private readonly System.Collections.Generic.List<TextMeshProUGUI> _centerChevrons = new();
 
     // 재료칸(InputArea)/결과칸(OutputArea) 실제 위치·세로간격을 코드에서 통제 -> 매니폴드 상수와 항상 일치(빌더 재실행 불필요).
@@ -1365,10 +1391,10 @@ public class MachineUI : MonoBehaviour
 
     // 연결된 포트 바깥쪽에 실제 게임 레일(RenderTexture)을 얹는다.
     //   정사각 텍스처 = 가운데 가로 레일 + 나머지 투명 -> 정사각 RawImage 로 얹으면 왜곡/크롭 없이 가로 레일만 보인다.
-    private void MakeRailStrip(Vector2 pos)
+    private RawImage MakeRailStrip(Vector2 pos)
     {
         var tex = EnsureRailTexture();
-        if (tex == null) return;
+        if (tex == null) return null;
         var go = new GameObject("PortRailReal", typeof(RectTransform), typeof(RawImage));
         go.transform.SetParent(flowRailsRoot, false);
         var rt = go.GetComponent<RectTransform>();
@@ -1377,6 +1403,7 @@ public class MachineUI : MonoBehaviour
         rt.anchoredPosition = pos;
         var raw = go.GetComponent<RawImage>();
         raw.texture = tex; raw.raycastTarget = false;
+        return raw;   // 잼 시 빨간 틴트용 참조
     }
 
     // 한쪽(입력/출력) 레일 생성. isInput=true 면 왼쪽(-), false 면 오른쪽(+).
@@ -1414,8 +1441,9 @@ public class MachineUI : MonoBehaviour
             Color railCol = c ? Color.Lerp(dimBase, baseColor, 0.30f) : dimBase;
             // 연결된 포트 = 실제 게임 레일(RenderTexture)을 "먼저"(맨 뒤에) 깐다 -> 포트단자/가로선이 그 위를 덮어 겹침 색 얼룩(블렌딩) 방지.
             //   입력=왼쪽 바깥, 출력=오른쪽 바깥. RT 는 오른쪽 흐름(railYaw270) = 입력 유입 / 출력 배출 둘 다 맞음.
+            RawImage railRaw = null;
             if (c)
-                MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
+                railRaw = MakeRailStrip(new Vector2(portX + sign * FR_BeltOut, py));
             MakeHRail("PortRail", portX, busX, py, railCol);                                                 // 포트<->버스 가로선(벨트 위)
             MakeQuad("Port", new Vector2(portX, py), new Vector2(FR_PortTickW, FR_PortTickH), tickCol);      // 유일한 강조(굵은 세로, 벨트 위에 덮여 얼룩 가림)
             if (c)
@@ -1447,6 +1475,7 @@ public class MachineUI : MonoBehaviour
                     port = port, pts = pts, slotIndex = slotIdx,
                     iconA = isInput ? new Vector2(outerX, py) : new Vector2(portX, py),
                     iconB = isInput ? new Vector2(portX, py) : new Vector2(outerX, py),
+                    rail = railRaw,
                 });
             }
         }
@@ -1553,6 +1582,12 @@ public class MachineUI : MonoBehaviour
         var iimg = igo.GetComponent<Image>();
         iimg.preserveAspect = true; iimg.raycastTarget = false; iimg.enabled = false;
         fx.icon = iimg; fx.iconRt = irt; fx.iconA = pf.iconA; fx.iconB = pf.iconB;
+        fx.rail = pf.rail;
+        // 잼 아이템 표시 위치 = 포트 앞 레일 끝(중앙 아님 - 실제로 막혀 서 있는 자리).
+        Vector2 mid = (pf.iconA + pf.iconB) * 0.5f;
+        Vector2 toPort = (isInput ? pf.iconB - pf.iconA : pf.iconA - pf.iconB).normalized;
+        fx.jamPos = mid + toPort * (FR_BeltSize * 0.30f);
+
         // 점은 연출이 위에서 반짝여야 하므로 맨 위로(여러 포트가 같은 슬롯 점을 공유해도 무해).
         if (dot != null) { fx.dotRt = dot.rectTransform; dot.transform.SetAsLastSibling(); }
         // 창을 열 때 이미 포트 앞에 놓여 있던 아이템로 오발동하지 않게 현재 상태로 초기화.
@@ -1890,6 +1925,7 @@ public class MachineUI : MonoBehaviour
         if (leftover > 0)
         {
             var storage = InventoryManager.StorageInstance;
+            StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
             if (storage != null) storage.AddItem(itemId, leftover);
             ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
         }
@@ -1964,12 +2000,16 @@ public class MachineUI : MonoBehaviour
             if (fx.isInput) { fire = fx.prevOcc != null && !ReferenceEquals(curOcc, fx.prevOcc); fireId = fx.prevId; }
             else            { fire = curOcc != null && !ReferenceEquals(curOcc, fx.prevOcc);      fireId = curId; }
             fx.prevOcc = curOcc; fx.prevId = curId;
+            // 아이템 실린 벨트가 "철거"돼 칸이 사라진 경우를 입고로 오인하지 않게 - 정상 입고는 항상 연결 상태.
+            if (fire && !BeltSegment.IsPortConnected(fx.port)) fire = false;
             if (fire && fireId >= 0)
             {
                 var itemData = GameDataUtility.GetItem(fireId);
                 fx.icon.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
                 fx.rejected = fx.isInput && _machine != null && !_machine.CanReceive(fireId);
                 fx.jamId = -1;
+                // 잼 표시 중이었다면(레시피 변경 등으로 방금 해소) 레일 원복.
+                if (fx.rail != null) fx.rail.color = Color.white;
                 fx.t = 0f;   // 연출 시작(진행 중이었으면 새 아이템로 재시작)
                 // 재시작 시 이전 연출 잔상(점 확대/흰빛) 즉시 원복 - 새 펄스 시작 전까지 멈춘 채 남는 팝 방지.
                 if (fx.dot != null && fx.dotRt != null) { fx.dotRt.localScale = Vector3.one; fx.dot.color = fx.baseColor; }
@@ -1988,15 +2028,18 @@ public class MachineUI : MonoBehaviour
                     if (fx.icon.sprite != null)
                     {
                         if (!fx.icon.enabled) fx.icon.enabled = true;
-                        fx.iconRt.anchoredPosition = (fx.iconA + fx.iconB) * 0.5f;
+                        fx.iconRt.anchoredPosition = fx.jamPos;   // 포트 앞 레일 끝(막혀 서 있는 자리)
                         float blink = 0.55f + 0.35f * Mathf.PingPong(Time.unscaledTime * 1.6f, 1f);
                         fx.icon.color = new Color(1f, 0.32f, 0.28f, blink);
                     }
+                    // 레일도 빨갛게(월드 벨트의 잼 표시와 동일 언어 - 종욱)
+                    if (fx.rail != null) fx.rail.color = new Color(1f, 0.40f, 0.36f, 1f);
                 }
                 else if (fx.icon.enabled || fx.jamId != -1)
                 {
                     fx.jamId = -1;
                     if (fx.icon.enabled) fx.icon.enabled = false;
+                    if (fx.rail != null) fx.rail.color = Color.white;
                 }
                 continue;
             }
@@ -2074,6 +2117,13 @@ public class MachineUI : MonoBehaviour
     private void Update()
     {
         if (_machine == null || !uiPanel.activeSelf) return;
+
+        // A안 flush: 드래그가 끝났는데 미뤄둔 인벤 갱신이 있으면 반영.
+        if (_invRefreshPending && (InventoryDragHandler.Instance == null || !InventoryDragHandler.Instance.IsDragging))
+        {
+            _invRefreshPending = false;
+            RefreshInventorySlots();
+        }
 
         // 접힘 박스 드롭 성공 -> 다음 프레임에 그 섹션 자동 펼침(엔필식 컬럼 전환).
         if (_pendingViewSwitch >= 0)
@@ -2228,7 +2278,12 @@ public class MachineUI : MonoBehaviour
                     if (buffered > 0 && _machine.TryTakeOutput(output.itemId, buffered))
                     {
                         int leftover = inv != null ? inv.AddItem(output.itemId, buffered) : buffered;
-                        if (leftover > 0 && storage != null) { storage.AddItem(output.itemId, leftover); movedToStorage = true; }
+                        if (leftover > 0 && storage != null)
+                        {
+                            StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
+                            storage.AddItem(output.itemId, leftover);
+                            movedToStorage = true;
+                        }
                         GameEvents.RaiseItemAcquired(output.itemId, buffered);
                     }
                 }
@@ -2349,24 +2404,22 @@ public class MachineTransferDropBox : MonoBehaviour, IDropHandler
         var dh = InventoryDragHandler.Instance;
         if (dh == null || !dh.IsDragging) { dh?.EndDrag(); return; }
 
-        var dragged = dh.DraggedSlot;
         var src = Source;
         var tgt = Target;
-        if (dragged == null || dragged.IsEmpty || src == null || tgt == null || dragged.Owner != src)
+        // 라이브 시각 칸 대신 박제한 출발 슬롯 사용(컴팩트 표시에서 드래그 중 재렌더로 엉뚱한 아이템 이동 방지).
+        if (src == null || tgt == null || dh.SrcManager != src || !dh.SourceStillValid())
         { dh.EndDrag(); return; }
 
-        var fromSlot = dragged.SlotData;
-        if (fromSlot == null) { dh.EndDrag(); return; }
-
-        int movedItemId = fromSlot.itemId;   // 이동하면 원본 칸이 비므로 미리 캡처
+        int fromIndex   = dh.SrcSlotIndex;
+        int movedItemId = dh.SrcItemId;   // 이동하면 원본 칸이 비므로 미리 캡처
         bool moved;
         if (dh.IsSplitDrag)
         {
-            int t = tgt.FindTargetSlotIndexForItem(fromSlot.itemId);
-            moved = t >= 0 && src.MoveAmountToSlot(fromSlot.slotIndex, dh.DragAmount, tgt, t);
+            int t = tgt.FindTargetSlotIndexForItem(movedItemId);
+            moved = t >= 0 && src.MoveAmountToSlot(fromIndex, dh.DragAmount, tgt, t);
         }
         else
-            moved = src.MoveSlot(fromSlot.slotIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
+            moved = src.MoveSlot(fromIndex, tgt);   // AddItem 경유 = 자동 스택/끝에 추가
 
         dh.EndDrag();
         // 엔필식: 실제로 옮겨졌을 때만 넣은 쪽 섹션이 자동으로 펼쳐진다(드롭 이벤트 밖, 다음 프레임).
@@ -2395,11 +2448,12 @@ public static class DropHighlightFrame
 
         if (frameSpr != null)
         {
+            // 원래 물결(바깥 -> 안 수렴) 유지. 시작 거리만 14 -> 6 으로 줄여 슬롯 밖 삐져나옴 최소화(종욱).
             const float rippleDepth = 1f;
             MakeLayer(rt, frameSpr, 2f, rippleDepth);                 // 안쪽 고정(굵음)
             var outer = MakeLayer(rt, frameSpr, 3f, 0f);              // 바깥(얇음) = 물결
             var ripple = outer.gameObject.AddComponent<RegionFrameRipple>();
-            ripple.rippleDepth = rippleDepth; ripple.startOut = 14f; ripple.period = 0.8f;
+            ripple.rippleDepth = rippleDepth; ripple.startOut = 6f; ripple.period = 0.8f;
         }
         else
         {

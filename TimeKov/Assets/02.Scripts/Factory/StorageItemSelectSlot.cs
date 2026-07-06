@@ -234,7 +234,8 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
         var draggedSlot = handler.DraggedSlot;
         if (draggedSlot == null || draggedSlot.IsEmpty) return;
 
-        int itemId = draggedSlot.SlotData.itemId;
+        // 라이브 시각 칸 대신 박제한 출발 슬롯의 itemId 사용(컴팩트 재렌더 시 엉뚱한 아이템 선택 방지).
+        int itemId = handler.SourceStillValid() ? handler.SrcItemId : draggedSlot.SlotData.itemId;
         _machine.SetTargetItem(itemId);
         // 아이템 소비 없이 ID만 설정 — 인벤토리는 그대로 유지
 
