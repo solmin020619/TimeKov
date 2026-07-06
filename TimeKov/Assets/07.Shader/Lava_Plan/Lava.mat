@@ -39,12 +39,12 @@ Material:
     m_TexEnvs:
     - _Noise_0:
         m_Texture: {fileID: 2800000, guid: e98a702beefa36a4d92920ef6b73bdec, type: 3}
-        m_Scale: {x: 0.05, y: 0.05}
-        m_Offset: {x: 0.03, y: 0.01}
+        m_Scale: {x: 0.0025, y: 0.0025}
+        m_Offset: {x: 0.003, y: 0.01}
     - _Noise_1:
         m_Texture: {fileID: 2800000, guid: 1bf7d08f9c0a3c948964a74527ef1bc7, type: 3}
-        m_Scale: {x: 0.03, y: 0.03}
-        m_Offset: {x: -0.02, y: 0.01}
+        m_Scale: {x: 0.0025, y: 0.0025}
+        m_Offset: {x: -0.03, y: 0.01}
     - unity_Lightmaps:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -59,14 +59,14 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Height: 10.2
+    - _Height: 7.97
     - _QueueControl: 0
     - _QueueOffset: 0
     m_Colors:
-    - _ColorA: {r: 9.189588, g: 1.0023197, b: 0, a: 0}
-    - _ColorB: {r: 6.422235, g: 0.7004811, b: 0, a: 0}
-    - _ColorC: {r: 4.594794, g: 0.50115985, b: 0, a: 0}
-    - _ColorGradient: {r: 0, g: 0.34, b: 0.49, a: 0}
-    - _Gradient: {r: 2.87, g: 0.98, b: 0, a: 0}
+    - _ColorA: {r: 31.626795, g: 3.4495738, b: 0, a: 0}
+    - _ColorB: {r: 0, g: 0, b: 0, a: 0}
+    - _ColorC: {r: 0, g: 0, b: 0, a: 0}
+    - _ColorGradient: {r: 0, g: 0.31, b: 0.49, a: 0}
+    - _Gradient: {r: 100, g: 0.98, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
