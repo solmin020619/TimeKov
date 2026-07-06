@@ -66,6 +66,15 @@ namespace TIMEKOV.Factory
             // OutputBuffer에 아이템이 남아있으면 대기 (벨트가 처리할 때까지)
             if (OutputBuffer.Stock.Count > 0) return;
 
+            // 창고에 선택 아이템 재고가 없으면 추출 대기 - 타이머/게이지 정지(빈 채로).
+            // (이거 없으면 재고 0이라 TryExtract 가 매번 헛돌아도 게이지만 계속 차오르는 버그)
+            var storage = InventoryManager.StorageInstance;
+            if (storage == null || storage.GetTotalItemCount(_selectedItemId) <= 0)
+            {
+                _timer = 0f;
+                return;
+            }
+
             _timer += Time.deltaTime;
             if (_timer >= extractInterval)
             {

@@ -2455,7 +2455,7 @@ public static class DropHighlightFrame
             MakeLayer(rt, frameSpr, 2f, rippleDepth);                 // 안쪽 고정(굵음)
             var outer = MakeLayer(rt, frameSpr, 3f, 0f);              // 바깥(얇음) = 물결
             var ripple = outer.gameObject.AddComponent<RegionFrameRipple>();
-            ripple.rippleDepth = rippleDepth; ripple.reach = 16f; ripple.cycle = 2.4f;
+            ripple.rippleDepth = rippleDepth; ripple.reach = 8f; ripple.cycle = 2.4f; ripple.lineGap = 5f;
         }
         else
         {

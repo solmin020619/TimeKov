@@ -1323,15 +1323,13 @@ public static class InventoryUIBuilder
         var regionSpr = LoadPartSprite(PartDir + "/hl_region_frame_open@2x.png", new Vector4(52, 52, 52, 52));
         if (regionSpr != null)
         {
-            // 두 겹: 안쪽 굵은 선 = 고정 / 바깥 얇은 선 = 물결처럼 안으로 반복 수렴(RegionFrameRipple).
-            // [07-06] 다겹 캐스케이드(기본 4겹, 컴포넌트가 런타임 복제) + 여유 간격/잔잔 속도.
-            //   ★물결 튜닝(reach/cycle/layers)은 여기서 베이크하지 않고 RegionFrameRipple 코드 기본값이
-            //   지배(베이크하면 코드 튜닝 때마다 이 메뉴 재실행해야 해서 일부러 안 박음).
-            const float rippleDepth = 1f;       // 안쪽 고정선 위치(작을수록 슬롯에서 멀어짐 = 겹침↓)
+            // 두 겹: 안쪽 굵은 선 = 고정 / 바깥 얇은 선 = 물결(RegionFrameRipple "열차" 모델).
+            // ★물결 튜닝값은 전부 RegionFrameRipple 의 [NonSerialized] 코드 기본값이 지배
+            //   (씬에 안 박힘 = 코드 숫자 수정 + Play 만으로 반영, 이 메뉴 재실행 불필요).
+            const float rippleDepth = 1f;       // 안쪽 고정선 위치(코드 기본값과 동일하게 유지할 것)
             MakeRegionFrameLayer(region.transform, regionSpr, 2f, rippleDepth);    // 안쪽 고정(굵음)
             var outer = MakeRegionFrameLayer(region.transform, regionSpr, 3f, 0f); // 바깥(얇음)
-            var ripple = outer.gameObject.AddComponent<RegionFrameRipple>();
-            ripple.rippleDepth = rippleDepth;
+            outer.gameObject.AddComponent<RegionFrameRipple>();
         }
         else
         {

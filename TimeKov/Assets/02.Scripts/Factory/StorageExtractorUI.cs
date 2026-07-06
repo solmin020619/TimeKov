@@ -37,11 +37,13 @@ public class StorageExtractorUI : MonoBehaviour
     private bool _built;
 
     // 런타임 생성 참조
-    private TextMeshProUGUI _titleText, _statusText, _stockText;
+    private TextMeshProUGUI _titleText, _statusText, _stockText, _stockShadow;
     private Slider _gauge;
     private Transform _invParent;
     private RectTransform _filterRow, _flowRailsRoot;
     private Image _dropHighlight;   // 드래그 중 추출슬롯 강조 프레임
+    private Image _outPipe, _portTick;   // 출력 파이프/포트단자(배출 순간 반짝)
+    private Color _pipeBase, _tickBase;
 
     private readonly List<InventorySlotUI> _invSlots = new();
 
@@ -123,21 +125,27 @@ public class StorageExtractorUI : MonoBehaviour
         float interval  = _machine.ExtractInterval;
         bool hasBelt = _machine.HasOutputBelt;
 
+        var inv = InventoryManager.StorageInstance;
+        int selId = _machine.SelectedItemId;
+        int stock = (selId > 0 && inv != null) ? inv.GetTotalItemCount(selId) : 0;
+
         if (_statusText != null)
         {
-            if (_machine.SelectedItemId <= 0)   _statusText.text = "아이템을 선택하세요";
-            else if (!hasBelt)                  _statusText.text = "벨트 연결 필요";
-            else                                _statusText.text = $"추출까지: {remaining:F1}초";
+            if (selId <= 0)      _statusText.text = "아이템을 선택하세요";
+            else if (!hasBelt)   _statusText.text = "벨트 연결 필요";
+            else if (stock <= 0) _statusText.text = "창고에 재고 없음";
+            else                 _statusText.text = $"추출까지: {remaining:F1}초";
         }
+        // 재고 없으면 게이지도 빈 채로(설비 타이머가 이미 멈춰 remaining=interval 이지만 UI 도 방어)
         if (_gauge != null)
-            _gauge.value = (hasBelt && interval > 0f) ? 1f - (remaining / interval) : 0f;
+            _gauge.value = (hasBelt && stock > 0 && interval > 0f) ? 1f - (remaining / interval) : 0f;
 
-        // 선택 아이템 창고 재고수(현재 출력 슬롯 아래)
+        // 선택 아이템 창고 재고수 = 슬롯 가운데 큰 숫자로("창고 N개" 텍스트 폐기)
         if (_stockText != null)
         {
-            var inv = InventoryManager.StorageInstance;
-            int id = _machine.SelectedItemId;
-            _stockText.text = (id > 0 && inv != null) ? $"창고 {inv.GetTotalItemCount(id)}개" : "";
+            string s = selId > 0 ? stock.ToString() : "";
+            _stockText.text = s;
+            if (_stockShadow != null) _stockShadow.text = s;
         }
 
         // 드래그 중 추출 슬롯 강조 프레임 펄스(공장/인벤 드롭 강조와 동일 개념)
@@ -153,12 +161,10 @@ public class StorageExtractorUI : MonoBehaviour
         UpdateFlow();
     }
 
-    // 선택 아이템이 실제로 배출될 때(출력 포트 앞 벨트에 새 인스턴스 등장) 슬롯 -> 벨트로 아이콘이 흐른다.
-    // 타이머가 아니라 실제 벨트 점유자 인스턴스 변화로 발동(버퍼 밀림 시 desync 방지).
+    // 배출 순간 연출(공장 출력 언어): 출력 파이프가 "반짝" 빛난 뒤 아이템이 레일 위에 나타나 벨트로 타고 나간다.
+    // 발동은 타이머가 아니라 출력 포트 앞 벨트에 새 인스턴스가 등장하는 순간(버퍼 밀림 시 desync 방지).
     private void UpdateFlow()
     {
-        if (_flowIcon == null) return;
-
         if (_outPort != null)
         {
             object occ = BeltSegment.PortFrontOccupant(_outPort, out int occId);
@@ -168,23 +174,54 @@ public class StorageExtractorUI : MonoBehaviour
             {
                 var d = ItemDatabase.GetItem(occId);
                 var icon = d != null ? ItemDatabase.GetIcon(d.iconKey) : null;
-                if (icon != null) { _flowIcon.sprite = icon; _flowT = 0f; }
+                if (_flowIcon != null && icon != null) _flowIcon.sprite = icon;
+                _flowT = 0f;
             }
         }
 
-        if (_flowT >= 0f)
+        if (_flowT < 0f) { RestorePipe(); return; }
+
+        _flowT += Time.unscaledDeltaTime;
+        float t = _flowT;
+        const float total = 0.95f, flashDur = 0.34f, iconStart = 0.14f, iconDur = 0.72f;
+
+        // 1) 출력 파이프 반짝(밝게 튀었다 원복) - 배경/레일과 같은 시안 언어.
+        float fa = (t < flashDur) ? Mathf.Sin(t / flashDur * Mathf.PI) : 0f;
+        ApplyPipeFlash(fa);
+
+        // 2) 아이템 아이콘이 레일에 나타나 벨트로 흐른다.
+        if (_flowIcon != null)
         {
-            _flowT += Time.unscaledDeltaTime;
-            const float dur = 0.9f;
-            float u = _flowT / dur;
-            if (u >= 1f) { _flowT = -1f; _flowIcon.enabled = false; }
-            else
+            float iu = (t - iconStart) / iconDur;
+            if (iu >= 0f && iu <= 1f && _flowIcon.sprite != null)
             {
                 _flowIcon.enabled = true;
-                _flowIcon.rectTransform.anchoredPosition = Vector2.Lerp(_flowFrom, _flowTo, u);
-                var c = _flowIcon.color; c.a = Mathf.Sin(u * Mathf.PI); _flowIcon.color = c;
+                _flowIcon.rectTransform.anchoredPosition = Vector2.Lerp(_flowFrom, _flowTo, iu);
+                var c = _flowIcon.color; c.a = Mathf.Sin(iu * Mathf.PI); _flowIcon.color = c;
             }
+            else if (_flowIcon.enabled) _flowIcon.enabled = false;
         }
+
+        if (t > total)
+        {
+            _flowT = -1f;
+            if (_flowIcon != null) _flowIcon.enabled = false;
+            RestorePipe();
+        }
+    }
+
+    // 파이프/포트단자 반짝(a=0 원복 ~ 1 최대). 밝은 시안화이트로 튄다.
+    private void ApplyPipeFlash(float a)
+    {
+        Color bright = new Color(0.80f, 0.96f, 1f, 1f);
+        if (_outPipe  != null) _outPipe.color  = Color.Lerp(_pipeBase, bright, a);
+        if (_portTick != null) _portTick.color = Color.Lerp(_tickBase, bright, a);
+    }
+
+    private void RestorePipe()
+    {
+        if (_outPipe  != null && _outPipe.color  != _pipeBase) _outPipe.color  = _pipeBase;
+        if (_portTick != null && _portTick.color != _tickBase) _portTick.color = _tickBase;
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -247,8 +284,19 @@ public class StorageExtractorUI : MonoBehaviour
         crt.sizeDelta = new Vector2(52, 52); crt.anchoredPosition = new Vector2(-14, -8);
         var cimg = closeGo.GetComponent<Image>(); cimg.color = new Color(0, 0, 0, 0);
         var cbtn = closeGo.GetComponent<Button>(); cbtn.onClick.AddListener(Close);
-        var cx = NewText("X", closeGo.transform, "X", 26, TxtDark, TextAlignmentOptions.Center);
-        cx.fontStyle = FontStyles.Bold; FillRect(cx.rectTransform);
+        // 기존 공용 X 아이콘(ic_close, 공장 UI 와 동일)으로 통일. 없으면 TMP 폴백.
+        var closeSpr = Resources.Load<Sprite>("Image/UI_Icon/ic_close");
+        if (closeSpr != null)
+        {
+            var ci = NewImage("Icon", closeGo.transform, TxtDark);
+            ci.sprite = closeSpr; ci.preserveAspect = true; ci.raycastTarget = false;
+            ci.rectTransform.sizeDelta = new Vector2(40, 40);
+        }
+        else
+        {
+            var cx = NewText("X", closeGo.transform, "X", 26, TxtDark, TextAlignmentOptions.Center);
+            cx.fontStyle = FontStyles.Bold; FillRect(cx.rectTransform);
+        }
 
         // 헤더 구분선
         var hair = NewImage("HeaderDivider", prt, new Color(70/255f, 84/255f, 104/255f, 0.5f));
@@ -314,17 +362,12 @@ public class StorageExtractorUI : MonoBehaviour
 
         const float flowY = 60f;   // 흐름 레인 세로 위치(영역 중앙 기준 약간 위)
 
-        // 흐름 레인 밴드(좌->우 강조, 은은)
-        var band = NewImage("FlowBand", area, new Color(72/255f, 205/255f, 255/255f, 0.05f));
-        band.raycastTarget = false;
-        band.rectTransform.anchoredPosition = new Vector2(0, flowY);
-        band.rectTransform.sizeDelta = new Vector2(940, 210);
-
-        // 중앙 홀로그램(도면 PNG 자리). Resources 에 있으면 자동 로드, 없으면 숨김(PNG 대기).
-        _hologram = NewImage("Hologram", area, Color.white);
+        // 중앙 홀로그램(도면 PNG). Resources 자동 로드. 원본이 가로형(2063x1375)이라 칸도 가로로.
+        // ★흐릿한 배경(알파 0.5) = 앞의 슬롯/출력선/레일이 또렷하게 읽히게(공장도 기계 도면은 뒤로 깔림).
+        _hologram = NewImage("Hologram", area, new Color(1f, 1f, 1f, 0.5f));
         _hologram.raycastTarget = false; _hologram.preserveAspect = true;
         _hologram.rectTransform.anchoredPosition = new Vector2(0, flowY);
-        _hologram.rectTransform.sizeDelta = new Vector2(400, 400);
+        _hologram.rectTransform.sizeDelta = new Vector2(720, 479);
         var holo = Resources.Load<Sprite>("Image/UI_Icon/FacilityBlueprint/9_창고 출력 포트");
         if (holo != null) { _hologram.sprite = holo; _hologram.enabled = true; }
         else _hologram.enabled = false;
@@ -354,27 +397,49 @@ public class StorageExtractorUI : MonoBehaviour
             }
         }
 
-        // 선택 아이템 창고 재고수(슬롯 아래) - 창고쪽 안 봐도 몇 개 남았는지 보이게
-        _stockText = NewText("StockText", area, "", 18, new Color(72/255f, 205/255f, 255/255f, 0.95f), TextAlignmentOptions.Center);
+        // 선택 아이템 창고 재고수 = 현재 출력 슬롯 가운데(하단)에 큰 숫자로. ("창고 N개" 폐기)
+        // TMP 는 UI.Outline 이 안 먹으니 그림자용 텍스트를 뒤에 깔아 아이콘 위에서도 잘 읽히게.
+        Vector2 stockPos = new Vector2(-340, flowY - 56);
+        _stockShadow = NewText("StockCountShadow", area, "", 48, new Color(0.02f, 0.03f, 0.06f, 0.9f), TextAlignmentOptions.Center);
+        _stockShadow.fontStyle = FontStyles.Bold;
+        _stockShadow.rectTransform.anchoredPosition = stockPos + new Vector2(2.5f, -2.5f);
+        _stockShadow.rectTransform.sizeDelta = new Vector2(220, 66);
+
+        _stockText = NewText("StockCount", area, "", 48, new Color(0.90f, 0.97f, 1f, 1f), TextAlignmentOptions.Center);
         _stockText.fontStyle = FontStyles.Bold;
-        _stockText.rectTransform.anchoredPosition = new Vector2(-340, flowY - 118);
-        _stockText.rectTransform.sizeDelta = new Vector2(230, 30);
+        _stockText.rectTransform.anchoredPosition = stockPos;
+        _stockText.rectTransform.sizeDelta = new Vector2(220, 66);
 
-        // 방향 화살표(정적) - 슬롯->홀로그램, 홀로그램->벨트
-        MakeChevron(area, new Vector2(-210, flowY));
-        MakeChevron(area, new Vector2(210, flowY));
+        // 출력 파이프(공장 파랑 문법): 기계(홀로그램)에서 나온 짧은 출력선 -> 포트단자 -> 실 레일 -> 벨트.
+        // ★사다리(세로버스+다중 가로선)는 슬롯이 여러 개일 때만 사다리로 읽힘. 창고포트는 출력 1개라
+        //   버스/긴 가로선이 홀로그램 위 의미없는 십자로 보여 폐기 - 단일 출력 파이프로 정리.
+        Color outBlue = new Color(0.28f, 0.80f, 1.0f, 0.85f);
+        const float portX = 200f;
+        var hline = NewImage("RailH", area, outBlue);   // 기계 -> 포트단자 짧은 출력선
+        hline.raycastTarget = false;
+        hline.rectTransform.anchoredPosition = new Vector2(portX - 70f, flowY);
+        hline.rectTransform.sizeDelta = new Vector2(140f, 4f);
+        _outPipe = hline; _pipeBase = outBlue;   // 배출 순간 반짝용
 
-        // 우측: 레일 스트립(벨트) + "물류 출력"
+        // 우측: 레일 스트립(벨트) - 안쪽 끝이 포트단자에 닿게 배치(공장 FR_BeltOut 문법)
         _flowRailsRoot = NewRect("FlowRailsRoot", area);
-        _flowRailsRoot.anchoredPosition = new Vector2(340, flowY);
+        _flowRailsRoot.anchoredPosition = new Vector2(portX + 96f, flowY);
         _flowRailsRoot.sizeDelta = new Vector2(FR_BeltSize, FR_BeltSize);
+
+        // 포트단자(굵은 세로선) - 레일보다 나중 생성 = 위에 그려져 이음새를 덮음(공장 교훈)
+        var portTick = NewImage("PortTick", area, new Color(0.28f, 0.80f, 1.0f, 0.95f));
+        portTick.raycastTarget = false;
+        portTick.rectTransform.anchoredPosition = new Vector2(portX, flowY);
+        portTick.rectTransform.sizeDelta = new Vector2(8f, 64f);
+        _portTick = portTick; _tickBase = portTick.color;   // 배출 순간 반짝용
+
         var outLbl = NewText("OutputLabel", area, "물류 출력", 18, TxtSub, TextAlignmentOptions.Center);
-        outLbl.rectTransform.anchoredPosition = new Vector2(340, flowY + 120);
+        outLbl.rectTransform.anchoredPosition = new Vector2(portX + 96f, flowY + 120);
         outLbl.rectTransform.sizeDelta = new Vector2(200, 30);
 
-        // 흐름 연출용 아이콘(기본 숨김). 슬롯 -> 벨트로 이동.
-        _flowFrom = new Vector2(-340, flowY);
-        _flowTo   = new Vector2(340, flowY);
+        // 흐름 연출용 아이콘(기본 숨김). 파이프 반짝 후 포트단자 바깥에서 레일(벨트) 위로 타고 나감.
+        _flowFrom = new Vector2(portX + 8f, flowY);
+        _flowTo   = new Vector2(portX + 96f + 66f, flowY);
         _flowIcon = NewImage("FlowIcon", area, Color.white);
         _flowIcon.raycastTarget = false; _flowIcon.preserveAspect = true; _flowIcon.enabled = false;
         _flowIcon.rectTransform.sizeDelta = new Vector2(72, 72);
@@ -425,14 +490,6 @@ public class StorageExtractorUI : MonoBehaviour
         ibody.enableAutoSizing = true; ibody.fontSizeMin = 15f; ibody.fontSizeMax = 24f;   // 패널 크기에 꽉 차게
         var ibrt = ibody.rectTransform;
         ibrt.anchorMin = Vector2.zero; ibrt.anchorMax = Vector2.one; ibrt.offsetMin = new Vector2(22, 10); ibrt.offsetMax = new Vector2(-22, -10);
-    }
-
-    private void MakeChevron(Transform parent, Vector2 pos)
-    {
-        var t = NewText("Chevron", parent, ">", 44, new Color(72/255f, 205/255f, 255/255f, 0.5f), TextAlignmentOptions.Center);
-        t.fontStyle = FontStyles.Bold;
-        t.rectTransform.anchoredPosition = pos;
-        t.rectTransform.sizeDelta = new Vector2(44, 54);
     }
 
     private void BuildFrost(RectTransform prt)
