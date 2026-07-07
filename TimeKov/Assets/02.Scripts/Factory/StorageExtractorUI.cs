@@ -41,9 +41,10 @@ public class StorageExtractorUI : MonoBehaviour
     private Slider _gauge;
     private Transform _invParent;
     private RectTransform _filterRow, _flowRailsRoot;
-    private Image _dropHighlight;   // 드래그 중 추출슬롯 강조 프레임
-    private Image _outPipe, _portTick;   // 출력 파이프/포트단자(배출 순간 반짝)
-    private Color _pipeBase, _tickBase;
+    private GameObject _dropFrame;   // 드래그 중 추출슬롯 흰색 물결 강조(RegionFrameRipple)
+    private Image _portTick;   // 벨트 시작 포트 단자(배출 순간 반짝)
+    private Color _tickBase;
+
 
     private readonly List<InventorySlotUI> _invSlots = new();
 
@@ -148,14 +149,11 @@ public class StorageExtractorUI : MonoBehaviour
             if (_stockShadow != null) _stockShadow.text = s;
         }
 
-        // 드래그 중 추출 슬롯 강조 프레임 펄스(공장/인벤 드롭 강조와 동일 개념)
-        if (_dropHighlight != null)
+        // 드래그 중에만 추출 슬롯 흰색 물결 강조 on (인벤/공장과 동일 RegionFrameRipple)
+        if (_dropFrame != null)
         {
             bool dragging = InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging;
-            float target = dragging ? (0.32f + 0.20f * Mathf.Sin(Time.unscaledTime * 5f)) : 0f;
-            var c = _dropHighlight.color;
-            c.a = Mathf.MoveTowards(c.a, target, Time.unscaledDeltaTime * (dragging ? 8f : 5f));
-            _dropHighlight.color = c;
+            if (_dropFrame.activeSelf != dragging) _dropFrame.SetActive(dragging);
         }
 
         UpdateFlow();
@@ -183,16 +181,12 @@ public class StorageExtractorUI : MonoBehaviour
 
         _flowT += Time.unscaledDeltaTime;
         float t = _flowT;
-        const float total = 0.95f, flashDur = 0.34f, iconStart = 0.14f, iconDur = 0.72f;
+        const float total = 1.25f, iconDur = 1.1f, flashStart = 0.06f, flashDur = 0.28f;
 
-        // 1) 출력 파이프 반짝(밝게 튀었다 원복) - 배경/레일과 같은 시안 언어.
-        float fa = (t < flashDur) ? Mathf.Sin(t / flashDur * Mathf.PI) : 0f;
-        ApplyPipeFlash(fa);
-
-        // 2) 아이템 아이콘이 레일에 나타나 벨트로 흐른다.
+        // 1) 아이템 아이콘이 긴 벨트를 타고 슬롯 -> 물류 출력까지 흐른다(양끝 페이드).
         if (_flowIcon != null)
         {
-            float iu = (t - iconStart) / iconDur;
+            float iu = t / iconDur;
             if (iu >= 0f && iu <= 1f && _flowIcon.sprite != null)
             {
                 _flowIcon.enabled = true;
@@ -202,6 +196,10 @@ public class StorageExtractorUI : MonoBehaviour
             else if (_flowIcon.enabled) _flowIcon.enabled = false;
         }
 
+        // 2) 아이템이 벨트로 나오는 순간 포트 단자가 반짝(배경/레일과 같은 시안 언어).
+        float fa = (t >= flashStart && t < flashStart + flashDur) ? Mathf.Sin((t - flashStart) / flashDur * Mathf.PI) : 0f;
+        ApplyPipeFlash(fa);
+
         if (t > total)
         {
             _flowT = -1f;
@@ -210,17 +208,15 @@ public class StorageExtractorUI : MonoBehaviour
         }
     }
 
-    // 파이프/포트단자 반짝(a=0 원복 ~ 1 최대). 밝은 시안화이트로 튄다.
+    // 포트 단자 반짝(a=0 원복 ~ 1 최대). 밝은 시안화이트로 튄다.
     private void ApplyPipeFlash(float a)
     {
         Color bright = new Color(0.80f, 0.96f, 1f, 1f);
-        if (_outPipe  != null) _outPipe.color  = Color.Lerp(_pipeBase, bright, a);
         if (_portTick != null) _portTick.color = Color.Lerp(_tickBase, bright, a);
     }
 
     private void RestorePipe()
     {
-        if (_outPipe  != null && _outPipe.color  != _pipeBase) _outPipe.color  = _pipeBase;
         if (_portTick != null && _portTick.color != _tickBase) _portTick.color = _tickBase;
     }
 
@@ -363,8 +359,8 @@ public class StorageExtractorUI : MonoBehaviour
         const float flowY = 60f;   // 흐름 레인 세로 위치(영역 중앙 기준 약간 위)
 
         // 중앙 홀로그램(도면 PNG). Resources 자동 로드. 원본이 가로형(2063x1375)이라 칸도 가로로.
-        // ★흐릿한 배경(알파 0.5) = 앞의 슬롯/출력선/레일이 또렷하게 읽히게(공장도 기계 도면은 뒤로 깔림).
-        _hologram = NewImage("Hologram", area, new Color(1f, 1f, 1f, 0.5f));
+        // 라인아트라 알파 올려도 투과됨 = 선만 또렷해짐(종욱: 너무 흐릴 필요 없다 -> 0.82).
+        _hologram = NewImage("Hologram", area, new Color(1f, 1f, 1f, 0.82f));
         _hologram.raycastTarget = false; _hologram.preserveAspect = true;
         _hologram.rectTransform.anchoredPosition = new Vector2(0, flowY);
         _hologram.rectTransform.sizeDelta = new Vector2(720, 479);
@@ -377,14 +373,6 @@ public class StorageExtractorUI : MonoBehaviour
         cur.rectTransform.anchoredPosition = new Vector2(-340, flowY + 120);
         cur.rectTransform.sizeDelta = new Vector2(200, 30);
 
-        // 드래그 강조 프레임(슬롯 뒤, 드래그 중 표시) - 공장/인벤 드롭 강조와 동일 개념
-        _dropHighlight = NewImage("DropHighlight", area, new Color(72/255f, 205/255f, 255/255f, 0f));
-        _dropHighlight.sprite = UISpriteFactory.RoundedRect(64, 18);
-        _dropHighlight.type = Image.Type.Sliced;
-        _dropHighlight.raycastTarget = false;
-        _dropHighlight.rectTransform.anchoredPosition = new Vector2(-340, flowY);
-        _dropHighlight.rectTransform.sizeDelta = new Vector2(212, 212);
-
         if (keep != null)
         {
             keep.SetParent(area, false);
@@ -395,6 +383,10 @@ public class StorageExtractorUI : MonoBehaviour
                 ssRt.sizeDelta = new Vector2(180, 180);
                 ssRt.anchoredPosition = new Vector2(-340, flowY);
             }
+            // 드래그 대상 강조 = 흰색 물결(RegionFrameRipple). 인벤/공장과 동일 hl_region_frame.
+            // 슬롯을 host 로 프레임 생성(비활성 반환) -> Update 서 드래그 중에만 켠다.
+            var frameSpr = Resources.Load<Sprite>("Image/UI_Icon/hl_region_frame");
+            _dropFrame = DropHighlightFrame.Build((RectTransform)keep, frameSpr);
         }
 
         // 선택 아이템 창고 재고수 = 현재 출력 슬롯 가운데(하단)에 큰 숫자로. ("창고 N개" 폐기)
@@ -410,36 +402,29 @@ public class StorageExtractorUI : MonoBehaviour
         _stockText.rectTransform.anchoredPosition = stockPos;
         _stockText.rectTransform.sizeDelta = new Vector2(220, 66);
 
-        // 출력 파이프(공장 파랑 문법): 기계(홀로그램)에서 나온 짧은 출력선 -> 포트단자 -> 실 레일 -> 벨트.
-        // ★사다리(세로버스+다중 가로선)는 슬롯이 여러 개일 때만 사다리로 읽힘. 창고포트는 출력 1개라
-        //   버스/긴 가로선이 홀로그램 위 의미없는 십자로 보여 폐기 - 단일 출력 파이프로 정리.
-        Color outBlue = new Color(0.28f, 0.80f, 1.0f, 0.85f);
-        const float portX = 200f;
-        var hline = NewImage("RailH", area, outBlue);   // 기계 -> 포트단자 짧은 출력선
-        hline.raycastTarget = false;
-        hline.rectTransform.anchoredPosition = new Vector2(portX - 70f, flowY);
-        hline.rectTransform.sizeDelta = new Vector2(140f, 4f);
-        _outPipe = hline; _pipeBase = outBlue;   // 배출 순간 반짝용
-
-        // 우측: 레일 스트립(벨트) - 안쪽 끝이 포트단자에 닿게 배치(공장 FR_BeltOut 문법)
+        // 긴 벨트(실 레일): 슬롯 오른쪽에서 물류 출력까지 하나로 이어진다(가운데를 벨트가 관통).
+        // ★레일 텍스처를 가로로 타일(UV 반복)해 길게 늘림 - 종욱 "레일을 처음부터 이어서 길게".
+        const float beltStartX = -230f, beltEndX = 430f;
+        float beltCenterX = (beltStartX + beltEndX) * 0.5f;
+        float beltW = beltEndX - beltStartX;
         _flowRailsRoot = NewRect("FlowRailsRoot", area);
-        _flowRailsRoot.anchoredPosition = new Vector2(portX + 96f, flowY);
-        _flowRailsRoot.sizeDelta = new Vector2(FR_BeltSize, FR_BeltSize);
+        _flowRailsRoot.anchoredPosition = new Vector2(beltCenterX, flowY);
+        _flowRailsRoot.sizeDelta = new Vector2(beltW, FR_BeltSize);
 
-        // 포트단자(굵은 세로선) - 레일보다 나중 생성 = 위에 그려져 이음새를 덮음(공장 교훈)
+        // 벨트 시작점(포트 단자) - 슬롯에서 벨트로 나오는 지점. 배출 순간 반짝.
         var portTick = NewImage("PortTick", area, new Color(0.28f, 0.80f, 1.0f, 0.95f));
         portTick.raycastTarget = false;
-        portTick.rectTransform.anchoredPosition = new Vector2(portX, flowY);
+        portTick.rectTransform.anchoredPosition = new Vector2(beltStartX, flowY);
         portTick.rectTransform.sizeDelta = new Vector2(8f, 64f);
         _portTick = portTick; _tickBase = portTick.color;   // 배출 순간 반짝용
 
         var outLbl = NewText("OutputLabel", area, "물류 출력", 18, TxtSub, TextAlignmentOptions.Center);
-        outLbl.rectTransform.anchoredPosition = new Vector2(portX + 96f, flowY + 120);
+        outLbl.rectTransform.anchoredPosition = new Vector2(beltEndX - 40f, flowY + 120);
         outLbl.rectTransform.sizeDelta = new Vector2(200, 30);
 
-        // 흐름 연출용 아이콘(기본 숨김). 파이프 반짝 후 포트단자 바깥에서 레일(벨트) 위로 타고 나감.
-        _flowFrom = new Vector2(portX + 8f, flowY);
-        _flowTo   = new Vector2(portX + 96f + 66f, flowY);
+        // 흐름 연출용 아이콘(기본 숨김). 슬롯 오른쪽에서 긴 벨트를 타고 물류 출력까지.
+        _flowFrom = new Vector2(-250f, flowY);
+        _flowTo   = new Vector2(beltEndX - 40f, flowY);
         _flowIcon = NewImage("FlowIcon", area, Color.white);
         _flowIcon.raycastTarget = false; _flowIcon.preserveAspect = true; _flowIcon.enabled = false;
         _flowIcon.rectTransform.sizeDelta = new Vector2(72, 72);
@@ -691,13 +676,17 @@ public class StorageExtractorUI : MonoBehaviour
         var tex = EnsureRailTexture();
         if (tex == null) return;
 
+        // 벨트 루트(가로로 긴) 를 꽉 채우는 RawImage 1장. 정사각 레일 텍스처를 가로로 타일(UV 반복)해
+        // 슬롯 -> 물류 출력까지 하나로 이어진 벨트로. 세로는 그대로(레일 밴드가 가운데 = 두께 유지).
         var go = new GameObject("PortRailReal", typeof(RectTransform), typeof(RawImage));
         go.transform.SetParent(_flowRailsRoot, false);
         var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(FR_BeltSize, FR_BeltSize);
-        rt.anchoredPosition = Vector2.zero;
-        var raw = go.GetComponent<RawImage>(); raw.texture = tex; raw.raycastTarget = false;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        var raw = go.GetComponent<RawImage>();
+        raw.texture = tex; raw.raycastTarget = false;
+        float bw = _flowRailsRoot.sizeDelta.x, bh = _flowRailsRoot.sizeDelta.y;
+        raw.uvRect = new Rect(0f, 0f, bh > 0f ? bw / bh : 1f, 1f);   // 가로로 bw/bh 번 반복 = 정사각 비율 유지
     }
 
     private Texture EnsureRailTexture()
@@ -713,7 +702,10 @@ public class StorageExtractorUI : MonoBehaviour
             go.transform.SetParent(transform, false);
             _railPortrait = go.AddComponent<RailPortraitRenderer>();
         }
+        // 가로 타일용: 레일이 텍스처 좌우 끝까지 차게(fill 1) 렌더 -> 반복 이음새 최소화.
+        _railPortrait.fill = 1.0f;
         _railTex = _railPortrait.Render(rbm.StraightRailPrefab, 256, 256);
+        if (_railTex != null) _railTex.wrapMode = TextureWrapMode.Repeat;   // UV 반복(가로 타일) 가능하게
         return _railTex;
     }
 }

@@ -23,7 +23,7 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
 
     [Header("Hover 색상")]
     [SerializeField] private Color normalBorderColor = new Color(1f, 1f, 1f, 0f);
-    [SerializeField] private Color hoverBorderColor  = new Color(0.3f, 0.8f, 1f, 0.8f);
+    [SerializeField] private Color hoverBorderColor  = new Color(1f, 1f, 1f, 0.85f);   // 파랑 폐기 -> 깔끔한 흰색
 
     private StorageExtractor _machine;
 
@@ -35,6 +35,9 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
 
         _machine = machine;
         _machine.OnSelectionChanged += Refresh;
+
+        // 프리팹에 파란색이 직렬화돼 있어도 흰색으로 강제(종욱: 파란색 빼고 깔끔한 흰색)
+        hoverBorderColor = new Color(1f, 1f, 1f, 0.85f);
 
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
