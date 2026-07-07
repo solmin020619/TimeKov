@@ -3,7 +3,8 @@
 // 엔드필드 스타일 설비 월드 표시 (플레이어 3인칭 카메라 뷰 기준).
 //  1) 제작 중 아이템 아이콘 — 설비 가운데에 BG와 함께, 항상 카메라를 향함(빌보드).
 //  2) 설비 이름 — 플레이어 근접 시에만, 사각형 4면 중 카메라가 보는 면에 납작하게 고정 표시(빌보드 아님).
-//  3) 금지 표시 — 산출물이 막혔을 때, 거부하는 연결 설비의 "입력 포트" 위에 표시.
+//  3) 금지 표시 — 아이템이 벨트를 타고 타깃 입구까지 도착했는데 못 받아 실제로 정체(잼)된 순간,
+//     그 아이템이 멈춘 꼬리 칸(레일이 설비에 물리는 지점) 위에 표시.
 // ProcessingMachine 이 런타임에 자동 부착한다(프리팹 편집 불필요).
 // =====================================================================
 
@@ -52,7 +53,7 @@ namespace TIMEKOV.Factory
 
         [Header("금지 표시 (막힘)")]
         public float blockPixels = 60f;
-        [Tooltip("거부하는 타깃 설비의 입력 포트에서 위로 올리는 높이(m).")]
+        [Tooltip("레일이 거부 설비에 연결된 지점(체인 꼬리 칸)에서 위로 올리는 높이(m).")]
         public float blockYOffset = 1.2f;
         public Color blockColor = new Color(1f, 0.22f, 0.2f, 0.95f);
 
@@ -96,8 +97,6 @@ namespace TIMEKOV.Factory
 
         // 금지 표시 요소
         private GameObject _blockRoot;
-        private System.Collections.Generic.List<int> _outIds;  // 이 설비 산출물 id 캐시
-        private int _cachedLockedIdx = int.MinValue;
 
         private void Awake()
         {
@@ -317,62 +316,40 @@ namespace TIMEKOV.Factory
 
         private void UpdateBlockIcon()
         {
-            // 막힘 = 타깃 거부일 때만. 표시는 거부하는 "타깃 설비의 입력 포트"에 띄운다.
-            // (출력 벨트가 연결돼 있는데 그 타깃이 이 설비 산출물을 못 받는 경우 —
-            //  벨트 미연결/버퍼 적체는 막힘으로 보지 않음)
-            var tgt = FindRejectingTarget();
-            if (tgt == null) { if (_blockRoot.activeSelf) _blockRoot.SetActive(false); return; }
+            // 막힘 = 실제로 아이템이 벨트를 타고 타깃 입구까지 도착했는데 타깃이 못 받아
+            // 그 칸에 물리적으로 정체(잼)된 순간에만 표시. (단순 연결/미연결·레시피 거부 예측만으로는 안 뜬다.)
+            // 표시 위치 = 그 아이템이 멈춰 있는 꼬리 칸 = 레일이 설비에 실제로 물리는 지점.
+            BeltSegment tail = FindJammedTail();
+            if (tail == null) { if (_blockRoot.activeSelf) _blockRoot.SetActive(false); return; }
             if (!_blockRoot.activeSelf) _blockRoot.SetActive(true);
 
-            // 거부하는 타깃 설비의 입력 포트 위. 포트가 없으면 타깃 설비 중심.
-            Vector3 basePos = tgt.inputPort != null ? tgt.inputPort.position : tgt.transform.position;
-
-            Vector3 pos = basePos + Vector3.up * blockYOffset;
+            Vector3 pos = tail.transform.position + Vector3.up * blockYOffset;
             pos -= _cam.transform.forward * cameraPullOffset;
 
             _blockRoot.transform.position = pos;
             _blockRoot.transform.forward = _cam.transform.forward;
         }
 
-        // ── 막힘(타깃 거부) 판정 ─────────────────────────────────────────
-        // 이 설비의 출력 벨트가 연결돼 있고, 그 타깃 설비가 이 설비의 산출물 중
-        // 하나라도 받지 못하면(CanReceive=false) 그 "거부하는 타깃 설비"를 반환한다(없으면 null).
-        private MachineBase FindRejectingTarget()
+        // ── 실제 잼(정체) 판정 ───────────────────────────────────────────
+        // 이 설비의 출력 벨트 체인들 중, 꼬리 칸에 아이템이 도착했는데 타깃이 못 받아
+        // 물리적으로 멈춰 있는(IsJammedAtTarget) 첫 꼬리 세그먼트를 반환한다(없으면 null).
+        // outputBelts 에 담긴 건 체인 머리(chain[0])라 nextSegment 로 꼬리까지 따라간다.
+        private BeltSegment FindJammedTail()
         {
-            if (_pm == null || _machine.outputBelts == null || _machine.outputBelts.Count == 0)
+            if (_machine.outputBelts == null || _machine.outputBelts.Count == 0)
                 return null;
-
-            var outIds = GetOutputItemIds();
-            if (outIds == null || outIds.Count == 0) return null;
 
             foreach (var belt in _machine.outputBelts)
             {
                 if (belt == null || !belt.IsReady) continue;
-                var tgt = belt.targetM;
-                if (tgt == null || tgt == _machine) continue;
 
-                foreach (var id in outIds)
-                    if (!tgt.CanReceive(id)) return tgt;   // 산출물 거부 → 이 타깃 입구에 막힘 표시
+                BeltSegment tail = belt;
+                int guard = 256;
+                while (tail.nextSegment != null && guard-- > 0) tail = tail.nextSegment;
+
+                if (tail != null && tail.IsJammedAtTarget) return tail;
             }
             return null;
-        }
-
-        // 현재 선택된(잠긴) 레시피, 없으면 첫 레시피의 산출물 id 목록 (변경 시에만 재계산).
-        private System.Collections.Generic.List<int> GetOutputItemIds()
-        {
-            if (_pm.Recipes == null || _pm.Recipes.Count == 0) return null;
-
-            int idx = _pm.LockedRecipeIndex;
-            if (idx == _cachedLockedIdx && _outIds != null) return _outIds;
-            _cachedLockedIdx = idx;
-
-            var recipe = (idx >= 0 && idx < _pm.Recipes.Count) ? _pm.Recipes[idx] : _pm.Recipes[0];
-            if (recipe == null || recipe.outputs == null) { _outIds = null; return null; }
-
-            _outIds ??= new System.Collections.Generic.List<int>();
-            _outIds.Clear();
-            foreach (var o in recipe.outputs) _outIds.Add(o.itemId);
-            return _outIds;
         }
 
         // ── 헬퍼 ────────────────────────────────────────────────────────
