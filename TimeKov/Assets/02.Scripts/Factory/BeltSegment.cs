@@ -688,6 +688,14 @@ namespace TIMEKOV.Factory
         /// <summary>이 벨트 칸에 아이템이 올라와 있으면 true.</summary>
         public bool IsOccupied => _occupant != null;
 
+        /// <summary>이 칸이 체인 꼬리(설비 입구 칸)이고, 올라와 있는 아이템을 타깃 설비가
+        /// 받지 못해 실제로 정체(잼)된 상태이면 true.
+        /// RunOccupant 의 꼬리 잼 조건(nextSegment==null &amp;&amp; !tgt.CanReceive)과 동일 —
+        /// "연결만 됨"이 아니라 "아이템이 도착해 물리적으로 막힌 순간"을 나타낸다(금지 표시용).</summary>
+        public bool IsJammedAtTarget =>
+            nextSegment == null && _occupant != null && targetM != null
+            && !targetM.CanReceive(_occupant.itemId);
+
         private void OnDestroy()
         {
             // ── 이웃 세그먼트 참조 정리 ─────────────────────────────────────
