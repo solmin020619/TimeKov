@@ -877,11 +877,13 @@ public class MachineUI : MonoBehaviour
         }
         if (closeBtn != null)
         {
-            // X 버튼을 헤더(64) 칸에 꽉 차게(종욱: 너무 작음). 빌더 48/아이콘 28 -> 60/44.
+            // X 버튼 = 인벤/창고와 동일한 크기(54/48) + 호버 하이라이트로 통일.
+            // (빌더가 박은 흐린 호버를 런타임서 인벤 값으로 덮음 = 빌더 재실행 불필요)
             var crt = (RectTransform)closeBtn.transform;
-            crt.sizeDelta = new Vector2(60f, 60f);
+            crt.sizeDelta = new Vector2(54f, 54f);
             var xIcon = closeBtn.transform.Find("Icon") as RectTransform;
-            if (xIcon != null) xIcon.sizeDelta = new Vector2(44f, 44f);
+            if (xIcon != null) xIcon.sizeDelta = new Vector2(48f, 48f);
+            CloseButtonStyle.Apply(closeBtn);
         }
     }
 
