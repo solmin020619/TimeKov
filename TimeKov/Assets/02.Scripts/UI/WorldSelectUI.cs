@@ -38,6 +38,9 @@ public class WorldSelectUI : MonoBehaviour
     [Tooltip("슬롯 확정 후 로딩을 거쳐 진입할 실제 플레이 씬 이름.")]
     [SerializeField] string gameplaySceneName = "World";
 
+    [Tooltip("신규 월드 생성 시 경유할 프롤로그 씬 이름. 비워두면 gameplaySceneName으로 바로 진입.")]
+    [SerializeField] string prologueSceneName = "Prologue";
+
     readonly List<WorldSelectRow> _spawnedRows = new();
     WorldSelectRow _selectedRow;
 
@@ -159,12 +162,14 @@ public class WorldSelectUI : MonoBehaviour
         var meta = SaveSlotManager.Instance.CreateSlot(name);
         CloseCreateModal();
 
-        EnterSlot(meta.slotId);
+        // 신규 월드: 프롤로그 씬 경유 (prologueSceneName 비어있으면 바로 게임플레이 씬)
+        string firstScene = string.IsNullOrEmpty(prologueSceneName) ? gameplaySceneName : prologueSceneName;
+        EnterSlot(meta.slotId, firstScene);
     }
 
-    void EnterSlot(string slotId)
+    void EnterSlot(string slotId, string overrideScene = null)
     {
         if (SaveSlotManager.Instance == null || !SaveSlotManager.Instance.LoadSlot(slotId)) return;
-        CoreUtilities.LoadViaLoading(gameplaySceneName);
+        CoreUtilities.LoadViaLoading(overrideScene ?? gameplaySceneName);
     }
 }

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1224ec39bccb81a488d87a468a79c137, type: 3}
+  m_Name: quest_prolog_basics
+  m_EditorClassIdentifier: 
+  id: quest_prolog_basics
+  title: "\uAE30\uBCF8 \uC870\uC791"
+  description: 
+  objectives:
+  - {fileID: 11400000, guid: 83a43da66a57c784987855caccfe84cc, type: 2}
+  - {fileID: 11400000, guid: 7f619a6719b020947bab146f0e15fac2, type: 2}
+  - {fileID: 11400000, guid: 4bef0ffbb64b9de4892e86e76456f2aa, type: 2}
+  rewards: []
+  onShown:
+    m_PersistentCalls:
+      m_Calls: []
+  onActivated:
+    m_PersistentCalls:
+      m_Calls: []
+  onCompleted:
+    m_PersistentCalls:
+      m_Calls: []
