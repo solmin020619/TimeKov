@@ -37,7 +37,7 @@ public class StorageExtractorUI : MonoBehaviour
     private bool _built;
 
     // 런타임 생성 참조
-    private TextMeshProUGUI _titleText, _statusText, _stockText, _stockShadow;
+    private TextMeshProUGUI _titleText, _statusText, _stockText, _stockShadow, _installText;
     private Slider _gauge;
     private Transform _invParent;
     private RectTransform _filterRow, _flowRailsRoot;
@@ -78,6 +78,19 @@ public class StorageExtractorUI : MonoBehaviour
         uiPanel.SetActive(true);
         uiPanel.GetComponent<UISlideEffect>()?.Open();
         if (_titleText != null) _titleText.text = string.IsNullOrEmpty(title) ? "창고 출력 포트" : title;
+
+        // 설치 개수 제한 표시 (패널 열 때 현재 설치수/상한). UI 열려 있는 동안엔 안 바뀜.
+        if (_installText != null)
+        {
+            int fid = FacilityBuildLimit.WarehousePortId;
+            if (FacilityBuildLimit.HasLimit(fid))
+            {
+                var bm = FindFirstObjectByType<BuildManager>();
+                int placed = bm != null ? bm.CountPlacedFacilities(fid) : 0;
+                _installText.text = $"설치 {placed}/{FacilityBuildLimit.GetMax(fid)}";
+            }
+            else _installText.text = "";
+        }
 
         itemSelectSlot?.Setup(machine);
         EnsureFilterUI();
@@ -277,16 +290,16 @@ public class StorageExtractorUI : MonoBehaviour
         closeGo.transform.SetParent(prt, false);
         var crt = closeGo.GetComponent<RectTransform>();
         crt.anchorMin = crt.anchorMax = new Vector2(1, 1); crt.pivot = new Vector2(1, 1);
-        crt.sizeDelta = new Vector2(52, 52); crt.anchoredPosition = new Vector2(-14, -8);
-        var cimg = closeGo.GetComponent<Image>(); cimg.color = new Color(0, 0, 0, 0);
+        crt.sizeDelta = new Vector2(54, 54); crt.anchoredPosition = new Vector2(-14, -8);   // 인벤과 동일 크기
         var cbtn = closeGo.GetComponent<Button>(); cbtn.onClick.AddListener(Close);
+        CloseButtonStyle.Apply(cbtn);   // 인벤과 동일한 호버 하이라이트 + 둥근 배경
         // 기존 공용 X 아이콘(ic_close, 공장 UI 와 동일)으로 통일. 없으면 TMP 폴백.
         var closeSpr = Resources.Load<Sprite>("Image/UI_Icon/ic_close");
         if (closeSpr != null)
         {
             var ci = NewImage("Icon", closeGo.transform, TxtDark);
             ci.sprite = closeSpr; ci.preserveAspect = true; ci.raycastTarget = false;
-            ci.rectTransform.sizeDelta = new Vector2(40, 40);
+            ci.rectTransform.sizeDelta = new Vector2(48, 48);   // 인벤과 동일 아이콘 크기
         }
         else
         {
@@ -367,6 +380,16 @@ public class StorageExtractorUI : MonoBehaviour
         var holo = Resources.Load<Sprite>("Image/UI_Icon/FacilityBlueprint/9_창고 출력 포트");
         if (holo != null) { _hologram.sprite = holo; _hologram.enabled = true; }
         else _hologram.enabled = false;
+
+        // ── 설치 개수 (우측 상단 여백). 큰 값 + 개수 늘리는 방법 힌트. OpenFor 에서 값 세팅. ──
+        _installText = NewText("InstallLimit", area, "", 26, TxtDark, TextAlignmentOptions.Center);
+        _installText.fontStyle = FontStyles.Bold;
+        _installText.rectTransform.anchoredPosition = new Vector2(20, 326);
+        _installText.rectTransform.sizeDelta = new Vector2(420, 40);
+        var instHint = NewText("InstallHint", area, "우주선을 수리하면 설치 개수를 늘릴 수 있습니다",
+            15, new Color(0.20f, 0.24f, 0.30f, 1f), TextAlignmentOptions.Center);
+        instHint.rectTransform.anchoredPosition = new Vector2(20, 296);
+        instHint.rectTransform.sizeDelta = new Vector2(500, 24);
 
         // 좌측: "현재 출력" + 추출 품목 슬롯(보존)
         var cur = NewText("CurrentLabel", area, "현재 출력", 20, TxtMain, TextAlignmentOptions.Center);
@@ -469,7 +492,7 @@ public class StorageExtractorUI : MonoBehaviour
         var infoRim = info.gameObject.AddComponent<UnityEngine.UI.Outline>();
         infoRim.effectColor = new Color(0.55f, 0.66f, 0.80f, 0.34f); infoRim.effectDistance = new Vector2(0f, -1.5f);
         var ibody = NewText("InfoBody", info.transform,
-            "선택한 아이템 1종을 창고에서 자동으로 꺼내 벨트(물류 라인)로 내보내는 설비입니다.\n창고 입출력 라인에 붙여야만 배치할 수 있습니다.",
+            "고른 아이템을 창고에서 꺼내 벨트로 내보냅니다.\n창고 테두리에 설치하세요.",
             20, TxtMain, TextAlignmentOptions.Center);
         ibody.textWrappingMode = TextWrappingModes.Normal;
         ibody.enableAutoSizing = true; ibody.fontSizeMin = 15f; ibody.fontSizeMax = 24f;   // 패널 크기에 꽉 차게

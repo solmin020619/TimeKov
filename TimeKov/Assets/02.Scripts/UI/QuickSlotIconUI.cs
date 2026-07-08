@@ -43,6 +43,8 @@ public class QuickSlotIconUI : MonoBehaviour
     private Image _glow, _rim, _inner, _highlight, _facility, _lock;
     private Image[] _brackets;
     private Image[] _ticks;
+    private Image _limitBg;               // 설치 개수 제한 배지 배경
+    private TextMeshProUGUI _limitTxt;    // "placed/max"
     private float _eff = 92f;   // inset 적용 후 실제 스킨 크기
     private Coroutine _unlockCo;
 
@@ -269,6 +271,39 @@ public class QuickSlotIconUI : MonoBehaviour
         // FX 루트 (최상단)
         _fxRoot = NewRT("FX", _skin); Stretch(_fxRoot, 0, 0, 0, 0);
         _fxRoot.SetAsLastSibling();
+
+        // 설치 개수 제한 배지 (우상단, 기본 숨김) - 개수 제한 있는 설비만 BuildManager 가 켠다.
+        _limitBg = NewImg("LimitBadge", _skin, UISpriteFactory.RoundedRect(24, 10));
+        var lbr = _limitBg.rectTransform;
+        lbr.anchorMin = lbr.anchorMax = new Vector2(1f, 1f); lbr.pivot = new Vector2(1f, 1f);
+        lbr.sizeDelta = new Vector2(S * 0.54f, S * 0.30f);
+        lbr.anchoredPosition = new Vector2(3f, 3f);
+        _limitBg.color = new Color(0.04f, 0.06f, 0.10f, 0.88f);
+        var ltgo = new GameObject("LimitTxt", typeof(RectTransform));
+        ltgo.transform.SetParent(_limitBg.transform, false);
+        _limitTxt = ltgo.AddComponent<TextMeshProUGUI>();
+        _limitTxt.alignment = TextAlignmentOptions.Center;
+        _limitTxt.fontSize = Mathf.Max(11f, S * 0.19f);
+        _limitTxt.fontStyle = FontStyles.Bold;
+        _limitTxt.raycastTarget = false;
+        Stretch(_limitTxt.rectTransform, 1, 0, 1, 0);
+        _limitBg.gameObject.SetActive(false);
+        _limitBg.transform.SetAsLastSibling();
+    }
+
+    // ── 설치 개수 제한 배지 (개수 제한 설비: placed/max, 가득 차면 빨강) ──
+    public void SetLimitBadge(int placed, int max)
+    {
+        EnsureBuilt();
+        if (_limitBg == null || _limitTxt == null) return;
+        _limitTxt.text = placed + "/" + max;
+        _limitTxt.color = (placed >= max) ? new Color(1f, 0.5f, 0.45f, 1f) : new Color(0.62f, 0.85f, 1f, 1f);
+        if (!_limitBg.gameObject.activeSelf) _limitBg.gameObject.SetActive(true);
+    }
+
+    public void HideLimitBadge()
+    {
+        if (_limitBg != null && _limitBg.gameObject.activeSelf) _limitBg.gameObject.SetActive(false);
     }
 
     private void BuildBracket(int idx, int xCorner, int yCorner, float off, float len, float thick)

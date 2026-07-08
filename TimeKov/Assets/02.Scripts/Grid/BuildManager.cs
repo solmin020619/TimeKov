@@ -1304,6 +1304,13 @@ public class BuildManager : MonoBehaviour, ISaveable
                 {
                     bool sel = (IsBuildMode && hasSelectedSlot && currentIndex == i && CurrentSubMode == BuildSubMode.Facility);
                     slotIconUIs[i].SetSelected(sel);
+
+                    // 설치 개수 제한 있는 설비 = 슬롯에 placed/max 배지(탑뷰 건축 바 상시 표시)
+                    int fid = (buildSlots != null && i < buildSlots.Length) ? buildSlots[i].facilityId : 0;
+                    if (fid > 0 && FacilityBuildLimit.HasLimit(fid))
+                        slotIconUIs[i].SetLimitBadge(CountPlacedFacilities(fid), FacilityBuildLimit.GetMax(fid));
+                    else
+                        slotIconUIs[i].HideLimitBadge();
                 }
             }
         }
