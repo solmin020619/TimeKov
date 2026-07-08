@@ -30,17 +30,5 @@ public class ItemDataSchema : SheetSchema
 
         // 최대 중첩 수량 (stackable == 0 이면 1로 설정)
         Add("maxStack", ColumnType.Int, required: true);
-
-        // 무게 (인벤토리 무게 계산용)
-        Add("weight", ColumnType.Float, required: true);
-
-        // 판매 시 획득 시간 (Time 화폐, 판매 불가 아이템은 0)
-        Add("sellValue", ColumnType.Int, required: true);
-
-        // 필드에서 드롭 가능 여부 (0 = 불가, 1 = 가능)
-        Add("isDroppable", ColumnType.Bool, required: true);
-
-        // 공장에서 제작 가능 여부 (0 = 불가, 1 = 가능)
-        Add("isCraftable", ColumnType.Bool, required: true);
     }
 }

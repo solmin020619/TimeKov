@@ -16,8 +16,4 @@ public class ItemDataSheetData
     public string iconKey;
     public bool stackable;
     public int maxStack;
-    public float weight;
-    public int sellValue;
-    public bool isDroppable;
-    public bool isCraftable;
 }

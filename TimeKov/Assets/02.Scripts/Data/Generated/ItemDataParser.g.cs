@@ -16,10 +16,6 @@ public static class ItemDataParser
         int idx_iconKey = table.GetColumnIndex("iconKey");
         int idx_stackable = table.GetColumnIndex("stackable");
         int idx_maxStack = table.GetColumnIndex("maxStack");
-        int idx_weight = table.GetColumnIndex("weight");
-        int idx_sellValue = table.GetColumnIndex("sellValue");
-        int idx_isDroppable = table.GetColumnIndex("isDroppable");
-        int idx_isCraftable = table.GetColumnIndex("isCraftable");
 
         foreach (var row in table.Rows)
         {
@@ -34,10 +30,6 @@ public static class ItemDataParser
             data.iconKey = row.Get(idx_iconKey);
             data.stackable = (row.Get(idx_stackable) == "1");
             data.maxStack = int.Parse(row.Get(idx_maxStack));
-            data.weight = float.Parse(row.Get(idx_weight), System.Globalization.CultureInfo.InvariantCulture);
-            data.sellValue = int.Parse(row.Get(idx_sellValue));
-            data.isDroppable = (row.Get(idx_isDroppable) == "1");
-            data.isCraftable = (row.Get(idx_isCraftable) == "1");
 
             result[data.SheetId] = data;
         }
