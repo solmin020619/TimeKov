@@ -14,7 +14,6 @@ public static class ItemDataParser
         int idx_itemGrade = table.GetColumnIndex("itemGrade");
         int idx_itemCategory = table.GetColumnIndex("itemCategory");
         int idx_iconKey = table.GetColumnIndex("iconKey");
-        int idx_stackable = table.GetColumnIndex("stackable");
         int idx_maxStack = table.GetColumnIndex("maxStack");
 
         foreach (var row in table.Rows)
@@ -28,7 +27,6 @@ public static class ItemDataParser
             data.itemGrade = (ItemGrade)Enum.Parse(typeof(ItemGrade), row.Get(idx_itemGrade));
             data.itemCategory = (ItemCategory)Enum.Parse(typeof(ItemCategory), row.Get(idx_itemCategory));
             data.iconKey = row.Get(idx_iconKey);
-            data.stackable = (row.Get(idx_stackable) == "1");
             data.maxStack = int.Parse(row.Get(idx_maxStack));
 
             result[data.SheetId] = data;

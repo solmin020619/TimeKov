@@ -15,7 +15,6 @@ public static class ConsumableEffectParser
         int idx_effectValueType = table.GetColumnIndex("effectValueType");
         int idx_effectValue = table.GetColumnIndex("effectValue");
         int idx_duration = table.GetColumnIndex("duration");
-        int idx_successRate = table.GetColumnIndex("successRate");
 
         foreach (var row in table.Rows)
         {
@@ -29,7 +28,6 @@ public static class ConsumableEffectParser
             data.effectValueType = (EffectValueType)Enum.Parse(typeof(EffectValueType), row.Get(idx_effectValueType));
             data.effectValue = float.Parse(row.Get(idx_effectValue), System.Globalization.CultureInfo.InvariantCulture);
             data.duration = float.Parse(row.Get(idx_duration), System.Globalization.CultureInfo.InvariantCulture);
-            data.successRate = float.Parse(row.Get(idx_successRate), System.Globalization.CultureInfo.InvariantCulture);
 
             result[data.SheetId] = data;
         }

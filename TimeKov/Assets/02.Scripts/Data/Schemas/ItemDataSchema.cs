@@ -25,10 +25,7 @@ public class ItemDataSchema : SheetSchema
         // UI 아이콘 리소스 키 (Addressables 또는 Resources 경로)
         Add("iconKey", ColumnType.String, required: true);
 
-        // 중첩 가능 여부 (0 = 불가, 1 = 가능)
-        Add("stackable", ColumnType.Bool, required: true);
-
-        // 최대 중첩 수량 (stackable == 0 이면 1로 설정)
+        // 최대 중첩 수량 (1 = 중첩 불가)
         Add("maxStack", ColumnType.Int, required: true);
     }
 }

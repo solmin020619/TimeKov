@@ -14,6 +14,5 @@ public class ItemDataSheetData
     // Enum: ItemCategory
     public ItemCategory itemCategory;
     public string iconKey;
-    public bool stackable;
     public int maxStack;
 }

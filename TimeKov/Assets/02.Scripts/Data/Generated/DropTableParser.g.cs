@@ -13,7 +13,6 @@ public static class DropTableParser
         int idx_sourceType = table.GetColumnIndex("sourceType");
         int idx_sourceId = table.GetColumnIndex("sourceId");
         int idx_itemId = table.GetColumnIndex("itemId");
-        int idx_dropTier = table.GetColumnIndex("dropTier");
         int idx_dropChance = table.GetColumnIndex("dropChance");
         int idx_countDist = table.GetColumnIndex("countDist");
 
@@ -28,7 +27,6 @@ public static class DropTableParser
 
             data.sourceType = (SourceType)Enum.Parse(typeof(SourceType), row.Get(idx_sourceType));
             data.sourceId = row.Get(idx_sourceId);
-            data.dropTier = int.Parse(row.Get(idx_dropTier));
             data.dropChance = int.Parse(row.Get(idx_dropChance));
             data.countDist = row.Get(idx_countDist);
 

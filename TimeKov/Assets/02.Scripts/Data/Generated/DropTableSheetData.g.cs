@@ -11,7 +11,6 @@ public class DropTableSheetData
     // Enum: SourceType
     public SourceType sourceType;
     public string sourceId;
-    public int dropTier;
     public int dropChance;
     public string countDist;
 }

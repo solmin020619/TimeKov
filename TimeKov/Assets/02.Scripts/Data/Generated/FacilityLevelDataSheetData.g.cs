@@ -9,5 +9,4 @@ public class FacilityLevelDataSheetData
     public FacilityLevelDataSheetId SheetId;
 
     public float processTimeMultiplier;
-    public float powerEfficiencyMultiplier;
 }

@@ -20,7 +20,6 @@
 // 인스펙터 연결:
 //   rowPrefab     : DropPickupRow 컴포넌트 붙은 행 프리팹 (PickupRow.prefab 재사용)
 //   rowContainer  : 행이 쌓일 부모 (VerticalLayoutGroup 권장)
-//   tierColors    : 등급별 색 (DropPickupPanel 과 동일하게 채우면 됨)
 // =====================================================================
 
 using System.Collections.Generic;
@@ -35,13 +34,6 @@ public class ItemGetLog : MonoBehaviour
 
     [Tooltip("행이 쌓일 부모. VerticalLayoutGroup + ContentSizeFitter 권장.")]
     [SerializeField] private Transform rowContainer;
-
-    [Tooltip("아이템 등급(itemGrade)별 색. 배열 인덱스 = 등급 번호. DropPickupPanel 과 동일하게.")]
-    [SerializeField] private Color[] tierColors;
-
-    [Tooltip("연료 전용 색. 등급 색 대신 이 색으로 표시해 '다른 종류'임을 인지시킴.\n" +
-             "연료 판별은 FuelConfig.fuelItemId 기준. 알파(A)가 0이면 미설정으로 보고 등급 색을 그대로 씀.")]
-    [SerializeField] private Color fuelColor = new Color(0.23f, 0.51f, 0.96f, 1f);
 
     [Tooltip("'획득' 같은 고정 헤더 오브젝트. 로그가 하나라도 떠 있으면 표시, 없으면 자동 숨김.\n" +
              "rowContainer 위에 두면 목록 맨 위에 보임. 비워두면 헤더 없이 동작.")]
@@ -217,8 +209,7 @@ public class ItemGetLog : MonoBehaviour
 
     private Color GetTierColor(int itemId)
     {
-        // [연료 전용 색] FuelConfig.fuelItemId 와 일치하면 등급 색 대신 연료색 사용.
-        // fuelColor 알파가 0이면 미설정으로 보고 기존 등급 색으로 폴백 (안 깨짐).
+        // [연료 전용 색] FuelConfig.fuelItemId 와 일치하면 등급 색 대신 연료색 사용(GradeVisual.FuelColor).
         var fuelCfg = FuelConfig.Instance;
         if (fuelCfg != null && fuelCfg.fuelItemId == itemId)
             return GradeVisual.FuelColor;   // 연료 전용 색 (인벤/로그 동일 소스)

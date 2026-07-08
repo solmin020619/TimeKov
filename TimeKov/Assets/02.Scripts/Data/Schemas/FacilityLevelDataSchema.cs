@@ -19,9 +19,5 @@ public class FacilityLevelDataSchema : SheetSchema
         // 제작 시간 배율
         // 1.0 = 기본, 0.8 = 20% 빠름, 숫자가 낮을수록 빠르다
         Add("processTimeMultiplier", ColumnType.Float, required: true);
-
-        // 전력 효율 배율
-        // 1.0 = 기본, 0.8 = 20% 절약, 숫자가 낮을수록 효율적이다
-        Add("powerEfficiencyMultiplier", ColumnType.Float, required: true);
     }
 }

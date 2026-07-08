@@ -16,5 +16,4 @@ public class ConsumableEffectSheetData
     public EffectValueType effectValueType;
     public float effectValue;
     public float duration;
-    public float successRate;
 }

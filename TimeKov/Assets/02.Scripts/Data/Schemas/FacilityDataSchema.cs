@@ -16,25 +16,11 @@ public class FacilityDataSchema : SheetSchema
         // 설비 이름 (UI 표시용)
         Add("facilityName", ColumnType.String, required: true);
 
-        // 설비 유형 — FacilityType enum 멤버명과 1:1 (시트 값이 enum 이름과 정확히 같아야 파싱됨)
-        // BioExtractor / BioCultivator / ChemRefinery / Smelter
-        // BioSeparator / CoreSynthesizer / EnergyConverter / Storage
-        AddEnum<FacilityType>("facilityType", required: true);
-
         // 그리드 가로 칸 수
         Add("gridW", ColumnType.Int, required: true);
 
         // 그리드 세로 칸 수
         Add("gridH", ColumnType.Int, required: true);
-
-        // 재료 투입 슬롯 수 (UI 슬롯 개수 결정)
-        Add("inputSlotCount", ColumnType.Int, required: true);
-
-        // 결과물 출력 슬롯 수
-        Add("outputSlotCount", ColumnType.Int, required: true);
-
-        // 전력 필요 여부 (0 = 불필요, 1 = 필요)
-        Add("requiresPower", ColumnType.Bool, required: true);
 
         // 회전 배치 가능 여부 (0 = 불가, 1 = 가능)
         Add("canRotate", ColumnType.Bool, required: true);

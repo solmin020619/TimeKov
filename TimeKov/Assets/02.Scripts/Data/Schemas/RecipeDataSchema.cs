@@ -26,8 +26,5 @@ public class RecipeDataSchema : SheetSchema
 
         // 제작 소요 시간(초) — FacilityLevelData.processTimeMultiplier 와 곱해서 실제 시간 산출
         Add("craftTime", ColumnType.Float, required: true);
-
-        // 제작 1회 소모 전력 — FacilityLevelData.powerEfficiencyMultiplier 와 곱해서 실제 소모량 산출
-        Add("powerCost", ColumnType.Int, required: true);
     }
 }

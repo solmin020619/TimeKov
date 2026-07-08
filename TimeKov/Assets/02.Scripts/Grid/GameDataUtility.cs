@@ -51,9 +51,9 @@ public static class GameDataUtility
 
     // 몬스터(sourceId)의 드롭 목록 반환. itemId 는 DropTable 복합키 SheetId("dropId_itemId")서 파싱.
     // chance = dropChance(0~100, 독립 확률이라 그대로 %).
-    public static List<(int itemId, int chance, int tier, int minCount, int maxCount)> GetMonsterDrops(string sourceId)
+    public static List<(int itemId, int chance, int minCount, int maxCount)> GetMonsterDrops(string sourceId)
     {
-        var result = new List<(int, int, int, int, int)>();
+        var result = new List<(int, int, int, int)>();
         if (string.IsNullOrEmpty(sourceId)) return result;
         string id = sourceId.Trim();
 
@@ -69,7 +69,7 @@ public static class GameDataUtility
             if (int.TryParse(key.Substring(u + 1), out int itemId) && itemId > 0)
             {
                 var (mn, mx) = DropCountRange(row.countDist);
-                result.Add((itemId, row.dropChance, row.dropTier, mn, mx));
+                result.Add((itemId, row.dropChance, mn, mx));
             }
         }
         return result;

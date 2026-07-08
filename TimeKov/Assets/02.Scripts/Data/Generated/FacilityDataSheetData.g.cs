@@ -9,13 +9,8 @@ public class FacilityDataSheetData
     public FacilityDataSheetId SheetId;
 
     public string facilityName;
-    // Enum: FacilityType
-    public FacilityType facilityType;
     public int gridW;
     public int gridH;
-    public int inputSlotCount;
-    public int outputSlotCount;
-    public bool requiresPower;
     public bool canRotate;
     public int maxLevel;
 }

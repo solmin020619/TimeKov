@@ -14,5 +14,4 @@ public class RecipeDataSheetData
     public ItemDataSheetId outputItemId;
     public int outputCount;
     public float craftTime;
-    public int powerCost;
 }

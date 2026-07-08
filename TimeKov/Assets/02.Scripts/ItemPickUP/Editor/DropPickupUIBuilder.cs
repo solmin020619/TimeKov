@@ -189,13 +189,6 @@ public static class DropPickupUIBuilder
         so.FindProperty("panelRoot").objectReferenceValue = panelRoot.gameObject;
         so.FindProperty("rowContainer").objectReferenceValue = rc;
         so.FindProperty("rowPrefab").objectReferenceValue = rowPrefab.GetComponent<DropPickupRow>();
-        SerializedProperty tc = so.FindProperty("tierColors");
-        tc.arraySize = 5;
-        tc.GetArrayElementAtIndex(0).colorValue = new Color(0.78f, 0.78f, 0.80f); // Common
-        tc.GetArrayElementAtIndex(1).colorValue = new Color(0.35f, 0.80f, 0.40f); // Advanced
-        tc.GetArrayElementAtIndex(2).colorValue = new Color(0.33f, 0.62f, 1f);    // Rare
-        tc.GetArrayElementAtIndex(3).colorValue = new Color(0.70f, 0.45f, 0.95f); // Hero
-        tc.GetArrayElementAtIndex(4).colorValue = new Color(1f, 0.66f, 0.25f);    // Legend
         so.ApplyModifiedProperties();
 
         Selection.activeGameObject = panel.gameObject;

@@ -14,7 +14,6 @@ public static class RecipeDataParser
         int idx_outputItemId = table.GetColumnIndex("outputItemId");
         int idx_outputCount = table.GetColumnIndex("outputCount");
         int idx_craftTime = table.GetColumnIndex("craftTime");
-        int idx_powerCost = table.GetColumnIndex("powerCost");
 
         foreach (var row in table.Rows)
         {
@@ -27,7 +26,6 @@ public static class RecipeDataParser
             data.outputItemId = (ItemDataSheetId)(row.Get(idx_outputItemId));
             data.outputCount = int.Parse(row.Get(idx_outputCount));
             data.craftTime = float.Parse(row.Get(idx_craftTime), System.Globalization.CultureInfo.InvariantCulture);
-            data.powerCost = int.Parse(row.Get(idx_powerCost));
 
             result[data.SheetId] = data;
         }

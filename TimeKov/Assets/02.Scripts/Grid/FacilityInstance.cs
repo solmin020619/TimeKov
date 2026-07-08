@@ -60,13 +60,6 @@ public class FacilityInstance : MonoBehaviour
         RefreshCachedData();
     }
 
-    // 전력 필요 여부 (requiresPower)
-    public bool RequiresPower()
-    {
-        if (facilityData == null) return false;
-        return facilityData.requiresPower;
-    }
-
     // 회전 가능 여부 (canRotate)
     public bool CanRotate()
     {
@@ -80,15 +73,6 @@ public class FacilityInstance : MonoBehaviour
         return currentLevelData.processTimeMultiplier;
     }
 
-    public float GetPowerEfficiencyMultiplier()
-    {
-        if (currentLevelData == null) return 1f;
-        return currentLevelData.powerEfficiencyMultiplier;
-    }
-
-    // capacityBonus 컬럼 제거됨 - 항상 0
-    public int GetCapacityBonus() => 0;
-
     public List<RecipeDataSheetData> GetAvailableRecipes()
     {
         return GameDataUtility.GetRecipesByFacilityId(facilityId);
@@ -96,7 +80,4 @@ public class FacilityInstance : MonoBehaviour
 
     public float GetFinalProcessTime(float baseTime)
         => baseTime * GetProcessTimeMultiplier();
-
-    public float GetFinalPowerCost(float basePowerCost)
-        => basePowerCost * GetPowerEfficiencyMultiplier();
 }

@@ -12,7 +12,6 @@ public static class FacilityLevelDataParser
         int idx_facilityId = table.GetColumnIndex("facilityId");
         int idx_level = table.GetColumnIndex("level");
         int idx_processTimeMultiplier = table.GetColumnIndex("processTimeMultiplier");
-        int idx_powerEfficiencyMultiplier = table.GetColumnIndex("powerEfficiencyMultiplier");
 
         foreach (var row in table.Rows)
         {
@@ -24,7 +23,6 @@ public static class FacilityLevelDataParser
             data.SheetId = (FacilityLevelDataSheetId)(key_facilityId + "_" + key_level);
 
             data.processTimeMultiplier = float.Parse(row.Get(idx_processTimeMultiplier), System.Globalization.CultureInfo.InvariantCulture);
-            data.powerEfficiencyMultiplier = float.Parse(row.Get(idx_powerEfficiencyMultiplier), System.Globalization.CultureInfo.InvariantCulture);
 
             result[data.SheetId] = data;
         }

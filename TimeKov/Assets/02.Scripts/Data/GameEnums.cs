@@ -64,21 +64,6 @@ public enum EffectValueType
     MaxPercent  // 최대치 기준 퍼센트 (예: 최대 Time 의 30%)
 }
 
-// 설비 유형
-// FacilityDataTable.facilityType 에서 사용
-public enum FacilityType
-{
-    BioExtractor,     // 생체 추출기 (1번)
-    BioCultivator,    // 생체 배양기 (2번)
-    ChemRefinery,     // 화학 정제기 (3번)
-    Smelter,          // 용해로 (4번)
-    BioSeparator,     // 생체 분리기 (5번)
-    CoreSynthesizer,  // 코어 합성기 (6번)
-    EnergyConverter,  // 에너지 변환기 (7번)
-    Storage,          // 저장고 (8번)
-    StoragePort       // 창고 출력 포트 (9번, 테두리 설치)
-}
-
 // 드롭 출처 유형
 // DropTable.sourceType 에서 사용
 public enum SourceType

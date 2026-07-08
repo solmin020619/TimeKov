@@ -29,10 +29,6 @@ public class DropTableSchema : SheetSchema
         // dropId 와 함께 복합키 — 같은 풀에 같은 아이템이 두 번 등록되는 실수를 방지한다
         AddRef("itemId", "ItemData", required: true, isKey: true);
 
-        // 드롭 상자/VFX 등급 (1 = 일반, 2 = 중급, 3 = 보스)
-        // 같은 dropId 의 모든 행은 반드시 동일한 dropTier 를 가져야 한다
-        Add("dropTier", ColumnType.Int, required: true);
-
         // 드롭 확률 (0~100). 각 아이템이 독립적으로 이 확률로 드롭된다(다른 행과 무관)
         Add("dropChance", ColumnType.Int, required: true);
 
