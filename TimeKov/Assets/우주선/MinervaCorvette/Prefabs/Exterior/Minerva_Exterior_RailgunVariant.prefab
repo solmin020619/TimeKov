@@ -1,0 +1,120 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5452354586193656997
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 489826385082867259}
+  m_Layer: 0
+  m_Name: Minerva_Exterior_RailgunVariant
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &489826385082867259
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5452354586193656997}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 5443803754590325930}
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &589599943320502548
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 489826385082867259}
+    m_Modifications:
+    - target: {fileID: 1443138825857917677, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2258574923832066002, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3278320863697289492, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4073962229322131144, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4563082953717034664, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5253792042161444612, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_Name
+      value: Minerva_Exterior__CorePrefab
+      objectReference: {fileID: 0}
+    - target: {fileID: 8766642522015301704, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+--- !u!4 &5443803754590325930 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4873713565061533118, guid: ad0cfe9cce820b4499f2bc381a29c878, type: 3}
+  m_PrefabInstance: {fileID: 589599943320502548}
+  m_PrefabAsset: {fileID: 0}
