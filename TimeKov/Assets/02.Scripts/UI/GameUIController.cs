@@ -25,6 +25,7 @@ public class GameUIController : MonoBehaviour
         Inventory,    // 인벤토리 (TAB키, InventoryUIController가 루트 가시성 관리)
         PlayerStat,   // 플레이어 스탯창 (C키)
         CoreUpgrade,  // 코어 강화 UI (터미널 상호작용)
+        Transmission, // 시간에너지 전송 컴퓨터 UI (터미널 상호작용)
         BaseUpgrade,  // 기지(핵심 구역) 업그레이드 UI (터미널 상호작용) - 구역 확장 / 창고 추출기
         ChestOpen,    // 상자 오픈 팝업
         Codex         // 도감 (K키, 전체화면 정지) - 지금은 골격 placeholder
@@ -249,6 +250,8 @@ public class GameUIController : MonoBehaviour
 
         // 코어 강화 UI — SetState 전에 패널 먼저 숨김 (순환 호출 방지)
         CoreUpgradeUI.Instance?.HidePanel();
+        // 전송 컴퓨터 UI
+        TransmissionComputerUI.Instance?.HidePanel();
         // 상자 오픈 UI
         ChestOpenUI.Instance?.HidePanel();
 
@@ -293,6 +296,22 @@ public class GameUIController : MonoBehaviour
     public void CloseCoreUpgradeUI()
     {
         if (_currentState != UIState.CoreUpgrade) return;
+        SetState(UIState.None);
+    }
+
+    // ── 시간에너지 전송 컴퓨터 UI ─────────────────────────────────────
+    // CoreUpgrade 와 동일 패턴: 상태만 전환(커서/입력/HUD는 ApplyState가 일괄 처리),
+    // 실제 패널 표시는 TransmissionComputerUI 가 직접 관리.
+
+    public void OpenTransmissionUI()
+    {
+        if (_currentState != UIState.None) return;
+        SetState(UIState.Transmission);
+    }
+
+    public void CloseTransmissionUI()
+    {
+        if (_currentState != UIState.Transmission) return;
         SetState(UIState.None);
     }
 
@@ -430,6 +449,7 @@ public class GameUIController : MonoBehaviour
             case UIState.Quest:       return "QuestPopup";
             case UIState.Inventory:   return "Inventory";
             case UIState.CoreUpgrade: return "CoreUpgrade";
+            case UIState.Transmission: return "Transmission";
             case UIState.ChestOpen:   return "ChestOpen";
             default:                  return null;   // None, PlayerStat은 별도 채널
         }
