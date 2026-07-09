@@ -51,7 +51,8 @@ public class VattalusInteriorEnvManager : MonoBehaviour
         }));
 
 
-        VattalusSceneController.Instance.CameraChanged.AddListener(SceneCameraChanged);
+        if (VattalusSceneController.Instance != null)
+            VattalusSceneController.Instance.CameraChanged.AddListener(SceneCameraChanged);
     }
 
     //this method checks whether the player is inside the environment by checking each room individually
@@ -90,7 +91,7 @@ public class VattalusInteriorEnvManager : MonoBehaviour
     public void HideUnhideRooms(bool playerInside = true) //when the method is called with the bool parameters given, rooms will be hidden/shown based on this parameter, regardless of actual player physical location (for example when rendering the env/ship from the outside even though the player didn't leave the environment)
     {
         //to remove some edge cases, we will still consider the player to be "outside" if any of the doors happen to close while the player is in orbit camera mode
-        if (VattalusSceneController.Instance.GetCamMode == VattalusSceneController.CameraModes.ShipOrbit) playerInside = false;
+        if (VattalusSceneController.Instance != null && VattalusSceneController.Instance.GetCamMode == VattalusSceneController.CameraModes.ShipOrbit) playerInside = false;
 
         //we will build a list of rooms to leave visible. All other will be hidden
         _roomsToLeaveVisible = new List<VattalusRoomController>();
