@@ -228,8 +228,7 @@ namespace TIMEKOV.Factory
         /// </summary>
         public void AddFuel(int itemCount)
         {
-            var cfg = FuelConfig.Instance;
-            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+            float secs = FuelConfig.SecondsPerFuel;
             FuelTimeRemaining += itemCount * secs;
             FuelItemCount     += itemCount;
             OnFuelChanged?.Invoke();
@@ -242,8 +241,7 @@ namespace TIMEKOV.Factory
         /// </summary>
         public int TakeFuel()
         {
-            var cfg = FuelConfig.Instance;
-            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+            float secs = FuelConfig.SecondsPerFuel;
             int count = Mathf.FloorToInt(FuelTimeRemaining / secs);
             if (count <= 0) return 0;
 
@@ -262,8 +260,7 @@ namespace TIMEKOV.Factory
         {
             if (FuelTimeRemaining <= 0f) return;
 
-            var cfg = FuelConfig.Instance;
-            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+            float secs = FuelConfig.SecondsPerFuel;
 
             float before = FuelTimeRemaining;
             FuelTimeRemaining = Mathf.Max(0f, FuelTimeRemaining - delta);
@@ -298,8 +295,7 @@ namespace TIMEKOV.Factory
                 foreach (var s in output) OutputBuffer.Add(s.itemId, s.amount);
 
             FuelTimeRemaining = Mathf.Max(0f, fuelSecondsRemaining);
-            var cfg = FuelConfig.Instance;
-            float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+            float secs = FuelConfig.SecondsPerFuel;
             FuelItemCount = Mathf.CeilToInt(FuelTimeRemaining / secs);
         }
     }

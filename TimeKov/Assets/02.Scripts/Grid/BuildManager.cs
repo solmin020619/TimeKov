@@ -966,6 +966,9 @@ public class BuildManager : MonoBehaviour, ISaveable
     // 설비 점유 셀 판정 (RailBuildManager 가 레일의 설비 관통 방지에 사용)
     public bool IsCellOccupied(Vector2Int cell) => occupancy.IsOccupied(cell);
 
+    // 외부에서 특정 칸들을 영구 점유로 예약 (우주선 footprint 등 설치 금지 영역).
+    public void ReserveCells(List<Vector2Int> cells) => occupancy.Occupy(cells);
+
     // ===== end Public Helper =====
 
     private Vector2Int WorldToStartCellCentered(Vector3 worldPos, Vector2Int size) => GridMath.WorldToStartCellCentered(worldPos, size, GridOriginPos, cellSize);
