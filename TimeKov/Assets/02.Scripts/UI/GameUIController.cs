@@ -27,6 +27,7 @@ public class GameUIController : MonoBehaviour
         CoreUpgrade,  // 코어 강화 UI (터미널 상호작용)
         Transmission, // 시간에너지 전송 컴퓨터 UI (터미널 상호작용)
         BaseUpgrade,  // 기지(핵심 구역) 업그레이드 UI (터미널 상호작용) - 구역 확장 / 창고 추출기
+        ShipRepair,   // 폐우주선 수리 UI (터미널 상호작용, 풀스크린 대형)
         ChestOpen,    // 상자 오픈 팝업
         Codex         // 도감 (K키, 전체화면 정지) - 지금은 골격 placeholder
     }
@@ -254,6 +255,8 @@ public class GameUIController : MonoBehaviour
         TransmissionComputerUI.Instance?.HidePanel();
         // 상자 오픈 UI
         ChestOpenUI.Instance?.HidePanel();
+        // 폐우주선 수리 UI
+        ShipRepairUI.Instance?.HidePanel();
 
         // 인벤토리도 함께 닫음 — 인벤 가시성은 InventoryUIController가 따로 관리해 ApplyState가 안 건드린다.
         // 사망 등 CloseAll 경로에서 여기서 안 닫으면 인벤이 열린 채 남아 부활버튼 클릭/커서/ESC(상태가
@@ -328,6 +331,22 @@ public class GameUIController : MonoBehaviour
     public void CloseBaseUpgradeUI()
     {
         if (_currentState != UIState.BaseUpgrade) return;
+        SetState(UIState.None);
+    }
+
+    // ── 폐우주선 수리 UI ───────────────────────────────────────────────
+    // BaseUpgrade 와 동일 패턴: 상태만 전환(커서/입력/HUD는 ApplyState가 일괄 처리),
+    // 실제 패널 표시는 ShipRepairUI 가 직접 관리.
+
+    public void OpenShipRepairUI()
+    {
+        if (_currentState != UIState.None) return;
+        SetState(UIState.ShipRepair);
+    }
+
+    public void CloseShipRepairUI()
+    {
+        if (_currentState != UIState.ShipRepair) return;
         SetState(UIState.None);
     }
 
