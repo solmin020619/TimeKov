@@ -78,6 +78,7 @@ public class FacilityInstance : MonoBehaviour
         return GameDataUtility.GetRecipesByFacilityId(facilityId);
     }
 
+    // 레벨 배율 x 우주선 수리 보상(공장 가동속도 전역 배수). 우주선 없으면 1.
     public float GetFinalProcessTime(float baseTime)
-        => baseTime * GetProcessTimeMultiplier();
+        => baseTime * GetProcessTimeMultiplier() * ShipRepairManager.FactorySpeedMultiplier;
 }
