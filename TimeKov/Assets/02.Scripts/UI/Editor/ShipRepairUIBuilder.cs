@@ -3,7 +3,8 @@
 // Tools/TIMEKOV/우주선 수리 UI 생성 -> Canvas 안에 ShipRepairPanel 생성 + ref 연결.
 // 코어 UI 방식(불투명 풀스크린 + 중앙 1560x900 콘텐츠) + 격납고 관제 무드:
 //   배경 = 도면 그리드(별밭 아님) / 좌 = sci-fi 프레임 + 복원도 링(눈금/후광) / 우 = 스탯/부품/버튼.
-// 코어 에셋(Btn_Close_Sci, Panel_Frame_Sci)과 인벤 에셋(pill/panel_ash/panel_steel) 재사용 = 톤 통일.
+// 디자인 PNG 세트 = Resources/ShipRepair/1~6 (1우주선홀로 2배경 3행패널 4버튼 5링 6노드).
+//   전부 '있으면 사용, 없으면 절차 스프라이트 폴백'. 코어 에셋(Btn_Close_Sci, Panel_Frame_Sci)도 재사용.
 // 레벨 pip / 부품 행은 런타임에 ShipRepairUI 가 채운다(레벨 수 가변).
 // =====================================================================
 
@@ -51,14 +52,23 @@ public static class ShipRepairUIBuilder
         Stretch(rootRt);
         SetRef(so, "panelRoot", root);
 
+        // 런타임 Resources.Load 로 쓰는 디자인 PNG 임포트 세팅 보장 (스프라이트/비압축 + 행패널 9-slice 보더).
+        // 2/배경, 4/버튼, 5/링은 아래 사용처에서 LoadSprAt 로 세팅된다.
+        for (int lv = 1; lv <= 5; lv++)
+            LoadSprAt($"Assets/Resources/ShipRepair/1/ship_holo_lv{lv}.png", 0, quiet: true);
+        LoadSprAt("Assets/Resources/ShipRepair/3/row_panel.png",    RowPanelBorder, quiet: true);
+        LoadSprAt("Assets/Resources/ShipRepair/3/row_panel_hl.png", RowPanelBorder, quiet: true);
+        LoadSprAt("Assets/Resources/ShipRepair/6/node_off.png", 0, quiet: true);
+        LoadSprAt("Assets/Resources/ShipRepair/6/node_on.png",  0, quiet: true);
+
         // 어두운 격납고 배경(우주 아님) + 뒤 클릭 차단.
-        // 디자인 배경 PNG(Resources/ShipRepair/bg_hangar_blueprint.png)가 있으면 그걸 쓰고,
+        // 디자인 배경 PNG(Resources/ShipRepair/2/bg_hangar_blueprint.png)가 있으면 그걸 쓰고,
         // 없으면 절차 그라데이션 + 도면 그리드로 폴백.
         var bg = MakeImage("Backdrop", rootRt, Vector2.zero, Vector2.zero, Color.white);
         Stretch(bg.GetComponent<RectTransform>());
         var bgImg = bg.GetComponent<Image>();
         bgImg.raycastTarget = true;
-        var bgSpr = LoadSprAt("Assets/Resources/ShipRepair/bg_hangar_blueprint.png", 0, quiet: true);
+        var bgSpr = LoadSprAt("Assets/Resources/ShipRepair/2/bg_hangar_blueprint.png", 0, quiet: true);
         if (bgSpr != null)
         {
             bgImg.sprite = bgSpr;
@@ -166,15 +176,21 @@ public static class ShipRepairUIBuilder
         shipSlot.GetComponent<Image>().raycastTarget = false;
         shipSlot.GetComponent<Image>().enabled = false;   // 스프라이트 넣으면 켜기
 
-        // 복원도 링 (트랙 + 게이지)
-        var track = MakeImage("RingTrack", heroRt, new Vector2(440, 440), new Vector2(0, 12), RGBA(70, 96, 128, 0.35f));
+        // 복원도 링 (트랙 + 게이지) - 디자인 PNG(5/) 우선, 없으면 절차 링 폴백.
+        // 절차 링과 PNG 링은 굵기/반경이 달라 둘을 섞으면 어긋남 -> 반드시 짝으로만 사용.
+        var trackSpr = LoadSprAt("Assets/Resources/ShipRepair/5/ring_track.png", 0, quiet: true);
+        var fillSpr  = LoadSprAt("Assets/Resources/ShipRepair/5/ring_fill.png",  0, quiet: true);
+        bool ringArt = trackSpr != null && fillSpr != null;
+
+        var track = MakeImage("RingTrack", heroRt, new Vector2(440, 440), new Vector2(0, 12),
+            ringArt ? Color.white : RGBA(70, 96, 128, 0.35f));
         var trackImg = track.GetComponent<Image>();
-        trackImg.sprite = UISpriteFactory.Ring(400, 13f);
+        trackImg.sprite = ringArt ? trackSpr : UISpriteFactory.Ring(400, 13f);
         trackImg.raycastTarget = false;
 
         var gauge = MakeImage("RingGauge", heroRt, new Vector2(440, 440), new Vector2(0, 12), RGBA(106, 212, 255, 1f));
         var gaugeImg = gauge.GetComponent<Image>();
-        gaugeImg.sprite = UISpriteFactory.Ring(400, 13f);
+        gaugeImg.sprite = ringArt ? fillSpr : UISpriteFactory.Ring(400, 13f);   // 채움 링 PNG=흰색(시안 틴트용)
         gaugeImg.raycastTarget = false;
         gaugeImg.type = Image.Type.Filled;
         gaugeImg.fillMethod = Image.FillMethod.Radial360;
@@ -183,41 +199,46 @@ public static class ShipRepairUIBuilder
         gaugeImg.fillAmount = 0f;
         SetRef(so, "ringGauge", gaugeImg);
 
-        // 링 둘레 눈금 (관제 계기판 느낌 - 18도 간격, 90도마다 굵게)
-        for (int i = 0; i < 20; i++)
+        // 링 둘레 눈금 - 트랙 PNG 에는 눈금이 그려져 있어 절차 눈금은 폴백일 때만
+        if (!ringArt)
         {
-            float deg = i * 18f;
-            bool majorTick = (i % 5 == 0);
-            float rad = deg * Mathf.Deg2Rad;
-            const float tickR = 250f;
-            var tick = MakeImage($"Tick{i}", heroRt,
-                new Vector2(majorTick ? 3f : 2f, majorTick ? 16f : 9f),
-                new Vector2(Mathf.Sin(rad) * tickR, 12f + Mathf.Cos(rad) * tickR),
-                majorTick ? RGBA(106, 212, 255, 0.55f) : RGBA(122, 150, 180, 0.30f));
-            tick.transform.localRotation = Quaternion.Euler(0, 0, -deg);
-            tick.GetComponent<Image>().raycastTarget = false;
+            for (int i = 0; i < 20; i++)
+            {
+                float deg = i * 18f;
+                bool majorTick = (i % 5 == 0);
+                float rad = deg * Mathf.Deg2Rad;
+                const float tickR = 250f;
+                var tick = MakeImage($"Tick{i}", heroRt,
+                    new Vector2(majorTick ? 3f : 2f, majorTick ? 16f : 9f),
+                    new Vector2(Mathf.Sin(rad) * tickR, 12f + Mathf.Cos(rad) * tickR),
+                    majorTick ? RGBA(106, 212, 255, 0.55f) : RGBA(122, 150, 180, 0.30f));
+                tick.transform.localRotation = Quaternion.Euler(0, 0, -deg);
+                tick.GetComponent<Image>().raycastTarget = false;
+            }
         }
 
         // 스캔라인 (위아래로 흐르는 홀로그램 주사선 - 런타임 ShipRepairUI 가 구동)
-        var scan = MakeImage("ScanLine", heroRt, Vector2.zero, Vector2.zero, Color.white);
+        var scan = MakeImage("ScanLine", heroRt, Vector2.zero, Vector2.zero, RGBA(106, 212, 255, 1f));
         var scanRt = scan.GetComponent<RectTransform>();
         scanRt.anchorMin = new Vector2(0, 0.5f); scanRt.anchorMax = new Vector2(1, 0.5f); scanRt.pivot = new Vector2(0.5f, 0.5f);
-        scanRt.offsetMin = new Vector2(26, -24); scanRt.offsetMax = new Vector2(-26, 24);
+        scanRt.offsetMin = new Vector2(26, -16); scanRt.offsetMax = new Vector2(-26, 16);
         var scanImg = scan.GetComponent<Image>();
-        scanImg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(106, 212, 255, 0), new Color32(106, 212, 255, 50), 64, 0);
-        scanImg.type = Image.Type.Simple;   // 세로 그라데이션 유지
+        scanImg.sprite = UISpriteFactory.VFade(0, 40);   // 위 투명 -> 아래 발광 페이드 (VGrad 는 알파를 못 살림)
+        scanImg.type = Image.Type.Simple;
         scanImg.raycastTarget = false;
-        var scanEdge = MakeImage("Edge", scanRt, Vector2.zero, Vector2.zero, RGBA(106, 212, 255, 0.45f));
+        var scanEdge = MakeImage("Edge", scanRt, Vector2.zero, Vector2.zero, RGBA(106, 212, 255, 0.35f));
         var seRt = scanEdge.GetComponent<RectTransform>();
         seRt.anchorMin = new Vector2(0, 0); seRt.anchorMax = new Vector2(1, 0); seRt.pivot = new Vector2(0.5f, 0);
         seRt.offsetMin = new Vector2(0, 0); seRt.offsetMax = new Vector2(0, 2);
         scanEdge.GetComponent<Image>().raycastTarget = false;
         SetRef(so, "scanLine", scanRt);
 
-        var capTop = MakeTMP("HoloCaption", heroRt, new Vector2(260, 28), new Vector2(0, 96), "선체 복원도", 16, RGBA(150, 178, 204, 1f), TextAlignmentOptions.Center);
+        // 링 중앙은 우주선 홀로그램 자리 - 라벨+퍼센트를 링 아래에 계기판식으로 쌓는다
+        // (위쪽 캡션은 프레임 상단 장식선과 겹쳐서 폐기)
+        var capTop = MakeTMP("HoloCaption", heroRt, new Vector2(260, 24), new Vector2(0, -212), "선체 복원도", 15, RGBA(150, 178, 204, 1f), TextAlignmentOptions.Center);
         capTop.characterSpacing = 4f;
 
-        var pct = MakeTMP("RestorePercent", heroRt, new Vector2(320, 88), new Vector2(0, 8), "0%", 58, RGBA(106, 212, 255, 1f), TextAlignmentOptions.Center);
+        var pct = MakeTMP("RestorePercent", heroRt, new Vector2(320, 64), new Vector2(0, -262), "0%", 46, RGBA(106, 212, 255, 1f), TextAlignmentOptions.Center);
         pct.fontStyle = FontStyles.Bold;
         SetRef(so, "restorePercentText", pct);
 
@@ -278,10 +299,13 @@ public static class ShipRepairUIBuilder
         phRt.anchorMin = new Vector2(0, 0); phRt.anchorMax = new Vector2(1, 0); phRt.pivot = new Vector2(0.5f, 0);
         phRt.offsetMin = new Vector2(0, 76); phRt.offsetMax = new Vector2(0, 100);
 
-        // 수리 버튼 (흑백 그라데이션 스프라이트 + 상태색 틴트 - 런타임 BtnReady/BtnLocked 가 색을 바꿈)
+        // 수리 버튼 (흑백 버튼 PNG + 상태색 틴트 - 런타임 BtnReady/BtnLocked 가 색을 바꿈)
         var repair = MakeButton("RepairButton", colRt, Vector2.zero, Vector2.zero, "수리 실행", 22, new Color(0.20f, 0.66f, 0.95f, 1f));
         var repImg = repair.GetComponent<Image>();
-        repImg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(255, 255, 255, 255), new Color32(185, 205, 222, 255), 64, 16);
+        var btnSpr = LoadSprAt("Assets/Resources/ShipRepair/4/btn_repair.png", new Vector4(30, 24, 30, 24), quiet: true);
+        repImg.sprite = btnSpr != null
+            ? btnSpr
+            : UISpriteFactory.RoundedRectVGrad(new Color32(255, 255, 255, 255), new Color32(185, 205, 222, 255), 64, 16);
         repImg.type = Image.Type.Sliced;
         repImg.color = new Color(0.20f, 0.66f, 0.95f, 1f);
         var repRt = repair.GetComponent<RectTransform>();
@@ -311,11 +335,12 @@ public static class ShipRepairUIBuilder
             "- ShipRepairPanel 은 기본 비활성(꺼둠) — 그대로 두면 됨\n" +
             "- 런타임에 우주선 F 로 자동 활성화되어 열림\n" +
             "- 레벨/부품은 ShipRepairManager 인스펙터에서 정의\n" +
-            "- 우주선 아트가 생기면 HoloStage/ShipHologramSlot 에 연결\n" +
+            "- 디자인 PNG(Resources/ShipRepair/1~6)는 자동 연결(없으면 폴백)\n" +
             "- Ctrl+S 로 씬 저장", "확인");
     }
 
-    // 스탯 1행: 애쉬 패널 PNG + 좌측 시안 액센트 바 + 라벨(좌)/값(우). 값 TMP 반환.
+    // 스탯 1행: 디자인 행패널 PNG(코너 액센트 포함) + 라벨(좌)/값(우). 값 TMP 반환.
+    // PNG 없으면 절차 그라데이션 + 좌측 시안 액센트 바 폴백.
     static TextMeshProUGUI MakeStatRow(Transform parent, float topY, string label)
     {
         var row = new GameObject("StatRow", typeof(RectTransform), typeof(Image));
@@ -323,30 +348,37 @@ public static class ShipRepairUIBuilder
         var rt = (RectTransform)row.transform;
         rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(0.5f, 1);
         rt.offsetMin = new Vector2(0, topY - 48); rt.offsetMax = new Vector2(0, topY);
-        // 절차 그라데이션 (PNG 9-slice 를 가로로 늘리면 생기는 세로 이음매 없음)
+        var rowSpr = LoadSprAt("Assets/Resources/ShipRepair/3/row_panel.png", RowPanelBorder, quiet: true);
         var rowImg = row.GetComponent<Image>();
-        rowImg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 215), new Color32(16, 22, 32, 235), 64, 14);
+        rowImg.sprite = rowSpr != null
+            ? rowSpr
+            : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 215), new Color32(16, 22, 32, 235), 64, 14);
         rowImg.type = Image.Type.Sliced;
         rowImg.raycastTarget = false;
 
-        // 좌측 시안 액센트 바
-        var accent = new GameObject("Accent", typeof(RectTransform), typeof(Image));
-        accent.transform.SetParent(rt, false);
-        var art = (RectTransform)accent.transform;
-        art.anchorMin = new Vector2(0, 0.5f); art.anchorMax = new Vector2(0, 0.5f); art.pivot = new Vector2(0, 0.5f);
-        art.sizeDelta = new Vector2(4, 26); art.anchoredPosition = new Vector2(8, 0);
-        accent.GetComponent<Image>().color = RGBA(106, 212, 255, 0.85f);
-        accent.GetComponent<Image>().raycastTarget = false;
+        if (rowSpr == null)
+        {
+            // 좌측 시안 액센트 바 (절차 폴백 전용 - 디자인판은 패널 자체에 액센트가 있음)
+            var accent = new GameObject("Accent", typeof(RectTransform), typeof(Image));
+            accent.transform.SetParent(rt, false);
+            var art = (RectTransform)accent.transform;
+            art.anchorMin = new Vector2(0, 0.5f); art.anchorMax = new Vector2(0, 0.5f); art.pivot = new Vector2(0, 0.5f);
+            art.sizeDelta = new Vector2(4, 26); art.anchoredPosition = new Vector2(8, 0);
+            accent.GetComponent<Image>().color = RGBA(106, 212, 255, 0.85f);
+            accent.GetComponent<Image>().raycastTarget = false;
+        }
 
+        // 디자인 패널은 양끝에 코너 회로 장식이 있어 텍스트를 넉넉히 안쪽으로 (붙으면 답답해 보임)
+        float inset = rowSpr != null ? 52f : 22f;
         var nm = MakeTMP("Name", rt, Vector2.zero, Vector2.zero, label, 16, Hex("CDD8E5"), TextAlignmentOptions.Left);
         var nrt = nm.rectTransform;
         nrt.anchorMin = new Vector2(0, 0); nrt.anchorMax = new Vector2(0.5f, 1);
-        nrt.offsetMin = new Vector2(22, 0); nrt.offsetMax = new Vector2(0, 0);
+        nrt.offsetMin = new Vector2(inset, 0); nrt.offsetMax = new Vector2(0, 0);
 
         var val = MakeTMP("Value", rt, Vector2.zero, Vector2.zero, "-", 16, RGBA(106, 212, 255, 1f), TextAlignmentOptions.Right);
         var vrt = val.rectTransform;
         vrt.anchorMin = new Vector2(0.4f, 0); vrt.anchorMax = new Vector2(1, 1);
-        vrt.offsetMin = new Vector2(0, 0); vrt.offsetMax = new Vector2(-16, 0);
+        vrt.offsetMin = new Vector2(0, 0); vrt.offsetMax = new Vector2(rowSpr != null ? -52f : -16f, 0);
         return val;
     }
 
@@ -435,22 +467,22 @@ public static class ShipRepairUIBuilder
             rImg.raycastTarget = false;
         }
 
-        // 상/하 비네트 (위아래를 어둡게 눌러 중앙 집중)
-        var vigTop = MakeImage("VignetteTop", parent, Vector2.zero, Vector2.zero, Color.white);
+        // 상/하 비네트 (위아래를 어둡게 눌러 중앙 집중) - 알파 페이드 스프라이트 + 암색 틴트
+        var vigTop = MakeImage("VignetteTop", parent, Vector2.zero, Vector2.zero, RGBA(2, 4, 8, 1f));
         var vtRt = vigTop.GetComponent<RectTransform>();
         vtRt.anchorMin = new Vector2(0, 1); vtRt.anchorMax = new Vector2(1, 1); vtRt.pivot = new Vector2(0.5f, 1);
         vtRt.offsetMin = new Vector2(0, -240); vtRt.offsetMax = new Vector2(0, 0);
         var vtImg = vigTop.GetComponent<Image>();
-        vtImg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(2, 4, 8, 160), new Color32(0, 0, 0, 0), 64, 0);
+        vtImg.sprite = UISpriteFactory.VFade(160, 0);
         vtImg.type = Image.Type.Simple;
         vtImg.raycastTarget = false;
 
-        var vigBot = MakeImage("VignetteBottom", parent, Vector2.zero, Vector2.zero, Color.white);
+        var vigBot = MakeImage("VignetteBottom", parent, Vector2.zero, Vector2.zero, RGBA(2, 4, 8, 1f));
         var vbRt = vigBot.GetComponent<RectTransform>();
         vbRt.anchorMin = new Vector2(0, 0); vbRt.anchorMax = new Vector2(1, 0); vbRt.pivot = new Vector2(0.5f, 0);
         vbRt.offsetMin = new Vector2(0, 0); vbRt.offsetMax = new Vector2(0, 240);
         var vbImg = vigBot.GetComponent<Image>();
-        vbImg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(0, 0, 0, 0), new Color32(2, 4, 8, 160), 64, 0);
+        vbImg.sprite = UISpriteFactory.VFade(0, 160);
         vbImg.type = Image.Type.Simple;
         vbImg.raycastTarget = false;
     }
@@ -473,8 +505,15 @@ public static class ShipRepairUIBuilder
     }
 
     // ── 스프라이트 로드/적용 (CoreUpgradeUIBuilder 계열) ──
+    // 행패널 PNG(512x96) 9-slice 보더: 좌우 28 / 상하 20 (스탯 행 높이 48에서도 코너 안 뭉개짐)
+    static readonly Vector4 RowPanelBorder = new Vector4(28, 20, 28, 20);
+
     // quiet=true: 없어도 경고 없이 null (배경 PNG처럼 '있으면 쓰는' 선택 에셋용)
     static Sprite LoadSprAt(string path, int border = 0, bool quiet = false)
+        => LoadSprAt(path, new Vector4(border, border, border, border), quiet);
+
+    // border = (좌, 하, 우, 상) — TextureImporter.spriteBorder 순서
+    static Sprite LoadSprAt(string path, Vector4 border, bool quiet)
     {
         var imp = AssetImporter.GetAtPath(path) as TextureImporter;
         if (imp != null)
@@ -485,10 +524,10 @@ public static class ShipRepairUIBuilder
             if (imp.textureCompression != TextureImporterCompression.Uncompressed) { imp.textureCompression = TextureImporterCompression.Uncompressed; dirty = true; }
             if (imp.mipmapEnabled) { imp.mipmapEnabled = false; dirty = true; }
             if (imp.maxTextureSize < 2048) { imp.maxTextureSize = 2048; dirty = true; }
-            if (border > 0)
+            if (border != Vector4.zero && imp.spriteBorder != border)
             {
-                var b = new Vector4(border, border, border, border);
-                if (imp.spriteBorder != b) { imp.spriteBorder = b; dirty = true; }
+                imp.spriteBorder = border;
+                dirty = true;
             }
             if (dirty) imp.SaveAndReimport();
         }

@@ -66,6 +66,28 @@ public static class UISpriteFactory
         _cache[key] = s; return s;
     }
 
+    // 수직 알파 페이드 (흰색, 알파만 위/아래로 변화). Image.color 로 틴트.
+    // RoundedRectVGrad 는 알파를 모양 coverage 로 덮어써서 페이드가 안 됨 - 페이드는 이걸 쓸 것.
+    // topA = 텍스처 위쪽 알파, bottomA = 아래쪽 알파.
+    public static Sprite VFade(byte topA, byte bottomA, int size = 64)
+    {
+        string key = $"vfade_{size}_{topA}_{bottomA}";
+        if (_cache.TryGetValue(key, out var c)) return c;
+
+        var tex = NewTex(size, size);
+        var px = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            float ty = (y + 0.5f) / size; // 0=하단, 1=상단 (SetPixels32 는 아래 행부터)
+            byte a = (byte)Mathf.Lerp(bottomA, topA, ty);
+            for (int x = 0; x < size; x++)
+                px[y * size + x] = new Color32(255, 255, 255, a);
+        }
+        tex.SetPixels32(px); tex.Apply();
+        var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        _cache[key] = s; return s;
+    }
+
     // 소프트 디스크 (가운데 흰색 → 가장자리 투명). 빛폭발/글로우용.
     public static Sprite Disc(int size = 64)
     {
