@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 public class PlayerInteractComponent : MonoBehaviour
@@ -6,6 +7,10 @@ public class PlayerInteractComponent : MonoBehaviour
     public float InteractRadius = 2f;
     [Tooltip("인터랙션 감지 레이어 마스크. 설정하지 않으면 모든 콜라이더를 검사해 성능 낭비 발생")]
     public LayerMask InteractLayer = ~0; // 기본값: 전체 (Inspector에서 반드시 지정 권장)
+
+    [Header("Hint UI")]
+    [Tooltip("가장 가까운 IInteractHint 오브젝트의 레이블을 표시할 TMP_Text. 연결 안 해도 무방.")]
+    [SerializeField] TextMeshProUGUI _interactHintText;
 
     private Player _player;
 
@@ -16,7 +21,11 @@ public class PlayerInteractComponent : MonoBehaviour
 
     void Update()
     {
-        // Idle/Move/Run 상태에서만 상호작용
+        // 매 프레임 nearest 파악 → 힌트 갱신
+        IInteractable nearest = FindClosest();
+        UpdateHint(nearest);
+
+        // 상호작용 입력은 Idle/Move/Run 상태에서만
         if (_player.Skill.IsExecuting) return;
         if (_player.Movement.IsJumping) return;
         if (_player.Dash != null && _player.Dash.IsDashing) return;
@@ -27,11 +36,10 @@ public class PlayerInteractComponent : MonoBehaviour
         bool gPressed = _player.Input.InstantPressed;
         if (!fPressed && !gPressed) return;
 
-        IInteractable closest = FindClosest();
-        if (closest == null) return;
+        if (nearest == null) return;
 
         // G: 즉시완료 (가능한 대상만)
-        if (gPressed && closest is IInstantInteractable inst && inst.CanInstantComplete(_player))
+        if (gPressed && nearest is IInstantInteractable inst && inst.CanInstantComplete(_player))
         {
             inst.OnInstantComplete(_player);
             return;
@@ -39,7 +47,22 @@ public class PlayerInteractComponent : MonoBehaviour
 
         // F: 일반 상호작용
         if (fPressed)
-            closest.Interact(_player);
+            nearest.Interact(_player);
+    }
+
+    void UpdateHint(IInteractable nearest)
+    {
+        if (_interactHintText == null) return;
+
+        if (nearest is IInteractHint hint)
+        {
+            _interactHintText.text = $"[F]  {hint.HintLabel}";
+            _interactHintText.gameObject.SetActive(true);
+        }
+        else
+        {
+            _interactHintText.gameObject.SetActive(false);
+        }
     }
 
     IInteractable FindClosest()

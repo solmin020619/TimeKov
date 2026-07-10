@@ -19,6 +19,9 @@ public class ShipRepairTerminal : MonoBehaviour, IInteractable
             player.Skill.IsExecuting || player.Dash.IsDashing)
             return;
 
+        // F로 방금 닫은 직후 재오픈 방지(한 F가 닫기+재오픈으로 깜빡이는 것 방지)
+        if (Time.frameCount - ShipRepairUI.LastCloseFrame <= 1) return;
+
         var mgr = ShipRepairManager.Instance;
         if (mgr == null)
         {
@@ -26,7 +29,16 @@ public class ShipRepairTerminal : MonoBehaviour, IInteractable
             return;
         }
 
-        // 지금은 로직 검증용 즉시 수리. UI 완성 시 여기서 수리 패널을 연다.
-        mgr.TryRepairNext();
+        // UI 패널이 있으면(꺼져 있어도 EnsureInstance 가 활성화) 열고, 없으면(빌더 미실행) 즉시 수리 폴백.
+        var ui = ShipRepairUI.EnsureInstance();
+        if (ui != null)
+        {
+            GameUIController.Instance?.OpenShipRepairUI();
+            ui.Open();
+        }
+        else
+        {
+            mgr.TryRepairNext();
+        }
     }
 }
