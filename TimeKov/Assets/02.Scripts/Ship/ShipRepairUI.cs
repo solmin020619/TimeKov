@@ -152,7 +152,7 @@ public class ShipRepairUI : MonoBehaviour
         var go = new GameObject("Pip", typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var le = go.AddComponent<LayoutElement>();
-        le.preferredWidth = 18f; le.preferredHeight = 18f;
+        le.preferredWidth = 30f; le.preferredHeight = 30f;
         var img = go.GetComponent<Image>();
         img.sprite = UISpriteFactory.Circle(48);
         img.color = PipEmpty;
@@ -165,7 +165,7 @@ public class ShipRepairUI : MonoBehaviour
         var go = new GameObject($"Part_{level}", typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var le = go.AddComponent<LayoutElement>();
-        le.preferredHeight = 40f;
+        le.preferredHeight = 52f;
         var bg = go.GetComponent<Image>();
         bg.sprite = UISpriteFactory.RoundedRect(40, 10);
         bg.type = Image.Type.Sliced;

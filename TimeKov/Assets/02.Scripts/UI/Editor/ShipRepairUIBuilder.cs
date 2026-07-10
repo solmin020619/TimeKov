@@ -56,36 +56,23 @@ public static class ShipRepairUIBuilder
         var bgImg = bg.GetComponent<Image>();
         bgImg.sprite = null; bgImg.raycastTarget = true;
         var bgGrad = bg.AddComponent<UIFrostGradient>();
-        bgGrad.topColor    = RGBA(14, 20, 30, 0.72f);
-        bgGrad.bottomColor = RGBA(5, 8, 13, 0.90f);
+        bgGrad.topColor    = RGBA(15, 21, 32, 1f);   // 불투명 = 게임 화면 완전히 가림(코어 방식, 화면 꽉참)
+        bgGrad.bottomColor = RGBA(6, 9, 14, 1f);
 
-        // ── 콘솔 카드 (중앙 대형) ──
-        var card = MakeImage("Console", rootRt, new Vector2(1120, 680), Vector2.zero, RGBA(26, 36, 50, 0.30f));
+        // ── 콘텐츠 컨테이너 (투명, 중앙 1560x860) ──
+        // 코어 UI 방식: 불투명 풀스크린 배경 위에 콘텐츠만 띄운다(별도 카드 프레임/블러 박스 없음).
+        var card = MakeImage("Content", rootRt, new Vector2(1560, 900), Vector2.zero, new Color(1f, 1f, 1f, 0f));
         var crt = card.GetComponent<RectTransform>();
         crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
         crt.anchoredPosition = Vector2.zero;
-        var cardImg = card.GetComponent<Image>();
-        cardImg.sprite = UISpriteFactory.RoundedRect(96, 26);
-        cardImg.type   = Image.Type.Sliced;
-        var cardMask = card.AddComponent<Mask>();
-        cardMask.showMaskGraphic = true;
-
-        AddFrostedBlur(crt);
-
-        // 카드 내부 어두운 그라데이션(가독성)
-        var inner = MakeImage("InnerDark", crt, Vector2.zero, Vector2.zero, Color.white);
-        Stretch(inner.GetComponent<RectTransform>());
-        inner.GetComponent<Image>().raycastTarget = false;
-        var innerGrad = inner.AddComponent<UIFrostGradient>();
-        innerGrad.topColor    = RGBA(20, 28, 40, 0.42f);
-        innerGrad.bottomColor = RGBA(9, 13, 20, 0.60f);
+        card.GetComponent<Image>().raycastTarget = false;
 
         // ── 헤더 ──
         var eyebrow = MakeTMP("Eyebrow", crt, Vector2.zero, Vector2.zero, "폐선체 복원 관제", 14, RGBA(106, 212, 255, 0.9f), TextAlignmentOptions.Left);
         AnchorTop(eyebrow.rectTransform, 36, -52, -30);
         eyebrow.characterSpacing = 6f;
 
-        var title = MakeTMP("Title", crt, Vector2.zero, Vector2.zero, "우주선 수리", 30, Hex("EAF3FB"), TextAlignmentOptions.Left);
+        var title = MakeTMP("Title", crt, Vector2.zero, Vector2.zero, "우주선 수리", 34, Hex("EAF3FB"), TextAlignmentOptions.Left);
         title.fontStyle = FontStyles.Bold;
         AnchorTop(title.rectTransform, 36, -96, -56);
 
@@ -119,15 +106,15 @@ public static class ShipRepairUIBuilder
         pipGo.transform.SetParent(crt, false);
         var pipRt = pipGo.GetComponent<RectTransform>();
         pipRt.anchorMin = new Vector2(0, 1); pipRt.anchorMax = new Vector2(1, 1); pipRt.pivot = new Vector2(0.5f, 1);
-        pipRt.offsetMin = new Vector2(300, -152); pipRt.offsetMax = new Vector2(-36, -120);
+        pipRt.offsetMin = new Vector2(240, -154); pipRt.offsetMax = new Vector2(-36, -118);
         var hlg = pipGo.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 10f; hlg.childAlignment = TextAnchor.MiddleLeft;
-        hlg.childControlWidth = false; hlg.childControlHeight = false;
+        hlg.spacing = 12f; hlg.childAlignment = TextAnchor.MiddleLeft;
+        hlg.childControlWidth = true; hlg.childControlHeight = true;
         hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
         SetRef(so, "pipContainer", pipRt);
 
         // ── 좌측 홀로그램 (복원도 링) ──
-        var hero = MakeImage("HoloStage", crt, Vector2.zero, Vector2.zero, RGBA(12, 18, 28, 0.5f));
+        var hero = MakeImage("HoloStage", crt, Vector2.zero, Vector2.zero, RGBA(16, 23, 34, 0.82f));
         var heroRt = hero.GetComponent<RectTransform>();
         heroRt.anchorMin = new Vector2(0, 0); heroRt.anchorMax = new Vector2(0.5f, 1);
         heroRt.offsetMin = new Vector2(36, 64); heroRt.offsetMax = new Vector2(-16, -170);
@@ -136,19 +123,19 @@ public static class ShipRepairUIBuilder
         heroImg.raycastTarget = false;
 
         // 우주선 아트 슬롯(나중에 스프라이트 연결) — 지금은 비활성 placeholder
-        var shipSlot = MakeImage("ShipHologramSlot", heroRt, new Vector2(300, 200), new Vector2(0, 12), new Color(1, 1, 1, 1));
+        var shipSlot = MakeImage("ShipHologramSlot", heroRt, new Vector2(420, 280), new Vector2(0, 12), new Color(1, 1, 1, 1));
         shipSlot.GetComponent<Image>().raycastTarget = false;
         shipSlot.GetComponent<Image>().enabled = false;   // 스프라이트 넣으면 켜기
 
         // 복원도 링 (트랙 + 게이지)
-        var track = MakeImage("RingTrack", heroRt, new Vector2(300, 300), new Vector2(0, 12), RGBA(70, 96, 128, 0.35f));
+        var track = MakeImage("RingTrack", heroRt, new Vector2(440, 440), new Vector2(0, 12), RGBA(70, 96, 128, 0.35f));
         var trackImg = track.GetComponent<Image>();
-        trackImg.sprite = UISpriteFactory.Ring(256, 9f);
+        trackImg.sprite = UISpriteFactory.Ring(400, 13f);
         trackImg.raycastTarget = false;
 
-        var gauge = MakeImage("RingGauge", heroRt, new Vector2(300, 300), new Vector2(0, 12), RGBA(106, 212, 255, 1f));
+        var gauge = MakeImage("RingGauge", heroRt, new Vector2(440, 440), new Vector2(0, 12), RGBA(106, 212, 255, 1f));
         var gaugeImg = gauge.GetComponent<Image>();
-        gaugeImg.sprite = UISpriteFactory.Ring(256, 9f);
+        gaugeImg.sprite = UISpriteFactory.Ring(400, 13f);
         gaugeImg.raycastTarget = false;
         gaugeImg.type = Image.Type.Filled;
         gaugeImg.fillMethod = Image.FillMethod.Radial360;
@@ -157,10 +144,10 @@ public static class ShipRepairUIBuilder
         gaugeImg.fillAmount = 0f;
         SetRef(so, "ringGauge", gaugeImg);
 
-        var capTop = MakeTMP("HoloCaption", heroRt, new Vector2(240, 24), new Vector2(0, 60), "선체 복원도", 14, RGBA(122, 135, 151, 1f), TextAlignmentOptions.Center);
+        var capTop = MakeTMP("HoloCaption", heroRt, new Vector2(260, 26), new Vector2(0, 96), "선체 복원도", 15, RGBA(122, 135, 151, 1f), TextAlignmentOptions.Center);
         capTop.characterSpacing = 4f;
 
-        var pct = MakeTMP("RestorePercent", heroRt, new Vector2(240, 70), new Vector2(0, 6), "0%", 46, RGBA(106, 212, 255, 1f), TextAlignmentOptions.Center);
+        var pct = MakeTMP("RestorePercent", heroRt, new Vector2(320, 88), new Vector2(0, 8), "0%", 58, RGBA(106, 212, 255, 1f), TextAlignmentOptions.Center);
         pct.fontStyle = FontStyles.Bold;
         SetRef(so, "restorePercentText", pct);
 
@@ -178,31 +165,31 @@ public static class ShipRepairUIBuilder
 
         // 스탯 3행
         var statVals = new Object[3];
-        statVals[0] = MakeStatRow(colRt, -50, "건축 범위");
-        statVals[1] = MakeStatRow(colRt, -98, "설비 연료");
-        statVals[2] = MakeStatRow(colRt, -146, "공장 가동속도");
+        statVals[0] = MakeStatRow(colRt, -58, "건축 범위");
+        statVals[1] = MakeStatRow(colRt, -120, "설비 연료");
+        statVals[2] = MakeStatRow(colRt, -182, "공장 가동속도");
         SetRefArray(so, "statValueTexts", statVals);
 
         var sdiv = MakeImage("StatDivider", colRt, Vector2.zero, Vector2.zero, RGBA(84, 98, 122, 0.4f));
-        AnchorTopStretch(sdiv.GetComponent<RectTransform>(), 4, 4, -204, -203);
+        AnchorTopStretch(sdiv.GetComponent<RectTransform>(), 4, 4, -244, -243);
         sdiv.GetComponent<Image>().raycastTarget = false;
 
         var partsLabel = MakeTMP("PartsLabel", colRt, Vector2.zero, Vector2.zero, "수리 부품", 15, Hex("CDD8E5"), TextAlignmentOptions.Left);
         partsLabel.fontStyle = FontStyles.Bold;
-        AnchorTopStretch(partsLabel.rectTransform, 4, 120, -234, -210);
+        AnchorTopStretch(partsLabel.rectTransform, 4, 120, -274, -250);
 
         var partsCount = MakeTMP("PartsCount", colRt, Vector2.zero, Vector2.zero, "회수  0 / 4", 13, RGBA(122, 135, 151, 1f), TextAlignmentOptions.Right);
-        AnchorTopStretch(partsCount.rectTransform, 120, 4, -234, -210);
+        AnchorTopStretch(partsCount.rectTransform, 120, 4, -274, -250);
         SetRef(so, "partsCountText", partsCount);
 
         var partsGo = new GameObject("PartsContent", typeof(RectTransform));
         partsGo.transform.SetParent(colRt, false);
         var partsRt = partsGo.GetComponent<RectTransform>();
         partsRt.anchorMin = new Vector2(0, 0); partsRt.anchorMax = new Vector2(1, 1);
-        partsRt.offsetMin = new Vector2(0, 72); partsRt.offsetMax = new Vector2(0, -244);
+        partsRt.offsetMin = new Vector2(0, 72); partsRt.offsetMax = new Vector2(0, -284);
         var pvlg = partsGo.AddComponent<VerticalLayoutGroup>();
-        pvlg.spacing = 6f; pvlg.childAlignment = TextAnchor.UpperCenter;
-        pvlg.childControlWidth = true; pvlg.childControlHeight = false;
+        pvlg.spacing = 8f; pvlg.childAlignment = TextAnchor.UpperCenter;
+        pvlg.childControlWidth = true; pvlg.childControlHeight = true;
         pvlg.childForceExpandWidth = true; pvlg.childForceExpandHeight = false;
         SetRef(so, "partsContent", partsRt);
 
