@@ -54,9 +54,26 @@ public class TransmissionComputerUI : MonoBehaviour
     private Button _sendBtn; private Image _sendBtnImg; private CanvasGroup _sendBtnCg;
     private readonly List<RectTransform> _spinRings = new();
     private readonly List<GameObject> _markers = new();
+    private readonly TMP_Text[] _legendLabels = new TMP_Text[4];   // 구간 레전드 라벨(도달 시 공개)
+    private readonly Image[] _legendDots = new Image[4];
     private readonly List<KitRow> _kitRows = new();
+    private GameObject _kitListRoot;      // 키트 행이 들어가는 컨테이너(동적 재구성 대상)
+    private GameObject _kitEmptyLabel;    // 보유 키트 0개일 때 안내 라벨
+    private int _shownRate;               // 현재 게이지에 표시 중인 전송률(애니 from 기준)
+    private bool _mgrSubscribed;          // TransmissionManager 이벤트 구독 여부
     private GameObject _tooltip; private TMP_Text _ttTitle, _ttName, _ttState; private Image _ttBox;
     private TMP_Text _logText;
+    private RectTransform _cursor;   // 상태 텍스트 끝을 따라가는 깜빡이 커서
+    private readonly List<CanvasGroup> _bootPanels = new();   // 열릴 때 순차로 펼쳐질 패널들
+
+    // ── 리워드 리빌(지점 도달 연출) ──────────────────────────────────
+    private GameObject _reward; private CanvasGroup _rewardCg; private RectTransform _rewardCard;
+    private TMP_Text _rewardTitle, _rewardName, _rewardDesc; private Image _rewardBurst, _rewardBar, _rewardEmblem;
+    private UnityEngine.UI.Outline _rewardOutline; private readonly List<RectTransform> _rewardRings = new();
+    private Sequence _rewardSeq;
+    private struct Reveal { public string title, name, desc; public Color color; public int markerPct; }
+    private readonly Queue<Reveal> _revealQ = new();
+    private bool _revealBusy;
 
     private Model _m;
 
@@ -65,17 +82,27 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
         _kr = ResolveFont(krFont, "Pretendard-SemiBold", "Pretendard", "남양주", "GabiaMaeumgyeol");
         _mono = ResolveFont(monoFont, "JetBrains", "Rajdhani-SemiBold", "Rajdhani", null) ?? _kr;
         Debug.Log($"[TransmissionUI] 폰트 → 한글: {(_kr != null ? _kr.name : "null")} / 영숫자: {(_mono != null ? _mono.name : "null")}  (krFont지정={(krFont != null ? krFont.name : "none")}, monoFont지정={(monoFont != null ? monoFont.name : "none")})");
         _m = new Model();
+        EnsureManager();          // 씬에 매니저 없으면 런타임 생성
+        SubscribeManager();       // 전송률/보상/해금 이벤트 구독(닫혀있어도 _shownRate 동기화)
+        _shownRate = Mathf.RoundToInt(_m.progress);
         Build();
         _root.SetActive(false);
     }
 
     public static TransmissionComputerUI GetOrCreate()
         => Instance != null ? Instance : new GameObject("TransmissionComputerUI").AddComponent<TransmissionComputerUI>();
+
+    private void OnDestroy()
+    {
+        UnsubscribeManager();
+        if (Instance == this) Instance = null;
+        // _root 는 메인 캔버스 아래에 붙어 있어 이 컴포넌트와 수명이 분리될 수 있으므로 함께 정리(고아 방지).
+        if (_root != null) Destroy(_root);
+    }
 
     private void Update()
     {
@@ -88,9 +115,12 @@ public class TransmissionComputerUI : MonoBehaviour
 
     public void Open()
     {
+        EnsureManager();                      // 다른 씬 등에서 매니저가 없으면 보장
         _root.SetActive(true);
+        _root.transform.SetAsLastSibling();   // 메인 캔버스 내 형제들 위(맨 앞)로
         _openedFrame = Time.frameCount;
         _m.selectedId = null;
+        _shownRate = Mathf.RoundToInt(_m.progress);
         RefreshAll();
         SetGauge(_m.progress, false);
         PlayOpenAnim();
@@ -113,15 +143,10 @@ public class TransmissionComputerUI : MonoBehaviour
     // =====================================================================
     private void Build()
     {
-        var cvGo = new GameObject("Canvas");
-        cvGo.transform.SetParent(transform, false);
-        var cv = cvGo.AddComponent<Canvas>(); cv.renderMode = RenderMode.ScreenSpaceOverlay; cv.sortingOrder = 60;
-        var cs = cvGo.AddComponent<CanvasScaler>();
-        cs.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        cs.referenceResolution = new Vector2(1920, 1080); cs.matchWidthOrHeight = 0.5f;
-        cvGo.AddComponent<GraphicRaycaster>();
-
-        _root = NewGO("Root", cvGo.transform); Stretch(_root);
+        // 기존 메인 Canvas 안에 들어가도록 그 아래에 붙인다(코어강화 UI 등과 동일 관례).
+        // 절대좌표는 1920×1080 기준 — 메인 캔버스도 동일 기준이라 그대로 맞는다.
+        Transform uiParent = ResolveUIParent();
+        _root = NewGO("TransmissionComputerUI_Root", uiParent); Stretch(_root);
         _root.AddComponent<Image>().color = new Color(0, 0, 0, 0); // raycast blocker (invisible; bg drawn below)
         _cg = _root.AddComponent<CanvasGroup>();
 
@@ -134,6 +159,7 @@ public class TransmissionComputerUI : MonoBehaviour
         BuildFooter();
         BuildTooltip();
         BuildOverlay();
+        BuildRewardOverlay();
     }
 
     // ── C-0 배경 ──────────────────────────────────────────────────────
@@ -194,6 +220,7 @@ public class TransmissionComputerUI : MonoBehaviour
         float cw = 250, cx = 1832 - cw, cy = 40;
         var card = Img("rateCard", _content, cx, cy, cw, 182, C("111A2C", 0.4f), UISpriteFactory.RoundedRect(48, 16));
         Outline(card.gameObject, C("4CC9F7", 0.25f));
+        RegisterBootPanel(card.rectTransform);   // 순차 오픈 애니 첫 번째 대상
         // 장식 링
         var rr = Img("rcRingSpin", card.transform, cw - 70 - 70, -70, 210, 210, C("4CC9F7", 0.16f), UISpriteFactory.Ring(210, 2f));
         rr.raycastTarget = false; _spinRings.Add((RectTransform)rr.transform);
@@ -221,21 +248,26 @@ public class TransmissionComputerUI : MonoBehaviour
         // 바 트랙
         float tx = 44, ty = 66, tw = 1744 - 88, th = 54; _trackW = tw;
         var track = TL(NewGO("track", panel.transform), tx, ty, tw, th);
-        // 구간 배경 4등분
+        // 바 본체 — 바깥 4모서리만 라운드(마스크). 안쪽 구간/눈금/채움은 전부 각지게.
+        // (구간마다 RoundedRect 를 쓰면 용암 세그먼트 안쪽 모서리까지 둥글어져 부자연스러웠음 → 마스크로 통일)
+        var body = TL(NewGO("barBody", track), 0, 0, tw, th);
+        var bodyImg = body.gameObject.AddComponent<Image>();
+        bodyImg.sprite = UISpriteFactory.RoundedRect(48, 12); bodyImg.type = Image.Type.Sliced; bodyImg.raycastTarget = false;
+        var bodyMask = body.gameObject.AddComponent<Mask>(); bodyMask.showMaskGraphic = false;
+
+        // 구간 배경 4등분 (전부 각진 사각 — 바깥 라운드는 body 마스크가 처리)
         for (int i = 0; i < 4; i++)
         {
-            var seg = Img($"seg{i}", track.gameObject, i * tw / 4f, 0, tw / 4f, th,
-                new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.15f),
-                UISpriteFactory.RoundedRect(24, i == 0 || i == 3 ? 12 : 2));
+            var seg = Img($"seg{i}", body.gameObject, i * tw / 4f, 0, tw / 4f, th,
+                new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.15f));
             seg.raycastTarget = false;
-            if (i < 3) Img($"segDiv{i}", track.gameObject, (i + 1) * tw / 4f - 1, 0, 1, th, C("E8F2FB", 0.10f)).raycastTarget = false;
         }
-        // 눈금 오버레이
-        var ticks = Img("ticks", track.gameObject, 0, 0, tw, th, new Color(1, 1, 1, 0.7f), TickTile((int)(tw / 40f)));
-        ticks.type = Image.Type.Tiled; ticks.color = C("E8F2FB", 0.07f); ticks.raycastTarget = false;
+        // 세로 눈금선 — 정확히 10% 지점마다(마커 위치와 1:1 일치). 10~90% 내부 라인.
+        for (int p = 10; p <= 90; p += 10)
+            Img($"tick{p}", body.gameObject, tw * p / 100f - 0.5f, 0, 1, th, C("E8F2FB", 0.10f)).raycastTarget = false;
 
-        // 채움 (마스크 + 그라데이션 이미지, fillAmount 로 클리핑)
-        var fillGo = TL(NewGO("fill", track), 0, 0, tw, th);
+        // 채움 (마스크 + 그라데이션 이미지, fillAmount 로 클리핑). body 마스크 안이라 왼쪽 끝도 라운드로 잘림.
+        var fillGo = TL(NewGO("fill", body), 0, 0, tw, th);
         fillGo.gameObject.AddComponent<RectMask2D>();
         _fill = Img2(NewGO("fillImg", fillGo), HGrad());
         Stretch(_fill.gameObject); _fill.type = Image.Type.Filled; _fill.fillMethod = Image.FillMethod.Horizontal;
@@ -252,8 +284,9 @@ public class TransmissionComputerUI : MonoBehaviour
         var line = Img("nLine", _node.gameObject, 0, 0, 3, th + 24, AccentBright, UISpriteFactory.RoundedRect(8, 1));
         CenterIn(line, _node); line.raycastTarget = false;
         var dia = Img("nDia", _node.gameObject, 0, 0, 16, 16, Accent, UISpriteFactory.RoundedRect(16, 4));
-        dia.rectTransform.anchorMin = dia.rectTransform.anchorMax = new Vector2(0.5f, 1f); dia.rectTransform.pivot = new Vector2(0.5f, 1f);
-        dia.rectTransform.anchoredPosition = new Vector2(0, 9); dia.rectTransform.localRotation = Quaternion.Euler(0, 0, 45); dia.raycastTarget = false;
+        // pivot 을 다이아 중심(0.5,0.5)으로 — top-center 로 두면 45° 회전 시 시각 중심이 오른쪽으로 밀려 선과 어긋난다.
+        dia.rectTransform.anchorMin = dia.rectTransform.anchorMax = new Vector2(0.5f, 1f); dia.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        dia.rectTransform.anchoredPosition = new Vector2(0, 2); dia.rectTransform.localRotation = Quaternion.Euler(0, 0, 45); dia.raycastTarget = false;
         var pulse = Img("nPulse", dia.transform, 0, 0, 16, 16, C("4CC9F7", 0.5f), UISpriteFactory.RoundedRect(16, 4)); CenterIn(pulse, dia.rectTransform); pulse.raycastTarget = false;
         pulse.rectTransform.DOScale(2.0f, 1.0f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
         pulse.DOFade(0f, 1.0f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
@@ -268,15 +301,38 @@ public class TransmissionComputerUI : MonoBehaviour
         // 마커 10개
         for (int p = 10; p <= 100; p += 10) BuildMarker(track.gameObject, p, tw, th);
 
-        // 레전드
+        // 레전드 — 라벨/도트는 진행 도달 여부에 따라 RefreshLegend()에서 공개/??? 처리.
         float ly = ty + th + 46;
         for (int i = 0; i < 4; i++)
         {
             float lx = tx + i * tw / 4f + 4;
-            Img($"lgDot{i}", panel.transform, lx, ly + 3, 8, 8, RegionCol[i], UISpriteFactory.Disc(16)).raycastTarget = false;
-            int lo = i * 25, hi = (i + 1) * 25;
-            Txt($"lg{i}", panel.transform, lx + 16, ly, 160, 18, $"{RegionKo[i]} {lo}-{hi}", _mono, 13,
+            _legendDots[i] = Img($"lgDot{i}", panel.transform, lx, ly + 3, 8, 8, RegionCol[i], UISpriteFactory.Disc(16));
+            _legendDots[i].raycastTarget = false;
+            _legendLabels[i] = Txt($"lg{i}", panel.transform, lx + 16, ly, 160, 18, "???", _mono, 13,
                 new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.88f), TextAlignmentOptions.Left);
+        }
+    }
+
+    // 각 구간 라벨은 해당 구간에 도달(전송률 ≥ 구간 시작 %)해야 공개. 그 전엔 ??? + 흐리게.
+    private void RefreshLegend()
+    {
+        int rate = _m != null ? Mathf.RoundToInt(_m.progress) : 0;
+        for (int i = 0; i < 4; i++)
+        {
+            if (_legendLabels[i] == null) continue;
+            bool reached = rate >= i * 25;
+            if (reached)
+            {
+                _legendLabels[i].text = $"{RegionKo[i]} {i * 25}-{(i + 1) * 25}";
+                _legendLabels[i].color = new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.88f);
+                if (_legendDots[i] != null) _legendDots[i].color = RegionCol[i];
+            }
+            else
+            {
+                _legendLabels[i].text = "???";
+                _legendLabels[i].color = C("E2EDF8", 0.28f);
+                if (_legendDots[i] != null) _legendDots[i].color = C("E2EDF8", 0.2f);
+            }
         }
     }
 
@@ -313,7 +369,7 @@ public class TransmissionComputerUI : MonoBehaviour
         var list = TL(NewGO("kitList", lp.transform), 16, 74, leftW - 32, bh - 90);
         var vlg = list.gameObject.AddComponent<VerticalLayoutGroup>(); vlg.spacing = 8; vlg.childControlWidth = vlg.childControlHeight = true;
         vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false; vlg.childAlignment = TextAnchor.UpperCenter;
-        foreach (var k in _m.kits) _kitRows.Add(BuildKitRow(list.gameObject, k));
+        _kitListRoot = list.gameObject;   // 실제 키트 행은 Open()의 RebuildKitRows()에서 인벤토리 기준으로 채움
 
         // 우: 전송 제어
         var rp = Panel("ctrlPanel", 88 + leftW + gap, by, rightW, bh);
@@ -344,7 +400,7 @@ public class TransmissionComputerUI : MonoBehaviour
         Txt("sendTxt", send.gameObject, 0, 0, sendW, 62, "전송", _mono, 22, C("06202E"), TextAlignmentOptions.Center, 0, FontStyles.Bold)
             .rectTransform.anchoredPosition += new Vector2(12, 0);
 
-        var close = Img("closeBtn", rp.transform, ix + sendW + 14, btnY, 130, 62, new Color(0, 0, 0, 0), UISpriteFactory.RoundedRect(48, 12));
+        var close = Img("closeBtn", rp.transform, ix + sendW + 14, btnY, 130, 62, C("E8F2FB", 0.07f), UISpriteFactory.RoundedRect(48, 12));
         var cb = close.gameObject.AddComponent<Button>(); cb.targetGraphic = close; cb.navigation = new Navigation { mode = Navigation.Mode.None };
         cb.onClick.AddListener(Close); Outline(close.gameObject, C("E2EDF8", 0.25f));
         Txt("closeTxt", close.gameObject, 0, 0, 130, 62, "닫기 ESC", _mono, 18, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
@@ -387,8 +443,18 @@ public class TransmissionComputerUI : MonoBehaviour
     private void BuildFooter()
     {
         _statusLine = Txt("status", _content, 88, 1010, 1200, 22, "", _mono, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
-        var cursor = Img("cursor", _content, 88 + 470, 1010, 9, 16, Accent, UISpriteFactory.RoundedRect(8, 2));
+        // 커서 높이 18, 상태 텍스트(y=1010, h=22, 세로 중앙) 중심(=1021)에 맞춰 y=1012 배치.
+        var cursor = Img("cursor", _content, 88 + 470, 1012, 9, 18, Accent, UISpriteFactory.RoundedRect(8, 2));
+        cursor.raycastTarget = false; _cursor = cursor.rectTransform;   // 상태 텍스트 끝으로 따라오도록 참조 저장
         cursor.DOFade(0f, 0.6f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.Linear).SetUpdate(true);
+    }
+
+    // 상태 텍스트 실제 폭을 재서 커서를 그 끝 바로 옆에 배치.
+    private void PositionCursor()
+    {
+        if (_cursor == null || _statusLine == null) return;
+        float w = _statusLine.GetPreferredValues(_statusLine.text).x;
+        _cursor.anchoredPosition = new Vector2(88 + w + 10, _cursor.anchoredPosition.y);
     }
 
     private void KeyHint(float x, float y, float w, string t)
@@ -419,16 +485,94 @@ public class TransmissionComputerUI : MonoBehaviour
         vig.raycastTarget = false;
     }
 
+    // ── 리워드 리빌 오버레이(지점 도달 연출용, 평소 비활성) ────────────
+    private void BuildRewardOverlay()
+    {
+        _reward = TL(NewGO("RewardReveal", _content.transform), 0, 0, 1920, 1080).gameObject;
+        _rewardCg = _reward.AddComponent<CanvasGroup>();
+
+        // 스크림 — 배경을 어둡게 + 클릭 시 스킵
+        var scrim = Img("rwScrim", _reward, 0, 0, 1920, 1080, C("040810", 0.62f));
+        scrim.raycastTarget = true;
+        var sbtn = scrim.gameObject.AddComponent<Button>();
+        sbtn.transition = Selectable.Transition.None; sbtn.navigation = new Navigation { mode = Navigation.Mode.None };
+        sbtn.onClick.AddListener(SkipReveal);
+
+        // 중앙 빛폭발 + 확장 링(카드 뒤)
+        _rewardBurst = CenteredImg("rwBurst", _reward.transform, 0, 0, 360, 360, new Color(0, 0, 0, 0), UISpriteFactory.Disc(256));
+        for (int i = 0; i < 2; i++)
+        {
+            var ring = CenteredImg($"rwRing{i}", _reward.transform, 0, 0, 120, 120, new Color(0, 0, 0, 0), UISpriteFactory.Ring(256, 3f));
+            _rewardRings.Add(ring.rectTransform);
+        }
+
+        // 카드(중앙, 640×300 → TL 640,390). pivot 을 중앙으로 바꿔 스케일이 중앙에서 퍼지게 한다
+        // (자식들은 좌상단 앵커라 위치 영향 없음). anchoredPosition 은 중앙점(960,-540)으로 보정.
+        var card = TL(NewGO("rwCard", _reward.transform), 640, 390, 640, 300); _rewardCard = card;
+        card.pivot = new Vector2(0.5f, 0.5f); card.anchoredPosition = new Vector2(960, -540);
+        var bg = card.gameObject.AddComponent<Image>(); bg.sprite = UISpriteFactory.RoundedRect(48, 18); bg.type = Image.Type.Sliced; bg.color = C("0B1524", 0.98f); bg.raycastTarget = false;
+        _rewardOutline = card.gameObject.AddComponent<UnityEngine.UI.Outline>(); _rewardOutline.effectColor = Success; _rewardOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        _rewardBar = Img("rwBar", card.gameObject, 0, 0, 640, 4, Success, UISpriteFactory.RoundedRect(8, 2)); _rewardBar.raycastTarget = false;
+
+        // 엠블럼(중심 글로우 + 링)
+        Img("rwEmGlow", card.gameObject, 288, 52, 64, 64, C("FFFFFF", 0.10f), UISpriteFactory.Disc(96)).raycastTarget = false;
+        _rewardEmblem = Img("rwEmRing", card.gameObject, 288, 52, 64, 64, Success, UISpriteFactory.Ring(96, 4f)); _rewardEmblem.raycastTarget = false;
+
+        _rewardTitle = Txt("rwTitle", card.gameObject, 20, 24, 600, 20, "", _mono, 14, Success, TextAlignmentOptions.Center, 3, FontStyles.Bold);
+        _rewardName  = Txt("rwName", card.gameObject, 24, 130, 592, 42, "", _kr, 30, TextBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
+        _rewardDesc  = Txt("rwDesc", card.gameObject, 30, 182, 580, 46, "", _kr, 16, C("E8F2FB", 0.7f), TextAlignmentOptions.Top);
+        _rewardDesc.textWrappingMode = TextWrappingModes.Normal;
+        Txt("rwHint", card.gameObject, 0, 264, 640, 18, "클릭하여 계속", _mono, 12, C("E8F2FB", 0.4f), TextAlignmentOptions.Center);
+
+        _reward.SetActive(false);
+    }
+
+    // 부모 중심 기준으로 배치되는 이미지(원형 이펙트용).
+    private Image CenteredImg(string n, Transform p, float ox, float oy, float w, float h, Color col, Sprite spr)
+    {
+        var go = NewGO(n, p); var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(w, h); rt.anchoredPosition = new Vector2(ox, oy);
+        var im = go.AddComponent<Image>(); im.color = col; if (spr != null) im.sprite = spr;
+        im.raycastTarget = false; return im;
+    }
+
     // =====================================================================
     // 갱신 / 인터랙션
     // =====================================================================
     private void RefreshAll()
     {
-        RefreshMarkers();
-        RefreshKitRows();
+        _m.RebuildKits();     // 인벤토리 → 키트 목록 최신화
+        RebuildKitRows();     // 목록에 맞춰 행 재생성 + 시각 상태 갱신
         RefreshSelection();
         RefreshStatus();
         RefreshLog();
+        RefreshMarkers();
+    }
+
+    // 보유 키트 목록에 맞춰 행을 재생성한다(개수/종류가 바뀌므로 매 갱신 시 다시 만든다).
+    private void RebuildKitRows()
+    {
+        foreach (var r in _kitRows) if (r != null && r.go != null) Destroy(r.go);
+        _kitRows.Clear();
+        if (_kitEmptyLabel != null) { Destroy(_kitEmptyLabel); _kitEmptyLabel = null; }
+        if (_kitListRoot == null) return;
+
+        if (_m.kits.Count == 0)
+        {
+            // 빈 상태 안내(레이아웃 그룹 자식이므로 LayoutElement 로 높이 확보).
+            var go = NewGO("kitEmpty", _kitListRoot.transform);
+            go.AddComponent<LayoutElement>().minHeight = 60;
+            var t = go.AddComponent<TextMeshProUGUI>();
+            if (_kr != null) t.font = _kr;
+            t.text = "보유한 충전키트가 없습니다.\n공장에서 제작해 가져오세요.";
+            t.fontSize = 15; t.color = C("E8F2FB", 0.4f); t.alignment = TextAlignmentOptions.TopLeft;
+            t.textWrappingMode = TextWrappingModes.Normal; t.raycastTarget = false;
+            _kitEmptyLabel = go;
+            return;
+        }
+        foreach (var k in _m.kits) _kitRows.Add(BuildKitRow(_kitListRoot, k));
+        RefreshKitRows();
     }
 
     private void RefreshMarkers()
@@ -485,7 +629,13 @@ public class TransmissionComputerUI : MonoBehaviour
         _sendBtnCg.alpha = active ? 1f : 0.5f; _sendBtnCg.blocksRaycasts = active; _sendBtnCg.interactable = active;
     }
 
-    private void RefreshStatus() => _statusLine.text = _m.StatusText();
+    private void RefreshStatus()
+    {
+        _statusLine.text = _m.StatusText();
+        if (_subLabel != null) _subLabel.text = $"기지 전송 컴퓨터     현재 구간 {RegionKo[(int)_m.Cur]}";
+        PositionCursor();
+        RefreshLegend();
+    }
     private void RefreshLog()
     {
         var sb = new System.Text.StringBuilder();
@@ -504,12 +654,152 @@ public class TransmissionComputerUI : MonoBehaviour
     private void OnSend()
     {
         var k = _m.Selected(); if (k == null || !_m.Usable(k)) return;
-        float from = _m.progress;
-        bool cross = _m.Send(k, out int to, out bool broke);
-        if (!cross) return;
-        SetGauge(to, true, from);
-        RefreshKitRows(); RefreshSelection(); RefreshStatus(); RefreshLog();
+        string kn = k.name; int from = Mathf.RoundToInt(_m.progress);
+        // 매니저가 키트 소모 + 전송률 상승 + 토스트 + 이벤트 처리.
+        // 전송률 상승은 OnRateChanged → HandleRateChanged 에서 게이지/목록/마커를 갱신한다.
+        if (!_m.Send(k)) return;
+        _m.logs.Add($"{kn} x1 전송 / {from}% -> {Mathf.RoundToInt(_m.progress)}%");
+        RefreshLog();
+    }
+
+    // ── TransmissionManager 이벤트 ────────────────────────────────────
+    // 씬에 매니저가 없으면(다른 씬에서 열릴 때 등) 런타임 생성 — 기본 키트 정의 사용.
+    private static void EnsureManager()
+    {
+        if (TransmissionManager.Instance != null) return;
+        new GameObject("TransmissionManager").AddComponent<TransmissionManager>();
+        Debug.LogWarning("[TransmissionUI] 씬에 TransmissionManager가 없어 런타임 생성했습니다(기본 키트 정의 사용).");
+    }
+
+    private void SubscribeManager()
+    {
+        if (_mgrSubscribed) return;
+        TransmissionManager.OnRateChanged    += HandleRateChanged;
+        TransmissionManager.OnRewardMilestone += HandleMilestone;
+        TransmissionManager.OnRegionUnlocked += HandleRegionUnlocked;
+        _mgrSubscribed = true;
+    }
+    private void UnsubscribeManager()
+    {
+        if (!_mgrSubscribed) return;
+        TransmissionManager.OnRateChanged    -= HandleRateChanged;
+        TransmissionManager.OnRewardMilestone -= HandleMilestone;
+        TransmissionManager.OnRegionUnlocked -= HandleRegionUnlocked;
+        _mgrSubscribed = false;
+    }
+
+    // 전송률 변화(전송 성공 / F3 등 외부 변경 공통 경로) — 게이지 애니 + 전체 갱신.
+    private void HandleRateChanged(int newRate)
+    {
+        if (!IsOpen) { _shownRate = newRate; return; }   // 닫혀있으면 값만 저장(재열 때 반영)
+        SetGauge(newRate, true, _shownRate);
+        _shownRate = newRate;
+        _m.RebuildKits(); RebuildKitRows(); RefreshSelection(); RefreshStatus();
         DOVirtual.DelayedCall(0.9f, RefreshMarkers).SetUpdate(true);
+    }
+    private void HandleMilestone(int pct)
+    {
+        _m.logs.Add($"{pct}% 구간 보상 획득"); if (IsOpen) RefreshLog();
+        if (!IsOpen) return;   // 닫혀있으면 연출 스킵(스테일 큐 방지)
+        _revealQ.Enqueue(new Reveal
+        {
+            title = $"구간 달성 · {pct}%", name = $"{_m.RewardName(pct)} 획득!",
+            desc = _m.RewardDesc(pct), color = Success, markerPct = pct
+        });
+        TryPlayNextReveal();
+    }
+    private void HandleRegionUnlocked(TransmissionRegion r)
+    {
+        _m.logs.Add($"{RegionKo[(int)r]} 구간 해금"); if (IsOpen) RefreshLog();
+        if (!IsOpen) return;
+        _revealQ.Enqueue(new Reveal
+        {
+            title = "구간 해금", name = $"{RegionKo[(int)r]} 구간 개방!",
+            desc = "새로운 지역으로 시간에너지 전송을 이어갈 수 있습니다.", color = Accent, markerPct = -1
+        });
+        TryPlayNextReveal();
+    }
+
+    // ── 리워드 리빌 재생 ──────────────────────────────────────────────
+    private void TryPlayNextReveal()
+    {
+        if (_revealBusy || !IsOpen || _revealQ.Count == 0) return;
+        _revealBusy = true;
+        PlayReveal(_revealQ.Dequeue());
+    }
+
+    private void PlayReveal(Reveal r)
+    {
+        // 내용/색 세팅
+        _rewardTitle.text = r.title; _rewardTitle.color = r.color;
+        _rewardName.text = r.name; _rewardDesc.text = r.desc;
+        _rewardBar.color = r.color; _rewardOutline.effectColor = r.color; _rewardEmblem.color = r.color;
+
+        _reward.SetActive(true); _reward.transform.SetAsLastSibling();
+        _rewardCg.alpha = 0f; _rewardCg.blocksRaycasts = false;
+        _rewardCard.localScale = Vector3.one * 0.85f;
+
+        _rewardSeq?.Kill();
+        _rewardSeq = DOTween.Sequence().SetUpdate(true);
+        _rewardSeq.AppendInterval(0.7f);   // 게이지가 해당 지점까지 오르는 동안 대기
+        _rewardSeq.AppendCallback(() =>
+        {
+            _rewardCg.blocksRaycasts = true;
+            if (r.markerPct >= 0) FlashMarker(r.markerPct, r.color);
+            PlayBurst(r.color);
+        });
+        _rewardSeq.Append(_rewardCg.DOFade(1f, 0.25f));
+        _rewardSeq.Join(_rewardCard.DOScale(1f, 0.42f).SetEase(Ease.OutBack));
+        // 자동 닫힘 없음 — 플레이어가 클릭(SkipReveal→CloseReveal)할 때까지 유지.
+    }
+
+    private void PlayBurst(Color col)
+    {
+        _rewardBurst.color = new Color(col.r, col.g, col.b, 0.55f);
+        _rewardBurst.rectTransform.localScale = Vector3.one * 0.3f;
+        _rewardBurst.rectTransform.DOScale(2.4f, 0.7f).SetEase(Ease.OutQuad).SetUpdate(true);
+        _rewardBurst.DOFade(0f, 0.7f).SetUpdate(true);
+        for (int i = 0; i < _rewardRings.Count; i++)
+        {
+            var ring = _rewardRings[i]; var im = ring.GetComponent<Image>();
+            ring.localScale = Vector3.one * 0.5f; im.color = new Color(col.r, col.g, col.b, 0.6f);
+            ring.DOScale(3.2f + i, 0.9f).SetEase(Ease.OutQuad).SetUpdate(true).SetDelay(i * 0.12f);
+            im.DOFade(0f, 0.9f).SetUpdate(true).SetDelay(i * 0.12f);
+        }
+    }
+
+    private void FlashMarker(int pct, Color col)
+    {
+        foreach (var mk in _markers)
+        {
+            if (mk == null || mk.name != $"MK{pct}") continue;
+            var rt = (RectTransform)mk.transform;
+            rt.DOKill(); rt.localScale = Vector3.one;
+            rt.DOScale(1.55f, 0.22f).SetLoops(2, LoopType.Yoyo).SetEase(Ease.OutQuad).SetUpdate(true);
+            break;
+        }
+    }
+
+    private void SkipReveal()
+    {
+        // 스크림 blocksRaycasts 는 등장(빛폭발) 이후에만 true 라, 그 전엔 이 콜백이 오지 않는다.
+        if (!_revealBusy) return;
+        CloseReveal();
+    }
+
+    private void CloseReveal()
+    {
+        _rewardSeq?.Kill();                     // 등장/이전 닫힘 시퀀스 정리(OnComplete 미발생)
+        if (_rewardCg != null) _rewardCg.blocksRaycasts = false;   // 닫는 동안 추가 클릭 차단
+        _rewardSeq = DOTween.Sequence().SetUpdate(true);
+        _rewardSeq.Append(_rewardCg.DOFade(0f, 0.25f));
+        _rewardSeq.Join(_rewardCard.DOScale(0.9f, 0.25f).SetEase(Ease.InSine));
+        _rewardSeq.OnComplete(() =>
+        {
+            if (_reward != null) _reward.SetActive(false);
+            _revealBusy = false;
+            TryPlayNextReveal();               // 큐에 남은 다음 보상 재생
+        });
     }
 
     // ── E-6 게이지 이동 ───────────────────────────────────────────────
@@ -545,10 +835,29 @@ public class TransmissionComputerUI : MonoBehaviour
     private void PlayOpenAnim()
     {
         _cg.DOKill(); _content.DOKill();
-        _cg.alpha = 0f; _cg.DOFade(1f, 0.18f).SetUpdate(true);
-        _content.localScale = Vector3.one * 0.98f; _content.DOScale(1f, 0.22f).SetEase(Ease.OutSine).SetUpdate(true);
+        // 1) 창(프레임/배경)이 먼저 빠르게 켜진다.
+        _cg.alpha = 0f; _cg.DOFade(1f, 0.12f).SetUpdate(true);
+        _content.localScale = Vector3.one;
+
+        // 2) 각 패널이 순서대로 "로드되듯" 서서히 드러난다(스케일 없이 페이드만 — 정적이고 컴퓨터스럽게).
+        for (int i = 0; i < _bootPanels.Count; i++)
+        {
+            var cg = _bootPanels[i]; if (cg == null) continue;
+            var rt = (RectTransform)cg.transform;
+            rt.DOKill(); cg.DOKill();
+            rt.localScale = Vector3.one;                          // 접힘/확대 없음
+            cg.alpha = 0f;
+            float delay = 0.12f + i * 0.13f;                      // 순차 스태거(하나씩 로드되는 느낌)
+            cg.DOFade(1f, 0.3f).SetEase(Ease.OutSine).SetUpdate(true).SetDelay(delay);
+        }
     }
-    private void KillAll() { if (_cg != null) _cg.DOKill(); if (_content != null) _content.DOKill(); if (_fill != null) _fill.DOKill(); if (_node != null) _node.DOKill(); }
+    private void KillAll()
+    {
+        if (_cg != null) _cg.DOKill(); if (_content != null) _content.DOKill();
+        if (_fill != null) _fill.DOKill(); if (_node != null) _node.DOKill();
+        _rewardSeq?.Kill(); _revealQ.Clear(); _revealBusy = false;
+        if (_reward != null) _reward.SetActive(false);
+    }
 
     // ── 툴팁 (마커 호버 콜백) ─────────────────────────────────────────
     public void ShowTooltip(int pct, RectTransform marker)
@@ -557,7 +866,8 @@ public class TransmissionComputerUI : MonoBehaviour
         Color col = st == MState.Done ? Success : st == MState.Next ? Accent : C("E2EDF8", 0.35f);
         _ttBox.color = C("101A2D", 0.98f); var ol = _tooltip.GetComponent<UnityEngine.UI.Outline>(); if (ol != null) ol.effectColor = col;
         _ttTitle.color = col; _ttTitle.text = $"{pct}% 지점 보상";
-        _ttName.text = _m.RewardName(pct);
+        // 보상 이름은 이미 획득(Done)했거나 바로 다음 구간(Next)일 때만 공개. 그 이후(Locked)는 ??? 로 가림.
+        _ttName.text = st == MState.Locked ? "???" : _m.RewardName(pct);
         _ttState.color = col; _ttState.text = _m.TooltipStatus(pct, st);
         var rt = (RectTransform)_tooltip.transform;
         rt.anchoredPosition = ContentPointFromMarker(marker);
@@ -578,42 +888,53 @@ public class TransmissionComputerUI : MonoBehaviour
     // 모델 (스펙 D)
     // =====================================================================
     private enum MState { Done, Next, Locked }
-    private enum Grade { Normal, Elite, Boss }
-    private class Kit { public string id, name; public TransmissionRegion region; public Grade grade; public int gain, qty; }
+    // UI 표시용 키트 뷰모델 — 실제 정의(ChargedKitDef)와 인벤토리 보유수를 담는다.
+    private class Kit
+    {
+        public TransmissionManager.ChargedKitDef def;  // 매니저 호출용 원본
+        public string id;        // 선택 키(itemId 문자열)
+        public string name;
+        public TransmissionRegion region;
+        public bool isBoss;
+        public int gain;         // 1개당 상승 전송률(%)
+        public int qty;          // 인벤토리 실보유 수(RebuildKits 때 갱신)
+    }
 
+    // TransmissionManager(로직·인벤토리·저장)를 감싸는 어댑터. UI는 이 Model만 본다.
     private class Model
     {
-        public float progress = 42;
-        public string selectedId;
-        public readonly List<Kit> kits = new()
-        {
-            new Kit{ id="snN", name="설원 일반 충전키트", region=TransmissionRegion.Snow, grade=Grade.Normal, gain=3, qty=4 },
-            new Kit{ id="snE", name="설원 정예 충전키트", region=TransmissionRegion.Snow, grade=Grade.Elite,  gain=5, qty=2 },
-            new Kit{ id="snB", name="설원 보스 충전키트", region=TransmissionRegion.Snow, grade=Grade.Boss,   gain=8, qty=1 },
-            new Kit{ id="naN", name="자연 일반 충전키트", region=TransmissionRegion.Nature, grade=Grade.Normal, gain=3, qty=2 },
-        };
-        public readonly List<string> logs = new() { "UPLINK 연결됨 / 구간: 설원" };
+        private static TransmissionManager Mgr => TransmissionManager.Instance;
 
-        public TransmissionRegion Cur => progress >= 100 ? TransmissionRegion.Lava : (TransmissionRegion)Mathf.Clamp((int)(progress / 25), 0, 3);
-        public int Cap => ((int)Cur + 1) * 25;
+        public string selectedId;
+        public readonly List<Kit> kits = new();
+        public readonly List<string> logs = new() { "UPLINK 연결됨" };
+
+        public float progress => Mgr != null ? Mgr.TransmissionRate : 0f;
+        public TransmissionRegion Cur => Mgr != null ? Mgr.CurrentRegion : TransmissionRegion.Nature;
+
+        // 인벤토리에 실제 보유한 키트로 목록 재구성.
+        public void RebuildKits()
+        {
+            kits.Clear();
+            if (Mgr != null)
+            {
+                foreach (var d in Mgr.GetOwnedKits())
+                    kits.Add(new Kit
+                    {
+                        def = d, id = d.itemId.ToString(), name = d.displayName,
+                        region = d.region, isBoss = d.isBoss, gain = d.ratePercent,
+                        qty = Mgr.GetOwnedCount(d.itemId)
+                    });
+            }
+            if (selectedId != null && Selected() == null) selectedId = null;  // 선택 키트가 소진됐으면 해제
+        }
 
         public Kit Selected() { foreach (var k in kits) if (k.id == selectedId) return k; return null; }
 
-        public bool Usable(Kit k) => k.qty > 0 && k.region == Cur && progress < Cap;
-        public int Target(Kit k) => Mathf.Min(Mathf.RoundToInt(progress) + k.gain, Cap);
-
-        public bool Send(Kit k, out int to, out bool broke)
-        {
-            to = Target(k); broke = false;
-            if (to <= progress || !Usable(k)) return false;
-            int delta = to - Mathf.RoundToInt(progress);
-            progress = to; k.qty -= 1;
-            logs.Add($"{k.name} x1 전송 / +{delta}% -> {to}%");
-            if (to == Cap) { broke = true; logs.Add($"{to}% 보상 획득 / {NextRegionKo()} 구간 해금"); }
-            selectedId = null;
-            return true;
-        }
-        string NextRegionKo() { int n = Mathf.Clamp((int)Cur + 1, 0, 3); return RegionKo[n]; }
+        // 사용 가능 여부·예상 전송률·전송 실행은 전부 매니저에 위임(구간/상한/보스 규칙은 매니저가 판정).
+        public bool Usable(Kit k) => Mgr != null && k != null && Mgr.CanTransmit(k.def, out _);
+        public int Target(Kit k) => (Mgr != null && k != null) ? Mgr.GetProjectedRate(k.def) : Mathf.RoundToInt(progress);
+        public bool Send(Kit k) => Mgr != null && k != null && Mgr.TryTransmit(k.def.itemId);
 
         public MState MarkerState(int pct)
         {
@@ -630,6 +951,15 @@ public class TransmissionComputerUI : MonoBehaviour
             _ => "최종 보상 - 엔딩"
         };
 
+        // 보상 설명(연출용). TODO: 실제 설비 이름/효과는 보상 데이터 확정 후 교체.
+        public string RewardDesc(int pct) => pct switch
+        {
+            10 or 20 or 30 or 40 or 50 or 60 => "새로운 설비 설계도를 사용할 수 있습니다.",
+            70 => "언제든 기지로 즉시 귀환할 수 있습니다.",
+            80 or 90 => "우주선 복원에 필요한 핵심 부품을 확보했습니다.",
+            _ => "시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!"
+        };
+
         public string TooltipStatus(int pct, MState st)
         {
             if (st == MState.Done) return "획득 완료";
@@ -637,23 +967,23 @@ public class TransmissionComputerUI : MonoBehaviour
             {
                 bool boundary = pct % 25 == 0; // 25/50/75/100
                 string grade = boundary ? "보스" : "일반";
-                int n = boundary ? 1 : 2;
-                return $"필요: {RegionKo[(int)Cur]} {grade} 충전키트 x{n}";
+                return $"필요: {RegionKo[(int)Cur]} {grade} 충전키트";
             }
             return "??? (도달 시 공개)";
         }
 
         public string StatusText()
         {
-            int cap = Cap; int p = Mathf.RoundToInt(progress);
-            if (p < cap) return $"현재 구간 {RegionKo[(int)Cur]} / 일반 상한 {cap}% / 목표 {cap}%";
-            return $"{cap}% 도달 / 다음 구간 진행";
+            if (Mgr == null) return "전송 시스템 대기 중";
+            int p = Mgr.TransmissionRate;
+            if (p >= TransmissionManager.MaxRate) return "전송률 100% 달성 — 엔딩 조건 충족";
+            return $"현재 구간 {RegionKo[(int)Cur]} / 일반 상한 {Mgr.CurrentRegionNormalCap}% / 목표 {Mgr.CurrentRegionGoal}%";
         }
     }
 
     private string KitMeta(Kit k)
     {
-        string g = k.grade == Grade.Normal ? "일반" : k.grade == Grade.Elite ? "정예" : "보스";
+        string g = k.isBoss ? "보스" : "일반";
         string meta = $"{RegionKo[(int)k.region]} 지역 / {g} 등급";
         if (k.region != _m.Cur) meta += "  <color=#F27059>다른 지역 / 이 구간 사용 불가</color>";
         else if (k.qty <= 0) meta += "  <color=#F27059>수량 없음</color>";
@@ -674,6 +1004,52 @@ public class TransmissionComputerUI : MonoBehaviour
     // =====================================================================
     // 헬퍼 (레이아웃/그래픽)
     // =====================================================================
+    // 기존 메인 Canvas(스크린 오버레이 루트, 최상위 sortingOrder)를 찾아 그 아래에 넣는다.
+    // 못 찾으면(부팅 순서 등) 자체 캔버스로 폴백.
+    private Transform ResolveUIParent()
+    {
+        var main = FindMainCanvas();
+        if (main != null)
+        {
+            // 레이아웃이 1920×1080 절대좌표라 스케일러가 없으면(=ScaleFactor 1) 다른 해상도에서
+            // UI가 원본 픽셀로 렌더돼 늘어남/뿌옇게(겹쳐 보임) 나온다. 스케일러가 없을 때만 추가한다.
+            // 실게임 HUD(Canvas.prefab)는 이미 ScaleWithScreenSize 1920×1080 스케일러가 있어 이 분기를 그냥 통과.
+            EnsureScaler(main.gameObject);
+            return main.transform;
+        }
+
+        var cvGo = new GameObject("TransmissionCanvas(Fallback)");
+        cvGo.transform.SetParent(transform, false);
+        var cv = cvGo.AddComponent<Canvas>(); cv.renderMode = RenderMode.ScreenSpaceOverlay; cv.sortingOrder = 100;
+        EnsureScaler(cvGo);
+        cvGo.AddComponent<GraphicRaycaster>();
+        Debug.LogWarning("[TransmissionUI] 메인 Canvas를 못 찾아 자체 캔버스로 표시합니다.");
+        return cvGo.transform;
+    }
+
+    // 캔버스에 CanvasScaler가 없으면 1920×1080 ScaleWithScreenSize 로 추가(있으면 그대로 둠 — 호스트 설정 존중).
+    private static void EnsureScaler(GameObject canvasGo)
+    {
+        if (canvasGo.GetComponent<CanvasScaler>() != null) return;
+        var cs = canvasGo.AddComponent<CanvasScaler>();
+        cs.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        cs.referenceResolution = new Vector2(1920, 1080);
+        cs.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        cs.matchWidthOrHeight = 0.5f;
+        Debug.LogWarning($"[TransmissionUI] 호스트 캔버스 '{canvasGo.name}'에 CanvasScaler가 없어 1920×1080 스케일러를 추가했습니다.");
+    }
+
+    private static Canvas FindMainCanvas()
+    {
+        Canvas best = null; int bestOrder = int.MinValue;
+        foreach (var c in FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+        {
+            if (c == null || !c.isRootCanvas || c.renderMode == RenderMode.WorldSpace) continue;
+            if (c.sortingOrder > bestOrder) { best = c; bestOrder = c.sortingOrder; }
+        }
+        return best;
+    }
+
     private GameObject NewGO(string n, Transform p) { var g = new GameObject(n, typeof(RectTransform)); g.transform.SetParent(p, false); return g; }
     private RectTransform NewRT(string n, GameObject p) { var g = NewGO(n, p.transform); return g.GetComponent<RectTransform>(); }
 
@@ -714,7 +1090,14 @@ public class TransmissionComputerUI : MonoBehaviour
         var shadow = Img("pShadow", rt.gameObject, -2, 10, w + 4, h + 8, C("000000", 0.35f), UISpriteFactory.RoundedRect(48, 18)); shadow.raycastTarget = false;
         var body = Img("pBody", rt.gameObject, 0, 0, w, h, C("111A2C", 0.95f), UISpriteFactory.RoundedRect(48, 16));
         Outline(body.gameObject, C("4CC9F7", 0.22f));
+        RegisterBootPanel(rt);   // 열림 시 순차 펼침 대상
         return rt;
+    }
+
+    // 패널에 CanvasGroup 을 붙여 순차 오픈 애니 대상으로 등록(등록 순서 = 펼쳐지는 순서).
+    private void RegisterBootPanel(RectTransform rt)
+    {
+        if (rt.GetComponent<CanvasGroup>() == null) _bootPanels.Add(rt.gameObject.AddComponent<CanvasGroup>());
     }
     private void PanelHeader(RectTransform panel, float w, string title)
     {
@@ -772,7 +1155,7 @@ public class TransmissionComputerUI : MonoBehaviour
     }
 
     // ── 절차 텍스처 ───────────────────────────────────────────────────
-    private static Sprite _hgrad, _radial, _grid, _scan, _tick, _tri, _sweep2, _vig;
+    private static Sprite _hgrad, _radial, _grid, _scan, _tri, _sweep2, _vig;
     private static Sprite HGrad()
     {
         if (_hgrad != null) return _hgrad;
@@ -815,14 +1198,6 @@ public class TransmissionComputerUI : MonoBehaviour
         var px = new Color[4 * s];
         for (int y = 0; y < s; y++) for (int x = 0; x < 4; x++) px[y * 4 + x] = (y == 0) ? Color.white : new Color(1, 1, 1, 0);
         tex.SetPixels(px); tex.Apply(); _scan = Sprite.Create(tex, new Rect(0, 0, 4, s), new Vector2(0.5f, 0.5f), 100f); return _scan;
-    }
-    private static Sprite TickTile(int cellW)
-    {
-        if (_tick != null) return _tick; int w = 40, h = 4;
-        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Point };
-        var px = new Color[w * h];
-        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) px[y * w + x] = (x == 0) ? Color.white : new Color(1, 1, 1, 0);
-        tex.SetPixels(px); tex.Apply(); _tick = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f); return _tick;
     }
     private static Sprite TriTex()
     {
