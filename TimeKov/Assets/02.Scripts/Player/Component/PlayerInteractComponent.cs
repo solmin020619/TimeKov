@@ -1,16 +1,14 @@
-using TMPro;
 using UnityEngine;
 
 public class PlayerInteractComponent : MonoBehaviour
 {
     [Header("Settings")]
-    public float InteractRadius = 2f;
+    public float InteractRadius = 4f;
     [Tooltip("인터랙션 감지 레이어 마스크. 설정하지 않으면 모든 콜라이더를 검사해 성능 낭비 발생")]
     public LayerMask InteractLayer = ~0; // 기본값: 전체 (Inspector에서 반드시 지정 권장)
 
-    [Header("Hint UI")]
-    [Tooltip("가장 가까운 IInteractHint 오브젝트의 레이블을 표시할 TMP_Text. 연결 안 해도 무방.")]
-    [SerializeField] TextMeshProUGUI _interactHintText;
+    // IInteractHint 방식: 오브젝트 자신이 World Space 힌트를 켜고 끔
+    IInteractable _lastHinted;
 
     private Player _player;
 
@@ -52,17 +50,12 @@ public class PlayerInteractComponent : MonoBehaviour
 
     void UpdateHint(IInteractable nearest)
     {
-        if (_interactHintText == null) return;
+        if (nearest == _lastHinted) return;
 
-        if (nearest is IInteractHint hint)
-        {
-            _interactHintText.text = $"[F]  {hint.HintLabel}";
-            _interactHintText.gameObject.SetActive(true);
-        }
-        else
-        {
-            _interactHintText.gameObject.SetActive(false);
-        }
+        if (_lastHinted is IInteractHint prev) prev.ShowHint(false);
+        if (nearest    is IInteractHint cur)  cur.ShowHint(true);
+
+        _lastHinted = nearest;
     }
 
     IInteractable FindClosest()
