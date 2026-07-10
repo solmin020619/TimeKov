@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 // 폐우주선 수리 패널 컨트롤러 (풀스크린 대형, 공장풍 프로스티드 + 우주선 홀로그램 링게이지).
@@ -60,6 +61,7 @@ public class ShipRepairUI : MonoBehaviour
     private static readonly Color PipEmpty  = new Color(0.30f, 0.36f, 0.44f, 1f);
     private static readonly Color BtnReady  = new Color(0.20f, 0.66f, 0.95f, 1f);
     private static readonly Color BtnLocked = new Color(0.16f, 0.20f, 0.28f, 0.95f);
+    private static readonly Color UsedPanelTint = new Color(0.42f, 1f, 0.62f, 1f);   // 강조 패널(시안)에 곱해 초록 점등
 
     private readonly List<Image>            _pips     = new();
     private readonly List<ShipPartRow>      _partRows = new();
@@ -68,6 +70,10 @@ public class ShipRepairUI : MonoBehaviour
     private Image _holoGlowImg;      // 링 뒤 후광 (맥동 연출용)
     private Image _shipSlotImg;      // 우주선 홀로그램 아트 슬롯 (PNG 오면 자동 연결)
     private float _ringTarget;       // 링 게이지 목표치 (DriveAmbient 가 부드럽게 채움)
+
+    // 디자인 PNG (Resources/ShipRepair/, 없으면 절차 스프라이트 폴백) - Awake 에서 1회 로드
+    private Sprite _nodeOnSpr, _nodeOffSpr;   // 6/ 레벨 노드
+    private Sprite _rowSpr, _rowHlSpr;        // 3/ 부품 행 패널 (일반/강조)
 
     // ── 라이프사이클 ──────────────────────────────────────────────────
 
@@ -80,15 +86,97 @@ public class ShipRepairUI : MonoBehaviour
         repairButton?.onClick.AddListener(OnClickRepair);
         panelRoot?.SetActive(false);
 
-        // 빌더가 박은 UISpriteFactory 스프라이트(런타임 생성물)는 에디터 재시작 시 참조가
-        // 소실될 수 있어(에셋 아님) 핵심 비주얼만 여기서 재적용해 보장한다.
+        // 디자인 PNG 로드 (없으면 null = 절차 폴백)
+        _nodeOnSpr  = Resources.Load<Sprite>("ShipRepair/6/node_on");
+        _nodeOffSpr = Resources.Load<Sprite>("ShipRepair/6/node_off");
+        _rowSpr     = Resources.Load<Sprite>("ShipRepair/3/row_panel");
+        _rowHlSpr   = Resources.Load<Sprite>("ShipRepair/3/row_panel_hl");
+
+        ReapplyRuntimeSprites();
+        SetupButtonFeedback();
+    }
+
+    // 호버 반응 (버튼=사운드+틴트+확대 / 행 패널=확대+밝아짐). 씬 세팅 없이 코드로 부착 - 빌더 재실행 불필요.
+    private void SetupButtonFeedback()
+    {
+        AddHoverSound(closeButton);
+        AddHoverSound(repairButton);
+
+        // 버튼 확대 (밝기는 Button ColorTint 가 담당하므로 scaleOnly)
+        if (closeButton != null)  AddHoverFx(closeButton.gameObject, 1.08f, scaleOnly: true);
+        if (repairButton != null) AddHoverFx(repairButton.gameObject, 1.02f, scaleOnly: true);
+
+        // 스탯 3행: 호버 시 살짝 확대+밝아짐 (행 Image 가 포인터를 받도록 raycast 켬)
+        if (statValueTexts != null)
+        {
+            foreach (var t in statValueTexts)
+            {
+                var rowTr = t != null ? t.transform.parent : null;
+                if (rowTr == null) continue;
+                var img = rowTr.GetComponent<Image>();
+                if (img != null) img.raycastTarget = true;
+                AddHoverFx(rowTr.gameObject, 1.015f, scaleOnly: false);
+            }
+        }
+
+        // 수리 버튼: 유니티 기본 틴트는 호버 변화가 거의 안 보임 -> 닫기 버튼과 같은 명시 틴트.
+        // 잠금(부품 부족) 어둡기는 BtnLocked 이미지색이 담당하므로 disabled 틴트는 중립(이중 어둡힘 방지).
+        if (repairButton != null)
+        {
+            repairButton.transition = Selectable.Transition.ColorTint;
+            var cb = repairButton.colors;
+            cb.normalColor      = Color.white;
+            cb.highlightedColor = new Color(1.15f, 1.15f, 1.15f, 1f);
+            cb.pressedColor     = new Color(0.82f, 0.82f, 0.82f, 1f);
+            cb.selectedColor    = Color.white;
+            cb.disabledColor    = Color.white;
+            cb.colorMultiplier  = 1f; cb.fadeDuration = 0.1f;
+            repairButton.colors = cb;
+        }
+    }
+
+    private static void AddHoverSound(Button btn)
+    {
+        if (btn == null) return;
+        var trig = btn.gameObject.GetComponent<EventTrigger>();
+        if (trig == null) trig = btn.gameObject.AddComponent<EventTrigger>();
+        var entry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        entry.callback.AddListener(_ =>
+        {
+            if (btn.interactable) UISoundManager.Instance?.PlayButtonHover();   // 잠긴 버튼은 무음
+        });
+        trig.triggers.Add(entry);
+    }
+
+    private static void AddHoverFx(GameObject go, float scale, bool scaleOnly)
+    {
+        if (go == null) return;
+        var fx = go.GetComponent<ShipUIHoverFx>();
+        if (fx == null) fx = go.AddComponent<ShipUIHoverFx>();
+        fx.hoverScale = scale;
+        fx.scaleOnly = scaleOnly;
+    }
+
+    // 빌더가 박은 UISpriteFactory 스프라이트(런타임 생성물)는 에디터 재시작 시 참조가
+    // 소실될 수 있어(에셋 아님) 절차 스프라이트를 쓰는 비주얼 전부를 여기서 재적용해 보장한다.
+    // (PNG 에셋 참조는 씬에 영속이라 재적용 불필요 - 소실 가능한 것만.)
+    private void ReapplyRuntimeSprites()
+    {
+        // 링: 디자인 PNG(5/) 우선. 절차 링과 PNG 링은 굵기/반경이 달라 반드시 짝으로만 사용.
         if (ringGauge != null)
         {
-            var ringSpr = UISpriteFactory.Ring(400, 13f);
-            ringGauge.sprite = ringSpr;
+            var fillSpr  = Resources.Load<Sprite>("ShipRepair/5/ring_fill");
+            var trackSpr = Resources.Load<Sprite>("ShipRepair/5/ring_track");
+            bool ringArt = fillSpr != null && trackSpr != null;
+            ringGauge.sprite = ringArt ? fillSpr : UISpriteFactory.Ring(400, 13f);
+            ringGauge.color  = Holo;
             var holoParent = ringGauge.transform.parent;
             var track = holoParent != null ? holoParent.Find("RingTrack") : null;
-            if (track != null && track.TryGetComponent(out Image trackImg)) trackImg.sprite = ringSpr;
+            if (track != null && track.TryGetComponent(out Image trackImg))
+            {
+                trackImg.sprite = ringArt ? trackSpr : UISpriteFactory.Ring(400, 13f);
+                trackImg.color  = ringArt ? Color.white : new Color(70f / 255f, 96f / 255f, 128f / 255f, 0.35f);
+            }
             var glow = holoParent != null ? holoParent.Find("HoloGlow") : null;
             if (glow != null && glow.TryGetComponent(out Image glowImg))
             {
@@ -96,10 +184,50 @@ public class ShipRepairUI : MonoBehaviour
                 _holoGlowImg = glowImg;   // 맥동 연출 대상
             }
         }
+
+        // 스캔라인: 위 투명 -> 아래 발광 페이드 (소실 시 흰 막대가 왕복하는 사고 방지)
+        if (scanLine != null && scanLine.TryGetComponent(out Image scanImg))
+        {
+            scanImg.sprite = UISpriteFactory.VFade(0, 40);
+            scanImg.color  = Holo;
+        }
+
         if (panelRoot != null)
         {
             var backGlow = panelRoot.transform.Find("HoloBackGlow");
             if (backGlow != null && backGlow.TryGetComponent(out Image bgImg)) bgImg.sprite = UISpriteFactory.Disc(256);
+
+            // "다음 수리" 헤더 배지 (항상 절차 그라데이션)
+            var nh = panelRoot.transform.Find("Content/RightCol/NextHeaderBg");
+            if (nh != null && nh.TryGetComponent(out Image nhImg))
+                nhImg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(28, 40, 56, 235), new Color32(12, 18, 28, 235), 64, 18);
+
+            // 배경: PNG 로 빌드된 씬은 에셋 참조라 영속. 스프라이트도 그라데이션 컴포넌트도 없는
+            // 비정상 상태(PNG 삭제 등)만 단색 암막으로 메꿔 흰 화면을 막는다.
+            var backdrop = panelRoot.transform.Find("Backdrop");
+            if (backdrop != null && backdrop.TryGetComponent(out Image bdImg)
+                && bdImg.sprite == null && backdrop.GetComponent<UIFrostGradient>() == null)
+            {
+                var bgSpr = Resources.Load<Sprite>("ShipRepair/2/bg_hangar_blueprint");
+                if (bgSpr != null) bdImg.sprite = bgSpr;
+                else bdImg.color = new Color(10f / 255f, 14f / 255f, 21f / 255f, 1f);
+            }
+        }
+
+        // 절차 폴백으로 빌드됐던 스탯 행/수리 버튼: 소실(null)일 때만 재적용
+        if (repairButton != null && repairButton.image != null && repairButton.image.sprite == null)
+            repairButton.image.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(255, 255, 255, 255), new Color32(185, 205, 222, 255), 64, 16);
+        if (statValueTexts != null)
+        {
+            foreach (var t in statValueTexts)
+            {
+                if (t == null || t.transform.parent == null) continue;
+                var rowImg = t.transform.parent.GetComponent<Image>();
+                if (rowImg != null && rowImg.sprite == null)
+                    rowImg.sprite = _rowSpr != null
+                        ? _rowSpr
+                        : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 215), new Color32(16, 22, 32, 235), 64, 14);
+            }
         }
     }
 
@@ -123,7 +251,8 @@ public class ShipRepairUI : MonoBehaviour
 
         if (scanLine != null && scanLine.parent is RectTransform holo)
         {
-            float half = Mathf.Max(0f, holo.rect.height * 0.5f - 70f);
+            // 왕복 범위를 링/우주선 구역으로 한정 (아래 복원도 라벨/퍼센트 텍스트는 안 쓸고 다니게)
+            float half = Mathf.Max(0f, holo.rect.height * 0.5f - 150f);
             float y = Mathf.PingPong(Time.unscaledTime * 130f, half * 2f) - half;
             scanLine.anchoredPosition = new Vector2(scanLine.anchoredPosition.x, y);
         }
@@ -198,14 +327,17 @@ public class ShipRepairUI : MonoBehaviour
 
     private Image MakePip(RectTransform parent)
     {
+        bool art = _nodeOnSpr != null && _nodeOffSpr != null;   // 디자인 육각 노드 PNG
+
         var go = new GameObject("Pip", typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var le = go.AddComponent<LayoutElement>();
-        le.preferredWidth = 30f; le.preferredHeight = 30f;
+        le.preferredWidth = art ? 36f : 30f; le.preferredHeight = art ? 36f : 30f;
         var img = go.GetComponent<Image>();
-        img.sprite = UISpriteFactory.Circle(48);
-        img.color = PipEmpty;
+        img.sprite = art ? _nodeOffSpr : UISpriteFactory.Circle(48);
+        img.color = art ? Color.white : PipEmpty;
         img.raycastTarget = false;
+        if (art) return img;   // 점등 노드에 후광이 그려져 있어 절차 후광 불필요
 
         // 현재 단계 표시용 후광 (Refresh 가 현재 레벨 pip 만 켬)
         var glowGo = new GameObject("Glow", typeof(RectTransform), typeof(Image));
@@ -224,40 +356,56 @@ public class ShipRepairUI : MonoBehaviour
 
     private ShipPartRow MakePartRow(RectTransform parent, int level)
     {
+        bool art = _rowSpr != null;   // 디자인 행패널 PNG
+
         var go = new GameObject($"Part_{level}", typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var le = go.AddComponent<LayoutElement>();
         le.preferredHeight = 56f;
         var bg = go.GetComponent<Image>();
-        bg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 200), new Color32(16, 22, 32, 225), 64, 12);
+        bg.sprite = art
+            ? _rowSpr
+            : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 200), new Color32(16, 22, 32, 225), 64, 12);
         bg.type = Image.Type.Sliced;
-        bg.raycastTarget = false;
+        bg.raycastTarget = true;   // 호버 FX 용 포인터 수신
+        AddHoverFx(go, 1.015f, scaleOnly: false);
 
-        // 좌측 액센트 바 - '다음 수리 대상' 부품 행만 켠다 (Refresh)
-        var accentGo = new GameObject("Accent", typeof(RectTransform), typeof(Image));
-        accentGo.transform.SetParent(go.transform, false);
-        var acRt = (RectTransform)accentGo.transform;
-        acRt.anchorMin = new Vector2(0, 0.5f); acRt.anchorMax = new Vector2(0, 0.5f); acRt.pivot = new Vector2(0, 0.5f);
-        acRt.sizeDelta = new Vector2(4, 30); acRt.anchoredPosition = new Vector2(6, 0);
-        var acImg = accentGo.GetComponent<Image>();
-        acImg.color = Holo;
-        acImg.raycastTarget = false;
-        accentGo.SetActive(false);
+        // 좌측 액센트 바 = 절차 폴백 전용. 디자인판은 Refresh 가 강조 패널(row_panel_hl)로 스프라이트를 교체.
+        GameObject accentGo = null;
+        if (!art || _rowHlSpr == null)
+        {
+            accentGo = new GameObject("Accent", typeof(RectTransform), typeof(Image));
+            accentGo.transform.SetParent(go.transform, false);
+            var acRt = (RectTransform)accentGo.transform;
+            acRt.anchorMin = new Vector2(0, 0.5f); acRt.anchorMax = new Vector2(0, 0.5f); acRt.pivot = new Vector2(0, 0.5f);
+            acRt.sizeDelta = new Vector2(4, 30); acRt.anchoredPosition = new Vector2(6, 0);
+            var acImg = accentGo.GetComponent<Image>();
+            acImg.color = Holo;
+            acImg.raycastTarget = false;
+            accentGo.SetActive(false);
+        }
 
-        var dotGo = new GameObject("Dot", typeof(RectTransform), typeof(Image));
-        dotGo.transform.SetParent(go.transform, false);
-        var drt = (RectTransform)dotGo.transform;
-        drt.anchorMin = drt.anchorMax = new Vector2(0, 0.5f); drt.pivot = new Vector2(0, 0.5f);
-        drt.sizeDelta = new Vector2(18, 18); drt.anchoredPosition = new Vector2(16, 0);
-        var dot = dotGo.GetComponent<Image>();
-        dot.sprite = UISpriteFactory.Circle(32);
-        dot.raycastTarget = false;
+        // 상태 점은 절차 폴백 전용 - 디자인 패널은 자체 좌측 장식이 있어 점이 겹치면 이물감
+        Image dot = null;
+        if (!art)
+        {
+            var dotGo = new GameObject("Dot", typeof(RectTransform), typeof(Image));
+            dotGo.transform.SetParent(go.transform, false);
+            var drt = (RectTransform)dotGo.transform;
+            drt.anchorMin = drt.anchorMax = new Vector2(0, 0.5f); drt.pivot = new Vector2(0, 0.5f);
+            drt.sizeDelta = new Vector2(18, 18);
+            drt.anchoredPosition = new Vector2(16, 0);
+            dot = dotGo.GetComponent<Image>();
+            dot.sprite = UISpriteFactory.Circle(32);
+            dot.raycastTarget = false;
+        }
 
         var nameGo = new GameObject("Name", typeof(RectTransform));
         nameGo.transform.SetParent(go.transform, false);
         var nrt = (RectTransform)nameGo.transform;
         nrt.anchorMin = new Vector2(0, 0); nrt.anchorMax = new Vector2(1, 1);
-        nrt.offsetMin = new Vector2(44, 0); nrt.offsetMax = new Vector2(-96, 0);
+        // 디자인 패널은 양끝 코너 회로 장식을 넉넉히 비켜 안쪽으로 (붙으면 답답해 보임)
+        nrt.offsetMin = new Vector2(art ? 52 : 44, 0); nrt.offsetMax = new Vector2(art ? -150 : -96, 0);
         var nameT = nameGo.AddComponent<TextMeshProUGUI>();
         nameT.fontSize = 16f; nameT.alignment = TextAlignmentOptions.Left; nameT.raycastTarget = false;
 
@@ -265,11 +413,11 @@ public class ShipRepairUI : MonoBehaviour
         stGo.transform.SetParent(go.transform, false);
         var strt = (RectTransform)stGo.transform;
         strt.anchorMin = new Vector2(1, 0); strt.anchorMax = new Vector2(1, 1); strt.pivot = new Vector2(1, 0.5f);
-        strt.sizeDelta = new Vector2(90, 0); strt.anchoredPosition = new Vector2(-12, 0);
+        strt.sizeDelta = new Vector2(90, 0); strt.anchoredPosition = new Vector2(art ? -52 : -12, 0);
         var stT = stGo.AddComponent<TextMeshProUGUI>();
         stT.fontSize = 13f; stT.alignment = TextAlignmentOptions.Right; stT.raycastTarget = false;
 
-        return new ShipPartRow { level = level, dot = dot, nameText = nameT, statusText = stT, accent = accentGo };
+        return new ShipPartRow { level = level, dot = dot, nameText = nameT, statusText = stT, accent = accentGo, bgImg = bg };
     }
 
     // ── 갱신 ──────────────────────────────────────────────────────────
@@ -285,13 +433,23 @@ public class ShipRepairUI : MonoBehaviour
         if (levelText != null)
             levelText.text = $"수리 단계  Lv.{cur} / {max}";
 
-        // pip 색 + 현재 단계 후광
+        // pip 점등 + 현재 단계 강조 (디자인 노드=점등 스프라이트 교체+현재만 살짝 확대 / 폴백=색+후광)
+        bool pipArt = _nodeOnSpr != null && _nodeOffSpr != null;
         for (int i = 0; i < _pips.Count; i++)
         {
             int lv = i + 1;
             var img = _pips[i];
             if (img == null) continue;
-            img.color = lv <= cur ? Holo : PipEmpty;
+            if (pipArt)
+            {
+                img.sprite = lv <= cur ? _nodeOnSpr : _nodeOffSpr;
+                img.color  = Color.white;
+                img.transform.localScale = lv == cur ? Vector3.one * 1.15f : Vector3.one;
+            }
+            else
+            {
+                img.color = lv <= cur ? Holo : PipEmpty;
+            }
             var glow = img.transform.Find("Glow");
             if (glow != null) glow.gameObject.SetActive(lv == cur);
         }
@@ -301,7 +459,7 @@ public class ShipRepairUI : MonoBehaviour
         _ringTarget = Mathf.Clamp01(prog);
         if (restorePercentText != null) restorePercentText.text = $"{Mathf.RoundToInt(prog * 100f)}%";
 
-        // 우주선 홀로그램 아트 - Resources/ShipRepair/ship_holo_lv{N}.png 떨구면 자동 연결(디자인 대기)
+        // 우주선 홀로그램 아트 - Resources/ShipRepair/1/ship_holo_lv{N}.png 자동 연결 (Lv 오를수록 완성)
         if (_shipSlotImg == null && ringGauge != null && ringGauge.transform.parent != null)
         {
             var slotTr = ringGauge.transform.parent.Find("ShipHologramSlot");
@@ -309,7 +467,7 @@ public class ShipRepairUI : MonoBehaviour
         }
         if (_shipSlotImg != null)
         {
-            var shipSpr = Resources.Load<Sprite>($"ShipRepair/ship_holo_lv{cur}");
+            var shipSpr = Resources.Load<Sprite>($"ShipRepair/1/ship_holo_lv{cur}");
             _shipSlotImg.sprite  = shipSpr;
             _shipSlotImg.enabled = shipSpr != null;
             if (shipSpr != null) _shipSlotImg.preserveAspect = true;
@@ -340,15 +498,19 @@ public class ShipRepairUI : MonoBehaviour
             bool used      = mgr.IsPartUsed(row.level);
             bool collected = mgr.IsPartCollected(row.level);
 
-            // 다음 수리 대상 부품 행 강조 (좌측 시안 바)
-            if (row.accent != null) row.accent.SetActive(!maxed && row.level == cur + 1);
+            // 패널 자체 점등 = 부품 상태 그대로: 미회수=회색(일반) -> 보유=시안 점등 -> 사용됨=초록 점등.
+            // 순서와 무관하게 먹은 부품은 전부 켜진다 (다음 차례 표시는 순서 강제라 불필요).
+            bool isNext = !maxed && row.level == cur + 1;
+            if (_rowSpr != null && _rowHlSpr != null && row.bgImg != null)
+                row.bgImg.sprite = (used || collected) ? _rowHlSpr : _rowSpr;
+            if (row.accent != null) row.accent.SetActive(isNext);
 
             if (used)
             {
                 gathered++;
                 if (row.dot != null) row.dot.color = DoneCol;
                 if (row.statusText != null) { row.statusText.text = "사용됨"; row.statusText.color = DoneCol; }
-                if (row.nameText != null) row.nameText.color = TextDim;
+                if (row.nameText != null) row.nameText.color = TextMain;
             }
             else if (collected)
             {
@@ -362,6 +524,14 @@ public class ShipRepairUI : MonoBehaviour
                 if (row.dot != null) row.dot.color = PipEmpty;
                 if (row.statusText != null) { row.statusText.text = "미회수"; row.statusText.color = TextDim; }
                 if (row.nameText != null) row.nameText.color = TextDim;
+            }
+
+            if (row.bgImg != null)
+            {
+                if (used)
+                    row.bgImg.color = UsedPanelTint;   // 시안 발광 테두리를 초록으로 물들여 '완료 점등'
+                else
+                    row.bgImg.color = new Color(1f, 1f, 1f, collected ? 1f : 0.8f);
             }
         }
         if (partsCountText != null)
@@ -387,25 +557,41 @@ public class ShipRepairUI : MonoBehaviour
         if (t == null) return;
 
         string curS = FormatStat(cur, kind);
+        bool changed = false;
         if (next == null)   // 최종 레벨 = 다음 없음
         {
             t.text = curS;
             t.color = TextDim;
-            return;
-        }
-
-        string nextS = FormatStat(next, kind);
-        bool changed = curS != nextS;
-        if (changed)
-        {
-            t.text  = $"{curS}  ->  {nextS}";
-            t.color = Holo;
         }
         else
         {
-            t.text  = curS;
-            t.color = TextDim;
+            string nextS = FormatStat(next, kind);
+            changed = curS != nextS;
+            if (changed)
+            {
+                t.text  = $"{curS}  ->  {nextS}";
+                t.color = Holo;
+            }
+            else
+            {
+                t.text  = curS;
+                t.color = TextDim;
+            }
         }
+
+        // 패널 점등 = 부품 행과 같은 문법: 이번 수리로 바뀌는 스탯만 시안 점등, 나머지는 가라앉힘
+        var rowTr = t.transform.parent;
+        if (rowTr == null) return;
+        var rowImg = rowTr.GetComponent<Image>();
+        if (rowImg != null)
+        {
+            if (_rowSpr != null && _rowHlSpr != null)
+                rowImg.sprite = changed ? _rowHlSpr : _rowSpr;
+            rowImg.color = new Color(1f, 1f, 1f, changed ? 1f : 0.8f);
+        }
+        var nameTr = rowTr.Find("Name");
+        if (nameTr != null && nameTr.TryGetComponent(out TextMeshProUGUI nameT))
+            nameT.color = changed ? new Color(0.80f, 0.87f, 0.94f, 1f) : TextDim;
     }
 
     private string FormatStat(ShipRepairManager.LevelDef def, StatKind kind)
@@ -438,6 +624,7 @@ public class ShipRepairUI : MonoBehaviour
         public Image dot;
         public TextMeshProUGUI nameText;
         public TextMeshProUGUI statusText;
-        public GameObject accent;
+        public GameObject accent;   // 절차 폴백 전용 (디자인판은 null)
+        public Image bgImg;         // 행 배경 (상태별 패널 점등: 사용됨=초록 hl / 다음=시안 hl / 미회수=일반)
     }
 }
