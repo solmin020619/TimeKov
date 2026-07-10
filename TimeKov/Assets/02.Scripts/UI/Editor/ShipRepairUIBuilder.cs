@@ -220,12 +220,20 @@ public static class ShipRepairUIBuilder
         AnchorBottomStretch(footer.rectTransform, 36, 36, 18, 42);
 
         so.ApplyModifiedProperties();
+
+        // 패널을 기본 비활성으로 둔다 → 에디터/플레이 시작 시 화면에 안 보임(깔끔).
+        // 런타임엔 우주선 터미널 F 가 ShipRepairUI.EnsureInstance() 로 이 오브젝트를 찾아
+        // 활성화한 뒤 Open() 한다. 그래서 호스트를 꺼둬도 정상 작동.
+        root.SetActive(false);
+        host.SetActive(false);
+
         EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         Selection.activeGameObject = host;
 
         EditorUtility.DisplayDialog("완료",
             "우주선 수리 UI 생성 완료!\n\n" +
-            "- ShipRepairPanel 은 active(켜짐)로 둘 것\n" +
+            "- ShipRepairPanel 은 기본 비활성(꺼둠) — 그대로 두면 됨\n" +
+            "- 런타임에 우주선 F 로 자동 활성화되어 열림\n" +
             "- 레벨/부품은 ShipRepairManager 인스펙터에서 정의\n" +
             "- 우주선 아트가 생기면 HoloStage/ShipHologramSlot 에 연결\n" +
             "- Ctrl+S 로 씬 저장", "확인");

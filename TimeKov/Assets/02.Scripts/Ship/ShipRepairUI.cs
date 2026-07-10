@@ -14,6 +14,18 @@ public class ShipRepairUI : MonoBehaviour
     /// <summary>F로 닫은 프레임 — 터미널이 같은 입력으로 재오픈하는 깜빡임 방지.</summary>
     public static int LastCloseFrame { get; private set; } = -10;
 
+    /// <summary>패널 호스트를 에디터에서 안 보이게 꺼둬도(비활성) 런타임에 찾아 활성화하고 Instance 를 보장한다.
+    /// 씬에 패널 자체가 없으면(빌더 미실행) null.</summary>
+    public static ShipRepairUI EnsureInstance()
+    {
+        if (Instance != null) return Instance;
+        var found = FindObjectsByType<ShipRepairUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (found.Length == 0) return null;
+        var ui = found[0];
+        if (!ui.gameObject.activeSelf) ui.gameObject.SetActive(true);   // SetActive(true) -> Awake 동기 실행 -> Instance 세팅
+        return Instance != null ? Instance : ui;
+    }
+
     [Header("패널 (빌더가 연결)")]
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private Button closeButton;

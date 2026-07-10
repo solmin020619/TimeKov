@@ -29,11 +29,12 @@ public class ShipRepairTerminal : MonoBehaviour, IInteractable
             return;
         }
 
-        // UI 패널이 있으면 열고, 없으면(빌더 미실행) 즉시 수리로 폴백.
-        if (ShipRepairUI.Instance != null)
+        // UI 패널이 있으면(꺼져 있어도 EnsureInstance 가 활성화) 열고, 없으면(빌더 미실행) 즉시 수리 폴백.
+        var ui = ShipRepairUI.EnsureInstance();
+        if (ui != null)
         {
             GameUIController.Instance?.OpenShipRepairUI();
-            ShipRepairUI.Instance.Open();
+            ui.Open();
         }
         else
         {

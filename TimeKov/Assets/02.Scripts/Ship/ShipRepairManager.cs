@@ -7,9 +7,10 @@ using UnityEngine;
 //   (1) 공장 가동속도 = 제작시간 전역 배수 (FactorySpeedMultiplier)
 //   (2) 설비 연료 효율 = 연료 1개당 가동 초 (FuelConfig.SetSecondsOverride)
 //   (3) 건축 범위     = BuildZoneProgression.ApplyStage
-// 수치는 임시(인스펙터 편집). 저장은 임시로 PlayerPrefs (BaseUpgradeManager 와 동일 방식,
-// GameSaveData 확정 시 슬롯 세이브로 이관). 부품은 인벤토리로 안 들어가고 여기에 마스크로 모인다.
-public class ShipRepairManager : MonoBehaviour
+// 수치는 임시(인스펙터 편집). 저장 = 통합 세이브(ISaveable/SaveSlotManager, 슬롯 기반).
+// 활성 슬롯 없으면(World 씬 직접 Play) 복원/저장 모두 건너뜀 = 매번 Lv.1 새 상태(샌드박스 테스트).
+// 부품은 인벤토리로 안 들어가고 여기에 마스크로 모인다.
+public class ShipRepairManager : MonoBehaviour, ISaveable
 {
     public static ShipRepairManager Instance { get; private set; }
 
@@ -34,9 +35,6 @@ public class ShipRepairManager : MonoBehaviour
     [Header("참조")]
     [Tooltip("건축영역 확장 대상. 비우면 씬에서 자동 탐색.")]
     [SerializeField] private BuildZoneProgression zoneProgression;
-
-    private const string PREF_LEVEL = "ShipRepair.Level";
-    private const string PREF_PARTS = "ShipRepair.PartsMask";
 
     private int _level = 1;
     private int _partsMask = 0;   // bit L 세팅 = 레벨 L 도달용 부품을 회수함
@@ -76,7 +74,11 @@ public class ShipRepairManager : MonoBehaviour
         Instance = this;
 
         if (zoneProgression == null) zoneProgression = FindAnyObjectByType<BuildZoneProgression>();
-        Load();
+
+        // 통합 세이브 등록 + 활성 슬롯 있을 때만 복원.
+        // World 씬 직접 Play = 슬롯 없음 = 복원 안 함 = Lv.1 새 상태(샌드박스).
+        SaveSlotManager.Instance?.Register(this);
+        RestoreFromSave();
     }
 
     private void Start()
@@ -87,6 +89,7 @@ public class ShipRepairManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        SaveSlotManager.Instance?.Unregister(this);
         if (Instance == this) Instance = null;
     }
 
@@ -98,7 +101,6 @@ public class ShipRepairManager : MonoBehaviour
         if (IsPartUsed(level) || IsPartCollected(level)) return;
 
         _partsMask |= (1 << level);
-        Save();
 
         var def = GetLevel(level);
         string nm = def != null && !string.IsNullOrEmpty(def.requiredPartName) ? def.requiredPartName : "수리 부품";
@@ -130,7 +132,6 @@ public class ShipRepairManager : MonoBehaviour
         }
 
         _level = next;
-        Save();
         ApplyLevelEffects(_level);
 
         ToastManager.Success($"우주선 수리 Lv.{_level} 완료");
@@ -154,19 +155,24 @@ public class ShipRepairManager : MonoBehaviour
             zoneProgression.ApplyStage(def.zoneStage);
     }
 
-    // ── 저장 (임시 PlayerPrefs) ────────────────────────────────────────
+    // ── 통합 세이브 (ISaveable) ────────────────────────────────────────
+    // 슬롯 기반. 활성 슬롯 없으면(World 씬 직접 Play) 복원/저장 둘 다 스킵 = 매번 Lv.1 샌드박스.
+    // 저장 시점은 SaveSlotManager 가 관리(자동 30초 + 앱 종료 시). 여기선 상태만 바꾸면 캡처된다.
 
-    private void Load()
+    public void Capture(GameSaveData data)
     {
-        _level     = Mathf.Max(1, PlayerPrefs.GetInt(PREF_LEVEL, 1));
-        _partsMask = PlayerPrefs.GetInt(PREF_PARTS, 0);
+        if (data == null) return;
+        data.shipRepairLevel     = _level;
+        data.shipRepairPartsMask = _partsMask;
     }
 
-    private void Save()
+    private void RestoreFromSave()
     {
-        PlayerPrefs.SetInt(PREF_LEVEL, _level);
-        PlayerPrefs.SetInt(PREF_PARTS, _partsMask);
-        PlayerPrefs.Save();
+        var mgr = SaveSlotManager.Instance;
+        if (mgr == null || !mgr.HasActiveSlot) return;   // 활성 슬롯 없으면 기본값(Lv.1/0) 유지
+
+        _level     = Mathf.Clamp(mgr.Data.shipRepairLevel, 1, MaxLevel);
+        _partsMask = mgr.Data.shipRepairPartsMask;
     }
 
 #if UNITY_EDITOR

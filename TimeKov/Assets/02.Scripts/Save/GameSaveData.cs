@@ -68,6 +68,12 @@ public class GameSaveData
     // -1 = 저장된 값 없음(새 슬롯) → 시작 단계 그대로 둠.
     public int buildZoneStageIndex = -1;
 
+    // ── 우주선 수리 (ShipRepairManager) ──────────────────────────────────
+    // shipRepairLevel=현재 수리 레벨(1=시작), shipRepairPartsMask=회수한 부품 비트마스크.
+    // 새 슬롯 기본값(1/0)이 곧 게임 시작 상태라 그대로 복원해도 무해.
+    public int shipRepairLevel = 1;
+    public int shipRepairPartsMask = 0;
+
     // ── 도감: 아이템 최초 획득 기록 (ItemDiscovery) ──────────────────────────
     public List<int> discoveredItemIds = new();
 
