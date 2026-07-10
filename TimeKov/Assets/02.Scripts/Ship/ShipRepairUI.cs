@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 // 폐우주선 수리 패널 컨트롤러 (풀스크린 대형, 공장풍 프로스티드 + 우주선 홀로그램 링게이지).
@@ -92,6 +93,68 @@ public class ShipRepairUI : MonoBehaviour
         _rowHlSpr   = Resources.Load<Sprite>("ShipRepair/3/row_panel_hl");
 
         ReapplyRuntimeSprites();
+        SetupButtonFeedback();
+    }
+
+    // 호버 반응 (버튼=사운드+틴트+확대 / 행 패널=확대+밝아짐). 씬 세팅 없이 코드로 부착 - 빌더 재실행 불필요.
+    private void SetupButtonFeedback()
+    {
+        AddHoverSound(closeButton);
+        AddHoverSound(repairButton);
+
+        // 버튼 확대 (밝기는 Button ColorTint 가 담당하므로 scaleOnly)
+        if (closeButton != null)  AddHoverFx(closeButton.gameObject, 1.08f, scaleOnly: true);
+        if (repairButton != null) AddHoverFx(repairButton.gameObject, 1.02f, scaleOnly: true);
+
+        // 스탯 3행: 호버 시 살짝 확대+밝아짐 (행 Image 가 포인터를 받도록 raycast 켬)
+        if (statValueTexts != null)
+        {
+            foreach (var t in statValueTexts)
+            {
+                var rowTr = t != null ? t.transform.parent : null;
+                if (rowTr == null) continue;
+                var img = rowTr.GetComponent<Image>();
+                if (img != null) img.raycastTarget = true;
+                AddHoverFx(rowTr.gameObject, 1.015f, scaleOnly: false);
+            }
+        }
+
+        // 수리 버튼: 유니티 기본 틴트는 호버 변화가 거의 안 보임 -> 닫기 버튼과 같은 명시 틴트.
+        // 잠금(부품 부족) 어둡기는 BtnLocked 이미지색이 담당하므로 disabled 틴트는 중립(이중 어둡힘 방지).
+        if (repairButton != null)
+        {
+            repairButton.transition = Selectable.Transition.ColorTint;
+            var cb = repairButton.colors;
+            cb.normalColor      = Color.white;
+            cb.highlightedColor = new Color(1.15f, 1.15f, 1.15f, 1f);
+            cb.pressedColor     = new Color(0.82f, 0.82f, 0.82f, 1f);
+            cb.selectedColor    = Color.white;
+            cb.disabledColor    = Color.white;
+            cb.colorMultiplier  = 1f; cb.fadeDuration = 0.1f;
+            repairButton.colors = cb;
+        }
+    }
+
+    private static void AddHoverSound(Button btn)
+    {
+        if (btn == null) return;
+        var trig = btn.gameObject.GetComponent<EventTrigger>();
+        if (trig == null) trig = btn.gameObject.AddComponent<EventTrigger>();
+        var entry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        entry.callback.AddListener(_ =>
+        {
+            if (btn.interactable) UISoundManager.Instance?.PlayButtonHover();   // 잠긴 버튼은 무음
+        });
+        trig.triggers.Add(entry);
+    }
+
+    private static void AddHoverFx(GameObject go, float scale, bool scaleOnly)
+    {
+        if (go == null) return;
+        var fx = go.GetComponent<ShipUIHoverFx>();
+        if (fx == null) fx = go.AddComponent<ShipUIHoverFx>();
+        fx.hoverScale = scale;
+        fx.scaleOnly = scaleOnly;
     }
 
     // 빌더가 박은 UISpriteFactory 스프라이트(런타임 생성물)는 에디터 재시작 시 참조가
@@ -304,7 +367,8 @@ public class ShipRepairUI : MonoBehaviour
             ? _rowSpr
             : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 200), new Color32(16, 22, 32, 225), 64, 12);
         bg.type = Image.Type.Sliced;
-        bg.raycastTarget = false;
+        bg.raycastTarget = true;   // 호버 FX 용 포인터 수신
+        AddHoverFx(go, 1.015f, scaleOnly: false);
 
         // 좌측 액센트 바 = 절차 폴백 전용. 디자인판은 Refresh 가 강조 패널(row_panel_hl)로 스프라이트를 교체.
         GameObject accentGo = null;
