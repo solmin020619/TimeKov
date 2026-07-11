@@ -34,6 +34,8 @@ public class TransmissionComputerUI : MonoBehaviour
     static readonly Color Danger       = C("F27059");
     static readonly Color[] RegionCol = { C("43B06C"), C("5BC7E8"), C("D9A44A"), C("E0593A") };
     static readonly string[] RegionKo = { "자연", "설원", "사막", "용암" };
+    // 바가 0~100%를 25%씩 4구간으로 나눠 RegionCol 로 칠하므로, 해당 지점의 구간 색을 그대로 돌려준다.
+    static Color RegionColorForPct(int pct) => RegionCol[Mathf.Clamp(pct / 25, 0, 3)];
 
     // ── 싱글톤/공개 API ───────────────────────────────────────────────
     public static TransmissionComputerUI Instance { get; private set; }
@@ -49,6 +51,10 @@ public class TransmissionComputerUI : MonoBehaviour
     private int _openedFrame = -1;
 
     private TMP_Text _rateBig, _subLabel, _statusLine, _previewVal, _selName, _selMeta;
+    // 전송률 카드 = 액체 탱크(차오름 + 물결 표면)
+    private UnityEngine.UI.RawImage _rateWave; private Texture2D _rateWaveTex; private Color[] _rateWavePx;
+    private TMP_Text _rateRegionLabel; private float _rateLevelShown;
+    private const int RWW = 96, RWH = 72;   // 물 텍스처 해상도
     private Image _fill; private RectTransform _node, _nodeLabelRT; private TMP_Text _nodeLabel;
     private RectTransform _sweep, _sweepMaskRT;
     private Button _sendBtn; private Image _sendBtnImg; private CanvasGroup _sendBtnCg;
@@ -66,14 +72,18 @@ public class TransmissionComputerUI : MonoBehaviour
     private RectTransform _cursor;   // 상태 텍스트 끝을 따라가는 깜빡이 커서
     private readonly List<CanvasGroup> _bootPanels = new();   // 열릴 때 순차로 펼쳐질 패널들
 
-    // ── 리워드 리빌(지점 도달 연출) ──────────────────────────────────
-    private GameObject _reward; private CanvasGroup _rewardCg; private RectTransform _rewardCard;
-    private TMP_Text _rewardTitle, _rewardName, _rewardDesc; private Image _rewardBurst, _rewardBar, _rewardEmblem;
-    private UnityEngine.UI.Outline _rewardOutline; private readonly List<RectTransform> _rewardRings = new();
+    // ── 리워드 리빌(지점 도달 연출) — 가로형 언락 매니페스트 ──────────
+    private GameObject _reward; private CanvasGroup _rewardCg;
+    private RectTransform _rewardCard, _rewardIconTile, _rewardIconHolder, _rewardSweep;
+    private Image _rewardIconBg; private UnityEngine.UI.Outline _rewardIconFrame;
+    private TMP_Text _rewardTitle, _rewardName, _rewardDesc, _rewardHint;
+    private readonly List<Image> _rewardTint = new();            // 리빌 색으로 물들일 장식(악센트/프레임/구분선 등)
+    private Vector2 _cardHome;                                   // 카드 슬라이드 기준 위치
     private Sequence _rewardSeq;
-    private struct Reveal { public string title, name, desc; public Color color; public int markerPct; }
+    private struct Reveal { public string title, name, desc; public Color color; public int markerPct; public int order; }
     private readonly Queue<Reveal> _revealQ = new();
     private bool _revealBusy;
+    private bool _revealStartScheduled;   // 같은 rate 변경의 여러 리빌을 모아 한 번에 정렬·재생하기 위한 지연 플래그
 
     private Model _m;
 
@@ -110,6 +120,8 @@ public class TransmissionComputerUI : MonoBehaviour
         float dt = Time.unscaledDeltaTime;
         for (int i = 0; i < _spinRings.Count; i++)
             if (_spinRings[i] != null) _spinRings[i].Rotate(0, 0, (i % 2 == 0 ? -1f : 1f) * 9f * dt);
+        // 물 표면 — 매 프레임 텍스처 재생성(진짜 물결 애니메이션).
+        if (_rateWave != null) RegenWater(Time.unscaledTime);
         if (Time.frameCount != _openedFrame && Input.GetKeyDown(KeyCode.F)) Close();
     }
 
@@ -216,22 +228,26 @@ public class TransmissionComputerUI : MonoBehaviour
         Txt("title", _content, 86, 84, 900, 62, "시간에너지 전송", _kr, 48, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
         _subLabel = Txt("sub", _content, 88, 156, 900, 26, "기지 전송 컴퓨터     현재 구간 설원", _kr, 19, C("E8F2FB", 0.55f), TextAlignmentOptions.Left);
 
-        // 우측 전송률 카드
-        float cw = 250, cx = 1832 - cw, cy = 40;
-        var card = Img("rateCard", _content, cx, cy, cw, 182, C("111A2C", 0.4f), UISpriteFactory.RoundedRect(48, 16));
+        // 우측 전송률 카드 = 액체 탱크(전송률만큼 구간 색이 차오르고 표면이 물결친다)
+        float cw = 250, cx = 1832 - cw, cy = 40, ch = 182;
+        var card = Img("rateCard", _content, cx, cy, cw, ch, C("0E1728", 0.94f), UISpriteFactory.RoundedRect(48, 16));
         Outline(card.gameObject, C("4CC9F7", 0.25f));
         RegisterBootPanel(card.rectTransform);   // 순차 오픈 애니 첫 번째 대상
-        // 장식 링
-        var rr = Img("rcRingSpin", card.transform, cw - 70 - 70, -70, 210, 210, C("4CC9F7", 0.16f), UISpriteFactory.Ring(210, 2f));
-        rr.raycastTarget = false; _spinRings.Add((RectTransform)rr.transform);
-        Img("rcRing2", card.transform, cw - 40 - 110, -40, 150, 150, C("4CC9F7", 0.10f), UISpriteFactory.Ring(150, 2f)).raycastTarget = false;
+        // 라운드 마스크 — 탱크가 카드 모서리 안쪽에서만 차오르게 클리핑
+        var mask = card.gameObject.AddComponent<Mask>(); mask.showMaskGraphic = true;
 
-        Txt("rateLbl", card.transform, 18, 18, cw - 36, 16, "현재 전송률", _mono, 12, C("E8F2FB", 0.5f), TextAlignmentOptions.Right, 3);
-        _rateBig = Txt("rateBig", card.transform, 18, 40, cw - 36 - 44, 100, "42", _mono, 96, Accent, TextAlignmentOptions.Right, 0, FontStyles.Bold);
-        Txt("ratePct", card.transform, cw - 46, 74, 30, 44, "%", _mono, 40, C("4CC9F7", 0.6f), TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        // 하단 행
-        Txt("rcBottom", card.transform, 18, 150, cw - 36 - 74, 20, "설원 구간", _mono, 12, C("E8F2FB", 0.5f), TextAlignmentOptions.Right);
-        var goalChip = Img("goalChip", card.transform, cw - 18 - 66, 148, 66, 22, C("5BC7E8", 0f), UISpriteFactory.RoundedRect(40, 11));
+        // 물 — RawImage + 매 프레임 재생성 텍스처. 표면을 여러 진행파의 합으로 실제 계산(진짜 물결/찰랑임).
+        var waveGo = NewGO("rateWave", card.transform); Stretch(waveGo);
+        _rateWave = waveGo.AddComponent<UnityEngine.UI.RawImage>();
+        _rateWaveTex = new Texture2D(RWW, RWH, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+        _rateWavePx = new Color[RWW * RWH];
+        _rateWave.texture = _rateWaveTex; _rateWave.color = C("5BC7E8", 1f); _rateWave.raycastTarget = false;
+
+        Txt("rateLbl", card.transform, 18, 16, cw - 36, 16, "현재 전송률", _mono, 12, C("E8F2FB", 0.5f), TextAlignmentOptions.Left, 3);
+        _rateBig = Txt("rateBig", card.transform, 0, 50, cw, 92, "42%", _mono, 74, TextBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
+        // 하단 행: 구간 이름(좌) / 목표 칩(우)
+        _rateRegionLabel = Txt("rcBottom", card.transform, 18, ch - 30, cw - 36 - 74, 20, "설원 구간", _mono, 12, C("E8F2FB", 0.6f), TextAlignmentOptions.Left);
+        var goalChip = Img("goalChip", card.transform, cw - 18 - 66, ch - 32, 66, 22, C("5BC7E8", 0f), UISpriteFactory.RoundedRect(40, 11));
         Outline(goalChip.gameObject, C("5BC7E8", 0.4f));
         Txt("goalTxt", goalChip.transform, 0, 0, 66, 22, "목표 50%", _mono, 12, AccentSoft2, TextAlignmentOptions.Center);
     }
@@ -262,10 +278,6 @@ public class TransmissionComputerUI : MonoBehaviour
                 new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.15f));
             seg.raycastTarget = false;
         }
-        // 세로 눈금선 — 정확히 10% 지점마다(마커 위치와 1:1 일치). 10~90% 내부 라인.
-        for (int p = 10; p <= 90; p += 10)
-            Img($"tick{p}", body.gameObject, tw * p / 100f - 0.5f, 0, 1, th, C("E8F2FB", 0.10f)).raycastTarget = false;
-
         // 채움 (마스크 + 그라데이션 이미지, fillAmount 로 클리핑). body 마스크 안이라 왼쪽 끝도 라운드로 잘림.
         var fillGo = TL(NewGO("fill", body), 0, 0, tw, th);
         fillGo.gameObject.AddComponent<RectMask2D>();
@@ -277,22 +289,32 @@ public class TransmissionComputerUI : MonoBehaviour
         _sweep = TL(NewGO("sweep", fillGo), 0, 0, 70, th);
         var sImg = _sweep.gameObject.AddComponent<Image>(); sImg.sprite = SweepTex(); sImg.color = Color.white; sImg.raycastTarget = false;
 
-        // 진행 노드
+        // 세로 눈금선 — 채움 '위'에 그려 채워진(밝은) 구간에서도 경계가 확실히 보이게 한다.
+        // 밝은 채움엔 어두운 심(0.42)으로, 어두운 미채움엔 밝은 하이라이트(0.28)로 — 양쪽 대비를 겹쳐 어디서나 보이게.
+        for (int p = 10; p <= 90; p += 10)
+        {
+            float lx = tw * p / 100f;
+            Img($"tickD{p}", body.gameObject, lx - 1f, 0, 2, th, C("05101C", 0.42f)).raycastTarget = false;
+            Img($"tickL{p}", body.gameObject, lx, 0, 1, th, C("EAF7FF", 0.28f)).raycastTarget = false;
+        }
+
+        // 진행 노드 — 바 한가운데에 들어가는 원형 노브(슬라이더 손잡이) 스타일.
         _node = NewRT("node", track.gameObject);
         _node.anchorMin = _node.anchorMax = new Vector2(0, 0.5f); _node.pivot = new Vector2(0.5f, 0.5f);
-        _node.sizeDelta = new Vector2(20, th + 24); _node.anchoredPosition = new Vector2(tw * 0.42f, 0);
-        var line = Img("nLine", _node.gameObject, 0, 0, 3, th + 24, AccentBright, UISpriteFactory.RoundedRect(8, 1));
-        CenterIn(line, _node); line.raycastTarget = false;
-        var dia = Img("nDia", _node.gameObject, 0, 0, 16, 16, Accent, UISpriteFactory.RoundedRect(16, 4));
-        // pivot 을 다이아 중심(0.5,0.5)으로 — top-center 로 두면 45° 회전 시 시각 중심이 오른쪽으로 밀려 선과 어긋난다.
-        dia.rectTransform.anchorMin = dia.rectTransform.anchorMax = new Vector2(0.5f, 1f); dia.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        dia.rectTransform.anchoredPosition = new Vector2(0, 2); dia.rectTransform.localRotation = Quaternion.Euler(0, 0, 45); dia.raycastTarget = false;
-        var pulse = Img("nPulse", dia.transform, 0, 0, 16, 16, C("4CC9F7", 0.5f), UISpriteFactory.RoundedRect(16, 4)); CenterIn(pulse, dia.rectTransform); pulse.raycastTarget = false;
-        pulse.rectTransform.DOScale(2.0f, 1.0f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
-        pulse.DOFade(0f, 1.0f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
+        _node.sizeDelta = new Vector2(34, th); _node.anchoredPosition = new Vector2(tw * 0.42f, 0);
+        // 노브: 글로우 → 어두운 원판 → 밝은 링 → 코어 (바 중앙). 연결선 없이 노브만으로 위치 표시.
+        var glow = Img("nGlow", _node.gameObject, 0, 0, 30, 30, C("4CC9F7", 0.22f), UISpriteFactory.Disc(48)); CenterIn(glow, _node); glow.raycastTarget = false;
+        var knob = Img("nKnob", _node.gameObject, 0, 0, 20, 20, C("0A1420", 0.98f), UISpriteFactory.Disc(48)); CenterIn(knob, _node); knob.raycastTarget = false;
+        var ring = Img("nRing", _node.gameObject, 0, 0, 20, 20, AccentBright, UISpriteFactory.Ring(48, 3f)); CenterIn(ring, _node); ring.raycastTarget = false;
+        var core = Img("nCore", _node.gameObject, 0, 0, 8, 8, Accent, UISpriteFactory.Disc(24)); CenterIn(core, _node); core.raycastTarget = false;
+        // 펄스(노브 주위 확장 링)
+        var pulse = Img("nPulse", _node.gameObject, 0, 0, 20, 20, C("4CC9F7", 0.5f), UISpriteFactory.Ring(48, 3f)); CenterIn(pulse, _node); pulse.raycastTarget = false;
+        pulse.rectTransform.DOScale(2.3f, 1.2f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
+        pulse.DOFade(0f, 1.2f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
+        // 라벨(바 아래 작은 태그)
         _nodeLabelRT = TL(NewGO("nLabelWrap", _node), 0, 0, 60, 24);
         _nodeLabelRT.anchorMin = _nodeLabelRT.anchorMax = new Vector2(0.5f, 0); _nodeLabelRT.pivot = new Vector2(0.5f, 1f);
-        _nodeLabelRT.anchoredPosition = new Vector2(0, -16);
+        _nodeLabelRT.anchoredPosition = new Vector2(0, -10);
         var lblBg = _nodeLabelRT.gameObject.AddComponent<Image>(); lblBg.sprite = UISpriteFactory.RoundedRect(16, 8); lblBg.type = Image.Type.Sliced; lblBg.color = C("4CC9F7", 0.16f);
         Outline(_nodeLabelRT.gameObject, C("4CC9F7", 0.5f));
         _nodeLabel = Txt("nLbl", _nodeLabelRT.gameObject, 0, 0, 60, 24, "42%", _mono, 14, AccentBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
@@ -300,6 +322,8 @@ public class TransmissionComputerUI : MonoBehaviour
 
         // 마커 10개
         for (int p = 10; p <= 100; p += 10) BuildMarker(track.gameObject, p, tw, th);
+        // 진행 노드를 마커보다 위로 — 같은 지점(예: 80%)에서 겹쳐도 노드가 가려지지 않게.
+        _node.SetAsLastSibling();
 
         // 레전드 — 라벨/도트는 진행 도달 여부에 따라 RefreshLegend()에서 공개/??? 처리.
         float ly = ty + th + 46;
@@ -345,10 +369,6 @@ public class TransmissionComputerUI : MonoBehaviour
         var chip = Img("chip", mk.gameObject, 0, 0, 34, 34, C("0F1A2D"), UISpriteFactory.RoundedRect(34, 17));
         CenterIn(chip, mk);
         Outline(chip.gameObject, Accent);
-        // 스템
-        var stem = Img("stem", mk.gameObject, 0, 0, 1, 14, C("4CC9F7", 0.5f));
-        stem.rectTransform.anchorMin = stem.rectTransform.anchorMax = new Vector2(0.5f, 0f); stem.rectTransform.pivot = new Vector2(0.5f, 1f);
-        stem.rectTransform.anchoredPosition = new Vector2(0, 1); stem.raycastTarget = false;
         // 인터랙션(호버)
         var trg = mk.gameObject.AddComponent<Image>(); trg.color = new Color(0, 0, 0, 0); trg.raycastTarget = true;
         var hov = mk.gameObject.AddComponent<MarkerHover>(); hov.Init(this, pct, mk);
@@ -380,14 +400,15 @@ public class TransmissionComputerUI : MonoBehaviour
         _selName = Txt("selName", selCard.transform, 18, 32, iw - 36, 28, "없음", _kr, 22, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
         _selMeta = Txt("selMeta", selCard.transform, 18, 60, iw - 36, 20, "목록에서 키트를 클릭", _kr, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
 
-        iy += 84 + 18;
+        iy += 84 + 12;   // 카드 간 세로 간격 12로 통일
         var pvCard = Card(rp.transform, ix, iy, iw, 84, C("4CC9F7", 0.06f), C("4CC9F7", 0.2f));
         Txt("pvLbl", pvCard.transform, 18, 14, iw - 36, 16, "예상 전송률", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
         _previewVal = Txt("pvVal", pvCard.transform, 18, 36, iw - 36, 36, "키트를 선택하세요", _mono, 30, C("E8F2FB", 0.4f), TextAlignmentOptions.Left, 0, FontStyles.Bold);
 
-        // 버튼 행 + TX LOG (패널 로컬 좌표: 아래에서부터 로그→버튼)
-        float logY = bh - 16 - 100;
-        float btnY = logY - 14 - 62;
+        // 버튼 행 + 로그 (패널 로컬 좌표: 아래에서부터 로그→버튼)
+        float logH = 110;
+        float logY = bh - 16 - logH;
+        float btnY = logY - 12 - 62;   // 버튼↔로그 간격도 12로 통일
         float sendW = iw - 130 - 14;
         var send = Img("sendBtn", rp.transform, ix, btnY, sendW, 62, C("47C4F0"), UISpriteFactory.RoundedRect(48, 12));
         _sendBtnImg = send; _sendBtn = send.gameObject.AddComponent<Button>(); _sendBtn.targetGraphic = send;
@@ -405,13 +426,13 @@ public class TransmissionComputerUI : MonoBehaviour
         cb.onClick.AddListener(Close); Outline(close.gameObject, C("E2EDF8", 0.25f));
         Txt("closeTxt", close.gameObject, 0, 0, 130, 62, "닫기 ESC", _mono, 18, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
 
-        // TX LOG
-        var logBox = Img("txLog", rp.transform, ix, logY, iw, 100, C("070C17", 0.7f), UISpriteFactory.RoundedRect(48, 12));
+        // 이벤트 로그 (헤더 아래 로그 라인 — 위/아래 여백 균등)
+        var logBox = Img("txLog", rp.transform, ix, logY, iw, logH, C("070C17", 0.7f), UISpriteFactory.RoundedRect(48, 12));
         Outline(logBox.gameObject, C("4CC9F7", 0.15f));
         var lgDot = Img("logDot", logBox.transform, 15, 13, 6, 6, Accent, UISpriteFactory.Disc(12));
         lgDot.DOFade(0.1f, 0.7f).SetLoops(-1, LoopType.Yoyo).SetUpdate(true);
-        Txt("logHdr", logBox.transform, 28, 11, iw - 40, 14, "TX LOG", _mono, 11, C("4CC9F7", 0.6f), TextAlignmentOptions.Left, 2);
-        _logText = Txt("logLines", logBox.transform, 15, 34, iw - 30, 60, "", _mono, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.TopLeft);
+        Txt("logHdr", logBox.transform, 28, 11, iw - 40, 14, "SYSTEM LOG", _mono, 11, C("4CC9F7", 0.6f), TextAlignmentOptions.Left, 2);
+        _logText = Txt("logLines", logBox.transform, 15, 34, iw - 30, logH - 34 - 8, "", _mono, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.TopLeft);
     }
 
     private KitRow BuildKitRow(GameObject parent, Kit k)
@@ -498,43 +519,53 @@ public class TransmissionComputerUI : MonoBehaviour
         sbtn.transition = Selectable.Transition.None; sbtn.navigation = new Navigation { mode = Navigation.Mode.None };
         sbtn.onClick.AddListener(SkipReveal);
 
-        // 중앙 빛폭발 + 확장 링(카드 뒤)
-        _rewardBurst = CenteredImg("rwBurst", _reward.transform, 0, 0, 360, 360, new Color(0, 0, 0, 0), UISpriteFactory.Disc(256));
-        for (int i = 0; i < 2; i++)
-        {
-            var ring = CenteredImg($"rwRing{i}", _reward.transform, 0, 0, 120, 120, new Color(0, 0, 0, 0), UISpriteFactory.Ring(256, 3f));
-            _rewardRings.Add(ring.rectTransform);
-        }
+        // 가로형 매니페스트 카드(화면 중앙, 슬라이드 인). RectMask2D 로 스윕 하이라이트를 카드 안에 가둔다.
+        const float PW = 780, PH = 176, X0 = 190;
+        _rewardCard = NewRT("rwCard", _reward);
+        _rewardCard.anchorMin = _rewardCard.anchorMax = _rewardCard.pivot = new Vector2(0.5f, 0.5f);
+        _rewardCard.sizeDelta = new Vector2(PW, PH); _rewardCard.anchoredPosition = Vector2.zero;
+        _cardHome = Vector2.zero;
+        _rewardTint.Clear();
 
-        // 카드(중앙, 640×300 → TL 640,390). pivot 을 중앙으로 바꿔 스케일이 중앙에서 퍼지게 한다
-        // (자식들은 좌상단 앵커라 위치 영향 없음). anchoredPosition 은 중앙점(960,-540)으로 보정.
-        var card = TL(NewGO("rwCard", _reward.transform), 640, 390, 640, 300); _rewardCard = card;
-        card.pivot = new Vector2(0.5f, 0.5f); card.anchoredPosition = new Vector2(960, -540);
-        var bg = card.gameObject.AddComponent<Image>(); bg.sprite = UISpriteFactory.RoundedRect(48, 18); bg.type = Image.Type.Sliced; bg.color = C("0B1524", 0.98f); bg.raycastTarget = false;
-        _rewardOutline = card.gameObject.AddComponent<UnityEngine.UI.Outline>(); _rewardOutline.effectColor = Success; _rewardOutline.effectDistance = new Vector2(1.5f, -1.5f);
-        _rewardBar = Img("rwBar", card.gameObject, 0, 0, 640, 4, Success, UISpriteFactory.RoundedRect(8, 2)); _rewardBar.raycastTarget = false;
+        var bg = _rewardCard.gameObject.AddComponent<Image>();
+        bg.sprite = UISpriteFactory.RoundedRectVGrad(C("14243A"), C("0A1421"), 64, 18); bg.type = Image.Type.Sliced;
+        bg.color = new Color(1, 1, 1, 0.99f); bg.raycastTarget = false;
+        var cardOutline = _rewardCard.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        cardOutline.effectColor = new Color(1, 1, 1, 0.06f); cardOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        _rewardCard.gameObject.AddComponent<RectMask2D>();   // 스윕/자식 클리핑
 
-        // 엠블럼(중심 글로우 + 링)
-        Img("rwEmGlow", card.gameObject, 288, 52, 64, 64, C("FFFFFF", 0.10f), UISpriteFactory.Disc(96)).raycastTarget = false;
-        _rewardEmblem = Img("rwEmRing", card.gameObject, 288, 52, 64, 64, Success, UISpriteFactory.Ring(96, 4f)); _rewardEmblem.raycastTarget = false;
+        // 좌측 악센트 바(구간 색) — 라운드 코너 안쪽으로 살짝 들여 각진 nub 방지
+        _rewardTint.Add(Img("rwAccent", _rewardCard.gameObject, 14, 22, 6, PH - 44, Success, UISpriteFactory.RoundedRect(6, 3)));
 
-        _rewardTitle = Txt("rwTitle", card.gameObject, 20, 24, 600, 20, "", _mono, 14, Success, TextAlignmentOptions.Center, 3, FontStyles.Bold);
-        _rewardName  = Txt("rwName", card.gameObject, 24, 130, 592, 42, "", _kr, 30, TextBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
-        _rewardDesc  = Txt("rwDesc", card.gameObject, 30, 182, 580, 46, "", _kr, 16, C("E8F2FB", 0.7f), TextAlignmentOptions.Top);
+        // 아이콘 타일(구간 색 배경 + 프레임 + 타입별 아이콘)
+        float tS = 116, tX = 30, tY = (PH - tS) / 2f;
+        _rewardIconTile = TL(NewGO("rwTile", _rewardCard), tX, tY, tS, tS);
+        _rewardIconBg = _rewardIconTile.gameObject.AddComponent<Image>();
+        _rewardIconBg.sprite = UISpriteFactory.RoundedRect(40, 18); _rewardIconBg.type = Image.Type.Sliced; _rewardIconBg.color = C("5FDD9D", 0.14f); _rewardIconBg.raycastTarget = false;
+        _rewardIconFrame = _rewardIconTile.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        _rewardIconFrame.effectColor = Success; _rewardIconFrame.effectDistance = new Vector2(1.4f, -1.4f);
+        _rewardIconHolder = NewRT("rwIcon", _rewardIconTile.gameObject);   // 아이콘은 PlayReveal 에서 타입별로 채운다
+        _rewardIconHolder.anchorMin = _rewardIconHolder.anchorMax = _rewardIconHolder.pivot = new Vector2(0.5f, 0.5f);
+        _rewardIconHolder.sizeDelta = new Vector2(28, 28); _rewardIconHolder.anchoredPosition = Vector2.zero;
+        _rewardIconHolder.localScale = Vector3.one * 2.6f;
+
+        // 세로 구분선
+        Img("rwDiv", _rewardCard.gameObject, X0 - 24, 34, 1, PH - 68, C("E8F2FB", 0.10f)).raycastTarget = false;
+
+        // 텍스트 블록(우측)
+        _rewardTitle = Txt("rwTitle", _rewardCard.gameObject, X0, 34, PW - X0 - 40, 20, "", _mono, 13, Success, TextAlignmentOptions.Left, 3, FontStyles.Bold);
+        _rewardName  = Txt("rwName", _rewardCard.gameObject, X0, 58, PW - X0 - 40, 46, "", _kr, 32, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        _rewardDesc  = Txt("rwDesc", _rewardCard.gameObject, X0, 112, PW - X0 - 40, 42, "", _kr, 15, C("E8F2FB", 0.66f), TextAlignmentOptions.TopLeft);
         _rewardDesc.textWrappingMode = TextWrappingModes.Normal;
-        Txt("rwHint", card.gameObject, 0, 264, 640, 18, "클릭하여 계속", _mono, 12, C("E8F2FB", 0.4f), TextAlignmentOptions.Center);
+
+        // 클릭 힌트(우하단)
+        _rewardHint = Txt("rwHint", _rewardCard.gameObject, PW - 210, PH - 30, 190, 18, "▸ 클릭하여 계속", _mono, 12, C("E8F2FB", 0.42f), TextAlignmentOptions.Right, 2);
+
+        // 스윕 하이라이트(등장 시 좌→우로 한 번 지나감). 카드 마스크로 양끝 클리핑.
+        _rewardSweep = TL(NewGO("rwSweep", _rewardCard), 0, 0, 90, PH);
+        var sw = _rewardSweep.gameObject.AddComponent<Image>(); sw.color = new Color(1, 1, 1, 0.06f); sw.raycastTarget = false;
 
         _reward.SetActive(false);
-    }
-
-    // 부모 중심 기준으로 배치되는 이미지(원형 이펙트용).
-    private Image CenteredImg(string n, Transform p, float ox, float oy, float w, float h, Color col, Sprite spr)
-    {
-        var go = NewGO(n, p); var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(w, h); rt.anchoredPosition = new Vector2(ox, oy);
-        var im = go.AddComponent<Image>(); im.color = col; if (spr != null) im.sprite = spr;
-        im.raycastTarget = false; return im;
     }
 
     // =====================================================================
@@ -582,19 +613,20 @@ public class TransmissionComputerUI : MonoBehaviour
             if (mk == null) continue;
             int pct = int.Parse(mk.name.Substring(2));
             var st = _m.MarkerState(pct);
-            Color col = st == MState.Done ? Success : st == MState.Next ? Accent : C("E2EDF8", 0.25f);
+            // 공개된 지점(완료/다음)은 링·스템·아이콘 모두 구간 색으로. 잠금은 기존대로 흐린 회색 유지.
+            Color col = st == MState.Locked ? C("E2EDF8", 0.25f) : RegionColorForPct(pct);
             var chip = mk.transform.Find("chip")?.GetComponent<Image>();
             if (chip != null)
             {
                 var ol = chip.GetComponent<UnityEngine.UI.Outline>(); if (ol != null) ol.effectColor = col;
             }
             var stem = mk.transform.Find("stem")?.GetComponent<Image>(); if (stem != null) stem.color = new Color(col.r, col.g, col.b, 0.5f);
-            // 아이콘: done=체크 / next=설계도 / locked="?"
+            // 아이콘: done=보석(젬) / next=타깃(조준) / locked="?"
             var iconHolder = mk.transform.Find("iconHolder");
             if (iconHolder != null) Destroy(iconHolder.gameObject);
             var ih = NewRT("iconHolder", mk); CenterIn2(ih, (RectTransform)mk.transform); ih.sizeDelta = new Vector2(18, 18);
-            if (st == MState.Done) BuildCheck(ih.gameObject, col);
-            else if (st == MState.Next) BuildDoc(ih.gameObject, col);
+            if (st == MState.Done) BuildGem(ih.gameObject, col);
+            else if (st == MState.Next) BuildTarget(ih.gameObject, col);
             else Txt("q", ih.gameObject, 0, 0, 18, 18, "?", _mono, 14, col, TextAlignmentOptions.Center);
         }
     }
@@ -633,6 +665,7 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         _statusLine.text = _m.StatusText();
         if (_subLabel != null) _subLabel.text = $"기지 전송 컴퓨터     현재 구간 {RegionKo[(int)_m.Cur]}";
+        SetRateTankColor();
         PositionCursor();
         RefreshLegend();
     }
@@ -704,9 +737,9 @@ public class TransmissionComputerUI : MonoBehaviour
         _revealQ.Enqueue(new Reveal
         {
             title = $"구간 달성 · {pct}%", name = $"{_m.RewardName(pct)} 획득!",
-            desc = _m.RewardDesc(pct), color = Success, markerPct = pct
+            desc = _m.RewardDesc(pct), color = RegionColorForPct(pct), markerPct = pct, order = pct
         });
-        TryPlayNextReveal();
+        ScheduleRevealStart();
     }
     private void HandleRegionUnlocked(TransmissionRegion r)
     {
@@ -715,29 +748,71 @@ public class TransmissionComputerUI : MonoBehaviour
         _revealQ.Enqueue(new Reveal
         {
             title = "구간 해금", name = $"{RegionKo[(int)r]} 구간 개방!",
-            desc = "새로운 지역으로 시간에너지 전송을 이어갈 수 있습니다.", color = Accent, markerPct = -1
+            desc = "새로운 지역으로 시간에너지 전송을 이어갈 수 있습니다.", color = RegionCol[(int)r], markerPct = -1,
+            order = (int)r * 25   // 해금 임계값(설원 25 / 사막 50 / 용암 75) — 같은 지점의 보상보다 앞서게 하는 정렬 키
         });
-        TryPlayNextReveal();
+        ScheduleRevealStart();
     }
 
     // ── 리워드 리빌 재생 ──────────────────────────────────────────────
+    // 한 번의 rate 변경에서 보상·해금 이벤트가 연달아 발생하므로(매니저가 보상 먼저, 해금 나중에 통지),
+    // 즉시 재생하지 않고 다음 틱까지 미뤄 전부 큐에 모은 뒤 정렬해서 재생한다.
+    private void ScheduleRevealStart()
+    {
+        if (_revealStartScheduled) return;
+        _revealStartScheduled = true;
+        DOVirtual.DelayedCall(0f, () => { _revealStartScheduled = false; TryPlayNextReveal(); }, false).SetUpdate(true);
+    }
+
     private void TryPlayNextReveal()
     {
         if (_revealBusy || !IsOpen || _revealQ.Count == 0) return;
+        SortRevealQueue();
         _revealBusy = true;
         PlayReveal(_revealQ.Dequeue());
     }
 
+    // 낮은 지점부터, 같은 지점이면 '구간 개방'(markerPct<0)이 보상보다 먼저 나오도록 정렬.
+    private void SortRevealQueue()
+    {
+        if (_revealQ.Count < 2) return;
+        var list = new List<Reveal>(_revealQ);
+        list.Sort((a, b) =>
+        {
+            if (a.order != b.order) return a.order.CompareTo(b.order);
+            int ka = a.markerPct < 0 ? 0 : 1, kb = b.markerPct < 0 ? 0 : 1;
+            return ka.CompareTo(kb);
+        });
+        _revealQ.Clear();
+        foreach (var rv in list) _revealQ.Enqueue(rv);
+    }
+
     private void PlayReveal(Reveal r)
     {
-        // 내용/색 세팅
-        _rewardTitle.text = r.title; _rewardTitle.color = r.color;
-        _rewardName.text = r.name; _rewardDesc.text = r.desc;
-        _rewardBar.color = r.color; _rewardOutline.effectColor = r.color; _rewardEmblem.color = r.color;
+        const float PW = 780;   // 카드 폭(스윕 종료 x 계산용) — BuildRewardOverlay 와 일치
+        Color col = r.color;
 
+        // 내용/색 세팅
+        _rewardTitle.text = r.title; _rewardTitle.color = col;
+        _rewardName.text = r.name; _rewardDesc.text = r.desc;
+        _rewardIconBg.color = new Color(col.r, col.g, col.b, 0.14f);
+        _rewardIconFrame.effectColor = col;
+        foreach (var im in _rewardTint) if (im != null) im.color = col;
+
+        // 타입별 아이콘: 지점 보상=설계도, 구간 해금=지역 마름모
+        foreach (Transform t in _rewardIconHolder) Destroy(t.gameObject);
+        if (r.markerPct >= 0) BuildDoc(_rewardIconHolder.gameObject, col);
+        else BuildRegionGlyph(_rewardIconHolder.gameObject, col);
+
+        // 초기 상태로 리셋
         _reward.SetActive(true); _reward.transform.SetAsLastSibling();
+        KillRewardTweens();
         _rewardCg.alpha = 0f; _rewardCg.blocksRaycasts = false;
-        _rewardCard.localScale = Vector3.one * 0.85f;
+        _rewardCard.anchoredPosition = _cardHome - new Vector2(0, 46);   // 아래에서 위로 슬라이드
+        _rewardCard.localScale = Vector3.one;
+        _rewardIconTile.localScale = Vector3.one * 0.55f;
+        _rewardSweep.anchoredPosition = new Vector2(-110, 0);            // 좌측 밖에서 대기(TL: 부호 그대로)
+        SetAlpha(_rewardTitle, 0); SetAlpha(_rewardName, 0); SetAlpha(_rewardDesc, 0); SetAlpha(_rewardHint, 0);
 
         _rewardSeq?.Kill();
         _rewardSeq = DOTween.Sequence().SetUpdate(true);
@@ -745,28 +820,54 @@ public class TransmissionComputerUI : MonoBehaviour
         _rewardSeq.AppendCallback(() =>
         {
             _rewardCg.blocksRaycasts = true;
-            if (r.markerPct >= 0) FlashMarker(r.markerPct, r.color);
-            PlayBurst(r.color);
+            if (r.markerPct >= 0) FlashMarker(r.markerPct, col);
+            // 카드: 아래→위 슬라이드
+            _rewardCard.DOAnchorPos(_cardHome, 0.42f).SetEase(Ease.OutCubic).SetUpdate(true);
+            // 아이콘 타일: 팝
+            _rewardIconTile.DOScale(1f, 0.5f).SetEase(Ease.OutBack).SetUpdate(true).SetDelay(0.12f);
+            // 스윕 하이라이트: 좌→우 한 번 통과(카드 마스크로 양끝 클리핑)
+            _rewardSweep.DOAnchorPos(new Vector2(PW + 20, 0), 0.7f).SetEase(Ease.OutSine).SetUpdate(true).SetDelay(0.1f);
+            // 텍스트: 순차 페이드(원래 알파로 복원)
+            FadeIn(_rewardTitle, 1f, 0.24f, 0.16f);
+            FadeIn(_rewardName, 1f, 0.3f, 0.22f);
+            FadeIn(_rewardDesc, 0.66f, 0.3f, 0.32f);
+            FadeIn(_rewardHint, 0.42f, 0.3f, 0.5f);
         });
-        _rewardSeq.Append(_rewardCg.DOFade(1f, 0.25f));
-        _rewardSeq.Join(_rewardCard.DOScale(1f, 0.42f).SetEase(Ease.OutBack));
+        _rewardSeq.Append(_rewardCg.DOFade(1f, 0.28f));
         // 자동 닫힘 없음 — 플레이어가 클릭(SkipReveal→CloseReveal)할 때까지 유지.
     }
 
-    private void PlayBurst(Color col)
+    // 구간(지역) 마름모 글리프 — 마커 다이아와 결이 맞는 회전 사각형.
+    private void BuildRegionGlyph(GameObject parent, Color col)
     {
-        _rewardBurst.color = new Color(col.r, col.g, col.b, 0.55f);
-        _rewardBurst.rectTransform.localScale = Vector3.one * 0.3f;
-        _rewardBurst.rectTransform.DOScale(2.4f, 0.7f).SetEase(Ease.OutQuad).SetUpdate(true);
-        _rewardBurst.DOFade(0f, 0.7f).SetUpdate(true);
-        for (int i = 0; i < _rewardRings.Count; i++)
-        {
-            var ring = _rewardRings[i]; var im = ring.GetComponent<Image>();
-            ring.localScale = Vector3.one * 0.5f; im.color = new Color(col.r, col.g, col.b, 0.6f);
-            ring.DOScale(3.2f + i, 0.9f).SetEase(Ease.OutQuad).SetUpdate(true).SetDelay(i * 0.12f);
-            im.DOFade(0f, 0.9f).SetUpdate(true).SetDelay(i * 0.12f);
-        }
+        var d = Img("rg", parent, 0, 0, 15, 15, col, UISpriteFactory.RoundedRect(8, 2));
+        d.rectTransform.anchorMin = d.rectTransform.anchorMax = d.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        d.rectTransform.anchoredPosition = Vector2.zero; d.rectTransform.localRotation = Quaternion.Euler(0, 0, 45); d.raycastTarget = false;
+        var c = Img("rgc", parent, 0, 0, 5, 5, C("07101E"), UISpriteFactory.Disc(16));
+        c.rectTransform.anchorMin = c.rectTransform.anchorMax = c.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        c.rectTransform.anchoredPosition = Vector2.zero; c.raycastTarget = false;
     }
+
+    // 등장 트윈 일괄 정리(재생 시작 전·닫을 때).
+    private void KillRewardTweens()
+    {
+        if (_rewardCard != null) _rewardCard.DOKill();
+        if (_rewardIconTile != null) _rewardIconTile.DOKill();
+        if (_rewardSweep != null) _rewardSweep.DOKill();
+        if (_rewardTitle != null) DOTween.Kill(_rewardTitle);
+        if (_rewardName != null) DOTween.Kill(_rewardName);
+        if (_rewardDesc != null) DOTween.Kill(_rewardDesc);
+        if (_rewardHint != null) DOTween.Kill(_rewardHint);
+    }
+
+    private static void SetAlpha(TMP_Text t, float a) { if (t != null) { var c = t.color; c.a = a; t.color = c; } }
+    // DOTween TMP 모듈 없이 텍스트 알파를 트윈(코어 DOTween.To). SetTarget 으로 DOKill 대상 지정.
+    private Tweener FadeText(TMP_Text t, float to, float dur, float delay)
+    {
+        return DOTween.To(() => t.color.a, a => { var c = t.color; c.a = a; t.color = c; }, to, dur)
+            .SetTarget(t).SetUpdate(true).SetDelay(delay);
+    }
+    private void FadeIn(TMP_Text t, float targetA, float dur, float delay) { if (t != null) FadeText(t, targetA, dur, delay); }
 
     private void FlashMarker(int pct, Color col)
     {
@@ -790,10 +891,11 @@ public class TransmissionComputerUI : MonoBehaviour
     private void CloseReveal()
     {
         _rewardSeq?.Kill();                     // 등장/이전 닫힘 시퀀스 정리(OnComplete 미발생)
+        KillRewardTweens();
         if (_rewardCg != null) _rewardCg.blocksRaycasts = false;   // 닫는 동안 추가 클릭 차단
         _rewardSeq = DOTween.Sequence().SetUpdate(true);
-        _rewardSeq.Append(_rewardCg.DOFade(0f, 0.25f));
-        _rewardSeq.Join(_rewardCard.DOScale(0.9f, 0.25f).SetEase(Ease.InSine));
+        _rewardSeq.Append(_rewardCg.DOFade(0f, 0.22f));
+        _rewardSeq.Join(_rewardCard.DOAnchorPos(_cardHome - new Vector2(0, 24), 0.22f).SetEase(Ease.InSine));   // 아래로 내려가며 사라짐
         _rewardSeq.OnComplete(() =>
         {
             if (_reward != null) _reward.SetActive(false);
@@ -811,16 +913,55 @@ public class TransmissionComputerUI : MonoBehaviour
         {
             _fill.fillAmount = to / 100f;
             _node.anchoredPosition = new Vector2(tw * to / 100f, 0);
-            _nodeLabel.text = Mathf.RoundToInt(to) + "%"; _rateBig.text = Mathf.RoundToInt(to).ToString();
+            _nodeLabel.text = Mathf.RoundToInt(to) + "%"; _rateBig.text = RateText(to);
+            _rateLevelShown = to; SetRateTankLevel(to);
             RunSweep();
             return;
         }
         _fill.DOKill(); _node.DOKill();
         _fill.DOFillAmount(to / 100f, 0.9f).SetEase(Ease.OutQuint).SetUpdate(true);
         _node.DOAnchorPosX(tw * to / 100f, 0.9f).SetEase(Ease.OutQuint).SetUpdate(true);
-        DOTween.To(() => from, v => { _nodeLabel.text = Mathf.RoundToInt(v) + "%"; _rateBig.text = Mathf.RoundToInt(v).ToString(); }, to, 0.9f)
+        DOTween.To(() => from, v => { _nodeLabel.text = Mathf.RoundToInt(v) + "%"; _rateBig.text = RateText(v); _rateLevelShown = v; }, to, 0.9f)
             .SetEase(Ease.OutQuint).SetUpdate(true);
         RunSweep();
+    }
+
+    // 큰 숫자 + 살짝 작은 % (리치텍스트). 예: 50<size=45%>%</size>
+    private static string RateText(float v) => $"{Mathf.RoundToInt(v)}<size=45%>%</size>";
+
+    // 탱크 수위(전송률 높이) 즉시 반영(개장 시). 이후엔 Update 가 매 프레임 갱신.
+    private void SetRateTankLevel(float rate) { if (_rateWave != null) RegenWater(Time.unscaledTime); }
+
+    // 탱크 색(현재 구간 색)과 구간 라벨 갱신 — 구간이 바뀔 때만 필요. (텍스처는 알파만, 색은 RawImage.color)
+    private void SetRateTankColor()
+    {
+        if (_rateWave == null) return;
+        Color rc = RegionCol[(int)_m.Cur];
+        _rateWave.color = new Color(rc.r, rc.g, rc.b, 1f);
+        if (_rateRegionLabel != null) _rateRegionLabel.text = $"{RegionKo[(int)_m.Cur]} 구간";
+    }
+
+    // 물 텍스처 재생성 — 열(x)마다 여러 진행파를 합쳐 수면 행(s)을 구하고, 그 아래를 채운다.
+    // 텍스처는 알파만(흰색), 색은 RawImage.color(구간 색). 표면 근처는 알파를 높여 밝은 수면.
+    private void RegenWater(float t)
+    {
+        float level = Mathf.Clamp01(_rateLevelShown / 100f);
+        float slosh = 1.2f * Mathf.Sin(t * 1.2f);
+        for (int x = 0; x < RWW; x++)
+        {
+            // 균일한 진행파(같은 파장 2주기)로 규칙적인 물결 + 전체 찰랑임(slosh).
+            float wave = 3.2f * Mathf.Sin(2f * Mathf.PI * (x / (RWW * 0.5f)) - t * 1.3f);
+            float s = level * RWH + wave + slosh;   // 수면 행
+            for (int y = 0; y < RWH; y++)
+            {
+                float d = s - y;   // 수면 아래 깊이(>0) / 위(<0)
+                float a;
+                if (d >= 0) { float hi = Mathf.Clamp01(1f - d / 3f); a = Mathf.Lerp(0.5f, 0.85f, hi); }
+                else a = Mathf.Clamp01(1f + d) * 0.5f;   // 위쪽 1px 소프트
+                _rateWavePx[y * RWW + x] = new Color(1f, 1f, 1f, a);
+            }
+        }
+        _rateWaveTex.SetPixels(_rateWavePx); _rateWaveTex.Apply(false);
     }
 
     private void RunSweep()
@@ -855,7 +996,8 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         if (_cg != null) _cg.DOKill(); if (_content != null) _content.DOKill();
         if (_fill != null) _fill.DOKill(); if (_node != null) _node.DOKill();
-        _rewardSeq?.Kill(); _revealQ.Clear(); _revealBusy = false;
+        _rewardSeq?.Kill(); _revealQ.Clear(); _revealBusy = false; _revealStartScheduled = false;
+        KillRewardTweens();
         if (_reward != null) _reward.SetActive(false);
     }
 
@@ -1001,6 +1143,7 @@ public class TransmissionComputerUI : MonoBehaviour
         public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e) => _ui.HideTooltip();
     }
 
+
     // =====================================================================
     // 헬퍼 (레이아웃/그래픽)
     // =====================================================================
@@ -1133,6 +1276,26 @@ public class TransmissionComputerUI : MonoBehaviour
                 .rectTransform.anchoredPosition = new Vector2(0, 4 - i * 4);
         foreach (Transform t in parent.transform) { var rt = (RectTransform)t; rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f); }
     }
+    // 마커 아이콘: 중심 정렬 이미지 헬퍼(마커 홀더 자식용)
+    private Image MarkerIcon(string n, GameObject parent, float w, float h, Color col, Sprite spr, float rotZ = 0f, Vector2 off = default)
+    {
+        var im = Img(n, parent, 0, 0, w, h, col, spr); var rt = im.rectTransform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = off; if (rotZ != 0f) rt.localRotation = Quaternion.Euler(0, 0, rotZ);
+        im.raycastTarget = false; return im;
+    }
+    // 완료 = 보석(마름모 젬 + 하이라이트)
+    private void BuildGem(GameObject parent, Color col)
+    {
+        MarkerIcon("gem", parent, 13, 13, col, UISpriteFactory.RoundedRect(8, 3), 45f);
+        MarkerIcon("gemHl", parent, 4, 4, C("FFFFFF", 0.75f), UISpriteFactory.Disc(16), 0f, new Vector2(-2f, 2f));
+    }
+    // 다음 = 타깃(링 + 중앙 점)
+    private void BuildTarget(GameObject parent, Color col)
+    {
+        MarkerIcon("tgtRing", parent, 16, 16, col, UISpriteFactory.Ring(48, 3f));
+        MarkerIcon("tgtDot", parent, 5, 5, col, UISpriteFactory.Disc(16));
+    }
 
     // ── 폰트 ──────────────────────────────────────────────────────────
     private TMP_FontAsset ResolveFont(TMP_FontAsset given, params string[] names)
@@ -1156,6 +1319,7 @@ public class TransmissionComputerUI : MonoBehaviour
 
     // ── 절차 텍스처 ───────────────────────────────────────────────────
     private static Sprite _hgrad, _radial, _grid, _scan, _tri, _sweep2, _vig;
+
     private static Sprite HGrad()
     {
         if (_hgrad != null) return _hgrad;
