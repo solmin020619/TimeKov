@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 폐우주선 단계별 수리 = 기지 업그레이드. Lv.1(시작)~Lv.N(최대), 실제 수리 (N-1)회.
-// 수리 부품(맵에서 근접 회수)을 모아 우주선과 상호작용 -> 레벨업 -> 보상 3종 적용:
+// 수리 부품은 단일 종류이며 레벨마다 필요 '개수'만 다르다(기획 확정 07-11).
+// 부품 획득은 AddParts 한 곳으로 통일 - 픽업/시간에너지 보상 등 어떤 시스템이든 이걸 호출하면 됨(확장 대비).
+// 부품을 모아 우주선과 상호작용 -> 필요 개수 소모 -> 레벨업 -> 보상 3종 적용:
 //   (1) 공장 가동속도 = 제작시간 전역 배수 (FactorySpeedMultiplier)
 //   (2) 설비 연료 효율 = 연료 1개당 가동 초 (FuelConfig.SetSecondsOverride)
 //   (3) 건축 범위     = BuildZoneProgression.ApplyStage
 // 수치는 임시(인스펙터 편집). 저장 = 통합 세이브(ISaveable/SaveSlotManager, 슬롯 기반).
 // 활성 슬롯 없으면(World 씬 직접 Play) 복원/저장 모두 건너뜀 = 매번 Lv.1 새 상태(샌드박스 테스트).
-// 부품은 인벤토리로 안 들어가고 여기에 마스크로 모인다.
+// 부품은 인벤토리로 안 들어가고 여기에 수량으로 모인다.
 public class ShipRepairManager : MonoBehaviour, ISaveable
 {
     public static ShipRepairManager Instance { get; private set; }
@@ -19,8 +21,8 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     {
         [Tooltip("이 레벨의 단계명. 예: 시설 제어 계통 수리")]
         public string title = "";
-        [Tooltip("이 레벨에 '도달'하기 위해 필요한 수리 부품 이름. Lv.1(시작)은 비움.")]
-        public string requiredPartName = "";
+        [Tooltip("이 레벨에 '도달'하기 위해 필요한 수리 부품 개수. Lv.1(시작)은 0.")]
+        public int requiredParts = 0;
         [Tooltip("이 레벨에서의 제작시간 배수(작을수록 빠름). 1=기본.")]
         public float factorySpeed = 1f;
         [Tooltip("이 레벨에서의 연료 1개당 가동 시간(초).")]
@@ -32,12 +34,17 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     [Header("레벨 정의 (index 0 = Lv.1 시작). 기획자 편집.")]
     [SerializeField] private List<LevelDef> levels = new();
 
+    [Header("부품 (단일 종류)")]
+    [Tooltip("수리 부품 표시 이름. 토스트/UI 공통.")]
+    [SerializeField] private string partName = "수리 부품";
+
     [Header("참조")]
     [Tooltip("건축영역 확장 대상. 비우면 씬에서 자동 탐색.")]
     [SerializeField] private BuildZoneProgression zoneProgression;
 
     private int _level = 1;
-    private int _partsMask = 0;   // bit L 세팅 = 레벨 L 도달용 부품을 회수함
+    private int _partCount = 0;        // 보유 부품 수량 (수리 시 소모)
+    private int _pickupTakenMask = 0;  // bit i = 맵 픽업 i번을 이미 회수함 (재입장 중복 회수 방지)
 
     // 공장 제작속도 전역 배수 — FacilityInstance.GetFinalProcessTime 이 곱한다. 기본 1.
     public static float FactorySpeedMultiplier { get; private set; } = 1f;
@@ -53,6 +60,11 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     /// (실제 탈출 조건에 시간에너지 100% 를 AND 로 추가하는 건 별도 시스템에서.)</summary>
     public bool IsFullyRepaired => IsMaxLevel;
 
+    public string PartName => partName;
+
+    /// <summary>현재 보유한 수리 부품 수량.</summary>
+    public int PartCount => _partCount;
+
     public LevelDef GetLevel(int level)
     {
         int idx = level - 1;
@@ -60,11 +72,15 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         return levels[idx];
     }
 
-    /// <summary>레벨 L 도달용 부품을 회수했는지(아직 사용 전이어도 true).</summary>
-    public bool IsPartCollected(int level) => (_partsMask & (1 << level)) != 0;
+    /// <summary>레벨 L 도달에 필요한 부품 개수.</summary>
+    public int RequiredPartsFor(int level)
+    {
+        var def = GetLevel(level);
+        return def != null ? Mathf.Max(0, def.requiredParts) : 0;
+    }
 
-    /// <summary>레벨 L 부품이 이미 사용됨(그 레벨을 넘어 수리 진행함).</summary>
-    public bool IsPartUsed(int level) => _level >= level;
+    /// <summary>다음 수리에 필요한 부품 개수 (최대 레벨이면 0).</summary>
+    public int NextRequiredParts => IsMaxLevel ? 0 : RequiredPartsFor(_level + 1);
 
     // ── 라이프사이클 ──────────────────────────────────────────────────
 
@@ -93,19 +109,28 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         if (Instance == this) Instance = null;
     }
 
-    // ── 부품 회수 (ShipPartPickup 이 호출) ─────────────────────────────
+    // ── 부품 획득 ──────────────────────────────────────────────────────
 
-    public void CollectPart(int level)
+    /// <summary>수리 부품 지급 - 유일한 획득 통로. 맵 픽업/시간에너지 보상 등 어떤 시스템이든 이걸 호출.</summary>
+    public void AddParts(int amount)
     {
-        if (level < 2 || level > MaxLevel) return;
-        if (IsPartUsed(level) || IsPartCollected(level)) return;
+        if (amount <= 0) return;
+        _partCount += amount;
 
-        _partsMask |= (1 << level);
-
-        var def = GetLevel(level);
-        string nm = def != null && !string.IsNullOrEmpty(def.requiredPartName) ? def.requiredPartName : "수리 부품";
-        ToastManager.Success($"{nm} 회수");
+        ToastManager.Success(amount == 1 ? $"{partName} 회수" : $"{partName} +{amount}");
         OnChanged?.Invoke();
+    }
+
+    /// <summary>맵 픽업 i번을 이미 회수했는지 (세이브 복원 후 중복 회수 방지용).</summary>
+    public bool IsPickupTaken(int index)
+        => index >= 0 && index < 32 && (_pickupTakenMask & (1 << index)) != 0;
+
+    /// <summary>맵 픽업 회수: 회수 기록 + 부품 지급. index = 씬에서 픽업마다 유니크하게(0~31).</summary>
+    public void CollectPickup(int index, int amount)
+    {
+        if (IsPickupTaken(index)) return;
+        if (index >= 0 && index < 32) _pickupTakenMask |= (1 << index);
+        AddParts(amount);
     }
 
     // ── 수리 (다음 레벨) ──────────────────────────────────────────────
@@ -113,7 +138,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     public bool CanRepairNext()
     {
         if (IsMaxLevel) return false;
-        return IsPartCollected(_level + 1);
+        return _partCount >= NextRequiredParts;
     }
 
     public bool TryRepairNext()
@@ -124,14 +149,15 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
             return false;
         }
 
-        int next = _level + 1;
-        if (!IsPartCollected(next))
+        int need = NextRequiredParts;
+        if (_partCount < need)
         {
-            ToastManager.Warning("현재 단계에 필요한 수리 부품이 없습니다");
+            ToastManager.Warning($"{partName}이 부족합니다 ({_partCount} / {need})");
             return false;
         }
 
-        _level = next;
+        _partCount -= need;
+        _level += 1;
         ApplyLevelEffects(_level);
 
         ToastManager.Success($"우주선 수리 Lv.{_level} 완료");
@@ -163,7 +189,8 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     {
         if (data == null) return;
         data.shipRepairLevel     = _level;
-        data.shipRepairPartsMask = _partsMask;
+        data.shipRepairPartCount = _partCount;
+        data.shipRepairPartsMask = _pickupTakenMask;
     }
 
     private void RestoreFromSave()
@@ -171,8 +198,9 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         var mgr = SaveSlotManager.Instance;
         if (mgr == null || !mgr.HasActiveSlot) return;   // 활성 슬롯 없으면 기본값(Lv.1/0) 유지
 
-        _level     = Mathf.Clamp(mgr.Data.shipRepairLevel, 1, MaxLevel);
-        _partsMask = mgr.Data.shipRepairPartsMask;
+        _level           = Mathf.Clamp(mgr.Data.shipRepairLevel, 1, MaxLevel);
+        _partCount       = Mathf.Max(0, mgr.Data.shipRepairPartCount);
+        _pickupTakenMask = mgr.Data.shipRepairPartsMask;
     }
 
 #if UNITY_EDITOR
@@ -183,11 +211,11 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
 
         levels = new List<LevelDef>
         {
-            new LevelDef { title = "파손 상태",          requiredPartName = "",             factorySpeed = 1.0f, fuelSeconds = 60f,  zoneStage = 0 },
-            new LevelDef { title = "시설 제어 계통 수리",   requiredPartName = "시설 제어 모듈",  factorySpeed = 0.9f, fuelSeconds = 60f,  zoneStage = 1 },
-            new LevelDef { title = "동력 변환 계통 수리",   requiredPartName = "동력 변환기",    factorySpeed = 0.8f, fuelSeconds = 75f,  zoneStage = 2 },
-            new LevelDef { title = "공간 안정화 계통 수리", requiredPartName = "공간 안정화 장치", factorySpeed = 0.8f, fuelSeconds = 90f,  zoneStage = 3 },
-            new LevelDef { title = "주 동력 계통 최종 수리", requiredPartName = "주 동력 코어",   factorySpeed = 0.7f, fuelSeconds = 105f, zoneStage = 4 },
+            new LevelDef { title = "파손 상태",           requiredParts = 0, factorySpeed = 1.0f, fuelSeconds = 60f,  zoneStage = 0 },
+            new LevelDef { title = "시설 제어 계통 수리",    requiredParts = 1, factorySpeed = 0.9f, fuelSeconds = 60f,  zoneStage = 1 },
+            new LevelDef { title = "동력 변환 계통 수리",    requiredParts = 1, factorySpeed = 0.8f, fuelSeconds = 75f,  zoneStage = 2 },
+            new LevelDef { title = "공간 안정화 계통 수리",  requiredParts = 2, factorySpeed = 0.8f, fuelSeconds = 90f,  zoneStage = 3 },
+            new LevelDef { title = "주 동력 계통 최종 수리",  requiredParts = 2, factorySpeed = 0.7f, fuelSeconds = 105f, zoneStage = 4 },
         };
     }
 #endif

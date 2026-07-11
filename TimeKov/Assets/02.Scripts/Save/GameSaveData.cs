@@ -69,9 +69,11 @@ public class GameSaveData
     public int buildZoneStageIndex = -1;
 
     // ── 우주선 수리 (ShipRepairManager) ──────────────────────────────────
-    // shipRepairLevel=현재 수리 레벨(1=시작), shipRepairPartsMask=회수한 부품 비트마스크.
-    // 새 슬롯 기본값(1/0)이 곧 게임 시작 상태라 그대로 복원해도 무해.
+    // shipRepairLevel=현재 수리 레벨(1=시작), shipRepairPartCount=보유 부품 수량(단일 종류),
+    // shipRepairPartsMask=회수한 맵 픽업 비트(bit i = 픽업 i번 회수됨, 재입장 중복 회수 방지).
+    // 새 슬롯 기본값(1/0/0)이 곧 게임 시작 상태라 그대로 복원해도 무해.
     public int shipRepairLevel = 1;
+    public int shipRepairPartCount = 0;
     public int shipRepairPartsMask = 0;
 
     // ── 도감: 아이템 최초 획득 기록 (ItemDiscovery) ──────────────────────────

@@ -1,12 +1,15 @@
 using System.Collections;
 using UnityEngine;
 
-// 맵에 배치하는 우주선 수리 부품. 플레이어가 가까이 가면 자동 회수(퍼즐 없음).
-// 회수 시 ShipRepairManager 에 해당 레벨 부품을 표시(인벤토리로 들어가지 않고 우주선에 모임).
+// 맵에 배치하는 우주선 수리 부품(단일 종류). 플레이어가 가까이 가면 자동 회수(퍼즐 없음).
+// 회수 시 ShipRepairManager 에 수량으로 쌓인다(인벤토리로 들어가지 않음).
+// pickupIndex 는 씬 안에서 픽업마다 유니크하게(0~31) - 세이브 복원 후 중복 회수 방지 키.
 public class ShipPartPickup : MonoBehaviour
 {
-    [Tooltip("이 부품이 해금하는 수리 레벨(2~5). Lv.N 도달용 부품.")]
-    [SerializeField] private int targetLevel = 2;
+    [Tooltip("이 픽업의 고유 번호(0~31). 씬 안에서 겹치면 안 됨 - 하나 먹으면 같은 번호는 다음 로드 때 같이 사라진다.")]
+    [SerializeField] private int pickupIndex = 0;
+    [Tooltip("회수 시 지급할 부품 개수.")]
+    [SerializeField] private int amount = 1;
     [Tooltip("이 거리(m) 안으로 들어오면 자동 회수.")]
     [SerializeField] private float pickupRadius = 2.2f;
 
@@ -18,9 +21,9 @@ public class ShipPartPickup : MonoBehaviour
 
     private void Start()
     {
-        // 이미 회수/사용된 부품이면 씬에서 조용히 제거(세이브 복원 대응).
+        // 이미 회수한 픽업이면 씬에서 조용히 제거(세이브 복원 대응).
         var mgr = ShipRepairManager.Instance;
-        if (mgr != null && (mgr.IsPartCollected(targetLevel) || mgr.IsPartUsed(targetLevel)))
+        if (mgr != null && mgr.IsPickupTaken(pickupIndex))
         {
             Destroy(gameObject);
             return;
@@ -40,7 +43,7 @@ public class ShipPartPickup : MonoBehaviour
     private void Collect()
     {
         _taken = true;
-        ShipRepairManager.Instance?.CollectPart(targetLevel);
+        ShipRepairManager.Instance?.CollectPickup(pickupIndex, amount);
 
         foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;
         StartCoroutine(Vanish());
@@ -64,7 +67,7 @@ public class ShipPartPickup : MonoBehaviour
     {
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, pickupRadius);
-        UnityEditor.Handles.Label(transform.position + Vector3.up * 1.2f, $"Ship Part -> Lv.{targetLevel}");
+        UnityEditor.Handles.Label(transform.position + Vector3.up * 1.2f, $"Ship Part #{pickupIndex} x{amount}");
     }
 #endif
 }

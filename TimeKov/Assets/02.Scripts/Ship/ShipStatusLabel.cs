@@ -76,7 +76,8 @@ public class ShipStatusLabel : MonoBehaviour
         }
         else
         {
-            _text.text  = $"우주선 수리 Lv.{mgr.CurrentLevel}/{mgr.MaxLevel}";
+            // 부품 개수제 - 안 열어도 모자란 개수가 보이게
+            _text.text  = $"우주선 수리 Lv.{mgr.CurrentLevel}/{mgr.MaxLevel}\n<size=80%>부품 {mgr.PartCount} / {mgr.NextRequiredParts}</size>";
             _text.color = NormalCol;
         }
     }

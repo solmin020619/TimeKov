@@ -273,11 +273,11 @@ public static class ShipRepairUIBuilder
         AnchorTopStretch(sdiv.GetComponent<RectTransform>(), 4, 4, -244, -243);
         sdiv.GetComponent<Image>().raycastTarget = false;
 
-        var partsLabel = MakeTMP("PartsLabel", colRt, Vector2.zero, Vector2.zero, "수리 부품", 17, Hex("EAF3FB"), TextAlignmentOptions.Left);
+        var partsLabel = MakeTMP("PartsLabel", colRt, Vector2.zero, Vector2.zero, "수리 단계", 17, Hex("EAF3FB"), TextAlignmentOptions.Left);
         partsLabel.fontStyle = FontStyles.Bold;
         AnchorTopStretch(partsLabel.rectTransform, 4, 120, -274, -250);
 
-        var partsCount = MakeTMP("PartsCount", colRt, Vector2.zero, Vector2.zero, "회수  0 / 4", 14, RGBA(150, 178, 204, 1f), TextAlignmentOptions.Right);
+        var partsCount = MakeTMP("PartsCount", colRt, Vector2.zero, Vector2.zero, "수리 부품 보유  0개", 14, RGBA(150, 178, 204, 1f), TextAlignmentOptions.Right);
         AnchorTopStretch(partsCount.rectTransform, 120, 4, -274, -250);
         SetRef(so, "partsCountText", partsCount);
 

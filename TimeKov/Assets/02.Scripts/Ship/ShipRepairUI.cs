@@ -6,8 +6,8 @@ using UnityEngine.UI;
 
 // 폐우주선 수리 패널 컨트롤러 (풀스크린 대형, 공장풍 프로스티드 + 우주선 홀로그램 링게이지).
 // 패널 골격은 에디터 빌더(ShipRepairUIBuilder)가 만들고 ref 로 연결한다.
-// 레벨 사다리(pip)와 부품 목록은 레벨 수가 가변이라 런타임에 이 컨트롤러가 생성한다.
-// 데이터/조작은 ShipRepairManager 로만 (CurrentLevel/CanRepairNext/TryRepairNext/IsPartCollected/OnChanged).
+// 레벨 사다리(pip)와 수리 단계 로드맵 행은 레벨 수가 가변이라 런타임에 이 컨트롤러가 생성한다.
+// 부품은 단일 종류+개수제 - 데이터/조작은 ShipRepairManager 로만 (PartCount/CanRepairNext/TryRepairNext/OnChanged).
 public class ShipRepairUI : MonoBehaviour
 {
     public static ShipRepairUI Instance { get; private set; }
@@ -486,56 +486,62 @@ public class ShipRepairUI : MonoBehaviour
         SetStat(1, "설비 연료",   curDef, nextDef, StatKind.Fuel);
         SetStat(2, "공장 가동속도", curDef, nextDef, StatKind.Speed);
 
-        // 부품 목록
-        int gathered = 0;
+        // 수리 단계 로드맵 (부품 단일화로 부품 목록 대신 단계별 필요 개수를 보여준다)
+        // 점등: 완료된 단계=초록 / 다음 단계=시안(진행 n/m개) / 이후 단계=회색(m개 필요)
+        int count = mgr.PartCount;
         foreach (var row in _partRows)
         {
             if (row == null) continue;
             var def = mgr.GetLevel(row.level);
+            int req = mgr.RequiredPartsFor(row.level);
+
             if (row.nameText != null)
-                row.nameText.text = def != null && !string.IsNullOrEmpty(def.requiredPartName) ? def.requiredPartName : $"부품 {row.level}";
+            {
+                string title = def != null && !string.IsNullOrEmpty(def.title) ? def.title : "수리";
+                row.nameText.text = $"Lv.{row.level - 1} -> Lv.{row.level}   {title}";
+            }
 
-            bool used      = mgr.IsPartUsed(row.level);
-            bool collected = mgr.IsPartCollected(row.level);
-
-            // 패널 자체 점등 = 부품 상태 그대로: 미회수=회색(일반) -> 보유=시안 점등 -> 사용됨=초록 점등.
-            // 순서와 무관하게 먹은 부품은 전부 켜진다 (다음 차례 표시는 순서 강제라 불필요).
+            bool done   = cur >= row.level;
             bool isNext = !maxed && row.level == cur + 1;
+
             if (_rowSpr != null && _rowHlSpr != null && row.bgImg != null)
-                row.bgImg.sprite = (used || collected) ? _rowHlSpr : _rowSpr;
+                row.bgImg.sprite = (done || isNext) ? _rowHlSpr : _rowSpr;
             if (row.accent != null) row.accent.SetActive(isNext);
 
-            if (used)
+            if (done)
             {
-                gathered++;
                 if (row.dot != null) row.dot.color = DoneCol;
-                if (row.statusText != null) { row.statusText.text = "사용됨"; row.statusText.color = DoneCol; }
+                if (row.statusText != null) { row.statusText.text = "완료"; row.statusText.color = DoneCol; }
                 if (row.nameText != null) row.nameText.color = TextMain;
             }
-            else if (collected)
+            else if (isNext)
             {
-                gathered++;
-                if (row.dot != null) row.dot.color = Holo;
-                if (row.statusText != null) { row.statusText.text = "보유"; row.statusText.color = Holo; }
+                bool enough = count >= req;
+                if (row.dot != null) row.dot.color = enough ? Holo : PipEmpty;
+                if (row.statusText != null)
+                {
+                    row.statusText.text  = $"{Mathf.Min(count, req)} / {req}개";
+                    row.statusText.color = enough ? Holo : TextDim;
+                }
                 if (row.nameText != null) row.nameText.color = TextMain;
             }
             else
             {
                 if (row.dot != null) row.dot.color = PipEmpty;
-                if (row.statusText != null) { row.statusText.text = "미회수"; row.statusText.color = TextDim; }
+                if (row.statusText != null) { row.statusText.text = $"{req}개 필요"; row.statusText.color = TextDim; }
                 if (row.nameText != null) row.nameText.color = TextDim;
             }
 
             if (row.bgImg != null)
             {
-                if (used)
+                if (done)
                     row.bgImg.color = UsedPanelTint;   // 시안 발광 테두리를 초록으로 물들여 '완료 점등'
                 else
-                    row.bgImg.color = new Color(1f, 1f, 1f, collected ? 1f : 0.8f);
+                    row.bgImg.color = new Color(1f, 1f, 1f, isNext ? 1f : 0.8f);
             }
         }
         if (partsCountText != null)
-            partsCountText.text = $"회수  {gathered} / {Mathf.Max(0, max - 1)}";
+            partsCountText.text = $"{mgr.PartName} 보유  {count}개";
 
         // 수리 버튼
         bool canRepair = mgr.CanRepairNext();
@@ -545,7 +551,9 @@ public class ShipRepairUI : MonoBehaviour
             if (repairButton.image != null) repairButton.image.color = canRepair ? BtnReady : BtnLocked;
         }
         if (repairButtonText != null)
-            repairButtonText.text = maxed ? "수리 완료" : (canRepair ? "수리 실행" : "부품 부족");
+            repairButtonText.text = maxed
+                ? "수리 완료"
+                : (canRepair ? "수리 실행" : $"부품 부족  {count} / {mgr.NextRequiredParts}");
     }
 
     private enum StatKind { Zone, Fuel, Speed }
