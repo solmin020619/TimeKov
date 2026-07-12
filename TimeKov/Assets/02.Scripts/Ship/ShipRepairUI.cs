@@ -46,8 +46,7 @@ public class ShipRepairUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI[] statValueTexts;
 
     [Header("부품")]
-    [SerializeField] private TextMeshProUGUI partsCountText; // "회수 N / M"
-    [SerializeField] private RectTransform partsContent;     // 부품 행 부모 (VerticalLayoutGroup)
+    [SerializeField] private RectTransform partsContent;     // 부품 카드 부모 (VerticalLayoutGroup)
 
     [Header("수리 버튼")]
     [SerializeField] private Button repairButton;
@@ -63,8 +62,10 @@ public class ShipRepairUI : MonoBehaviour
     private static readonly Color BtnLocked = new Color(0.16f, 0.20f, 0.28f, 0.95f);
     private static readonly Color UsedPanelTint = new Color(0.42f, 1f, 0.62f, 1f);   // 강조 패널(시안)에 곱해 초록 점등
 
-    private readonly List<Image>            _pips     = new();
-    private readonly List<ShipPartRow>      _partRows = new();
+    private readonly List<Image> _pips = new();
+    private Image _partCardBg;                 // 부품 카드 배경 (상태 점등)
+    private TextMeshProUGUI _partCardName;     // 카드 좌측 (부품 이름)
+    private TextMeshProUGUI _partCardCount;    // 카드 우측 (보유 / 필요)
     private bool _dynamicBuilt;
     private int  _openedFrame = -1;
     private Image _holoGlowImg;      // 링 뒤 후광 (맥동 연출용)
@@ -315,12 +316,9 @@ public class ShipRepairUI : MonoBehaviour
                 _pips.Add(MakePip(pipContainer));
         }
 
-        // 부품 행 (레벨 2 ~ max 도달용)
+        // 부품 카드 (단일 부품 - 보유/필요 하나로 통일)
         if (partsContent != null)
-        {
-            for (int level = 2; level <= max; level++)
-                _partRows.Add(MakePartRow(partsContent, level));
-        }
+            MakePartCard(partsContent);
 
         _dynamicBuilt = true;
     }
@@ -354,70 +352,42 @@ public class ShipRepairUI : MonoBehaviour
         return img;
     }
 
-    private ShipPartRow MakePartRow(RectTransform parent, int level)
+    // 부품 카드 1장 (단일 부품 통일) - 좌측 부품 이름 / 우측 "보유 / 필요" 큰 숫자.
+    private void MakePartCard(RectTransform parent)
     {
         bool art = _rowSpr != null;   // 디자인 행패널 PNG
 
-        var go = new GameObject($"Part_{level}", typeof(RectTransform), typeof(Image));
+        var go = new GameObject("PartCard", typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var le = go.AddComponent<LayoutElement>();
-        le.preferredHeight = 56f;
-        var bg = go.GetComponent<Image>();
-        bg.sprite = art
+        le.preferredHeight = 96f;
+        _partCardBg = go.GetComponent<Image>();
+        _partCardBg.sprite = art
             ? _rowSpr
             : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 200), new Color32(16, 22, 32, 225), 64, 12);
-        bg.type = Image.Type.Sliced;
-        bg.raycastTarget = true;   // 호버 FX 용 포인터 수신
+        _partCardBg.type = Image.Type.Sliced;
+        _partCardBg.raycastTarget = true;   // 호버 FX 용 포인터 수신
         AddHoverFx(go, 1.015f, scaleOnly: false);
-
-        // 좌측 액센트 바 = 절차 폴백 전용. 디자인판은 Refresh 가 강조 패널(row_panel_hl)로 스프라이트를 교체.
-        GameObject accentGo = null;
-        if (!art || _rowHlSpr == null)
-        {
-            accentGo = new GameObject("Accent", typeof(RectTransform), typeof(Image));
-            accentGo.transform.SetParent(go.transform, false);
-            var acRt = (RectTransform)accentGo.transform;
-            acRt.anchorMin = new Vector2(0, 0.5f); acRt.anchorMax = new Vector2(0, 0.5f); acRt.pivot = new Vector2(0, 0.5f);
-            acRt.sizeDelta = new Vector2(4, 30); acRt.anchoredPosition = new Vector2(6, 0);
-            var acImg = accentGo.GetComponent<Image>();
-            acImg.color = Holo;
-            acImg.raycastTarget = false;
-            accentGo.SetActive(false);
-        }
-
-        // 상태 점은 절차 폴백 전용 - 디자인 패널은 자체 좌측 장식이 있어 점이 겹치면 이물감
-        Image dot = null;
-        if (!art)
-        {
-            var dotGo = new GameObject("Dot", typeof(RectTransform), typeof(Image));
-            dotGo.transform.SetParent(go.transform, false);
-            var drt = (RectTransform)dotGo.transform;
-            drt.anchorMin = drt.anchorMax = new Vector2(0, 0.5f); drt.pivot = new Vector2(0, 0.5f);
-            drt.sizeDelta = new Vector2(18, 18);
-            drt.anchoredPosition = new Vector2(16, 0);
-            dot = dotGo.GetComponent<Image>();
-            dot.sprite = UISpriteFactory.Circle(32);
-            dot.raycastTarget = false;
-        }
 
         var nameGo = new GameObject("Name", typeof(RectTransform));
         nameGo.transform.SetParent(go.transform, false);
         var nrt = (RectTransform)nameGo.transform;
-        nrt.anchorMin = new Vector2(0, 0); nrt.anchorMax = new Vector2(1, 1);
-        // 디자인 패널은 양끝 코너 회로 장식을 넉넉히 비켜 안쪽으로 (붙으면 답답해 보임)
-        nrt.offsetMin = new Vector2(art ? 52 : 44, 0); nrt.offsetMax = new Vector2(art ? -150 : -96, 0);
-        var nameT = nameGo.AddComponent<TextMeshProUGUI>();
-        nameT.fontSize = 16f; nameT.alignment = TextAlignmentOptions.Left; nameT.raycastTarget = false;
+        nrt.anchorMin = new Vector2(0, 0); nrt.anchorMax = new Vector2(0.5f, 1);
+        // 디자인 패널은 양끝 코너 회로 장식을 넉넉히 비켜 안쪽으로
+        nrt.offsetMin = new Vector2(art ? 52 : 44, 0); nrt.offsetMax = new Vector2(0, 0);
+        _partCardName = nameGo.AddComponent<TextMeshProUGUI>();
+        _partCardName.fontSize = 18f; _partCardName.fontStyle = FontStyles.Bold;
+        _partCardName.alignment = TextAlignmentOptions.Left; _partCardName.raycastTarget = false;
+        _partCardName.color = TextMain;
 
-        var stGo = new GameObject("Status", typeof(RectTransform));
-        stGo.transform.SetParent(go.transform, false);
-        var strt = (RectTransform)stGo.transform;
-        strt.anchorMin = new Vector2(1, 0); strt.anchorMax = new Vector2(1, 1); strt.pivot = new Vector2(1, 0.5f);
-        strt.sizeDelta = new Vector2(90, 0); strt.anchoredPosition = new Vector2(art ? -52 : -12, 0);
-        var stT = stGo.AddComponent<TextMeshProUGUI>();
-        stT.fontSize = 13f; stT.alignment = TextAlignmentOptions.Right; stT.raycastTarget = false;
-
-        return new ShipPartRow { level = level, dot = dot, nameText = nameT, statusText = stT, accent = accentGo, bgImg = bg };
+        var cntGo = new GameObject("Count", typeof(RectTransform));
+        cntGo.transform.SetParent(go.transform, false);
+        var crt = (RectTransform)cntGo.transform;
+        crt.anchorMin = new Vector2(0.5f, 0); crt.anchorMax = new Vector2(1, 1);
+        crt.offsetMin = new Vector2(0, 0); crt.offsetMax = new Vector2(art ? -52 : -12, 0);
+        _partCardCount = cntGo.AddComponent<TextMeshProUGUI>();
+        _partCardCount.fontSize = 26f; _partCardCount.fontStyle = FontStyles.Bold;
+        _partCardCount.alignment = TextAlignmentOptions.Right; _partCardCount.raycastTarget = false;
     }
 
     // ── 갱신 ──────────────────────────────────────────────────────────
@@ -486,62 +456,32 @@ public class ShipRepairUI : MonoBehaviour
         SetStat(1, "설비 연료",   curDef, nextDef, StatKind.Fuel);
         SetStat(2, "공장 가동속도", curDef, nextDef, StatKind.Speed);
 
-        // 수리 단계 로드맵 (부품 단일화로 부품 목록 대신 단계별 필요 개수를 보여준다)
-        // 점등: 완료된 단계=초록 / 다음 단계=시안(진행 n/m개) / 이후 단계=회색(m개 필요)
+        // 부품 카드 (단일 부품): 좌측 이름 / 우측 "보유 / 필요". 점등 = 충분(시안) / 부족(회색) / 완료(초록)
         int count = mgr.PartCount;
-        foreach (var row in _partRows)
+        int req   = mgr.NextRequiredParts;
+        bool enough = !maxed && count >= req;
+
+        if (_partCardName != null)
+            _partCardName.text = mgr.PartName;
+        if (_partCardCount != null)
         {
-            if (row == null) continue;
-            var def = mgr.GetLevel(row.level);
-            int req = mgr.RequiredPartsFor(row.level);
-
-            if (row.nameText != null)
+            if (maxed)
             {
-                string title = def != null && !string.IsNullOrEmpty(def.title) ? def.title : "수리";
-                row.nameText.text = $"Lv.{row.level - 1} -> Lv.{row.level}   {title}";
-            }
-
-            bool done   = cur >= row.level;
-            bool isNext = !maxed && row.level == cur + 1;
-
-            if (_rowSpr != null && _rowHlSpr != null && row.bgImg != null)
-                row.bgImg.sprite = (done || isNext) ? _rowHlSpr : _rowSpr;
-            if (row.accent != null) row.accent.SetActive(isNext);
-
-            if (done)
-            {
-                if (row.dot != null) row.dot.color = DoneCol;
-                if (row.statusText != null) { row.statusText.text = "완료"; row.statusText.color = DoneCol; }
-                if (row.nameText != null) row.nameText.color = TextMain;
-            }
-            else if (isNext)
-            {
-                bool enough = count >= req;
-                if (row.dot != null) row.dot.color = enough ? Holo : PipEmpty;
-                if (row.statusText != null)
-                {
-                    row.statusText.text  = $"{Mathf.Min(count, req)} / {req}개";
-                    row.statusText.color = enough ? Holo : TextDim;
-                }
-                if (row.nameText != null) row.nameText.color = TextMain;
+                _partCardCount.text  = "완료";
+                _partCardCount.color = DoneCol;
             }
             else
             {
-                if (row.dot != null) row.dot.color = PipEmpty;
-                if (row.statusText != null) { row.statusText.text = $"{req}개 필요"; row.statusText.color = TextDim; }
-                if (row.nameText != null) row.nameText.color = TextDim;
-            }
-
-            if (row.bgImg != null)
-            {
-                if (done)
-                    row.bgImg.color = UsedPanelTint;   // 시안 발광 테두리를 초록으로 물들여 '완료 점등'
-                else
-                    row.bgImg.color = new Color(1f, 1f, 1f, isNext ? 1f : 0.8f);
+                _partCardCount.text  = $"{count} / {req}개";
+                _partCardCount.color = enough ? Holo : TextDim;
             }
         }
-        if (partsCountText != null)
-            partsCountText.text = $"{mgr.PartName} 보유  {count}개";
+        if (_partCardBg != null)
+        {
+            if (_rowSpr != null && _rowHlSpr != null)
+                _partCardBg.sprite = (maxed || enough) ? _rowHlSpr : _rowSpr;
+            _partCardBg.color = maxed ? UsedPanelTint : new Color(1f, 1f, 1f, enough ? 1f : 0.85f);
+        }
 
         // 수리 버튼
         bool canRepair = mgr.CanRepairNext();
@@ -626,13 +566,4 @@ public class ShipRepairUI : MonoBehaviour
         Refresh();
     }
 
-    private class ShipPartRow
-    {
-        public int level;
-        public Image dot;
-        public TextMeshProUGUI nameText;
-        public TextMeshProUGUI statusText;
-        public GameObject accent;   // 절차 폴백 전용 (디자인판은 null)
-        public Image bgImg;         // 행 배경 (상태별 패널 점등: 사용됨=초록 hl / 다음=시안 hl / 미회수=일반)
-    }
 }

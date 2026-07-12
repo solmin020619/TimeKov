@@ -273,21 +273,14 @@ public static class ShipRepairUIBuilder
         AnchorTopStretch(sdiv.GetComponent<RectTransform>(), 4, 4, -244, -243);
         sdiv.GetComponent<Image>().raycastTarget = false;
 
-        var partsLabel = MakeTMP("PartsLabel", colRt, Vector2.zero, Vector2.zero, "수리 단계", 17, Hex("EAF3FB"), TextAlignmentOptions.Left);
-        partsLabel.fontStyle = FontStyles.Bold;
-        AnchorTopStretch(partsLabel.rectTransform, 4, 120, -274, -250);
-
-        var partsCount = MakeTMP("PartsCount", colRt, Vector2.zero, Vector2.zero, "수리 부품 보유  0개", 14, RGBA(150, 178, 204, 1f), TextAlignmentOptions.Right);
-        AnchorTopStretch(partsCount.rectTransform, 120, 4, -274, -250);
-        SetRef(so, "partsCountText", partsCount);
-
+        // 부품 영역 = 단일 카드 하나 (라벨/카운트 줄 없이 통일). 카드는 런타임(ShipRepairUI)이 생성.
         var partsGo = new GameObject("PartsContent", typeof(RectTransform));
         partsGo.transform.SetParent(colRt, false);
         var partsRt = partsGo.GetComponent<RectTransform>();
         partsRt.anchorMin = new Vector2(0, 0); partsRt.anchorMax = new Vector2(1, 1);
-        partsRt.offsetMin = new Vector2(0, 104); partsRt.offsetMax = new Vector2(0, -284);
+        partsRt.offsetMin = new Vector2(0, 104); partsRt.offsetMax = new Vector2(0, -254);
         var pvlg = partsGo.AddComponent<VerticalLayoutGroup>();
-        pvlg.spacing = 10f; pvlg.childAlignment = TextAnchor.UpperCenter;
+        pvlg.spacing = 10f; pvlg.childAlignment = TextAnchor.MiddleCenter;
         pvlg.childControlWidth = true; pvlg.childControlHeight = true;
         pvlg.childForceExpandWidth = true; pvlg.childForceExpandHeight = false;
         SetRef(so, "partsContent", partsRt);

@@ -13,6 +13,14 @@ public class ShipPartPickup : MonoBehaviour
     [Tooltip("이 거리(m) 안으로 들어오면 자동 회수.")]
     [SerializeField] private float pickupRadius = 2.2f;
 
+    [Header("흡수 연출")]
+    [Tooltip("회수 시 플레이어 몸으로 빨려가는 트레일 VFX (예: VFX_Item_Trail_Unique). 비우면 제자리 소멸만.")]
+    [SerializeField] private GameObject absorbTrailPrefab;
+    [Tooltip("트레일이 플레이어에 닿기까지 걸리는 시간(초).")]
+    [SerializeField] private float absorbFlyTime = 0.55f;
+    [Tooltip("트레일 출발 높이 보정(m) - 픽업 VFX 중심 높이에 맞춘다.")]
+    [SerializeField] private float absorbSpawnHeight = 0.5f;
+
     [Header("사라짐 효과")]
     [SerializeField] private float vanishDuration = 0.6f;
 
@@ -45,8 +53,28 @@ public class ShipPartPickup : MonoBehaviour
         _taken = true;
         ShipRepairManager.Instance?.CollectPickup(pickupIndex, amount);
 
+        // 흡수 트레일: 픽업 위치 -> 플레이어 몸 중앙 (적 시간흡수와 동일한 LootBoxCollectFlyer 재사용)
+        if (absorbTrailPrefab != null && _player != null)
+        {
+            Vector3 from = transform.position + Vector3.up * absorbSpawnHeight;
+            var vfx = Instantiate(absorbTrailPrefab, from, Quaternion.identity);
+            var flyer = vfx.GetComponent<LootBoxCollectFlyer>();
+            if (flyer == null) flyer = vfx.AddComponent<LootBoxCollectFlyer>();
+            flyer.Begin(_player, absorbFlyTime, GetPlayerCenterY(), null, 0f);
+        }
+
         foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;
+        // VFX 전용 픽업 대응: 새 파티클 방출은 끊고(기존 입자는 자연 소멸) 스케일 축소와 함께 사라지게
+        foreach (var ps in GetComponentsInChildren<ParticleSystem>())
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
         StartCoroutine(Vanish());
+    }
+
+    // 플레이어 transform 원점 대비 콜라이더 중앙의 y 오프셋 (피벗이 발이어도 몸 중앙으로 빨려들게)
+    private float GetPlayerCenterY()
+    {
+        var col = _player != null ? _player.GetComponentInChildren<Collider>() : null;
+        return col != null ? col.bounds.center.y - _player.position.y : 0.9f;
     }
 
     private IEnumerator Vanish()
