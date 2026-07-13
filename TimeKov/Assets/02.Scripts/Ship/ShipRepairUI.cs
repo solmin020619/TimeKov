@@ -60,12 +60,18 @@ public class ShipRepairUI : MonoBehaviour
     private static readonly Color PipEmpty  = new Color(0.30f, 0.36f, 0.44f, 1f);
     private static readonly Color BtnReady  = new Color(0.20f, 0.66f, 0.95f, 1f);
     private static readonly Color BtnLocked = new Color(0.16f, 0.20f, 0.28f, 0.95f);
-    private static readonly Color UsedPanelTint = new Color(0.42f, 1f, 0.62f, 1f);   // 강조 패널(시안)에 곱해 초록 점등
 
     private readonly List<Image> _pips = new();
-    private Image _partCardBg;                 // 부품 카드 배경 (상태 점등)
-    private TextMeshProUGUI _partCardName;     // 카드 좌측 (부품 이름)
-    private TextMeshProUGUI _partCardCount;    // 카드 우측 (보유 / 필요)
+    private TextMeshProUGUI _partCardName;     // 아이콘 아래 부품 이름
+    private TextMeshProUGUI _partCardSub;      // 다음 수리 필요 개수 안내
+    private TextMeshProUGUI _partOwnedText;    // 좌측 큰 숫자 (보유)
+    private TextMeshProUGUI _partReqText;      // 우측 큰 숫자 (필요)
+    private Image _partCardGauge;              // 진행 게이지 (보유/필요)
+    private RectTransform _partRingA;          // 아이콘 아크 링 (DriveAmbient 가 회전)
+    private RectTransform _partRingB;          // 바깥 얇은 역회전 링
+    private Image _partRingImgA, _partRingImgB;
+    private Image _partIconGlow;               // 아이콘 뒤 후광 (DriveAmbient 가 맥동)
+    private float _partGlowBaseA = 0.10f;      // 상태별 후광 기준 알파 (맥동의 중심값)
     private bool _dynamicBuilt;
     private int  _openedFrame = -1;
     private Image _holoGlowImg;      // 링 뒤 후광 (맥동 연출용)
@@ -264,6 +270,18 @@ public class ShipRepairUI : MonoBehaviour
             c.a = 0.055f + 0.03f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 1.7f));
             _holoGlowImg.color = c;
         }
+
+        // 부품 전시대: 아크 링 2겹 역방향 회전 + 후광 맥동 (상태별 기준 알파 중심으로, 홀로 후광과 위상 어긋나게)
+        if (_partRingA != null)
+            _partRingA.Rotate(0f, 0f, -26f * Time.unscaledDeltaTime);
+        if (_partRingB != null)
+            _partRingB.Rotate(0f, 0f, 38f * Time.unscaledDeltaTime);
+        if (_partIconGlow != null)
+        {
+            var c = _partIconGlow.color;
+            c.a = _partGlowBaseA + 0.04f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 2.1f + 1.3f));
+            _partIconGlow.color = c;
+        }
     }
 
     // ── 열기 / 닫기 ───────────────────────────────────────────────────
@@ -352,42 +370,128 @@ public class ShipRepairUI : MonoBehaviour
         return img;
     }
 
-    // 부품 카드 1장 (단일 부품 통일) - 좌측 부품 이름 / 우측 "보유 / 필요" 큰 숫자.
+    // 부품 전시대 (패널 없이 배경 위에 직접 띄우는 홀로그램 구성).
+    //   [보유 N] --- ((대형 아이콘 + 후광 + 링 2겹 회전)) --- [필요 M]
+    //                          수리 부품
+    //                  다음 수리까지 N개 더 필요
+    //                        [진행 게이지]
+    // 아이콘 = Resources/ShipRepair/7/icon_part.png 자동 연결. 링 회전/후광 맥동은 DriveAmbient 가 구동.
     private void MakePartCard(RectTransform parent)
     {
-        bool art = _rowSpr != null;   // 디자인 행패널 PNG
-
-        var go = new GameObject("PartCard", typeof(RectTransform), typeof(Image));
+        var go = new GameObject("PartDisplay", typeof(RectTransform));
         go.transform.SetParent(parent, false);
         var le = go.AddComponent<LayoutElement>();
-        le.preferredHeight = 96f;
-        _partCardBg = go.GetComponent<Image>();
-        _partCardBg.sprite = art
-            ? _rowSpr
-            : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 200), new Color32(16, 22, 32, 225), 64, 12);
-        _partCardBg.type = Image.Type.Sliced;
-        _partCardBg.raycastTarget = true;   // 호버 FX 용 포인터 수신
-        AddHoverFx(go, 1.015f, scaleOnly: false);
+        le.preferredHeight = 230f;
+        var root = (RectTransform)go.transform;
 
-        var nameGo = new GameObject("Name", typeof(RectTransform));
-        nameGo.transform.SetParent(go.transform, false);
-        var nrt = (RectTransform)nameGo.transform;
-        nrt.anchorMin = new Vector2(0, 0); nrt.anchorMax = new Vector2(0.5f, 1);
-        // 디자인 패널은 양끝 코너 회로 장식을 넉넉히 비켜 안쪽으로
-        nrt.offsetMin = new Vector2(art ? 52 : 44, 0); nrt.offsetMax = new Vector2(0, 0);
+        // 로컬 헬퍼: 중앙 기준 배치
+        RectTransform Put(string name, Vector2 size, Vector2 pos, out GameObject made)
+        {
+            var g = new GameObject(name, typeof(RectTransform));
+            g.transform.SetParent(root, false);
+            var rt = (RectTransform)g.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size; rt.anchoredPosition = pos;
+            made = g;
+            return rt;
+        }
+
+        Vector2 iconC = new Vector2(0, 34);   // 아이콘 중심 (위쪽에 배치, 아래로 이름/안내/게이지)
+
+        // 후광 (맥동)
+        Put("IconGlow", new Vector2(230, 230), iconC, out var glowGo);
+        _partIconGlow = glowGo.AddComponent<Image>();
+        _partIconGlow.sprite = UISpriteFactory.Disc(256);
+        _partIconGlow.color = new Color(Holo.r, Holo.g, Holo.b, 0.10f);
+        _partIconGlow.raycastTarget = false;
+
+        // 안쪽 3/4 아크 링 (회전) - 균일한 원은 돌아도 티가 안 나서 끊긴 arc
+        _partRingA = Put("RingA", new Vector2(178, 178), iconC, out var ringAGo);
+        _partRingImgA = ringAGo.AddComponent<Image>();
+        _partRingImgA.sprite = UISpriteFactory.Ring(200, 4f);
+        _partRingImgA.type = Image.Type.Filled;
+        _partRingImgA.fillMethod = Image.FillMethod.Radial360;
+        _partRingImgA.fillOrigin = (int)Image.Origin360.Top;
+        _partRingImgA.fillAmount = 0.72f;
+        _partRingImgA.color = new Color(Holo.r, Holo.g, Holo.b, 0.55f);
+        _partRingImgA.raycastTarget = false;
+
+        // 바깥 얇은 짧은 아크 (역회전) - 겹회전으로 관제 계기 느낌
+        _partRingB = Put("RingB", new Vector2(202, 202), iconC, out var ringBGo);
+        _partRingImgB = ringBGo.AddComponent<Image>();
+        _partRingImgB.sprite = UISpriteFactory.Ring(200, 2.5f);
+        _partRingImgB.type = Image.Type.Filled;
+        _partRingImgB.fillMethod = Image.FillMethod.Radial360;
+        _partRingImgB.fillOrigin = (int)Image.Origin360.Top;
+        _partRingImgB.fillAmount = 0.30f;
+        _partRingImgB.color = new Color(Holo.r, Holo.g, Holo.b, 0.30f);
+        _partRingImgB.raycastTarget = false;
+
+        // 아이콘 (크게)
+        var iconSpr = Resources.Load<Sprite>("ShipRepair/7/icon_part");
+        if (iconSpr != null)
+        {
+            Put("Icon", new Vector2(140, 140), iconC, out var icoGo);
+            var ico = icoGo.AddComponent<Image>();
+            ico.sprite = iconSpr; ico.preserveAspect = true; ico.raycastTarget = false;
+        }
+
+        // 아이콘 양옆 연결 라인 (전시대 느낌)
+        Put("LineL", new Vector2(96, 2), iconC + new Vector2(-160, 0), out var lineL);
+        var llImg = lineL.AddComponent<Image>();
+        llImg.color = new Color(Holo.r, Holo.g, Holo.b, 0.30f); llImg.raycastTarget = false;
+        Put("LineR", new Vector2(96, 2), iconC + new Vector2(160, 0), out var lineR);
+        var lrImg = lineR.AddComponent<Image>();
+        lrImg.color = new Color(Holo.r, Holo.g, Holo.b, 0.30f); lrImg.raycastTarget = false;
+
+        // 좌 = 보유 / 우 = 필요 (라벨 + 큰 숫자)
+        TextMeshProUGUI MakeBigNum(string label, float x, out TextMeshProUGUI numT)
+        {
+            Put($"{label}Label", new Vector2(140, 22), new Vector2(x, iconC.y + 34), out var lgo);
+            var lt = lgo.AddComponent<TextMeshProUGUI>();
+            lt.text = label; lt.fontSize = 14f; lt.characterSpacing = 6f;
+            lt.alignment = TextAlignmentOptions.Center; lt.color = TextDim; lt.raycastTarget = false;
+
+            Put($"{label}Num", new Vector2(160, 52), new Vector2(x, iconC.y - 12), out var ngo);
+            numT = ngo.AddComponent<TextMeshProUGUI>();
+            numT.fontSize = 42f; numT.fontStyle = FontStyles.Bold;
+            numT.alignment = TextAlignmentOptions.Center; numT.raycastTarget = false;
+            return numT;
+        }
+        MakeBigNum("보유", -252, out _partOwnedText);
+        MakeBigNum("필요",  252, out _partReqText);
+
+        // 아이콘 아래: 이름 / 안내 / 게이지
+        Put("Name", new Vector2(400, 30), new Vector2(0, -74), out var nameGo);
         _partCardName = nameGo.AddComponent<TextMeshProUGUI>();
-        _partCardName.fontSize = 18f; _partCardName.fontStyle = FontStyles.Bold;
-        _partCardName.alignment = TextAlignmentOptions.Left; _partCardName.raycastTarget = false;
+        _partCardName.fontSize = 20f; _partCardName.fontStyle = FontStyles.Bold;
+        _partCardName.alignment = TextAlignmentOptions.Center; _partCardName.raycastTarget = false;
         _partCardName.color = TextMain;
 
-        var cntGo = new GameObject("Count", typeof(RectTransform));
-        cntGo.transform.SetParent(go.transform, false);
-        var crt = (RectTransform)cntGo.transform;
-        crt.anchorMin = new Vector2(0.5f, 0); crt.anchorMax = new Vector2(1, 1);
-        crt.offsetMin = new Vector2(0, 0); crt.offsetMax = new Vector2(art ? -52 : -12, 0);
-        _partCardCount = cntGo.AddComponent<TextMeshProUGUI>();
-        _partCardCount.fontSize = 26f; _partCardCount.fontStyle = FontStyles.Bold;
-        _partCardCount.alignment = TextAlignmentOptions.Right; _partCardCount.raycastTarget = false;
+        Put("Sub", new Vector2(420, 22), new Vector2(0, -98), out var subGo);
+        _partCardSub = subGo.AddComponent<TextMeshProUGUI>();
+        _partCardSub.fontSize = 13f;
+        _partCardSub.alignment = TextAlignmentOptions.Center; _partCardSub.raycastTarget = false;
+        _partCardSub.color = TextDim;
+
+        Put("GaugeTrack", new Vector2(280, 5), new Vector2(0, -114), out var trackGo);
+        var track = trackGo.AddComponent<Image>();
+        track.sprite = UISpriteFactory.RoundedRect(32, 2);
+        track.type = Image.Type.Sliced;
+        track.color = new Color(1f, 1f, 1f, 0.10f);
+        track.raycastTarget = false;
+
+        var fillGo = new GameObject("GaugeFill", typeof(RectTransform), typeof(Image));
+        fillGo.transform.SetParent(trackGo.transform, false);
+        var frt = (RectTransform)fillGo.transform;
+        frt.anchorMin = Vector2.zero; frt.anchorMax = Vector2.one;
+        frt.offsetMin = frt.offsetMax = Vector2.zero;
+        _partCardGauge = fillGo.GetComponent<Image>();
+        _partCardGauge.sprite = UISpriteFactory.RoundedRect(32, 2);
+        _partCardGauge.type = Image.Type.Filled;
+        _partCardGauge.fillMethod = Image.FillMethod.Horizontal;
+        _partCardGauge.color = Holo;
+        _partCardGauge.raycastTarget = false;
     }
 
     // ── 갱신 ──────────────────────────────────────────────────────────
@@ -456,31 +560,41 @@ public class ShipRepairUI : MonoBehaviour
         SetStat(1, "설비 연료",   curDef, nextDef, StatKind.Fuel);
         SetStat(2, "공장 가동속도", curDef, nextDef, StatKind.Speed);
 
-        // 부품 카드 (단일 부품): 좌측 이름 / 우측 "보유 / 필요". 점등 = 충분(시안) / 부족(회색) / 완료(초록)
+        // 부품 전시대: 좌 보유 / 우 필요 큰 숫자 + 이름/안내/게이지. 상태색 = 완료 초록 / 충분 시안 밝게 / 부족 시안 어둡게
         int count = mgr.PartCount;
         int req   = mgr.NextRequiredParts;
         bool enough = !maxed && count >= req;
 
         if (_partCardName != null)
             _partCardName.text = mgr.PartName;
-        if (_partCardCount != null)
+        if (_partCardSub != null)
+            _partCardSub.text = maxed
+                ? "모든 수리가 끝났습니다"
+                : (enough ? "다음 수리 준비 완료" : $"다음 수리까지 {req - count}개 더 필요");
+
+        if (_partOwnedText != null)
         {
-            if (maxed)
-            {
-                _partCardCount.text  = "완료";
-                _partCardCount.color = DoneCol;
-            }
-            else
-            {
-                _partCardCount.text  = $"{count} / {req}개";
-                _partCardCount.color = enough ? Holo : TextDim;
-            }
+            _partOwnedText.text  = count.ToString();
+            _partOwnedText.color = maxed ? DoneCol : (enough ? Holo : TextMain);
         }
-        if (_partCardBg != null)
+        if (_partReqText != null)
         {
-            if (_rowSpr != null && _rowHlSpr != null)
-                _partCardBg.sprite = (maxed || enough) ? _rowHlSpr : _rowSpr;
-            _partCardBg.color = maxed ? UsedPanelTint : new Color(1f, 1f, 1f, enough ? 1f : 0.85f);
+            _partReqText.text  = maxed ? "-" : req.ToString();
+            _partReqText.color = maxed ? TextDim : TextMain;
+        }
+
+        Color state = maxed ? DoneCol : Holo;
+        bool lit = maxed || enough;
+        if (_partRingImgA != null) _partRingImgA.color = new Color(state.r, state.g, state.b, lit ? 0.60f : 0.35f);
+        if (_partRingImgB != null) _partRingImgB.color = new Color(state.r, state.g, state.b, lit ? 0.32f : 0.18f);
+        _partGlowBaseA = lit ? 0.14f : 0.07f;
+        if (_partIconGlow != null)
+            _partIconGlow.color = new Color(state.r, state.g, state.b, _partGlowBaseA);
+
+        if (_partCardGauge != null)
+        {
+            _partCardGauge.fillAmount = maxed ? 1f : (req > 0 ? Mathf.Clamp01((float)count / req) : 1f);
+            _partCardGauge.color = state;
         }
 
         // 수리 버튼

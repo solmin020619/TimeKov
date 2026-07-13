@@ -60,6 +60,7 @@ public static class ShipRepairUIBuilder
         LoadSprAt("Assets/Resources/ShipRepair/3/row_panel_hl.png", RowPanelBorder, quiet: true);
         LoadSprAt("Assets/Resources/ShipRepair/6/node_off.png", 0, quiet: true);
         LoadSprAt("Assets/Resources/ShipRepair/6/node_on.png",  0, quiet: true);
+        LoadSprAt("Assets/Resources/ShipRepair/7/icon_part.png", 0, quiet: true);
 
         // 어두운 격납고 배경(우주 아님) + 뒤 클릭 차단.
         // 디자인 배경 PNG(Resources/ShipRepair/2/bg_hangar_blueprint.png)가 있으면 그걸 쓰고,
