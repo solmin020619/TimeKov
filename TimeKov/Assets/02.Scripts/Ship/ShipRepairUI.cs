@@ -66,10 +66,8 @@ public class ShipRepairUI : MonoBehaviour
     private TextMeshProUGUI _partCardSub;      // 다음 수리 필요 개수 안내
     private TextMeshProUGUI _partOwnedText;    // 좌측 큰 숫자 (보유)
     private TextMeshProUGUI _partReqText;      // 우측 큰 숫자 (필요)
-    private Image _partCardGauge;              // 진행 게이지 (보유/필요)
-    private RectTransform _partRingA;          // 아이콘 아크 링 (DriveAmbient 가 회전)
-    private RectTransform _partRingB;          // 바깥 얇은 역회전 링
-    private Image _partRingImgA, _partRingImgB;
+    private Image _partCardGauge;              // 아이콘 둘레 링 게이지 (보유/필요 비율로 차오름)
+    private RectTransform _partRingTrack;      // 링 트랙 (눈금 아트 - DriveAmbient 가 천천히 회전 = 스캐너 느낌)
     private Image _partIconGlow;               // 아이콘 뒤 후광 (DriveAmbient 가 맥동)
     private float _partGlowBaseA = 0.10f;      // 상태별 후광 기준 알파 (맥동의 중심값)
     private bool _dynamicBuilt;
@@ -271,11 +269,9 @@ public class ShipRepairUI : MonoBehaviour
             _holoGlowImg.color = c;
         }
 
-        // 부품 전시대: 아크 링 2겹 역방향 회전 + 후광 맥동 (상태별 기준 알파 중심으로, 홀로 후광과 위상 어긋나게)
-        if (_partRingA != null)
-            _partRingA.Rotate(0f, 0f, -26f * Time.unscaledDeltaTime);
-        if (_partRingB != null)
-            _partRingB.Rotate(0f, 0f, 38f * Time.unscaledDeltaTime);
+        // 부품 전시대: 눈금 트랙 링 천천히 회전(스캐너 느낌) + 후광 맥동 (상태별 기준 알파 중심)
+        if (_partRingTrack != null)
+            _partRingTrack.Rotate(0f, 0f, -9f * Time.unscaledDeltaTime);
         if (_partIconGlow != null)
         {
             var c = _partIconGlow.color;
@@ -405,27 +401,28 @@ public class ShipRepairUI : MonoBehaviour
         _partIconGlow.color = new Color(Holo.r, Holo.g, Holo.b, 0.10f);
         _partIconGlow.raycastTarget = false;
 
-        // 안쪽 3/4 아크 링 (회전) - 균일한 원은 돌아도 티가 안 나서 끊긴 arc
-        _partRingA = Put("RingA", new Vector2(178, 178), iconC, out var ringAGo);
-        _partRingImgA = ringAGo.AddComponent<Image>();
-        _partRingImgA.sprite = UISpriteFactory.Ring(200, 4f);
-        _partRingImgA.type = Image.Type.Filled;
-        _partRingImgA.fillMethod = Image.FillMethod.Radial360;
-        _partRingImgA.fillOrigin = (int)Image.Origin360.Top;
-        _partRingImgA.fillAmount = 0.72f;
-        _partRingImgA.color = new Color(Holo.r, Holo.g, Holo.b, 0.55f);
-        _partRingImgA.raycastTarget = false;
+        // 아이콘 둘레 링 = 디자인 링 PNG(5/) 재사용 + 이 링이 곧 부품 게이지(보유/필요만큼 차오름).
+        // 좌측 복원도 링(수리 진행)과 같은 아트라 시각 언어가 맞는다. 없으면 절차 링 폴백.
+        var ringFillSpr  = Resources.Load<Sprite>("ShipRepair/5/ring_fill");
+        var ringTrackSpr = Resources.Load<Sprite>("ShipRepair/5/ring_track");
+        bool ringArt = ringFillSpr != null && ringTrackSpr != null;
 
-        // 바깥 얇은 짧은 아크 (역회전) - 겹회전으로 관제 계기 느낌
-        _partRingB = Put("RingB", new Vector2(202, 202), iconC, out var ringBGo);
-        _partRingImgB = ringBGo.AddComponent<Image>();
-        _partRingImgB.sprite = UISpriteFactory.Ring(200, 2.5f);
-        _partRingImgB.type = Image.Type.Filled;
-        _partRingImgB.fillMethod = Image.FillMethod.Radial360;
-        _partRingImgB.fillOrigin = (int)Image.Origin360.Top;
-        _partRingImgB.fillAmount = 0.30f;
-        _partRingImgB.color = new Color(Holo.r, Holo.g, Holo.b, 0.30f);
-        _partRingImgB.raycastTarget = false;
+        _partRingTrack = Put("RingTrack", new Vector2(200, 200), iconC, out var trackRingGo);
+        var trackRingImg = trackRingGo.AddComponent<Image>();
+        trackRingImg.sprite = ringArt ? ringTrackSpr : UISpriteFactory.Ring(200, 4f);
+        trackRingImg.color = ringArt ? Color.white : new Color(70f / 255f, 96f / 255f, 128f / 255f, 0.35f);
+        trackRingImg.raycastTarget = false;
+
+        Put("RingGauge", new Vector2(200, 200), iconC, out var gaugeRingGo);
+        _partCardGauge = gaugeRingGo.AddComponent<Image>();
+        _partCardGauge.sprite = ringArt ? ringFillSpr : UISpriteFactory.Ring(200, 4f);
+        _partCardGauge.type = Image.Type.Filled;
+        _partCardGauge.fillMethod = Image.FillMethod.Radial360;
+        _partCardGauge.fillOrigin = (int)Image.Origin360.Top;
+        _partCardGauge.fillClockwise = true;
+        _partCardGauge.fillAmount = 0f;
+        _partCardGauge.color = Holo;
+        _partCardGauge.raycastTarget = false;
 
         // 아이콘 (크게)
         var iconSpr = Resources.Load<Sprite>("ShipRepair/7/icon_part");
@@ -461,37 +458,18 @@ public class ShipRepairUI : MonoBehaviour
         MakeBigNum("보유", -252, out _partOwnedText);
         MakeBigNum("필요",  252, out _partReqText);
 
-        // 아이콘 아래: 이름 / 안내 / 게이지
-        Put("Name", new Vector2(400, 30), new Vector2(0, -74), out var nameGo);
+        // 아이콘 아래: 이름 / 안내 (게이지는 아이콘 둘레 링이 담당)
+        Put("Name", new Vector2(400, 30), new Vector2(0, -84), out var nameGo);
         _partCardName = nameGo.AddComponent<TextMeshProUGUI>();
         _partCardName.fontSize = 20f; _partCardName.fontStyle = FontStyles.Bold;
         _partCardName.alignment = TextAlignmentOptions.Center; _partCardName.raycastTarget = false;
         _partCardName.color = TextMain;
 
-        Put("Sub", new Vector2(420, 22), new Vector2(0, -98), out var subGo);
+        Put("Sub", new Vector2(420, 22), new Vector2(0, -108), out var subGo);
         _partCardSub = subGo.AddComponent<TextMeshProUGUI>();
         _partCardSub.fontSize = 13f;
         _partCardSub.alignment = TextAlignmentOptions.Center; _partCardSub.raycastTarget = false;
         _partCardSub.color = TextDim;
-
-        Put("GaugeTrack", new Vector2(280, 5), new Vector2(0, -114), out var trackGo);
-        var track = trackGo.AddComponent<Image>();
-        track.sprite = UISpriteFactory.RoundedRect(32, 2);
-        track.type = Image.Type.Sliced;
-        track.color = new Color(1f, 1f, 1f, 0.10f);
-        track.raycastTarget = false;
-
-        var fillGo = new GameObject("GaugeFill", typeof(RectTransform), typeof(Image));
-        fillGo.transform.SetParent(trackGo.transform, false);
-        var frt = (RectTransform)fillGo.transform;
-        frt.anchorMin = Vector2.zero; frt.anchorMax = Vector2.one;
-        frt.offsetMin = frt.offsetMax = Vector2.zero;
-        _partCardGauge = fillGo.GetComponent<Image>();
-        _partCardGauge.sprite = UISpriteFactory.RoundedRect(32, 2);
-        _partCardGauge.type = Image.Type.Filled;
-        _partCardGauge.fillMethod = Image.FillMethod.Horizontal;
-        _partCardGauge.color = Holo;
-        _partCardGauge.raycastTarget = false;
     }
 
     // ── 갱신 ──────────────────────────────────────────────────────────
@@ -585,12 +563,11 @@ public class ShipRepairUI : MonoBehaviour
 
         Color state = maxed ? DoneCol : Holo;
         bool lit = maxed || enough;
-        if (_partRingImgA != null) _partRingImgA.color = new Color(state.r, state.g, state.b, lit ? 0.60f : 0.35f);
-        if (_partRingImgB != null) _partRingImgB.color = new Color(state.r, state.g, state.b, lit ? 0.32f : 0.18f);
         _partGlowBaseA = lit ? 0.14f : 0.07f;
         if (_partIconGlow != null)
             _partIconGlow.color = new Color(state.r, state.g, state.b, _partGlowBaseA);
 
+        // 아이콘 둘레 링 = 부품 게이지 (보유/필요 비율)
         if (_partCardGauge != null)
         {
             _partCardGauge.fillAmount = maxed ? 1f : (req > 0 ? Mathf.Clamp01((float)count / req) : 1f);
