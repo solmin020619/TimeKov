@@ -72,6 +72,15 @@ public class TransmissionComputerUI : MonoBehaviour
     private TMP_Text _logText;
     private RectTransform _cursor;   // 상태 텍스트 끝을 따라가는 깜빡이 커서
     private readonly List<CanvasGroup> _bootPanels = new();   // 열릴 때 순차로 펼쳐질 패널들
+    private readonly List<Vector2> _bootHome = new();         // 부팅 패널 원위치(슬라이드 인 기준)
+
+    // ── 신규 폴리시(전송 연출/미리보기/강조) ──────────────────────────
+    private Image _ghostFill;                          // 선택 키트의 예상 상승 구간을 바 위에 고스트로 표시
+    private float _ghostToPct = -1f;                   // 고스트 목표 %(활성 시 ≥0). Update 가 좌변을 실채움에 맞춰 추적
+    private float _splashT;                            // 전송 직후 탱크 스플래시 진폭 감쇠(1→0)
+    private readonly float[] _legendBx = new float[4]; // 각 구간 경계 x(현재 구간 강조 배치용)
+    private float _legendLy;                           // 레전드 도트 y
+    private RectTransform _legendCurHl;                // 현재 구간 강조 하이라이트 바
 
     // ── 리워드 리빌(지점 도달 연출) — 가로형 언락 매니페스트 ──────────
     private GameObject _reward; private CanvasGroup _rewardCg;
@@ -121,6 +130,8 @@ public class TransmissionComputerUI : MonoBehaviour
         float dt = Time.unscaledDeltaTime;
         for (int i = 0; i < _spinRings.Count; i++)
             if (_spinRings[i] != null) _spinRings[i].Rotate(0, 0, (i % 2 == 0 ? -1f : 1f) * 9f * dt);
+        if (_splashT > 0f) _splashT = Mathf.Max(0f, _splashT - dt * 0.8f);   // 전송 스플래시 감쇠(≈1.25s)
+        LayoutGhost();   // 고스트 좌변을 실채움에 매 프레임 맞춰 끊김 없이 이어지게
         // 물 표면 — 매 프레임 텍스처 재생성(진짜 물결 애니메이션).
         if (_rateWave != null) RegenWater(Time.unscaledTime);
         if (Time.frameCount != _openedFrame && Input.GetKeyDown(KeyCode.F)) Close();
@@ -290,6 +301,11 @@ public class TransmissionComputerUI : MonoBehaviour
         _sweep = TL(NewGO("sweep", fillGo), 0, 0, 70, th);
         var sImg = _sweep.gameObject.AddComponent<Image>(); sImg.sprite = SweepTex(); sImg.color = Color.white; sImg.raycastTarget = false;
 
+        // 고스트 미리보기 — 선택한 키트로 "이만큼 오른다"를 현재 채움 오른쪽에 반투명 구간으로 겹쳐 보여준다.
+        // body 마스크 안이라 바 밖으로 새지 않는다. 위치/폭/색은 RefreshSelection 에서 갱신, 평소 비활성.
+        _ghostFill = Img("ghostFill", body.gameObject, 0, 0, 0, th, new Color(1, 1, 1, 0));
+        _ghostFill.raycastTarget = false; _ghostFill.gameObject.SetActive(false);
+
         // 세로 눈금선 — 채움 '위'에 그려 채워진(밝은) 구간에서도 경계가 확실히 보이게 한다.
         // 밝은 채움엔 어두운 심(0.42)으로, 어두운 미채움엔 밝은 하이라이트(0.28)로 — 양쪽 대비를 겹쳐 어디서나 보이게.
         for (int p = 10; p <= 90; p += 10)
@@ -330,10 +346,15 @@ public class TransmissionComputerUI : MonoBehaviour
         // 연결선이 바의 구간 경계(=해당 구간 개방 지점)와 세로로 맞물려, 어느 시점에 열리는지 한눈에 보이게 한다.
         // 라벨/도트/연결선은 진행 도달 여부에 따라 RefreshLegend()에서 공개/??? 처리.
         float ly = ty + th + 40;              // 레전드 도트 y
+        _legendLy = ly;
+        // 현재 구간 강조 하이라이트 — 도트+라벨 뒤에 깔리는 둥근 바. 위치/표시는 RefreshLegend 에서.
+        _legendCurHl = Img("lgCurHl", panel.transform, 0, ly - 6, 150, 22, C("4CC9F7", 0.10f), UISpriteFactory.RoundedRect(20, 8)).rectTransform;
+        _legendCurHl.gameObject.SetActive(false);
         for (int i = 0; i < 4; i++)
         {
             // 구간 i가 열리는 지점(i*25%)의 바 x. (경계 그대로 — 위치 이동 없음)
             float bx = tx + i * tw / 4f;
+            _legendBx[i] = bx;
             // 연결선 상단 y. 자연(0%)은 둥근 좌측 모서리라 바 하단에 붙이면 곡선 아래로 떠 보이므로
             // 상단만 모서리 안쪽까지 더 끌어올려(길이만 늘려) 바에 닿게 한다. 나머지는 바 하단에 딱 붙임.
             float connTop = (i == 0) ? ty + th - 14f : ty + th;
@@ -357,23 +378,45 @@ public class TransmissionComputerUI : MonoBehaviour
     private void RefreshLegend()
     {
         int rate = _m != null ? Mathf.RoundToInt(_m.progress) : 0;
+        int cur = _m != null ? (int)_m.Cur : -1;   // 지금 활성 구간 — 라벨을 굵게 + 뒤에 하이라이트
         for (int i = 0; i < 4; i++)
         {
             if (_legendLabels[i] == null) continue;
             bool reached = rate >= i * 25;
+            bool isCur = i == cur && reached;
             if (reached)
             {
                 _legendLabels[i].text = $"{RegionKo[i]} {i * 25}-{(i + 1) * 25}";
-                _legendLabels[i].color = new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.88f);
-                if (_legendDots[i] != null) _legendDots[i].color = RegionCol[i];
+                _legendLabels[i].color = new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, isCur ? 1f : 0.88f);
+                _legendLabels[i].fontStyle = isCur ? FontStyles.Bold : FontStyles.Normal;
+                if (_legendDots[i] != null)
+                {
+                    _legendDots[i].color = RegionCol[i];
+                    _legendDots[i].rectTransform.localScale = Vector3.one * (isCur ? 1.35f : 1f);
+                }
                 if (_legendConns[i] != null) _legendConns[i].color = new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.7f);
             }
             else
             {
                 _legendLabels[i].text = "???";
                 _legendLabels[i].color = C("E2EDF8", 0.28f);
-                if (_legendDots[i] != null) _legendDots[i].color = C("E2EDF8", 0.2f);
+                _legendLabels[i].fontStyle = FontStyles.Normal;
+                if (_legendDots[i] != null) { _legendDots[i].color = C("E2EDF8", 0.2f); _legendDots[i].rectTransform.localScale = Vector3.one; }
                 if (_legendConns[i] != null) _legendConns[i].color = C("E2EDF8", 0.15f);
+            }
+        }
+        // 현재 구간 하이라이트 바 — 도트~라벨을 감싸도록 배치.
+        if (_legendCurHl != null)
+        {
+            bool show = cur >= 0 && rate >= cur * 25;
+            _legendCurHl.gameObject.SetActive(show);
+            if (show)
+            {
+                var rc = RegionCol[cur];
+                _legendCurHl.GetComponent<Image>().color = new Color(rc.r, rc.g, rc.b, 0.12f);
+                float labW = _legendLabels[cur] != null ? _legendLabels[cur].GetPreferredValues().x : 70f;
+                _legendCurHl.anchoredPosition = new Vector2(_legendBx[cur] - 11, -(_legendLy - 6));
+                _legendCurHl.sizeDelta = new Vector2(labW + 44, 22);
             }
         }
     }
@@ -489,9 +532,14 @@ public class TransmissionComputerUI : MonoBehaviour
         var btn = go.AddComponent<Button>(); btn.targetGraphic = bg; btn.navigation = new Navigation { mode = Navigation.Mode.None };
         btn.onClick.AddListener(() => OnKitClick(k));
         var outline = go.AddComponent<UnityEngine.UI.Outline>(); outline.effectColor = new Color(0, 0, 0, 0); outline.effectDistance = new Vector2(1, -1);
+        // 행 호버 시 사용 여부/사유 툴팁
+        go.AddComponent<KitRowHover>().Init(this, k, (RectTransform)go.transform);
 
         // 아이콘 웰 — 지역 색 틴트(보스는 더 진하게) + 등급 글리프(일반=사각 / 보스=마름모+링)
         var rc = RegionCol[(int)k.region];
+        // 선택 강조용 좌측 악센트 바(지역 색). 평소 투명, 선택 시 색이 차오르며 살짝 슬라이드 인.
+        var accent = Img("kAccent", go, 6, 12, 4, 42, new Color(rc.r, rc.g, rc.b, 0f), UISpriteFactory.RoundedRect(4, 2));
+        accent.raycastTarget = false;
         var well = Img("well", go, 20, 14, 38, 38, new Color(rc.r, rc.g, rc.b, k.isBoss ? 0.20f : 0.09f), UISpriteFactory.RoundedRect(24, 10));
         Outline(well.gameObject, new Color(rc.r, rc.g, rc.b, k.isBoss ? 0.7f : 0.3f));
         BuildKitGlyph(well.gameObject, rc, k.isBoss);
@@ -506,7 +554,7 @@ public class TransmissionComputerUI : MonoBehaviour
         // 컬럼 구분선(이름|수량|상승률) — 헤더와 동일 x, 짧고 둥근 은은한 세로 바
         ColDivider(go, -164f); ColDivider(go, -92f);
 
-        return new KitRow { kit = k, go = go, bg = bg, outline = outline, cg = cg, name = name, meta = meta, qty = qty, gain = gain, well = well };
+        return new KitRow { kit = k, go = go, bg = bg, outline = outline, cg = cg, name = name, meta = meta, qty = qty, gain = gain, well = well, accent = accent };
     }
 
     // 행 컬럼 구분선 — 우측 끝 기준 xFromRight 위치에 세로 중앙 정렬된 짧고 둥근 바.
@@ -664,14 +712,27 @@ public class TransmissionComputerUI : MonoBehaviour
 
         if (_m.kits.Count == 0)
         {
-            // 빈 상태 안내(레이아웃 그룹 자식이므로 LayoutElement 로 높이 확보).
+            // 빈 상태 안내 — 작은 글리프(빈 슬롯) + 텍스트. 레이아웃 자식이라 LayoutElement 로 높이 확보,
+            // 내부 요소는 컨테이너 중앙에 절대 배치(레이아웃이 컨테이너만 제어).
             var go = NewGO("kitEmpty", _kitListRoot.transform);
-            go.AddComponent<LayoutElement>().minHeight = 60;
-            var t = go.AddComponent<TextMeshProUGUI>();
+            go.AddComponent<LayoutElement>().minHeight = 128;
+
+            // 빈 슬롯 아이콘: 은은한 둥근 사각 프레임 + 중앙 '비어있음' 바
+            var box = Img("emptyBox", go, 0, 0, 48, 48, C("4CC9F7", 0.05f), UISpriteFactory.RoundedRect(28, 10));
+            var brt = box.rectTransform; brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 1f);
+            brt.anchoredPosition = new Vector2(0, -16); box.raycastTarget = false;
+            Outline(box.gameObject, C("4CC9F7", 0.18f));
+            var bar = Img("emptyBar", box.gameObject, 0, 0, 20, 3, C("9FDCF9", 0.45f), UISpriteFactory.RoundedRect(6, 1));
+            bar.rectTransform.anchorMin = bar.rectTransform.anchorMax = bar.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            bar.rectTransform.anchoredPosition = Vector2.zero; bar.raycastTarget = false;
+
+            var tt = NewRT("emptyTxt", go); tt.anchorMin = tt.anchorMax = tt.pivot = new Vector2(0.5f, 1f);
+            tt.anchoredPosition = new Vector2(0, -80); tt.sizeDelta = new Vector2(320, 24);
+            var t = tt.gameObject.AddComponent<TextMeshProUGUI>();
             if (_kr != null) t.font = _kr;
             t.text = "보유한 충전키트가 없습니다.";
-            t.fontSize = 15; t.color = C("E8F2FB", 0.4f); t.alignment = TextAlignmentOptions.TopLeft;
-            t.textWrappingMode = TextWrappingModes.Normal; t.raycastTarget = false;
+            t.fontSize = 15; t.color = C("E8F2FB", 0.4f); t.alignment = TextAlignmentOptions.Center;
+            t.textWrappingMode = TextWrappingModes.NoWrap; t.raycastTarget = false;
             _kitEmptyLabel = go;
             return;
         }
@@ -714,10 +775,12 @@ public class TransmissionComputerUI : MonoBehaviour
             Color rc = RegionCol[(int)r.kit.region];
             r.bg.color = new Color(rc.r, rc.g, rc.b, sel ? 0.22f : 0.10f);
             r.outline.effectColor = sel ? rc : new Color(rc.r, rc.g, rc.b, 0.28f);
+            if (r.accent != null) r.accent.color = new Color(rc.r, rc.g, rc.b, sel ? 0.95f : 0f);
             r.name.color = usable ? TextBright : C("E8F2FB", 0.35f);
             r.meta.text = KitMeta(r.kit); r.meta.color = usable ? C("E8F2FB", 0.45f) : C("E8F2FB", 0.35f);
             r.qty.text = $"x{r.kit.qty}";
-            r.cg.alpha = usable ? 1f : 0.4f; r.cg.blocksRaycasts = usable; r.cg.interactable = usable;
+            // 불가 행도 호버 툴팁(사유 안내)을 받도록 blocksRaycasts 는 항상 켜두고, 클릭만 interactable 로 차단.
+            r.cg.alpha = usable ? 1f : 0.4f; r.cg.blocksRaycasts = true; r.cg.interactable = usable;
         }
     }
 
@@ -734,6 +797,44 @@ public class TransmissionComputerUI : MonoBehaviour
         _previewVal.text = pv; _previewVal.color = pc;
         _sendBtnImg.color = active ? C("47C4F0") : C("47C4F0", 0.4f);
         _sendBtnCg.alpha = active ? 1f : 0.5f; _sendBtnCg.blocksRaycasts = active; _sendBtnCg.interactable = active;
+        UpdateGhostPreview(active ? k : null);
+    }
+
+    // 바 위 고스트 미리보기 — 현재 채움 오른쪽에 "예상 상승 구간"을 반투명으로 겹쳐 은은하게 점멸.
+    // 좌변은 매 프레임(Update)의 실채움 위치에 맞춰 따라가므로, 게이지가 차오르는 동안에도
+    // 실채움 → 고스트가 끊김 없이 이어진다(빈 칸 없음).
+    private void UpdateGhostPreview(Kit k)
+    {
+        if (_ghostFill == null) return;
+        float to = k != null ? Mathf.Clamp(_m.Target(k), 0f, 100f) : -1f;
+        if (k == null || to <= Mathf.Clamp(_m.progress, 0f, 100f))
+        {
+            _ghostToPct = -1f;
+            _ghostFill.DOKill();
+            _ghostFill.gameObject.SetActive(false);
+            return;
+        }
+        _ghostToPct = to;
+        Color rc = RegionCol[(int)k.region];
+        _ghostFill.gameObject.SetActive(true);
+        _ghostFill.DOKill();
+        _ghostFill.color = new Color(rc.r, rc.g, rc.b, 0.14f);
+        _ghostFill.DOFade(0.34f, 0.7f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetUpdate(true);
+        LayoutGhost();
+    }
+
+    // 고스트 좌변을 현재 보이는 실채움 위치에, 우변을 목표에 맞춘다(실채움이 애니 중이면 그 값을 따라감).
+    private void LayoutGhost()
+    {
+        if (_ghostFill == null || _ghostToPct < 0f || !_ghostFill.gameObject.activeSelf) return;
+        float live = _fill != null ? _fill.fillAmount * 100f : Mathf.Clamp(_m.progress, 0f, 100f);
+        float to = _ghostToPct;
+        if (to <= live) { _ghostFill.rectTransform.sizeDelta = new Vector2(0, _ghostFill.rectTransform.sizeDelta.y); return; }
+        float x = _trackW * live / 100f;
+        float w = _trackW * (to - live) / 100f;
+        var rt = _ghostFill.rectTransform;
+        rt.anchoredPosition = new Vector2(x, 0);
+        rt.sizeDelta = new Vector2(w, rt.sizeDelta.y);
     }
 
     private void RefreshStatus()
@@ -757,6 +858,21 @@ public class TransmissionComputerUI : MonoBehaviour
         if (!_m.Usable(k)) return;
         _m.selectedId = _m.selectedId == k.id ? null : k.id;
         RefreshKitRows(); RefreshSelection();
+        // 선택된 행에 클릭 피드백 — 살짝 팝(scale punch) + 악센트 바 슬라이드 인.
+        foreach (var r in _kitRows)
+        {
+            if (r == null || r.go == null || r.kit.id != _m.selectedId) continue;
+            var rt = (RectTransform)r.go.transform;
+            rt.DOKill(); rt.localScale = Vector3.one;
+            rt.DOPunchScale(new Vector3(0.015f, 0.06f, 0f), 0.28f, 8, 0.7f).SetUpdate(true);
+            if (r.accent != null)
+            {
+                var art = r.accent.rectTransform;
+                art.DOKill(); art.localScale = new Vector3(1f, 0.2f, 1f);
+                art.DOScaleY(1f, 0.24f).SetEase(Ease.OutBack).SetUpdate(true);
+            }
+            break;
+        }
     }
 
     private void OnSend()
@@ -766,6 +882,12 @@ public class TransmissionComputerUI : MonoBehaviour
         // 매니저가 키트 소모 + 전송률 상승 + 토스트 + 이벤트 처리.
         // 전송률 상승은 OnRateChanged → HandleRateChanged 에서 게이지/목록/마커를 갱신한다.
         if (!_m.Send(k)) return;
+        // 전송 버튼 클릭 피드백 — 살짝 눌리는 팝.
+        if (_sendBtnImg != null)
+        {
+            var brt = _sendBtnImg.rectTransform; brt.DOKill(); brt.localScale = Vector3.one;
+            brt.DOPunchScale(new Vector3(0.03f, 0.06f, 0f), 0.3f, 9, 0.8f).SetUpdate(true);
+        }
         _m.logs.Add($"{kn} x1 전송 / {from}% -> {Mathf.RoundToInt(_m.progress)}%");
         RefreshLog();
     }
@@ -800,10 +922,32 @@ public class TransmissionComputerUI : MonoBehaviour
     private void HandleRateChanged(int newRate)
     {
         if (!IsOpen) { _shownRate = newRate; return; }   // 닫혀있으면 값만 저장(재열 때 반영)
+        int oldRate = _shownRate;
         SetGauge(newRate, true, _shownRate);
         _shownRate = newRate;
         _m.RebuildKits(); RebuildKitRows(); RefreshSelection(); RefreshStatus();
-        DOVirtual.DelayedCall(0.9f, RefreshMarkers).SetUpdate(true);
+        // 전송으로 상승하면 탱크에 한 번 스플래시가 튄다(Update 에서 감쇠).
+        if (newRate > oldRate) _splashT = 1f;
+        // 게이지가 도착할 즈음(≈0.9s) 마커/레전드 갱신 + 이번에 새로 넘긴 지점 강조.
+        DOVirtual.DelayedCall(0.9f, () =>
+        {
+            RefreshMarkers();
+            // 이번 상승으로 새로 완료된 10% 마커를 펄스.
+            for (int pct = ((oldRate / 10) + 1) * 10; pct <= newRate && pct <= 100; pct += 10)
+                FlashMarker(pct, RegionColorForPct(pct));
+            // 새로 진입한 구간(25/50/75)의 레전드 도트를 펄스.
+            for (int b = ((oldRate / 25) + 1) * 25; b <= newRate && b <= 100; b += 25)
+                PulseLegendDot(b / 25);
+        }).SetUpdate(true);
+    }
+
+    // 레전드 도트를 한 번 튕겨(강조) 새 구간 진입을 알린다.
+    private void PulseLegendDot(int i)
+    {
+        if (i < 0 || i >= _legendDots.Length || _legendDots[i] == null) return;
+        var rt = _legendDots[i].rectTransform;
+        rt.DOKill();
+        rt.DOPunchScale(Vector3.one * 0.9f, 0.5f, 8, 0.6f).SetUpdate(true);
     }
     private void HandleMilestone(int pct)
     {
@@ -1035,11 +1179,15 @@ public class TransmissionComputerUI : MonoBehaviour
         }
         float level = Mathf.Clamp01(_rateLevelShown / 100f);
         float slosh = 1.2f * Mathf.Sin(t * 1.2f);
+        // 전송 직후엔 진폭을 키우고 빠른 파를 더해 "촤악" 튀는 느낌(_splashT: 1→0 감쇠).
+        float sp = _splashT;
+        float ampBoost = 1f + sp * 2.2f;
         for (int x = 0; x < RWW; x++)
         {
             // 균일한 진행파(같은 파장 2주기)로 규칙적인 물결 + 전체 찰랑임(slosh).
-            float wave = 3.2f * Mathf.Sin(2f * Mathf.PI * (x / (RWW * 0.5f)) - t * 1.3f);
-            float s = level * RWH + wave + slosh;   // 수면 행
+            float wave = 3.2f * ampBoost * Mathf.Sin(2f * Mathf.PI * (x / (RWW * 0.5f)) - t * 1.3f);
+            float splash = sp * 4.5f * Mathf.Sin(2f * Mathf.PI * (x / (RWW * 0.28f)) - t * 5f);
+            float s = level * RWH + wave + splash + slosh;   // 수면 행
             for (int y = 0; y < RWH; y++)
             {
                 float d = s - y;   // 수면 아래 깊이(>0) / 위(<0)
@@ -1068,22 +1216,28 @@ public class TransmissionComputerUI : MonoBehaviour
         _cg.alpha = 0f; _cg.DOFade(1f, 0.12f).SetUpdate(true);
         _content.localScale = Vector3.one;
 
-        // 2) 각 패널이 순서대로 "로드되듯" 서서히 드러난다(스케일 없이 페이드만 — 정적이고 컴퓨터스럽게).
+        // 2) 각 패널이 순서대로 "로드되듯" 아래에서 살짝 올라오며 페이드 인.
         for (int i = 0; i < _bootPanels.Count; i++)
         {
             var cg = _bootPanels[i]; if (cg == null) continue;
             var rt = (RectTransform)cg.transform;
             rt.DOKill(); cg.DOKill();
             rt.localScale = Vector3.one;                          // 접힘/확대 없음
+            Vector2 home = i < _bootHome.Count ? _bootHome[i] : rt.anchoredPosition;
+            rt.anchoredPosition = home + new Vector2(0, -22f);    // 22px 아래에서 시작(TL: 아래=음의 y)
             cg.alpha = 0f;
             float delay = 0.12f + i * 0.13f;                      // 순차 스태거(하나씩 로드되는 느낌)
             cg.DOFade(1f, 0.3f).SetEase(Ease.OutSine).SetUpdate(true).SetDelay(delay);
+            rt.DOAnchorPos(home, 0.42f).SetEase(Ease.OutCubic).SetUpdate(true).SetDelay(delay);
         }
     }
     private void KillAll()
     {
         if (_cg != null) _cg.DOKill(); if (_content != null) _content.DOKill();
         if (_fill != null) _fill.DOKill(); if (_node != null) _node.DOKill();
+        if (_ghostFill != null) { _ghostFill.DOKill(); _ghostFill.gameObject.SetActive(false); }
+        _ghostToPct = -1f;
+        _splashT = 0f;
         _rewardSeq?.Kill(); _revealQ.Clear(); _revealBusy = false; _revealStartScheduled = false;
         KillRewardTweens();
         if (_reward != null) _reward.SetActive(false);
@@ -1094,13 +1248,30 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         var st = _m.MarkerState(pct);
         Color col = st == MState.Done ? Success : st == MState.Next ? Accent : C("E2EDF8", 0.35f);
-        _ttBox.color = C("101A2D", 0.98f); var ol = _tooltip.GetComponent<UnityEngine.UI.Outline>(); if (ol != null) ol.effectColor = col;
-        _ttTitle.color = col; _ttTitle.text = $"{pct}% 지점 보상";
         // 보상 이름은 이미 획득(Done)했거나 바로 다음 구간(Next)일 때만 공개. 그 이후(Locked)는 ??? 로 가림.
-        _ttName.text = st == MState.Locked ? "???" : _m.RewardName(pct);
-        _ttState.color = col; _ttState.text = _m.TooltipStatus(pct, st);
+        string name = st == MState.Locked ? "???" : _m.RewardName(pct);
+        ShowTooltipCommon(col, $"{pct}% 지점 보상", name, _m.TooltipStatus(pct, st), marker);
+    }
+
+    // 키트 행 호버 — 사용 가능하면 상승치를, 불가면 사유를 보여준다.
+    private void ShowKitTooltip(Kit k, RectTransform anchor)
+    {
+        if (k == null) return;
+        bool usable = _m.Usable(k);
+        Color col = usable ? Accent : Danger;
+        string state = usable ? $"전송 시 +{k.gain}% 상승" : _m.UnusableReason(k);
+        ShowTooltipCommon(col, k.isBoss ? "보스 충전키트" : "일반 충전키트", k.name, state, anchor);
+    }
+
+    // 공통 툴팁 표시 — 색/제목/이름/상태 세팅 후 앵커 위로 떠오르며 페이드 인.
+    private void ShowTooltipCommon(Color col, string title, string name, string state, RectTransform anchor)
+    {
+        _ttBox.color = C("101A2D", 0.98f); var ol = _tooltip.GetComponent<UnityEngine.UI.Outline>(); if (ol != null) ol.effectColor = col;
+        _ttTitle.color = col; _ttTitle.text = title;
+        _ttName.text = name;
+        _ttState.color = col; _ttState.text = state;
         var rt = (RectTransform)_tooltip.transform;
-        Vector2 target = ContentPointFromMarker(marker);
+        Vector2 target = ContentPointFromMarker(anchor);
         rt.DOKill(); _ttCg.DOKill();
         _tooltip.transform.SetAsLastSibling();
         _tooltip.SetActive(true);
@@ -1206,6 +1377,18 @@ public class TransmissionComputerUI : MonoBehaviour
             return Mgr.CanTransmit(k.def, out _);
         }
         public int Target(Kit k) => (Mgr != null && k != null) ? Mgr.GetProjectedRate(k.def) : Mathf.RoundToInt(progress);
+
+        // 사용 불가 사유(툴팁용) — Usable() 판정과 같은 순서로 첫 번째 걸리는 이유를 문장으로.
+        public string UnusableReason(Kit k)
+        {
+            if (Mgr == null || k == null) return "사용 불가";
+            if (progress >= TransmissionManager.MaxRate) return "전송률 100% · 더 올릴 수 없음";
+            if (k.region != Cur) return $"다른 지역 키트 · 현재 {RegionKo[(int)Cur]} 구간에서 사용 불가";
+            if (!k.isBoss && progress >= Mgr.CurrentRegionNormalCap) return $"일반 상한 {Mgr.CurrentRegionNormalCap}% 도달 · 보스 키트 필요";
+            if (k.qty <= 0) return "보유 수량 없음";
+            if (Target(k) <= Mathf.RoundToInt(progress)) return "전송률 상승 없음";
+            return "사용 불가";
+        }
         public bool Send(Kit k)
         {
             if (Mgr == null || k == null) return false;
@@ -1278,7 +1461,7 @@ public class TransmissionComputerUI : MonoBehaviour
         return meta;
     }
 
-    private class KitRow { public Kit kit; public GameObject go; public Image bg, well; public UnityEngine.UI.Outline outline; public CanvasGroup cg; public TMP_Text name, meta, qty, gain; }
+    private class KitRow { public Kit kit; public GameObject go; public Image bg, well, accent; public UnityEngine.UI.Outline outline; public CanvasGroup cg; public TMP_Text name, meta, qty, gain; }
 
     // 마커 호버 이벤트 컴포넌트
     private class MarkerHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
@@ -1286,6 +1469,15 @@ public class TransmissionComputerUI : MonoBehaviour
         TransmissionComputerUI _ui; int _pct; RectTransform _rt;
         public void Init(TransmissionComputerUI ui, int pct, RectTransform rt) { _ui = ui; _pct = pct; _rt = rt; }
         public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e) => _ui.ShowTooltip(_pct, _rt);
+        public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e) => _ui.HideTooltip();
+    }
+
+    // 키트 행 호버 이벤트 컴포넌트 — 사용 가능 여부/사유 툴팁
+    private class KitRowHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
+    {
+        TransmissionComputerUI _ui; Kit _k; RectTransform _rt;
+        public void Init(TransmissionComputerUI ui, Kit k, RectTransform rt) { _ui = ui; _k = k; _rt = rt; }
+        public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e) => _ui.ShowKitTooltip(_k, _rt);
         public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e) => _ui.HideTooltip();
     }
 
@@ -1386,7 +1578,11 @@ public class TransmissionComputerUI : MonoBehaviour
     // 패널에 CanvasGroup 을 붙여 순차 오픈 애니 대상으로 등록(등록 순서 = 펼쳐지는 순서).
     private void RegisterBootPanel(RectTransform rt)
     {
-        if (rt.GetComponent<CanvasGroup>() == null) _bootPanels.Add(rt.gameObject.AddComponent<CanvasGroup>());
+        if (rt.GetComponent<CanvasGroup>() == null)
+        {
+            _bootPanels.Add(rt.gameObject.AddComponent<CanvasGroup>());
+            _bootHome.Add(rt.anchoredPosition);   // 슬라이드 인의 최종 위치(빌드 시점 원위치)
+        }
     }
     private void PanelHeader(RectTransform panel, float w, string title)
     {
