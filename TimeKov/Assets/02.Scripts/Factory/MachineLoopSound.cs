@@ -3,7 +3,7 @@
 //
 // [사용법]
 //   1. 설비 게임오브젝트에 이 컴포넌트 추가
-//   2. productionLoopClip: 생산 중 반복 재생할 클립
+//   2. 루프/시작/완료 클립은 GameSfxConfig(SfxId.MachineLoop 등)에서 지정 — 이 컴포넌트엔 클립 필드 없음
 //   3. ProcessingMachine이 StartProduction() / StopProduction() 자동 호출
 //
 // [3D 설정]
@@ -18,12 +18,8 @@ public class MachineLoopSound : MonoBehaviour
     [Header("오디오 소스 (비워두면 자동 생성)")]
     [SerializeField] private AudioSource loopSource;
 
-    [Header("생산 중 루프 클립")]
-    [SerializeField] private AudioClip productionLoopClip;
-
-    [Header("생산 시작 / 완료 1회 사운드 (선택)")]
-    [SerializeField] private AudioClip productionStartClip;
-    [SerializeField] private AudioClip productionDoneClip;
+    // 루프/시작/완료 클립은 GameSfx(SfxId.MachineLoop / MachineProductionStart / MachineProductionDone)로
+    // 통합 — GameSfxConfig 에서 관리. 재생은 이 3D 소스에서 유지.
 
     [Header("3D 거리 감쇠 설정")]
     [Tooltip("이 거리 안에서는 최대 볼륨 (미터)")]
@@ -77,13 +73,13 @@ public class MachineLoopSound : MonoBehaviour
         if (loopSource == null) return;
 
         // 시작 1회 사운드 — 설비 위치에서 3D 재생
-        if (productionStartClip != null)
-            loopSource.PlayOneShot(productionStartClip);
+        if (GameSfx.TryGet(SfxId.MachineProductionStart, out var startClip, out var sv))
+            loopSource.PlayOneShot(startClip, sv);
 
-        if (productionLoopClip != null)
-            loopSource.clip = productionLoopClip;
+        if (GameSfx.TryGet(SfxId.MachineLoop, out var loopClip, out _))
+            loopSource.clip = loopClip;
 
-        if (!loopSource.isPlaying)
+        if (loopSource.clip != null && !loopSource.isPlaying)
             loopSource.Play();
     }
 
@@ -94,8 +90,9 @@ public class MachineLoopSound : MonoBehaviour
             loopSource.Stop();
 
         // 완료 1회 사운드 — 설비 위치에서 3D 재생
-        if (playDoneSound && productionDoneClip != null && loopSource != null)
-            loopSource.PlayOneShot(productionDoneClip);
+        if (playDoneSound && loopSource != null &&
+            GameSfx.TryGet(SfxId.MachineProductionDone, out var doneClip, out var dv))
+            loopSource.PlayOneShot(doneClip, dv);
     }
 
     /// <summary>현재 생산 루프가 재생 중인지 여부.</summary>

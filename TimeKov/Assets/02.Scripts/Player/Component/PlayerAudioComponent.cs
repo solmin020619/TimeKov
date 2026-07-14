@@ -13,45 +13,16 @@ using UnityEngine;
 [RequireComponent(typeof(Player))]
 public class PlayerAudioComponent : MonoBehaviour
 {
+    // 모든 플레이어 효과음 클립은 GameSfx(SfxId.Player*)로 통합 — GameSfxConfig 에서 관리.
+    // 재생은 아래 3개 로컬 소스에서 유지(공격 스윙 중단·발소리 분리 때문). 발소리는 SfxId 배열(랜덤).
+
     // ─── 이동 ────────────────────────────────────────────────────────
     [Header("이동")]
-    [Tooltip("걷기 발소리 클립 목록 (랜덤 재생)")]
-    public AudioClip[] WalkClips;
-
-    [Tooltip("달리기 발소리 클립 목록 (랜덤 재생)")]
-    public AudioClip[] RunClips;
-
     [Tooltip("걷기 발소리 재생 간격 (초)")]
     public float WalkStepInterval = 0.50f;
 
     [Tooltip("달리기 발소리 재생 간격 (초)")]
     public float RunStepInterval  = 0.32f;
-
-    // ─── 대시/스태미나 ───────────────────────────────────────────────
-    [Header("대시 / 스태미나")]
-    public AudioClip DashClip;
-    public AudioClip StaminaWarningClip;
-
-    // ─── 기본 공격 ───────────────────────────────────────────────────
-    [Header("기본 공격")]
-    public AudioClip Attack1Clip;
-    public AudioClip Attack2Clip;
-    public AudioClip Attack3Clip;
-    public AudioClip AttackHitClip;
-
-    // ─── 스킬 ────────────────────────────────────────────────────────
-    [Header("스킬")]
-    public AudioClip Skill1Clip;
-    public AudioClip Skill2Clip;
-    public AudioClip Skill3Clip;
-    public AudioClip SkillHitClip;
-    public AudioClip SkillUnavailableClip;
-
-    // ─── 피격 / 상태 ─────────────────────────────────────────────────
-    [Header("피격 / 상태")]
-    public AudioClip HurtClip;
-    public AudioClip JumpClip;
-    public AudioClip DieClip;
 
     // ─── AudioSource ─────────────────────────────────────────────────
     [Header("Audio Sources (비워두면 자동 생성)")]
@@ -147,7 +118,7 @@ public class PlayerAudioComponent : MonoBehaviour
         if (_stepTimer <= 0f)
         {
             _stepTimer = interval;
-            PlayRandom(_footstepSource, isSprinting ? RunClips : WalkClips);
+            PlayOn(_footstepSource, isSprinting ? SfxId.PlayerFootstepRun : SfxId.PlayerFootstepWalk);
         }
     }
 
@@ -156,7 +127,7 @@ public class PlayerAudioComponent : MonoBehaviour
     {
         bool isExhausted = _player.Stat.IsExhausted;
         if (!_wasExhausted && isExhausted)
-            PlayOneShot(StaminaWarningClip);
+            PlayOn(_sfxSource, SfxId.PlayerStaminaWarning);
         _wasExhausted = isExhausted;
     }
 
@@ -165,16 +136,15 @@ public class PlayerAudioComponent : MonoBehaviour
     // ═════════════════════════════════════════════════════════════════
 
     /// <summary>대시 발동음</summary>
-    public void PlayDash() => PlayOneShot(DashClip);
+    public void PlayDash() => PlayOn(_sfxSource, SfxId.PlayerDash);
 
     /// <summary>기본 공격 스윙음 (comboIndex: 0=1타, 1=2타, 2=3타)</summary>
     public void PlayAttackSwing(int comboIndex)
     {
-        var clip = comboIndex == 0 ? Attack1Clip :
-                   comboIndex == 1 ? Attack2Clip :
-                                     Attack3Clip;
-        if (clip == null || _attackSource == null) return;
-        _attackSource.PlayOneShot(clip);
+        var id = comboIndex == 0 ? SfxId.PlayerAttack1 :
+                 comboIndex == 1 ? SfxId.PlayerAttack2 :
+                                   SfxId.PlayerAttack3;
+        PlayOn(_attackSource, id);
     }
 
     /// <summary>
@@ -188,46 +158,40 @@ public class PlayerAudioComponent : MonoBehaviour
     }
 
     /// <summary>기본 공격 적중음</summary>
-    public void PlayAttackHit() => PlayOneShot(AttackHitClip);
+    public void PlayAttackHit() => PlayOn(_sfxSource, SfxId.PlayerAttackHit);
 
     /// <summary>스킬 발동음 (SkillSheetId 기준)</summary>
     public void PlaySkill(SkillSheetId id)
     {
-        var clip = id == SkillSheetId.Skill1 ? Skill1Clip :
-                   id == SkillSheetId.Skill2 ? Skill2Clip :
-                                               Skill3Clip;
-        PlayOneShot(clip);
+        var sfx = id == SkillSheetId.Skill1 ? SfxId.PlayerSkill1 :
+                  id == SkillSheetId.Skill2 ? SfxId.PlayerSkill2 :
+                                              SfxId.PlayerSkill3;
+        PlayOn(_sfxSource, sfx);
     }
 
     /// <summary>스킬 적중음</summary>
-    public void PlaySkillHit() => PlayOneShot(SkillHitClip);
+    public void PlaySkillHit() => PlayOn(_sfxSource, SfxId.PlayerSkillHit);
 
     /// <summary>스킬 사용 불가음 (게이지 부족 / 쿨다운)</summary>
-    public void PlaySkillUnavailable() => PlayOneShot(SkillUnavailableClip);
+    public void PlaySkillUnavailable() => PlayOn(_sfxSource, SfxId.PlayerSkillUnavailable);
 
     /// <summary>피격음 (OnHurt 이벤트로 자동 호출)</summary>
-    public void PlayHurt() => PlayOneShot(HurtClip);
+    public void PlayHurt() => PlayOn(_sfxSource, SfxId.PlayerHurt);
 
     /// <summary>점프음</summary>
-    public void PlayJump() => PlayOneShot(JumpClip);
+    public void PlayJump() => PlayOn(_sfxSource, SfxId.PlayerJump);
 
     /// <summary>사망음</summary>
-    public void PlayDie() => PlayOneShot(DieClip);
+    public void PlayDie() => PlayOn(_sfxSource, SfxId.PlayerDie);
 
     // ═════════════════════════════════════════════════════════════════
     // 헬퍼
     // ═════════════════════════════════════════════════════════════════
 
-    void PlayOneShot(AudioClip clip)
+    // 지정 소스에 GameSfxConfig 의 클립을 재생(배열 ID는 랜덤). 클립 미지정이면 무음.
+    void PlayOn(AudioSource source, SfxId id)
     {
-        if (clip == null || _sfxSource == null) return;
-        _sfxSource.PlayOneShot(clip);
-    }
-
-    void PlayRandom(AudioSource source, AudioClip[] clips)
-    {
-        if (clips == null || clips.Length == 0 || source == null) return;
-        var clip = clips[Random.Range(0, clips.Length)];
-        if (clip != null) source.PlayOneShot(clip);
+        if (source == null) return;
+        if (GameSfx.TryGet(id, out var clip, out var volume)) source.PlayOneShot(clip, volume);
     }
 }

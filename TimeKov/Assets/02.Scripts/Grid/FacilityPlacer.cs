@@ -160,17 +160,9 @@ public class FacilityPlacer
         }
     }
 
-    private void PlayBuildStartSound()
-    {
-        if (owner.audioSource == null || owner.buildStartClip == null) return;
-        owner.audioSource.PlayOneShot(owner.buildStartClip, 0.1f);
-    }
+    private void PlayBuildStartSound()   => GameSfx.Play(SfxId.BuildStart);      // 볼륨은 GameSfxConfig 에서(0.1)
 
-    private void PlayBuildCompleteSound()
-    {
-        if (owner.audioSource == null || owner.buildCompleteClip == null) return;
-        owner.audioSource.PlayOneShot(owner.buildCompleteClip);
-    }
+    private void PlayBuildCompleteSound() => GameSfx.Play(SfxId.BuildComplete);
 
     private void SpawnBuildCompleteEffect(Vector3 position, Quaternion rotation)
     {

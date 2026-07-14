@@ -37,10 +37,7 @@ public class BuildManager : MonoBehaviour, ISaveable
     public Material hologramMaterial;
     public float buildEffectDuration = 1.2f;
 
-    [Header("Build Audio")]
-    public AudioSource audioSource;
-    public AudioClip buildStartClip;
-    public AudioClip buildCompleteClip;
+    // 빌드/철거 효과음은 GameSfx(SfxId.BuildStart/BuildComplete/Demolish)로 통합 — GameSfxConfig 에서 관리.
 
     [Header("Build VFX")]
     public GameObject buildCompleteEffectPrefab;
@@ -50,10 +47,6 @@ public class BuildManager : MonoBehaviour, ISaveable
     public LayerMask placedBuildingMask;
     [Tooltip("레일 오브젝트 레이어. 해제 모드에서 레일도 대상으로 삼을 때 사용.")]
     public LayerMask railMask;
-
-    [Header("Demolish Audio")]
-    public AudioClip demolishClip;
-    [Range(0f, 1f)] public float demolishVolume = 1f;
 
     private bool _isDemolishMode = false;
     // 해제 모드 on/off 가 바뀔 때마다 BeltSegment 에 알려 모든 벨트를 흰색으로 띄운다.

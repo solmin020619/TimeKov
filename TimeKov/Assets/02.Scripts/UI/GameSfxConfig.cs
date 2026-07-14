@@ -11,6 +11,8 @@ public class GameSfxConfig : ScriptableObject
     {
         public SfxId id;
         public AudioClip clip;
+        [Tooltip("여러 개 지정하면 재생마다 이 중 하나를 랜덤 선택(발소리 등). 비어있으면 위 clip 사용.")]
+        public List<AudioClip> clips = new List<AudioClip>();
         [Range(0f, 1f)] public float volume = 1f;
     }
 

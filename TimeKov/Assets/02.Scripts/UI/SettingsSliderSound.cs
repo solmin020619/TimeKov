@@ -14,7 +14,7 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Slider))]
 public class SettingsSliderSound : MonoBehaviour
 {
-    [Tooltip("비워두면 UISoundManager.volumePreviewClip 사용")]
+    [Tooltip("비워두면 기본 볼륨 미리듣기음(GameSfx SfxId.UIVolumePreview) 사용")]
     [SerializeField] private AudioClip overrideClip;
 
     [Tooltip("슬라이더가 멈춘 뒤 몇 초 후에 소리를 재생할지 (기본 0.35초)")]
