@@ -37,6 +37,9 @@ public class EmergencyConsole : MonoBehaviour, IInteractable, IInteractHint
         foreach (var o in _outlines) if (o != null) o.enabled = enable;
     }
 
+    /// <summary>시네마틱 등 외부에서 outline을 강제 제어할 때 사용.</summary>
+    public void ForceOutline(bool enable) => SetOutlines(enable);
+
     void ApplyLabel()
     {
         var tmp = _hintUI.GetComponentInChildren<TMP_Text>(true);
