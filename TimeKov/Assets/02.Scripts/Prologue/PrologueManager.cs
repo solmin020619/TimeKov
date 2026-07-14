@@ -16,6 +16,8 @@ public class PrologueManager : MonoBehaviour
     [Header("References")]
     [Tooltip("씬 전체를 가릴 전체화면 검정 CanvasGroup (alpha 0 → 1 페이드아웃용)")]
     [SerializeField] CanvasGroup fadeCanvas;
+    [Tooltip("추락 연출 컨트롤러. 연결되면 CrashSequence 대신 위임.")]
+    [SerializeField] CrashSequenceController _crashController;
 
     void Start()
     {
@@ -33,7 +35,8 @@ public class PrologueManager : MonoBehaviour
 
     void OnPrologueComplete()
     {
-        StartCoroutine(CrashSequence());
+        if (_crashController != null) { _crashController.Play(); return; }
+        StartCoroutine(CrashSequence()); // fallback
     }
 
     IEnumerator CrashSequence()

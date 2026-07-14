@@ -25,6 +25,10 @@ public class IntroVideoController : MonoBehaviour
     [Tooltip("영상 종료 후 페이드 아웃 시간(초)")]
     [SerializeField] float _fadeOutDuration = 0.5f;
 
+    [Header("Crash Sequence")]
+    [Tooltip("영상 종료 후 1단계 배경 긴장감을 시작할 컨트롤러")]
+    [SerializeField] CrashSequenceController _crashController;
+
     VideoPlayer _videoPlayer;
     AudioSource _audioSource;
     RenderTexture _renderTexture;
@@ -159,6 +163,9 @@ public class IntroVideoController : MonoBehaviour
 
         // 사운드 복원
         AudioListener.volume = _savedListenerVolume;
+
+        // 1단계 배경 긴장감 시작
+        _crashController?.BeginAmbient();
 
         // 입력 차단 해제
         PlayerInputComponent.IsBlocked = false;
