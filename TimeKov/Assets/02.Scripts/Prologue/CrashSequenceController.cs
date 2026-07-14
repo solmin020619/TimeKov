@@ -94,53 +94,53 @@ public class CrashSequenceController : MonoBehaviour
     {
         // t=0.0 —————————————————————————————————
         PlayerInputComponent.IsBlocked = true;
-        _rollAmplitude = 0f; // 일시 롤 초기화
+        _rollAmplitude = 0f;
 
-        // ──────────────────── t=0.3 — 1차 충격 ────────────────
-        yield return new WaitForSeconds(0.3f);
+        // ──────────────────── t=0.2 — 1차 충격 ────────────────
+        yield return new WaitForSeconds(0.2f);
         ThirdPersonCamera.Shake(0.6f, 0.7f);
         StartCoroutine(FovPulse(66f, 0.2f));
         _rollAmplitude = 3f;
-        _rollFreq      = Mathf.PI * 2f / 1.5f; // 주기 1.5s
+        _rollFreq      = Mathf.PI * 2f / 1.5f;
 
-        // ──────────────────── t=2.0 — 2차 충격 ────────────────
-        yield return new WaitForSeconds(1.7f);
+        // ──────────────────── t=1.0 — 2차 충격 ────────────────
+        yield return new WaitForSeconds(0.8f);
         ThirdPersonCamera.Shake(1.0f, 1.1f);
         StartCoroutine(FovPulse(69f, 0.2f));
         _rollAmplitude = 5f;
-        _rollFreq      = Mathf.PI * 2f / 1.0f; // 주기 1.0s
+        _rollFreq      = Mathf.PI * 2f / 1.0f;
         StartCoroutine(LerpLightColor(
             _originalLightColor,
-            new Color(1f, 0.45f, 0.1f), // 오렌지
-            2.0f));
+            new Color(1f, 0.45f, 0.1f),
+            1.5f));
         SetStrobePeriod(0.4f);
 
-        // ──────────────────── t=4.0 — 3차 충격 ────────────────
-        yield return new WaitForSeconds(2.0f);
+        // ──────────────────── t=2.5 — 3차 충격 ────────────────
+        yield return new WaitForSeconds(1.5f);
         ThirdPersonCamera.Shake(3.0f, 1.8f);
         StartCoroutine(FovPulse(73f, 0.25f));
         _rollAmplitude = 8f;
-        _rollFreq      = Mathf.PI * 2f / 0.7f; // 주기 0.7s
+        _rollFreq      = Mathf.PI * 2f / 0.7f;
         if (_directionalLight != null)
         {
-            _directionalLight.color     = new Color(1f, 0.12f, 0.05f); // 붉은 경보색
+            _directionalLight.color     = new Color(1f, 0.12f, 0.05f);
             _directionalLight.intensity = 0.5f;
         }
         SetStrobePeriod(0.2f);
 
-        // ──────────────────── t=6.5 — 충격 후 감쇠 ───────────
-        yield return new WaitForSeconds(2.5f);
-        StartCoroutine(DampenRoll(0.5f));
-        StartCoroutine(FadeLightIntensity(0f, 2.5f));
+        // ──────────────────── t=4.0 — 충격 후 감쇠 ───────────
+        yield return new WaitForSeconds(1.5f);
+        StartCoroutine(DampenRoll(0.3f));
+        StartCoroutine(FadeLightIntensity(0f, 1.5f));
 
-        // ──────────────────── t=7.5 — 화면 페이드 ─────────────
-        yield return new WaitForSeconds(1.0f);
+        // ──────────────────── t=4.5 — 화면 페이드 ─────────────
+        yield return new WaitForSeconds(0.5f);
         if (_fadeCanvas != null)
-            yield return StartCoroutine(CoreUtilities.Fade(_fadeCanvas, 0f, 1f, 1.5f));
+            yield return StartCoroutine(CoreUtilities.Fade(_fadeCanvas, 0f, 1f, 1.0f));
         else
-            yield return new WaitForSeconds(1.5f);
+            yield return new WaitForSeconds(1.0f);
 
-        // ──────────────────── t=9.0 — 씬 전환 ─────────────────
+        // ──────────────────── t=5.5 — 씬 전환 ─────────────────
         CoreUtilities.LoadViaLoading("World");
     }
 
