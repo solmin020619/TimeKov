@@ -12,10 +12,10 @@ using UnityEngine.EventSystems;
 
 public class UIButtonSound : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler
 {
-    [Tooltip("비워두면 UISoundManager.buttonClickClip 사용")]
+    [Tooltip("비워두면 기본 클릭음(GameSfx SfxId.UIButtonClick) 사용")]
     [SerializeField] private AudioClip overrideClickClip;
 
-    [Tooltip("비워두면 UISoundManager.buttonHoverClip 사용")]
+    [Tooltip("비워두면 기본 호버음(GameSfx SfxId.UIButtonHover) 사용")]
     [SerializeField] private AudioClip overrideHoverClip;
 
     // ─── 이벤트 ──────────────────────────────────────────────────────────────

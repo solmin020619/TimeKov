@@ -18,9 +18,7 @@ public class MainMenuManager : MonoBehaviour
     public CanvasGroup fadeCanvasGroup;
     public float fadeDuration = 1.0f;
 
-    [Header("Sound")]
-    public AudioSource sfxAudioSource;
-    public AudioClip clickSound;
+    // 메뉴 클릭음은 GameSfx(SfxId.MenuClick)로 통합 — GameSfxConfig 에서 관리.
 
     private void Start()
     {
@@ -40,11 +38,7 @@ public class MainMenuManager : MonoBehaviour
             OnClickQuitNo();
     }
 
-    public void PlayClickSound()
-    {
-        if (sfxAudioSource != null && clickSound != null)
-            sfxAudioSource.PlayOneShot(clickSound);
-    }
+    public void PlayClickSound() => GameSfx.Play(SfxId.MenuClick);
 
     public void OnClickNewGame()
     {
