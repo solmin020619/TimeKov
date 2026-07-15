@@ -137,10 +137,7 @@ public class IntroVideoController : MonoBehaviour
     {
         _finished = true;
 
-        if (_videoPlayer != null)
-            _videoPlayer.Stop();
-
-        // 페이드 아웃 — unscaledDeltaTime 사용 (timeScale = 0이어도 동작)
+        // Stop 전에 페이드 — 마지막 프레임이 캔버스가 사라질 때까지 유지됨
         if (_canvasGroup != null && _fadeOutDuration > 0f)
         {
             float elapsed = 0f;
@@ -151,6 +148,9 @@ public class IntroVideoController : MonoBehaviour
                 yield return null;
             }
         }
+
+        if (_videoPlayer != null)
+            _videoPlayer.Stop();
 
         FinishIntro();
     }

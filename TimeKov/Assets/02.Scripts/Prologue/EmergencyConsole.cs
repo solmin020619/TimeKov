@@ -12,6 +12,7 @@ public class EmergencyConsole : MonoBehaviour, IInteractable, IInteractHint
     [SerializeField] GameObject activatedEffect;
 
     [SerializeField] Outline[] _outlines;
+    [SerializeField] AudioClip _activateClip;
     bool _activated;
 
     void Start()
@@ -58,6 +59,8 @@ public class EmergencyConsole : MonoBehaviour, IInteractable, IInteractHint
         _activated = true;
         ShowHint(false);
         if (activatedEffect != null) activatedEffect.SetActive(true);
+        if (_activateClip != null)
+            AudioSource.PlayClipAtPoint(_activateClip, transform.position, GlobalSettingsManager.CurrentSFXVolume);
         GameEvents.RaiseInteracted(interactId);
     }
 }

@@ -11,7 +11,15 @@ public class CrashSequenceController : MonoBehaviour
     [Header("References")]
     [SerializeField] Light         _directionalLight;
     [SerializeField] CanvasGroup   _fadeCanvas;
-    [SerializeField] GameObject    _warningLights;   // WarningLights GO (씬에 이미 비활성)
+    [SerializeField] GameObject    _warningLights;
+
+    [Header("Audio")]
+    [SerializeField] AudioSource _ambientSource;   // 루프용 (경보음)
+    [SerializeField] AudioSource _sfxSource;       // 원샷용 (충격음)
+    [SerializeField] AudioClip   _clipAlarm;       // 경보 루프
+    [SerializeField] AudioClip   _clipImpact1;     // 1차 충격
+    [SerializeField] AudioClip   _clipImpact2;     // 2차 충격
+    [SerializeField] AudioClip   _clipImpact3;     // 3차 충격
 
     // ─── 런타임 상태 ───────────────────────────────────────────
     VattalusLightController[] _lightControllers;
@@ -19,6 +27,7 @@ public class CrashSequenceController : MonoBehaviour
     Color                      _originalLightColor;
     float                      _originalLightIntensity;
     float                      _baseFov = 60f;
+    const float AlarmBaseVolume = 0.045f;
 
     // Update에서 읽는 카메라 롤 파라미터 (코루틴이 값만 변경)
     float _rollAmplitude;
@@ -67,6 +76,16 @@ public class CrashSequenceController : MonoBehaviour
             foreach (var s in _warningStrobes) s.strobePeriod = 0.8f;
         }
 
+        // 경보음 루프 시작 — SFX 볼륨 설정 반영
+        if (_ambientSource != null && _clipAlarm != null)
+        {
+            _ambientSource.clip   = _clipAlarm;
+            _ambientSource.loop   = true;
+            _ambientSource.volume = AlarmBaseVolume * GlobalSettingsManager.CurrentSFXVolume;
+            _ambientSource.Play();
+        }
+        GlobalSettingsManager.OnSFXVolumeChanged += OnSfxVolumeChanged;
+
         // 미세 Roll + 주기적 소진동
         _rollAmplitude = 1f;
         _rollFreq      = Mathf.PI * 2f / 3f; // 주기 3s
@@ -86,8 +105,20 @@ public class CrashSequenceController : MonoBehaviour
     /// <summary>비상 제어 장치 조작 후 PrologueManager가 호출한다.</summary>
     public void Play()
     {
+        GlobalSettingsManager.OnSFXVolumeChanged -= OnSfxVolumeChanged;
         StopAllCoroutines(); // 1단계 코루틴 종료
         StartCoroutine(CrashCoroutine());
+    }
+
+    void OnSfxVolumeChanged(float vol)
+    {
+        if (_ambientSource != null && _ambientSource.isPlaying)
+            _ambientSource.volume = AlarmBaseVolume * vol;
+    }
+
+    void OnDestroy()
+    {
+        GlobalSettingsManager.OnSFXVolumeChanged -= OnSfxVolumeChanged;
     }
 
     IEnumerator CrashCoroutine()
@@ -95,6 +126,9 @@ public class CrashSequenceController : MonoBehaviour
         // t=0.0 —————————————————————————————————
         PlayerInputComponent.IsBlocked = true;
         _rollAmplitude = 0f;
+        // 추락 시작 — 경보음 볼륨 조금 올림 (설정 볼륨 기준)
+        if (_ambientSource != null)
+            _ambientSource.volume = AlarmBaseVolume * 1.5f * GlobalSettingsManager.CurrentSFXVolume;
 
         // ──────────────────── t=0.2 — 1차 충격 ────────────────
         yield return new WaitForSeconds(0.2f);
@@ -102,6 +136,8 @@ public class CrashSequenceController : MonoBehaviour
         StartCoroutine(FovPulse(66f, 0.2f));
         _rollAmplitude = 3f;
         _rollFreq      = Mathf.PI * 2f / 1.5f;
+        if (_sfxSource != null && _clipImpact1 != null)
+            _sfxSource.PlayOneShot(_clipImpact1, GlobalSettingsManager.CurrentSFXVolume);
 
         // ──────────────────── t=1.0 — 2차 충격 ────────────────
         yield return new WaitForSeconds(0.8f);
@@ -114,6 +150,8 @@ public class CrashSequenceController : MonoBehaviour
             new Color(1f, 0.45f, 0.1f),
             1.5f));
         SetStrobePeriod(0.4f);
+        if (_sfxSource != null && _clipImpact2 != null)
+            _sfxSource.PlayOneShot(_clipImpact2, GlobalSettingsManager.CurrentSFXVolume * 1.1f);
 
         // ──────────────────── t=2.5 — 3차 충격 ────────────────
         yield return new WaitForSeconds(1.5f);
@@ -127,6 +165,8 @@ public class CrashSequenceController : MonoBehaviour
             _directionalLight.intensity = 0.5f;
         }
         SetStrobePeriod(0.2f);
+        if (_sfxSource != null && _clipImpact2 != null)
+            StartCoroutine(ImpactBurst(_clipImpact2, 5, 0.18f, GlobalSettingsManager.CurrentSFXVolume));
 
         // ──────────────────── t=4.0 — 충격 후 감쇠 ───────────
         yield return new WaitForSeconds(1.5f);
@@ -203,6 +243,18 @@ public class CrashSequenceController : MonoBehaviour
             yield return null;
         }
         _rollAmplitude = 0f;
+    }
+
+    // count번 연속 재생, interval 간격, 재생마다 볼륨 0.75씩 감쇠
+    IEnumerator ImpactBurst(AudioClip clip, int count, float interval, float baseVolume)
+    {
+        float vol = baseVolume * 1.3f;
+        for (int i = 0; i < count; i++)
+        {
+            if (_sfxSource != null) _sfxSource.PlayOneShot(clip, vol);
+            vol *= 0.65f;
+            yield return new WaitForSeconds(interval);
+        }
     }
 
     void SetStrobePeriod(float period)
