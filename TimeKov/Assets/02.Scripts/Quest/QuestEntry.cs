@@ -37,9 +37,7 @@ public class QuestEntry : MonoBehaviour
     [SerializeField] float alertPulseInterval = 0.25f;
     [SerializeField] float alertFadeDuration = 0.2f;
 
-    [Header("Audio")]
-    [SerializeField] AudioSource audioSource;
-    [SerializeField] AudioClip completeSfx;
+    // 퀘스트 완료음은 GameSfx(SfxId.QuestComplete)로 통합 — GameSfxConfig 에서 관리.
 
     [Header("Animation timing")]
     [SerializeField] float slideInDuration = 0.3f;
@@ -260,7 +258,7 @@ public class QuestEntry : MonoBehaviour
         seq.AppendInterval(completeStartDelay);
         seq.AppendCallback(() =>
         {
-            if (audioSource && completeSfx) audioSource.PlayOneShot(completeSfx);
+            GameSfx.Play(SfxId.QuestComplete);
         });
 
         // 위로 올라가며 fade. 사진 4 패턴 (내용이 위로 흡수되며 사라짐)

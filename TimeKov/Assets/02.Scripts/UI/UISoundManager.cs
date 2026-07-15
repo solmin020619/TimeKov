@@ -16,30 +16,10 @@ public class UISoundManager : MonoBehaviour
     public static UISoundManager Instance { get; private set; }
 
     // ─── 오디오 소스 ─────────────────────────────────────────────────────────
-    [Header("오디오 소스 (SFX 전용 AudioSource를 연결하거나 비워두면 자동 생성)")]
+    // 기본 UI 효과음 클립은 모두 GameSfx(SfxId.UI*)로 통합 — GameSfxConfig 에서 관리한다.
+    // 이 소스는 컴포넌트별 override 클립(PlayClip)을 직접 재생할 때만 사용한다.
+    [Header("오디오 소스 (override 클립 재생용 · 비워두면 자동 생성)")]
     [SerializeField] private AudioSource sfxSource;
-
-    // ─── 버튼 사운드 ─────────────────────────────────────────────────────────
-    [Header("버튼 사운드")]
-    [SerializeField] private AudioClip buttonClickClip;   // 버튼 좌클릭
-    [SerializeField] private AudioClip buttonHoverClip;   // 버튼에 마우스 올렸을 때
-
-    // ─── 아이템 슬롯 사운드 ──────────────────────────────────────────────────
-    [Header("아이템 슬롯 사운드")]
-    [SerializeField] private AudioClip itemHoverClip;      // 아이템에 마우스 올렸을 때
-    [SerializeField] private AudioClip itemClickClip;      // 아이템 좌클릭
-    [SerializeField] private AudioClip itemRightClickClip; // 아이템 우클릭
-    [SerializeField] private AudioClip itemDragBeginClip;  // 아이템 드래그 시작
-    [SerializeField] private AudioClip itemDropClip;       // 아이템 드랍
-
-    // ─── UI 패널 사운드 ──────────────────────────────────────────────────────
-    [Header("UI 패널 사운드")]
-    [SerializeField] private AudioClip panelOpenClip;   // 인벤토리·설비UI 열릴 때
-    [SerializeField] private AudioClip panelCloseClip;  // 인벤토리·설비UI 닫힐 때
-
-    // ─── 설정 슬라이더 미리듣기 ──────────────────────────────────────────────
-    [Header("설정 슬라이더 미리듣기 (BGM·SFX 볼륨 슬라이더 정지 후 재생)")]
-    [SerializeField] private AudioClip volumePreviewClip;  // 볼륨 수준 확인용 클립
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -104,19 +84,19 @@ public class UISoundManager : MonoBehaviour
     /// <summary>지정 클립을 직접 재생. 오버라이드 클립이 있는 컴포넌트에서 호출.</summary>
     public void PlayClip(AudioClip clip)         => Play(clip);
 
-    public void PlayButtonClick()    => Play(buttonClickClip);
-    public void PlayButtonHover()    => Play(buttonHoverClip);
+    public void PlayButtonClick()    => GameSfx.Play(SfxId.UIButtonClick);
+    public void PlayButtonHover()    => GameSfx.Play(SfxId.UIButtonHover);
 
-    public void PlayItemHover()      => Play(itemHoverClip);
-    public void PlayItemClick()      => Play(itemClickClip);
-    public void PlayItemRightClick() => Play(itemRightClickClip);
-    public void PlayItemDragBegin()  => Play(itemDragBeginClip);
-    public void PlayItemDrop()       => Play(itemDropClip);
+    public void PlayItemHover()      => GameSfx.Play(SfxId.UIItemHover);
+    public void PlayItemClick()      => GameSfx.Play(SfxId.UIItemClick);
+    public void PlayItemRightClick() => GameSfx.Play(SfxId.UIItemRightClick);
+    public void PlayItemDragBegin()  => GameSfx.Play(SfxId.UIItemDragBegin);
+    public void PlayItemDrop()       => GameSfx.Play(SfxId.UIItemDrop);
 
-    public void PlayPanelOpen()      => Play(panelOpenClip);
-    public void PlayPanelClose()     => Play(panelCloseClip);
+    public void PlayPanelOpen()      => GameSfx.Play(SfxId.UIPanelOpen);
+    public void PlayPanelClose()     => GameSfx.Play(SfxId.UIPanelClose);
 
-    public void PlayVolumePreview()  => Play(volumePreviewClip);
+    public void PlayVolumePreview()  => GameSfx.Play(SfxId.UIVolumePreview);
 
     // ─── 내부 재생 ───────────────────────────────────────────────────────────
     private void Play(AudioClip clip)

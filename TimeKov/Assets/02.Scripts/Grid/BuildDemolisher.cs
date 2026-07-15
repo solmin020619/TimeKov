@@ -228,11 +228,7 @@ public class BuildDemolisher
         hasHoveredRail = false;
     }
 
-    private void PlayDemolishSound()
-    {
-        if (owner.audioSource == null || owner.demolishClip == null) return;
-        owner.audioSource.PlayOneShot(owner.demolishClip, owner.demolishVolume);
-    }
+    private void PlayDemolishSound() => GameSfx.Play(SfxId.Demolish);   // 볼륨은 GameSfxConfig 에서 관리
 
     private bool IsPointerOverUI()
     {

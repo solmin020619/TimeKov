@@ -11,10 +11,10 @@ using UnityEngine;
 
 public class UIPanelSound : MonoBehaviour
 {
-    [Tooltip("비워두면 UISoundManager.panelOpenClip 사용")]
+    [Tooltip("비워두면 기본 패널 열기음(GameSfx SfxId.UIPanelOpen) 사용")]
     [SerializeField] private AudioClip overrideOpenClip;
 
-    [Tooltip("비워두면 UISoundManager.panelCloseClip 사용")]
+    [Tooltip("비워두면 기본 패널 닫기음(GameSfx SfxId.UIPanelClose) 사용")]
     [SerializeField] private AudioClip overrideCloseClip;
 
     // 씬 시작 시 OnEnable이 자동 발동되는 것을 방지
