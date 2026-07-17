@@ -109,16 +109,17 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     private const float MeleeMaxReachMul = 1.4f;   // 근접 고려 최대 사거리(가장 긴 reachMul)
     private const float MeleeGap = 0.45f;          // 근접 공격 간 최소 간격
 
-    // 컴포넌트(자동 캐싱)
-    private NavMeshAgent _agent;
-    private EnemyHealth _health;
-    private EnemyFeedback _feedback;
-    private Animator _animator;
-    private int _speedHash;
+    // 공용 모터(컴포넌트 캐싱 / SO동기화 / 이동 / 회전 / Speed 파라미터). 보스 3종 공유.
+    private BossMotor _motor;
+    private BossLeash _leash;
 
-    // 타깃
-    private Transform _player;
-    private PlayerStatComponent _playerStat;
+    // 아래는 전부 모터 위임(기존 본문 코드를 그대로 쓰기 위한 얇은 프로퍼티)
+    private NavMeshAgent _agent => _motor.Agent;
+    private EnemyHealth _health => _motor.Health;
+    private EnemyFeedback _feedback => _motor.Feedback;
+    private Animator _animator => _motor.Animator;
+    private Transform _player => _motor.Player;
+    private PlayerStatComponent _playerStat => _motor.PlayerStat;
 
     // 상태
     private bool _dead;
@@ -138,48 +139,22 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     private float _enrageSpeed = 1f;    // 누적 이속 배수
     private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
 
-    // 리쉬(이탈 리셋)
-    private Vector3 _spawnPos;
-    private Quaternion _spawnRot;
-    private float _leashTimer;
-
     private void Awake()
     {
-        _agent = GetComponent<NavMeshAgent>();
-        _health = GetComponent<EnemyHealth>();
-        _feedback = GetComponent<EnemyFeedback>();
-        _animator = GetComponent<Animator>();
-        if (_animator == null) _animator = GetComponentInChildren<Animator>();
-        _speedHash = Animator.StringToHash(speedParam);
+        // 컴포넌트 캐싱 / applyRootMotion=false / updateRotation=false / Speed 해시 = 전부 모터가 처리
+        _motor = new BossMotor(this, speedParam);
+        _leash = new BossLeash(leashDistance, leashResetTime);
+
         _atkCd = new float[MeleeAttacks.Length];
         _roared = new bool[RoarThresholds.Length];
 
-        if (_animator != null) _animator.applyRootMotion = false;
-        if (_agent != null) _agent.updateRotation = false;   // 회전 직접 처리
-
-        ApplyData();
-    }
-
-    // SO -> 컴포넌트 동기화 (EnemyBrain 역할 대체)
-    private void ApplyData()
-    {
-        if (data == null) return;
-        if (_agent != null)
-        {
-            _agent.speed = data.moveSpeed;
-            _agent.acceleration = data.acceleration;
-            _agent.angularSpeed = data.angularSpeed;
-            _agent.stoppingDistance = Mathf.Max(0f, data.attackRange * data.attackApproachRatio);
-        }
-        if (_health != null) { _health.maxHP = data.maxHP; _health.currentHP = data.maxHP; }
-        if (_feedback != null) _feedback.SetData(data);
+        _motor.ApplyData(data);   // SO -> 컴포넌트 동기화 (EnemyBrain 역할 대체)
     }
 
     private void Start()
     {
         _healLockScale = transform.localScale;   // 평상(rest) 스케일 캡처 = 회복 비행 중 고정 기준(애니 첫 평가 전이라 순수 값)
-        _spawnPos = transform.position;          // 리쉬 리셋 시 되돌아올 자리
-        _spawnRot = transform.rotation;
+        _leash.Capture(transform);               // 리쉬 리셋 시 되돌아올 자리
         AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
@@ -200,31 +175,20 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         StopMove();
     }
 
-    private void AcquirePlayer()
-    {
-        var p = GameObject.FindGameObjectWithTag("Player");
-        if (p == null) return;
-        _player = p.transform;
-        _playerStat = p.GetComponent<PlayerStatComponent>();
-    }
+    private void AcquirePlayer() => _motor.AcquirePlayer();
 
     // 리쉬: 교전 후 플레이어가 leashDistance 밖에 leashResetTime 만큼 머물면 보스 리셋.
     // (보스 피 깎고 도망 -> 재접근 무한반복 익스플로잇 차단. 팰월드/마크식 풀피 복귀.)
     private void HandleLeash()
     {
-        if (_player == null) { _leashTimer = 0f; return; }
-        if (PlanarDistance(_player.position) > leashDistance)
-        {
-            _leashTimer += Time.deltaTime;
-            if (_leashTimer >= leashResetTime) ResetBoss();
-        }
-        else _leashTimer = 0f;
+        if (_player == null) { _leash.Clear(); return; }
+        if (_leash.Tick(PlanarDistance(_player.position))) ResetBoss();
     }
 
     // 보스를 스폰 자리로 되돌리고 풀피/페이즈/광폭화/쿨/무적/스케일을 초기 상태로.
     private void ResetBoss()
     {
-        _leashTimer = 0f;
+        _leash.Clear();
         _engaged = false;
 
         StopAllCoroutines();
@@ -241,14 +205,8 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         for (int i = 0; i < _atkCd.Length; i++) _atkCd[i] = 0f;
         _rangedCd = 0f; _meleeGapCd = 0f; _eruptCd = 3f; _diveCd = 6f;
 
-        if (_health != null) { _health.Invulnerable = false; _health.ResetToFull(); }
-        if (_agent != null && data != null) _agent.speed = data.moveSpeed;
-
-        // 스폰 자리로 복귀(네비메시 위면 Warp, 아니면 직접 이동)
-        if (_agent != null && _agent.enabled && _agent.isOnNavMesh) _agent.Warp(_spawnPos);
-        else transform.position = _spawnPos;
-        transform.rotation = _spawnRot;
-        if (AgentReady()) { _agent.isStopped = true; _agent.ResetPath(); }
+        // HP 복구 + 스폰 자리 복귀 + 정지 (보스 공통분)
+        _motor.ResetToSpawn(_leash.SpawnPos, _leash.SpawnRot, data);
 
         BossHealthBarUI.Hide();   // 상단 보스바 숨김(다시 접근하면 재교전 시 다시 뜸)
     }
@@ -260,8 +218,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
 
         if (_engaged) HandleLeash();   // 멀리 가면 풀피 리셋(리셋되면 _engaged=false라 이하 로직은 idle처럼 흐름)
 
-        if (_animator != null && _agent != null && _agent.isActiveAndEnabled)
-            _animator.SetFloat(_speedHash, _agent.velocity.magnitude);   // 다이브 중 에이전트 비활성이면 스킵
+        _motor.TickSpeedParam();   // 다이브 중 에이전트 비활성이면 조용히 스킵
 
         TickCooldowns();
         CheckRoarPhase();
@@ -363,27 +320,11 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         return _player;
     }
 
-    private void Chase(Vector3 dest)
-    {
-        if (!AgentReady()) return;
-        _agent.isStopped = false;
-        _agent.SetDestination(dest);
-    }
-
-    private void StopMove()
-    {
-        if (!AgentReady()) return;
-        _agent.isStopped = true;
-        _agent.velocity = Vector3.zero;
-    }
-
-    private bool AgentReady() => _agent != null && _agent.enabled && _agent.isOnNavMesh;
-
-    private void PlayState(string stateName)
-    {
-        if (_animator != null && !string.IsNullOrEmpty(stateName))
-            _animator.CrossFadeInFixedTime(stateName, 0.1f, 0);
-    }
+    // 이동/회전/재생 = 전부 모터 위임 (보스 3종 공통)
+    private void Chase(Vector3 dest) => _motor.Chase(dest);
+    private void StopMove() => _motor.StopMove();
+    private bool AgentReady() => _motor.AgentReady();
+    private void PlayState(string stateName) => _motor.PlayState(stateName);
 
     // 근접 공격: 방향 커밋(정지+스냅) -> 상태 재생 -> windup 후 호(arc) 판정 데미지 -> recover -> 쿨 등록
     private IEnumerator MeleeAttack(int idx)
@@ -720,53 +661,18 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         }
     }
 
-    // 정면 호(arc) 안에 플레이어가 있는지 (range 이내 + 정면 halfAngle 이내). 회피 판정의 핵심.
-    private bool PlayerInArc(float range, float halfAngleDeg)
-    {
-        if (_player == null) return false;
-        Vector3 to = _player.position - transform.position; to.y = 0f;
-        if (to.sqrMagnitude > range * range) return false;
-        if (halfAngleDeg >= 180f) return true;
-        Vector3 fwd = transform.forward; fwd.y = 0f;
-        return Vector3.Angle(fwd, to) <= halfAngleDeg;
-    }
+    private bool PlayerInArc(float range, float halfAngleDeg) => _motor.PlayerInArc(range, halfAngleDeg);
+    private void FaceInstant(Vector3 pos) => _motor.FaceInstant(pos);
+    private float PlanarDistance(Vector3 worldPos) => _motor.PlanarDistance(worldPos);
 
-    private void FaceInstant(Vector3 pos)
-    {
-        Vector3 to = pos - transform.position; to.y = 0f;
-        if (to.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(to);
-    }
-
-    // 평소엔 이동방향/타깃을 향함. 공격 중엔 회전 정지(방향 커밋 = 플레이어가 옆/뒤로 dash 회피 가능).
     private void LateUpdate()
     {
-        // 회복 비행 중 몸 크기 둥둥(비행 클립 루트 스케일 커브) 차단. 애니메이터가 transform 쓴 뒤(LateUpdate)라 무조건 이김.
+        // [와이번 전용] 회복 비행 중 몸 크기 둥둥(비행 클립 루트 스케일 커브) 차단.
+        // 애니메이터가 transform 쓴 뒤(LateUpdate)라 무조건 이김.
         // applyRootMotion=false는 위치/회전 커브만 제거하고 스케일은 안 막아서 클론 localScale이 펄스하던 것.
         if (_lockScale && !_dead) transform.localScale = _healLockScale;
 
-        if (_dead || _attacking) return;
-        Vector3 faceDir = Vector3.zero;
-        if (_agent != null)
-        {
-            Vector3 vel = _agent.velocity; vel.y = 0f;
-            if (vel.sqrMagnitude > 0.01f) faceDir = vel;
-        }
-        if (faceDir.sqrMagnitude < 0.0001f)
-        {
-            Transform t = ResolveTarget();
-            if (t != null) { Vector3 to = t.position - transform.position; to.y = 0f; faceDir = to; }
-        }
-        if (faceDir.sqrMagnitude < 0.0001f) return;
-
-        Quaternion rot = Quaternion.LookRotation(faceDir);
-        float ang = data != null ? data.angularSpeed : 480f;
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, rot, ang * Time.deltaTime);
-    }
-
-    private float PlanarDistance(Vector3 worldPos)
-    {
-        Vector3 a = transform.position; a.y = 0f;
-        Vector3 b = worldPos; b.y = 0f;
-        return Vector3.Distance(a, b);
+        // 평소엔 이동방향/타깃을 향함. 공격 중엔 회전 정지(방향 커밋 = 플레이어가 옆/뒤로 dash 회피 가능).
+        _motor.TickFacing(_dead || _attacking, ResolveTarget(), data);
     }
 }
