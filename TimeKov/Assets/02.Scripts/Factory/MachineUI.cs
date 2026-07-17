@@ -129,7 +129,7 @@ public class MachineUI : MonoBehaviour
     private Image _gaugeFill;
     private const float GA_W = 300f;   // 게이지 선 길이
     private const float GA_H = 3f;     // 게이지 선 두께
-    private const bool ShowBottomStatus = false;   // 하단 ">>> 생산 중" 표시(종욱: 일단 제거, 나중에 조정 예정)
+    private static readonly bool ShowBottomStatus = false;   // 하단 ">>> 생산 중" 표시(종욱: 일단 제거, 나중에 조정 예정)
     // 하단 중앙 상태(">>> 생산 중" + 밑줄) - 옛 진행 슬라이더 자리.
     private TextMeshProUGUI _bottomStatusText;
     private Image _bottomStatusLine;

@@ -1328,9 +1328,9 @@ public class TransmissionComputerUI : MonoBehaviour
         //   전송률만 올려(DevAddRate) 게이지·보상 연출을 확인한다. UI 검증이 끝나면 이 플래그를 false 로
         //   되돌리고 관련 임시 분기(RebuildKits/Usable/Send)를 제거할 것.
 #if UNITY_EDITOR
-        public const bool TempKitPreview = true;
+        public static readonly bool TempKitPreview = true;
 #else
-        public const bool TempKitPreview = false;
+        public static readonly bool TempKitPreview = false;
 #endif
 
         // 인벤토리에 실제 보유한 키트로 목록 재구성.
