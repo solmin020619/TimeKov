@@ -181,6 +181,7 @@ public class CrashSequenceController : MonoBehaviour
             yield return new WaitForSeconds(1.0f);
 
         // ──────────────────── t=5.5 — 씬 전환 ─────────────────
+        Debug.Log("[CrashSequence] → World 씬 로드");
         CoreUtilities.LoadViaLoading("World");
     }
 
