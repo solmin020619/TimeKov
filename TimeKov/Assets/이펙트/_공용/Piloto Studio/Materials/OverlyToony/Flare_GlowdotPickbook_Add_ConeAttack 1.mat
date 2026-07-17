@@ -28,7 +28,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  version: 7
+  version: 10
 --- !u!114 &-5713884838907272654
 MonoBehaviour:
   m_ObjectHideFlags: 11
@@ -50,8 +50,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Flare_GlowdotPickbook_Add_ConeAttack 1
-  m_Shader: {fileID: -6465566751694194690, guid: 7f11fe28133f1a74594785107b98f2fe,
-    type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 7f11fe28133f1a74594785107b98f2fe, type: 3}
   m_Parent: {fileID: 2100000, guid: b77cb535b467e1042b789064c00657da, type: 2}
   m_ModifiedSerializedProperties: 8
   m_ValidKeywords:
@@ -70,6 +69,8 @@ Material:
   - MOTIONVECTORS
   - TransparentDepthPrepass
   - TransparentDepthPostpass
+  - DepthOnly
+  - SHADOWCASTER
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -96,7 +97,11 @@ Material:
     - _CullModeForward: 0
     - _DoubleSidedEnable: 1
     - _DstBlend: 1
+    - _DstBlendAlpha: 1
+    - _QueueControl: 1
     - _SourceBlendRGB: 1
+    - _SrcBlend: 5
     m_Colors:
     - _DoubleSidedConstants: {r: 1, g: 1, b: 1, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -8,8 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: CS_Impact_Circle_Holy_Soft 1
-  m_Shader: {fileID: -6465566751694194690, guid: 7f11fe28133f1a74594785107b98f2fe,
-    type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 7f11fe28133f1a74594785107b98f2fe, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -18,7 +17,8 @@ Material:
   - _USESOFTALPHA
   m_InvalidKeywords:
   - _DOUBLESIDED_ON
-  m_LightmapFlags: 0
+  - _EMISSION
+  m_LightmapFlags: 2
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 1
   m_CustomRenderQueue: 3000
@@ -30,6 +30,8 @@ Material:
   - MOTIONVECTORS
   - TransparentDepthPrepass
   - TransparentDepthPostpass
+  - DepthOnly
+  - SHADOWCASTER
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -122,6 +124,8 @@ Material:
     - _DoubleSidedGIMode: 0
     - _DoubleSidedNormalMode: 2
     - _DstBlend: 10
+    - _DstBlend2: 0
+    - _DstBlendAlpha: 10
     - _EmissionEnabled: 0
     - _EnableBlendModePreserveSpecularLighting: 0
     - _EnableFogOnTransparent: 0
@@ -138,7 +142,8 @@ Material:
     - _Mode: 4
     - _MultiplyNoiseDesaturation: 0
     - _OpaqueCullMode: 2
-    - _QueueControl: -1
+    - _PerPixelSorting: 0
+    - _QueueControl: 1
     - _QueueOffset: 0
     - _ReceivesSSR: 0
     - _ReceivesSSRTransparent: 0
@@ -149,7 +154,8 @@ Material:
     - _SoftParticlesFarFadeDistance: 1
     - _SoftParticlesNearFadeDistance: 0
     - _SourceBlendRGB: 10
-    - _SrcBlend: 1
+    - _SrcBlend: 5
+    - _SrcBlendAlpha: 1
     - _StencilRef: 0
     - _StencilRefDepth: 1
     - _StencilRefDistortionVec: 4
@@ -216,6 +222,7 @@ Material:
     - _UnlitColorMap_MipInfo: {r: 0, g: 0, b: 0, a: 0}
     - _WhiteColor: {r: 1, g: 1, b: 1, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!114 &810271008869653768
 MonoBehaviour:
   m_ObjectHideFlags: 11
@@ -228,7 +235,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  version: 7
+  version: 10
 --- !u!114 &3078831620221838606
 MonoBehaviour:
   m_ObjectHideFlags: 11

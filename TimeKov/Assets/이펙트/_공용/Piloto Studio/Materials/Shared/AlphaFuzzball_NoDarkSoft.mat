@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  version: 7
+  version: 10
 --- !u!21 &2100000
 Material:
   serializedVersion: 8
@@ -21,8 +21,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: AlphaFuzzball_NoDarkSoft
-  m_Shader: {fileID: -6465566751694194690, guid: 7f11fe28133f1a74594785107b98f2fe,
-    type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 7f11fe28133f1a74594785107b98f2fe, type: 3}
   m_Parent: {fileID: 2100000, guid: 64f141afb1a1c5e428b72b5e6d777bf4, type: 2}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -42,6 +41,8 @@ Material:
   - MOTIONVECTORS
   - TransparentDepthPrepass
   - TransparentDepthPostpass
+  - DepthOnly
+  - SHADOWCASTER
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -63,9 +64,12 @@ Material:
     - _BlendMode: 0
     - _DistortionIntensity: 2
     - _DstBlend: 10
+    - _DstBlendAlpha: 10
+    - _QueueControl: 1
     - _ReceivesSSR: 1
     - _SoftFadeFactor: 0.5
     - _SourceBlendRGB: 10
+    - _SrcBlend: 5
     m_Colors:
     - _AlphaOverrideChannel: {r: 0, g: 0, b: 0, a: 1}
     - _DetailAdditiveChannel: {r: 0, g: 0, b: 0, a: 1}
@@ -75,6 +79,7 @@ Material:
     - _DetailNoisePanning: {r: 0.2, g: 0, b: 0, a: 0}
     - _MidColor: {r: 1, g: 0.4447915, b: 0, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!114 &5529089495541673174
 MonoBehaviour:
   m_ObjectHideFlags: 11
