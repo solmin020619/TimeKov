@@ -37,9 +37,10 @@ public class EnemyHealth : MonoBehaviour
 
     private string ResolveDisplayName()
     {
-        var brain = GetComponent<EnemyBrain>();
-        if (brain != null && brain.Data != null && !string.IsNullOrEmpty(brain.Data.enemyName))
-            return brain.Data.enemyName;
+        // 일반몹은 EnemyBrain, 보스는 전용 컨트롤러가 IEnemyDataSource 를 구현한다.
+        var src = GetComponent<IEnemyDataSource>();
+        if (src != null && src.Data != null && !string.IsNullOrEmpty(src.Data.enemyName))
+            return src.Data.enemyName;
         // SO 없을 때 fallback: "Enemy_X(Clone)" → "Enemy_X"
         return gameObject.name.Replace("(Clone)", "").Trim();
     }
@@ -85,14 +86,16 @@ public class EnemyHealth : MonoBehaviour
 
         isDead = true;
 
-        var brain = GetComponent<EnemyBrain>();
+        // 보스는 EnemyBrain 이 없다(전용 컨트롤러 사용). IEnemyDataSource 로 받아야
+        // 보스 킬도 "unknown" 이 아닌 제 ID 로 올라간다 = 도감/드롭/퀘스트가 인식한다.
+        var src = GetComponent<IEnemyDataSource>();
         string monsterId = "unknown";
-        if (brain != null && brain.Data != null)
+        if (src != null && src.Data != null)
         {
             // 표시명(enemyName)과 매칭ID(enemyId) 분리. enemyId 비었으면 enemyName으로 fallback.
-            monsterId = !string.IsNullOrEmpty(brain.Data.enemyId)
-                ? brain.Data.enemyId
-                : brain.Data.enemyName;
+            monsterId = !string.IsNullOrEmpty(src.Data.enemyId)
+                ? src.Data.enemyId
+                : src.Data.enemyName;
         }
         GameEvents.RaiseEnemyKilled(monsterId);
 
@@ -106,7 +109,7 @@ public class EnemyHealth : MonoBehaviour
         // BehaviorGraphAgent + NavMeshAgent + VisionSensor 등 즉시 멈춤 (애니만 재생)
         DisableActiveSystems();
 
-        float delay = brain != null && brain.Data != null ? brain.Data.deathAnimDuration : 1.5f;
+        float delay = src != null && src.Data != null ? src.Data.deathAnimDuration : 1.5f;
         Destroy(gameObject, delay);
     }
 

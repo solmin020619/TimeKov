@@ -1088,10 +1088,10 @@ public class CodexUI : MonoBehaviour
     {
         var pf = e?.preview != null ? e.preview.prefab : null;
         if (pf == null) return null;
-        var brain = pf.GetComponentInChildren<EnemyBrain>(true);
-        if (brain != null && brain.Data != null) return brain.Data;
-        var boss = pf.GetComponentInChildren<WyvernBossController>(true);   // 보스는 EnemyBrain 없이 전용 컨트롤러
-        return boss != null ? boss.Data : null;
+        // 일반몹(EnemyBrain)이든 보스(전용 컨트롤러)든 IEnemyDataSource 하나로 받는다.
+        // 예전엔 보스마다 여기에 GetComponentInChildren<XxxBossController> 를 추가해야 했다.
+        var src = pf.GetComponentInChildren<IEnemyDataSource>(true);
+        return src != null ? src.Data : null;
     }
 
     // 프리팹의 드롭 출처 ID -> DropTable 조회 -> 확률(가중치 비율) 계산해 Drop 목록

@@ -56,6 +56,9 @@ public class MeleeEnemyData : ScriptableObject
     public float animLength = 1.5f;
 
     [Header("Animator Triggers")]
+    [Tooltip("공격 시 호출할 Animator Trigger 이름")]
+    public string attackTrigger = "Attack";
+
     [Tooltip("피격 시 호출할 Animator Trigger 이름")]
     public string hitTrigger = "Hit";
 

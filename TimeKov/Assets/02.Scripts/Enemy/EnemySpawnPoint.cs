@@ -191,9 +191,10 @@ public class EnemySpawnPoint : MonoBehaviour
         if (entryIndex >= 0) _entryOf[enemy] = entryIndex;
 
         // SO enemyName으로 GameObject 이름 정리 ("Enemy_X(Clone)" 제거)
-        var brain = enemy.GetComponent<EnemyBrain>();
-        if (brain != null && brain.Data != null && !string.IsNullOrEmpty(brain.Data.enemyName))
-            enemy.name = brain.Data.enemyName;
+        // IEnemyDataSource 로 받는 이유 = 보스는 EnemyBrain 이 없다(전용 컨트롤러 사용).
+        var src = enemy.GetComponent<IEnemyDataSource>();
+        if (src != null && src.Data != null && !string.IsNullOrEmpty(src.Data.enemyName))
+            enemy.name = src.Data.enemyName;
 
         // Ground 정렬 보정: 적 발이 ground에 닿도록 NavMeshAgent.baseOffset 강제 보정
         // 원인 1: prefab의 baseOffset이 양수 (예: 0.86) -> transform이 NavMesh 위로 그만큼 들림
@@ -210,8 +211,10 @@ public class EnemySpawnPoint : MonoBehaviour
         }
 
         // 웨이포인트 생성 + 주입
+        // 순찰은 BT(EnemyBrain) 쓰는 일반몹만 해당. 보스는 전용 컨트롤러라 여기 안 걸린다.
         var waypoints = CreatePatrolPoints(enemy);
         enemyWaypoints[enemy] = waypoints;
+        var brain = enemy.GetComponent<EnemyBrain>();
         if (brain != null) brain.SetPatrolPoints(waypoints);
 
         // 죽음 구독 (캡처 변수 안전하게 로컬 변수로)

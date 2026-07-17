@@ -10,7 +10,7 @@ using UnityEngine.AI;
 // 공격 시작 시 방향 커밋(추적 정지) -> dash로 옆/뒤 회피 가능. 강타는 긴 윈드업=읽히는 텔레그래프.
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(EnemyHealth))]
-public class WyvernBossController : MonoBehaviour
+public class WyvernBossController : MonoBehaviour, IEnemyDataSource
 {
     [Header("데이터 (HP/속도/근접공격 기본 수치는 SO에서 튜닝)")]
     [SerializeField] private MeleeEnemyData data;

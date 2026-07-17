@@ -73,7 +73,9 @@ public class VisionSensor : MonoBehaviour
             if (angle > visionAngle * 0.5f) continue;
 
             float distance = toTarget.magnitude;
-            if (Physics.Raycast(origin, toTarget.normalized, out RaycastHit hit, distance, obstacleMask | targetMask))
+            // QueryTriggerInteraction.Ignore 필수: 안 넣으면 트리거 콜라이더가 시야를 막는다.
+            // 스포너 박스(isTrigger)가 적 시야를 가려서 특정 높이에서만 플레이어를 못 보던 원인.
+            if (Physics.Raycast(origin, toTarget.normalized, out RaycastHit hit, distance, obstacleMask | targetMask, QueryTriggerInteraction.Ignore))
             {
                 int hitLayerBit = 1 << hit.collider.gameObject.layer;
                 if ((hitLayerBit & targetMask) == 0)

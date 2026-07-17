@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(BehaviorGraphAgent))]
-public class EnemyBrain : MonoBehaviour
+public class EnemyBrain : MonoBehaviour, IEnemyDataSource
 {
     [Header("Data")]
     [SerializeField] private MeleeEnemyData data;

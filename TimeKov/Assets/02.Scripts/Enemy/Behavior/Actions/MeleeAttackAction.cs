@@ -24,6 +24,8 @@ internal partial class MeleeAttackAction : Action
     private Animator m_Animator;
     private float m_Elapsed;
     private bool m_DamageApplied;
+    private float m_HitDelay;
+    private float m_AnimLength;
 
     protected override Status OnStart()
     {
@@ -32,7 +34,25 @@ internal partial class MeleeAttackAction : Action
 
         m_Animator = Agent.Value.GetComponentInChildren<Animator>();
 
+        // 기본값 = 그래프에 박힌 값(HitDelay 0.5 / AnimLength 1.5).
+        m_HitDelay = HitDelay.Value;
+        m_AnimLength = AnimLength.Value;
         string trigger = AttackTrigger.Value;
+
+        // SO 값이 있으면 그걸 우선한다.
+        // 이유: 이 노드의 HitDelay/AnimLength/AttackTrigger 는 그래프에서 블랙보드에 링크돼 있지 않고
+        // 로컬 상수로 박혀 있다. 게다가 BehaviorGraphAgent.SetVariableValue 는 변수를 못 찾으면
+        // 조용히 false 만 반환해서(EnemyBrain 은 반환값을 안 본다) 에러 없이 무시돼 왔다.
+        // 그 결과 전 몬스터가 0.5/1.5 로 고정 동작했다. 여기서 SO 를 직접 읽어 그 통로를 되살린다.
+        var src = Agent.Value.GetComponent<IEnemyDataSource>();
+        if (src != null && src.Data != null)
+        {
+            m_HitDelay = src.Data.hitDelay;
+            m_AnimLength = src.Data.animLength;
+            if (!string.IsNullOrEmpty(src.Data.attackTrigger))
+                trigger = src.Data.attackTrigger;
+        }
+
         if (m_Animator != null && !string.IsNullOrEmpty(trigger))
             m_Animator.SetTrigger(trigger);
 
@@ -52,13 +72,13 @@ internal partial class MeleeAttackAction : Action
 
         m_Elapsed += Time.deltaTime;
 
-        if (!m_DamageApplied && m_Elapsed >= HitDelay.Value)
+        if (!m_DamageApplied && m_Elapsed >= m_HitDelay)
         {
             m_DamageApplied = true;
             ApplyDamage();
         }
 
-        if (m_Elapsed >= AnimLength.Value)
+        if (m_Elapsed >= m_AnimLength)
             return Status.Success;
 
         return Status.Running;
