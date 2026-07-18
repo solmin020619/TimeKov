@@ -13,7 +13,7 @@ public static class EnemyWorldUIBuilder
 {
     const string PrefabPath = "Assets/05.Prefabs/Enemy/HP_Bar_World.prefab";
 
-    [MenuItem("Tools/Enemy/Build World HP Bar Prefab")]
+    // [HIDDEN] [MenuItem("Tools/Enemy/Build World HP Bar Prefab")]
     public static void BuildPrefab()
     {
         EnsureFolder("Assets/05.Prefabs", "Enemy");
@@ -127,7 +127,7 @@ public static class EnemyWorldUIBuilder
             EditorGUIUtility.PingObject(prefab);
     }
 
-    [MenuItem("Tools/Enemy/Attach HP Bar To Selected")]
+    // [HIDDEN] [MenuItem("Tools/Enemy/Attach HP Bar To Selected")]
     public static void AttachToSelected()
     {
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);

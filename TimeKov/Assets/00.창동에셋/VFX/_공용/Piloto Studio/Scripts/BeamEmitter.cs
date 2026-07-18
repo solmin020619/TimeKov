@@ -173,6 +173,13 @@ namespace PilotoStudio
             this.GetComponent<ParticleSystem>().Stop(true);
             this.GetComponent<ParticleSystem>().Play(true);
         }
+        // 런타임에 빔이 조준할 대상을 지정(보스 표적 빔에서 플레이어로 갱신용).
+        // 안 부르면 프리팹에 배선된 내부 자식(고정 방향)을 향해 그려진다.
+        public void SetBeamTarget(Transform t)
+        {
+            if (t != null) beamTarget = t;
+        }
+
         // Maybe give playbeam on awake options like particle handler?
        // [ButtonMethod]
         public void PlayBeam()

@@ -20,7 +20,7 @@ public static class WyvernBossBuilder
     const string VfxFire       = "Assets/12.VFX/WyvernFire/Wyvern_VFX_SpreadFire.prefab";
     const string BaseEnemyPath = "Assets/05.Prefabs/Enemy/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
 
-    [MenuItem("Tools/Enemy/Build Wyvern Boss (prefab + SO)")]
+    // [HIDDEN] [MenuItem("Tools/Enemy/Build Wyvern Boss (prefab + SO)")]
     public static void Build()
     {
         if (!EditorUtility.DisplayDialog(

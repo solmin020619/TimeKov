@@ -43,7 +43,7 @@ public static class WyvernVfxBuilder
     const string RingMatPath   = Folder + "/M_WyvernRing.mat";
     const string TelegraphPath = Folder + "/Wyvern_Telegraph.prefab";
 
-    [MenuItem("Tools/Enemy/Build Wyvern Fire VFX (clean URP)")]
+    // [HIDDEN] [MenuItem("Tools/Enemy/Build Wyvern Fire VFX (clean URP)")]
     public static void Build()
     {
         var shader = Shader.Find(UrpParticlesUnlit);
@@ -91,7 +91,7 @@ public static class WyvernVfxBuilder
     // FX_Fireball=파이어볼(자식) / FX_LightPillar=분출(브레스 대체) / FX_Weapon Effect=내려찍기 강타.
     // 분출/강타 프리팹은 stopAction=None이라 자동소멸 래퍼로 감싼다. 파이어볼은 발사체와 함께 소멸하니 직접 중첩.
     // 파이어볼 착탄 폭발은 코드 제작 버스트 유지(에어버스트엔 지면 데칼 없는 게 나음).
-    [MenuItem("Tools/Enemy/Wire Eric VFX Into Wyvern")]
+    // [HIDDEN] [MenuItem("Tools/Enemy/Wire Eric VFX Into Wyvern")]
     public static void WireEricVfx()
     {
         var fxFireball = AssetDatabase.LoadAssetAtPath<GameObject>(EricFireball);
