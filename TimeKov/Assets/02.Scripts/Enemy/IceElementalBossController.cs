@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using PilotoStudio;   // BeamEmitter (FrostRay 빔 조준)
@@ -143,6 +144,18 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private string dashState = "Fly";
     [SerializeField] private string blockState = "Block";
 
+    [Header("패턴 선택 (가중 랜덤 - 조건 맞는 것 중 확률로 뽑음)")]
+    [Tooltip("각 공격의 선택 가중치. 클수록 자주 뽑힌다. 개별 쿨과 별개.")]
+    [SerializeField] private float wMelee = 1.5f;
+    [SerializeField] private float wBeam = 1.5f;
+    [SerializeField] private float wRain = 1.2f;
+    [SerializeField] private float wNova = 1.0f;
+    [SerializeField] private float wGuard = 0.8f;
+    [SerializeField] private float wDash = 1.0f;
+    [SerializeField] private float wUlt = 1.2f;
+    [Tooltip("직전에 쓴 패턴의 가중치 배율(연속 방지). 0=절대 연속 안 함, 1=페널티 없음.")]
+    [Range(0f, 1f)] [SerializeField] private float repeatPenalty = 0.35f;
+
     [Header("리쉬 (이탈 리셋)")]
     [SerializeField] private float leashDistance = 45f;
     [SerializeField] private float leashResetTime = 4f;
@@ -162,6 +175,11 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private const float MeleeGap = 0.3f;
 
     private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
+
+    // 패턴 종류(가중 랜덤 선택용). 우선순위 사다리 대신 조건 맞는 후보를 모아 확률로 뽑는다.
+    private enum AtkType { None, Melee, Beam, Rain, Nova, Guard, Dash, Ult }
+    private AtkType _lastAttack = AtkType.None;
+    private readonly List<(AtkType type, float weight)> _cand = new List<(AtkType, float)>();
 
     // 공용 모터/리쉬 (보스 3종 공유)
     private BossMotor _motor;
@@ -239,44 +257,67 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
 
         float dist = _motor.PlanarDistance(target.position);
         int phase = RoarsDone();   // 0=P1 / 1=P2 / 2=P3
-
-        // 우선순위 사다리. 위에서부터 조건 맞는 첫 공격 하나만 발동.
-        // 붙었을 때(노바/가드) -> 멀 때(돌진) -> 원거리(궁극/낙하/빔) -> 근접 -> 추적
-
-        // P3 궁극
-        if (phase >= 2 && _ultCd <= 0f && ultVfx != null && dist <= ultRange)
-        { StartCoroutine(Ultimate()); return; }
-
-        // P2+ 자기중심 노바 (붙은 플레이어 밀어내기)
-        if (phase >= 1 && _novaCd <= 0f && dist <= novaRange)
-        { StartCoroutine(Nova()); return; }
-
-        // P2+ 가드 반격 (근접 압박 시)
-        if (phase >= 1 && _guardCd <= 0f && dist <= guardRange)
-        { StartCoroutine(GuardCounter()); return; }
-
-        // P2+ 활강 돌진 (거리 좁히기)
-        if (phase >= 1 && _dashCd <= 0f && dist >= dashMinRange && dist <= dashMaxRange)
-        { StartCoroutine(DashCharge()); return; }
-
-        // P1+ 낙하 (사방 다발, 페이즈별 발 수/속도 강화)
-        if (_rainCd <= 0f && rainVfx != null && dist <= rainRange)
-        { StartCoroutine(RainAttack()); return; }
-
-        // P1+ 표적 빔 (주력)
-        if (_beamCd <= 0f && beamVfx != null && dist <= beamRange && dist > data.attackRange * MeleeMaxReachMul)
-        { StartCoroutine(BeamAttack()); return; }
-
-        // 근접
         float meleeMax = data.attackRange * MeleeMaxReachMul;
-        if (dist <= meleeMax)
+
+        // 조건(페이즈/쿨/거리) 맞는 공격을 전부 후보로 모은다. 거리 조건이 근접/원거리를
+        // 자연스럽게 갈라주므로, 현재 위치에서 쓸 수 있는 것들 중에서만 뽑힌다.
+        _cand.Clear();
+        if (phase >= 2 && _ultCd <= 0f && ultVfx != null && dist <= ultRange)
+            _cand.Add((AtkType.Ult, wUlt));
+        if (phase >= 1 && _novaCd <= 0f && dist <= novaRange)
+            _cand.Add((AtkType.Nova, wNova));
+        if (phase >= 1 && _guardCd <= 0f && dist <= guardRange)
+            _cand.Add((AtkType.Guard, wGuard));
+        if (phase >= 1 && _dashCd <= 0f && dist >= dashMinRange && dist <= dashMaxRange)
+            _cand.Add((AtkType.Dash, wDash));
+        if (_rainCd <= 0f && rainVfx != null && dist <= rainRange)
+            _cand.Add((AtkType.Rain, wRain));
+        if (_beamCd <= 0f && beamVfx != null && dist <= beamRange && dist > meleeMax)
+            _cand.Add((AtkType.Beam, wBeam));
+
+        int meleeIdx = -1;
+        bool canMelee = dist <= meleeMax && _meleeGapCd <= 0f && TrySelectMelee(dist, out meleeIdx);
+        if (canMelee)
+            _cand.Add((AtkType.Melee, wMelee));
+
+        // 후보가 있으면 가중 랜덤(직전 패턴은 확률 낮춤)으로 하나 뽑아 발동.
+        if (_cand.Count > 0)
         {
-            if (_meleeGapCd <= 0f && TrySelectMelee(dist, out int idx)) StartCoroutine(MeleeAttack(idx));
-            else _motor.StopMove();
+            AtkType pick = WeightedPick();
+            _lastAttack = pick;
+            switch (pick)
+            {
+                case AtkType.Ult:   StartCoroutine(Ultimate()); break;
+                case AtkType.Nova:  StartCoroutine(Nova()); break;
+                case AtkType.Guard: StartCoroutine(GuardCounter()); break;
+                case AtkType.Dash:  StartCoroutine(DashCharge()); break;
+                case AtkType.Rain:  StartCoroutine(RainAttack()); break;
+                case AtkType.Beam:  StartCoroutine(BeamAttack()); break;
+                case AtkType.Melee: StartCoroutine(MeleeAttack(meleeIdx)); break;
+            }
             return;
         }
 
-        _motor.Chase(target.position);
+        // 후보 없음(전부 쿨/사거리 밖): 근접 사거리면 제자리 대기(견제), 아니면 추격.
+        if (dist <= meleeMax) _motor.StopMove();
+        else _motor.Chase(target.position);
+    }
+
+    // 후보 중 가중 랜덤 선택. 직전에 쓴 패턴은 repeatPenalty 배로 낮춰 연속을 막는다.
+    private AtkType WeightedPick()
+    {
+        float total = 0f;
+        foreach (var c in _cand)
+            total += (c.type == _lastAttack) ? c.weight * repeatPenalty : c.weight;
+
+        float r = Random.value * total;
+        foreach (var c in _cand)
+        {
+            float w = (c.type == _lastAttack) ? c.weight * repeatPenalty : c.weight;
+            r -= w;
+            if (r <= 0f) return c.type;
+        }
+        return _cand[_cand.Count - 1].type;
     }
 
     private void TickCooldowns()
