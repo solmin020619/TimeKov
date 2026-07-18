@@ -36,7 +36,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float beamDuration = 1.5f;     // 빔 지속(이 동안 틱 데미지)
     [SerializeField] private float beamTickInterval = 0.2f;
     [SerializeField] private float beamRecover = 0.6f;
-    [SerializeField] private float beamDmgMul = 0.35f;      // x attackDamage (틱당)
+    [SerializeField] private float beamDmgMul = 0.22f;      // x attackDamage (틱당). 지속 추적빔이라 낮게
     [SerializeField] private Vector3 beamOffset = new Vector3(0f, 2f, 1f);   // 발사 위치(로컬: 손 근처)
 
     [Header("낙하 (사방에서 고드름 다발 - 페이즈별 강화)")]
