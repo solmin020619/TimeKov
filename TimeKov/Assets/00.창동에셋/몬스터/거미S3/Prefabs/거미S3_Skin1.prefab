@@ -48,10 +48,38 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -8543857486987895477, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3adbeefd0be0f59439d3a1492a449a74, type: 2}
+    - target: {fileID: -8436711511940011914, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3adbeefd0be0f59439d3a1492a449a74, type: 2}
+    - target: {fileID: -3577812064279703541, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3adbeefd0be0f59439d3a1492a449a74, type: 2}
+    - target: {fileID: -858962336897657830, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3adbeefd0be0f59439d3a1492a449a74, type: 2}
+    - target: {fileID: 884277438693003202, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3adbeefd0be0f59439d3a1492a449a74, type: 2}
     - target: {fileID: 919132149155446097, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
       propertyPath: m_Name
-      value: Spider S3 Skin1
+      value: "\uAC70\uBBF8S3_Skin1"
       objectReference: {fileID: 0}
+    - target: {fileID: 2857299813261654768, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3adbeefd0be0f59439d3a1492a449a74, type: 2}
+    - target: {fileID: 5112552059161059564, guid: 06322d76f0d15b142bffb8b174ecfb2c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3adbeefd0be0f59439d3a1492a449a74, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -67,7 +95,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
 --- !u!95 &8512118360167332832
 Animator:
-  serializedVersion: 5
+  serializedVersion: 7
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -81,6 +109,7 @@ Animator:
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
   m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
