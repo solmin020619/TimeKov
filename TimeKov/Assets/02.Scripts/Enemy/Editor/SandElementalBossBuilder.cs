@@ -17,7 +17,7 @@ public static class SandElementalBossBuilder
     const string SoFolder   = "Assets/05.Prefabs/Enemy/SO";
     const string SoPath     = "Assets/05.Prefabs/Enemy/SO/EnemyData_SandElementalBoss.asset";
     const string PrefabPath = "Assets/05.Prefabs/Enemy/Enemy_Sand_Elemental_Boss.prefab";
-    const string BaseEnemyPath = "Assets/05.Prefabs/Enemy/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
+    const string BaseEnemyPath = "Assets/05.Prefabs/###/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
 
     const string SandFolder = "Assets/00.창동에셋/VFX/VFX(사막 보스)/Sand VFX pack";
     const string EnvFolder  = "Assets/00.창동에셋/VFX/VFX(사막 환경효과)/Sand Effects pack/Prefabs";
