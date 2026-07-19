@@ -18,7 +18,7 @@ public static class WyvernBossBuilder
     const string VfxFireball   = "Assets/12.VFX/WyvernFire/Wyvern_VFX_Fireball.prefab";
     const string VfxExplosion  = "Assets/12.VFX/WyvernFire/Wyvern_VFX_Explosion.prefab";
     const string VfxFire       = "Assets/12.VFX/WyvernFire/Wyvern_VFX_SpreadFire.prefab";
-    const string BaseEnemyPath = "Assets/05.Prefabs/Enemy/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
+    const string BaseEnemyPath = "Assets/05.Prefabs/###/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
 
     // [HIDDEN] [MenuItem("Tools/Enemy/Build Wyvern Boss (prefab + SO)")]
     public static void Build()

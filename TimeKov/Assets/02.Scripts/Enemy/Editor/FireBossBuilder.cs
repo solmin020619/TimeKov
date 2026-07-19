@@ -19,7 +19,7 @@ public static class FireBossBuilder
     const string SoPath     = "Assets/05.Prefabs/Enemy/SO/EnemyData_FireBoss.asset";
     const string PrefabPath = "Assets/05.Prefabs/Enemy/Enemy_Fire_Boss.prefab";
     const string FireballPath = "Assets/05.Prefabs/Enemy/FireBoss_Fireball.prefab";
-    const string BaseEnemyPath = "Assets/05.Prefabs/Enemy/BaseEnemy.prefab";
+    const string BaseEnemyPath = "Assets/05.Prefabs/###/BaseEnemy.prefab";
 
     // VFX(전조) 킷은 하위 폴더로 나뉘어 있다(Anime VFX URP / Sci-fi effects 2). J() 가 순회 검색.
     static readonly string[] VfxFolders =

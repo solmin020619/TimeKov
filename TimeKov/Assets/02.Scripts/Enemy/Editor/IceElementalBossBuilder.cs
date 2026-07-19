@@ -17,7 +17,7 @@ public static class IceElementalBossBuilder
     const string SoFolder   = "Assets/05.Prefabs/Enemy/SO";
     const string SoPath     = "Assets/05.Prefabs/Enemy/SO/EnemyData_IceElementalBoss.asset";
     const string PrefabPath = "Assets/05.Prefabs/Enemy/Enemy_IceElemental_Boss.prefab";
-    const string BaseEnemyPath = "Assets/05.Prefabs/Enemy/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
+    const string BaseEnemyPath = "Assets/05.Prefabs/###/BaseEnemy.prefab";   // 드롭박스/흡수VFX 참조 재사용원
 
     const string FrostFolder = "Assets/00.창동에셋/VFX/VFX(눈)/Elemental VFX Mega Bundle/Frost";
     const string TelegraphSrc = "Assets/12.VFX/WyvernFire/Wyvern_Telegraph.prefab";

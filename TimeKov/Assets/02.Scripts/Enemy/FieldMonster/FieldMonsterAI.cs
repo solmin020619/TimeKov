@@ -376,7 +376,12 @@ public class FieldMonsterAI : MonoBehaviour
         while (t < data.animLength && !dead)
         {
             t += Time.deltaTime;
-            if (!damaged && t >= data.hitDelay) { damaged = true; ApplyDamage(); }
+            if (!damaged && t >= data.hitDelay)
+            {
+                damaged = true;
+                if (data.ranged) FireProjectile();   // 원거리 = 발사체
+                else             ApplyDamage();       // 근접 = 즉시 타격
+            }
             yield return null;
         }
 
@@ -495,23 +500,69 @@ public class FieldMonsterAI : MonoBehaviour
     }
 
     // ── helpers ────────────────────────────────────────────────────
+    /// <summary>전조/발사 기준 위치. 앵커(눈/턱/머리 본) + 몸 기준 오프셋(앞/위)으로 얼굴 앞을 잡는다.</summary>
+    private Vector3 MuzzlePos()
+    {
+        Transform a = telegraphAnchor != null ? telegraphAnchor : transform;
+        Vector3 basePos = telegraphAnchor != null ? a.position : transform.position + Vector3.up * data.projectileSpawnHeight;
+        Vector3 o = data.telegraphLocalOffset;
+        // 오프셋은 '몸(루트) 기준' — 본의 로컬축이 제멋대로라도 항상 앞/위가 일관됨.
+        return basePos + transform.right * o.x + transform.up * o.y + transform.forward * o.z;
+    }
+
     private void PlayTelegraph()
     {
         if (data.telegraphVFX != null)
         {
             Transform a = telegraphAnchor != null ? telegraphAnchor : transform;
             // 몬스터에 부착 -> 움직여도 눈/턱에 붙어 따라감
-            var vfx = Instantiate(data.telegraphVFX, a.position, a.rotation, a);
+            var vfx = Instantiate(data.telegraphVFX, MuzzlePos(), a.rotation, a);
+            if (data.telegraphScale > 0f && !Mathf.Approximately(data.telegraphScale, 1f))
+                vfx.transform.localScale *= data.telegraphScale;
 
             // VFX 팩에 딸려온 데모 스크립트(예: RotateGunOnMouse — 카메라 없으면 매 프레임 "No Camera" 로그
             // 폭탄 → 에디터 렉)를 제거한다. 전조는 순수 시각효과라 게임플레이 스크립트가 필요 없다.
             foreach (var mb in vfx.GetComponentsInChildren<MonoBehaviour>(true))
                 if (mb != null) Destroy(mb);
 
-            if (data.telegraphLifeTime > 0f) Destroy(vfx, data.telegraphLifeTime);
+            GameObject toDestroy = vfx;
+
+            // 차징 연출 — 발사(hitDelay) 순간에 딱 최대 크기가 되도록 그때까지 커진다.
+            // ★래퍼(피벗)를 '머리 중앙(총구)'에 고정하고, 이펙트의 시각적 중심을 그 지점에 맞춘 뒤
+            //   피벗을 스케일한다. -> 처음부터 머리 중앙에서 나와 제자리에서 사방으로 커진다(치우침·이동 없음).
+            if (data.telegraphGrow)
+            {
+                Vector3 head = MuzzlePos();
+                var pivot = new GameObject("TelegraphGrowPivot").transform;
+                pivot.SetParent(a, worldPositionStays: true);
+                pivot.position = head;
+                pivot.rotation = a.rotation;
+                vfx.transform.SetParent(pivot, worldPositionStays: true);
+
+                // 이펙트 콘텐츠 중심이 피벗(머리 중앙)에 오도록 한 번 보정 -> 옆에서 시작하는 현상 제거.
+                Vector3 c = VfxCenter(vfx, head);
+                vfx.transform.position += head - c;
+
+                var grow = pivot.gameObject.AddComponent<FieldMonsterVfxGrow>();
+                grow.Play(Vector3.one * Mathf.Clamp01(data.telegraphGrowFrom), Vector3.one,
+                          Mathf.Max(0.05f, data.hitDelay));
+                toDestroy = pivot.gameObject;   // 피벗을 지우면 자식 vfx도 함께 정리
+            }
+
+            if (data.telegraphLifeTime > 0f) Destroy(toDestroy, data.telegraphLifeTime);
         }
         if (audioSource != null && data.telegraphSound != null)
             audioSource.PlayOneShot(data.telegraphSound);
+    }
+
+    /// <summary>이펙트의 시각적 중심(렌더러 합 바운즈 중심). 렌더러가 없으면 fallback(총구).</summary>
+    private static Vector3 VfxCenter(GameObject go, Vector3 fallback)
+    {
+        var rs = go.GetComponentsInChildren<Renderer>(true);
+        if (rs.Length == 0) return fallback;
+        Bounds b = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+        return b.size.sqrMagnitude < 1e-6f ? fallback : b.center;
     }
 
     private void ApplyDamage()
@@ -524,6 +575,39 @@ public class FieldMonsterAI : MonoBehaviour
 
         var ps = t.GetComponent<PlayerStatComponent>();
         if (ps != null) ps.TakeDamage(data.attackDamage);
+    }
+
+    /// <summary>원거리 공격 — 총구(눈/턱)에서 얼음/마법 발사체를 쏜다.
+    /// 발사 순간 플레이어(가슴)를 향해 조준하고, 이후 이동/명중은 발사체가 스스로 처리(회피 가능).</summary>
+    private void FireProjectile()
+    {
+        var t = Target;
+        if (t == null || data.projectileVFX == null) return;
+
+        Transform muzzle = telegraphAnchor != null ? telegraphAnchor : transform;
+        Vector3 origin = MuzzlePos();
+
+        Vector3 aim = t.position + Vector3.up * data.projectileAimHeight;
+        Vector3 dir = aim - origin;
+        if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
+
+        // 머즐 플래시(선택) — 총구에 부착해 잠깐 번쩍.
+        if (data.muzzleVFX != null)
+        {
+            var mz = Instantiate(data.muzzleVFX, origin, Quaternion.LookRotation(dir.normalized), muzzle);
+            foreach (var mb in mz.GetComponentsInChildren<MonoBehaviour>(true))
+                if (mb != null) Destroy(mb);
+            Destroy(mz, 1.5f);
+        }
+
+        // 발사체 — 순수 파티클 프리팹에 구동 스크립트를 붙여 월드에 띄운다.
+        var proj = Instantiate(data.projectileVFX, origin, Quaternion.LookRotation(dir.normalized));
+        var mover = proj.GetComponent<FieldMonsterProjectile>();
+        if (mover == null) mover = proj.AddComponent<FieldMonsterProjectile>();
+        mover.Init(
+            t, dir, data.projectileSpeed, data.attackDamage, data.projectileHitRadius,
+            data.projectileLifeTime, data.projectileHomingDeg, data.projectileHomingDuration,
+            data.projectileAimHeight, transform.position, data.impactVFX, data.projectileBlockMask);
     }
 
     /// <summary>제자리 정지(대기/공격 중). 스텝 속도 오버라이드도 해제해 Idle 로 떨어지게 한다.</summary>

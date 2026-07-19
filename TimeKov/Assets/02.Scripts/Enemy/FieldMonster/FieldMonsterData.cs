@@ -38,8 +38,63 @@ public class FieldMonsterData : MeleeEnemyData
     [Tooltip("전조 VFX 자동 삭제까지 시간(초). 0이면 파티클 자체 수명")]
     public float telegraphLifeTime = 0.8f;
 
+    [Tooltip("전조/발사 위치 미세 보정(몸 기준: x=오른쪽, y=위, z=앞). 본이 얼굴 안쪽/옆이라 " +
+             "이펙트가 어긋날 때 앞(z)·위(y)로 밀어 얼굴 앞에 오게 한다.")]
+    public Vector3 telegraphLocalOffset = Vector3.zero;
+
+    [Tooltip("전조 VFX 크기 배율. 이펙트가 너무 크면 줄인다(1=원본).")]
+    public float telegraphScale = 1f;
+
+    [Tooltip("전조가 작게 시작해 발사 순간까지 커지는 '차징' 연출. 원거리 시전이 잘 읽힌다.")]
+    public bool telegraphGrow = false;
+
+    [Tooltip("차징 시작 크기 비율(최종 대비). 0.15면 15%에서 시작해 100%까지 차오름.")]
+    [Range(0.02f, 1f)] public float telegraphGrowFrom = 0.15f;
+
     [Tooltip("공격 애니 재생 속도 배율. 1보다 작으면 모션이 느려져 전조가 잘 읽힌다.")]
     [Range(0.3f, 1.5f)] public float attackSpeedMul = 0.85f;
+
+    // ── 원거리 공격 (얼음/마법 발사체) ─────────────────────────────
+    // ranged=true 면 hitDelay 시점에 근접 타격 대신 발사체(FieldMonsterProjectile)를 쏜다.
+    // 발사체는 발사 순간 플레이어 위치를 향해 날아가고(회피 가능), 스치면 피격 판정을 준다.
+    [Header("── 원거리 공격 (발사체) ──")]
+    [Tooltip("켜면 근접 타격 대신 발사체를 쏜다(원거리). 끄면 기존 근접.")]
+    public bool ranged = false;
+
+    [Tooltip("날아가는 발사체 VFX(예: Frost/Projectile_Frost). 이동/충돌은 코드가 구동.")]
+    public GameObject projectileVFX;
+
+    [Tooltip("발사 순간 총구(눈/턱)에서 번쩍이는 머즐 VFX. 선택.")]
+    public GameObject muzzleVFX;
+
+    [Tooltip("발사체가 맞았을 때 터지는 임팩트 VFX. 선택.")]
+    public GameObject impactVFX;
+
+    [Tooltip("발사체 속도(m/s). 느릴수록 피하기 쉬움.")]
+    public float projectileSpeed = 14f;
+
+    [Tooltip("발사체 피격 반경(m). 이 안으로 플레이어가 들어오면 명중.")]
+    public float projectileHitRadius = 0.6f;
+
+    [Tooltip("발사체 최대 수명(초). 이 시간이 지나면 사라짐(빗나감).")]
+    public float projectileLifeTime = 4f;
+
+    [Tooltip("유도 회전(도/초). 0=직선(회피 가능), 클수록 플레이어를 따라 휘어짐.")]
+    public float projectileHomingDeg = 0f;
+
+    [Tooltip("유도가 작동하는 초기 시간(초). 이 시간 동안만 플레이어를 따라가고 이후엔 직진. " +
+             "0이면 수명 내내 유도. '처음에만 살짝 따라감'은 0.3 같은 짧은 값.")]
+    public float projectileHomingDuration = 0f;
+
+    [Tooltip("발사체를 막는 장애물 레이어(벽/나무/바위/건물). 이 레이어에 막히면 그 자리서 터지고 " +
+             "관통하지 않는다(피격 없음).")]
+    public LayerMask projectileBlockMask;
+
+    [Tooltip("총구 높이(m). telegraphAnchor 가 없을 때 몸통 기준 발사 높이.")]
+    public float projectileSpawnHeight = 1.2f;
+
+    [Tooltip("조준 높이(m). 플레이어 발밑이 아니라 이 높이(가슴)를 겨냥.")]
+    public float projectileAimHeight = 1.0f;
 
     // ── 행동 패턴 ──────────────────────────────────────────────────
     // 발견 → 즉시 공격이 아니라, 발견 → (오프닝) → 접근 → 공격 → 옆/뒤 스텝 → 재공격 리듬.
