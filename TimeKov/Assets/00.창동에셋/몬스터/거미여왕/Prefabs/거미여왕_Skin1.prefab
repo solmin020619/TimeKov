@@ -48,10 +48,38 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -1936672835833391457, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 43735c92f8420144ebc7f8d0ae74436f, type: 2}
+    - target: {fileID: -1821638032541092450, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 43735c92f8420144ebc7f8d0ae74436f, type: 2}
+    - target: {fileID: -879256384477706505, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 43735c92f8420144ebc7f8d0ae74436f, type: 2}
+    - target: {fileID: 800979469916471872, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 43735c92f8420144ebc7f8d0ae74436f, type: 2}
     - target: {fileID: 919132149155446097, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
       propertyPath: m_Name
-      value: Spider_S_Queen Skin1
+      value: "\uAC70\uBBF8\uC5EC\uC655_Skin1"
       objectReference: {fileID: 0}
+    - target: {fileID: 6921021115549536770, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 43735c92f8420144ebc7f8d0ae74436f, type: 2}
+    - target: {fileID: 7334631625758869608, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 43735c92f8420144ebc7f8d0ae74436f, type: 2}
+    - target: {fileID: 8260906129787806636, guid: f7d81532fdd1f3d4ba12eab43e2d9e9f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 43735c92f8420144ebc7f8d0ae74436f, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -67,7 +95,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
 --- !u!95 &3509453361880753935
 Animator:
-  serializedVersion: 5
+  serializedVersion: 7
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -81,6 +109,7 @@ Animator:
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
   m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
