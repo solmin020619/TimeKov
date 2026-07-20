@@ -193,6 +193,8 @@ public static class FieldMonsterBuilder
         so.telegraphLocalOffset = c.telegraphOffset;
         so.telegraphScale = c.telegraphScale;
         so.telegraphGrow = c.telegraphGrow; so.telegraphGrowFrom = c.telegraphGrowFrom;
+        so.telegraphSyncToHit = c.telegraphSyncToHit;
+        so.telegraphStripObjects = c.telegraphStrip;
 
         // 원거리(발사체)
         so.ranged = c.ranged;
@@ -200,6 +202,8 @@ public static class FieldMonsterBuilder
         so.muzzleVFX     = LoadIf<GameObject>(c.muzzleVfx);
         so.impactVFX     = LoadIf<GameObject>(c.impactVfx);
         so.projectileSpeed = c.projectileSpeed; so.projectileHitRadius = c.projectileHitRadius;
+        so.projectileScale = c.projectileScale;
+        so.projectileCount = c.projectileCount; so.projectileInterval = c.projectileInterval;
         so.projectileLifeTime = c.projectileLifeTime; so.projectileHomingDeg = c.projectileHomingDeg;
         so.projectileHomingDuration = c.projectileHomingDuration;
         so.projectileSpawnHeight = c.projectileSpawnHeight; so.projectileAimHeight = c.projectileAimHeight;
@@ -415,7 +419,8 @@ public class FieldMonsterBuildConfig
     // ── 원거리 공격(발사체) — ranged=true 일 때만 사용 ──
     public bool ranged = false;
     public string projectileVfx, muzzleVfx, impactVfx;   // 프리팹 경로(비우면 슬롯만)
-    public float projectileSpeed = 14f, projectileHitRadius = 0.6f, projectileLifeTime = 4f;
+    public float projectileSpeed = 14f, projectileHitRadius = 0.6f, projectileLifeTime = 4f, projectileScale = 1f;
+    public int projectileCount = 1; public float projectileInterval = 0.15f;   // >1 이면 연속 발사(팡팡)
     public float projectileHomingDeg = 0f, projectileHomingDuration = 0f;
     public float projectileSpawnHeight = 1.2f, projectileAimHeight = 1f;
     // 발사체를 막는 장애물 레이어(벽/나무/바위/건물). 이 중 프로젝트에 없는 건 자동 무시.
@@ -427,6 +432,8 @@ public class FieldMonsterBuildConfig
     public float telegraphScale = 1f;                  // 전조 VFX 크기 배율(1=원본)
     public bool telegraphGrow = false;                 // 차징(작게→발사 순간 최대) 연출
     public float telegraphGrowFrom = 0.15f;            // 차징 시작 크기 비율
+    public bool telegraphSyncToHit = false;            // 전조 재생을 hitDelay에 맞춰 딱 완성
+    public string[] telegraphStrip;                    // 전조에서 제거할 자식 이름들(예: 중복 원)
 
     // ── 에셋(선택. 없으면 슬롯만) ──
     public string telegraphVfx = "Assets/00.창동에셋/VFX/VFX(전조)/ChargeProjectiles_Chargefx/Prefabs_Chargefx/Charge/Charge_01.prefab";

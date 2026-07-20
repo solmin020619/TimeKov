@@ -42,6 +42,9 @@ public class WallOcclusionFader : MonoBehaviour
     private readonly RaycastHit[] _hitBuffer = new RaycastHit[16];
     private readonly List<Renderer> _colliderlessCandidates = new();
 
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId     = Shader.PropertyToID("_Color");
+
     // 최적화 : toRemove를 필드로 올려서 매 프레임 new 제거
     private readonly List<Renderer> _toRemove = new();
 
@@ -81,6 +84,7 @@ public class WallOcclusionFader : MonoBehaviour
             if ((occlusionMask.value & (1 << layer)) == 0) continue;
 
             if (r.GetComponentInParent<Collider>() != null) continue;
+            if (!IsFadeable(r)) continue;
 
             _colliderlessCandidates.Add(r);
         }
@@ -126,7 +130,7 @@ public class WallOcclusionFader : MonoBehaviour
 
             var r = col.GetComponentInChildren<Renderer>();
             if (r == null) r = col.GetComponent<Renderer>();
-            if (r != null) _thisFrame.Add(r);
+            if (r != null && IsFadeable(r)) _thisFrame.Add(r);
         }
     }
 
@@ -209,14 +213,28 @@ public class WallOcclusionFader : MonoBehaviour
         return state;
     }
 
+    // 벽으로 취급할 렌더러만 페이드한다. 파티클/트레일/라인은 연출이지 벽이 아니다.
+    // (레거시 파티클 셰이더는 _Color 가 없어서 페이드하려 들면 에러도 뱉는다)
+    static bool IsFadeable(Renderer r)
+    {
+        return r is MeshRenderer || r is SkinnedMeshRenderer;
+    }
+
     void ApplyAlpha(FadeState state)
     {
         foreach (var mat in state.instances)
         {
             if (mat == null) continue;
-            Color c = mat.color;
+
+            // URP Lit 은 _BaseColor, 구형/Standard 는 _Color. 둘 다 없으면 알파를 못 건드리니 건너뛴다.
+            int id = mat.HasProperty(BaseColorId) ? BaseColorId
+                   : mat.HasProperty(ColorId)     ? ColorId
+                   : -1;
+            if (id == -1) continue;
+
+            Color c = mat.GetColor(id);
             c.a = state.alpha;
-            mat.color = c;
+            mat.SetColor(id, c);
         }
     }
 
