@@ -38,6 +38,14 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private int fireballBurstBase = 1;
     [SerializeField] private int fireballBurstPerPhase = 1; // P1=1 / P2=2 / P3=3
     [SerializeField] private float fireballBurstGap = 0.25f;
+    [Tooltip("한 발당 부채꼴로 몇 발 흩뿌릴지. 1이면 예전처럼 한 발만 나간다.")]
+    [SerializeField] private int fireballSpread = 3;
+    [Tooltip("부채꼴 좌우 간격(도).")]
+    [SerializeField] private float fireballSpreadAngle = 15f;
+    [Tooltip("파편 발사 위치(망치/손 높이). 비우면 아래 fireballOffset 사용. 머리 앵커를 쓰면 타점이 너무 높다.")]
+    [SerializeField] private Transform fireballAnchor;
+    [Tooltip("발사 원점(로컬). 루트 스케일이 곱해지므로 모델 원본 기준으로 넣는다.")]
+    [SerializeField] private Vector3 fireballOffset = new Vector3(0f, 8f, 4f);
     [Tooltip("발사 원점 로컬 오프셋(입/손). chargeAnchor 있으면 그게 우선.")]
     [SerializeField] private Vector3 fireOffset = new Vector3(0f, 1.5f, 1f);
 
@@ -259,7 +267,8 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
             _cand.Add((AtkType.Melee, wMelee));
         if (_eruptCd <= 0f && dist <= fireballRange)
             _cand.Add((AtkType.Eruption, wEruption));
-        if (_fireballCd <= 0f && fireballPrefab != null && dist <= fireballRange)
+        // 근접 사거리 안에서는 파편을 쏘지 않는다. 코앞에서 부채꼴 전탄을 맞으면 피할 수가 없다.
+        if (_fireballCd <= 0f && fireballPrefab != null && dist <= fireballRange && dist > meleeMax)
             _cand.Add((AtkType.Fireball, wFireball));
 
         if (_cand.Count > 0)
@@ -346,18 +355,35 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         _attacking = false;
     }
 
+    // 파편 발사 원점. 브레스는 입(머리 앵커)이 맞지만 파편은 망치질이라 머리에서 나가면 타점이 붕 뜬다.
+    private Vector3 FireballPoint()
+        => fireballAnchor != null ? fireballAnchor.position : transform.TransformPoint(fireballOffset);
+
     private void SpawnFireball()
     {
         if (fireballPrefab == null || _player == null) return;
-        Vector3 origin = FirePoint();
+
+        Vector3 origin = FireballPoint();
         Vector3 aim = (_player.position + Vector3.up) - origin;
-        var go = Instantiate(fireballPrefab, origin, Quaternion.LookRotation(aim.sqrMagnitude > 0.0001f ? aim : transform.forward));
-        var fb = go.GetComponent<WyvernFireball>();
+        if (aim.sqrMagnitude < 0.0001f) aim = transform.forward;
+
+        int n = Mathf.Max(1, fireballSpread);
         float dmg = data != null ? data.attackDamage : 20f;
-        if (fb != null)
+
+        for (int i = 0; i < n; i++)
         {
-            fb.Launch(aim, dmg, _player);
-            if (RoarsDone() >= 1) fb.SetHoming(true);   // P2+ = 유도탄
+            // 가운데 0 기준 좌우 대칭. n=3, 15도면 -15 / 0 / +15.
+            float step = i - (n - 1) * 0.5f;
+            Vector3 dir = Quaternion.AngleAxis(step * fireballSpreadAngle, Vector3.up) * aim;
+
+            var go = Instantiate(fireballPrefab, origin, Quaternion.LookRotation(dir));
+            var fb = go.GetComponent<WyvernFireball>();
+            if (fb == null) continue;
+
+            fb.Launch(dir, dmg, _player);
+            // 유도는 가운데 한 발만. 부채꼴 전탄이 따라오면 근접 캐릭터는 피할 방법이 없다.
+            bool isCenter = (n % 2 == 1) && i == n / 2;
+            if (RoarsDone() >= 1 && isCenter) fb.SetHoming(true);
         }
     }
 

@@ -96486,7 +96486,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 27.54, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.45, y: 0.45, z: 0.45}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 689633024830736763}
@@ -96537,7 +96537,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 10, y: 24, z: 5}
   m_Center: {x: 0, y: -15, z: 0}
@@ -96560,10 +96560,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 3
+  m_Radius: 3.5
   m_Height: 16.276306
   m_Direction: 1
-  m_Center: {x: 0.15205759, y: -9.398661, z: 1.9043125}
+  m_Center: {x: 0, y: 8.138153, z: 0}
 --- !u!54 &881717475168471279
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -96741,6 +96741,10 @@ MonoBehaviour:
   fireballBurstBase: 1
   fireballBurstPerPhase: 1
   fireballBurstGap: 0.25
+  fireballSpread: 3
+  fireballSpreadAngle: 15
+  fireballAnchor: {fileID: 0}
+  fireballOffset: {x: 0, y: 8, z: 4}
   fireOffset: {x: 0, y: 1.5, z: 1}
   eruptionVfx: {fileID: 868468853075218060, guid: 6c0e2ea3d9659784bad0f7b76ee08899, type: 3}
   eruptionCooldown: 6

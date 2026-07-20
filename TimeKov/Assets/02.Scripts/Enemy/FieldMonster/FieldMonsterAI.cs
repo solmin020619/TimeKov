@@ -67,6 +67,10 @@ public class FieldMonsterAI : MonoBehaviour
     private bool freezeFacing;    // 회전 완전 고정(공격 후 스텝: 공격 시점 시선 유지). faceTarget보다 우선.
     private bool dead;
     private Vector3 homePos;
+    private GameObject activeTelegraph;   // 현재 떠 있는 전조. 발사(hitDelay) 순간 즉시 제거해 싱크 맞춤.
+    // sync 전조: PlayTelegraph 가 잰 '전조 원본 총길이(초)'. AttackOnce 가 이만큼 공격을 늦춰
+    //   전조를 배속(안 보임) 대신 원속도로 다 보여주고 마지막 '터짐'에 타격을 맞춘다. 0=미측정/비sync.
+    private float pendingSyncDuration;
 
     /// <summary>추적 대상. 죽었거나 기지(결계) 안이면 무시.</summary>
     private Transform Target
@@ -175,6 +179,7 @@ public class FieldMonsterAI : MonoBehaviour
     private void OnDied()
     {
         dead = true;
+        DestroyTelegraph();           // 시전 중 죽으면 전조가 남지 않게
         StopAllCoroutines();          // 스텝 중이었다면 DoStep 의 정리 코드가 안 돌므로
         speedOverride = -1f;          // 여기서 직접 되돌린다(안 하면 죽은 채 걷는 모션)
         strafeAnimMul = -1f;
@@ -366,8 +371,22 @@ public class FieldMonsterAI : MonoBehaviour
         faceTarget = false;
         freezeFacing = true;                   // ★공격 동안 시선 고정(안 따라감)
 
-        PlayTelegraph();                       // ★ 공격 예고 — 이게 hitDelay 만큼 앞선다
-        feedback?.PlayAttack();
+        PlayTelegraph();                       // ★ 전조 먼저 재생(원속도). pendingSyncDuration = 전조 총길이.
+
+        // 싱크 = 전조를 스윙보다 '먼저' 띄워 리드타임을 준다(배속·애니지연 X, 전부 원속도).
+        //   전조 마지막 '터짐'(≈총길이×0.92)이 스윙 접점(hitDelay)에 딱 오도록,
+        //   lead = 터짐시각 − hitDelay 만큼 전조를 앞세운 뒤 스윙을 시작한다.
+        //   그동안 몬스터는 제자리에서 기(전조)를 모으고, 다 모여 터지는 순간 내려친다.
+        if (data.telegraphSyncToHit && pendingSyncDuration > 0.05f)
+        {
+            float burstAt = pendingSyncDuration * 0.92f;                  // 터짐이 도는 대략 시점
+            float lead = Mathf.Clamp(burstAt - data.hitDelay, 0f, 2.5f);  // 스윙 전 기 모으는 시간
+            float w = 0f;
+            while (w < lead && !dead) { w += Time.deltaTime; yield return null; }
+        }
+        if (dead) { freezeFacing = false; yield break; }
+
+        feedback?.PlayAttack();                // 이제 스윙 시작 → hitDelay 뒤 접점 = 전조 터짐과 일치
         if (animator != null && !string.IsNullOrEmpty(attackTrigger))
             animator.SetTrigger(attackTrigger);
 
@@ -379,8 +398,11 @@ public class FieldMonsterAI : MonoBehaviour
             if (!damaged && t >= data.hitDelay)
             {
                 damaged = true;
-                if (data.ranged) FireProjectile();   // 원거리 = 발사체
-                else             ApplyDamage();       // 근접 = 즉시 타격
+                // sync 전조는 마지막 '터지는' 연출까지 보이게 즉시 삭제하지 않는다(폴백 수명으로 정리).
+                // 그 외(원거리 차징 등)는 발사 순간 끝내서 발사와 싱크.
+                if (!data.telegraphSyncToHit) DestroyTelegraph();
+                if (data.ranged) StartCoroutine(FireProjectileBurst());   // 원거리 = 1발 or 연속(팡팡)
+                else             ApplyDamage();                            // 근접 = 즉시 타격
             }
             yield return null;
         }
@@ -512,6 +534,7 @@ public class FieldMonsterAI : MonoBehaviour
 
     private void PlayTelegraph()
     {
+        pendingSyncDuration = 0f;   // 전조 없음/비sync 기본값(이전 공격의 리드타임이 남지 않게 항상 초기화)
         if (data.telegraphVFX != null)
         {
             Transform a = telegraphAnchor != null ? telegraphAnchor : transform;
@@ -520,10 +543,54 @@ public class FieldMonsterAI : MonoBehaviour
             if (data.telegraphScale > 0f && !Mathf.Approximately(data.telegraphScale, 1f))
                 vfx.transform.localScale *= data.telegraphScale;
 
+            // 지정된 자식 오브젝트 제거(예: 중복 원 'Circle_blast'). 원본은 그대로, 이 인스턴스만.
+            if (data.telegraphStripObjects != null && data.telegraphStripObjects.Length > 0)
+            {
+                foreach (var tr in vfx.GetComponentsInChildren<Transform>(true))
+                {
+                    if (tr == null || tr == vfx.transform) continue;
+                    foreach (var nm in data.telegraphStripObjects)
+                    {
+                        if (!string.IsNullOrEmpty(nm) && tr.name == nm)
+                        {
+                            tr.gameObject.SetActive(false);   // 이번 프레임 즉시 정지
+                            Destroy(tr.gameObject);
+                            break;
+                        }
+                    }
+                }
+            }
+
             // VFX 팩에 딸려온 데모 스크립트(예: RotateGunOnMouse — 카메라 없으면 매 프레임 "No Camera" 로그
             // 폭탄 → 에디터 렉)를 제거한다. 전조는 순수 시각효과라 게임플레이 스크립트가 필요 없다.
             foreach (var mb in vfx.GetComponentsInChildren<MonoBehaviour>(true))
                 if (mb != null) Destroy(mb);
+
+            // 파티클을 Local 시뮬레이션으로 → 머리(앵커)가 움직여도 방출된 입자가 따라온다.
+            // + 루프 OFF → 전조가 한 번만 재생(끝에 원이 한 번 더 나오는/2번 재생되는 것 제거).
+            var systems = vfx.GetComponentsInChildren<ParticleSystem>(true);
+            foreach (var ps in systems)
+            {
+                var main = ps.main;
+                main.simulationSpace = ParticleSystemSimulationSpace.Local;
+                main.loop = false;
+            }
+
+            // 타격 싱크 — VFX는 '원속도 그대로'(배속 X, 안 보이던 원인 제거) 재생하고,
+            //   전조 원본 총길이를 재서 AttackOnce 가 그만큼 공격을 늦추게 한다(공격이 VFX에 맞춰짐).
+            //   ★startDelay 포함해서 재야 지연 후 터지는 서브(Circle_blast_2 등)까지 총길이에 잡힌다.
+            //   -> 모이는 건 준비동작 내내 원속도로, 터지는 건 끝에서, 타격은 그 '터짐'에 맞춰 들어간다.
+            if (data.telegraphSyncToHit && systems.Length > 0)
+            {
+                float syncTotal = 0f;
+                foreach (var ps in systems)
+                {
+                    var m = ps.main;
+                    syncTotal = Mathf.Max(syncTotal,
+                        m.startDelay.constantMax + m.duration + m.startLifetime.constantMax);
+                }
+                pendingSyncDuration = syncTotal;   // AttackOnce 가 이 값으로 공격 타이밍을 늦춘다
+            }
 
             GameObject toDestroy = vfx;
 
@@ -549,10 +616,23 @@ public class FieldMonsterAI : MonoBehaviour
                 toDestroy = pivot.gameObject;   // 피벗을 지우면 자식 vfx도 함께 정리
             }
 
-            if (data.telegraphLifeTime > 0f) Destroy(toDestroy, data.telegraphLifeTime);
+            activeTelegraph = toDestroy;                          // 발사 순간 제거하려고 들고 있음
+            // 삭제 시각 — sync 전조는 원속도로 pendingSyncDuration 만큼 재생되므로 그 직후 정리(버스트 페이드까지).
+            //   그 외는 기존 수명 기준(발사 순간 즉시 제거되므로 폴백일 뿐).
+            float destroyAfter = data.telegraphSyncToHit
+                ? Mathf.Max(data.hitDelay, pendingSyncDuration) + 0.6f
+                : data.telegraphLifeTime + 0.5f;
+            if (destroyAfter > 0f) Destroy(toDestroy, destroyAfter);
         }
         if (audioSource != null && data.telegraphSound != null)
             audioSource.PlayOneShot(data.telegraphSound);
+    }
+
+    /// <summary>전조 즉시 제거. 발사 순간 호출해 "전조 끝 = 발사"를 맞춘다.</summary>
+    private void DestroyTelegraph()
+    {
+        if (activeTelegraph != null) Destroy(activeTelegraph);
+        activeTelegraph = null;
     }
 
     /// <summary>이펙트의 시각적 중심(렌더러 합 바운즈 중심). 렌더러가 없으면 fallback(총구).</summary>
@@ -575,6 +655,19 @@ public class FieldMonsterAI : MonoBehaviour
 
         var ps = t.GetComponent<PlayerStatComponent>();
         if (ps != null) ps.TakeDamage(data.attackDamage);
+    }
+
+    /// <summary>연속 발사(팡팡). projectileCount 만큼 interval 간격으로 쏜다. 매 발사마다 현재 플레이어 재조준.</summary>
+    private IEnumerator FireProjectileBurst()
+    {
+        int n = Mathf.Max(1, data.projectileCount);
+        for (int i = 0; i < n; i++)
+        {
+            if (dead) yield break;
+            FireProjectile();
+            if (i < n - 1 && data.projectileInterval > 0f)
+                yield return new WaitForSeconds(data.projectileInterval);
+        }
     }
 
     /// <summary>원거리 공격 — 총구(눈/턱)에서 얼음/마법 발사체를 쏜다.
@@ -600,10 +693,14 @@ public class FieldMonsterAI : MonoBehaviour
             Destroy(mz, 1.5f);
         }
 
-        // 발사체 — 순수 파티클 프리팹에 구동 스크립트를 붙여 월드에 띄운다.
+        // 발사체 — VFX 프리팹에 우리 구동 스크립트를 붙여 월드에 띄운다.
         var proj = Instantiate(data.projectileVFX, origin, Quaternion.LookRotation(dir.normalized));
-        var mover = proj.GetComponent<FieldMonsterProjectile>();
-        if (mover == null) mover = proj.AddComponent<FieldMonsterProjectile>();
+        // VFX 팩에 딸려온 데모 이동/충돌 스크립트 제거 — 안 그러면 우리 구동과 충돌(이중 이동)한다.
+        foreach (var mb in proj.GetComponentsInChildren<MonoBehaviour>(true))
+            if (mb != null) Destroy(mb);
+        if (data.projectileScale > 0f && !Mathf.Approximately(data.projectileScale, 1f))
+            proj.transform.localScale *= data.projectileScale;
+        var mover = proj.AddComponent<FieldMonsterProjectile>();
         mover.Init(
             t, dir, data.projectileSpeed, data.attackDamage, data.projectileHitRadius,
             data.projectileLifeTime, data.projectileHomingDeg, data.projectileHomingDuration,

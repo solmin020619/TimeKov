@@ -32,7 +32,10 @@ public static class FireBossBuilder
     const string TelegraphFire = "Assets/12.VFX/WyvernFire/Fire_Telegraph.prefab";   // 와이번 것 복제 + 주황색
 
     // 화염보스는 목적형 대형 모델(약 6m 컨테이너 + 하반신 소용돌이). 기본 native(1.0), 필요시 종욱이 조정.
-    const float BossScale = 1.0f;
+    // 원본 모델은 약 16m 짜리(얼음/모래 보스는 4m). 그대로 쓰면 화면을 다 잡아먹어서 줄인다.
+    const float BossScale = 0.45f;      // 16.3m * 0.45 = 약 7.3m
+    const float ModelHeight = 16.276306f;   // 스케일 적용 전 모델 실측 높이
+    const float ModelRadius = 3.5f;
 
     [MenuItem("Tools/Enemy/Build Fire Boss (prefab + SO)")]
     public static void Build()
@@ -102,19 +105,20 @@ public static class FireBossBuilder
         if (ctrlAsset != null) animator.runtimeAnimatorController = ctrlAsset;
         animator.applyRootMotion = false;
 
-        // 콜라이더 핏(피격용). 고정형이라 NavMeshAgent 없음. BossScale=1 이라 bounds 직접.
-        float bodyH = 4f, bodyR = 1f; Vector3 localCenter = new Vector3(0f, 2f, 0f);
-        var smr = go.GetComponentInChildren<SkinnedMeshRenderer>();
-        if (smr != null)
-        {
-            var b = smr.bounds;
-            bodyH = Mathf.Max(1f, b.size.y);
-            bodyR = Mathf.Clamp(Mathf.Max(b.size.x, b.size.z) * 0.4f, 0.5f, 3f);
-            localCenter = go.transform.InverseTransformPoint(b.center);
-        }
-
+        // 콜라이더 핏(피격용). 고정형이라 NavMeshAgent 없음.
+        // ★smr.bounds 로 재지 마라. 에디터(비재생)에서 스킨드메시 bounds 는 갱신이 안 돼서
+        //   중심이 엉뚱한 곳으로 잡힌다(실제로 center.y 가 -9.4 로 나와 히트박스가 통째로 땅속에 박혔다).
+        //   원점=발밑 기준으로 상수로 못박는 게 확실하다.
         var col = GetOrAdd<CapsuleCollider>(go);
-        col.center = localCenter; col.radius = bodyR; col.height = bodyH; col.isTrigger = false;
+        col.height = ModelHeight;
+        col.radius = ModelRadius;
+        col.center = new Vector3(0f, ModelHeight * 0.5f, 0f);   // 발밑에서 머리까지
+        col.direction = 1;                                       // Y축
+        col.isTrigger = false;
+
+        // 모델에 딸려온 잡 콜라이더 제거(땅속에 박힌 BoxCollider 가 있었다). 피격 판정은 위 캡슐 하나로 통일.
+        foreach (var stray in go.GetComponentsInChildren<Collider>(true))
+            if (stray != col) Object.DestroyImmediate(stray, true);
 
         var rb = GetOrAdd<Rigidbody>(go);
         rb.isKinematic = true; rb.useGravity = false;
