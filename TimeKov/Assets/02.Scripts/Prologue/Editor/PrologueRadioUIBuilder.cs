@@ -102,29 +102,23 @@ public static class PrologueRadioUIBuilder
         pcRt.offsetMin = new Vector2(-PortColW, 0f);
         pcRt.offsetMax = new Vector2(0f, 0f);
 
-        // 초상화 프레임 (오렌지 테두리)
-        float borderSz = PortSz + BorderPx * 2f;
+        // 초상화 프레임 (테두리 없음)
         var portFrame = Child(portCol, "PortraitFrame");
         var pfRt = portFrame.GetComponent<RectTransform>();
         pfRt.anchorMin        = new Vector2(0.5f, 1f);
         pfRt.anchorMax        = new Vector2(0.5f, 1f);
         pfRt.pivot            = new Vector2(0.5f, 1f);
         pfRt.anchoredPosition = new Vector2(0f, -PadV);
-        pfRt.sizeDelta        = new Vector2(borderSz, borderSz);
-        portFrame.AddComponent<Image>().color = OrangeHex;
-
-        var portBg = Child(portFrame, "PortraitBg");
-        Stretch(portBg.GetComponent<RectTransform>(), BorderPx, BorderPx, BorderPx, BorderPx);
-        portBg.AddComponent<Image>().color = PortBg;
+        pfRt.sizeDelta        = new Vector2(PortSz, PortSz);
 
         var portImgGo = Child(portFrame, "Portrait");
-        Stretch(portImgGo.GetComponent<RectTransform>(), BorderPx, BorderPx, BorderPx, BorderPx);
+        Stretch(portImgGo.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
         var portImg = portImgGo.AddComponent<Image>();
         portImg.sprite         = portSprite;
         portImg.preserveAspect = true;
 
         // 파형 바 (주파수 텍스트 없음)
-        float waveTop = PadV + borderSz + 5f;
+        float waveTop = PadV + PortSz + 5f;
         var waveGo = Child(portCol, "WaveformBars");
         var wRt = waveGo.GetComponent<RectTransform>();
         wRt.anchorMin        = new Vector2(0.08f, 1f);
@@ -139,15 +133,6 @@ public static class PrologueRadioUIBuilder
         wb.minHeight     = 3f;
         wb.maxHeight     = WaveH;
         wb.barColor      = new Color(1.00f, 1.00f, 1.00f, 0.70f);
-
-        // ── 세로 구분선 (초상화 왼쪽) ────────────────────────────────
-        var vDiv = Child(panel, "VDivider");
-        var vdRt = vDiv.GetComponent<RectTransform>();
-        vdRt.anchorMin = new Vector2(1f, 0f);
-        vdRt.anchorMax = new Vector2(1f, 1f);
-        vdRt.offsetMin = new Vector2(-VDivX,       PadV);
-        vdRt.offsetMax = new Vector2(-VDivX + 1f, -PadV);
-        vDiv.AddComponent<Image>().color = DivCol;
 
         // ── ▶ 버튼 ───────────────────────────────────────────────────
         var btnGo = Child(panel, "NextBtn");
