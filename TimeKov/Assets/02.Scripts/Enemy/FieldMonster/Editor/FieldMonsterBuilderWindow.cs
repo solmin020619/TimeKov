@@ -9,8 +9,10 @@ public class FieldMonsterBuilderWindow : EditorWindow
     // (버튼 라벨, 빌드 동작)
     static readonly (string label, System.Action build)[] Builders =
     {
-        ("거미S3",   SpiderS3Builder.Build),
-        ("거미여왕", SpiderQueenBuilder.Build),
+        ("거미S3",          SpiderS3Builder.Build),
+        ("거미여왕(설산)",  SpiderQueenBuilder.BuildSnow),
+        ("거미여왕(사막)",  SpiderQueenBuilder.BuildDesert),
+        ("거미여왕(자연)",  SpiderQueenBuilder.BuildNature),
     };
 
     [MenuItem("Window/Field Monster Builder")]

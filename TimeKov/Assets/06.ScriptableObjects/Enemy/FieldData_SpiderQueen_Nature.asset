@@ -1,0 +1,98 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02537cf28553a6646b59dc3c166b14da, type: 3}
+  m_Name: FieldData_SpiderQueen_Nature
+  m_EditorClassIdentifier: 
+  enemyName: "\uAC70\uBBF8\uC5EC\uC655"
+  enemyId: spider_queen
+  maxHP: 200
+  moveSpeed: 3.5
+  acceleration: 12
+  angularSpeed: 480
+  stoppingDistance: 0
+  visionRange: 22
+  visionAngle: 320
+  attackDamage: 25
+  attackRange: 3.2
+  attackApproachRatio: 0.85
+  attackCooldown: 0.4
+  hitDelay: 0.83333343
+  animLength: 1.6666669
+  attackTrigger: Attack
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 1.5
+  deathAnimDuration: 0.5
+  detectStunDuration: 1.2727273
+  spawnVFX: {fileID: 0}
+  spawnSound: {fileID: 0}
+  detectVFX: {fileID: 0}
+  detectSound: {fileID: 0}
+  hitVFX: {fileID: 0}
+  hitSound: {fileID: 0}
+  attackVFX: {fileID: 0}
+  attackSound: {fileID: 0}
+  deathVFX: {fileID: 0}
+  deathSound: {fileID: 0}
+  telegraphVFX: {fileID: 0}
+  telegraphSound: {fileID: 0}
+  telegraphLifeTime: 0.98333347
+  telegraphLocalOffset: {x: 0, y: 0.6, z: 0.15}
+  telegraphScale: 1
+  telegraphStripObjects:
+  - flare
+  - flare_1
+  - Circle_blast
+  - Wide_ring
+  - Collecting_particles
+  - Trails
+  - Trails_narrow
+  - Flame_charge
+  - Collecting_particles (1)
+  telegraphSyncToHit: 1
+  telegraphGrow: 0
+  telegraphGrowFrom: 0.15
+  attackSpeedMul: 0.7
+  ranged: 0
+  projectileVFX: {fileID: 0}
+  muzzleVFX: {fileID: 0}
+  impactVFX: {fileID: 0}
+  projectileSpeed: 12
+  projectileHitRadius: 0.7
+  projectileScale: 1
+  projectileCount: 1
+  projectileInterval: 0.15
+  projectileLifeTime: 4
+  projectileHomingDeg: 140
+  projectileHomingDuration: 0.35
+  projectileBlockMask:
+    serializedVersion: 2
+    m_Bits: 3694721
+  projectileSpawnHeight: 1.3
+  projectileAimHeight: 1
+  openingStep: 0
+  openingStepDuration: 0
+  postAttackPause: 0.6
+  afterAttackStep: 6
+  afterAttackStepDurationRange: {x: 0.6, y: 1.8}
+  retreatDiagonalMaxAngle: 35
+  stepSpeedMul: 0.5
+  strafeSpeedMul: 0.5
+  strafeAnimSpeedMul: 1
+  walkAnimRefSpeed: 2
+  walkAnimSpeedClamp: {x: 0.4, y: 2.5}
+  locoDirDamp: 0.12
+  wander: 1
+  wanderRadius: 5
+  wanderPauseRange: {x: 1.5, y: 4}
+  wanderSpeedMul: 0.4

@@ -45,6 +45,14 @@ public class FieldMonsterData : MeleeEnemyData
     [Tooltip("전조 VFX 크기 배율. 이펙트가 너무 크면 줄인다(1=원본).")]
     public float telegraphScale = 1f;
 
+    [Tooltip("전조 VFX에서 제거할 자식 오브젝트 이름들(예: 중복 원 'Circle_blast'). " +
+             "원본 프리팹은 그대로, 스폰된 인스턴스에서만 제거한다.")]
+    public string[] telegraphStripObjects;
+
+    [Tooltip("전조 VFX 재생속도를 hitDelay에 맞춤 → 공격(타격) 순간에 딱 완성/수렴되게. " +
+             "수렴형 전조(Charge 등)가 중간에 끊기지 않고 정확히 다 모였을 때 타격.")]
+    public bool telegraphSyncToHit = false;
+
     [Tooltip("전조가 작게 시작해 발사 순간까지 커지는 '차징' 연출. 원거리 시전이 잘 읽힌다.")]
     public bool telegraphGrow = false;
 
@@ -75,6 +83,15 @@ public class FieldMonsterData : MeleeEnemyData
 
     [Tooltip("발사체 피격 반경(m). 이 안으로 플레이어가 들어오면 명중.")]
     public float projectileHitRadius = 0.6f;
+
+    [Tooltip("발사체 VFX 크기 배율(1=원본). 이펙트가 너무 작으면 키운다.")]
+    public float projectileScale = 1f;
+
+    [Tooltip("한 번의 공격에서 연속 발사할 발사체 수(1=단발, 2=팡팡). 각 발사는 그 순간 플레이어를 재조준.")]
+    public int projectileCount = 1;
+
+    [Tooltip("연속 발사 사이 간격(초). projectileCount>1 일 때만 사용.")]
+    public float projectileInterval = 0.15f;
 
     [Tooltip("발사체 최대 수명(초). 이 시간이 지나면 사라짐(빗나감).")]
     public float projectileLifeTime = 4f;
