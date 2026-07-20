@@ -132,9 +132,7 @@ public static class MainMenuButtonsBuilder
         else
             Debug.LogWarning("[MainMenuButtonsBuilder] 제작진 패널 생성 실패로 '제작진' 연결을 건너뜀.");
 
-        // ── 클릭 연결: 게임 종료 → 확인 모달을 띄우는 MainMenuQuitButton 컴포넌트 ─
-        var quitComp = quitItem.AddComponent<MainMenuQuitButton>();
-        BuildQuitConfirmModal(canvasGO.transform, quitComp);
+        quitItem.AddComponent<MainMenuQuitButton>();
 
         Undo.CollapseUndoOperations(undoGroup);
         EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
@@ -208,60 +206,6 @@ public static class MainMenuButtonsBuilder
     static void ApplyFont(TMP_Text t)
     {
         if (t != null && KoreanFont != null) t.font = KoreanFont;
-    }
-
-    // ── 게임 종료 확인 모달 (팰월드 "게임을 종료하시겠습니까?" 팝업 참고 — 코너 틱 + 가운데
-    // 메시지 + 구분선 + 예/아니요) — MainMenuQuitButton이 transform.root.Find로 이름 찾아
-    // 쓰므로 캔버스 바로 아래 "QuitConfirmModal"이라는 이름으로 둔다(인스펙터 와이어링 불필요). ──
-    static void BuildQuitConfirmModal(Transform canvasTransform, MainMenuQuitButton quitComp)
-    {
-        var existing = canvasTransform.Find("QuitConfirmModal");
-        if (existing != null) Undo.DestroyObjectImmediate(existing.gameObject);
-
-        var modalRoot = new GameObject("QuitConfirmModal", typeof(RectTransform));
-        Undo.RegisterCreatedObjectUndo(modalRoot, "Create QuitConfirmModal");
-        modalRoot.transform.SetParent(canvasTransform, false);
-        StretchFull(modalRoot.GetComponent<RectTransform>());
-
-        var backdropGo = new GameObject("Backdrop", typeof(RectTransform), typeof(Image), typeof(Button));
-        backdropGo.transform.SetParent(modalRoot.transform, false);
-        StretchFull(backdropGo.GetComponent<RectTransform>());
-        backdropGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
-        var backdropBtn = backdropGo.GetComponent<Button>();
-        backdropBtn.targetGraphic = backdropGo.GetComponent<Image>();
-        UnityEventTools.AddPersistentListener(backdropBtn.onClick, quitComp.CancelQuit);
-
-        const float boxW = 700f, boxH = 300f;
-        var box = MakeRect("Box", modalRoot.transform, new Vector2(boxW, boxH), Vector2.zero, ModalBoxColor);
-
-        // 회색 라벨 스트립 (CreateModal LabelStrip과 동일 스타일)
-        const float stripW = 580f, stripH = 41f;
-        MakeRect("LabelStrip", box.transform, new Vector2(stripW, stripH), new Vector2(0f, 72f), ModalLabelBg);
-        var msgTmp = MakeLabel("Message", box.transform, new Vector2(stripW, stripH), new Vector2(0f, 72f),
-            "게임을 종료하시겠습니까?", 22f, ModalLabelTx, TextAlignmentOptions.Center);
-        ApplyFont(msgTmp);
-
-        MakeRect("Sep", box.transform, new Vector2(stripW, 1f), new Vector2(0f, 10f), ModalLineColor);
-
-        var yesBtn = MakeFlatDialogButton("Btn_Yes", box.transform, new Vector2(240f, 43f), new Vector2(-130f, -68f), "예");
-        UnityEventTools.AddPersistentListener(yesBtn.GetComponent<Button>().onClick, quitComp.ConfirmQuit);
-
-        var noBtn = MakeFlatDialogButton("Btn_No", box.transform, new Vector2(240f, 43f), new Vector2(130f, -68f), "아니요");
-        UnityEventTools.AddPersistentListener(noBtn.GetComponent<Button>().onClick, quitComp.CancelQuit);
-
-        // L자 코너 틱 — center pivot 기준 박스 안쪽 경계에 정렬 (WorldSelectUIBuilder 동일 방식)
-        float hx = boxW * 0.5f, hy = boxH * 0.5f;
-        const float tw = 14f, th = 2f;
-        MakeRect("TickTL_H", box.transform, new Vector2(tw, th), new Vector2(-hx + tw * 0.5f,  hy - th * 0.5f), ModalTickColor);
-        MakeRect("TickTL_V", box.transform, new Vector2(th, tw), new Vector2(-hx + th * 0.5f,  hy - tw * 0.5f), ModalTickColor);
-        MakeRect("TickTR_H", box.transform, new Vector2(tw, th), new Vector2( hx - tw * 0.5f,  hy - th * 0.5f), ModalTickColor);
-        MakeRect("TickTR_V", box.transform, new Vector2(th, tw), new Vector2( hx - th * 0.5f,  hy - tw * 0.5f), ModalTickColor);
-        MakeRect("TickBL_H", box.transform, new Vector2(tw, th), new Vector2(-hx + tw * 0.5f, -hy + th * 0.5f), ModalTickColor);
-        MakeRect("TickBL_V", box.transform, new Vector2(th, tw), new Vector2(-hx + th * 0.5f, -hy + tw * 0.5f), ModalTickColor);
-        MakeRect("TickBR_H", box.transform, new Vector2(tw, th), new Vector2( hx - tw * 0.5f, -hy + th * 0.5f), ModalTickColor);
-        MakeRect("TickBR_V", box.transform, new Vector2(th, tw), new Vector2( hx - th * 0.5f, -hy + tw * 0.5f), ModalTickColor);
-
-        modalRoot.SetActive(false);
     }
 
     static void StretchFull(RectTransform rt)

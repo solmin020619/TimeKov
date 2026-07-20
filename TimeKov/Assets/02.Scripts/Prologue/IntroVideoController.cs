@@ -29,6 +29,10 @@ public class IntroVideoController : MonoBehaviour
     [Tooltip("영상 종료 후 1단계 배경 긴장감을 시작할 컨트롤러")]
     [SerializeField] CrashSequenceController _crashController;
 
+    [Header("Prologue Settings")]
+    [Tooltip("카메라 앵글 고정 등 프롤로그 전용 설정. 비워두면 현재 앵글 그대로 고정.")]
+    [SerializeField] PrologueSettings _prologueSettings;
+
     VideoPlayer _videoPlayer;
     AudioSource _audioSource;
     RenderTexture _renderTexture;
@@ -169,6 +173,16 @@ public class IntroVideoController : MonoBehaviour
 
         // 입력 차단 해제
         PlayerInputComponent.IsBlocked = false;
+
+        // 프롤로그 영상 종료 후 마우스 이동 전까지 카메라 앵글 고정
+        var cam = ThirdPersonCamera.Instance;
+        if (cam != null)
+        {
+            if (_prologueSettings != null && _prologueSettings.UseCustomAngle)
+                cam.LockAtAngle(_prologueSettings.CameraLockYaw, _prologueSettings.CameraLockPitch);
+            else
+                cam.LockUntilMouseMove();
+        }
 
         // 영상 Canvas 비활성화
         gameObject.SetActive(false);
