@@ -193,24 +193,15 @@ public class PrologueRadioUI : MonoBehaviour
 
     void SlideIn(System.Action onComplete)
     {
-        var rt = GetComponent<RectTransform>();
-        if (_canvasGroup == null || rt == null) { onComplete?.Invoke(); return; }
+        if (_canvasGroup == null) { onComplete?.Invoke(); return; }
 
         _canvasGroup.alpha          = 0f;
         _canvasGroup.interactable   = true;
         _canvasGroup.blocksRaycasts = true;
-        rt.anchoredPosition = _restPos + new Vector2(_slideOffsetX, 0f);
 
-        // 배경 슬라이드 + 텍스트 페이드 인 (QuestEntry.SlideInAndActivate 패턴)
-        rt.DOAnchorPos(_restPos, _slideInDuration)
-          .SetEase(Ease.OutCubic)
-          .SetUpdate(true)
-          .SetLink(gameObject);
-
-        _canvasGroup.DOFade(1f, _slideInDuration * 0.65f)
+        _canvasGroup.DOFade(1f, _slideInDuration)
                     .SetUpdate(true)
                     .SetLink(gameObject)
-                    .SetDelay(_slideInDuration * 0.15f)
                     .OnComplete(() => onComplete?.Invoke());
     }
 

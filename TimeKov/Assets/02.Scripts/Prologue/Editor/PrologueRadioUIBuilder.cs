@@ -17,10 +17,10 @@ public static class PrologueRadioUIBuilder
     static readonly Color PortBg    = new Color(0.04f, 0.04f, 0.07f, 1.00f);
 
     // ── 레이아웃 ──────────────────────────────────────────────────────
-    const float PanelW   = 550f;
-    const float PanelH   = 155f;
+    const float PanelW   = 640f;
+    const float PanelH   = 200f;
     const float PortColW = 118f;   // 초상화 컬럼 (오른쪽)
-    const float NextW    = 36f;    // ▶ 버튼 너비
+    const float NextW    = 120f;   // ▶ 버튼 너비
     const float PadV     = 8f;
     const float PadL     = 14f;
     const float PortSz   = 84f;
@@ -41,7 +41,7 @@ public static class PrologueRadioUIBuilder
     [MenuItem("Tools/UI/Build Prologue Radio UI")]
     static void Build()
     {
-        // 스프라이트 임포트
+        // 스프라이트 임포트 — char.png (초상화)
         const string portPath = "Assets/Resources/char.png";
         var importer = AssetImporter.GetAtPath(portPath) as TextureImporter;
         if (importer != null && importer.textureType != TextureImporterType.Sprite)
@@ -54,6 +54,20 @@ public static class PrologueRadioUIBuilder
         var portSprite = AssetDatabase.LoadAssetAtPath<Sprite>(portPath);
         if (portSprite == null)
             Debug.LogWarning("[Builder] char.png 스프라이트 로드 실패");
+
+        // 스프라이트 임포트 — icon.png (버튼 아이콘)
+        const string iconPath = "Assets/Resources/icon.png";
+        var iconImporter = AssetImporter.GetAtPath(iconPath) as TextureImporter;
+        if (iconImporter != null && iconImporter.textureType != TextureImporterType.Sprite)
+        {
+            iconImporter.textureType         = TextureImporterType.Sprite;
+            iconImporter.spriteImportMode    = SpriteImportMode.Single;
+            iconImporter.alphaIsTransparency = true;
+            iconImporter.SaveAndReimport();
+        }
+        var iconSprite = AssetDatabase.LoadAssetAtPath<Sprite>(iconPath);
+        if (iconSprite == null)
+            Debug.LogWarning("[Builder] icon.png 스프라이트 로드 실패");
 
         Canvas canvas = null;
         foreach (var c in Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
@@ -76,11 +90,16 @@ public static class PrologueRadioUIBuilder
         rt.anchorMin        = new Vector2(1f, 1f);
         rt.anchorMax        = new Vector2(1f, 1f);
         rt.pivot            = new Vector2(1f, 1f);
-        rt.anchoredPosition = new Vector2(-24f, -220f);
+        rt.anchoredPosition = new Vector2(-80f, -250f);
         rt.sizeDelta        = new Vector2(PanelW, PanelH);
 
         var cg = panel.AddComponent<CanvasGroup>();
         cg.alpha = 0f; cg.interactable = false; cg.blocksRaycasts = false;
+
+        // 블러 머티리얼 로드
+        var blurMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Shaders/RadioBlurMat.mat");
+        if (blurMat == null)
+            Debug.LogWarning("[Builder] RadioBlurMat.mat 없음 — 셰이더 Assets/Shaders/UIBackgroundBlur.shader 확인 후 빌더 재실행");
 
         // 배경은 텍스트+버튼 영역만 덮음 — 초상화·파형 영역은 열어둠
         var textBg = Child(panel, "TextBg");
@@ -88,11 +107,17 @@ public static class PrologueRadioUIBuilder
         tbRt.anchorMin = Vector2.zero;
         tbRt.anchorMax = Vector2.one;
         tbRt.offsetMin = Vector2.zero;
-        tbRt.offsetMax = new Vector2(-PortColW, 0f);
-        textBg.AddComponent<Image>().color = BgMain;
-        var sh = textBg.AddComponent<Shadow>();
-        sh.effectColor    = ShadowCol;
-        sh.effectDistance = new Vector2(4f, -4f);
+        tbRt.offsetMax = new Vector2(-(BtnLineX), 0f);
+        var tbImg = textBg.AddComponent<Image>();
+        if (blurMat != null)
+        {
+            tbImg.material = blurMat;
+            tbImg.color    = Color.white;   // CanvasGroup alpha 통과용
+        }
+        else
+        {
+            tbImg.color = BgMain;           // 폴백: 단색 배경
+        }
 
         // ── 초상화 컬럼 (오른쪽) ─────────────────────────────────────
         var portCol = Child(panel, "PortraitCol");
@@ -101,6 +126,7 @@ public static class PrologueRadioUIBuilder
         pcRt.anchorMax = new Vector2(1f, 1f);
         pcRt.offsetMin = new Vector2(-PortColW, 0f);
         pcRt.offsetMax = new Vector2(0f, 0f);
+        // PortraitCol은 배경 없음 — 씬 배경 그대로 노출 (텍스트 패널과 분리된 느낌)
 
         // 초상화 프레임 (테두리 없음)
         var portFrame = Child(portCol, "PortraitFrame");
@@ -134,33 +160,6 @@ public static class PrologueRadioUIBuilder
         wb.maxHeight     = WaveH;
         wb.barColor      = new Color(1.00f, 1.00f, 1.00f, 0.70f);
 
-        // ── ▶ 버튼 ───────────────────────────────────────────────────
-        var btnGo = Child(panel, "NextBtn");
-        var btnRt = btnGo.GetComponent<RectTransform>();
-        btnRt.anchorMin = new Vector2(1f, 0f);
-        btnRt.anchorMax = new Vector2(1f, 1f);
-        btnRt.offsetMin = new Vector2(-BtnRX, 0f);
-        btnRt.offsetMax = new Vector2(-VDivX, 0f);
-        btnGo.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.35f);
-        btnGo.AddComponent<Button>();
-
-        var arGo = Child(btnGo, "Arrow");
-        Stretch(arGo.GetComponent<RectTransform>(), 0, 0, 0, 0);
-        var arTmp = arGo.AddComponent<TextMeshProUGUI>();
-        arTmp.text      = "▶";
-        arTmp.fontSize  = 13f;
-        arTmp.color     = new Color(1f, 1f, 1f, 0.65f);
-        arTmp.alignment = TextAlignmentOptions.Center;
-
-        // 텍스트/버튼 경계선
-        var bLine = Child(panel, "BtnLine");
-        var blRt  = bLine.GetComponent<RectTransform>();
-        blRt.anchorMin = new Vector2(1f, 0f);
-        blRt.anchorMax = new Vector2(1f, 1f);
-        blRt.offsetMin = new Vector2(-BtnLineX,       PadV);
-        blRt.offsetMax = new Vector2(-BtnLineX + 1f, -PadV);
-        bLine.AddComponent<Image>().color = DivCol;
-
         // ── 텍스트 영역 (왼쪽) ───────────────────────────────────────
         float divY = PadV + HeaderH + 4f;
 
@@ -180,7 +179,7 @@ public static class PrologueRadioUIBuilder
         var icTmp = iconGo.AddComponent<TextMeshProUGUI>();
         icTmp.text      = "◎";
         icTmp.fontSize  = 13f;
-        icTmp.color     = Orange;
+        icTmp.color     = new Color(1f, 1f, 1f, 0.45f);
         icTmp.alignment = TextAlignmentOptions.MidlineLeft;
 
         var spkGo = Child(header, "SpeakerName");
@@ -200,7 +199,7 @@ public static class PrologueRadioUIBuilder
         var hdvRt = hDiv.GetComponent<RectTransform>();
         hdvRt.anchorMin = new Vector2(0f, 1f);
         hdvRt.anchorMax = new Vector2(1f, 1f);
-        hdvRt.offsetMin = new Vector2(PadL,        -(divY + 1f));
+        hdvRt.offsetMin = new Vector2(PadL,         -(divY + 1f));
         hdvRt.offsetMax = new Vector2(-BtnLineX,    -divY);
         hDiv.AddComponent<Image>().color = DivCol;
 
@@ -208,7 +207,7 @@ public static class PrologueRadioUIBuilder
         var msgRt = msgGo.GetComponent<RectTransform>();
         msgRt.anchorMin = Vector2.zero;
         msgRt.anchorMax = new Vector2(1f, 1f);
-        msgRt.offsetMin = new Vector2(PadL, PadV);
+        msgRt.offsetMin = new Vector2(PadL, 14f);
         msgRt.offsetMax = new Vector2(-BtnLineX, -(divY + 5f));
         var msgTmp = msgGo.AddComponent<TextMeshProUGUI>();
         msgTmp.text               = "";
@@ -217,6 +216,38 @@ public static class PrologueRadioUIBuilder
         msgTmp.enableWordWrapping = true;
         msgTmp.lineSpacing        = 2f;
         msgTmp.overflowMode       = TextOverflowModes.Truncate;
+
+        // ── ▶ 버튼 (텍스트 위 렌더링) ────────────────────────────────
+        var btnGo = Child(panel, "NextBtn");
+        var btnRt = btnGo.GetComponent<RectTransform>();
+        btnRt.anchorMin = new Vector2(1f, 0f);
+        btnRt.anchorMax = new Vector2(1f, 1f);
+        btnRt.offsetMin = new Vector2(-BtnRX, 0f);
+        btnRt.offsetMax = new Vector2(-VDivX, 0f);
+        btnGo.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0f);  // 배경 없음
+        btnGo.AddComponent<Button>();
+
+        var arGo = Child(btnGo, "Arrow");
+        var arRt = arGo.GetComponent<RectTransform>();
+        // 버튼 세로 중앙 고정, 가로 꽉 채움
+        arRt.anchorMin        = new Vector2(0.05f, 0.05f);
+        arRt.anchorMax        = new Vector2(0.95f, 0.95f);
+        arRt.pivot            = new Vector2(0.5f, 0.5f);
+        arRt.anchoredPosition = Vector2.zero;
+        arRt.sizeDelta        = Vector2.zero;
+        var arImg = arGo.AddComponent<Image>();
+        arImg.sprite         = iconSprite;
+        arImg.color          = Color.white;
+        arImg.preserveAspect = true;
+
+        // 텍스트/버튼 경계선
+        var bLine = Child(panel, "BtnLine");
+        var blRt  = bLine.GetComponent<RectTransform>();
+        blRt.anchorMin = new Vector2(1f, 0f);
+        blRt.anchorMax = new Vector2(1f, 1f);
+        blRt.offsetMin = new Vector2(-188f,  35f);
+        blRt.offsetMax = new Vector2(-187f, -35f);
+        bLine.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.18f);
 
         // ── PrologueRadioUI 연결 ─────────────────────────────────────
         var radioUI = panel.AddComponent<PrologueRadioUI>();
@@ -231,19 +262,20 @@ public static class PrologueRadioUIBuilder
 
         var entries = so.FindProperty("radioEntries");
         entries.arraySize = 4;
+        // [3]은 quest=null — ShowByIndex(3)로만 수동 트리거 (시네마신 완료 후)
         string[] paths = {
             "Assets/06.ScriptableObjects/Quest/Quests/Prologue/quest_prolog_basics.asset",
             "Assets/06.ScriptableObjects/Quest/Quests/Prologue/quest_prolog_basics.asset",
             "Assets/06.ScriptableObjects/Quest/Quests/Prologue/quest_prolog_reach.asset",
-            "Assets/06.ScriptableObjects/Quest/Quests/Prologue/quest_prolog_emergency.asset",
+            null,
         };
         int[]    triggers = { 0, 1, 1, 0 };
-        string[] speakers = { "본부 관제", "본부 관제", "본부 관제", "본부 관제" };
+        string[] speakers = { "KAIROS 관제", "KAIROS 관제", "KAIROS 관제", "KAIROS 관제" };
         string[] messages = {
-            "신호 잡혔어요. 살아있군요—다행이에요. 에너지장 간섭에 항법이 나간 거예요. 지금 상태 점검부터 해주세요.",
-            "확인됐어요. 기지 그리드 안에 내려앉았으니 아직 기회 있어요. 조종석으로 가세요, 빨리요.",
-            "비상 장치는 조종석 중앙 콘솔이에요. 이전 탐사 기록 확인했어요. 코어 아끼면서 빨리 움직이세요.",
-            "빨간 덮개 아래예요. 켜지면 충격 큽니다. 준비됐으면 바로 누르세요.",
+            "카이로스 관제예요. 살아있군요—다행이에요. ANANKE 진입 중 에너지장이 항법을 날렸어요. 지금 있는 곳은 1차 탐사대 기지예요. 기체 상태부터 봐요.",
+            "이상 없어요. 기억하죠—지구 시간 에너지, 얼마 안 남았어요. ANANKE가 유일한 답이에요. 1차 탐사대 비상 장치가 조종석에 있어요. 가요.",
+            "잘 왔어요. 중앙 콘솔이에요. 켜면 지구로 에너지 채굴 좌표가 전송돼요—여기서부터 진짜 임무예요. 코어가 시간이에요, 아끼면서 움직여요.",
+            "빨간 덮개 아래예요. 한 번 켜면 돌이킬 수 없어요. 그래도—지구를 위한 거예요. 누르세요.",
         };
 
         for (int i = 0; i < 4; i++)
