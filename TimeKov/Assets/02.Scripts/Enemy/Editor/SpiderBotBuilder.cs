@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// 자폭거미(SpiderBot) 풀세트 자동 조립: 미니 애니 컨트롤러 + 프리팹 + SO + 폭발/전조 VFX 배선.
+/// 자폭거미(SpiderBot) 풀세트 자동 조립: 미니 애니 컨트롤러 + 프리팹 + SO + 폭발 VFX/비프음 배선.
 /// 난파 우주선 오작동 드론 컨셉의 순수 자폭 러셔. 전용 SelfDestructSpiderAI 로 굴림(공유 BT 미사용).
 ///
 /// 보스 빌더와 같은 방식(모델에서 조립, WireRewards). 단 컨트롤러는 GUID 고정(load-or-clear)이라 재빌드해도 참조 안 깨짐.
@@ -23,8 +23,10 @@ public static class SpiderBotBuilder
     const string PrefabPath = "Assets/05.Prefabs/Enemy/Enemy_SpiderBot.prefab";
     const string BaseEnemyPath = "Assets/05.Prefabs/###/BaseEnemy.prefab";
 
-    const string ExplodeVfx   = "Assets/00.창동에셋/VFX/VFX(전조)/Anime VFX URP/Shared/Particles/VFX_Bomb_Explosion.prefab";
-    const string TelegraphVfx = "Assets/12.VFX/WyvernFire/Wyvern_Telegraph.prefab";
+    // 폭발범위 지면 링(텔레그래프)은 일부러 없다. 경고는 몸통 점멸 + 비프음뿐.
+    const string ExplodeVfx = "Assets/00.창동에셋/VFX/VFX(전조)/Anime VFX URP/Shared/Particles/VFX_Bomb_Explosion.prefab";
+    // 난파 우주선 드론 컨셉이라 우주선 에셋 비프음을 쓴다. 취향 바뀌면 같은 폴더 Beep01~08 로 교체.
+    const string ArmBeepSfx = "Assets/18.외부에셋/우주선/Common/SoundEffects/Beep04.wav";
 
     // 로코 클립(루프 필수)
     static readonly string[] LoopClips = { "SpiderBot@Idle", "SpiderBot@Walk" };
@@ -38,7 +40,7 @@ public static class SpiderBotBuilder
             "  - 미니 애니 컨트롤러(Idle/Walk/Die)\n" +
             $"  - 프리팹({PrefabPath})\n" +
             $"  - 데이터 SO({SoPath}, 없으면 기본값/있으면 보존)\n" +
-            "  - 폭발/전조 VFX 배선\n\n순수 자폭(근접 물기 없음). 계속?",
+            "  - 폭발 VFX 배선(지면 범위링 없음)\n\n순수 자폭(근접 물기 없음). 계속?",
             "생성", "취소")) return;
 
         var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
@@ -65,10 +67,10 @@ public static class SpiderBotBuilder
             "2. ★스폰할 바이옴에 NavMesh 베이크됐는지 확인(안 되면 스폰 실패).\n" +
             "3. 드롭시트에 sourceId=suicide_spider 행 추가.\n" +
             "4. Play -> 추격/점화 발광/폭발 확인. arming 시간(회피 가능한지)/폭발 데미지 튜닝은 SO+컨트롤러 인스펙터.\n" +
-            "5. 발광 안 보이면 SK_SpiderBot 재질에 _EmissionColor 있는지 확인(코드가 자동 EnableKeyword).");
+            "5. 작열이 약하면 프리팹 인스펙터 armGlowPeak 를 올려라(블룸 세기에 따라 체감이 다르다).");
     }
 
-    // ── 애니메이터 (GUID 고정: 재빌드해도 참조 안 깨짐) ──
+    // -- 애니메이터 (GUID 고정: 재빌드해도 참조 안 깨짐) --
     static AnimatorController BuildAnimator()
     {
         EnsureFolder(WorkFolder);
@@ -112,7 +114,7 @@ public static class SpiderBotBuilder
         sm.defaultState = null;
     }
 
-    // ── 데이터 SO ──
+    // -- 데이터 SO --
     static MeleeEnemyData BuildData()
     {
         var so = AssetDatabase.LoadAssetAtPath<MeleeEnemyData>(SoPath);
@@ -136,7 +138,7 @@ public static class SpiderBotBuilder
         return so;
     }
 
-    // ── 프리팹 (모델에서 조립, 보스 방식) ──
+    // -- 프리팹 (모델에서 조립, 보스 방식) --
     static void BuildPrefab(GameObject model, AnimatorController ctrl, MeleeEnemyData so)
     {
         var go = (GameObject)PrefabUtility.InstantiatePrefab(model);
@@ -177,6 +179,8 @@ public static class SpiderBotBuilder
 
         var audio = GetOrAdd<AudioSource>(go);
         audio.playOnAwake = false; audio.spatialBlend = 1f;
+        audio.minDistance = 4f;      // 점화 사거리 안에선 비프가 또렷하게
+        audio.maxDistance = 25f;
 
         var health = GetOrAdd<EnemyHealth>(go);
         health.maxHP = so.maxHP; health.currentHP = so.maxHP;
@@ -187,7 +191,11 @@ public static class SpiderBotBuilder
         var sobj = new SerializedObject(ai);
         SetRef(sobj, "data", so);
         SetRef(sobj, "explodeVfx", Load(ExplodeVfx));
-        SetRef(sobj, "telegraphVfx", Load(TelegraphVfx));
+
+        var beep = AssetDatabase.LoadAssetAtPath<AudioClip>(ArmBeepSfx);
+        if (beep == null) Debug.LogWarning($"[SpiderBot] 비프음 없음: {ArmBeepSfx} (점화 경고가 무음이 된다)");
+        SetRef(sobj, "armSound", beep);
+
         sobj.ApplyModifiedProperties();
 
         WireRewards(go);
@@ -227,7 +235,7 @@ public static class SpiderBotBuilder
         abs.ApplyModifiedProperties();
     }
 
-    // ── helpers ──
+    // -- helpers --
     static void NormalizeLoopClips()
     {
         foreach (var name in LoopClips)
