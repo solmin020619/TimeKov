@@ -102,5 +102,9 @@ public class PrologueCinematicHint : MonoBehaviour
         _emergencyConsole?.ForceOutline(false);
 
         PlayerInputComponent.IsBlocked = false;
+
+        // 시네마신 완료 후 마지막 라디오 메시지 표시
+        var radioUI = Object.FindFirstObjectByType<PrologueRadioUI>();
+        radioUI?.ShowByIndex(3);
     }
 }

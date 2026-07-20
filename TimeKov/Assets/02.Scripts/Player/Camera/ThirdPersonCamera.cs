@@ -51,6 +51,7 @@ public class ThirdPersonCamera : MonoBehaviour
     private float _yawVel;                 // SmoothDampAngle 내부 속도
     private float _pitchVel;
     private bool  _deathLocked;            // 사망 시: 마우스 회전 입력 차단 + 죽는 시점 캐릭터 방향으로 yaw 고정
+    private bool  _cineLocked;             // 연출용: 마우스 이동 전까지 앵글 고정
     private float _currentDist;
     private float _targetDist;
     private float _sensitivityMult = 1f;  // 설정창 감도 슬라이더 배율
@@ -195,10 +196,21 @@ public class ThirdPersonCamera : MonoBehaviour
             // IsUIOpen 또는 GameUIController 기준 둘 다 차단
             if (IsUIOpen || !GameUIController.GameplayInputEnabled) return;
 
-            // 마우스 입력에 감도 배율 적용 (목표 각도 누적)
-            _yaw += Input.GetAxis("Mouse X") * SensitivityX * _sensitivityMult;
-            _pitch -= Input.GetAxis("Mouse Y") * SensitivityY * _sensitivityMult;
-            _pitch = Mathf.Clamp(_pitch, MinPitchAngle, MaxPitchAngle);
+            if (_cineLocked)
+            {
+                float mx = Input.GetAxis("Mouse X");
+                float my = Input.GetAxis("Mouse Y");
+                if (Mathf.Abs(mx) > 0.1f || Mathf.Abs(my) > 0.1f)
+                    _cineLocked = false;
+            }
+
+            if (!_cineLocked)
+            {
+                // 마우스 입력에 감도 배율 적용 (목표 각도 누적)
+                _yaw += Input.GetAxis("Mouse X") * SensitivityX * _sensitivityMult;
+                _pitch -= Input.GetAxis("Mouse Y") * SensitivityY * _sensitivityMult;
+                _pitch = Mathf.Clamp(_pitch, MinPitchAngle, MaxPitchAngle);
+            }
         }
 
         // 목표 각도(_yaw/_pitch)를 display 각도가 부드럽게 따라감 -> 마우스 휙 돌릴 때 쿠션.
@@ -290,6 +302,33 @@ public class ThirdPersonCamera : MonoBehaviour
     public void UnlockAfterRespawn()
     {
         _deathLocked = false;
+    }
+
+    // ── 연출용 카메라 고정 ─────────────────────────────────────────────
+    /// <summary>
+    /// 현재 앵글로 카메라를 고정. 플레이어가 마우스를 움직이는 순간 자동 해제.
+    /// 프롤로그 영상 종료 후 첫 프레임 카메라 연출에 사용.
+    /// </summary>
+    public void LockUntilMouseMove()
+    {
+        _cineLocked = true;
+        _yaw      = _yawDisplay;
+        _pitch    = _pitchDisplay;
+        _yawVel   = 0f;
+        _pitchVel = 0f;
+    }
+
+    /// <summary>
+    /// 지정한 Yaw/Pitch 각도로 카메라를 고정. 마우스 이동 시 자동 해제.
+    /// PrologueSettings에서 Inspector로 설정한 값을 이 메서드로 전달.
+    /// </summary>
+    public void LockAtAngle(float yaw, float pitch)
+    {
+        _yaw      = yaw;
+        _pitch    = Mathf.Clamp(pitch, MinPitchAngle, MaxPitchAngle);
+        _yawVel   = 0f;
+        _pitchVel = 0f;
+        _cineLocked = true;
     }
 
     // ── Camera Shake API ─────────────────────────────────────────────
