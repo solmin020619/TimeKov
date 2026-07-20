@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4523605806767371223}
+  - component: {fileID: 3827641830377777661}
   m_Layer: 0
   m_Name: Fence_Line
   m_TagString: Untagged
@@ -36,6 +37,27 @@ Transform:
   - {fileID: 6301295703781404327}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &3827641830377777661
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3517171092893950661}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 9, y: 8.400426, z: 9}
+  m_Center: {x: 0, y: 4.0550017, z: 0}
 --- !u!1 &6163211280781774321
 GameObject:
   m_ObjectHideFlags: 0
@@ -87,6 +109,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 4523605806767371223}
     m_Modifications:
+    - target: {fileID: 1148147249460878726, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6151479312943947566, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
       propertyPath: m_Name
       value: fence (1)
@@ -149,6 +175,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 4523605806767371223}
     m_Modifications:
+    - target: {fileID: 1148147249460878726, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5647106735154904827, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -215,6 +245,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 4523605806767371223}
     m_Modifications:
+    - target: {fileID: 1148147249460878726, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6151479312943947566, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
       propertyPath: m_Name
       value: fence (2)
@@ -721,6 +755,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 4523605806767371223}
     m_Modifications:
+    - target: {fileID: 1148147249460878726, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6151479312943947566, guid: 1df56a47c3bc61f4ba5b58909da742e8, type: 3}
       propertyPath: m_Name
       value: fence (3)
