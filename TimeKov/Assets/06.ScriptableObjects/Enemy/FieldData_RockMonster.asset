@@ -10,54 +10,57 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 02537cf28553a6646b59dc3c166b14da, type: 3}
-  m_Name: FieldData_SpiderS3
+  m_Name: FieldData_RockMonster
   m_EditorClassIdentifier: 
-  enemyName: "\uAC70\uBBF8"
-  enemyId: spider_s3
-  maxHP: 55
-  moveSpeed: 5
+  enemyName: "\uB85D\uBAAC\uC2A4\uD130"
+  enemyId: rock_monster
+  maxHP: 180
+  moveSpeed: 2.2
   acceleration: 12
-  angularSpeed: 480
+  angularSpeed: 130
   stoppingDistance: 0
-  visionRange: 18
-  visionAngle: 300
-  attackDamage: 12
-  attackRange: 2.5
+  visionRange: 16
+  visionAngle: 260
+  attackDamage: 30
+  attackRange: 2.8
   attackApproachRatio: 0.85
-  attackCooldown: 0.2
-  hitDelay: 0.77777785
-  animLength: 1.5555557
+  attackCooldown: 0.6
+  hitDelay: 1.1111122
+  animLength: 2.2222245
   attackTrigger: Attack
   hitTrigger: Hit
   detectTrigger: Detect
   dieTrigger: Die
   targetLostMemory: 1.5
-  deathAnimDuration: 0.7666667
-  detectStunDuration: 1.6666666
-  spawnVFX: {fileID: 1902839626373450777, guid: 377bd8e4df08cc444b8742609e5ebd73, type: 3}
+  deathAnimDuration: 5.666664
+  detectStunDuration: 4.900009
+  spawnVFX: {fileID: 0}
   spawnSound: {fileID: 0}
   detectVFX: {fileID: 0}
-  detectSound: {fileID: 8300000, guid: 0c3e4c4a590053b448276f7b97938e6f, type: 3}
+  detectSound: {fileID: 0}
   hitVFX: {fileID: 0}
   hitSound: {fileID: 0}
   attackVFX: {fileID: 0}
-  attackSound: {fileID: 8300000, guid: 6f94cd699418cc24485481e3c7ecf8da, type: 3}
+  attackSound: {fileID: 8300000, guid: bb14e9e6e1841433e913483a14788dd1, type: 3}
   deathVFX: {fileID: 0}
-  deathSound: {fileID: 8300000, guid: 6bce73f051d58d04b9219f770fe9aaf8, type: 3}
+  deathSound: {fileID: 8300000, guid: bca9f7309b03e4964b113a08f280dc28, type: 3}
   telegraphVFX: {fileID: 0}
   telegraphSound: {fileID: 0}
-  telegraphLifeTime: 0.9277779
+  telegraphLifeTime: 1.2611122
   telegraphLocalOffset: {x: 0, y: 0, z: 0}
   telegraphScale: 1
   telegraphStripObjects: []
   telegraphSyncToHit: 0
   telegraphGrow: 0
   telegraphGrowFrom: 0.15
-  attackSpeedMul: 0.75
-  staggerChance: 0.45
-  meleeImpactVFX: {fileID: 0}
-  meleeImpactOffset: {x: 0, y: 0, z: 1.5}
-  meleeImpactScale: 1
+  attackSpeedMul: 0.9
+  staggerChance: 0.15
+  startDormant: 1
+  sleepAfterIdle: 12
+  sleepAnimDuration: 5
+  meleeImpactVFX: {fileID: 198022, guid: 738c7797f6089494e96ae306646aaa11, type: 3}
+  meleeImpactOffset: {x: 0.7, y: 0.2, z: 1.4}
+  meleeImpactScale: 6
   meleeImpactLifeTime: 3
   ranged: 0
   projectileVFX: {fileID: 0}
@@ -78,17 +81,17 @@ MonoBehaviour:
   projectileAimHeight: 1
   openingStep: 0
   openingStepDuration: 0
-  postAttackPause: 0.5
+  postAttackPause: 0.9
   afterAttackStep: 6
-  afterAttackStepDurationRange: {x: 0.8, y: 3.2}
-  retreatDiagonalMaxAngle: 45
-  stepSpeedMul: 0.5
+  afterAttackStepDurationRange: {x: 0.5, y: 1.4}
+  retreatDiagonalMaxAngle: 0
+  stepSpeedMul: 0.6
   strafeSpeedMul: 0.5
   strafeAnimSpeedMul: 1
-  walkAnimRefSpeed: 2.5
+  walkAnimRefSpeed: 2.2
   walkAnimSpeedClamp: {x: 0.4, y: 2.5}
   locoDirDamp: 0.12
   wander: 1
-  wanderRadius: 6
+  wanderRadius: 7
   wanderPauseRange: {x: 1.5, y: 4}
   wanderSpeedMul: 0.4

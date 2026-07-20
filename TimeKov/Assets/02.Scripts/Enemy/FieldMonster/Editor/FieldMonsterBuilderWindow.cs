@@ -13,6 +13,7 @@ public class FieldMonsterBuilderWindow : EditorWindow
         ("거미여왕(설산)",  SpiderQueenBuilder.BuildSnow),
         ("거미여왕(사막)",  SpiderQueenBuilder.BuildDesert),
         ("거미여왕(자연)",  SpiderQueenBuilder.BuildNature),
+        ("록몬스터",        RockMonsterBuilder.Build),
     };
 
     [MenuItem("Window/Field Monster Builder")]

@@ -42,6 +42,12 @@ public class FieldMonsterAI : MonoBehaviour
     [Tooltip("Locomotion 재생 배속. 실제 이동속도/walkAnimRefSpeed 가 들어가 발 미끄러짐을 줄인다.")]
     [SerializeField] private string speedMulParam = "SpeedMul";
     [SerializeField] private string attackTrigger = "Attack";
+    [Tooltip("피격 경직(Hit 애니)을 확률로 켜는 게이트 bool. AnyState→Hit 전이가 Hit && Stagger 를 요구.")]
+    [SerializeField] private string staggerParam = "Stagger";
+    [Tooltip("휴면 복귀(붕괴) 트리거. AnyState→Crumble→Dormant. 휴면형만 사용.")]
+    [SerializeField] private string sleepTrigger = "Sleep";
+    [Tooltip("공격 변형 선택 bool(2종 클립 랜덤: false=기본/A, true=변형/B). 컨트롤러에 있으면 매 공격 랜덤.")]
+    [SerializeField] private string attackAltParam = "AttackAlt";
 
     [Header("Rotation")]
     [Tooltip("이 속도 이상으로 움직이면 진행 방향을 봄. 그보다 느리면 타깃을 봄.")]
@@ -53,8 +59,9 @@ public class FieldMonsterAI : MonoBehaviour
     private Transform playerTf;
     private PlayerStatComponent playerStat;
 
-    private int speedHash, strafeHash, moveDirHash, speedMulHash;
-    private bool hasStrafeParam, hasMoveDirParam, hasSpeedMulParam;
+    private int speedHash, strafeHash, moveDirHash, speedMulHash, staggerHash, sleepHash, attackAltHash;
+    private bool hasStrafeParam, hasMoveDirParam, hasSpeedMulParam, hasStaggerParam, hasSleepParam, hasAttackAltParam;
+    private bool attackAlt;   // 이번 공격이 변형(B/반대손)인지 — 근접 타격 VFX 좌우 미러링에 사용
 
     // 스텝(옆/뒤걸음)은 NavMeshAgent.Move() 로 직접 미는데, Move() 는 agent.velocity 를 갱신하지 않는다.
     // 그대로 두면 Animator 의 Speed 가 0 -> Idle 상태로 남아 "애니 없이 미끄러지는" 그림이 된다.
@@ -66,6 +73,7 @@ public class FieldMonsterAI : MonoBehaviour
     private bool faceTarget;      // 스텝/공격 중엔 진행 방향 말고 타깃을 계속 주시
     private bool freezeFacing;    // 회전 완전 고정(공격 후 스텝: 공격 시점 시선 유지). faceTarget보다 우선.
     private bool dead;
+    private bool awake;           // 휴면형: 기상(조립) 완료 상태. 휴면(바위 더미) 중엔 false → 피격 경직 억제.
     private Vector3 homePos;
     private GameObject activeTelegraph;   // 현재 떠 있는 전조. 발사(hitDelay) 순간 즉시 제거해 싱크 맞춤.
     // sync 전조: PlayTelegraph 가 잰 '전조 원본 총길이(초)'. AttackOnce 가 이만큼 공격을 늦춰
@@ -102,12 +110,18 @@ public class FieldMonsterAI : MonoBehaviour
         strafeHash = Animator.StringToHash(strafeDirParam);
         moveDirHash = Animator.StringToHash(moveDirParam);
         speedMulHash = Animator.StringToHash(speedMulParam);
+        staggerHash = Animator.StringToHash(staggerParam);
+        sleepHash = Animator.StringToHash(sleepTrigger);
+        attackAltHash = Animator.StringToHash(attackAltParam);
         if (animator != null)
         {
             animator.applyRootMotion = false;   // 위치 권위는 NavMeshAgent(SO moveSpeed)
-            // 블렌드 파라미터가 없는 컨트롤러면 SetFloat 경고가 나므로 미리 확인
+            // 파라미터가 없는 컨트롤러면 Set 경고가 나므로 미리 확인
             foreach (var p in animator.parameters)
             {
+                if (p.nameHash == sleepHash) { hasSleepParam = true; continue; }   // Sleep 트리거
+                if (p.type == AnimatorControllerParameterType.Bool && p.nameHash == attackAltHash) { hasAttackAltParam = true; continue; }
+                if (p.type == AnimatorControllerParameterType.Bool && p.nameHash == staggerHash) { hasStaggerParam = true; continue; }
                 if (p.type != AnimatorControllerParameterType.Float) continue;
                 if (p.nameHash == strafeHash) hasStrafeParam = true;
                 else if (p.nameHash == moveDirHash) hasMoveDirParam = true;
@@ -173,6 +187,14 @@ public class FieldMonsterAI : MonoBehaviour
     private void OnTookDamage()
     {
         if (visionSensor != null && playerTf != null) visionSensor.ForceSetTarget(playerTf);
+
+        // 피격 경직(Hit 애니)을 확률로 게이트. EnemyHealth.TakeDamage 는 OnDamage(=여기) → PlayHit(Hit 트리거)
+        //   순서라, 여기서 Stagger bool 을 먼저 정해두면 뒤이어 걸리는 Hit 트리거가 Stagger=true 일 때만 전이된다.
+        //   -> 매 피격마다 모션이 끊기지 않고 확률적으로만 경직. staggerChance=1 이면 항상(기존 동작).
+        //   ※휴면(바위 더미) 중엔 경직 억제 — 안 그러면 피격 Hit 애니가 골렘을 어정쩡하게 세운다.
+        bool dormant = data.startDormant && !awake;
+        if (hasStaggerParam && animator != null)
+            animator.SetBool(staggerHash, !dormant && Random.value < data.staggerChance);
     }
 
     // EnemyHealth 는 EnemyBrain 만 꺼준다 -> 이 AI 는 스스로 멈춰야 시체가 안 따라온다.
@@ -253,16 +275,38 @@ public class FieldMonsterAI : MonoBehaviour
     // ── 메인 루프 ──────────────────────────────────────────────────
     private IEnumerator Brain()
     {
+        awake = !data.startDormant;   // 휴면형이면 처음엔 잠들어 있음 → 첫 발견에만 기상(Detect) 연출
         while (!dead)
         {
-            // 1) 타깃 없음 — 어슬렁 or 대기
-            while (Target == null && !dead)
-                yield return data.wander ? Wander() : Idle();
-            if (dead) yield break;
+            // 1) 타깃 없음 — 대기/배회.
+            if (Target == null)
+            {
+                if (data.startDormant && !awake)
+                {
+                    yield return Idle();                          // 휴면: 바위 더미로 제자리 대기(배회 X)
+                }
+                else if (data.startDormant && awake && data.sleepAfterIdle > 0f)
+                {
+                    // 각성 상태로 타깃 없음 — 배회하며 재조우를 기다리다, 오래되면 붕괴 → 휴면 복귀.
+                    float sleepAt = Time.time + data.sleepAfterIdle;
+                    while (Target == null && !dead && Time.time < sleepAt)
+                        yield return data.wander ? Wander() : Idle();
+                    if (!dead && Target == null) { yield return Crumble(); awake = false; }
+                }
+                else
+                {
+                    yield return data.wander ? Wander() : Idle();  // 일반 몹
+                }
+                continue;
+            }
 
-            // 2) 발견 — 발견 연출 후 오프닝 스텝(몬스터별 성격)
-            feedback?.PlayDetect();
-            yield return DetectPause();
+            // 2) 발견 연출 — 일반 몹은 매번 포효, 휴면형은 '첫 기상'에만(재조우 시 생략).
+            if (!data.startDormant || !awake)
+            {
+                feedback?.PlayDetect();
+                yield return DetectPause();
+            }
+            awake = true;
             yield return DoStep(data.openingStep, data.openingStepDuration);
 
             // 3) 전투 루프 — 접근 → 전조+공격 → 스텝 → 반복
@@ -286,6 +330,18 @@ public class FieldMonsterAI : MonoBehaviour
                 if (data.attackCooldown > 0f) yield return new WaitForSeconds(data.attackCooldown);
             }
         }
+    }
+
+    /// <summary>휴면 복귀 — 붕괴(Sleep 트리거) 애니 재생 후 다시 바위 더미(Dormant)로. 그 뒤엔 첫 발견처럼 재기상.</summary>
+    private IEnumerator Crumble()
+    {
+        Stop();
+        if (nav != null && nav.enabled) { nav.isStopped = true; nav.ResetPath(); }
+        freezeFacing = true;
+        if (animator != null && hasSleepParam) animator.SetTrigger(sleepTrigger);
+        float end = Time.time + Mathf.Max(0.1f, data.sleepAnimDuration);
+        while (Time.time < end && !dead) yield return null;   // 붕괴 애니 재생 동안 대기(중간에 튀지 않게)
+        freezeFacing = false;
     }
 
     private IEnumerator Idle()
@@ -325,7 +381,35 @@ public class FieldMonsterAI : MonoBehaviour
     private IEnumerator DetectPause()
     {
         if (data.detectStunDuration <= 0f) yield break;
-        float end = Time.time + data.detectStunDuration;
+        float dur = data.detectStunDuration;
+        float end = Time.time + dur;
+
+        // 휴면형(기상): 발견 순간엔 부동, 조립되는 '전체 시간에 걸쳐' 서서히 플레이어 쪽으로 돈다.
+        //   목표 각도는 발견 순간에 '고정'(그 뒤 플레이어가 움직여도 끝에서 홱 튀지 않게) → 조립 후 전투에서
+        //   낮춘 angularSpeed 로 현재 플레이어를 부드럽게 마저 추적.
+        if (data.startDormant)
+        {
+            freezeFacing = true;                       // LateUpdate 즉시회전 차단(직접 Slerp)
+            Quaternion startRot = transform.rotation;
+            Quaternion targetRot = startRot;
+            var t0 = Target;
+            if (t0 != null)
+            {
+                Vector3 d = t0.position - transform.position; d.y = 0f;
+                if (d.sqrMagnitude > 0.0001f) targetRot = Quaternion.LookRotation(d);
+            }
+            while (Time.time < end && !dead)
+            {
+                Stop();
+                float k = Mathf.Clamp01(1f - (end - Time.time) / dur);   // 0→1 조립 진행도
+                transform.rotation = Quaternion.Slerp(startRot, targetRot, k);
+                yield return null;
+            }
+            freezeFacing = false;
+            yield break;
+        }
+
+        // 일반 몹: 발견 동안 타깃 주시(기존).
         faceTarget = true;
         while (Time.time < end && !dead) { Stop(); yield return null; }
         faceTarget = false;
@@ -386,6 +470,10 @@ public class FieldMonsterAI : MonoBehaviour
         }
         if (dead) { freezeFacing = false; yield break; }
 
+        // 공격 변형 랜덤(2종 클립: A/B = 왼손/오른손). 트리거보다 먼저 bool 을 정해 애니 라우팅 + VFX 미러링에 씀.
+        attackAlt = hasAttackAltParam && Random.value < 0.5f;
+        if (hasAttackAltParam) animator.SetBool(attackAltHash, attackAlt);
+
         feedback?.PlayAttack();                // 이제 스윙 시작 → hitDelay 뒤 접점 = 전조 터짐과 일치
         if (animator != null && !string.IsNullOrEmpty(attackTrigger))
             animator.SetTrigger(attackTrigger);
@@ -402,7 +490,7 @@ public class FieldMonsterAI : MonoBehaviour
                 // 그 외(원거리 차징 등)는 발사 순간 끝내서 발사와 싱크.
                 if (!data.telegraphSyncToHit) DestroyTelegraph();
                 if (data.ranged) StartCoroutine(FireProjectileBurst());   // 원거리 = 1발 or 연속(팡팡)
-                else             ApplyDamage();                            // 근접 = 즉시 타격
+                else { ApplyDamage(); SpawnMeleeImpact(); }                // 근접 = 즉시 타격 + 슬램 VFX(헛쳐도 재생)
             }
             yield return null;
         }
@@ -655,6 +743,28 @@ public class FieldMonsterAI : MonoBehaviour
 
         var ps = t.GetComponent<PlayerStatComponent>();
         if (ps != null) ps.TakeDamage(data.attackDamage);
+    }
+
+    /// <summary>근접 타격 순간의 슬램/클랩 VFX. 명중 여부와 무관하게 재생(헛쳐도 이펙트는 난다).
+    /// 몸 기준 오프셋 위치의 '월드'에 스폰 → 몸을 따라가지 않고 그 자리에 남았다 소멸.</summary>
+    private void SpawnMeleeImpact()
+    {
+        if (data.meleeImpactVFX == null) return;
+
+        // 2종 공격(왼손/오른손)일 땐 변형(B)에서 좌우 오프셋을 미러링 → 때린 손 쪽에서 이펙트가 난다.
+        Vector3 o = data.meleeImpactOffset;
+        float sideX = (hasAttackAltParam && attackAlt) ? -o.x : o.x;
+        Vector3 pos = transform.position + transform.right * sideX + Vector3.up * o.y + transform.forward * o.z;
+        var fx = Instantiate(data.meleeImpactVFX, pos, transform.rotation);
+
+        if (data.meleeImpactScale > 0f && !Mathf.Approximately(data.meleeImpactScale, 1f))
+            fx.transform.localScale *= data.meleeImpactScale;
+
+        // VFX 팩에 딸린 데모 스크립트 제거(카메라 없으면 로그 폭탄 등). 순수 시각효과만.
+        foreach (var mb in fx.GetComponentsInChildren<MonoBehaviour>(true))
+            if (mb != null) Destroy(mb);
+
+        Destroy(fx, Mathf.Max(0.2f, data.meleeImpactLifeTime));
     }
 
     /// <summary>연속 발사(팡팡). projectileCount 만큼 interval 간격으로 쏜다. 매 발사마다 현재 플레이어 재조준.</summary>

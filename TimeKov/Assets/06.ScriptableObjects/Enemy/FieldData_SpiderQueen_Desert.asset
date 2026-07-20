@@ -49,9 +49,16 @@ MonoBehaviour:
   telegraphLifeTime: 0.9595239
   telegraphLocalOffset: {x: 0, y: 0.55, z: 0.85}
   telegraphScale: 0.5
+  telegraphStripObjects: []
+  telegraphSyncToHit: 0
   telegraphGrow: 1
   telegraphGrowFrom: 0.15
   attackSpeedMul: 0.7
+  staggerChance: 0.3
+  meleeImpactVFX: {fileID: 0}
+  meleeImpactOffset: {x: 0, y: 0, z: 1.5}
+  meleeImpactScale: 1
+  meleeImpactLifeTime: 3
   ranged: 1
   projectileVFX: {fileID: 1893165063647558810, guid: cb7af15514a3cb5488f87d5082bbc895, type: 3}
   muzzleVFX: {fileID: 1893165063647558810, guid: c17eacb57b825b542aa28415cb32edcd, type: 3}

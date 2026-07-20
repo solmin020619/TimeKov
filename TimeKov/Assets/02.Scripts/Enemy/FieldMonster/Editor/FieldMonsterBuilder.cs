@@ -74,6 +74,7 @@ public static class FieldMonsterBuilder
         }
 
         // 3) 로코 클립 루프 ON (Bake Into Pose 는 OFF 유지 — Generic 리그에서 켜면 T-포즈)
+        if (!string.IsNullOrEmpty(c.singleAnimFbx)) { NormalizeLoopsSingleFbx(c); return; }
         foreach (var name in c.LoopClips())
         {
             string path = $"{c.SrcAnim}/{name}.fbx";
@@ -97,6 +98,35 @@ public static class FieldMonsterBuilder
         }
     }
 
+    // 단일 FBX 정상화: 로코 서브클립(idle/walk/back/좌/우)만 루프 ON +
+    //   모든 클립의 데모 AnimationEvent 제거(PlayAudio/LeftFoot/RightFoot/Clap 등 — 수신 컴포넌트 없어 콘솔 스팸).
+    static void NormalizeLoopsSingleFbx(FieldMonsterBuildConfig c)
+    {
+        var importer = AssetImporter.GetAtPath(c.SingleFbxPath) as ModelImporter;
+        if (importer == null) { Debug.LogWarning($"[{c.enemyName}] FBX 임포터 없음: {c.SingleFbxPath}"); return; }
+
+        var loopSet = new System.Collections.Generic.HashSet<string>(c.LoopClips());
+        var clips = importer.clipAnimations;
+        if (clips == null || clips.Length == 0) clips = importer.defaultClipAnimations;
+        if (clips == null || clips.Length == 0) return;
+
+        bool ch = false;
+        for (int i = 0; i < clips.Length; i++)
+        {
+            var a = clips[i];
+            if (loopSet.Contains(a.name))   // 로코 클립만 루프 ON
+            {
+                if (!a.loopTime)          { a.loopTime = true;           ch = true; }
+                if (a.lockRootHeightY)    { a.lockRootHeightY = false;   ch = true; }
+                if (a.lockRootPositionXZ) { a.lockRootPositionXZ = false; ch = true; }
+                if (a.lockRootRotation)   { a.lockRootRotation = false;  ch = true; }
+            }
+            // 데모 이벤트 제거(모든 클립) — 우리 AI는 이 이벤트를 안 쓴다. 사운드는 별도 슬롯으로.
+            if (a.events != null && a.events.Length > 0) { a.events = new AnimationEvent[0]; ch = true; }
+        }
+        if (ch) { importer.clipAnimations = clips; importer.SaveAndReimport(); Debug.Log($"[{c.enemyName}] 원본 정상화(단일 FBX): 로코 루프 ON + 데모 이벤트 제거"); }
+    }
+
     // ── Animator (컨트롤러 재사용 = GUID 고정) ──────────────────────
     static AnimatorController BuildAnimator(FieldMonsterBuildConfig c)
     {
@@ -112,6 +142,7 @@ public static class FieldMonsterBuilder
         ctrl.AddParameter("SpeedMul",  AnimatorControllerParameterType.Float);
         ctrl.AddParameter("Attack",    AnimatorControllerParameterType.Trigger);
         ctrl.AddParameter("Hit",       AnimatorControllerParameterType.Trigger);
+        ctrl.AddParameter("Stagger",   AnimatorControllerParameterType.Bool);   // 피격 경직 게이트(AI가 확률로 켬)
         ctrl.AddParameter("Detect",    AnimatorControllerParameterType.Trigger);
         var sm = ctrl.layers[0].stateMachine;
 
@@ -128,6 +159,27 @@ public static class FieldMonsterBuilder
         loco.speedParameterActive = true; loco.speedParameter = "SpeedMul";
 
         sm.defaultState = idle;
+
+        // 휴면 포즈(선택) — 지정 시 '기본 상태'를 이걸로. 발견(Detect) 전까지 제자리 유지(이동 X).
+        //   Detect 트리거는 AnyState→Detect 가 처리 → 깨어나는 모션(clipRoar, 예: RubbleToIdle) 재생 후 standing Idle 로.
+        //   깨어난 뒤엔 idle↔loco 만 쓰고 휴면으로 되돌아오지 않는다(리스폰/리셋 시에만 다시 휴면으로 시작).
+        if (!string.IsNullOrEmpty(c.dormantClip))
+        {
+            var dormant = sm.AddState("Dormant"); dormant.motion = Clip(c, c.dormantClip);
+            sm.defaultState = dormant;
+
+            // 붕괴(휴면 복귀, 선택) — Sleep 트리거 → Crumble(예: IdleToRubble) 재생 → 다시 Dormant.
+            //   각성 상태로 오래 타깃을 못 보면 AI 가 Sleep 을 걸어 바위 더미로 되돌아간다.
+            if (!string.IsNullOrEmpty(c.crumbleClip))
+            {
+                ctrl.AddParameter("Sleep", AnimatorControllerParameterType.Trigger);
+                var crumble = sm.AddState("Crumble"); crumble.motion = Clip(c, c.crumbleClip); crumble.speed = c.roarSpeedMul;
+                var toCrumble = sm.AddAnyStateTransition(crumble); toCrumble.hasExitTime = false; toCrumble.duration = 0.1f; toCrumble.canTransitionToSelf = false;
+                toCrumble.AddCondition(AnimatorConditionMode.If, 0f, "Sleep");
+                var crumbleEx = crumble.AddTransition(dormant); crumbleEx.hasExitTime = true; crumbleEx.exitTime = 0.95f; crumbleEx.duration = 0.15f;
+            }
+        }
+
         var toLoco = idle.AddTransition(loco); toLoco.hasExitTime = false; toLoco.duration = 0.1f;
         toLoco.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
         var toIdle = loco.AddTransition(idle); toIdle.hasExitTime = false; toIdle.duration = 0.1f;
@@ -138,14 +190,38 @@ public static class FieldMonsterBuilder
         toAtk.AddCondition(AnimatorConditionMode.If, 0f, "Attack");
         var atkEx = atk.AddTransition(idle); atkEx.hasExitTime = true; atkEx.exitTime = 0.9f; atkEx.duration = 0.1f;
 
+        // 공격 2종(선택) — AttackAlt bool 로 A/B(왼손/오른손) 라우팅. AI 가 매 공격 랜덤으로 세팅.
+        if (!string.IsNullOrEmpty(c.clipAttackAlt))
+        {
+            ctrl.AddParameter("AttackAlt", AnimatorControllerParameterType.Bool);
+            toAtk.AddCondition(AnimatorConditionMode.IfNot, 0f, "AttackAlt");   // Attack & !AttackAlt → A
+            var atkB = sm.AddState("AttackB"); atkB.motion = Clip(c, c.clipAttackAlt); atkB.speed = c.attackSpeedMul;
+            var toAtkB = sm.AddAnyStateTransition(atkB); toAtkB.hasExitTime = false; toAtkB.duration = 0.05f; toAtkB.canTransitionToSelf = false;
+            toAtkB.AddCondition(AnimatorConditionMode.If, 0f, "Attack");
+            toAtkB.AddCondition(AnimatorConditionMode.If, 0f, "AttackAlt");     // Attack & AttackAlt → B
+            var atkBEx = atkB.AddTransition(idle); atkBEx.hasExitTime = true; atkBEx.exitTime = 0.9f; atkBEx.duration = 0.1f;
+        }
+
         var roar = sm.AddState("Detect"); roar.motion = Clip(c, c.clipRoar); roar.speed = c.roarSpeedMul;
         var toRoar = sm.AddAnyStateTransition(roar); toRoar.hasExitTime = false; toRoar.duration = 0.05f; toRoar.canTransitionToSelf = false;
         toRoar.AddCondition(AnimatorConditionMode.If, 0f, "Detect");
-        var roarEx = roar.AddTransition(idle); roarEx.hasExitTime = true; roarEx.exitTime = 0.95f; roarEx.duration = 0.15f;
+        if (!string.IsNullOrEmpty(c.clipRoar2))
+        {
+            // 2단계 포효(예: IdleToRubble→RubbleToIdle = 무너졌다 재조립). Detect→Detect2→Idle 로 이어 붙여
+            //   시작/끝 포즈(서 있음)가 매끄럽게 연결되게 한다. detectStunDuration 은 두 클립 합(아래 BuildData).
+            var roar2 = sm.AddState("Detect2"); roar2.motion = Clip(c, c.clipRoar2); roar2.speed = c.roarSpeedMul;
+            var toRoar2 = roar.AddTransition(roar2); toRoar2.hasExitTime = true; toRoar2.exitTime = 0.9f; toRoar2.duration = 0.1f;
+            var roar2Ex = roar2.AddTransition(idle); roar2Ex.hasExitTime = true; roar2Ex.exitTime = 0.9f; roar2Ex.duration = 0.15f;
+        }
+        else
+        {
+            var roarEx = roar.AddTransition(idle); roarEx.hasExitTime = true; roarEx.exitTime = 0.95f; roarEx.duration = 0.15f;
+        }
 
         var hit = sm.AddState("Hit"); hit.motion = Clip(c, c.clipHit);
         var toHit = sm.AddAnyStateTransition(hit); toHit.hasExitTime = false; toHit.duration = 0.05f; toHit.canTransitionToSelf = false;
         toHit.AddCondition(AnimatorConditionMode.If, 0f, "Hit");
+        toHit.AddCondition(AnimatorConditionMode.If, 0f, "Stagger");   // ★Hit && Stagger → 확률로만 경직(AI가 Stagger 세팅)
         var hitEx = hit.AddTransition(idle); hitEx.hasExitTime = true; hitEx.exitTime = 0.8f; hitEx.duration = 0.1f;
 
         sm.AddState("Die").motion = Clip(c, c.clipDeath);
@@ -183,13 +259,24 @@ public static class FieldMonsterBuilder
         so.attackDamage = c.attackDamage; so.attackRange = c.attackRange; so.attackApproachRatio = c.attackApproachRatio;
         so.attackCooldown = c.attackCooldown; so.targetLostMemory = 1.5f;
 
-        so.detectStunDuration = ClipLength(c, c.clipRoar, 1.2f) / Mathf.Max(0.01f, c.roarSpeedMul);
+        float roarLen = ClipLength(c, c.clipRoar, 1.2f);
+        if (!string.IsNullOrEmpty(c.clipRoar2)) roarLen += ClipLength(c, c.clipRoar2, 1.0f);   // 2단계면 합산
+        so.detectStunDuration = roarLen / Mathf.Max(0.01f, c.roarSpeedMul);
         float atkLen = ClipLength(c, c.clipAttack, 1.2f) / Mathf.Max(0.01f, c.attackSpeedMul);
         so.animLength = atkLen; so.hitDelay = atkLen * c.hitDelayRatio;
         so.deathAnimDuration = ClipLength(c, c.clipDeath, 1.5f);
 
         so.telegraphVFX = AssetDatabase.LoadAssetAtPath<GameObject>(c.telegraphVfx);
         so.telegraphSound = null; so.telegraphLifeTime = so.hitDelay + 0.15f; so.attackSpeedMul = c.attackSpeedMul;
+        so.staggerChance = c.staggerChance;
+        so.startDormant = !string.IsNullOrEmpty(c.dormantClip);
+        so.sleepAfterIdle = c.sleepAfterIdle;
+        so.sleepAnimDuration = string.IsNullOrEmpty(c.crumbleClip)
+            ? 0f : ClipLength(c, c.crumbleClip, 1.2f) / Mathf.Max(0.01f, c.roarSpeedMul);
+        so.meleeImpactVFX = LoadIf<GameObject>(c.meleeImpactVfx);
+        so.meleeImpactOffset = c.meleeImpactOffset;
+        so.meleeImpactScale = c.meleeImpactScale;
+        so.meleeImpactLifeTime = c.meleeImpactLifeTime;
         so.telegraphLocalOffset = c.telegraphOffset;
         so.telegraphScale = c.telegraphScale;
         so.telegraphGrow = c.telegraphGrow; so.telegraphGrowFrom = c.telegraphGrowFrom;
@@ -311,9 +398,20 @@ public static class FieldMonsterBuilder
     }
 
     // ── helpers ────────────────────────────────────────────────────
-    static AnimationClip SrcClip(FieldMonsterBuildConfig c, string fbxName)
+    static AnimationClip SrcClip(FieldMonsterBuildConfig c, string clipName)
     {
-        string p = $"{c.SrcAnim}/{fbxName}.fbx";
+        // 단일 FBX 방식: 모든 클립이 한 FBX 안의 서브클립 → 이름으로 골라낸다.
+        if (!string.IsNullOrEmpty(c.singleAnimFbx))
+        {
+            var reps = AssetDatabase.LoadAllAssetRepresentationsAtPath(c.SingleFbxPath)
+                                    .OfType<AnimationClip>().ToList();
+            var m = reps.FirstOrDefault(x => x.name == clipName)
+                 ?? reps.FirstOrDefault(x => x.name.Equals(clipName, System.StringComparison.OrdinalIgnoreCase));
+            if (m == null) Debug.LogWarning($"[{c.enemyName}] 서브클립 없음: '{clipName}' in {c.SingleFbxPath}");
+            return m;
+        }
+        // 개별 FBX 방식(기존): 클립마다 <name>.fbx.
+        string p = $"{c.SrcAnim}/{clipName}.fbx";
         var clip = AssetDatabase.LoadAllAssetRepresentationsAtPath(p).OfType<AnimationClip>()
                                 .FirstOrDefault(x => !x.name.StartsWith("__preview"));
         if (clip == null) Debug.LogWarning($"[{c.enemyName}] 원본 클립 없음: {p}");
@@ -378,11 +476,14 @@ public class FieldMonsterBuildConfig
     // ── 경로(원본) ──
     public string srcRoot;           // "Assets/00.창동에셋/몬스터/거미S3"
     public string modelPrefabName;   // "거미S3_Skin1.prefab"
-    public string skinMatName;       // "M_Spider_S3_Skin1.mat"
-    public string skinTexPath;       // 알베도 텍스처 전체 경로
+    public string skinMatName;       // "M_Spider_S3_Skin1.mat" (Materials/ 하위. skinMatPathOverride 있으면 무시)
+    public string skinMatPathOverride; // 지정 시 Materials/ 대신 이 전체 경로 머티리얼 사용(예: Skins/RockMonster Default.mat)
+    public string skinTexPath;       // 알베도 텍스처 전체 경로(이미 채워진 머티리얼이면 무시됨)
+    public string singleAnimFbx;     // 지정 시 모든 클립이 이 FBX 하나의 서브클립(이름으로 찾음). 비우면 클립마다 개별 FBX.
     public string SrcAnim     => srcRoot + "/Animations";
     public string ModelPrefab => srcRoot + "/Prefabs/" + modelPrefabName;
-    public string SkinMat     => srcRoot + "/Materials/" + skinMatName;
+    public string SkinMat     => !string.IsNullOrEmpty(skinMatPathOverride) ? skinMatPathOverride : srcRoot + "/Materials/" + skinMatName;
+    public string SingleFbxPath => SrcAnim + "/" + singleAnimFbx + ".fbx";
 
     // ── 경로(생성물) ──
     public string ctrlFolder = "Assets/04.Animations/AnimationController/Enemy";  // 컨트롤러 위치(프로젝트 관례)
@@ -395,8 +496,14 @@ public class FieldMonsterBuildConfig
     // ── 클립(파일명, srcRoot/Animations/<name>.fbx) — @/_ 접두사 섞여도 되니 전체 이름으로 ──
     public string clipIdle, clipFront, clipBack, clipLeft, clipRight;
     public string clipAttack, clipRoar, clipHit, clipDeath;
-    /// <summary>루프가 필요한 로코 클립(원본 임포트 루프 ON 대상). 기본=idle/front/back/left/right.</summary>
-    public string[] LoopClips() => new[] { clipIdle, clipFront, clipBack, clipLeft, clipRight };
+    public string clipAttackAlt;   // 선택: 공격 2번째 클립(지정 시 매 공격 A/B 랜덤). 예: 왼손/오른손 강타.
+    public string clipRoar2;   // 선택: 포효 2단계 클립(지정 시 Detect→Detect2→Idle). 예: 무너짐→재조립.
+    public string dormantClip; // 선택: 휴면 포즈(지정 시 이게 '기본 상태'. 발견(Detect) 전까지 제자리 유지). 예: RubblePose.
+    public string crumbleClip; // 선택: 휴면 복귀(붕괴) 클립(지정 시 Sleep 트리거→Crumble→Dormant). 예: IdleToRubble.
+    /// <summary>루프가 필요한 클립(원본 임포트 루프 ON 대상). 로코 + (있으면)휴면 포즈.</summary>
+    public string[] LoopClips() => string.IsNullOrEmpty(dormantClip)
+        ? new[] { clipIdle, clipFront, clipBack, clipLeft, clipRight }
+        : new[] { clipIdle, clipFront, clipBack, clipLeft, clipRight, dormantClip };
 
     // ── 정체 ──
     public string enemyName, enemyId, sourceId;
@@ -409,12 +516,18 @@ public class FieldMonsterBuildConfig
 
     // ── 전조/패턴(기본 = 거미S3형) ──
     public float attackSpeedMul = 0.75f, roarSpeedMul = 0.6f, hitDelayRatio = 0.5f, attackCooldown = 0.2f;
+    public float staggerChance = 1f;   // 피격 경직 확률(0~1). 1=매번(기존). 무거운 몹일수록 낮게.
+    // 근접 타격 VFX(슬램/클랩). 비우면 없음.
+    public string meleeImpactVfx;
+    public UnityEngine.Vector3 meleeImpactOffset = new UnityEngine.Vector3(0f, 0f, 1.5f);
+    public float meleeImpactScale = 1f, meleeImpactLifeTime = 3f;
     public CombatStepKind openingStep = CombatStepKind.None; public float openingStepSec = 0f;
     public float postAttackPause = 0.5f;
     public CombatStepKind afterStep = CombatStepKind.Retreat;
     public float afterStepMin = 0.8f, afterStepMax = 3.2f, retreatDiag = 45f;
     public float stepSpeedMul = 0.5f, strafeSpeedMul = 0.5f, strafeAnimMul = 1f, walkAnimRefSpeed = 2.5f, locoDirDamp = 0.12f;
     public bool wander = true; public float wanderRadius = 6f;
+    public float sleepAfterIdle = 0f;   // 휴면형: 각성 후 이 시간(초) 이상 타깃 없으면 붕괴→휴면. 0=복귀 안 함.
 
     // ── 원거리 공격(발사체) — ranged=true 일 때만 사용 ──
     public bool ranged = false;

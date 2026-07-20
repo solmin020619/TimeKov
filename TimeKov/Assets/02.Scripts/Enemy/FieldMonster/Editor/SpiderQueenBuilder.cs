@@ -38,9 +38,9 @@ public static class SpiderQueenBuilder
         prefabPath: OutPre + "/Enemy_SpiderQueen_Desert.prefab",
         projCount: 2, projInterval: 0.4f);                       // ★2발 연달아(팡...팡)
 
-    public static void BuildNature() => Make( // 자연 = 근접(거미S3 방식). 초록 수렴 전조 + 근접 공격.
+    public static void BuildNature() => Make( // 자연 = 근접(거미S3 방식). 근접 공격.
         skin: "5", teleScale: 1f, projScale: 1f,
-        tele: Charge + "/Charge/Charge_04.prefab",               // ★초록 에너지 수렴 차징(엔드필드식 모이면서→번쩍). grow off라 네이티브 수렴.
+        tele: "",                                                // ★전조 임시 제외(나중에 일괄). 복구 시 원본: Charge + "/Charge/Charge_04.prefab"
         muzzle: "", proj: "", impact: "",                        // 근접이라 발사체 계열 없음
         soPath: OutSO + "/FieldData_SpiderQueen_Nature.asset",
         prefabPath: OutPre + "/Enemy_SpiderQueen_Nature.prefab",
@@ -96,6 +96,7 @@ public static class SpiderQueenBuilder
             attackRange = atkRange, attackApproachRatio = approachRatio,
             visionRange = 22f, visionAngle = 320f,
             walkAnimRefSpeed = 2.0f,
+            staggerChance = 0.3f,   // 엘리트 — 가끔만 경직(패턴 위주)
 
             // 원거리(공통 수치) + VFX(테마별). ranged=false 면 근접(발사체 무시).
             ranged = ranged,

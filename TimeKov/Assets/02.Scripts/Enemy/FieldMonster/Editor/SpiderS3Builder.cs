@@ -32,9 +32,14 @@ public static class SpiderS3Builder
             // 정체
             enemyName = "거미", enemyId = "spider_s3", sourceId = "MeleeBot_SpiderS3",
 
+            // 전조 임시 제외(나중에 일괄 작업). 기본값 Charge_01 이 붙지 않게 명시적으로 "".
+            //   ※복구: 이 줄을 지우면 기본 전조(Charge_01)가 다시 붙음.
+            telegraphVfx = "",
+
             // 스탯(기민·저체력) — 대부분 기본값과 동일
             maxHP = 55f, moveSpeed = 5f, attackDamage = 12f, attackRange = 2.5f,
             visionRange = 18f, visionAngle = 300f,
+            staggerChance = 0.45f,   // 가벼운 몹 — 자주(그래도 매번은 아님) 경직
 
             // 사운드(있는 것만)
             spawnVfx  = "Assets/18.외부에셋/Eric VFX Studio/몬스터스폰VFX/Prefabs/FX_MagicCircle_Icearrow01.prefab",

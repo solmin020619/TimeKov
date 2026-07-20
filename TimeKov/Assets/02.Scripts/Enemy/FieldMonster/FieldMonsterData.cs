@@ -62,6 +62,39 @@ public class FieldMonsterData : MeleeEnemyData
     [Tooltip("공격 애니 재생 속도 배율. 1보다 작으면 모션이 느려져 전조가 잘 읽힌다.")]
     [Range(0.3f, 1.5f)] public float attackSpeedMul = 0.85f;
 
+    [Tooltip("피격 시 경직(Hit 애니)이 나올 확률(0~1). 1=매 피격마다 경직(기존), 0=경직 없음(하이퍼아머). " +
+             "낮출수록 피격에 공격/패턴이 덜 끊긴다. 무겁고 단단한 몹일수록 낮게. " +
+             "※AnyState→Hit 전이가 Hit && Stagger 를 요구하고, 피격 순간 AI가 이 확률로 Stagger 를 켠다.")]
+    [Range(0f, 1f)] public float staggerChance = 1f;
+
+    // ── 휴면/기상 (선택: 바위 골렘처럼 웅크렸다 깨어남) ──────────────
+    [Header("── 휴면/기상 (선택) ──")]
+    [Tooltip("켜면 시작이 휴면: 발견 전 제자리 대기, '첫 발견'에만 기상(Detect) 연출. " +
+             "재조우(이미 각성) 시엔 기상 연출 생략하고 바로 전투. 빌더가 휴면 클립 지정 시 자동 ON.")]
+    public bool startDormant = false;
+
+    [Tooltip("각성 상태에서 타깃을 이 시간(초) 이상 못 보면 붕괴(Sleep)해 휴면으로 복귀. 0=복귀 안 함. " +
+             "그 전까지는 배회하며 재조우를 기다린다.")]
+    public float sleepAfterIdle = 0f;
+
+    [Tooltip("붕괴(휴면 복귀) 애니 길이(초). 빌더가 crumble 클립에서 자동 계산.")]
+    public float sleepAnimDuration = 1f;
+
+    // ── 근접 타격 VFX ──────────────────────────────────────────────
+    // 근접 공격 접점(hitDelay)에 스폰. 명중 여부와 무관하게 항상 재생(헛쳐도 슬램 이펙트는 난다) = 묵직함.
+    [Header("── 근접 타격 VFX ──")]
+    [Tooltip("근접 타격 순간 스폰하는 VFX(슬램/클랩 먼지 등). 월드에 남고 자동 소멸. 비면 없음.")]
+    public GameObject meleeImpactVFX;
+
+    [Tooltip("근접 타격 VFX 스폰 위치(몸 기준: x=오른쪽, y=위, z=앞). 손이 맞부딪는/내려찍는 지점에 맞춘다.")]
+    public Vector3 meleeImpactOffset = new Vector3(0f, 0f, 1.5f);
+
+    [Tooltip("근접 타격 VFX 크기 배율(1=원본). 묵직하게 키우려면 올린다.")]
+    public float meleeImpactScale = 1f;
+
+    [Tooltip("근접 타격 VFX 자동 삭제까지 시간(초).")]
+    public float meleeImpactLifeTime = 3f;
+
     // ── 원거리 공격 (얼음/마법 발사체) ─────────────────────────────
     // ranged=true 면 hitDelay 시점에 근접 타격 대신 발사체(FieldMonsterProjectile)를 쏜다.
     // 발사체는 발사 순간 플레이어 위치를 향해 날아가고(회피 가능), 스치면 피격 판정을 준다.
