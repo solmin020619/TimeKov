@@ -237,13 +237,13 @@ public static class PrologueRadioUIBuilder
             "Assets/06.ScriptableObjects/Quest/Quests/Prologue/quest_prolog_reach.asset",
             "Assets/06.ScriptableObjects/Quest/Quests/Prologue/quest_prolog_emergency.asset",
         };
-        int[]    triggers = { 0, 1, 0, 0 };
+        int[]    triggers = { 0, 1, 1, 0 };
         string[] speakers = { "본부 관제", "본부 관제", "본부 관제", "본부 관제" };
         string[] messages = {
             "신호 잡혔어요. 살아있군요—다행이에요. 에너지장 간섭에 항법이 나간 거예요. 지금 상태 점검부터 해주세요.",
             "확인됐어요. 기지 그리드 안에 내려앉았으니 아직 기회 있어요. 조종석으로 가세요, 빨리요.",
             "비상 장치는 조종석 중앙 콘솔이에요. 이전 탐사 기록 확인했어요. 코어 아끼면서 빨리 움직이세요.",
-            "붉은 덮개 아래예요. 켜지면 충격 큽니다. 준비됐으면 바로 누르세요.",
+            "빨간 덮개 아래예요. 켜지면 충격 큽니다. 준비됐으면 바로 누르세요.",
         };
 
         for (int i = 0; i < 4; i++)
