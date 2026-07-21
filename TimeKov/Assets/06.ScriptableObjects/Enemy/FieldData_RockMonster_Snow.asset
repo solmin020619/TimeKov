@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02537cf28553a6646b59dc3c166b14da, type: 3}
+  m_Name: FieldData_RockMonster_Snow
+  m_EditorClassIdentifier: 
+  enemyName: "\uB85D\uBAAC\uC2A4\uD130"
+  enemyId: rock_monster
+  maxHP: 180
+  moveSpeed: 2.2
+  acceleration: 12
+  angularSpeed: 130
+  stoppingDistance: 0
+  visionRange: 16
+  visionAngle: 260
+  attackDamage: 30
+  attackRange: 2.8
+  attackApproachRatio: 0.85
+  attackCooldown: 0.6
+  hitDelay: 1.1111122
+  animLength: 2.2222245
+  attackTrigger: Attack
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 1.5
+  deathAnimDuration: 5.666664
+  detectStunDuration: 4.900009
+  spawnVFX: {fileID: 0}
+  spawnSound: {fileID: 0}
+  detectVFX: {fileID: 0}
+  detectSound: {fileID: 0}
+  hitVFX: {fileID: 0}
+  hitSound: {fileID: 0}
+  attackVFX: {fileID: 0}
+  attackSound: {fileID: 8300000, guid: bb14e9e6e1841433e913483a14788dd1, type: 3}
+  deathVFX: {fileID: 0}
+  deathSound: {fileID: 8300000, guid: bca9f7309b03e4964b113a08f280dc28, type: 3}
+  telegraphVFX: {fileID: 0}
+  telegraphSound: {fileID: 0}
+  telegraphLifeTime: 1.2611122
+  telegraphLocalOffset: {x: 0, y: 0, z: 0}
+  telegraphScale: 1
+  telegraphStripObjects: []
+  telegraphSyncToHit: 0
+  telegraphGrow: 0
+  telegraphGrowFrom: 0.15
+  attackSpeedMul: 0.9
+  staggerChance: 0.15
+  startDormant: 1
+  sleepAfterIdle: 12
+  sleepAnimDuration: 5
+  meleeImpactVFX: {fileID: 198022, guid: 738c7797f6089494e96ae306646aaa11, type: 3}
+  meleeImpactOffset: {x: 0.7, y: 0.2, z: 1.4}
+  meleeImpactScale: 6
+  meleeImpactLifeTime: 3
+  ranged: 0
+  projectileVFX: {fileID: 0}
+  muzzleVFX: {fileID: 0}
+  impactVFX: {fileID: 0}
+  projectileSpeed: 14
+  projectileHitRadius: 0.6
+  projectileScale: 1
+  projectileCount: 1
+  projectileInterval: 0.15
+  projectileLifeTime: 4
+  projectileHomingDeg: 0
+  projectileHomingDuration: 0
+  projectileBlockMask:
+    serializedVersion: 2
+    m_Bits: 3694721
+  projectileSpawnHeight: 1.2
+  projectileAimHeight: 1
+  openingStep: 0
+  openingStepDuration: 0
+  postAttackPause: 0.9
+  afterAttackStep: 6
+  afterAttackStepDurationRange: {x: 0.5, y: 1.4}
+  retreatDiagonalMaxAngle: 0
+  stepSpeedMul: 0.6
+  strafeSpeedMul: 0.5
+  strafeAnimSpeedMul: 1
+  walkAnimRefSpeed: 2.2
+  walkAnimSpeedClamp: {x: 0.4, y: 2.5}
+  locoDirDamp: 0.12
+  wander: 1
+  wanderRadius: 7
+  wanderPauseRange: {x: 1.5, y: 4}
+  wanderSpeedMul: 0.4
