@@ -32,7 +32,7 @@ public class PrologueRadioUI : MonoBehaviour
     [SerializeField] Image       _signalBar3;
 
     [Header("타이프라이터")]
-    [SerializeField] float _typewriterSpeed = 28f;
+    [SerializeField] float _typewriterSpeed = 13f;
 
     [Header("애니메이션")]
     [SerializeField] float _slideInDuration  = 0.30f;

@@ -28,15 +28,19 @@ public static class PrologueRadioUIBuilder
     const float HeaderH  = 22f;
     const float IconSz   = 18f;
     const float WaveH    = 16f;
+    const float PadVLine = 35f;   // BtnLine 위아래 패딩 (Message 하단과 동일)
 
     // 오른쪽에서 각 요소 경계 (패널 우측 기준)
-    // |  텍스트  | BtnLine | ▶ | VDiv | 초상화+파형 |
-    //            ↑         ↑   ↑
-    //         BtnLineX   BtnX  PortX
-    const float PortX    = PortColW;            // 초상화 컬럼 왼쪽 경계
-    const float VDivX    = PortColW + 1f;       // 세로 구분선
-    const float BtnRX    = PortColW + 1f + NextW;       // ▶ 버튼 오른쪽 경계
-    const float BtnLineX = PortColW + 1f + NextW + 1f;  // 텍스트/버튼 구분선
+    // |  텍스트  | gap | BtnLine | gap | ▶ | VDiv | 초상화+파형 |
+    //            ↑             ↑            ↑   ↑
+    //         TextRX       BtnLine        BtnRX  VDivX
+    const float GapW       = 10f;                            // BtnLine 양측 여백
+    const float PortX      = PortColW;                        // 초상화 컬럼 왼쪽 경계
+    const float VDivX      = PortColW + 1f;                   // 세로 구분선
+    const float BtnRX      = PortColW + 1f + NextW;           // ▶ 버튼 왼쪽 경계 = 239
+    const float BtnLineLX  = BtnRX + GapW + 1f;              // BtnLine 왼쪽 경계 (우측 기준) = 250
+    const float BtnLineRX  = BtnRX + GapW;                   // BtnLine 오른쪽 경계 (우측 기준) = 249
+    const float TextRX     = BtnRX + 2f * GapW + 1f;         // 텍스트 영역 오른쪽 경계 = 260
 
     [MenuItem("Tools/UI/Build Prologue Radio UI")]
     static void Build()
@@ -107,7 +111,7 @@ public static class PrologueRadioUIBuilder
         tbRt.anchorMin = Vector2.zero;
         tbRt.anchorMax = Vector2.one;
         tbRt.offsetMin = Vector2.zero;
-        tbRt.offsetMax = new Vector2(-(BtnLineX), 0f);
+        tbRt.offsetMax = new Vector2(-TextRX, 0f);
         var tbImg = textBg.AddComponent<Image>();
         if (blurMat != null)
         {
@@ -143,7 +147,7 @@ public static class PrologueRadioUIBuilder
         portImg.sprite         = portSprite;
         portImg.preserveAspect = true;
 
-        // 파형 바 (주파수 텍스트 없음)
+        // 파형 바
         float waveTop = PadV + PortSz + 5f;
         var waveGo = Child(portCol, "WaveformBars");
         var wRt = waveGo.GetComponent<RectTransform>();
@@ -153,12 +157,9 @@ public static class PrologueRadioUIBuilder
         wRt.anchoredPosition = new Vector2(0f, -waveTop);
         wRt.sizeDelta        = new Vector2(0f, WaveH);
         var wb = waveGo.AddComponent<WaveformBars>();
-        wb.barCount      = 14;
-        wb.barWidth      = 3f;
-        wb.gap           = 3f;
-        wb.minHeight     = 3f;
-        wb.maxHeight     = WaveH;
-        wb.barColor      = new Color(1.00f, 1.00f, 1.00f, 0.70f);
+        wb.barCount  = 14; wb.barWidth = 3f; wb.gap = 3f;
+        wb.minHeight = 3f; wb.maxHeight = WaveH;
+        wb.barColor  = new Color(1f, 1f, 1f, 0.70f);
 
         // ── 텍스트 영역 (왼쪽) ───────────────────────────────────────
         float divY = PadV + HeaderH + 4f;
@@ -168,7 +169,7 @@ public static class PrologueRadioUIBuilder
         hdRt.anchorMin = new Vector2(0f, 1f);
         hdRt.anchorMax = new Vector2(1f, 1f);
         hdRt.offsetMin = new Vector2(PadL, -(PadV + HeaderH));
-        hdRt.offsetMax = new Vector2(-BtnLineX, -PadV);
+        hdRt.offsetMax = new Vector2(-TextRX, -PadV);
 
         var iconGo = Child(header, "Icon");
         var icRt   = iconGo.GetComponent<RectTransform>();
@@ -200,15 +201,15 @@ public static class PrologueRadioUIBuilder
         hdvRt.anchorMin = new Vector2(0f, 1f);
         hdvRt.anchorMax = new Vector2(1f, 1f);
         hdvRt.offsetMin = new Vector2(PadL,         -(divY + 1f));
-        hdvRt.offsetMax = new Vector2(-BtnLineX,    -divY);
+        hdvRt.offsetMax = new Vector2(-TextRX,       -divY);
         hDiv.AddComponent<Image>().color = DivCol;
 
         var msgGo = Child(panel, "Message");
         var msgRt = msgGo.GetComponent<RectTransform>();
         msgRt.anchorMin = Vector2.zero;
         msgRt.anchorMax = new Vector2(1f, 1f);
-        msgRt.offsetMin = new Vector2(PadL, 14f);
-        msgRt.offsetMax = new Vector2(-BtnLineX, -(divY + 5f));
+        msgRt.offsetMin = new Vector2(PadL, 35f);  // BtnLine 하단 패딩과 맞춤
+        msgRt.offsetMax = new Vector2(-TextRX, -(divY + 5f));
         var msgTmp = msgGo.AddComponent<TextMeshProUGUI>();
         msgTmp.text               = "";
         msgTmp.fontSize           = 18f;
@@ -245,8 +246,8 @@ public static class PrologueRadioUIBuilder
         var blRt  = bLine.GetComponent<RectTransform>();
         blRt.anchorMin = new Vector2(1f, 0f);
         blRt.anchorMax = new Vector2(1f, 1f);
-        blRt.offsetMin = new Vector2(-188f,  35f);
-        blRt.offsetMax = new Vector2(-187f, -35f);
+        blRt.offsetMin = new Vector2(-BtnLineLX, 35f);
+        blRt.offsetMax = new Vector2(-BtnLineRX, -35f);
         bLine.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.18f);
 
         // ── PrologueRadioUI 연결 ─────────────────────────────────────
