@@ -95,6 +95,28 @@ public class FieldMonsterData : MeleeEnemyData
     [Tooltip("근접 타격 VFX 자동 삭제까지 시간(초).")]
     public float meleeImpactLifeTime = 3f;
 
+    // ── 돌진 공격 (앞으로 달려들어 접촉 피해) ──────────────────────
+    // chargeAttack=true 면 제자리 타격 대신 '준비 → 돌진(전진 이동) → 마무리' 3단으로 공격한다.
+    //   방향은 돌진 시작 순간의 플레이어 쪽으로 커밋(직진 = 옆으로 피하면 회피 가능).
+    [Header("── 돌진 공격 (선택) ──")]
+    [Tooltip("켜면 근접 타격 대신 돌진: 앞으로 달려들며 접촉하면 피해. 애니는 ChargeStart→Loop→End 3단.")]
+    public bool chargeAttack = false;
+
+    [Tooltip("돌진 전 준비(웅크림) 시간(초). 이 동안 방향이 커밋되고 ChargeStart 가 재생된다. 빌더가 시작 클립 길이로 자동 세팅.")]
+    public float chargeWindup = 0.5f;
+
+    [Tooltip("돌진 이동 속도(m/s). 빠를수록 피하기 어렵다.")]
+    public float chargeSpeed = 9f;
+
+    [Tooltip("돌진 지속 시간(초). 이 시간 동안 전진한다(속도×시간 ≈ 돌진 거리).")]
+    public float chargeDuration = 0.7f;
+
+    [Tooltip("돌진 중 접촉 판정 반경(m). 이 안에 플레이어가 들어오면 1회 명중.")]
+    public float chargeHitRadius = 1.3f;
+
+    [Tooltip("돌진 종료(ChargeEnd) 모션 시간(초). 빌더가 종료 클립 길이로 자동 세팅.")]
+    public float chargeEndDuration = 0.5f;
+
     // ── 원거리 공격 (얼음/마법 발사체) ─────────────────────────────
     // ranged=true 면 hitDelay 시점에 근접 타격 대신 발사체(FieldMonsterProjectile)를 쏜다.
     // 발사체는 발사 순간 플레이어 위치를 향해 날아가고(회피 가능), 스치면 피격 판정을 준다.

@@ -48,6 +48,8 @@ public class FieldMonsterAI : MonoBehaviour
     [SerializeField] private string sleepTrigger = "Sleep";
     [Tooltip("공격 변형 선택 bool(2종 클립 랜덤: false=기본/A, true=변형/B). 컨트롤러에 있으면 매 공격 랜덤.")]
     [SerializeField] private string attackAltParam = "AttackAlt";
+    [Tooltip("돌진 종료 트리거. ChargeLoop→ChargeEnd. 돌진 공격만 사용.")]
+    [SerializeField] private string chargeEndTrigger = "ChargeEnd";
 
     [Header("Rotation")]
     [Tooltip("이 속도 이상으로 움직이면 진행 방향을 봄. 그보다 느리면 타깃을 봄.")]
@@ -59,8 +61,8 @@ public class FieldMonsterAI : MonoBehaviour
     private Transform playerTf;
     private PlayerStatComponent playerStat;
 
-    private int speedHash, strafeHash, moveDirHash, speedMulHash, staggerHash, sleepHash, attackAltHash;
-    private bool hasStrafeParam, hasMoveDirParam, hasSpeedMulParam, hasStaggerParam, hasSleepParam, hasAttackAltParam;
+    private int speedHash, strafeHash, moveDirHash, speedMulHash, staggerHash, sleepHash, attackAltHash, chargeEndHash;
+    private bool hasStrafeParam, hasMoveDirParam, hasSpeedMulParam, hasStaggerParam, hasSleepParam, hasAttackAltParam, hasChargeEndParam;
     private bool attackAlt;   // 이번 공격이 변형(B/반대손)인지 — 근접 타격 VFX 좌우 미러링에 사용
 
     // 스텝(옆/뒤걸음)은 NavMeshAgent.Move() 로 직접 미는데, Move() 는 agent.velocity 를 갱신하지 않는다.
@@ -113,6 +115,7 @@ public class FieldMonsterAI : MonoBehaviour
         staggerHash = Animator.StringToHash(staggerParam);
         sleepHash = Animator.StringToHash(sleepTrigger);
         attackAltHash = Animator.StringToHash(attackAltParam);
+        chargeEndHash = Animator.StringToHash(chargeEndTrigger);
         if (animator != null)
         {
             animator.applyRootMotion = false;   // 위치 권위는 NavMeshAgent(SO moveSpeed)
@@ -120,6 +123,7 @@ public class FieldMonsterAI : MonoBehaviour
             foreach (var p in animator.parameters)
             {
                 if (p.nameHash == sleepHash) { hasSleepParam = true; continue; }   // Sleep 트리거
+                if (p.nameHash == chargeEndHash) { hasChargeEndParam = true; continue; }   // ChargeEnd 트리거
                 if (p.type == AnimatorControllerParameterType.Bool && p.nameHash == attackAltHash) { hasAttackAltParam = true; continue; }
                 if (p.type == AnimatorControllerParameterType.Bool && p.nameHash == staggerHash) { hasStaggerParam = true; continue; }
                 if (p.type != AnimatorControllerParameterType.Float) continue;
@@ -455,6 +459,14 @@ public class FieldMonsterAI : MonoBehaviour
         faceTarget = false;
         freezeFacing = true;                   // ★공격 동안 시선 고정(안 따라감)
 
+        // 돌진 공격 — 제자리 타격 대신 커밋 방향으로 달려들어 접촉 피해. 전조/스윙 로직 미사용.
+        if (data.chargeAttack)
+        {
+            yield return ChargeRoutine();
+            freezeFacing = false;
+            yield break;
+        }
+
         PlayTelegraph();                       // ★ 전조 먼저 재생(원속도). pendingSyncDuration = 전조 총길이.
 
         // 싱크 = 전조를 스윙보다 '먼저' 띄워 리드타임을 준다(배속·애니지연 X, 전부 원속도).
@@ -496,6 +508,72 @@ public class FieldMonsterAI : MonoBehaviour
         }
 
         freezeFacing = false;
+    }
+
+    /// <summary>돌진 공격 — 준비(웅크림, 플레이어 조준) → 돌진 시작에 방향 커밋 → 전진(접촉 피해 1회) → 마무리.
+    /// 준비 동안 플레이어를 조준하고 '돌진 시작 순간'의 방향으로 직진 → 돌진 중 옆으로 피하면 회피 가능.</summary>
+    private IEnumerator ChargeRoutine()
+    {
+        feedback?.PlayAttack();
+        if (animator != null && !string.IsNullOrEmpty(attackTrigger))
+            animator.SetTrigger(attackTrigger);      // ChargeStart(준비)
+
+        // 준비(웅크림) — 이 동안 플레이어를 향해 조준한다(freezeFacing 이라 직접 회전).
+        float w = 0f;
+        while (w < data.chargeWindup && !dead)
+        {
+            var pt = Target;
+            if (pt != null)
+            {
+                Vector3 d = pt.position - transform.position; d.y = 0f;
+                if (d.sqrMagnitude > 0.0001f)
+                    transform.rotation = Quaternion.RotateTowards(
+                        transform.rotation, Quaternion.LookRotation(d), data.angularSpeed * Time.deltaTime);
+            }
+            w += Time.deltaTime;
+            yield return null;
+        }
+        if (dead) yield break;
+
+        // 돌진 방향 커밋 — 준비가 끝난 '지금'의 플레이어 방향으로. 이후 직진(옆으로 피하면 회피).
+        Vector3 dir = transform.forward; dir.y = 0f;
+        var t0 = Target;
+        if (t0 != null)
+        {
+            Vector3 d = t0.position - transform.position; d.y = 0f;
+            if (d.sqrMagnitude > 0.0001f) { dir = d.normalized; transform.rotation = Quaternion.LookRotation(dir); }
+        }
+        if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
+        dir.Normalize();
+
+        // 돌진 — 앞으로 전진하며 접촉 피해(1회). 데미지는 캐시된 playerStat 으로 확실히(Target GetComponent 의존 X).
+        if (nav != null && nav.enabled) { nav.isStopped = true; nav.ResetPath(); }
+        float t = 0f;
+        while (t < data.chargeDuration && !dead)
+        {
+            t += Time.deltaTime;
+            Vector3 step = dir * data.chargeSpeed * Time.deltaTime;
+            if (nav != null && nav.enabled) nav.Move(step);   // navmesh 위에서 전진
+            else                            transform.position += step;
+
+            if (playerStat != null && playerTf != null && !playerStat.IsDead && !playerStat.IsInBase)
+            {
+                Vector3 fd = playerTf.position - transform.position; fd.y = 0f;
+                if (fd.magnitude <= data.chargeHitRadius)
+                {
+                    playerStat.TakeDamage(data.attackDamage, transform.position);
+                    SpawnMeleeImpact();      // 접촉 지점에 충돌 VFX
+                    break;                   // ★히트하면 그 자리에서 돌진 종료(관통 X)
+                }
+            }
+            yield return null;
+        }
+
+        // 마무리(ChargeEnd) — 감속/정지 모션.
+        if (nav != null && nav.enabled) { nav.isStopped = true; nav.ResetPath(); }
+        if (animator != null && hasChargeEndParam) animator.SetTrigger(chargeEndTrigger);
+        float e = 0f;
+        while (e < data.chargeEndDuration && !dead) { e += Time.deltaTime; yield return null; }
     }
 
     /// <summary>공격 직후 잠깐 멈춤(경직). 그 자리에 서서 반격을 허용한다. 시선은 공격 시점 그대로 고정.</summary>

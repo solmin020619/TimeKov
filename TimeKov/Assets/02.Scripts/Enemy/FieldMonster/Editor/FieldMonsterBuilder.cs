@@ -185,6 +185,24 @@ public static class FieldMonsterBuilder
         var toIdle = loco.AddTransition(idle); toIdle.hasExitTime = false; toIdle.duration = 0.1f;
         toIdle.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
 
+        // 돌진 공격(선택) — ChargeStart(clipAttack) → ChargeLoop(loop) → ChargeEnd. AI 가 Attack 으로 시작,
+        //   돌진 시간 뒤 ChargeEnd 트리거로 마무리. 그 외 공격 상태는 만들지 않는다.
+        if (c.chargeAttack && !string.IsNullOrEmpty(c.chargeLoopClip))
+        {
+            ctrl.AddParameter("ChargeEnd", AnimatorControllerParameterType.Trigger);
+            var cs = sm.AddState("ChargeStart"); cs.motion = Clip(c, c.clipAttack); cs.speed = c.attackSpeedMul;
+            var toCs = sm.AddAnyStateTransition(cs); toCs.hasExitTime = false; toCs.duration = 0.05f; toCs.canTransitionToSelf = false;
+            toCs.AddCondition(AnimatorConditionMode.If, 0f, "Attack");
+            var cl = sm.AddState("ChargeLoop"); cl.motion = Clip(c, c.chargeLoopClip); cl.speed = c.attackSpeedMul;
+            var csToCl = cs.AddTransition(cl); csToCl.hasExitTime = true; csToCl.exitTime = 0.85f; csToCl.duration = 0.1f;
+            var ce = sm.AddState("ChargeEnd"); ce.motion = Clip(c, c.chargeEndClip); ce.speed = c.attackSpeedMul;
+            var clToCe = cl.AddTransition(ce); clToCe.hasExitTime = false; clToCe.duration = 0.1f;
+            clToCe.AddCondition(AnimatorConditionMode.If, 0f, "ChargeEnd");
+            var ceEx = ce.AddTransition(idle); ceEx.hasExitTime = true; ceEx.exitTime = 0.9f; ceEx.duration = 0.1f;
+        }
+        else
+        {
+
         var atk = sm.AddState("Attack"); atk.motion = Clip(c, c.clipAttack); atk.speed = c.attackSpeedMul;
         var toAtk = sm.AddAnyStateTransition(atk); toAtk.hasExitTime = false; toAtk.duration = 0.05f; toAtk.canTransitionToSelf = false;
         toAtk.AddCondition(AnimatorConditionMode.If, 0f, "Attack");
@@ -201,6 +219,8 @@ public static class FieldMonsterBuilder
             toAtkB.AddCondition(AnimatorConditionMode.If, 0f, "AttackAlt");     // Attack & AttackAlt → B
             var atkBEx = atkB.AddTransition(idle); atkBEx.hasExitTime = true; atkBEx.exitTime = 0.9f; atkBEx.duration = 0.1f;
         }
+
+        }   // ← 돌진(chargeAttack) 아닐 때의 일반 공격 상태 블록 끝
 
         var roar = sm.AddState("Detect"); roar.motion = Clip(c, c.clipRoar); roar.speed = c.roarSpeedMul;
         var toRoar = sm.AddAnyStateTransition(roar); toRoar.hasExitTime = false; toRoar.duration = 0.05f; toRoar.canTransitionToSelf = false;
@@ -269,6 +289,12 @@ public static class FieldMonsterBuilder
         so.telegraphVFX = AssetDatabase.LoadAssetAtPath<GameObject>(c.telegraphVfx);
         so.telegraphSound = null; so.telegraphLifeTime = so.hitDelay + 0.15f; so.attackSpeedMul = c.attackSpeedMul;
         so.staggerChance = c.staggerChance;
+        // 돌진 공격 — 준비/마무리 시간은 각 클립 길이(배속 반영)로 자동, 이동/판정은 config.
+        so.chargeAttack = c.chargeAttack;
+        so.chargeWindup = ClipLength(c, c.clipAttack, 0.5f) / Mathf.Max(0.01f, c.attackSpeedMul);
+        so.chargeEndDuration = string.IsNullOrEmpty(c.chargeEndClip)
+            ? 0.4f : ClipLength(c, c.chargeEndClip, 0.5f) / Mathf.Max(0.01f, c.attackSpeedMul);
+        so.chargeSpeed = c.chargeSpeed; so.chargeDuration = c.chargeDuration; so.chargeHitRadius = c.chargeHitRadius;
         so.startDormant = !string.IsNullOrEmpty(c.dormantClip);
         so.sleepAfterIdle = c.sleepAfterIdle;
         so.sleepAnimDuration = string.IsNullOrEmpty(c.crumbleClip)
@@ -480,10 +506,11 @@ public class FieldMonsterBuildConfig
     public string skinMatPathOverride; // 지정 시 Materials/ 대신 이 전체 경로 머티리얼 사용(예: Skins/RockMonster Default.mat)
     public string skinTexPath;       // 알베도 텍스처 전체 경로(이미 채워진 머티리얼이면 무시됨)
     public string singleAnimFbx;     // 지정 시 모든 클립이 이 FBX 하나의 서브클립(이름으로 찾음). 비우면 클립마다 개별 FBX.
+                                     // srcRoot 기준 상대 경로(서브폴더 포함, 확장자 제외). 예: "Animations/Rock Monster v2 DEMO", "Meshes/Mushroom_v2 DEMO".
     public string SrcAnim     => srcRoot + "/Animations";
     public string ModelPrefab => srcRoot + "/Prefabs/" + modelPrefabName;
     public string SkinMat     => !string.IsNullOrEmpty(skinMatPathOverride) ? skinMatPathOverride : srcRoot + "/Materials/" + skinMatName;
-    public string SingleFbxPath => SrcAnim + "/" + singleAnimFbx + ".fbx";
+    public string SingleFbxPath => srcRoot + "/" + singleAnimFbx + ".fbx";
 
     // ── 경로(생성물) ──
     public string ctrlFolder = "Assets/04.Animations/AnimationController/Enemy";  // 컨트롤러 위치(프로젝트 관례)
@@ -497,13 +524,18 @@ public class FieldMonsterBuildConfig
     public string clipIdle, clipFront, clipBack, clipLeft, clipRight;
     public string clipAttack, clipRoar, clipHit, clipDeath;
     public string clipAttackAlt;   // 선택: 공격 2번째 클립(지정 시 매 공격 A/B 랜덤). 예: 왼손/오른손 강타.
+    public string chargeLoopClip, chargeEndClip;   // 돌진: 돌진 루프/마무리 클립. clipAttack=돌진 시작. chargeAttack=true 일 때.
     public string clipRoar2;   // 선택: 포효 2단계 클립(지정 시 Detect→Detect2→Idle). 예: 무너짐→재조립.
     public string dormantClip; // 선택: 휴면 포즈(지정 시 이게 '기본 상태'. 발견(Detect) 전까지 제자리 유지). 예: RubblePose.
     public string crumbleClip; // 선택: 휴면 복귀(붕괴) 클립(지정 시 Sleep 트리거→Crumble→Dormant). 예: IdleToRubble.
-    /// <summary>루프가 필요한 클립(원본 임포트 루프 ON 대상). 로코 + (있으면)휴면 포즈.</summary>
-    public string[] LoopClips() => string.IsNullOrEmpty(dormantClip)
-        ? new[] { clipIdle, clipFront, clipBack, clipLeft, clipRight }
-        : new[] { clipIdle, clipFront, clipBack, clipLeft, clipRight, dormantClip };
+    /// <summary>루프가 필요한 클립(원본 임포트 루프 ON 대상). 로코 + (있으면)휴면 포즈 + (있으면)돌진 루프.</summary>
+    public string[] LoopClips()
+    {
+        var list = new System.Collections.Generic.List<string> { clipIdle, clipFront, clipBack, clipLeft, clipRight };
+        if (!string.IsNullOrEmpty(dormantClip))    list.Add(dormantClip);
+        if (!string.IsNullOrEmpty(chargeLoopClip)) list.Add(chargeLoopClip);   // 돌진 루프는 반복
+        return list.ToArray();
+    }
 
     // ── 정체 ──
     public string enemyName, enemyId, sourceId;
@@ -528,6 +560,10 @@ public class FieldMonsterBuildConfig
     public float stepSpeedMul = 0.5f, strafeSpeedMul = 0.5f, strafeAnimMul = 1f, walkAnimRefSpeed = 2.5f, locoDirDamp = 0.12f;
     public bool wander = true; public float wanderRadius = 6f;
     public float sleepAfterIdle = 0f;   // 휴면형: 각성 후 이 시간(초) 이상 타깃 없으면 붕괴→휴면. 0=복귀 안 함.
+
+    // ── 돌진 공격(선택) ──
+    public bool chargeAttack = false;
+    public float chargeSpeed = 9f, chargeDuration = 0.7f, chargeHitRadius = 1.3f;
 
     // ── 원거리 공격(발사체) — ranged=true 일 때만 사용 ──
     public bool ranged = false;

@@ -9,7 +9,7 @@ using UnityEngine;
 public static class RockMonsterBuilder
 {
     const string Src   = "Assets/00.창동에셋/몬스터/록몬스터";
-    const string Demo  = "Rock Monster v2 DEMO";   // 모든 클립이 든 단일 FBX
+    const string Demo  = "Animations/Rock Monster v2 DEMO";   // 모든 클립이 든 단일 FBX(srcRoot 기준 상대)
     const string OutSO  = "Assets/06.ScriptableObjects/Enemy";
     const string OutPre = "Assets/05.Prefabs/Enemy";
 
