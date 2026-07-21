@@ -24,7 +24,7 @@ public class EmergencyConsole : MonoBehaviour, IInteractable, IInteractHint
 
     public void ShowHint(bool show)
     {
-        if (_activated) return;
+        if (_activated && show) return; // 활성화 후엔 표시 요청만 무시, 숨김은 허용
         if (_hintUI != null)
         {
             if (show) ApplyLabel();

@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,13 +10,14 @@ public class VattalusDoorBridge : MonoBehaviour, IInteractable, IInteractHint
     [SerializeField] Sprite _hintIcon;
 
     VattalusDoorController _door;
-    bool _intendedOpen; // isDoorOpen()은 애니메이션 종료 후 갱신 → 의도 상태로 직접 추적
+    bool _intendedOpen;
+    bool _waitingForLeave; // 상호작용 후 범위 밖으로 나갈 때까지 힌트 숨김
 
     void Awake() => _door = GetComponent<VattalusDoorController>();
 
     void Start() => _intendedOpen = _door != null && _door.isDoorOpen();
 
-    public bool CanInteract => true;
+    public bool CanInteract => !_waitingForLeave;
 
     public void ShowHint(bool show)
     {
@@ -40,6 +42,17 @@ public class VattalusDoorBridge : MonoBehaviour, IInteractable, IInteractHint
     {
         if (_intendedOpen) { _door.CloseDoor(); _intendedOpen = false; }
         else               { _door.OpenDoor();  _intendedOpen = true;  }
-        if (_hintUI != null && _hintUI.activeSelf) ApplyLabel();
+        if (_hintUI != null) _hintUI.SetActive(false);
+        _waitingForLeave = true;
+        StartCoroutine(WaitForPlayerLeave(player.transform));
+    }
+
+    IEnumerator WaitForPlayerLeave(Transform player)
+    {
+        // PlayerInteractComponent.InteractRadius(4f)보다 조금 큰 값으로 체크
+        const float leaveRadius = 5f;
+        while (Vector3.Distance(transform.position, player.position) < leaveRadius)
+            yield return null;
+        _waitingForLeave = false;
     }
 }
