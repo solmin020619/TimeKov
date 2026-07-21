@@ -17,6 +17,10 @@ public class FieldMonsterBuilderWindow : EditorWindow
         ("록몬스터(설산)",  RockMonsterBuilder.BuildSnow),
         ("록몬스터(사막)",  RockMonsterBuilder.BuildDesert),
         ("록몬스터(용암)",  RockMonsterBuilder.BuildLava),
+        ("머쉬룸(자연)",    MushroomBuilder.BuildNature),
+        ("머쉬룸(설산)",    MushroomBuilder.BuildSnow),
+        ("머쉬룸(사막)",    MushroomBuilder.BuildDesert),
+        ("머쉬룸(용암)",    MushroomBuilder.BuildLava),
     };
 
     [MenuItem("Window/Field Monster Builder")]
