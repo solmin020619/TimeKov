@@ -68,6 +68,13 @@ public class EnemyWorldUI : MonoBehaviour
         if (targetTransform == null)
             return;
 
+        // 땅속에 숨은 동안은 통째로 감춘다(위치 갱신도 필요 없다).
+        if (_forceHidden)
+        {
+            if (canvasGroup != null && canvasGroup.alpha != 0f) canvasGroup.alpha = 0f;
+            return;
+        }
+
         if (cam == null)
             cam = Camera.main;
         if (cam == null)
@@ -115,15 +122,31 @@ public class EnemyWorldUI : MonoBehaviour
             Mathf.Approximately(ps.z, 0f) ? worldScale : worldScale / ps.z);
     }
 
-    // 몬스터 실제 메쉬 윗부분까지 높이를 1회 계산 -> 모든 몬스터를 머리 바로 위로 통일.
-    // (고정 오프셋이나 스케일 비례 오프셋은 몬스터마다 키/스케일이 달라 제각각이 됨 -> 실제 bounds 기준이 정답)
+    // 몬스터 머리 위까지의 높이를 1회 계산 -> 모든 몬스터를 머리 바로 위로 통일.
+    //
+    // ★1순위 = 콜라이더. 2순위 = 메시 bounds.
+    //   메시 bounds 를 1순위로 쓰다가 몹마다 높이가 제각각이 됐다. 이유:
+    //   (a) SkinnedMeshRenderer 의 bounds 는 FBX 에 구워진 값이라 실제 포즈를 안 따라간다.
+    //       납품사마다 여유를 다르게 잡아서(날개 편 포즈, 꼬리 세운 포즈 등) 같은 키라도 값이 딴판이다.
+    //   (b) 이 계산은 Awake 시점에 도는데, 그때는 애니메이터가 아직 포즈를 잡기 전이다.
+    //   반면 콜라이더 높이는 빌더/프리팹에서 몹마다 직접 정한 값(bodyHeight)이라 의도가 분명하고,
+    //   충돌 판정과도 일치해서 "몸 위"라는 말이 실제로 맞는다.
     private void CacheHeadOffset()
     {
         _headOffsetReady = true;
-        _headWorldOffset = worldOffset.y;   // Renderer 못 찾을 때 폴백
+        _headWorldOffset = worldOffset.y;   // 아무것도 못 찾을 때 폴백
 
         if (targetTransform == null) return;
 
+        // 1순위: 몸통 콜라이더(트리거 제외 - 감지용 트리거는 몸집과 무관하게 크다)
+        foreach (var col in targetTransform.GetComponents<Collider>())
+        {
+            if (col == null || col.isTrigger) continue;
+            _headWorldOffset = (col.bounds.max.y - targetTransform.position.y) + headGap;
+            return;
+        }
+
+        // 2순위: 메시 bounds
         bool has = false;
         Bounds b = default;
         var renderers = targetTransform.GetComponentsInChildren<Renderer>();
@@ -138,6 +161,18 @@ public class EnemyWorldUI : MonoBehaviour
 
         if (has)
             _headWorldOffset = (b.max.y - targetTransform.position.y) + headGap;
+    }
+
+    // ── 강제 숨김 ──
+    // 몹이 땅속으로 숨는 패턴(헬버그 잠복) 처럼 몸이 사라졌는데 체력바만 허공에 남는 걸 막는다.
+    // ★몸을 숨길 때 쓰는 GetComponentsInChildren<Renderer>() 에는 UI 가 안 걸린다.
+    //   UI 그래픽은 Renderer 가 아니라 CanvasRenderer 라서다. 그래서 따로 불러줘야 한다.
+    private bool _forceHidden;
+
+    public void SetHidden(bool hidden)
+    {
+        _forceHidden = hidden;
+        if (canvasGroup != null) canvasGroup.alpha = hidden ? 0f : 1f;
     }
 
     private void RefreshHP()

@@ -55,8 +55,11 @@ public static class HellMonsterConfigs
         // (모델 기준 값이라 scale 을 바꿔도 알아서 따라간다)
         muzzleBoneHint = "jaw",
         muzzleOffset = new Vector3(0f, 0f, 0.15f),
+        // ★★종욱 승인 상태. 7번 팩(원래 보라/마젠타)에 보라 틴트를 먹인 조합이다.
+        //   tintVfx 를 끄면 승인받은 그림이 아니게 되므로 이 몹만 명시적으로 켠다.
         telegraphVfxPath = Charge(7), muzzleVfxPath = Muzzle(7),
         projectileVfxPath = Shot(7), projectileHitVfxPath = Hit(7),
+        tintVfx = true,
         telegraphTime = 0.85f, telegraphHeight = 1.65f, telegraphScale = 1.4f,
         // ★파티클 색은 0~1 로 넣는다. HDR(8, 1.1, 0.1) 처럼 넣으면 잘려서 노랗게 나온다.
         //   녹은 쇳물 느낌 = 빨강 베이스에 주황이 살짝.
@@ -99,18 +102,24 @@ public static class HellMonsterConfigs
         clipIdle = "Idle1", clipWalk = "Walk", clipRun = "Run",
         clipRoar = "BattleRoar1", clipDeath = "Death",
         roarTime = 1.1f,
-        telegraphVfxPath = Charge(4), muzzleVfxPath = Muzzle(4),
-        projectileVfxPath = Shot(4), projectileHitVfxPath = Hit(4),
+        // ★VFX 팩 4번 -> 3번. 4번은 스프라이트 자체가 연두/라임이라 용암 몹에 안 어울렸다(종욱 지적).
+        //   3번은 진홍 + 황금이라 불 계열에 맞고, 헬버그(6번 빨강/주황)와도 구분된다.
+        //   팩 색은 파티클이나 머티리얼이 아니라 스프라이트 그림에 박혀 있다.
+        //   -> 틴트로 바꾸려 하면 그림 색과 곱해져 탁해진다. 팩 번호로 고르는 게 정답이다.
+        telegraphVfxPath = Charge(3), muzzleVfxPath = Muzzle(3),
+        projectileVfxPath = Shot(3), projectileHitVfxPath = Hit(3),
         telegraphTime = 0.75f, telegraphHeight = 1.2f,
-        telegraphColor = new Color(0.85f, 0.06f, 0.05f, 1f),
         projectileSpeed = 17f,
         attacks = new List<HellAttackConfig>
         {
+            // ★근접 평타에는 전조 VFX 를 안 붙인다(헬버그와 같은 처리, 종욱 승인).
+            //   바닥에 원이 깔리면 평타 하나하나가 필살기처럼 무거워 보인다.
+            //   준비동작(windupState) + 공격 모션 자체가 예고 역할을 한다.
             new HellAttackConfig { label = "할퀴기", state = "Attack1", clipName = "Attack1",
                 weight = 1.3f, maxRange = 2.5f, hitTime = 0.35f, totalTime = 1f, cooldown = 1.8f, damageMul = 1f },
             new HellAttackConfig { label = "연타", state = "Attack2", clipName = "Attack2",
                 weight = 1f, maxRange = 2.7f, hitTime = 0.45f, totalTime = 1.4f, cooldown = 3.2f,
-                damageMul = 1.25f, impactVfxPath = Hit(4) },
+                damageMul = 1.25f, impactVfxPath = Hit(3), impactScale = 0.7f },
             // ★원거리: 빠른 단발 음파탄. 얘는 견제형이라 자주 쏘되 아프지 않게.
             new HellAttackConfig { label = "음파탄", state = "Screech", clipName = "BattleRoar2",
                 kind = HellAttackKind.Ranged, telegraph = HellTelegraphKind.Charge,
@@ -121,7 +130,8 @@ public static class HellMonsterConfigs
         },
         useLeap = true, leapWeight = 1.1f, leapMinRange = 5f, leapMaxRange = 12f,
         leapCooldown = 6.5f, leapFlyTime = 0.6f, leapDamageMul = 1.1f, leapRadius = 2.3f,
-        leapImpactVfxPath = Hit(4),
+        leapArcHeight = 2.8f, leapTelegraphTime = 0.95f,
+        leapImpactVfxPath = Hit(3),
     };
 
     // ── 헬버그: 잠복형. 땅에 숨었다 플레이어 옆에서 튀어나온다. 시그니처.
@@ -137,19 +147,24 @@ public static class HellMonsterConfigs
         // ★이 몹만 피격 클립이 GetHit 하나뿐이다(다른 3종은 GetHit1/GetHit2).
         hitStates = new[] { "GetHit" }, hitClips = new[] { "GetHit" },
         roarTime = 1.2f,
+        // ★★종욱 승인: 헬버그 원거리 VFX 는 이 6번 팩 그대로가 정답이다. 번호를 바꾸지 마라.
+        //   tintVfx=false 라 팩 원래 색을 그대로 쓴다 -> 모을 때/나갈 때/맞을 때 색이 저절로 일치한다.
         telegraphVfxPath = Charge(6), muzzleVfxPath = Muzzle(6),
         projectileVfxPath = Shot(6), projectileHitVfxPath = Hit(6),
         telegraphTime = 1f, telegraphHeight = 0.9f,
-        telegraphColor = new Color(1f, 0.45f, 0.03f, 1f),
         projectileSpeed = 11f,
         attacks = new List<HellAttackConfig>
         {
+            // ★근접 평타에는 전조 VFX 를 안 붙인다(종욱 판단).
+            //   바닥에 원이 깔리면 평타 하나하나가 필살기처럼 무거워 보인다.
+            //   대신 준비동작(windupState) + 공격 모션 자체가 예고 역할을 한다.
             new HellAttackConfig { label = "물어뜯기", state = "Attack1", clipName = "Attack1",
                 weight = 1.2f, maxRange = 3f, hitTime = 0.5f, totalTime = 1.4f, cooldown = 2.6f, damageMul = 1f },
+            // 원 없이 넓은 원형 판정을 두면 안 보이는 데서 맞는다 -> 앞쪽 부채꼴로 바꾼다.
+            // 휩쓰는 모션이 곧 판정 방향이라 눈으로 읽힌다.
             new HellAttackConfig { label = "휩쓸기", state = "Attack2", clipName = "Attack2",
                 weight = 0.9f, maxRange = 3.4f, hitTime = 0.6f, totalTime = 1.7f, cooldown = 4f,
-                damageMul = 1.3f, radius = 2.8f, impactVfxPath = Hit(6),
-                telegraph = HellTelegraphKind.Ground, telegraphTime = 0.9f },
+                damageMul = 1.3f, halfAngle = 120f, reach = 3.4f },
             // ★원거리: 산성 침을 넓게 뿌린다. 느린 탄이라 옆으로 걸으면 피해진다.
             new HellAttackConfig { label = "산성침", state = "Spit", clipName = "BattleRoar",
                 kind = HellAttackKind.Ranged, telegraph = HellTelegraphKind.Charge,
@@ -158,9 +173,13 @@ public static class HellMonsterConfigs
                 telegraphTime = 1.05f, telegraphScaleMul = 0.6f,
                 shots = 3, shotGap = 0.1f, spreadAngle = 18f },
         },
+        // ★튀어나오는 것 자체가 공격이다. 나온 뒤에 따로 뭘 쏘지 않는다.
+        //   ★플레이어 발밑 정확히(emergeDistance 0) 나오고, 판정도 그 자리 기준으로 좁게 준다.
+        //     떨어져 나오는데 딜이 들어가면 "왜 맞았는지" 가 안 읽힌다.
+        //   commitTime 0.55초 = 자리 확정 후 솟구치기까지. 이게 회피 창이다.
         useBurrow = true, burrowWeight = 1.2f, burrowCooldown = 13f,
-        burrowUnderTime = 1.5f, burrowEmergeDistance = 2.6f,
-        burrowDamageMul = 1.5f, burrowRadius = 3f,
+        burrowUnderTime = 1.6f, burrowCommitTime = 0.55f, burrowEmergeDistance = 0f,
+        burrowDamageMul = 1.5f, burrowRadius = 2f,
         clipSubmerge = "Submerge", clipEmerge = "Emerge", burrowImpactVfxPath = Hit(6),
     };
 
@@ -175,27 +194,45 @@ public static class HellMonsterConfigs
         clipIdle = "Idle1", clipWalk = "Walk", clipRun = "Run",
         clipRoar = "BattleRoar", clipDeath = "Death",
         roarTime = 1.6f,
+        // ★★종욱 승인: 원거리 VFX 는 이 1번 팩(푸른 계열) 그대로가 정답이다. 번호를 바꾸지 마라.
+        //   외눈에서 나가는 광선이라 오히려 푸른 쪽이 준보스답게 읽힌다.
+        //   tintVfx=false -> 팩 원래 색 유지 = 모을 때/나갈 때/맞을 때 저절로 일치.
         telegraphVfxPath = Charge(1), muzzleVfxPath = Muzzle(1),
         projectileVfxPath = Shot(1), projectileHitVfxPath = Hit(1),
         telegraphTime = 1.25f, telegraphHeight = 1.9f,
         telegraphScale = 1.3f,
-        telegraphColor = new Color(1f, 0.38f, 0.08f, 1f),
+        // ★차지를 눈 높이에서 모으게 머리 본을 직접 지정한다.
+        //   자동 탐색은 jaw -> mouth -> ... -> head 순서라 턱뼈가 있으면 턱에서 모인다.
+        //   외눈박이는 눈에서 나가는 게 맞으므로 머리로 못박고 앞으로 조금 뺀다.
+        muzzleBoneHint = "head",
+        muzzleOffset = new Vector3(0f, 0.15f, 0.55f),
         projectileSpeed = 13f, projectileExplodeRadius = 2.6f,
         attacks = new List<HellAttackConfig>
         {
+            // ★내려찍기/양손내려치기는 넓은 원형 판정이라 바닥 표시가 반드시 필요하다.
+            //   단 예전의 검은 시전진 말고, 종욱이 승인한 도약 착지 예고와 같은 "차오르는 빨간 원"을 쓴다.
+            //   원이 다 차면 곧 내려찍는다 = 언어가 도약과 동일해진다.
             new HellAttackConfig { label = "내려찍기", state = "Attack1", clipName = "Attack1",
                 weight = 1.2f, maxRange = 3.6f, hitTime = 0.65f, totalTime = 1.9f, cooldown = 3.5f,
                 damageMul = 1f, radius = 2.6f, impactVfxPath = Hit(1),
-                telegraph = HellTelegraphKind.Ground, telegraphTime = 0.9f },
+                impactScale = 0.55f, impactLift = 0.6f,
+                telegraph = HellTelegraphKind.FillCircle, telegraphTime = 0.9f },
+            // 부채꼴은 앞쪽 100도만 위험한데 원을 깔면 사방이 위험한 것처럼 보인다.
+            // 다른 몹 근접 평타와 같은 처리 = 전조 VFX 없이 준비동작 + 모션으로 읽힌다.
             new HellAttackConfig { label = "휘두르기", state = "Attack2", clipName = "Attack2",
                 weight = 1f, maxRange = 4f, hitTime = 0.7f, totalTime = 2f, cooldown = 4.5f,
-                damageMul = 1.2f, halfAngle = 100f, reach = 4f },
+                damageMul = 1.2f, halfAngle = 100f, reach = 4f,
+                impactScale = 0.5f, impactLift = 0.9f },
             new HellAttackConfig { label = "양손내려치기", state = "Attack4", clipName = "Attack4",
                 weight = 0.7f, maxRange = 3.8f, hitTime = 0.85f, totalTime = 2.4f, cooldown = 7f,
                 damageMul = 1.8f, radius = 3.4f, impactVfxPath = Hit(1),
-                telegraph = HellTelegraphKind.Ground, telegraphTime = 1.2f },
-            // ★원거리: 전용 시전 모션(CastToTarget)이 있어서 제일 자연스럽다. 준보스답게 유도 한 발.
-            new HellAttackConfig { label = "화염구", state = "Cast", clipName = "CastToTarget",
+                impactScale = 0.65f, impactLift = 0.6f,
+                telegraph = HellTelegraphKind.FillCircle, telegraphTime = 1.2f },
+            // ★원거리: 클립을 CastToTarget -> BattleRoar 로 바꿨다.
+            //   CastToTarget 은 딱 발사 타이밍에 손을 드는 모션인데, 차지는 얼굴에서 모인다.
+            //   "얼굴에 모아놓고 갑자기 손으로 쏘는" 그림이라 어색했다(종욱 지적).
+            //   포효 모션이면 모으는 곳과 뿜는 곳이 둘 다 얼굴이라 눈에서 나가는 느낌이 된다.
+            new HellAttackConfig { label = "화염구", state = "Cast", clipName = "BattleRoar",
                 kind = HellAttackKind.Ranged, telegraph = HellTelegraphKind.Charge,
                 weight = 1.1f, minRange = 5f, maxRange = 20f,
                 hitTime = 0.7f, totalTime = 2.2f, cooldown = 6f, damageMul = 0.9f,
@@ -204,6 +241,8 @@ public static class HellMonsterConfigs
         },
         useLeap = true, leapWeight = 0.6f, leapMinRange = 7f, leapMaxRange = 15f,
         leapCooldown = 12f, leapFlyTime = 0.85f, leapDamageMul = 1.6f, leapRadius = 3.4f,
+        // 덩치가 커서 포물선도 같이 키워야 뛰는 느낌이 난다(헬하운드에서 확인).
+        leapArcHeight = 3.4f, leapTelegraphTime = 1.3f,
         clipJumpStart = "JumpStart", clipJumpFly = "JumpFly", clipJumpEnd = "JumpEnd",
         leapImpactVfxPath = Hit(1),
     };
@@ -236,13 +275,23 @@ public class HellConfig
     //   0 이면 계속 플레이어 몸에 파고든다.
     public float standoffRatio = 0.85f;
 
+    // 평상시 어슬렁(플레이어 발견 전). 가만히 서 있으면 죽어 있는 것처럼 보인다.
+    // ★기존 BT 몹(오크트리 등)이 꽤 활발하다. 거기에 맞춰 텀은 짧게, 속도는 좀 더 빠르게.
+    public bool wander = true;
+    public float wanderRadius = 7f;
+    public Vector2 wanderPauseRange = new Vector2(0.6f, 1.8f);
+    public float wanderSpeedMul = 0.55f;
+
     public string telegraphVfxPath = "";
-    // 지면 전조. 예전엔 내가 만든 단순 링(Wyvern_Telegraph)이라 싸구려로 보였다.
-    // Anime VFX 팩의 저작된 시전 마법진(원+불꽃+상승화살)으로 교체.
+    // ★근접 전조(바닥 원).
+    //   예전엔 VFX_Debuff_Cast(디버프 시전진)를 썼는데 이게 종욱이 지적한 "검정색 VFX" 였다.
+    //   덩치 큰 몹일수록 크게 깔려서 땅에 박힌 것처럼 보였다.
+    //   -> 도약 착지 예고에 쓰는 빨간 원(승인받은 것)과 같은 걸로 통일한다.
+    //      바닥에 깔리는 원 = 항상 빨강 = 여기 맞는다, 로 언어가 하나가 된다.
     public string groundTelegraphVfxPath =
-        "Assets/00.창동에셋/VFX/VFX(전조)/Anime VFX URP/Shared/Particles/VFX_Debuff_Cast.prefab";
+        "Assets/00.창동에셋/VFX/VFX(눈)/Elemental VFX Mega Bundle/Frost/AOE Magic Circle Snowburst.prefab";
     // 저작된 VFX 라 스케일 1 일 때의 실제 반경. 이걸로 나눠서 원하는 반경에 맞춘다.
-    public float groundTelegraphUnitRadius = 1.2f;
+    public float groundTelegraphUnitRadius = 2f;
 
     // 차오르는 원(도약 착지 예고). 저작된 AOE 마법진을 빨갛게 물들여 쓴다.
     public float fillCircleUnitRadius = 2f, fillCircleFromScale = 0.15f, fillCircleLinger = 1.2f;
@@ -271,6 +320,10 @@ public class HellConfig
     public float hitStopTime = 0.05f, hitStopScale = 0.08f;
     public float telegraphTime = 0.9f, telegraphScale = 1f, telegraphHeight = 1.2f;
     public Color telegraphColor = new Color(4f, 0.7f, 0.15f, 1f);
+    // ★기본은 "VFX 팩 색을 안 건드린다".
+    //   차지/총구/탄/착탄은 번호별 한 세트라 그대로 두면 색이 저절로 일치한다.
+    //   틴트를 먹이면 파티클만 바뀌고 텍스처는 안 바뀌어서 모을 때/나갈 때/맞을 때가 어긋난다.
+    public bool tintVfx = false;
 
     // 입 앵커. 빌더가 이름으로 찾는다. 위치가 어긋나면 정확한 본 이름을 여기 적는다.
     public string muzzleBoneHint = "";
@@ -294,8 +347,13 @@ public class HellConfig
 
     public bool useBurrow = false;
     public float burrowWeight = 1f, burrowCooldown = 14f, burrowUnderTime = 1.4f;
-    public float burrowEmergeDistance = 2.5f, burrowDamageMul = 1.3f, burrowRadius = 3f;
+    // ★자리를 확정하고 솟구치기까지의 시간 = 회피 창.
+    //   emergeDistance 0 = 플레이어 발밑 정확히. 떨어뜨리면 "옆에서 나왔는데 왜 맞지"가 된다.
+    public float burrowCommitTime = 0.5f;
+    public float burrowEmergeDistance = 0f, burrowDamageMul = 1.3f, burrowRadius = 3f;
     public string clipSubmerge = "Submerge", clipEmerge = "Emerge";
+    // 등장 모션의 몇 % 지점에서 타격이 들어가는지. 몸이 지면을 뚫고 올라온 순간에 맞춘다.
+    public float burrowHitRatio = 0.45f;
     public string burrowImpactVfxPath = "";
 
     // 경로 규약
@@ -324,6 +382,8 @@ public class HellAttackConfig
     public float tailMax = 0.9f;
     public float damageMul = 1f, radius = 0f, halfAngle = 70f, reach = 0f;
     public string impactVfxPath = "";
+    // 착탄 VFX 크기/높이. 지면 강타는 크기를 줄이고 살짝 띄워야 안 묻힌다.
+    public float impactScale = 1f, impactLift = 0.5f;
 
     public HellAttackKind kind = HellAttackKind.Melee;
     public HellTelegraphKind telegraph = HellTelegraphKind.None;

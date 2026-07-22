@@ -229,6 +229,7 @@ public static class HellMonsterBuilder
         so.projectilePrefab = c.HasRanged ? EnsureProjectile(c) : null;
         so.telegraphTime = c.telegraphTime;
         so.telegraphColor = c.telegraphColor;
+        so.tintVfx = c.tintVfx;
         so.telegraphScale = c.telegraphScale;
         so.telegraphHeight = c.telegraphHeight;
 
@@ -241,6 +242,20 @@ public static class HellMonsterBuilder
             //   더 짧으면 다 끝난 자세로 굳은 채 서 있는다. 둘 다 "타이밍이 안 맞는" 증상이다.
             //   ratio 는 회복 꼬리를 얼마나 볼지. 1 이면 클립을 끝까지 본다.
             float total = TimeFromClip(c, a.clipName, a.totalTimeRatio, a.totalTime, $"공격 '{a.label}' 길이");
+
+            // ★전조 규칙(종욱 기준으로 정리):
+            //   - 원거리: 반드시 차지 VFX. 어디서 뭐가 날아올지 모르면 못 피한다.
+            //   - 넓은 원형 판정(radius>0): 반드시 바닥 원. 안 보이는 범위에 맞으면 억울하다.
+            //   - 근접 평타(부채꼴): VFX 없어도 된다. 바닥에 원이 깔리면 평타가 필살기처럼 무거워 보인다.
+            //     준비동작(windupState) + 공격 모션이 예고 역할을 한다.
+            if (a.telegraph == HellTelegraphKind.None)
+            {
+                if (a.kind == HellAttackKind.Ranged)
+                    Debug.LogError($"[{c.enemyName}] 원거리 '{a.label}' 에 전조가 없다. Charge 를 붙여라.");
+                else if (a.radius > 0f)
+                    Debug.LogError($"[{c.enemyName}] 범위공격 '{a.label}'(반경 {a.radius}m) 에 전조가 없다. " +
+                                   "Ground(바닥 원)를 붙이거나, 부채꼴 판정(radius=0 + halfAngle)으로 바꿔라.");
+            }
 
             // 타격 시점이 모션 길이를 넘으면 데미지가 영영 안 들어간다.
             float hit = a.hitTime;
@@ -270,6 +285,7 @@ public static class HellMonsterBuilder
                 hitTime = hit, totalTime = total, cooldown = a.cooldown,
                 damageMul = a.damageMul, radius = a.radius, halfAngle = a.halfAngle, reach = a.reach,
                 impactVfx = string.IsNullOrEmpty(a.impactVfxPath) ? null : Load(a.impactVfxPath),
+                impactScale = a.impactScale, impactLift = a.impactLift,
                 kind = a.kind, telegraph = a.telegraph,
                 telegraphTime = a.telegraphTime, telegraphScaleMul = a.telegraphScaleMul,
                 shots = a.shots, shotGap = a.shotGap, spreadAngle = a.spreadAngle, homing = a.homing,
@@ -295,12 +311,24 @@ public static class HellMonsterBuilder
         if (c.useBurrow)
         {
             so.burrowInTime = TimeFromClip(c, c.clipSubmerge, 1f, 0.6f, "잠복 진입");
-            so.burrowOutTime = TimeFromClip(c, c.clipEmerge, 0.8f, 0.5f, "잠복 등장");
+            so.burrowOutTime = TimeFromClip(c, c.clipEmerge, 1f, 0.5f, "잠복 등장");
+            // ★튀어나오는 동작 자체가 공격이다. 몸이 지면을 뚫고 올라온 시점에 타격이 들어가야 한다.
+            so.burrowHitTime = so.burrowOutTime * c.burrowHitRatio;
+            Debug.Log($"[{c.enemyName}] 잠복 타격 시점: 등장모션 {so.burrowOutTime:F2}초 x {c.burrowHitRatio:F2} " +
+                      $"-> {so.burrowHitTime:F2}초");
         }
         so.burrowWeight = c.burrowWeight; so.burrowCooldown = c.burrowCooldown;
         so.burrowUnderTime = c.burrowUnderTime; so.burrowEmergeDistance = c.burrowEmergeDistance;
+        so.burrowCommitTime = c.burrowCommitTime;
         so.burrowDamageMul = c.burrowDamageMul; so.burrowRadius = c.burrowRadius;
         so.burrowImpactVfx = string.IsNullOrEmpty(c.burrowImpactVfxPath) ? null : Load(c.burrowImpactVfxPath);
+
+        // ★평상시 어슬렁. 기존 일반몹은 BT 라 스포너가 순찰 웨이포인트를 주입해주지만
+        //   이 컨트롤러는 보스와 같은 경로라 그걸 못 받는다 -> 스스로 돈다.
+        so.wander = c.wander;
+        so.wanderRadius = c.wanderRadius;
+        so.wanderPauseRange = c.wanderPauseRange;
+        so.wanderSpeedMul = c.wanderSpeedMul;
 
         so.roarOnDetect = true;
         so.roarTime = TimeFromClip(c, c.clipRoar, c.roarRatio, c.roarTime, "포효");

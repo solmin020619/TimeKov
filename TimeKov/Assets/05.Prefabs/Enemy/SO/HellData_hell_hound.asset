@@ -49,14 +49,14 @@ MonoBehaviour:
   knockbackDistance: 0.35
   knockbackTime: 0.15
   telegraphVfx: {fileID: 1758467356241474034, guid: f4c2edda879202a4e952983ea09d358a, type: 3}
-  groundTelegraphVfx: {fileID: 3628913460639372172, guid: fb625641b0ee28e4b978cb942dd744c4, type: 3}
+  groundTelegraphVfx: {fileID: 8703722583606010136, guid: acaa59d4b9fd0cb468172ad1398aa54b, type: 3}
   fillCircleVfx: {fileID: 8703722583606010136, guid: acaa59d4b9fd0cb468172ad1398aa54b, type: 3}
   fillCircleColor: {r: 1, g: 0.34, b: 0.06, a: 1}
   fillCircleUnitRadius: 2
   fillCircleFromScale: 0.15
   fillCircleLinger: 1.2
   fillOutlineDim: 0.45
-  groundTelegraphUnitRadius: 1.2
+  groundTelegraphUnitRadius: 2
   telegraphTime: 0.85
   telegraphColor: {r: 0.72, g: 0.16, b: 1, a: 1}
   telegraphScale: 1.4
@@ -85,6 +85,8 @@ MonoBehaviour:
     halfAngle: 70
     reach: 0
     impactVfx: {fileID: 0}
+    impactScale: 1
+    impactLift: 0.5
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
   repeatPenalty: 0.35
@@ -127,6 +129,10 @@ MonoBehaviour:
   hitRecoveryTime: 0.3
   hitReactionCooldown: 1.3000001
   hitCanInterruptAttack: 1
+  wander: 1
+  wanderRadius: 7
+  wanderPauseRange: {x: 0.6, y: 1.8}
+  wanderSpeedMul: 0.55
   idleState: Idle
   moveState: Locomotion
   roarState: BattleRoar

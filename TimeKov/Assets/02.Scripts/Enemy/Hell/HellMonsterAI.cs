@@ -34,7 +34,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     [SerializeField] private bool showMuzzleGizmo = true;
 
     // 도약/잠복은 착지 지점을 알려주는 게 맞으므로 바닥 링 전조를 쓴다.
-    private HellAttack _leapTele, _burrowTele;
+    private HellAttack _leapTele;
 
     private BossMotor _motor;
     private VisionSensor _vision;
@@ -62,6 +62,10 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     private Coroutine _actionCo;
     private bool _interruptible;   // 준비동작 중 = 끊어도 되는 구간
     private float _actionGap;       // 행동 사이 강제 휴식(초)
+    private Coroutine _wanderCo;    // 평상시 어슬렁
+    private Vector3 _homePos;       // 스폰 지점. 어슬렁 중심이자 복귀 지점
+    private EnemyWorldUI _worldUI;  // 머리 위 체력바. 잠복 때 같이 숨겨야 한다
+    private float _combatStopDistance;   // 전투용 정지거리. 순찰 중엔 0 으로 낮췄다가 되돌린다
 
     private void Awake()
     {
@@ -72,6 +76,9 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         if (data != null)
         {
             _motor.ApplyData(data);
+            // ★ApplyData 가 Agent.stoppingDistance 를 attackRange x attackApproachRatio 로 박는다(3.9x0.9=3.51m).
+            //   전투에선 맞는 값이지만 순찰에는 치명적이라 여기서 기억해뒀다가 순찰 중엔 0 으로 낮춘다.
+            _combatStopDistance = _motor.Agent != null ? _motor.Agent.stoppingDistance : 0f;
             _atkCd = new float[data.attacks != null ? data.attacks.Length : 0];
 
             // 착지 지점에 구슬이 모였다가 터지는 식. 지면 마법진보다 읽기 쉽고 가볍다.
@@ -84,12 +91,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
                 telegraphScaleMul = data.leapTelegraphScale,
                 lockFacing = true,   // 착지점을 이미 정했으니 몸이 따라 돌면 안 된다
             };
-            _burrowTele = new HellAttack
-            {
-                telegraph = HellTelegraphKind.GroundCharge,
-                radius = data.burrowRadius,
-                telegraphScaleMul = data.leapTelegraphScale,
-            };
+            // 잠복은 별도 전조를 안 쓴다. 땅에서 솟구치는 것 자체가 예고이자 공격이다.
             if (_vision != null)
             {
                 _vision.ApplyVisionParameters(data.visionRange, data.visionAngle);
@@ -100,6 +102,9 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
     private void Start()
     {
+        // ★어슬렁 중심. 스포너가 Warp 로 자리를 잡은 뒤여야 하므로 Awake 가 아니라 Start 에서 잡는다.
+        _homePos = transform.position;
+
         _motor.AcquirePlayer();
         if (_health != null)
         {
@@ -123,10 +128,20 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     //   플레이어가 읽은 정보가 무효가 되고, 몹은 두들기면 아무것도 못 하는 허수아비가 된다.
     private void HandleDamage()
     {
-        if (_dead || data == null || !data.useHitReaction) return;
+        if (_dead || data == null) return;
+
+        // ★맞았으면 무조건 그쪽을 인지한다. 시야각(300도) 밖에서 맞으면 SpottedTarget 이 안 잡혀서
+        //   흠칫만 하고 태연히 순찰을 계속 가는 그림이 나온다. 재원의 FieldMonsterAI 도 여기서 같은 처리를 한다.
+        //   피격 반응을 안 쓰는 몹도 어그로는 끌려야 하므로 useHitReaction 검사보다 위에 둔다.
+        if (_vision != null && _motor.Player != null) _vision.ForceSetTarget(_motor.Player);
+
+        if (!data.useHitReaction) return;
         if (_hitReacting) return;
         if (Time.time - _lastHitReact < data.hitReactionCooldown) return;
         if (data.hitStates == null || data.hitStates.Length == 0) return;
+
+        // 어슬렁거리다 맞았으면 즉시 멈춘다. 안 그러면 흠칫하는 동안에도 목적지로 계속 걸어간다.
+        StopWander();
 
         if (_busy)
         {
@@ -201,7 +216,9 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
-        StopAllCoroutines();
+        StopAllCoroutines();   // ★코루틴 핸들이 남아 있으면 죽은 뒤에도 살아있는 걸로 오해한다
+        _actionCo = null;
+        _wanderCo = null;
         _busy = false;
         _hitReacting = false;
         RestoreBodyState();
@@ -213,6 +230,8 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     private void OnDisable()
     {
         StopAllCoroutines();
+        _actionCo = null;
+        _wanderCo = null;
         _busy = false;
         _hitReacting = false;
         RestoreBodyState();
@@ -253,10 +272,19 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         if (_target == null)
         {
             _roared = false;
-            if (!_busy) { _motor.StopMove(); Play(data.idleState); }
+            if (!_busy && !_hitReacting)
+            {
+                // ★가만히 서 있으면 죽어 있는 것처럼 보인다.
+                //   기존 일반몹은 BT 가 순찰해주지만 이 컨트롤러는 직접 해야 한다.
+                if (data.wander) StartWander();
+                else { _motor.StopMove(); Play(data.idleState); }
+            }
             _motor.TickSpeedParam();
             return;
         }
+
+        // 플레이어를 봤다. 어슬렁은 즉시 중단하고 전투 속도로 되돌린다.
+        StopWander();
 
         if (_busy || _hitReacting) { _motor.TickSpeedParam(); return; }
 
@@ -291,6 +319,115 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     // 준비동작/대기용 전투 자세. 비어 있으면 Idle 로 떨어진다.
     private string WindupState()
         => string.IsNullOrEmpty(data.windupState) ? data.idleState : data.windupState;
+
+    // ── 평상시 어슬렁 ──
+    // 기존 일반몹 19종은 EnemyBrain(BT) 이라 EnemySpawnPoint 가 웨이포인트를 주입해준다.
+    // 헬 몹은 보스와 같은 전용 컨트롤러라 그 경로를 안 탄다(EnemySpawnPoint.cs 의 주석 참고).
+    // 그래서 웨이포인트 없이 스폰 지점 기준으로 스스로 돈다. 씬 세팅이 필요 없는 게 장점.
+    private void StartWander()
+    {
+        if (_wanderCo == null) _wanderCo = StartCoroutine(WanderRoutine());
+    }
+
+    // 매 프레임 호출되므로 돌고 있을 때만 일한다.
+    private void StopWander()
+    {
+        if (_wanderCo == null) return;
+        StopCoroutine(_wanderCo);
+        _wanderCo = null;
+        _motor.StopMove();
+        RestoreMoveSpeed();
+    }
+
+    // 어슬렁은 느린 속도 + 정지거리 0 으로 걷는다. 끝나면 반드시 전투용 값으로 되돌린다.
+    //
+    // ★★정지거리를 안 낮추면 순찰이 통째로 망가진다.
+    //   BossMotor.ApplyData 가 stoppingDistance 를 attackRange x attackApproachRatio(=3.51m) 로 잡는데,
+    //   NavMeshAgent 는 목적지 3.51m 앞에서 감속해 멈추고 remainingDistance 도 거기서 수렴한다.
+    //   그래서 "도착했나(remainingDistance <= 0.4)" 가 영원히 참이 안 되고 매번 타임아웃까지 서 있게 된다.
+    //   심지어 뽑은 목적지가 3.51m 안쪽이면 아예 한 발짝도 안 움직인다.
+    //   재원의 FieldMonsterAI 와 자폭거미는 정지거리가 0 이라 같은 코드가 멀쩡히 돌았다. 헬만 걸린 함정.
+    private void BeginWanderMove()
+    {
+        if (_motor.Agent == null) return;
+        _motor.Agent.speed = data.moveSpeed * data.wanderSpeedMul;
+        _motor.Agent.stoppingDistance = 0f;
+    }
+
+    private void RestoreMoveSpeed()
+    {
+        if (_motor == null || _motor.Agent == null) return;
+        _motor.Agent.speed = data.moveSpeed;
+        _motor.Agent.stoppingDistance = _combatStopDistance;
+    }
+
+    private IEnumerator WanderRoutine()
+    {
+        while (!_dead && _target == null)
+        {
+            // 1) 갈 수 있는 곳을 찾는다.
+            //    ★한 번 실패하면 그대로 쉬어버리면 "가끔 한 번씩만 움직이는" 그림이 된다.
+            //      실패는 조용히 여러 번 다시 뽑는다(비용은 SamplePosition 몇 번뿐).
+            bool moving = false;
+            for (int tries = 0; tries < 6 && !moving; tries++)
+            {
+                Vector2 dir = Random.insideUnitCircle.normalized;
+                Vector3 want = _homePos + new Vector3(dir.x, 0f, dir.y)
+                                        * Random.Range(data.wanderRadius * 0.35f, data.wanderRadius);
+
+                if (!NavMesh.SamplePosition(want, out var hit, 3f, NavMesh.AllAreas)) continue;
+                if (!_motor.AgentReady()) break;
+
+                BeginWanderMove();
+                _motor.Chase(hit.position);
+                moving = true;
+
+                // ★경로가 안 이어지는 지점이면(섬처럼 끊긴 NavMesh) 즉시 다른 곳을 고른다.
+                //   예전엔 이 경우 8초 타임아웃을 그대로 기다려서, 몹이 한참 서 있다가
+                //   가끔 한 번 움직이는 것처럼 보였다. "10초에 한 번" 의 진범.
+                while (_motor.Agent.pathPending) yield return null;
+                if (_motor.Agent.pathStatus != NavMeshPathStatus.PathComplete)
+                {
+                    _motor.Agent.ResetPath();
+                    moving = false;
+                    continue;
+                }
+
+                Play(data.moveState);
+                float giveUp = Time.time + 6f;
+                while (!_dead && _target == null && Time.time < giveUp)
+                {
+                    if (_motor.Agent.remainingDistance <= 0.5f) break;
+                    _motor.TickSpeedParam();
+                    yield return null;
+                }
+            }
+            if (_dead || _target != null) break;
+
+            // 2) 도착했으면 잠깐 쉰다. 기존 BT 몹들이 활발한 만큼 텀은 짧게.
+            _motor.StopMove();
+            RestoreMoveSpeed();
+            Play(data.idleState);
+
+            // ★대기 시간은 반드시 0 보다 크게 클램프한다.
+            //   0 이 들어오고 목적지 뽑기까지 실패하면 이 while 이 한 프레임 안에서 무한히 돌아
+            //   게임이 통째로 멈춘다(yield 가 이 안에만 있다).
+            float pause = Mathf.Max(0.1f, Random.Range(data.wanderPauseRange.x,
+                                    Mathf.Max(data.wanderPauseRange.x, data.wanderPauseRange.y)));
+            float end = Time.time + pause;
+            while (!_dead && _target == null && Time.time < end)
+            {
+                _motor.TickSpeedParam();
+                yield return null;
+            }
+
+            // 위 루프가 어떤 이유로든 한 번도 안 돌았을 때를 대비한 안전장치.
+            yield return null;
+        }
+
+        RestoreMoveSpeed();
+        _wanderCo = null;
+    }
 
     // 행동 하나가 끝났다. 다음 행동까지 숨 돌릴 틈을 준다.
     private void EndAction()
@@ -463,16 +600,16 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         if (data.muzzleVfx != null)
         {
             var m = Instantiate(data.muzzleVfx, origin, Quaternion.LookRotation(aim));
-            PrepareTelegraph(m, data.telegraphColor);
+            TintVfx(m);
             Destroy(m, 2f);
         }
 
         var go = Instantiate(data.projectilePrefab, origin, Quaternion.LookRotation(aim));
         var fb = go.GetComponent<WyvernFireball>();
-        if (fb == null) { VfxTint.Apply(go, data.telegraphColor); Destroy(go, 5f); return; }
+        if (fb == null) { TintVfx(go); Destroy(go, 5f); return; }
 
         // 탄과 착탄 VFX 를 한 번에 물들인다(착탄은 나중에 생기므로 여기서 예약해둬야 한다)
-        fb.SetTint(data.telegraphColor);
+        if (data.tintVfx) fb.SetTint(data.telegraphColor);
 
         fb.Launch(aim, data.attackDamage * a.damageMul, _motor.Player);
         // 유도는 가운데 한 발만. 전탄 유도는 근접 전용 플레이어에게 회피 불가다.
@@ -553,7 +690,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
             fx.transform.localScale = Vector3.one * s;
             _chargePivot = LocalCenter(fx) * s;
             fx.transform.position = MuzzlePoint() - transform.rotation * _chargePivot;
-            PrepareTelegraph(fx, c);
+            TintVfx(fx);
             followMuzzle = true;
             Destroy(fx, dur + 0.3f);
         }
@@ -562,7 +699,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
             Vector3 spot = groundSpot ?? GroundSpot(transform.position + transform.forward * 3f);
             fx = Instantiate(data.telegraphVfx, spot + Vector3.up * 0.15f, Quaternion.identity);
             fx.transform.localScale = Vector3.one * data.telegraphScale * a.telegraphScaleMul;
-            PrepareTelegraph(fx, c);
+            TintVfx(fx);
             Destroy(fx, dur + 0.3f);
         }
         else if (a.telegraph == HellTelegraphKind.FillCircle && data.fillCircleVfx != null)
@@ -570,8 +707,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
             // ★테두리는 처음부터 실제 범위 그대로 떠 있고, 안쪽이 차올라 테두리에 닿는 순간 공격.
             //   범위를 처음부터 알 수 있어야 피할지 말지 판단이 된다.
             float r = a.radius > 0f ? a.radius : data.attackRange;
-            Vector3 spot = (groundSpot ?? GroundSpot(transform.position + transform.forward * r))
-                         + Vector3.up * 0.06f;
+            Vector3 spot = (groundSpot ?? GroundSpot(AttackCenter(a))) + Vector3.up * 0.06f;
             Color cc = data.fillCircleColor.a > 0f ? data.fillCircleColor : c;
 
             // ★파티클 VFX 로 그린다. 링 메시를 쓰려 했으나 그 머티리얼들은 파티클 전용이라
@@ -600,11 +736,15 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         else if (a.telegraph == HellTelegraphKind.Ground && data.groundTelegraphVfx != null)
         {
             float r = a.radius > 0f ? a.radius : (a.reach > 0f ? a.reach : data.attackRange);
-            Vector3 spot = groundSpot ?? GroundSpot(transform.position + transform.forward * r * 0.5f);
+            Vector3 spot = groundSpot ?? GroundSpot(AttackCenter(a));
             fx = Instantiate(data.groundTelegraphVfx, spot + Vector3.up * 0.05f, Quaternion.identity);
             float unit = Mathf.Max(0.05f, data.groundTelegraphUnitRadius);
-            fx.transform.localScale = Vector3.one * (r / unit) * a.telegraphScaleMul;
-            PrepareTelegraph(fx, c);
+            float gs = (r / unit) * a.telegraphScaleMul;
+            fx.transform.localScale = Vector3.one * gs;
+            // 프리팹 내부 중심이 원점에서 벗어나 있으면 원이 옆으로 밀린다. 도약 원과 같은 보정.
+            fx.transform.position = (spot + Vector3.up * 0.05f) - fx.transform.rotation * (LocalCenter(fx) * gs);
+            // ★바닥 원은 도약 착지 예고와 같은 빨강으로 묶는다. 색이 곧 "여기 맞는다" 신호가 된다.
+            PrepareTelegraph(fx, data.fillCircleColor.a > 0f ? data.fillCircleColor : c);
             Destroy(fx, dur + 0.3f);
         }
 
@@ -642,6 +782,14 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         if (_outlineFx != null) { Destroy(_outlineFx); _outlineFx = null; }
     }
 
+    // ★범위 공격의 중심점. 전조 원을 그리는 쪽과 피해를 주는 쪽이 반드시 이 하나를 같이 써야 한다.
+    //   따로 계산하던 시절엔 원은 앞쪽 2.6m, 판정은 1.7m 라 "원 밖인데 맞았다"가 나왔다.
+    private Vector3 AttackCenter(HellAttack a)
+    {
+        float reach = a.reach > 0f ? a.reach : data.attackRange;
+        return transform.position + transform.forward * reach * 0.5f;
+    }
+
     private void ApplyHit(HellAttack a)
     {
         var ps = _motor.PlayerStat;
@@ -652,9 +800,12 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
         if (a.radius > 0f)
         {
-            // 범위 판정: 내 앞쪽 지점 기준
-            Vector3 center = transform.position + transform.forward * reach * 0.5f;
-            if (a.impactVfx != null) { var v = Instantiate(a.impactVfx, center, Quaternion.identity); PrepareTelegraph(v, data.telegraphColor); Destroy(v, 4f); }
+            // 범위 판정: 내 앞쪽 지점 기준. ★전조 원과 반드시 같은 함수를 쓴다.
+            Vector3 center = AttackCenter(a);
+            // ★여기엔 높이 보정이 없어서 착탄 VFX 가 발밑(지면)에 그대로 생겼다.
+            //   대부분의 착탄 VFX 는 원점이 덩어리 한가운데라 절반이 땅에 묻힌다.
+            //   덩치 큰 몹(헬사이클롭)일수록 VFX 도 커서 더 심하게 박힌다.
+            SpawnImpact(a, center + Vector3.up * a.impactLift);
             Vector3 p = _motor.Player.position; p.y = 0f;
             Vector3 c = center; c.y = 0f;
             if (Vector3.Distance(p, c) <= a.radius) ps.TakeDamage(dmg, transform.position);
@@ -662,15 +813,22 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         else
         {
             // 부채꼴 근접 판정
-            if (a.impactVfx != null)
-            {
-                Vector3 spot = transform.position + transform.forward * reach * 0.6f + Vector3.up * 0.8f;
-                var v = Instantiate(a.impactVfx, spot, Quaternion.identity);
-                PrepareTelegraph(v, data.telegraphColor);
-                Destroy(v, 4f);
-            }
+            SpawnImpact(a, transform.position + transform.forward * reach * 0.6f
+                          + Vector3.up * Mathf.Max(0.8f, a.impactLift));
             if (_motor.PlayerInArc(reach, a.halfAngle)) ps.TakeDamage(dmg, transform.position);
         }
+    }
+
+    // 착탄 VFX. 크기/높이를 패턴별로 조절할 수 있어야 한다.
+    // 이 VFX 팩은 공중 착탄 기준으로 만들어져서 지면 강타에 그대로 쓰면 크고 묻힌다.
+    private void SpawnImpact(HellAttack a, Vector3 pos)
+    {
+        if (a.impactVfx == null) return;
+        var v = Instantiate(a.impactVfx, pos, Quaternion.identity);
+        if (a.impactScale > 0f && !Mathf.Approximately(a.impactScale, 1f))
+            v.transform.localScale *= a.impactScale;
+        TintVfx(v);
+        Destroy(v, 4f);
     }
 
     // 착지 예고 원. 테두리(범위 고정) + 채움(차오름) 2겹.
@@ -830,56 +988,89 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _burrowCd = data.burrowCooldown;
         _motor.StopMove();
 
+        // ★파고들기 -> 이동 -> 튀어나오기. 튀어나오는 것 자체가 공격이다.
+        //   예전엔 나온 뒤에 전조를 또 띄우고 때렸는데, 땅에서 솟구치는 것보다 더 좋은 예고가 없다.
+        //   나오고 나서 딴 걸 한 번 더 하면 기습의 맛이 죽는다.
         Play(data.burrowInState);
         yield return new WaitForSeconds(Mathf.Max(0.05f, data.burrowInTime));
         if (_dead) yield break;
 
         SetRenderers(false);
-        yield return new WaitForSeconds(Mathf.Max(0.1f, data.burrowUnderTime));
+
+        // ★땅속 구간을 둘로 나눈다.
+        //   (1) 추적: 플레이어를 따라 땅속을 쫓는다.
+        //   (2) 확정: 나올 자리를 못박고 그대로 솟구친다.
+        //   이렇게 해야 "가만히 있었으면 발밑에서 터져서 맞는 게 납득이 가고,
+        //   움직였으면 엉뚱한 데서 튀어나와 헛방" 이 된다.
+        //   확정 없이 나오는 순간의 플레이어 위치를 쓰면 절대 못 피하는 공격이 되고,
+        //   반대로 멀찍이 떨어져 나오면(예전 2.6m) 옆에서 튀어나왔는데 딜이 들어가서 이상하다.
+        float under = Mathf.Max(0.2f, data.burrowUnderTime);
+        float commit = Mathf.Clamp(data.burrowCommitTime, 0.05f, under);
+        yield return new WaitForSeconds(under - commit);
         if (_dead) { SetRenderers(true); yield break; }
 
-        // 플레이어 근처로 순간이동 후 등장
+        // 나올 자리 확정. 기본은 플레이어 발밑 정확히(burrowEmergeDistance = 0).
+        Vector3 emergeSpot = transform.position;
         if (_target != null)
         {
-            Vector3 dir = (transform.position - _target.position);
-            dir.y = 0f;
-            if (dir.sqrMagnitude < 0.01f) dir = Vector3.forward;
-            Vector3 spot = _target.position + dir.normalized * data.burrowEmergeDistance;
-            WarpTo(GroundSpot(spot));
-            _motor.FaceInstant(_target.position);
+            emergeSpot = _target.position;
+            if (data.burrowEmergeDistance > 0.01f)
+            {
+                Vector3 back = transform.position - _target.position;
+                back.y = 0f;
+                if (back.sqrMagnitude < 0.01f) back = -transform.forward;
+                emergeSpot += back.normalized * data.burrowEmergeDistance;
+            }
+            emergeSpot = GroundSpot(emergeSpot);
+            WarpTo(emergeSpot);
+
+            Vector3 look = _target.position - transform.position;
+            look.y = 0f;
+            if (look.sqrMagnitude > 0.01f) _motor.FaceInstant(_target.position);
         }
+
+        // 자리를 잡고 잠깐 뜸을 들인 뒤 솟구친다. 이 사이에 걸어 나오면 피해진다.
+        yield return new WaitForSeconds(commit);
+        if (_dead) { SetRenderers(true); yield break; }
         SetRenderers(true);
 
-        // ★순서 주의. 예전엔 Emerge 를 켠 직후 바로 전조로 넘어가서,
-        //   등장 모션이 전조 1초 사이에 다 소진되고 남은 시간 동안 마지막 프레임에 굳어 있었다.
-        //   (Emerge 는 루프 대상도 아니다) -> 등장 모션을 끝까지 보여준 뒤에 전조를 띄운다.
+        // 솟구치는 모션. 이 모션 안에서 타격이 들어간다.
         Play(data.burrowOutState);
-        yield return new WaitForSeconds(Mathf.Max(0.05f, data.burrowOutTime));
-        if (_dead) yield break;
-
-        // 튀어나오는 것 자체가 예고지만, 규칙대로 전조도 거친다. 전조 동안은 전투 자세.
-        Play(WindupState());
-        yield return Telegraph(_burrowTele);
+        float hit = Mathf.Clamp(data.burrowHitTime, 0.05f, Mathf.Max(0.1f, data.burrowOutTime));
+        yield return new WaitForSeconds(hit);
         if (_dead) yield break;
 
         if (data.burrowImpactVfx != null)
         {
-            var v = Instantiate(data.burrowImpactVfx, transform.position, Quaternion.identity);
-            PrepareTelegraph(v, data.telegraphColor);
+            var v = Instantiate(data.burrowImpactVfx, transform.position + Vector3.up * 0.4f, Quaternion.identity);
+            TintVfx(v);
             Destroy(v, 4f);
         }
+        // ★판정 중심 = 확정해둔 등장 지점. 솟구치면서 콜라이더에 밀려 몸이 살짝 어긋나도
+        //   "튀어나온 자리"를 기준으로 맞는지가 정해진다.
         var ps = _motor.PlayerStat;
-        if (ps != null && !ps.IsDead && _motor.Player != null
-            && _motor.PlanarDistance(_motor.Player.position) <= data.burrowRadius)
-            ps.TakeDamage(data.attackDamage * data.burrowDamageMul, transform.position);
+        if (ps != null && !ps.IsDead && _motor.Player != null)
+        {
+            Vector3 pp = _motor.Player.position; pp.y = 0f;
+            Vector3 sp = emergeSpot; sp.y = 0f;
+            if (Vector3.Distance(pp, sp) <= data.burrowRadius)
+                ps.TakeDamage(data.attackDamage * data.burrowDamageMul, transform.position);
+        }
 
-        yield return new WaitForSeconds(0.4f);
+        // 남은 등장 모션을 끝까지 보여준다
+        yield return new WaitForSeconds(Mathf.Max(0.1f, data.burrowOutTime - hit));
         EndAction();
     }
 
+    // 잠복 등으로 몸을 통째로 감춘다.
     private void SetRenderers(bool on)
     {
         foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = on;
+
+        // ★체력바/이름표는 위 루프에 안 걸린다(UI 는 Renderer 가 아니라 CanvasRenderer).
+        //   따로 안 꺼주면 몸은 땅속에 들어갔는데 체력바만 그 자리에 둥둥 남는다.
+        if (_worldUI == null) _worldUI = GetComponentInChildren<EnemyWorldUI>(true);
+        if (_worldUI != null) _worldUI.SetHidden(!on);
     }
 
     private void WarpTo(Vector3 pos)
@@ -891,9 +1082,17 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     private Vector3 GroundSpot(Vector3 pos)
         => NavMesh.SamplePosition(pos, out var hit, 4f, NavMesh.AllAreas) ? hit.position : pos;
 
-    // 전조 프리팹 준비. 두 가지를 한 번에 한다.
-    // 전조/이펙트 색칠. 공용 유틸로 뺐다(착탄 VFX 도 같은 로직을 써야 해서).
+    // 지정한 색으로 칠한다(바닥 원처럼 색이 곧 의미인 것들).
     private static void PrepareTelegraph(GameObject go, Color c) => VfxTint.Apply(go, c);
+
+    // ★차지/총구/탄/착탄 = 번호별로 짝이 맞게 제작된 한 세트다.
+    //   안 건드리면 모을 때 / 나갈 때 / 맞을 때 색이 저절로 일치한다.
+    //   틴트를 먹이면 파티클은 바뀌는데 텍스처로 그린 부분은 안 바뀌어서 오히려 어긋난다.
+    //   그래서 기본은 "손대지 않음"이고, 굳이 색을 바꿀 몹만 tintVfx 를 켠다.
+    private void TintVfx(GameObject go)
+    {
+        if (data.tintVfx) VfxTint.Apply(go, data.telegraphColor);
+    }
 
     // ★VFX 프리팹의 "보이는 덩어리"가 원점에서 얼마나 치우쳐 있는지 잰다.
     //   Charge_07 처럼 자식이 z=0.8 에 있으면 원점에 맞춰 띄워도 눈에는 앞쪽에 뜬다.

@@ -52,6 +52,11 @@ public class HellMonsterData : MeleeEnemyData
     [Tooltip("전조/투사체 색. ★0~1 범위로 넣어라. 파티클 색은 8비트라 1을 넘으면 잘려서 " +
              "빨강을 넣어도 노랗게 나온다(코드가 색조는 지켜주지만 애초에 0~1 로 주는 게 정확하다).")]
     public Color telegraphColor = new Color(1f, 0.28f, 0.04f, 1f);
+    [Tooltip("★차지/총구/탄/착탄 VFX 를 telegraphColor 로 물들일지.\n" +
+             "끄면 VFX 팩 원래 색을 그대로 쓴다. 이 팩들은 번호별로 짝이 맞게 제작돼 있어서, " +
+             "안 건드리는 쪽이 모을 때/나갈 때/맞을 때 색이 저절로 일치한다.\n" +
+             "틴트를 먹이면 파티클은 색이 바뀌는데 텍스처로 그린 부분은 안 바뀌어서 오히려 어긋난다.")]
+    public bool tintVfx = false;
     [Tooltip("차지 전조 크기 배율.")]
     public float telegraphScale = 1f;
     [Tooltip("입/총구 앵커가 없을 때 쓰는 높이(발밑 기준).")]
@@ -107,16 +112,23 @@ public class HellMonsterData : MeleeEnemyData
     public float burrowCooldown = 14f;
     [Tooltip("땅속에 있는 시간(초). 이 동안 무적이 아니라 그냥 안 보인다.")]
     public float burrowUnderTime = 1.4f;
-    [Tooltip("플레이어 발밑에서 이만큼 떨어진 곳으로 튀어나온다.")]
-    public float burrowEmergeDistance = 2.5f;
+    [Tooltip("★나올 자리를 확정하고 실제로 솟구치기까지의 시간(초). burrowUnderTime 의 마지막 구간이다.\n" +
+             "이 시간이 곧 회피 창이다. 0 이면 나오는 순간의 플레이어 위치를 그대로 써서 절대 못 피한다.")]
+    public float burrowCommitTime = 0.5f;
+    [Tooltip("플레이어에게서 이만큼 떨어진 곳으로 튀어나온다. ★0 = 발밑 정확히.\n" +
+             "떨어뜨려 놓으면 '옆에서 튀어나왔는데 왜 맞지' 가 되므로 0 을 권장한다.")]
+    public float burrowEmergeDistance = 0f;
     public float burrowDamageMul = 1.3f;
     public float burrowRadius = 3f;
     public string burrowInState = "Submerge";
     public string burrowOutState = "Emerge";
     [Tooltip("땅에 파고드는 동작 시간(초). ★빌더가 Submerge 클립 길이를 재서 넣는다.")]
     public float burrowInTime = 0.6f;
-    [Tooltip("튀어나온 뒤 마무리 시간(초). ★빌더가 Emerge 클립 길이를 재서 넣는다.")]
+    [Tooltip("튀어나오는 동작 전체 길이(초). ★빌더가 Emerge 클립 길이를 재서 넣는다.")]
     public float burrowOutTime = 0.5f;
+    [Tooltip("★튀어나오는 것 자체가 공격이다. 등장 모션 시작 후 타격이 들어가는 시점(초).\n" +
+             "빌더가 Emerge 클립 길이 기준으로 잡는다.")]
+    public float burrowHitTime = 0.35f;
     public GameObject burrowImpactVfx;
 
     [Header("피격 반응")]
@@ -136,6 +148,20 @@ public class HellMonsterData : MeleeEnemyData
     public float hitReactionCooldown = 0.7f;
     [Tooltip("준비동작(전조) 중에 맞으면 공격이 끊긴다. 이미 나간 공격과 공중 도약은 안 끊긴다.")]
     public bool hitCanInterruptAttack = true;
+
+    [Header("평상시 어슬렁 (플레이어를 못 봤을 때)")]
+    // ★기존 일반몹 19종은 BT(EnemyBrain)를 써서, EnemySpawnPoint 가 웨이포인트를 만들어
+    //   블랙보드에 주입해주기 때문에 알아서 순찰한다(EnemySpawnPoint.cs 의 SetPatrolPoints).
+    //   헬 몹은 보스처럼 전용 컨트롤러라 그 주입을 못 받는다 -> 스스로 어슬렁거려야 한다.
+    //   웨이포인트 대신 스폰 지점 기준으로 도는 방식(재원의 FieldMonsterAI 와 같은 방식).
+    [Tooltip("가만히 서 있지 않고 스폰 지점 주변을 어슬렁거린다. 끄면 발견 전까지 정지.")]
+    public bool wander = true;
+    [Tooltip("어슬렁 반경(m). 스폰 지점 기준. 이 안에서만 돈다.")]
+    public float wanderRadius = 7f;
+    [Tooltip("목적지 사이 대기 시간(초) 최소/최대. 길면 죽은 듯이 서 있는 시간이 늘어난다.")]
+    public Vector2 wanderPauseRange = new Vector2(0.6f, 1.8f);
+    [Tooltip("어슬렁 이동 속도 = moveSpeed x 이 값. 추격보다 느긋하되 너무 느리면 굼떠 보인다.")]
+    [Range(0.1f, 1f)] public float wanderSpeedMul = 0.55f;
 
     [Header("애니 상태 이름")]
     public string idleState = "Idle";
@@ -209,6 +235,10 @@ public class HellAttack
 
     [Header("연출")]
     public GameObject impactVfx;
+    [Tooltip("착탄 VFX 크기 배율. ★이 VFX 팩은 공중 착탄 기준이라 지면 강타에 그대로 쓰면 너무 크다.")]
+    public float impactScale = 1f;
+    [Tooltip("착탄 VFX 를 지면에서 띄우는 높이(m). 0 이면 발밑에 생겨 절반이 땅에 묻힌다.")]
+    public float impactLift = 0.5f;
     [Tooltip("이 패턴만 전조 색을 다르게 하고 싶을 때. 알파 0 이면 SO 공통색을 쓴다.")]
     public Color telegraphColorOverride = new Color(0f, 0f, 0f, 0f);
     [Tooltip("전조 중 회전을 고정한다. 착지점을 미리 정하는 도약처럼 방향이 바뀌면 안 되는 경우.")]

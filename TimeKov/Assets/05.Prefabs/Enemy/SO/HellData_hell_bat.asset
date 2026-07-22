@@ -1,0 +1,196 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06fbca6454c537c4894e30796215b6b6, type: 3}
+  m_Name: HellData_hell_bat
+  m_EditorClassIdentifier: 
+  enemyName: "\uD5EC\uBC43"
+  enemyId: hell_bat
+  maxHP: 65
+  moveSpeed: 5.2
+  acceleration: 18
+  angularSpeed: 480
+  stoppingDistance: 0
+  visionRange: 18
+  visionAngle: 280
+  attackDamage: 11
+  attackRange: 2.3
+  attackApproachRatio: 0.9
+  attackCooldown: 1.2
+  hitDelay: 0.5
+  animLength: 1.5
+  attackTrigger: Attack
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 3
+  deathAnimDuration: 5.3833337
+  detectStunDuration: 0
+  spawnVFX: {fileID: 0}
+  spawnSound: {fileID: 0}
+  detectVFX: {fileID: 0}
+  detectSound: {fileID: 0}
+  hitVFX: {fileID: 0}
+  hitSound: {fileID: 0}
+  attackVFX: {fileID: 0}
+  attackSound: {fileID: 0}
+  deathVFX: {fileID: 0}
+  deathSound: {fileID: 0}
+  hitStopTime: 0.05
+  hitStopScale: 0.08
+  knockbackDistance: 0.35
+  knockbackTime: 0.15
+  telegraphVfx: {fileID: 8377923095671256951, guid: c625f37b8d31f9b43a61e67c435f90b9, type: 3}
+  groundTelegraphVfx: {fileID: 8703722583606010136, guid: acaa59d4b9fd0cb468172ad1398aa54b, type: 3}
+  fillCircleVfx: {fileID: 8703722583606010136, guid: acaa59d4b9fd0cb468172ad1398aa54b, type: 3}
+  fillCircleColor: {r: 1, g: 0.34, b: 0.06, a: 1}
+  fillCircleUnitRadius: 2
+  fillCircleFromScale: 0.15
+  fillCircleLinger: 1.2
+  fillOutlineDim: 0.45
+  groundTelegraphUnitRadius: 2
+  telegraphTime: 0.75
+  telegraphColor: {r: 4, g: 0.7, b: 0.15, a: 1}
+  tintVfx: 0
+  telegraphScale: 1
+  telegraphHeight: 1.2
+  projectilePrefab: {fileID: 8194582793201251749, guid: f31cdba0875066b45bbf3b9f18e265f9, type: 3}
+  muzzleVfx: {fileID: 8780016040394390935, guid: a40e821b9c9659b4c84fbee49cea66eb, type: 3}
+  attacks:
+  - label: "\uD560\uD034\uAE30"
+    state: Attack1
+    weight: 1.3
+    kind: 0
+    telegraph: 0
+    telegraphTime: 0
+    telegraphScaleMul: 1
+    shots: 1
+    shotGap: 0.12
+    spreadAngle: 0
+    homing: 0
+    minRange: 0
+    maxRange: 2.5
+    hitTime: 0.35
+    totalTime: 1.1883334
+    cooldown: 1.8
+    damageMul: 1
+    radius: 0
+    halfAngle: 70
+    reach: 0
+    impactVfx: {fileID: 0}
+    impactScale: 1
+    impactLift: 0.5
+    telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
+    lockFacing: 0
+  - label: "\uC5F0\uD0C0"
+    state: Attack2
+    weight: 1
+    kind: 0
+    telegraph: 0
+    telegraphTime: 0
+    telegraphScaleMul: 1
+    shots: 1
+    shotGap: 0.12
+    spreadAngle: 0
+    homing: 0
+    minRange: 0
+    maxRange: 2.7
+    hitTime: 0.45
+    totalTime: 1.1883334
+    cooldown: 3.2
+    damageMul: 1.25
+    radius: 0
+    halfAngle: 70
+    reach: 0
+    impactVfx: {fileID: 2066703683929491185, guid: 7bbc775da9091cf48a2d611ace68e898, type: 3}
+    impactScale: 0.7
+    impactLift: 0.5
+    telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
+    lockFacing: 0
+  - label: "\uC74C\uD30C\uD0C4"
+    state: Screech
+    weight: 1.2
+    kind: 1
+    telegraph: 1
+    telegraphTime: 0.8
+    telegraphScaleMul: 0.55
+    shots: 2
+    shotGap: 0.18
+    spreadAngle: 8
+    homing: 0
+    minRange: 4
+    maxRange: 16
+    hitTime: 0.4
+    totalTime: 1.3
+    cooldown: 4.5
+    damageMul: 0.7
+    radius: 0
+    halfAngle: 70
+    reach: 0
+    impactVfx: {fileID: 0}
+    impactScale: 1
+    impactLift: 0.5
+    telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
+    lockFacing: 0
+  repeatPenalty: 0.35
+  actionGapMin: 1.2
+  actionGapMax: 2
+  useLeap: 1
+  leapWeight: 1.1
+  leapMinRange: 5
+  leapMaxRange: 12
+  leapCooldown: 6.5
+  leapFlyTime: 0.6
+  leapStartTime: 0.7916667
+  leapEndTime: 0.9666667
+  leapArcHeight: 2.8
+  leapTelegraphTime: 0.95
+  leapTelegraphScale: 1
+  leapDamageMul: 1.1
+  leapRadius: 2.3
+  leapImpactVfx: {fileID: 2066703683929491185, guid: 7bbc775da9091cf48a2d611ace68e898, type: 3}
+  leapStartState: JumpStart
+  leapFlyState: JumpFly
+  leapEndState: JumpEnd
+  useBurrow: 0
+  burrowWeight: 1
+  burrowCooldown: 14
+  burrowUnderTime: 1.4
+  burrowCommitTime: 0.5
+  burrowEmergeDistance: 0
+  burrowDamageMul: 1.3
+  burrowRadius: 3
+  burrowInState: Submerge
+  burrowOutState: Emerge
+  burrowInTime: 0.6
+  burrowOutTime: 0.5
+  burrowHitTime: 0.35
+  burrowImpactVfx: {fileID: 0}
+  useHitReaction: 1
+  hitStates:
+  - GetHit1
+  - GetHit2
+  hitReactionTime: 1.25
+  hitRecoveryTime: 0.3
+  hitReactionCooldown: 1.15
+  hitCanInterruptAttack: 1
+  wander: 1
+  wanderRadius: 7
+  wanderPauseRange: {x: 0.6, y: 1.8}
+  wanderSpeedMul: 0.55
+  idleState: Idle
+  moveState: Locomotion
+  roarState: BattleRoar
+  dieState: Die
+  windupState: BattleIdle
+  standoffDistance: 2.37
+  roarOnDetect: 1
+  roarTime: 1.5833334

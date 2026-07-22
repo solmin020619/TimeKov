@@ -49,9 +49,24 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
     [Tooltip("비프 클립이 0.3초쯤이라 이걸 더 줄이면 소리가 겹쳐서 삑삑이 아니라 웅- 하는 잡음이 된다.")]
     [SerializeField] private float beepIntervalEnd = 0.13f;
 
+    [Header("평상시 어슬렁 (플레이어 발견 전)")]
+    // ★기존 일반몹 19종은 BT(EnemyBrain)라 EnemySpawnPoint 가 순찰 웨이포인트를 주입해준다.
+    //   이 녀석은 보스처럼 전용 컨트롤러라 그 경로를 안 타서, 안 넣으면 발견 전까지 굳어 있다.
+    //   웨이포인트 대신 스폰 지점 기준으로 스스로 돈다(씬 세팅 불필요).
+    [Tooltip("가만히 서 있지 않고 스폰 지점 주변을 순찰한다. 난파 드론이 구역을 훑는 그림.")]
+    [SerializeField] private bool wander = true;
+    [Tooltip("순찰 반경(m). 스폰 지점 기준.")]
+    [SerializeField] private float wanderRadius = 7f;
+    [Tooltip("목적지 사이 대기 시간(초) 최소/최대.")]
+    [SerializeField] private Vector2 wanderPauseRange = new Vector2(1f, 3f);
+    [Tooltip("순찰 속도 = moveSpeed x 이 값.")]
+    [Range(0.1f, 1f)][SerializeField] private float wanderSpeedMul = 0.45f;
+
     [Header("애니메이터")]
     [SerializeField] private string speedParam = "Speed";
 
+    private Coroutine _wanderCo;
+    private Vector3 _homePos;
     private NavMeshAgent _agent;
     private EnemyHealth _health;
     private EnemyFeedback _feedback;
@@ -145,6 +160,9 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
 
     private void Start()
     {
+        // ★순찰 중심. 스포너가 Warp 로 자리를 잡은 뒤여야 하므로 Awake 가 아니라 Start 에서 잡는다.
+        _homePos = transform.position;
+
         AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
@@ -153,6 +171,7 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
     // 나중에 적 풀링이 들어오면 arming 중 비활성화가 생긴다. 그때 발광맵이 떼인 채로 재사용되지 않게 막아둔다.
     private void OnDisable()
     {
+        _wanderCo = null;   // 코루틴은 비활성화 시 죽는다. 핸들이 남으면 재사용 때 순찰이 안 돈다
         if (!_arming) return;
         _arming = false;
         transform.localScale = _baseScale;
@@ -182,6 +201,7 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
     {
         _dead = true;
         StopAllCoroutines();
+        _wanderCo = null;   // 핸들이 남으면 죽은 뒤에도 순찰이 도는 걸로 오해한다
         _arming = false;
         transform.localScale = _baseScale;
         ResetTint();   // arming 중 처치되면 빨간 채로 남으므로 원복
@@ -199,10 +219,15 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
 
         if (!valid || dist > data.visionRange)
         {
-            StopMove();
+            // ★가만히 서 있으면 죽어 있는 것처럼 보인다. 구역을 훑고 다닌다.
+            if (wander) StartWander();
+            else StopMove();
             TickSpeed();
             return;
         }
+
+        // 플레이어를 봤다. 순찰 중단하고 전투 속도로 되돌린다.
+        StopWander();
 
         if (dist <= armRange)
         {
@@ -216,6 +241,91 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
             _agent.SetDestination(_player.position);
         }
         TickSpeed();
+    }
+
+    // ── 평상시 순찰 ──
+    // 기존 일반몹은 EnemyBrain(BT) 이라 EnemySpawnPoint 가 웨이포인트를 주입해준다.
+    // 이 컨트롤러는 보스와 같은 경로라 그걸 못 받으므로 스폰 지점 기준으로 스스로 돈다.
+    private void StartWander()
+    {
+        if (_wanderCo == null) _wanderCo = StartCoroutine(WanderRoutine());
+    }
+
+    // 매 프레임 호출되므로 돌고 있을 때만 일한다.
+    private void StopWander()
+    {
+        if (_wanderCo == null) return;
+        StopCoroutine(_wanderCo);
+        _wanderCo = null;
+        StopMove();
+        RestoreMoveSpeed();
+    }
+
+    private void RestoreMoveSpeed()
+    {
+        if (_agent != null && data != null) _agent.speed = data.moveSpeed;
+    }
+
+    private bool NavOk() => _agent != null && _agent.enabled && _agent.isOnNavMesh;
+
+    private IEnumerator WanderRoutine()
+    {
+        while (!_dead && !_arming)
+        {
+            // ★한 번 실패하면 그대로 쉬어버리면 "가끔 한 번씩만 움직이는" 그림이 된다. 여러 번 다시 뽑는다.
+            bool moving = false;
+            for (int tries = 0; tries < 6 && !moving; tries++)
+            {
+                Vector2 dir = Random.insideUnitCircle.normalized;
+                Vector3 want = _homePos + new Vector3(dir.x, 0f, dir.y)
+                                        * Random.Range(wanderRadius * 0.35f, wanderRadius);
+
+                if (!NavMesh.SamplePosition(want, out var hit, 3f, NavMesh.AllAreas)) continue;
+                if (!NavOk()) break;
+
+                _agent.speed = data.moveSpeed * wanderSpeedMul;
+                _agent.isStopped = false;
+                _agent.SetDestination(hit.position);
+                moving = true;
+
+                // ★경로가 안 이어지는 지점이면 즉시 다른 곳을 고른다.
+                //   예전엔 타임아웃까지 그대로 기다려서 한참 서 있는 것처럼 보였다.
+                while (_agent.pathPending) yield return null;
+                if (_agent.pathStatus != NavMeshPathStatus.PathComplete)
+                {
+                    _agent.ResetPath();
+                    moving = false;
+                    continue;
+                }
+
+                float giveUp = Time.time + 6f;
+                while (!_dead && !_arming && Time.time < giveUp)
+                {
+                    if (_agent.remainingDistance <= 0.5f) break;
+                    TickSpeed();
+                    yield return null;
+                }
+            }
+            if (_dead || _arming) break;
+
+            StopMove();
+            RestoreMoveSpeed();
+
+            // ★0 으로 두면 목적지 뽑기 실패와 겹칠 때 한 프레임 안에서 무한 루프 = 게임 정지.
+            float pause = Mathf.Max(0.1f, Random.Range(wanderPauseRange.x,
+                                    Mathf.Max(wanderPauseRange.x, wanderPauseRange.y)));
+            float end = Time.time + pause;
+            while (!_dead && !_arming && Time.time < end)
+            {
+                TickSpeed();
+                yield return null;
+            }
+
+            yield return null;   // 안전장치
+        }
+
+        RestoreMoveSpeed();
+        _wanderCo = null;
     }
 
     // 점화 -> 폭발. ★멈추지 않는다. 삑삑거리며 계속 쫓아오다가 시간이 다 되면 그 자리서 터진다.
