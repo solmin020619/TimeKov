@@ -44,6 +44,10 @@ MonoBehaviour:
   attackSound: {fileID: 8300000, guid: 237339200706b4a388b5d8865a919cb6, type: 3}
   deathVFX: {fileID: 0}
   deathSound: {fileID: 8300000, guid: 1977b52a39b384ab78245c844c79e13f, type: 3}
+  hitStopTime: 0.05
+  hitStopScale: 0.08
+  knockbackDistance: 0
+  knockbackTime: 0.12
   telegraphVFX: {fileID: 0}
   telegraphSound: {fileID: 0}
   telegraphLifeTime: 0.40000096
@@ -58,6 +62,11 @@ MonoBehaviour:
   startDormant: 0
   sleepAfterIdle: 0
   sleepAnimDuration: 0
+  dormantGroundVFX: {fileID: 0}
+  dormantGroundScale: 1
+  appearBurstVFX: {fileID: 0}
+  appearBurstScale: 1
+  appearBurstLifeTime: 3
   meleeImpactVFX: {fileID: 0}
   meleeImpactOffset: {x: 0, y: 0, z: 1.5}
   meleeImpactScale: 1
@@ -68,6 +77,34 @@ MonoBehaviour:
   chargeDuration: 1
   chargeHitRadius: 1.4
   chargeEndDuration: 1.0000019
+  sweepAttack: 0
+  sweepStartRatio: 0.2
+  sweepEndRatio: 0.8
+  sweepHitBone: 
+  sweepHitRadius: 2
+  dualAttack: 0
+  meleeRange: 3.5
+  meleeHitDelay: 0.25000095
+  meleeAnimLength: 0.5000019
+  breathAttack: 0
+  breathVFX: {fileID: 0}
+  breathStreamAxis: {x: 0, y: 0, z: 1}
+  breathRange: 8
+  breathAngle: 35
+  breathStartDelay: 0.3
+  breathDuration: 1.2
+  breathTickInterval: 0.5
+  skyfallAttack: 0
+  skyfallVFX: {fileID: 0}
+  skyfallVfxEuler: {x: 0, y: 0, z: 0}
+  flattenParticles: []
+  skyfallHeight: 10
+  skyfallFallTime: 0.6
+  skyfallImpactRadius: 1.8
+  impactStripObjects: []
+  skyfallSpread: 3
+  skyfallMaxTilt: 0
+  skyfallGroundClearance: 0.1
   ranged: 0
   projectileVFX: {fileID: 0}
   muzzleVFX: {fileID: 0}
@@ -94,6 +131,7 @@ MonoBehaviour:
   stepSpeedMul: 0.7
   strafeSpeedMul: 0.5
   strafeAnimSpeedMul: 1
+  cancelRootDrift: 0
   walkAnimRefSpeed: 2.5
   walkAnimSpeedClamp: {x: 0.4, y: 2.5}
   locoDirDamp: 0.12

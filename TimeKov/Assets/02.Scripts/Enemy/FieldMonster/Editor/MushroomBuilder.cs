@@ -16,20 +16,27 @@ public static class MushroomBuilder
     public static void Build() => BuildNature();
 
     // ── 테마별(스킨=모델 프리팹만 다름) ──────────────────────────
+    // ★[07-22] 테마마다 정체(이름/id/드롭키)를 따로 준다. 도감엔 4칸으로 뜨고 맵마다 다른 걸 떨굴 수 있다.
+    //   예전엔 4종이 sourceId 를 공유해서 도감/드롭이 한 몬스터로 뭉쳐 있었다.
     public static void BuildNature() => Make("머쉬룸몬스터기본",                        // 자연(Red). 기존 이름 유지(씬 인스턴스 보존)
-        OutSO + "/FieldData_Mushroom.asset",        OutPre + "/Enemy_Mushroom.prefab");
+        OutSO + "/FieldData_Mushroom.asset",        OutPre + "/Enemy_Mushroom.prefab",
+        "머쉬룸",      "mushroom",        "MeleeBot_Mushroom");
 
     public static void BuildSnow()   => Make("머쉬룸몬스터3",                           // 설산(Cold)
-        OutSO + "/FieldData_Mushroom_Snow.asset",   OutPre + "/Enemy_Mushroom_Snow.prefab");
+        OutSO + "/FieldData_Mushroom_Snow.asset",   OutPre + "/Enemy_Mushroom_Snow.prefab",
+        "서리 머쉬룸", "mushroom_snow",   "MeleeBot_Mushroom_Snow");
 
     public static void BuildDesert() => Make("머쉬룸몬스터6",                           // 사막(Orange)
-        OutSO + "/FieldData_Mushroom_Desert.asset", OutPre + "/Enemy_Mushroom_Desert.prefab");
+        OutSO + "/FieldData_Mushroom_Desert.asset", OutPre + "/Enemy_Mushroom_Desert.prefab",
+        "모래 머쉬룸", "mushroom_desert", "MeleeBot_Mushroom_Desert");
 
     public static void BuildLava()   => Make("머쉬룸몬스터1",                           // 용암(Black)
-        OutSO + "/FieldData_Mushroom_Lava.asset",   OutPre + "/Enemy_Mushroom_Lava.prefab");
+        OutSO + "/FieldData_Mushroom_Lava.asset",   OutPre + "/Enemy_Mushroom_Lava.prefab",
+        "용암 머쉬룸", "mushroom_lava",   "MeleeBot_Mushroom_Lava");
 
-    // ── 공통 설정(패턴/스탯/클립) — 모델 프리팹 + 출력 경로만 갈아끼움 ──
-    static void Make(string modelName, string soPath, string prefabPath)
+    // ── 공통 설정(패턴/스탯/클립) — 모델 프리팹 + 출력 경로 + 정체만 갈아끼움 ──
+    static void Make(string modelName, string soPath, string prefabPath,
+                     string name, string id, string sid)
     {
         FieldMonsterBuilder.Build(new FieldMonsterBuildConfig
         {
@@ -55,8 +62,8 @@ public static class MushroomBuilder
             clipHit   = "MushHit",
             clipDeath = "MushDeath",
 
-            // 정체(공통 — 같은 몬스터, 스킨만 다름)
-            enemyName = "머쉬룸", enemyId = "mushroom", sourceId = "MeleeBot_Mushroom",
+            // 정체(테마마다 다름 — 도감/드롭이 4종을 별개로 센다)
+            enemyName = name, enemyId = id, sourceId = sid,
 
             // 스탯 — 먼 거리에서 달려드는 돌진형(중간 체력)
             maxHP = 80f, moveSpeed = 3.5f, attackDamage = 20f,

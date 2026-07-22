@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 02537cf28553a6646b59dc3c166b14da, type: 3}
   m_Name: FieldData_RockMonster_Snow
   m_EditorClassIdentifier: 
-  enemyName: "\uB85D\uBAAC\uC2A4\uD130"
-  enemyId: rock_monster
+  enemyName: "\uC11C\uB9AC \uB85D\uBAAC\uC2A4\uD130"
+  enemyId: rock_monster_snow
   maxHP: 180
   moveSpeed: 2.2
   acceleration: 12
@@ -44,6 +44,10 @@ MonoBehaviour:
   attackSound: {fileID: 8300000, guid: bb14e9e6e1841433e913483a14788dd1, type: 3}
   deathVFX: {fileID: 0}
   deathSound: {fileID: 8300000, guid: bca9f7309b03e4964b113a08f280dc28, type: 3}
+  hitStopTime: 0.05
+  hitStopScale: 0.08
+  knockbackDistance: 0
+  knockbackTime: 0.12
   telegraphVFX: {fileID: 0}
   telegraphSound: {fileID: 0}
   telegraphLifeTime: 1.2611122
@@ -58,10 +62,49 @@ MonoBehaviour:
   startDormant: 1
   sleepAfterIdle: 12
   sleepAnimDuration: 5
+  dormantGroundVFX: {fileID: 0}
+  dormantGroundScale: 1
+  appearBurstVFX: {fileID: 0}
+  appearBurstScale: 1
+  appearBurstLifeTime: 3
   meleeImpactVFX: {fileID: 198022, guid: 738c7797f6089494e96ae306646aaa11, type: 3}
   meleeImpactOffset: {x: 0.7, y: 0.2, z: 1.4}
   meleeImpactScale: 6
   meleeImpactLifeTime: 3
+  chargeAttack: 0
+  chargeWindup: 2.2222245
+  chargeSpeed: 9
+  chargeDuration: 0.7
+  chargeHitRadius: 1.3
+  chargeEndDuration: 0.4
+  sweepAttack: 0
+  sweepStartRatio: 0.2
+  sweepEndRatio: 0.8
+  sweepHitBone: 
+  sweepHitRadius: 2
+  dualAttack: 0
+  meleeRange: 3.5
+  meleeHitDelay: 1.1111122
+  meleeAnimLength: 2.2222245
+  breathAttack: 0
+  breathVFX: {fileID: 0}
+  breathStreamAxis: {x: 0, y: 0, z: 1}
+  breathRange: 8
+  breathAngle: 35
+  breathStartDelay: 0.3
+  breathDuration: 1.2
+  breathTickInterval: 0.5
+  skyfallAttack: 0
+  skyfallVFX: {fileID: 0}
+  skyfallVfxEuler: {x: 0, y: 0, z: 0}
+  flattenParticles: []
+  skyfallHeight: 10
+  skyfallFallTime: 0.6
+  skyfallImpactRadius: 1.8
+  impactStripObjects: []
+  skyfallSpread: 3
+  skyfallMaxTilt: 0
+  skyfallGroundClearance: 0.1
   ranged: 0
   projectileVFX: {fileID: 0}
   muzzleVFX: {fileID: 0}
@@ -88,6 +131,7 @@ MonoBehaviour:
   stepSpeedMul: 0.6
   strafeSpeedMul: 0.5
   strafeAnimSpeedMul: 1
+  cancelRootDrift: 0
   walkAnimRefSpeed: 2.2
   walkAnimSpeedClamp: {x: 0.4, y: 2.5}
   locoDirDamp: 0.12

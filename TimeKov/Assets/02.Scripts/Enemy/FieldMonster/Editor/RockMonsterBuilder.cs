@@ -17,20 +17,26 @@ public static class RockMonsterBuilder
     public static void Build() => BuildNature();
 
     // ── 테마별(스킨=모델 프리팹만 다름) ──────────────────────────
+    // ★[07-22] 테마마다 정체(이름/id/드롭키)를 따로 준다. 도감엔 4칸으로 뜨고 맵마다 다른 걸 떨굴 수 있다.
     public static void BuildNature() => Make("록몬스터기본",                         // 자연(Default). 기존 이름 유지(씬 인스턴스 보존)
-        OutSO + "/FieldData_RockMonster.asset",       OutPre + "/Enemy_RockMonster.prefab");
+        OutSO + "/FieldData_RockMonster.asset",       OutPre + "/Enemy_RockMonster.prefab",
+        "록몬스터",      "rock_monster",        "MeleeBot_RockMonster");
 
     public static void BuildSnow()   => Make("록몬스터5",                            // 설산(Snow)
-        OutSO + "/FieldData_RockMonster_Snow.asset",  OutPre + "/Enemy_RockMonster_Snow.prefab");
+        OutSO + "/FieldData_RockMonster_Snow.asset",  OutPre + "/Enemy_RockMonster_Snow.prefab",
+        "서리 록몬스터", "rock_monster_snow",   "MeleeBot_RockMonster_Snow");
 
     public static void BuildDesert() => Make("록몬스터7",                            // 사막(Rock2)
-        OutSO + "/FieldData_RockMonster_Desert.asset", OutPre + "/Enemy_RockMonster_Desert.prefab");
+        OutSO + "/FieldData_RockMonster_Desert.asset", OutPre + "/Enemy_RockMonster_Desert.prefab",
+        "모래 록몬스터", "rock_monster_desert", "MeleeBot_RockMonster_Desert");
 
     public static void BuildLava()   => Make("록몬스터6",                            // 용암(Rock1)
-        OutSO + "/FieldData_RockMonster_Lava.asset",  OutPre + "/Enemy_RockMonster_Lava.prefab");
+        OutSO + "/FieldData_RockMonster_Lava.asset",  OutPre + "/Enemy_RockMonster_Lava.prefab",
+        "용암 록몬스터", "rock_monster_lava",   "MeleeBot_RockMonster_Lava");
 
-    // ── 공통 설정(패턴/스탯/클립) — 모델 프리팹 + 출력 경로만 갈아끼움 ──
-    static void Make(string modelName, string soPath, string prefabPath)
+    // ── 공통 설정(패턴/스탯/클립) — 모델 프리팹 + 출력 경로 + 정체만 갈아끼움 ──
+    static void Make(string modelName, string soPath, string prefabPath,
+                     string name, string id, string sid)
     {
         FieldMonsterBuilder.Build(new FieldMonsterBuildConfig
         {
@@ -57,8 +63,8 @@ public static class RockMonsterBuilder
             clipHit  = "GotHit",
             clipDeath = "Death",
 
-            // 정체(공통 — 같은 몬스터, 스킨만 다름)
-            enemyName = "록몬스터", enemyId = "rock_monster", sourceId = "MeleeBot_RockMonster",
+            // 정체(테마마다 다름 — 도감/드롭이 4종을 별개로 센다)
+            enemyName = name, enemyId = id, sourceId = sid,
 
             // 스탯 — 느리고 단단한 강타형
             maxHP = 180f, moveSpeed = 2.2f, attackDamage = 30f, attackRange = 2.8f,

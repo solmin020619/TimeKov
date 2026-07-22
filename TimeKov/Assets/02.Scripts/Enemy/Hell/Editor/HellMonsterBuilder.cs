@@ -15,8 +15,8 @@ using UnityEngine.AI;
 public static class HellMonsterBuilder
 {
     const string BaseEnemyPath = "Assets/05.Prefabs/###/BaseEnemy.prefab";
-    // 흡수 VFX 참조 원본. BaseEnemy 에는 EnemyAbsorbOnDeath 자체가 없어서 여기서 가져온다.
-    const string AbsorbRefPath = "Assets/05.Prefabs/Enemy/Enemy_DarknessSpider.prefab";
+    // 시간 흡수 VFX. ★[07-22] 예전엔 Enemy_DarknessSpider 프리팹에서 긁어왔는데,
+    //   그 거미를 삭제하기로 하면서 에셋을 직접 가리키게 바꿨다(EnemyAbsorbVfx 한 곳에서 관리).
 
     public static void Build(HellConfig c)
     {
@@ -561,7 +561,7 @@ public static class HellMonsterBuilder
     // 드롭 + 시간흡수. ★흡수는 재원 빌더가 빠뜨린 부분이라 여기선 처음부터 넣는다.
     static void WireRewards(GameObject go, string sourceId)
     {
-        GameObject boxPrefab = null, absorbVfx = null;
+        GameObject boxPrefab = null;
 
         var baseEnemy = AssetDatabase.LoadAssetAtPath<GameObject>(BaseEnemyPath);
         if (baseEnemy != null)
@@ -571,29 +571,13 @@ public static class HellMonsterBuilder
         }
         else Debug.LogWarning($"[Hell] BaseEnemy 못 찾음(드롭 미연결): {BaseEnemyPath}");
 
-        // BaseEnemy 에는 EnemyAbsorbOnDeath 가 아예 없다 -> 실참조를 가진 프리팹에서 가져온다
-        var absorbRef = AssetDatabase.LoadAssetAtPath<GameObject>(AbsorbRefPath);
-        if (absorbRef != null)
-        {
-            var ra = absorbRef.GetComponent<EnemyAbsorbOnDeath>();
-            if (ra != null)
-            {
-                var p = new SerializedObject(ra).FindProperty("absorbVfxPrefab");
-                if (p != null) absorbVfx = p.objectReferenceValue as GameObject;
-            }
-        }
-        if (absorbVfx == null) Debug.LogWarning($"[Hell] 흡수 VFX 참조 실패: {AbsorbRefPath}");
-
         var drop = GetOrAdd<EnemyDropOnDeath>(go);
         var ds = new SerializedObject(drop);
         var sid = ds.FindProperty("sourceId"); if (sid != null) sid.stringValue = sourceId;
         SetRef(ds, "boxPrefab", boxPrefab);
         ds.ApplyModifiedProperties();
 
-        var absorb = GetOrAdd<EnemyAbsorbOnDeath>(go);
-        var abs = new SerializedObject(absorb);
-        SetRef(abs, "absorbVfxPrefab", absorbVfx);
-        abs.ApplyModifiedProperties();
+        EnemyBuildUtil.AttachTimeAbsorb(go, "Hell");
     }
 
     // -- helpers --

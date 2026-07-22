@@ -25,8 +25,10 @@ public static class SpiderQueenBuilder
         muzzle: Frost + "/MuzzleFlash_Frost.prefab",
         proj: Frost + "/Projectile_Frost.prefab",
         impact: Frost + "/Impact_Frost.prefab",
-        soPath: OutSO + "/FieldData_SpiderQueen.asset",           // 기존 이름 유지(씬 인스턴스 보존)
-        prefabPath: OutPre + "/Enemy_SpiderQueen.prefab");
+        // ★[07-22] 접미사 없던 기본형을 _Frost 로 개명. 3테마가 전부 접미사를 갖게 해서 헷갈릴 여지를 없앴다.
+        soPath: OutSO + "/FieldData_SpiderQueen_Frost.asset",
+        prefabPath: OutPre + "/Enemy_SpiderQueen_Frost.prefab",
+        name: "서리 거미여왕", id: "spider_queen_frost", sid: "MeleeBot_SpiderQueen_Frost");
 
     public static void BuildDesert() => Make( // 사막 = 불꽃(Anime 파이어볼, 주황). 2연발(팡팡).
         skin: "3", teleScale: 0.5f, projScale: 1.6f,   // 투사체 조금 키움
@@ -36,6 +38,7 @@ public static class SpiderQueenBuilder
         impact: Anime + "/VFX_Fireball_Impact.prefab",
         soPath: OutSO + "/FieldData_SpiderQueen_Desert.asset",
         prefabPath: OutPre + "/Enemy_SpiderQueen_Desert.prefab",
+        name: "모래 거미여왕", id: "spider_queen_desert", sid: "MeleeBot_SpiderQueen_Desert",
         projCount: 2, projInterval: 0.4f);                       // ★2발 연달아(팡...팡)
 
     public static void BuildNature() => Make( // 자연 = 근접(거미S3 방식). 근접 공격.
@@ -44,6 +47,7 @@ public static class SpiderQueenBuilder
         muzzle: "", proj: "", impact: "",                        // 근접이라 발사체 계열 없음
         soPath: OutSO + "/FieldData_SpiderQueen_Nature.asset",
         prefabPath: OutPre + "/Enemy_SpiderQueen_Nature.prefab",
+        name: "숲 거미여왕", id: "spider_queen_nature", sid: "MeleeBot_SpiderQueen_Nature",
         ranged: false,                                           // ★근접
         attackClip: "Anim@Spider_S_Queen_attack5",               // 근접 공격 모션
         atkRange: 3.2f,
@@ -59,6 +63,7 @@ public static class SpiderQueenBuilder
     static void Make(string skin, float teleScale, float projScale,
                      string tele, string muzzle, string proj, string impact,
                      string soPath, string prefabPath,
+                     string name, string id, string sid,
                      bool ranged = true,
                      string attackClip = "Anim@Spider_S_Queen_attack3",
                      float atkRange = 13f, float approachRatio = 0.85f,
@@ -88,8 +93,8 @@ public static class SpiderQueenBuilder
             clipHit    = "Anim_Spider_S_Queen_get_hit1",
             clipDeath  = "Anim_Spider_S_Queen_death2",
 
-            // 정체(공통 — 같은 몬스터, 스킨만 다름)
-            enemyName = "거미여왕", enemyId = "spider_queen", sourceId = "MeleeBot_SpiderQueen",
+            // 정체(테마마다 다름 — 도감/드롭이 3종을 별개로 센다)
+            enemyName = name, enemyId = id, sourceId = sid,
 
             // 스탯(공통)
             maxHP = 200f, moveSpeed = 3.5f, attackDamage = 25f,

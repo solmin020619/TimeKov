@@ -913,6 +913,7 @@ GameObject:
   - component: {fileID: 339540634556664955}
   - component: {fileID: 2348598819537903342}
   - component: {fileID: 6928413378352979817}
+  - component: {fileID: 3313205390597344314}
   m_Layer: 6
   m_Name: Enemy_Mushroom_Lava
   m_TagString: Untagged
@@ -1189,7 +1190,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90301b544eec22c4bb9f231038ac8315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceId: MeleeBot_Mushroom
+  sourceId: MeleeBot_Mushroom_Lava
   boxPrefab: {fileID: 5492271872351944366, guid: 3e6f655b05dbdaf43a2451c009617465, type: 3}
   spawnHeightOffset: 0.5
   scatterRadius: 1
@@ -1243,7 +1244,26 @@ MonoBehaviour:
   sleepTrigger: Sleep
   attackAltParam: AttackAlt
   chargeEndTrigger: ChargeEnd
+  attackMeleeParam: AttackMelee
   moveFaceThreshold: 0.1
+--- !u!114 &3313205390597344314
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8713565572359737611}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b94666fba6d414dbb2eb6567d2a242, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbVfxPrefab: {fileID: 1652120292757738852, guid: 4ad361e05246d6d4eb78bae170440ae5, type: 3}
+  flyTime: 0.55
+  centerYTweak: 0
+  spawnHeight: 1
+  fallbackLifestealPercent: 0.03
+  bonusHealPercent: 0
 --- !u!1001 &3347190908052613727
 PrefabInstance:
   m_ObjectHideFlags: 0

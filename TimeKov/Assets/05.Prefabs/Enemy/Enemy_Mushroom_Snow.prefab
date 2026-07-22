@@ -722,6 +722,7 @@ GameObject:
   - component: {fileID: 2300823313961609329}
   - component: {fileID: 3672384163914402307}
   - component: {fileID: 5672044314742886919}
+  - component: {fileID: 3332987719005945560}
   m_Layer: 6
   m_Name: Enemy_Mushroom_Snow
   m_TagString: Untagged
@@ -998,7 +999,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90301b544eec22c4bb9f231038ac8315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceId: MeleeBot_Mushroom
+  sourceId: MeleeBot_Mushroom_Snow
   boxPrefab: {fileID: 5492271872351944366, guid: 3e6f655b05dbdaf43a2451c009617465, type: 3}
   spawnHeightOffset: 0.5
   scatterRadius: 1
@@ -1052,7 +1053,26 @@ MonoBehaviour:
   sleepTrigger: Sleep
   attackAltParam: AttackAlt
   chargeEndTrigger: ChargeEnd
+  attackMeleeParam: AttackMelee
   moveFaceThreshold: 0.1
+--- !u!114 &3332987719005945560
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7609514276982842801}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b94666fba6d414dbb2eb6567d2a242, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbVfxPrefab: {fileID: 1652120292757738852, guid: 4ad361e05246d6d4eb78bae170440ae5, type: 3}
+  flyTime: 0.55
+  centerYTweak: 0
+  spawnHeight: 1
+  fallbackLifestealPercent: 0.03
+  bonusHealPercent: 0
 --- !u!1 &7836822670637139741
 GameObject:
   m_ObjectHideFlags: 0

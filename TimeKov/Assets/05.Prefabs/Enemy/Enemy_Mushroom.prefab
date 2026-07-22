@@ -330,6 +330,7 @@ GameObject:
   - component: {fileID: 1737701561947570904}
   - component: {fileID: 7901442275120747343}
   - component: {fileID: 4704164628568675901}
+  - component: {fileID: 5373554713461241178}
   m_Layer: 6
   m_Name: Enemy_Mushroom
   m_TagString: Untagged
@@ -660,7 +661,26 @@ MonoBehaviour:
   sleepTrigger: Sleep
   attackAltParam: AttackAlt
   chargeEndTrigger: ChargeEnd
+  attackMeleeParam: AttackMelee
   moveFaceThreshold: 0.1
+--- !u!114 &5373554713461241178
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202662411557445836}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b94666fba6d414dbb2eb6567d2a242, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbVfxPrefab: {fileID: 1652120292757738852, guid: 4ad361e05246d6d4eb78bae170440ae5, type: 3}
+  flyTime: 0.55
+  centerYTweak: 0
+  spawnHeight: 1
+  fallbackLifestealPercent: 0.03
+  bonusHealPercent: 0
 --- !u!1 &4346101443641178279
 GameObject:
   m_ObjectHideFlags: 0

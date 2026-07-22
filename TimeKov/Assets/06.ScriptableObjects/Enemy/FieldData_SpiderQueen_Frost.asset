@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 02537cf28553a6646b59dc3c166b14da, type: 3}
   m_Name: FieldData_SpiderQueen
   m_EditorClassIdentifier: 
-  enemyName: "\uAC70\uBBF8\uC5EC\uC655"
-  enemyId: spider_queen
+  enemyName: "\uC11C\uB9AC \uAC70\uBBF8\uC5EC\uC655"
+  enemyId: spider_queen_frost
   maxHP: 200
   moveSpeed: 3.5
   acceleration: 12
@@ -44,6 +44,10 @@ MonoBehaviour:
   attackSound: {fileID: 0}
   deathVFX: {fileID: 0}
   deathSound: {fileID: 0}
+  hitStopTime: 0.05
+  hitStopScale: 0.08
+  knockbackDistance: 0
+  knockbackTime: 0.12
   telegraphVFX: {fileID: 8733938641595023359, guid: fe0d8918f9f0d034d8f04e2286c96c9a, type: 3}
   telegraphSound: {fileID: 0}
   telegraphLifeTime: 0.9595239
@@ -55,10 +59,52 @@ MonoBehaviour:
   telegraphGrowFrom: 0.15
   attackSpeedMul: 0.7
   staggerChance: 0.3
+  startDormant: 0
+  sleepAfterIdle: 0
+  sleepAnimDuration: 0
+  dormantGroundVFX: {fileID: 0}
+  dormantGroundScale: 1
+  appearBurstVFX: {fileID: 0}
+  appearBurstScale: 1
+  appearBurstLifeTime: 3
   meleeImpactVFX: {fileID: 0}
   meleeImpactOffset: {x: 0, y: 0, z: 1.5}
   meleeImpactScale: 1
   meleeImpactLifeTime: 3
+  chargeAttack: 0
+  chargeWindup: 1.6190478
+  chargeSpeed: 9
+  chargeDuration: 0.7
+  chargeHitRadius: 1.3
+  chargeEndDuration: 0.4
+  sweepAttack: 0
+  sweepStartRatio: 0.2
+  sweepEndRatio: 0.8
+  sweepHitBone: 
+  sweepHitRadius: 2
+  dualAttack: 0
+  meleeRange: 3.5
+  meleeHitDelay: 0.8095239
+  meleeAnimLength: 1.6190478
+  breathAttack: 0
+  breathVFX: {fileID: 0}
+  breathStreamAxis: {x: 0, y: 0, z: 1}
+  breathRange: 8
+  breathAngle: 35
+  breathStartDelay: 0.3
+  breathDuration: 1.2
+  breathTickInterval: 0.5
+  skyfallAttack: 0
+  skyfallVFX: {fileID: 0}
+  skyfallVfxEuler: {x: 0, y: 0, z: 0}
+  flattenParticles: []
+  skyfallHeight: 10
+  skyfallFallTime: 0.6
+  skyfallImpactRadius: 1.8
+  impactStripObjects: []
+  skyfallSpread: 3
+  skyfallMaxTilt: 0
+  skyfallGroundClearance: 0.1
   ranged: 1
   projectileVFX: {fileID: 4878989226495059223, guid: 67496e8f970483241bd34f77dc37279d, type: 3}
   muzzleVFX: {fileID: 1557615187109586612, guid: 96e1e1eb9eee1d34fbdd4e7241516fff, type: 3}
@@ -85,6 +131,7 @@ MonoBehaviour:
   stepSpeedMul: 0.5
   strafeSpeedMul: 0.5
   strafeAnimSpeedMul: 1
+  cancelRootDrift: 0
   walkAnimRefSpeed: 2
   walkAnimSpeedClamp: {x: 0.4, y: 2.5}
   locoDirDamp: 0.12

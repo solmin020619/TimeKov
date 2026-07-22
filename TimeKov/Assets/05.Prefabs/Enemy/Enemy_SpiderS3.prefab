@@ -1334,6 +1334,7 @@ GameObject:
   - component: {fileID: 2752173618392102344}
   - component: {fileID: 3547196517349737080}
   - component: {fileID: 7368513207254505101}
+  - component: {fileID: 4670497454139691327}
   m_Layer: 6
   m_Name: Enemy_SpiderS3
   m_TagString: Untagged
@@ -1661,7 +1662,29 @@ MonoBehaviour:
   speedMulParam: SpeedMul
   attackTrigger: Attack
   staggerParam: Stagger
+  sleepTrigger: Sleep
+  attackAltParam: AttackAlt
+  chargeEndTrigger: ChargeEnd
+  attackMeleeParam: AttackMelee
   moveFaceThreshold: 0.1
+--- !u!114 &4670497454139691327
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5021455956175482049}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b94666fba6d414dbb2eb6567d2a242, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbVfxPrefab: {fileID: 1652120292757738852, guid: 4ad361e05246d6d4eb78bae170440ae5, type: 3}
+  flyTime: 0.55
+  centerYTweak: 0
+  spawnHeight: 1
+  fallbackLifestealPercent: 0.03
+  bonusHealPercent: 0
 --- !u!1 &5177861252095555096
 GameObject:
   m_ObjectHideFlags: 0

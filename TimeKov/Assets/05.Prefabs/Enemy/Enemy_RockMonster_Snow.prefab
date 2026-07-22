@@ -854,6 +854,7 @@ GameObject:
   - component: {fileID: 4861608531423940592}
   - component: {fileID: 2706943257506858816}
   - component: {fileID: 461594045966373285}
+  - component: {fileID: 8865920841990983732}
   m_Layer: 6
   m_Name: Enemy_RockMonster_Snow
   m_TagString: Untagged
@@ -1130,7 +1131,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90301b544eec22c4bb9f231038ac8315, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceId: MeleeBot_RockMonster
+  sourceId: MeleeBot_RockMonster_Snow
   boxPrefab: {fileID: 5492271872351944366, guid: 3e6f655b05dbdaf43a2451c009617465, type: 3}
   spawnHeightOffset: 0.5
   scatterRadius: 1
@@ -1183,7 +1184,27 @@ MonoBehaviour:
   staggerParam: Stagger
   sleepTrigger: Sleep
   attackAltParam: AttackAlt
+  chargeEndTrigger: ChargeEnd
+  attackMeleeParam: AttackMelee
   moveFaceThreshold: 0.1
+--- !u!114 &8865920841990983732
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4393716856795089376}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25b94666fba6d414dbb2eb6567d2a242, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  absorbVfxPrefab: {fileID: 1652120292757738852, guid: 4ad361e05246d6d4eb78bae170440ae5, type: 3}
+  flyTime: 0.55
+  centerYTweak: 0
+  spawnHeight: 1
+  fallbackLifestealPercent: 0.03
+  bonusHealPercent: 0
 --- !u!1 &4541202726330685957
 GameObject:
   m_ObjectHideFlags: 0

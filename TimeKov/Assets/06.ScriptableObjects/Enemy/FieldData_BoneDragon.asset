@@ -62,6 +62,11 @@ MonoBehaviour:
   startDormant: 0
   sleepAfterIdle: 0
   sleepAnimDuration: 0
+  dormantGroundVFX: {fileID: 0}
+  dormantGroundScale: 1
+  appearBurstVFX: {fileID: 0}
+  appearBurstScale: 1
+  appearBurstLifeTime: 3
   meleeImpactVFX: {fileID: 0}
   meleeImpactOffset: {x: 0, y: 0, z: 1.5}
   meleeImpactScale: 1
@@ -72,6 +77,11 @@ MonoBehaviour:
   chargeDuration: 0.7
   chargeHitRadius: 1.3
   chargeEndDuration: 0.4
+  sweepAttack: 0
+  sweepStartRatio: 0.2
+  sweepEndRatio: 0.8
+  sweepHitBone: 
+  sweepHitRadius: 2
   dualAttack: 0
   meleeRange: 3.5
   meleeHitDelay: 0.83333546

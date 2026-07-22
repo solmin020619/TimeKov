@@ -419,6 +419,10 @@ public static class FieldMonsterBuilder
 
         SetPrivateString(root.GetComponent<EnemyDropOnDeath>(), "sourceId", c.sourceId);
 
+        // ★[07-22] 시간 흡수. 시간=HP 게임이라 이게 없으면 잡아도 시간이 안 찬다.
+        //   BaseEnemy 에는 EnemyAbsorbOnDeath 가 없어서, 여기서 안 붙이면 필드몹 전종이 빠진다.
+        EnemyBuildUtil.AttachTimeAbsorb(root, c.enemyName);
+
         FitBodyToModel(root, vis, c.scale, c.navRadius);
         {
             var navA = root.GetComponent<NavMeshAgent>();
