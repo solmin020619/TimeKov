@@ -64,17 +64,19 @@ public class GameSaveData
     // ── 설비 해금 (퀵슬롯 1~9, FacilityUnlockManager) ───────────────────────
     public List<int> unlockedFacilityIds = new();
 
-    // ── 건축 영역(BuildZone) 확장 단계 (BuildZoneProgression) ───────────────
-    // -1 = 저장된 값 없음(새 슬롯) → 시작 단계 그대로 둠.
-    public int buildZoneStageIndex = -1;
+    // ── 건축 영역(BuildZone) 크기 (BuildZoneProgression) ────────────────────
+    // 적용된 한 변의 칸 수. 0 = 저장된 값 없음(새 슬롯) → 시작 크기 그대로 둠.
+    public int buildZoneCells = 0;
 
     // ── 우주선 수리 (ShipRepairManager) ──────────────────────────────────
     // shipRepairLevel=현재 수리 레벨(1=시작), shipRepairPartCount=보유 부품 수량(단일 종류),
     // shipRepairPartsMask=회수한 맵 픽업 비트(bit i = 픽업 i번 회수됨, 재입장 중복 회수 방지).
+    // shipRepairExtraMask=레벨 전용 추가 재료 보유 비트(bit L = 레벨 L 재료 보유. 수리 시 소모).
     // 새 슬롯 기본값(1/0/0)이 곧 게임 시작 상태라 그대로 복원해도 무해.
     public int shipRepairLevel = 1;
     public int shipRepairPartCount = 0;
     public int shipRepairPartsMask = 0;
+    public int shipRepairExtraMask = 0;
 
     // ── 도감: 아이템 최초 획득 기록 (ItemDiscovery) ──────────────────────────
     public List<int> discoveredItemIds = new();

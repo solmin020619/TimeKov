@@ -8,8 +8,15 @@ public class ShipPartPickup : MonoBehaviour
 {
     [Tooltip("이 픽업의 고유 번호(0~31). 씬 안에서 겹치면 안 됨 - 하나 먹으면 같은 번호는 다음 로드 때 같이 사라진다.")]
     [SerializeField] private int pickupIndex = 0;
-    [Tooltip("회수 시 지급할 부품 개수.")]
+    [Tooltip("회수 시 지급할 복구 에너지 개수. (extraForLevel 이 0 일 때만 쓰인다)")]
     [SerializeField] private int amount = 1;
+
+    [Tooltip("★평소엔 0(복구 에너지 픽업) 그대로 둔다.\n\n" +
+             "1 이상이면 '그 레벨 도달에 필요한 전용 추가 재료' 픽업이 된다(3=선체 보강재, 4=동력 안정기, 5=엔진).\n" +
+             "다만 추가 재료는 원래 시간에너지 보상으로 나오는 것이라 맵에 깔 물건이 아니다. " +
+             "테스트가 목적이면 이걸 쓰지 말고 개발자키 F5(다음 수리 재료 전부 지급)를 써라.\n" +
+             "이 옵션은 나중에 추가 재료를 맵에서도 주고 싶어질 때를 위한 여지로만 남겨둔다.")]
+    [SerializeField] private int extraForLevel = 0;
     [Tooltip("이 거리(m) 안으로 들어오면 자동 회수.")]
     [SerializeField] private float pickupRadius = 2.2f;
 
@@ -51,7 +58,25 @@ public class ShipPartPickup : MonoBehaviour
     private void Collect()
     {
         _taken = true;
-        ShipRepairManager.Instance?.CollectPickup(pickupIndex, amount);
+
+        var mgr = ShipRepairManager.Instance;
+        if (mgr != null)
+        {
+            // 회수 기록(중복 방지)은 두 종류가 공통으로 pickupIndex 를 쓴다.
+            // 지급 내용만 갈린다: 복구 에너지 N개 / 레벨 전용 추가 재료 1개.
+            if (extraForLevel > 0)
+            {
+                if (!mgr.IsPickupTaken(pickupIndex))
+                {
+                    mgr.MarkPickupTaken(pickupIndex);
+                    mgr.CollectExtraPart(extraForLevel);
+                }
+            }
+            else
+            {
+                mgr.CollectPickup(pickupIndex, amount);
+            }
+        }
 
         // 흡수 트레일: 픽업 위치 -> 플레이어 몸 중앙 (적 시간흡수와 동일한 LootBoxCollectFlyer 재사용)
         if (absorbTrailPrefab != null && _player != null)
