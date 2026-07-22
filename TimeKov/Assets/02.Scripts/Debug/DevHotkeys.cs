@@ -11,9 +11,10 @@
 //  F2 = 코어 레벨 +1 강제 (재료/확률 무시)         Manager/CoreUpgradeManager.cs [에디터/Dev빌드 전용 가드 있음]
 //  F3 = 도감 전부해금 토글 (도감 열려 있을 때만)    UI/CodexUI.cs                 [에디터/Dev빌드 전용 가드 있음]
 //  F4 = 테스트 아이템 지급                         Factory/TestItemSpawner.cs    [에디터/Dev빌드 전용 가드 있음]  (debugKey = 인스펙터 직렬화값)
+//  F5 = 우주선 다음 수리 재료 전부 지급             Debug/DevHotkeys.cs           [에디터/Dev빌드 전용 가드 있음]
 //  `  = 설비 1~9 전부 즉시 해금                    Grid/FacilityUnlockManager.cs [에디터/Dev빌드 전용 가드 있음]
 //
-//  F1~F4 + ` : 정식 빌드에선 컴파일에서 빠진다(에디터/Development Build 에서만 동작).
+//  F1~F5 + ` : 정식 빌드에선 컴파일에서 빠진다(에디터/Development Build 에서만 동작).
 // ============================================================
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -38,6 +39,27 @@ public class DevHotkeys : MonoBehaviour
             var player = FindAnyObjectByType<Player>();
             if (player != null && player.Stat != null) player.Stat.Kill();
         }
+
+        // F5 = 우주선 다음 수리에 필요한 재료를 전부 지급(모자란 만큼만).
+        //   복구 에너지와 레벨 전용 추가 재료는 둘 다 실제로는 다른 시스템이 주는 보상이라
+        //   (추가 재료 = 시간에너지 보상) 맵에 테스트용 픽업을 깔 이유가 없다. 이 키로 대체한다.
+        if (Input.GetKeyDown(KeyCode.F5))
+            GrantShipRepairMaterials();
+    }
+
+    private static void GrantShipRepairMaterials()
+    {
+        var ship = ShipRepairManager.Instance;
+        if (ship == null) { Debug.LogWarning("[Dev] ShipRepairManager 가 씬에 없다"); return; }
+        if (ship.IsMaxLevel) { Debug.Log("[Dev] 우주선이 이미 최대 레벨이다"); return; }
+
+        int lack = ship.NextRequiredParts - ship.PartCount;
+        if (lack > 0) ship.AddParts(lack);
+
+        // 레벨 전용 추가 재료(선체 보강재 / 동력 안정기 / 엔진)
+        if (!ship.NextExtraReady) ship.CollectExtraPart(ship.CurrentLevel + 1);
+
+        Debug.Log($"[Dev] 우주선 Lv.{ship.CurrentLevel} -> Lv.{ship.CurrentLevel + 1} 수리 재료 지급 완료");
     }
 }
 #endif

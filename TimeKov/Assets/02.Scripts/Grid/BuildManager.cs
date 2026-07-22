@@ -764,6 +764,17 @@ public class BuildManager : MonoBehaviour, ISaveable
             return;
         if (!data.canRotate)
         {
+            // ★창고 출력 포트는 테두리 스냅이 자동 회전시켜주던 시절의 잔재로 시트가 canRotate=0 이다.
+            //   자유 배치로 바꾼 지금은 회전이 필수라(출력 방향이 한쪽으로 고정되면 레일을 못 깐다)
+            //   시트를 고쳐야 한다. 조용히 안 도는 것보다 뭘 고쳐야 하는지 알려주는 게 낫다.
+            if (!edgeOnlyStoragePort && IsStoragePortPrefab(GetCurrentFacilityPrefab()))
+            {
+                Debug.LogError("[Build] 창고 출력 포트가 회전 불가로 설정돼 있다. " +
+                               "FacilityData 시트의 facilityId 9 행 canRotate 를 1 로 바꿔라. " +
+                               "(자유 배치로 바꾸면서 자동 회전이 사라졌다)");
+                ToastManager.Info("이 설비는 아직 회전 설정이 안 돼 있습니다");
+                return;
+            }
             ToastManager.Info("회전할 수 없는 설비입니다");
             return;
         }
@@ -862,15 +873,28 @@ public class BuildManager : MonoBehaviour, ISaveable
     // ── 테두리 설비 + 설치 상한 ──────────────────────────────────────────
 
     [Header("테두리 설비 (창고 출력 포트)")]
-    [Tooltip("테두리 설비의 방향 보정(도). 포트가 구역 반대편을 보면 180으로. 0/180만 사용(90은 크기축이 어긋남).")]
+    [Tooltip("★창고 출력 포트를 구역 테두리 안쪽 줄에만 설치하게 강제할지.\n\n" +
+             "끄면(기본) 일반 설비처럼 아무 데나 설치된다. 개수 상한(FacilityBuildLimit)만 남는다.\n\n" +
+             "테두리 제약을 뒀던 이유는 '구역 밖 창고에 연결한다'는 그림 때문인데 이 게임엔 그런 창고가 없다. " +
+             "포트는 전역 창고에서 꺼내오므로 위치가 기능에 영향을 주지 않는다. " +
+             "게다가 우주선 수리로 구역이 넓어지면 기존 포트가 안쪽에 갇혀 규칙이 저절로 깨진다.\n\n" +
+             "★켤 거면 시트의 facilityId 9 canRotate 를 0 으로 되돌려라(테두리 스냅이 자동 회전시킨다).")]
+    public bool edgeOnlyStoragePort = false;
+
+    [Tooltip("테두리 설비의 방향 보정(도). 포트가 구역 반대편을 보면 180으로. 0/180만 사용(90은 크기축이 어긋남).\n" +
+             "edgeOnlyStoragePort 가 켜져 있을 때만 쓰인다.")]
     public int edgeFacilityYawOffset = 0;
 
     // 배치 연출 진행 중(아직 PlacedBuilding 없음)인 설비 수. 상한 판정에 합산.
     private readonly Dictionary<int, int> _pendingPlaceCounts = new Dictionary<int, int>();
 
-    // 테두리 설비 판정 = 프리팹에 StorageExtractor 가 있으면. (마커 역할 - 확장 시 별도 마커로 승격)
-    private bool IsEdgeFacility(GameObject prefab)
+    // 창고 출력 포트인지(위치 제약과 무관한 순수 판정).
+    private bool IsStoragePortPrefab(GameObject prefab)
         => prefab != null && prefab.GetComponentInChildren<TIMEKOV.Factory.StorageExtractor>(true) != null;
+
+    // 테두리 설비 판정. ★edgeOnlyStoragePort 가 꺼져 있으면 항상 false = 일반 설비 배치 경로를 탄다.
+    private bool IsEdgeFacility(GameObject prefab)
+        => edgeOnlyStoragePort && IsStoragePortPrefab(prefab);
 
     /// <summary>현재 배치된(연출 진행 중 포함) 특정 설비 개수. 설치 상한 판정용.</summary>
     public int CountPlacedFacilities(int facilityId)
@@ -958,9 +982,6 @@ public class BuildManager : MonoBehaviour, ISaveable
 
     // 설비 점유 셀 판정 (RailBuildManager 가 레일의 설비 관통 방지에 사용)
     public bool IsCellOccupied(Vector2Int cell) => occupancy.IsOccupied(cell);
-
-    // 외부에서 특정 칸들을 영구 점유로 예약 (우주선 footprint 등 설치 금지 영역).
-    public void ReserveCells(List<Vector2Int> cells) => occupancy.Occupy(cells);
 
     // ===== end Public Helper =====
 

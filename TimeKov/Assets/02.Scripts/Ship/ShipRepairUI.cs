@@ -286,7 +286,15 @@ public class ShipRepairUI : MonoBehaviour
 
     public void Open()
     {
-        if (panelRoot == null) return;
+        // ★조용히 실패하지 않게 한다. panelRoot 는 빌더가 연결하는 참조라,
+        //   빌더를 안 돌렸거나 패널을 손으로 지웠으면 null 이 된다.
+        //   예전엔 여기서 그냥 return 해서 "F 는 먹는데 아무것도 안 뜨는" 상태가 됐다.
+        if (panelRoot == null)
+        {
+            Debug.LogError("[ShipRepairUI] panelRoot 가 비어 있어 패널을 못 연다. " +
+                           "메뉴 Tools > TIMEKOV > 우주선 수리 UI 생성 을 실행해라.");
+            return;
+        }
 
         panelRoot.SetActive(true);
         _openedFrame = Time.frameCount;
@@ -582,9 +590,21 @@ public class ShipRepairUI : MonoBehaviour
             if (repairButton.image != null) repairButton.image.color = canRepair ? BtnReady : BtnLocked;
         }
         if (repairButtonText != null)
-            repairButtonText.text = maxed
-                ? "수리 완료"
-                : (canRepair ? "수리 실행" : $"부품 부족  {count} / {mgr.NextRequiredParts}");
+            repairButtonText.text = maxed ? "수리 완료" : (canRepair ? "수리 실행" : BlockedReason(mgr, count));
+    }
+
+    // 왜 수리를 못 하는지 버튼에 그대로 적는다.
+    // ★에너지와 별개로 레벨 전용 추가 재료가 필요할 수 있다.
+    //   그걸 구분 안 하면 에너지는 충분한데 "부품 부족 3 / 3" 이 떠서 이유를 알 수 없다.
+    private static string BlockedReason(ShipRepairManager mgr, int count)
+    {
+        int need = mgr.NextRequiredParts;
+        if (count < need) return $"{mgr.PartName} 부족  {count} / {need}";
+
+        string extra = mgr.NextExtraPartName;
+        if (!string.IsNullOrEmpty(extra)) return $"{extra} 필요";
+
+        return "수리 불가";
     }
 
     private enum StatKind { Zone, Fuel, Speed }
@@ -638,7 +658,8 @@ public class ShipRepairUI : MonoBehaviour
         if (def == null) return "-";
         switch (kind)
         {
-            case StatKind.Zone:  return $"단계 {def.zoneStage}";
+            // 단계 번호는 플레이어에게 아무 의미가 없다. 실제 칸 수를 보여준다.
+            case StatKind.Zone:  return def.zoneCells > 0 ? $"{def.zoneCells}x{def.zoneCells}칸" : "-";
             case StatKind.Fuel:  return $"{Mathf.RoundToInt(def.fuelSeconds)}초";
             case StatKind.Speed: return $"제작 {Mathf.RoundToInt(def.factorySpeed * 100f)}%";
         }

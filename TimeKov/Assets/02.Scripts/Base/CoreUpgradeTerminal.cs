@@ -6,10 +6,39 @@
 
 using UnityEngine;
 
-public class CoreUpgradeTerminal : MonoBehaviour, IInteractable
+public class CoreUpgradeTerminal : MonoBehaviour, IInteractable, IInteractHint
 {
     // IInteractable — 항상 상호작용 표시 (기지 내부 조건은 Interact 안에서 검사)
     public bool CanInteract => true;
+
+    [Header("근접 힌트")]
+    [Tooltip("가까이 가면 켤 알약 UI.\nCanvas > Notifications > FacilityUnlockSelectPanel 을 넣어라.")]
+    [SerializeField] private GameObject hintUI;
+
+    [Tooltip("알약에 표시할 이름.")]
+    [SerializeField] private string hintLabel = "코어 강화";
+
+    [Tooltip("알약 왼쪽 아이콘. 비우면 패널에 원래 박혀 있는 아이콘을 그대로 쓴다.")]
+    [SerializeField] private Sprite hintIcon;
+
+    [Tooltip("외곽선을 켤 대상들. 비우면 이 오브젝트 이하 전체.\n" +
+             "코어는 안쪽 발광 구체 말고 그걸 감싸는 원통을 넣어라.\n" +
+             "부모자식이 아니어도 된다 - 씬 어디 있는 오브젝트든 여러 개 넣을 수 있다.")]
+    [SerializeField] private Transform[] outlineTargets;
+
+    private InteractHighlight _highlight;
+
+    private void Start()
+    {
+        _highlight = new InteractHighlight(outlineTargets, transform);
+        InteractHintPanel.Prime(hintUI, this);
+    }
+
+    public void ShowHint(bool show)
+    {
+        InteractHintPanel.Show(hintUI, show, hintLabel, hintIcon);
+        _highlight?.Set(show);
+    }
 
     // 튜토리얼: '코어 단말 열기' 퀘스트 활성 시 위치 화살표 안내
     private bool _arrowShown = false;

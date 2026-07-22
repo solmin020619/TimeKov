@@ -20,7 +20,8 @@ public class BaseUpgradeManager : MonoBehaviour
     public static BaseUpgradeManager Instance { get; private set; }
 
     // 임시 기능 — GameSaveData(작업 중)에 의존하지 않도록 추출기 개수는 PlayerPrefs 에 저장.
-    // (GameSaveData 확정되면 슬롯 세이브로 옮기면 됨. 구역 확장 단계는 기존 buildZoneStageIndex 가 담당)
+    // (GameSaveData 확정되면 슬롯 세이브로 옮기면 됨)
+    // ★[07-22] 구역 확장은 여기서 폐기됐다. 이제 우주선 수리 레벨이 크기를 정한다(BuildZoneProgression).
     private const string PREF_EXTRACTOR_COUNT = "BaseUpgrade.ExtractorCount";
 
     public enum UpgradeKind { ZoneExpand, StorageExtractor }
@@ -179,9 +180,13 @@ public class BaseUpgradeManager : MonoBehaviour
 
         if (def.kind == UpgradeKind.ZoneExpand)
         {
-            if (zoneProgression == null) { Debug.LogError("[BaseUpgrade] BuildZoneProgression 없음"); return false; }
-            zoneProgression.ApplyStage(def.targetZoneStage);
-            RespawnExtractors();   // 구역이 커졌으니 추출기를 새 테두리에 다시 배치
+            // ★[2026-07-22] 구역 확장은 우주선 수리로 일원화됐다(ShipRepairManager.LevelDef.zoneCells).
+            //   여기서도 확장하면 크기의 주인이 둘이 되어 기획서 표와 실제가 어긋난다.
+            //   기지 업그레이드의 구역 확장 항목은 인스펙터에서 지워라.
+            Debug.LogWarning("[BaseUpgrade] 구역 확장 항목은 폐기됐다(우주선 수리가 담당). " +
+                             "이 업그레이드 항목을 인스펙터에서 제거해라.");
+            ToastManager.Warning("이 업그레이드는 더 이상 사용하지 않습니다");
+            return false;
         }
         else
         {
