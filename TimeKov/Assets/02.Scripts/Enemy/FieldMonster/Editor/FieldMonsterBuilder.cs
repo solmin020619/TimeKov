@@ -208,8 +208,20 @@ public static class FieldMonsterBuilder
         toAtk.AddCondition(AnimatorConditionMode.If, 0f, "Attack");
         var atkEx = atk.AddTransition(idle); atkEx.hasExitTime = true; atkEx.exitTime = 0.9f; atkEx.duration = 0.1f;
 
+        // 이중 공격(선택) — AttackMelee bool 로 원거리(Attack=clipAttack)/근접(AttackMelee=meleeClip) 라우팅.
+        //   AI 가 거리로 세팅. Attack=원거리 브레스, AttackMelee 상태=근접 물기.
+        if (c.dualAttack && !string.IsNullOrEmpty(c.meleeClip))
+        {
+            ctrl.AddParameter("AttackMelee", AnimatorControllerParameterType.Bool);
+            toAtk.AddCondition(AnimatorConditionMode.IfNot, 0f, "AttackMelee");   // Attack & !AttackMelee → 원거리
+            var am = sm.AddState("AttackMelee"); am.motion = Clip(c, c.meleeClip); am.speed = c.attackSpeedMul;
+            var toAm = sm.AddAnyStateTransition(am); toAm.hasExitTime = false; toAm.duration = 0.05f; toAm.canTransitionToSelf = false;
+            toAm.AddCondition(AnimatorConditionMode.If, 0f, "Attack");
+            toAm.AddCondition(AnimatorConditionMode.If, 0f, "AttackMelee");        // Attack & AttackMelee → 근접
+            var amEx = am.AddTransition(idle); amEx.hasExitTime = true; amEx.exitTime = 0.9f; amEx.duration = 0.1f;
+        }
         // 공격 2종(선택) — AttackAlt bool 로 A/B(왼손/오른손) 라우팅. AI 가 매 공격 랜덤으로 세팅.
-        if (!string.IsNullOrEmpty(c.clipAttackAlt))
+        else if (!string.IsNullOrEmpty(c.clipAttackAlt))
         {
             ctrl.AddParameter("AttackAlt", AnimatorControllerParameterType.Bool);
             toAtk.AddCondition(AnimatorConditionMode.IfNot, 0f, "AttackAlt");   // Attack & !AttackAlt → A
@@ -295,6 +307,30 @@ public static class FieldMonsterBuilder
         so.chargeEndDuration = string.IsNullOrEmpty(c.chargeEndClip)
             ? 0.4f : ClipLength(c, c.chargeEndClip, 0.5f) / Mathf.Max(0.01f, c.attackSpeedMul);
         so.chargeSpeed = c.chargeSpeed; so.chargeDuration = c.chargeDuration; so.chargeHitRadius = c.chargeHitRadius;
+        // 이중 공격 — 근접 타이밍은 근접 클립 길이(배속 반영)로 자동.
+        so.dualAttack = c.dualAttack; so.meleeRange = c.meleeRange;
+        float mLen = string.IsNullOrEmpty(c.meleeClip)
+            ? so.animLength : ClipLength(c, c.meleeClip, 1.0f) / Mathf.Max(0.01f, c.attackSpeedMul);
+        so.meleeAnimLength = mLen; so.meleeHitDelay = mLen * c.meleeHitDelayRatio;
+        // 브레스(원거리 대체)
+        so.skyfallAttack = c.skyfallAttack;
+        so.skyfallVFX = LoadIf<GameObject>(c.skyfallVfx);
+        so.skyfallVfxEuler = c.skyfallVfxEuler;
+        so.skyfallHeight = c.skyfallHeight; so.skyfallFallTime = c.skyfallFallTime;
+        so.skyfallImpactRadius = c.skyfallImpactRadius; so.skyfallSpread = c.skyfallSpread;
+        so.skyfallMaxTilt = c.skyfallMaxTilt; so.skyfallGroundClearance = c.skyfallGroundClearance;
+        so.impactStripObjects = c.impactStrip;
+        so.flattenParticles = c.flattenParticles;
+        so.breathAttack = c.breathAttack;
+        so.breathVFX = LoadIf<GameObject>(c.breathVfx);
+        so.breathStreamAxis = c.breathStreamAxis;
+        so.breathStartDelay = c.breathStartDelay;
+        so.breathRange = c.breathRange; so.breathAngle = c.breathAngle;
+        so.breathTickInterval = c.breathTickInterval;
+        // 브레스 지속 = 애니(clipAttack=브레스) 길이 − 시작 지연 → VFX 가 애니 브레스 구간에 딱 맞음.
+        so.breathDuration = c.breathAttack
+            ? Mathf.Max(0.3f, so.animLength - so.breathStartDelay)
+            : c.breathDuration;
         so.startDormant = !string.IsNullOrEmpty(c.dormantClip);
         so.sleepAfterIdle = c.sleepAfterIdle;
         so.sleepAnimDuration = string.IsNullOrEmpty(c.crumbleClip)
@@ -329,6 +365,7 @@ public static class FieldMonsterBuilder
         so.retreatDiagonalMaxAngle = c.retreatDiag;
         so.stepSpeedMul = c.stepSpeedMul; so.strafeSpeedMul = c.strafeSpeedMul; so.strafeAnimSpeedMul = c.strafeAnimMul;
         so.walkAnimRefSpeed = c.walkAnimRefSpeed; so.walkAnimSpeedClamp = new Vector2(0.4f, 2.5f); so.locoDirDamp = c.locoDirDamp;
+        so.cancelRootDrift = c.cancelRootDrift;
         so.wander = c.wander; so.wanderRadius = c.wanderRadius;
 
         so.spawnVFX    = LoadIf<GameObject>(c.spawnVfx);
@@ -377,14 +414,19 @@ public static class FieldMonsterBuilder
 
         SetPrivateString(root.GetComponent<EnemyDropOnDeath>(), "sourceId", c.sourceId);
 
-        FitBodyToModel(root, vis, c.scale);
+        FitBodyToModel(root, vis, c.scale, c.navRadius);
+        {
+            var navA = root.GetComponent<NavMeshAgent>();
+            if (navA != null && c.navAvoidanceType >= 0)
+                navA.obstacleAvoidanceType = (ObstacleAvoidanceType)c.navAvoidanceType;   // 큰 몹 RVO 지터 방지(None)
+        }
 
         EnsureFolder(System.IO.Path.GetDirectoryName(c.prefabPath).Replace("\\", "/"));
         PrefabUtility.SaveAsPrefabAsset(root, c.prefabPath);
         PrefabUtility.UnloadPrefabContents(root);
     }
 
-    static void FitBodyToModel(GameObject root, GameObject vis, float scale)
+    static void FitBodyToModel(GameObject root, GameObject vis, float scale, float navRadiusOverride)
     {
         var rs = vis.GetComponentsInChildren<Renderer>(true);
         if (rs.Length == 0) return;
@@ -397,7 +439,9 @@ public static class FieldMonsterBuilder
         var cap = root.GetComponent<CapsuleCollider>();
         if (cap != null) { cap.height = h; cap.radius = r; cap.center = new Vector3(0f, h * 0.5f, 0f); }
         var nav = root.GetComponent<NavMeshAgent>();
-        if (nav != null) { nav.height = h; nav.radius = r; }   // bounds 는 이미 scale 반영된 월드값
+        // 콜라이더(피격)는 bounds 크기, nav 반경은 오버라이드 우선 — 큰 몸집이 네비메시 경계에 끼여
+        //   순간 앞뒤로 튀는(텔레포트) 것 방지. navRadius 0 이면 bounds 자동.
+        if (nav != null) { nav.height = h; nav.radius = navRadiusOverride > 0f ? navRadiusOverride : r; }
     }
 
     static Transform FindTelegraphAnchor(GameObject vis, string forceBone)
@@ -525,6 +569,7 @@ public class FieldMonsterBuildConfig
     public string clipAttack, clipRoar, clipHit, clipDeath;
     public string clipAttackAlt;   // 선택: 공격 2번째 클립(지정 시 매 공격 A/B 랜덤). 예: 왼손/오른손 강타.
     public string chargeLoopClip, chargeEndClip;   // 돌진: 돌진 루프/마무리 클립. clipAttack=돌진 시작. chargeAttack=true 일 때.
+    public string meleeClip;   // 이중 공격: 근접 클립(clipAttack=원거리 브레스). dualAttack=true 일 때.
     public string clipRoar2;   // 선택: 포효 2단계 클립(지정 시 Detect→Detect2→Idle). 예: 무너짐→재조립.
     public string dormantClip; // 선택: 휴면 포즈(지정 시 이게 '기본 상태'. 발견(Detect) 전까지 제자리 유지). 예: RubblePose.
     public string crumbleClip; // 선택: 휴면 복귀(붕괴) 클립(지정 시 Sleep 트리거→Crumble→Dormant). 예: IdleToRubble.
@@ -545,9 +590,12 @@ public class FieldMonsterBuildConfig
     public float attackDamage = 12f, attackRange = 2.5f, attackApproachRatio = 0.85f;
     public float visionRange = 18f, visionAngle = 300f;
     public float scale = 1f;
+    public float navRadius = 0f;   // NavMeshAgent 반경 오버라이드(0=모델 bounds 자동). 큰 몹은 작게 줘 경계 끼임/텔레포트 방지.
+    public int navAvoidanceType = -1;   // NavMeshAgent 장애물 회피(-1=유지, 0=None/1=Low/…/4=High). 큰 몹은 0으로 RVO 지터 방지.
 
     // ── 전조/패턴(기본 = 거미S3형) ──
     public float attackSpeedMul = 0.75f, roarSpeedMul = 0.6f, hitDelayRatio = 0.5f, attackCooldown = 0.2f;
+    public float meleeHitDelayRatio = 0.5f;   // 이중 공격의 근접(meleeClip) 타격 시점 비율(hitDelayRatio 와 분리). clipAttack 은 hitDelayRatio.
     public float staggerChance = 1f;   // 피격 경직 확률(0~1). 1=매번(기존). 무거운 몹일수록 낮게.
     // 근접 타격 VFX(슬램/클랩). 비우면 없음.
     public string meleeImpactVfx;
@@ -559,11 +607,32 @@ public class FieldMonsterBuildConfig
     public float afterStepMin = 0.8f, afterStepMax = 3.2f, retreatDiag = 45f;
     public float stepSpeedMul = 0.5f, strafeSpeedMul = 0.5f, strafeAnimMul = 1f, walkAnimRefSpeed = 2.5f, locoDirDamp = 0.12f;
     public bool wander = true; public float wanderRadius = 6f;
+    public bool cancelRootDrift = false;   // 루트 모션 노드 없는 리그의 걷기 드리프트(텔레포트) 제거.
     public float sleepAfterIdle = 0f;   // 휴면형: 각성 후 이 시간(초) 이상 타깃 없으면 붕괴→휴면. 0=복귀 안 함.
 
     // ── 돌진 공격(선택) ──
     public bool chargeAttack = false;
     public float chargeSpeed = 9f, chargeDuration = 0.7f, chargeHitRadius = 1.3f;
+
+    // ── 이중 공격(근접+원거리, 선택) ──
+    public bool dualAttack = false;
+    public float meleeRange = 3.5f;   // 이 안이면 근접, 밖이면 원거리
+
+    // ── 하늘 낙하(원거리 대체, 선택) ──
+    public bool skyfallAttack = false;
+    public string skyfallVfx;
+    public UnityEngine.Vector3 skyfallVfxEuler = UnityEngine.Vector3.zero;   // 낙하 VFX 눕히기 회전
+    public float skyfallHeight = 10f, skyfallFallTime = 0.6f, skyfallImpactRadius = 1.8f, skyfallSpread = 3f;
+    public float skyfallMaxTilt = 0f;   // 경사면 법선 정렬 최대 각(도). 0=수평 유지.
+    public float skyfallGroundClearance = 0.1f;   // 지면 법선 방향 띄우기(m).
+    public string[] impactStrip;      // 착지 VFX 에서 제거할 자식(예: 흙먼지)
+    public string[] flattenParticles; // 바닥에 눕힐 빌보드 파티클(예: 눈꽃)
+
+    // ── 브레스(원거리 대체, 선택) ──
+    public bool breathAttack = false;
+    public string breathVfx;
+    public UnityEngine.Vector3 breathStreamAxis = new UnityEngine.Vector3(0f, 0f, 1f);   // 스트림이 뻗는 로컬 축
+    public float breathStartDelay = 0.3f, breathRange = 8f, breathAngle = 35f, breathDuration = 1.2f, breathTickInterval = 0.5f;
 
     // ── 원거리 공격(발사체) — ranged=true 일 때만 사용 ──
     public bool ranged = false;

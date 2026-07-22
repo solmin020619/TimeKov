@@ -50,6 +50,8 @@ public class FieldMonsterAI : MonoBehaviour
     [SerializeField] private string attackAltParam = "AttackAlt";
     [Tooltip("돌진 종료 트리거. ChargeLoop→ChargeEnd. 돌진 공격만 사용.")]
     [SerializeField] private string chargeEndTrigger = "ChargeEnd";
+    [Tooltip("이중 공격 근접 선택 bool. Attack && AttackMelee → 근접 상태. 이중 공격만 사용.")]
+    [SerializeField] private string attackMeleeParam = "AttackMelee";
 
     [Header("Rotation")]
     [Tooltip("이 속도 이상으로 움직이면 진행 방향을 봄. 그보다 느리면 타깃을 봄.")]
@@ -61,9 +63,10 @@ public class FieldMonsterAI : MonoBehaviour
     private Transform playerTf;
     private PlayerStatComponent playerStat;
 
-    private int speedHash, strafeHash, moveDirHash, speedMulHash, staggerHash, sleepHash, attackAltHash, chargeEndHash;
-    private bool hasStrafeParam, hasMoveDirParam, hasSpeedMulParam, hasStaggerParam, hasSleepParam, hasAttackAltParam, hasChargeEndParam;
-    private bool attackAlt;   // 이번 공격이 변형(B/반대손)인지 — 근접 타격 VFX 좌우 미러링에 사용
+    private int speedHash, strafeHash, moveDirHash, speedMulHash, staggerHash, sleepHash, attackAltHash, chargeEndHash, attackMeleeHash;
+    private bool hasStrafeParam, hasMoveDirParam, hasSpeedMulParam, hasStaggerParam, hasSleepParam, hasAttackAltParam, hasChargeEndParam, hasAttackMeleeParam;
+    private bool attackAlt;    // 이번 공격이 변형(B/반대손)인지 — 근접 타격 VFX 좌우 미러링에 사용
+    private bool attackMelee;  // 이중 공격에서 이번 공격이 근접인지(true) 원거리인지(false)
 
     // 스텝(옆/뒤걸음)은 NavMeshAgent.Move() 로 직접 미는데, Move() 는 agent.velocity 를 갱신하지 않는다.
     // 그대로 두면 Animator 의 Speed 가 0 -> Idle 상태로 남아 "애니 없이 미끄러지는" 그림이 된다.
@@ -76,6 +79,8 @@ public class FieldMonsterAI : MonoBehaviour
     private bool freezeFacing;    // 회전 완전 고정(공격 후 스텝: 공격 시점 시선 유지). faceTarget보다 우선.
     private bool dead;
     private bool awake;           // 휴면형: 기상(조립) 완료 상태. 휴면(바위 더미) 중엔 false → 피격 경직 억제.
+    private Transform driftBone;  // 루트 모션 드리프트 제거용 스킨 루트 본(cancelRootDrift 시)
+    private Vector3 driftBoneInit;
     private Vector3 homePos;
     private GameObject activeTelegraph;   // 현재 떠 있는 전조. 발사(hitDelay) 순간 즉시 제거해 싱크 맞춤.
     // sync 전조: PlayTelegraph 가 잰 '전조 원본 총길이(초)'. AttackOnce 가 이만큼 공격을 늦춰
@@ -116,6 +121,7 @@ public class FieldMonsterAI : MonoBehaviour
         sleepHash = Animator.StringToHash(sleepTrigger);
         attackAltHash = Animator.StringToHash(attackAltParam);
         chargeEndHash = Animator.StringToHash(chargeEndTrigger);
+        attackMeleeHash = Animator.StringToHash(attackMeleeParam);
         if (animator != null)
         {
             animator.applyRootMotion = false;   // 위치 권위는 NavMeshAgent(SO moveSpeed)
@@ -124,6 +130,7 @@ public class FieldMonsterAI : MonoBehaviour
             {
                 if (p.nameHash == sleepHash) { hasSleepParam = true; continue; }   // Sleep 트리거
                 if (p.nameHash == chargeEndHash) { hasChargeEndParam = true; continue; }   // ChargeEnd 트리거
+                if (p.type == AnimatorControllerParameterType.Bool && p.nameHash == attackMeleeHash) { hasAttackMeleeParam = true; continue; }
                 if (p.type == AnimatorControllerParameterType.Bool && p.nameHash == attackAltHash) { hasAttackAltParam = true; continue; }
                 if (p.type == AnimatorControllerParameterType.Bool && p.nameHash == staggerHash) { hasStaggerParam = true; continue; }
                 if (p.type != AnimatorControllerParameterType.Float) continue;
@@ -167,6 +174,22 @@ public class FieldMonsterAI : MonoBehaviour
     {
         var p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) { playerTf = p.transform; playerStat = p.GetComponent<PlayerStatComponent>(); }
+
+        // 원거리(브레스/발사체) 앵커 보정 — 머리 본을 이름으로 못 찾았으면 스킨 본 중 '가장 앞+위'
+        //   (주둥이/머리)를 찾아 앵커로 삼는다. 발사·분사가 머리(입)에서 나가게.
+        if (telegraphAnchor == null && data != null && (data.breathAttack || data.dualAttack || data.ranged))
+            telegraphAnchor = FindHeadBone();
+
+        // 루트 모션 드리프트 제거 대상 본 캡처 — 스킨 rootBone 에서 '아마추어 최상위 본'(Animator 직속 자식,
+        //   예: DragonRoot)까지 올라간다. 걷기 이동은 보통 그 최상위 본에 실려서 밀리기 때문.
+        if (data != null && data.cancelRootDrift)
+        {
+            var smr = GetComponentInChildren<SkinnedMeshRenderer>();
+            Transform b = smr != null ? smr.rootBone : null;
+            if (b != null && animator != null)
+                while (b.parent != null && b.parent != animator.transform) b = b.parent;
+            if (b != null) { driftBone = b; driftBoneInit = b.localPosition; }
+        }
 
         if (health != null)
         {
@@ -245,6 +268,14 @@ public class FieldMonsterAI : MonoBehaviour
     private void LateUpdate()
     {
         if (dead) return;
+
+        // 루트 모션 드리프트 제거 — 루트 모션 노드 없는 리그에서 걷기 클립이 앞으로 밀렸다 루프에서
+        //   되돌아오는(텔레포트) 현상 방지. 스킨 루트 본의 수평(XZ)을 매 프레임 제자리로(=제자리 걷기).
+        if (driftBone != null)
+        {
+            var lp = driftBone.localPosition;
+            driftBone.localPosition = new Vector3(driftBoneInit.x, lp.y, driftBoneInit.z);
+        }
 
         // 시선 완전 고정 — 공격 후 스텝에서 '공격한 시점의 시선'을 유지.
         // 매 프레임 플레이어를 다시 쳐다보면 이동 방향(고정)과 어긋나 미끄러져 보인다.
@@ -424,6 +455,7 @@ public class FieldMonsterAI : MonoBehaviour
     {
         SyncNav();
         float reach = data.attackRange * data.attackApproachRatio;
+        Vector3 lastDest = transform.position + Vector3.forward * 999f;   // 첫 프레임에 반드시 갱신되게
 
         while (!dead)
         {
@@ -436,7 +468,13 @@ public class FieldMonsterAI : MonoBehaviour
             if (nav != null && nav.enabled)
             {
                 nav.isStopped = false;
-                nav.SetDestination(t.position);
+                // ★매 프레임 재경로 X — 타깃이 0.5m 이상 움직였을 때만 SetDestination.
+                //   (매 프레임 재계산 시 경로 첫 코너가 뒤로 잡혀 순간 앞뒤로 튀는 현상 방지)
+                if ((t.position - lastDest).sqrMagnitude > 0.25f)
+                {
+                    nav.SetDestination(t.position);
+                    lastDest = t.position;
+                }
             }
             yield return null;
         }
@@ -482,9 +520,24 @@ public class FieldMonsterAI : MonoBehaviour
         }
         if (dead) { freezeFacing = false; yield break; }
 
-        // 공격 변형 랜덤(2종 클립: A/B = 왼손/오른손). 트리거보다 먼저 bool 을 정해 애니 라우팅 + VFX 미러링에 씀.
-        attackAlt = hasAttackAltParam && Random.value < 0.5f;
-        if (hasAttackAltParam) animator.SetBool(attackAltHash, attackAlt);
+        // 이중 공격(근접+원거리) — 지금 거리로 결정. 근접이면 AttackMelee bool 세팅(애니 라우팅).
+        //   fireRanged: 실제 타격 방식(원거리 발사체 vs 근접 접촉). 클립별 타이밍도 근접/원거리 분리.
+        attackMelee = data.dualAttack && DistanceToPlayer() <= data.meleeRange;
+        if (data.dualAttack && hasAttackMeleeParam) animator.SetBool(attackMeleeHash, attackMelee);
+        bool fireRanged = data.dualAttack ? !attackMelee : data.ranged;
+        bool breathing = fireRanged && data.breathAttack;
+        // 타격/분사 시각 — 브레스는 애니 입 벌리는 순간(breathStartDelay)에 맞춘다(hitDelay 50% 아님).
+        float fireAt  = attackMelee ? data.meleeHitDelay
+                      : breathing  ? data.breathStartDelay
+                      : data.hitDelay;
+        // 잠금 길이 — 근접/원거리(발사체)/브레스 각각. 브레스는 분사 끝까지 제자리 고정.
+        float lockLen = attackMelee ? data.meleeAnimLength
+                      : breathing  ? data.breathStartDelay + data.breathDuration + 0.2f
+                      : data.animLength;
+
+        // 공격 변형 랜덤(2종 클립: A/B = 왼손/오른손). 이중 공격이면 라우팅에 AttackMelee 를 쓰므로 미사용.
+        attackAlt = !data.dualAttack && hasAttackAltParam && Random.value < 0.5f;
+        if (hasAttackAltParam && !data.dualAttack) animator.SetBool(attackAltHash, attackAlt);
 
         feedback?.PlayAttack();                // 이제 스윙 시작 → hitDelay 뒤 접점 = 전조 터짐과 일치
         if (animator != null && !string.IsNullOrEmpty(attackTrigger))
@@ -492,22 +545,36 @@ public class FieldMonsterAI : MonoBehaviour
 
         float t = 0f;
         bool damaged = false;
-        while (t < data.animLength && !dead)
+        while (t < lockLen && !dead)
         {
             t += Time.deltaTime;
-            if (!damaged && t >= data.hitDelay)
+            if (!damaged && t >= fireAt)
             {
                 damaged = true;
                 // sync 전조는 마지막 '터지는' 연출까지 보이게 즉시 삭제하지 않는다(폴백 수명으로 정리).
                 // 그 외(원거리 차징 등)는 발사 순간 끝내서 발사와 싱크.
                 if (!data.telegraphSyncToHit) DestroyTelegraph();
-                if (data.ranged) StartCoroutine(FireProjectileBurst());   // 원거리 = 1발 or 연속(팡팡)
-                else { ApplyDamage(); SpawnMeleeImpact(); }                // 근접 = 즉시 타격 + 슬램 VFX(헛쳐도 재생)
+                if (fireRanged)
+                {
+                    if (data.breathAttack)       StartCoroutine(BreathRoutine());      // 브레스(제자리 원뿔)
+                    else if (data.skyfallAttack) StartCoroutine(SkyfallRoutine());     // 하늘 낙하
+                    else                         StartCoroutine(FireProjectileBurst()); // 발사체
+                }
+                else { ApplyDamage(); SpawnMeleeImpact(); }               // 근접 = 즉시 타격(+VFX)
             }
             yield return null;
         }
 
         freezeFacing = false;
+    }
+
+    /// <summary>플레이어와의 수평 거리(m). 타깃 없으면 매우 큰 값.</summary>
+    private float DistanceToPlayer()
+    {
+        var t = Target;
+        if (t == null) return 9999f;
+        Vector3 d = t.position - transform.position; d.y = 0f;
+        return d.magnitude;
     }
 
     /// <summary>돌진 공격 — 준비(웅크림, 플레이어 조준) → 돌진 시작에 방향 커밋 → 전진(접촉 피해 1회) → 마무리.
@@ -843,6 +910,205 @@ public class FieldMonsterAI : MonoBehaviour
             if (mb != null) Destroy(mb);
 
         Destroy(fx, Mathf.Max(0.2f, data.meleeImpactLifeTime));
+    }
+
+    /// <summary>머리(주둥이) 본 추정 — 이름으로 못 찾을 때. 스킨 본 중 '전방+위'로 가장 뻗은 본을 고른다.
+    /// (아이들 포즈 기준: 머리가 가장 앞·위, 꼬리는 뒤, 다리는 아래). 브레스를 여기 부착해 머리를 따라가게.</summary>
+    private Transform FindHeadBone()
+    {
+        var skinned = GetComponentInChildren<SkinnedMeshRenderer>();
+        if (skinned == null || skinned.bones == null || skinned.bones.Length == 0) return null;
+
+        Transform best = null;
+        float bestScore = float.NegativeInfinity;
+        Vector3 fwd = transform.forward; fwd.y = 0f;
+        if (fwd.sqrMagnitude < 0.0001f) fwd = Vector3.forward; else fwd.Normalize();
+
+        foreach (var b in skinned.bones)
+        {
+            if (b == null) continue;
+            Vector3 rel = b.position - transform.position;
+            // 앞으로 뻗은 정도 + 높이. 앞이 우세하게(주둥이) 가중.
+            float score = Vector3.Dot(rel, fwd) * 1.0f + Mathf.Max(0f, rel.y) * 0.6f;
+            if (score > bestScore) { bestScore = score; best = b; }
+        }
+        return best;
+    }
+
+    /// <summary>브레스 — 입(총구)에 스트림 VFX 를 부착해 제자리에서 전방으로 분사하고,
+    /// 분사 동안 '전방 원뿔(각+사거리)' 안의 플레이어에게 틱 피해. 발사체가 아니라 뿜는 느낌.</summary>
+    private IEnumerator BreathRoutine()
+    {
+        Vector3 fwd = transform.forward; fwd.y = 0f;
+        if (fwd.sqrMagnitude < 0.0001f) fwd = Vector3.forward; else fwd.Normalize();
+
+        // 방향(고정): breathStreamAxis 0 이면 몸 정면, 아니면 그 로컬 축을 전방에 정렬.
+        //   ★부모로 붙이지 '않는다'(월드 스폰) — 머리 본에 부모로 붙이면 그 본의 회전·스케일이 VFX 를 왜곡.
+        //   대신 위치만 매 프레임 머리 본(MuzzlePos)으로 갱신 → 방향은 그대로, 위치만 머리를 따라간다.
+        Quaternion rot = data.breathStreamAxis.sqrMagnitude > 0.0001f
+            ? Quaternion.FromToRotation(data.breathStreamAxis.normalized, fwd)
+            : transform.rotation;
+
+        GameObject fx = null;
+        if (data.breathVFX != null)
+            fx = Instantiate(data.breathVFX, MuzzlePos(), rot);   // 부모 없음 → 스케일/회전 왜곡 방지
+
+        float end = Time.time + data.breathDuration;
+        float nextTick = Time.time;              // 시작하자마자 1틱 판정
+        while (Time.time < end && !dead)
+        {
+            if (fx != null)
+            {
+                fx.transform.position = MuzzlePos();   // 머리(주둥이) 위치 추적
+                fx.transform.rotation = rot;           // 방향은 고정(왜곡 없음)
+            }
+            if (Time.time >= nextTick && playerStat != null && playerTf != null
+                && !playerStat.IsDead && !playerStat.IsInBase)
+            {
+                Vector3 toP = playerTf.position - transform.position; toP.y = 0f;
+                if (toP.magnitude <= data.breathRange && Vector3.Angle(fwd, toP) <= data.breathAngle * 0.5f)
+                {
+                    playerStat.TakeDamage(data.attackDamage, transform.position);
+                    nextTick = Time.time + Mathf.Max(0.05f, data.breathTickInterval);
+                }
+            }
+            yield return null;
+        }
+        if (fx != null) Destroy(fx);
+    }
+
+    /// <summary>스폰된 VFX 인스턴스에서 지정 이름의 오브젝트를 제거(원본은 그대로). 거슬리는 서브(레이저/균열 등) 제거용.
+    /// 이름이 '루트'와 매칭되면(예: 레이저가 루트 자체 파티클) 전체를 지우지 않고 루트의 파티클·렌더러만 끈다.</summary>
+    private void StripNamedChildren(GameObject go, string[] names)
+    {
+        if (go == null || names == null || names.Length == 0) return;
+        foreach (var tr in go.GetComponentsInChildren<Transform>(true))
+        {
+            if (tr == null) continue;
+            string tn = tr.name.Replace("(Clone)", "");   // 인스턴스 루트는 "이름(Clone)"
+            bool match = false;
+            foreach (var nm in names)
+                if (!string.IsNullOrEmpty(nm) && tn == nm) { match = true; break; }
+            if (!match) continue;
+
+            if (tr == go.transform)
+            {
+                // 루트 매칭 — 통째로 지우면 이펙트 전체가 사라지므로 '루트 자신의' 파티클/렌더러만 끈다(자식은 유지).
+                var ps = tr.GetComponent<ParticleSystem>();
+                if (ps != null)
+                {
+                    var em = ps.emission; em.enabled = false;
+                    ps.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+                    ps.Clear(false);
+                }
+                foreach (var rend in tr.GetComponents<Renderer>()) rend.enabled = false;
+            }
+            else
+            {
+                tr.gameObject.SetActive(false);   // 이번 프레임 즉시 정지
+                Destroy(tr.gameObject);
+            }
+        }
+    }
+
+    /// <summary>지정 이름의 파티클을 '수평 빌보드'로 바꿔 바닥에 눕힌다(카메라 향하던 눈꽃 문양 등을 지면에).</summary>
+    private void FlattenParticles(GameObject go, string[] names)
+    {
+        if (go == null || names == null || names.Length == 0) return;
+        foreach (var psr in go.GetComponentsInChildren<ParticleSystemRenderer>(true))
+        {
+            if (psr == null) continue;
+            string tn = psr.name.Replace("(Clone)", "");
+            foreach (var nm in names)
+            {
+                if (!string.IsNullOrEmpty(nm) && tn == nm)
+                {
+                    psr.renderMode = ParticleSystemRenderMode.HorizontalBillboard;   // 바닥에 눕힘
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>하늘 낙하 — 플레이어 주변 여러 지점에 얼음이 위에서 떨어져 착지 반경 피해.
+    /// projectileCount 만큼 projectileInterval 간격으로 낙하 지점을 흩뿌린다(회피 가능).</summary>
+    private IEnumerator SkyfallRoutine()
+    {
+        int n = Mathf.Max(1, data.projectileCount);
+        for (int i = 0; i < n; i++)
+        {
+            if (dead) yield break;
+            SpawnOneSkyfall();
+            if (i < n - 1 && data.projectileInterval > 0f)
+                yield return new WaitForSeconds(data.projectileInterval);
+        }
+    }
+
+    private void SpawnOneSkyfall()
+    {
+        Vector3 center = playerTf != null ? playerTf.position : (Target != null ? Target.position : transform.position);
+        Vector2 r = Random.insideUnitCircle * Mathf.Max(0f, data.skyfallSpread);
+        Vector3 ground = new Vector3(center.x + r.x, center.y, center.z + r.y);   // 플레이어 주변 무작위(x,z)
+
+        // ★항상 '땅'에 — 그 x,z 위쪽에서 아래로 레이캐스트해 실제 지면을 찾는다.
+        //   플레이어가 공중이어도 아래 땅에, 경사면이면 그 표면에 정확히 붙는다(뚫려 보이는 것 방지).
+        Vector3 rayStart = new Vector3(ground.x, center.y + 40f, ground.z);
+        int mask = data.projectileBlockMask;   // 지면/지형 포함(발사체 차단 마스크 재사용)
+        Vector3 normal = Vector3.up;
+        if (mask != 0 && Physics.Raycast(rayStart, Vector3.down, out var hit, 300f, mask, QueryTriggerInteraction.Ignore))
+        {
+            normal = hit.normal;                                          // 경사면 정렬용
+            ground = hit.point + normal * Mathf.Max(0.01f, data.skyfallGroundClearance);   // 법선 방향으로 띄움(곡면 묻힘 완화)
+        }
+
+        StartCoroutine(SkyfallOne(ground, normal));
+    }
+
+    // 지면 법선에 맞춰 VFX 를 기울인다(경사에 밀착). maxTilt 로 절벽 과회전 방지. 0 이면 수평 유지.
+    private Quaternion GroundAlign(Vector3 normal)
+    {
+        if (data.skyfallMaxTilt <= 0f) return Quaternion.identity;
+        Vector3 n = normal.sqrMagnitude > 0.0001f ? normal.normalized : Vector3.up;
+        float ang = Vector3.Angle(Vector3.up, n);
+        if (ang > data.skyfallMaxTilt)
+            n = Vector3.RotateTowards(Vector3.up, n, data.skyfallMaxTilt * Mathf.Deg2Rad, 0f);
+        return Quaternion.FromToRotation(Vector3.up, n);
+    }
+
+    private IEnumerator SkyfallOne(Vector3 ground, Vector3 normal)
+    {
+        Quaternion align = GroundAlign(normal);   // 경사면 밀착 회전(수평이면 identity)
+
+        // 낙하 VFX 는 '자체적으로 하늘에서 떨어지는' 연출을 착지점에 스폰(이동 X → 자체 연출 유지).
+        GameObject fx = null;
+        if (data.skyfallVFX != null)
+        {
+            fx = Instantiate(data.skyfallVFX, ground, align * Quaternion.Euler(data.skyfallVfxEuler));   // 경사 정렬 + 눕히기 보정
+            if (data.projectileScale > 0f && !Mathf.Approximately(data.projectileScale, 1f))
+                fx.transform.localScale *= data.projectileScale;
+            StripNamedChildren(fx, data.impactStripObjects);      // 레이저/균열 등 거슬리는 서브 제거
+            FlattenParticles(fx, data.flattenParticles);          // 눈꽃 등 빌보드 파티클을 바닥에 눕힘
+        }
+
+        // 착지 시점까지 대기(=플레이어 회피 시간).
+        float end = Time.time + Mathf.Max(0.1f, data.skyfallFallTime);
+        while (Time.time < end && !dead) yield return null;
+        if (fx != null) Destroy(fx, 2f);   // 잔여 페이드 후 정리
+
+        // 착지 — 추가 임팩트 VFX + 반경 피해(1회). 지정 자식(흙먼지 등)은 제거.
+        if (data.impactVFX != null)
+        {
+            var imp = Instantiate(data.impactVFX, ground, align);   // 경사면 정렬
+            if (data.projectileScale > 0f && !Mathf.Approximately(data.projectileScale, 1f))
+                imp.transform.localScale *= data.projectileScale;   // 낙하 VFX 와 동일 배율로 축소
+            StripNamedChildren(imp, data.impactStripObjects);
+        }
+        if (playerStat != null && playerTf != null && !playerStat.IsDead && !playerStat.IsInBase)
+        {
+            Vector3 d = playerTf.position - ground; d.y = 0f;
+            if (d.magnitude <= data.skyfallImpactRadius)
+                playerStat.TakeDamage(data.attackDamage, ground);
+        }
     }
 
     /// <summary>연속 발사(팡팡). projectileCount 만큼 interval 간격으로 쏜다. 매 발사마다 현재 플레이어 재조준.</summary>
