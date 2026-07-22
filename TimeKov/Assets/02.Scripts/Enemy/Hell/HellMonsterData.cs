@@ -189,6 +189,10 @@ public class HellAttack
     public string label = "Attack";
     [Tooltip("애니메이터 상태 이름.")]
     public string state = "Attack1";
+    [Tooltip("★이 패턴 전용 준비 자세. 비우면 SO 공통 windupState(전투 대기)를 쓴다.\n" +
+             "시전처럼 '자세를 먼저 잡고 모으다가 쏘는' 공격에 쓴다.\n" +
+             "대기 자세로 모으다가 발사 순간에 손을 뻗으면 앞뒤가 뒤바뀐 것처럼 보인다.")]
+    public string windupState = "";
     [Tooltip("가중치. 클수록 자주 나온다.")]
     public float weight = 1f;
 
@@ -243,4 +247,8 @@ public class HellAttack
     public Color telegraphColorOverride = new Color(0f, 0f, 0f, 0f);
     [Tooltip("전조 중 회전을 고정한다. 착지점을 미리 정하는 도약처럼 방향이 바뀌면 안 되는 경우.")]
     public bool lockFacing = false;
+    [Tooltip("★범위 판정 위치를 몹 앞이 아니라 '플레이어 발밑'으로 잡는다.\n" +
+             "전조가 뜨는 순간의 위치로 못박으므로, 표시를 보고 걸어 나오면 헛방이 된다.\n" +
+             "땅에서 솟구치는 분출류 공격에 쓴다.")]
+    public bool groundTargetsPlayer = false;
 }

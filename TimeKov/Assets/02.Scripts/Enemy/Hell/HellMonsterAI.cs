@@ -537,14 +537,22 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
         _motor.StopMove();
 
+        // ★분출류: 전조가 뜨는 순간의 플레이어 발밑으로 자리를 못박는다.
+        //   여기서 한 번만 읽으므로, 표시를 보고 걸어 나오면 헛방이 된다(= 회피가 성립).
+        //   나중에 다시 읽으면 절대 못 피하는 공격이 된다.
+        Vector3? lockedSpot = null;
+        if (a.groundTargetsPlayer && _motor.Player != null)
+            lockedSpot = GroundSpot(_motor.Player.position);
+
         // 1) 전조: 형태는 패턴마다 다르다(원거리=입앞 차지 / 범위근접=바닥링 / 빠른평타=없음)
         // ★애니메이터도 같이 준비 자세로 넘긴다.
         //   여기서 상태를 안 바꾸면 전조 1초 내내 직전 상태에 굳어 있다.
         //   걷다가 들어오면 제자리걸음, 맞고 들어오면 흠칫한 자세 그대로 불을 모으는 그림이 된다.
         //   (컨트롤러에 전이가 하나도 없고 전부 CrossFade 로만 움직이는 구조라 스스로 안 빠져나온다)
-        Play(WindupState());
+        // 패턴 전용 준비 자세가 있으면 그걸 쓴다(시전처럼 자세를 먼저 잡아야 하는 공격).
+        Play(string.IsNullOrEmpty(a.windupState) ? WindupState() : a.windupState);
         _interruptible = true;
-        yield return Telegraph(a);
+        yield return Telegraph(a, lockedSpot);
         _interruptible = false;
         if (_dead) yield break;
 
@@ -556,7 +564,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
         // 3) 타격 (근접은 판정, 원거리는 발사)
         if (a.kind == HellAttackKind.Ranged) yield return FireVolley(a);
-        else ApplyHit(a);
+        else ApplyHit(a, lockedSpot);
         if (_dead) yield break;
 
         // 4) 회복
@@ -790,7 +798,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         return transform.position + transform.forward * reach * 0.5f;
     }
 
-    private void ApplyHit(HellAttack a)
+    private void ApplyHit(HellAttack a, Vector3? lockedSpot = null)
     {
         var ps = _motor.PlayerStat;
         if (ps == null || ps.IsDead || _motor.Player == null) return;
@@ -800,8 +808,9 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
         if (a.radius > 0f)
         {
-            // 범위 판정: 내 앞쪽 지점 기준. ★전조 원과 반드시 같은 함수를 쓴다.
-            Vector3 center = AttackCenter(a);
+            // 범위 판정: 내 앞쪽 지점(또는 분출류면 못박아둔 플레이어 발밑).
+            // ★전조 원과 반드시 같은 값을 쓴다.
+            Vector3 center = lockedSpot ?? AttackCenter(a);
             // ★여기엔 높이 보정이 없어서 착탄 VFX 가 발밑(지면)에 그대로 생겼다.
             //   대부분의 착탄 VFX 는 원점이 덩어리 한가운데라 절반이 땅에 묻힌다.
             //   덩치 큰 몹(헬사이클롭)일수록 VFX 도 커서 더 심하게 박힌다.
@@ -948,7 +957,9 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
         if (navOff)
         {
-            transform.position = GroundSpot(to);
+            // ★부유 몹은 baseOffset 만큼 떠 있어야 한다. 지면에 그대로 내려놓으면
+            //   에이전트를 켜는 순간 한 프레임 위로 튄다. 지상 몹은 baseOffset 0 이라 영향 없다.
+            transform.position = GroundSpot(to) + Vector3.up * _motor.Agent.baseOffset;
             _motor.Agent.enabled = true;
         }
         if (_dead) yield break;

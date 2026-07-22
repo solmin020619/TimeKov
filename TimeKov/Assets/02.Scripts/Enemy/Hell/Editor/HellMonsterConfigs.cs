@@ -17,6 +17,10 @@ public static class HellMonsterConfigs
     static string Shot(int n) => $"{VfxRoot}/Projectile/Effect_{n:00}.prefab";
     static string Hit(int n) => $"{VfxRoot}/Hit/Hit_{n:00}.prefab";
 
+    // 지면이 터져 올라오는 전용 VFX. 일반 착탄 VFX 와 확실히 구분된다.
+    const string FloorBlast =
+        "Assets/00.창동에셋/VFX/VFX(전조)/Anime VFX URP/Shared/Particles/VFX_Explosion_Floor.prefab";
+
     [MenuItem("Tools/Enemy/Hell/Build 헬하운드")]
     public static void BuildHound() => HellMonsterBuilder.Build(Hound());
 
@@ -29,13 +33,16 @@ public static class HellMonsterConfigs
     [MenuItem("Tools/Enemy/Hell/Build 헬사이클롭")]
     public static void BuildCyclop() => HellMonsterBuilder.Build(Cyclop());
 
-    [MenuItem("Tools/Enemy/Hell/Build 지상 4종 전부")]
+    [MenuItem("Tools/Enemy/Hell/Build 헬플라잉데몬")]
+    public static void BuildDemon() => HellMonsterBuilder.Build(Demon());
+
+    [MenuItem("Tools/Enemy/Hell/Build 5종 전부")]
     public static void BuildAll()
     {
-        if (!EditorUtility.DisplayDialog("헬 지상 4종 생성",
-            "헬하운드 / 헬뱃 / 헬버그 / 헬사이클롭 을 전부 다시 굽는다.\n" +
+        if (!EditorUtility.DisplayDialog("헬 5종 생성",
+            "헬하운드 / 헬뱃 / 헬버그 / 헬사이클롭 / 헬플라잉데몬 을 전부 다시 굽는다.\n" +
             "프리팹과 SO 는 통째로 덮어써진다. 계속?", "생성", "취소")) return;
-        BuildHound(); BuildBat(); BuildBug(); BuildCyclop();
+        BuildHound(); BuildBat(); BuildBug(); BuildCyclop(); BuildDemon();
     }
 
     // ── 헬하운드: 러셔. 물고 할퀴며 붙고, 멀면 도약으로 좁힌다.
@@ -183,6 +190,89 @@ public static class HellMonsterConfigs
         clipSubmerge = "Submerge", clipEmerge = "Emerge", burrowImpactVfxPath = Hit(6),
     };
 
+    // ── 헬플라잉데몬: 부유 시전형. 땅에 안 닿고 떠서 다니며 주문을 쏜다.
+    //
+    // ★"비행체라 지상 몹으로 못 쓴다"는 판단은 틀렸다. 실제 클립을 보면
+    //   Fly1/2/3(이동 3단계) + Idle1/2 + Attack1/2 + Death 가 다 있고, 없는 건 걷기/뛰기뿐이다.
+    //   FlyDeath 와 별개로 지상용 Death 가 따로 있는 것부터가 제작사가 지상 사용을 상정했다는 뜻이다.
+    //   -> 이동 블렌드트리에 Fly 클립을 넣고 hoverHeight 로 몸만 띄우면 그대로 지상 몹이 된다.
+    //      길찾기는 지상 NavMesh 를 그대로 쓰므로 특별 처리가 전혀 없다.
+    static HellConfig Demon() => new HellConfig
+    {
+        enemyName = "헬플라잉데몬", enemyId = "hell_flying_demon", sourceId = "hell_flying_demon",
+        folderName = "헬플라잉데몬",
+        maxHP = 75, moveSpeed = 4.4f, attackDamage = 13f, attackRange = 2.6f, attackCooldown = 1.6f,
+        visionRange = 20f, visionAngle = 300f,
+        bodyHeight = 1.7f, bodyRadius = 0.6f, scale = 1f, eyeHeight = 1.3f,
+        // ★몸만 띄운다. 다리가 땅에 닿으면 걷기 클립이 없는 게 바로 티가 난다.
+        hoverHeight = 1.1f,
+        // ★Walk/Run 자리에 Fly 를 넣는다. 루트모션은 꺼져 있어서 클립의 전진은 무시되고
+        //   실제 이동은 NavMeshAgent 가 한다. 속도에 따라 Fly1 -> Fly2 로 섞인다.
+        clipIdle = "Idle1", clipWalk = "Fly1", clipRun = "Fly2",
+        clipRoar = "BattleRoar", clipDeath = "Death",
+        // 피격 클립이 3종이라 다 돌려쓴다.
+        hitStates = new[] { "GetHit1", "GetHit2", "GetHit3" },
+        hitClips = new[] { "GetHit1", "GetHit2", "GetHit3" },
+        roarTime = 1.2f,
+        // ★2번 팩(연두+마젠타)은 종욱이 반려. 형광 연두가 섞여 있어 용암 몹에 안 어울린다.
+        //   남은 미사용 팩은 4번(연두/라임 - 헬뱃에서 이미 반려)과 5번(청색 - 사이클롭 1번과 중복)뿐이라
+        //   새 후보가 없다. 다른 라이브러리도 뒤졌는데 Lightning 세트는 청록이라 같은 문제다.
+        //   -> 승인된 6번(빨강/주황)을 쓴다. 같은 헬 계열이라 톤을 공유해도 어색하지 않고,
+        //      헬버그는 잠복 위주라 원거리를 보여줄 일이 적어서 실제로 겹쳐 보일 일이 드물다.
+        telegraphVfxPath = Charge(6), muzzleVfxPath = Muzzle(6),
+        projectileVfxPath = Shot(6), projectileHitVfxPath = Hit(6),
+        telegraphTime = 1f, telegraphHeight = 1.4f,
+        // 한 발이라 크고 묵직하게. 판정도 비주얼에 맞춰 키운다.
+        projectileScale = 1.5f, projectileHitRadius = 1.1f, projectileExplodeRadius = 2.2f,
+        // ★★오른손 고정. 본이 hand_l / hand_r 두 개인데 "hand" 부분일치는 hand_l(왼손)을 먼저 잡는다.
+        //   시전 모션은 오른손을 뻗어서 "왼손에서 모으고 오른손으로 쏘는" 그림이 됐다(종욱 지적).
+        muzzleBoneHint = "hand_r",
+        muzzleOffset = new Vector3(0f, 0f, 0.25f),
+        projectileSpeed = 15f,
+        // ★패턴 3종 = 전부 마법. 근접은 통째로 뺐다(종욱 판단).
+        //   부유해서 떠 있는 몹이 할퀴려고 내려오는 게 어색했고, 패턴도 2개뿐이라 심심했다.
+        //   시전 클립이 5종이나 있는 몹이니 그쪽으로 몰아주는 게 이 에셋을 제대로 쓰는 길이다.
+        //   거리별 역할이 안 겹치게 짰다: 멀면 저주탄, 발밑엔 분출, 붙으면 절규.
+        attacks = new List<HellAttackConfig>
+        {
+            // 1) 저주탄: 조준 유도탄. 옆으로 굴러야 피해진다.
+            //    ★손을 뻗은 자세로 먼저 잡고, 그 손에서 모았다가 쏜다.
+            //      대기 자세로 모으다가 발사 순간에 손을 뻗으면 앞뒤가 뒤바뀐 것처럼 보인다(종욱 지적).
+            //      CastToTargetStart 는 비루프라 마지막 프레임(손 뻗은 자세)에서 멈추는데, 여기선 그게 정답이다.
+            new HellAttackConfig { label = "저주탄", state = "Cast", clipName = "CastToTarget",
+                windupState = "CastReady", windupClip = "CastToTargetStart",
+                kind = HellAttackKind.Ranged, telegraph = HellTelegraphKind.Charge,
+                weight = 1.2f, minRange = 4f, maxRange = 18f,
+                hitTime = 0.35f, totalTime = 1.8f, cooldown = 4.5f, damageMul = 1f,
+                telegraphTime = 1.1f, telegraphScaleMul = 0.6f,
+                shots = 1, spreadAngle = 0f, homing = true },
+
+            // 2) 지옥불 분출: 플레이어 발밑에 빨간 원이 차오르고, 다 차면 그 자리 땅이 터진다.
+            //    ★원이 뜨는 순간의 자리로 못박히므로 걸어 나오면 헛방 = 회피가 성립한다.
+            //    minRange 0 이라 코앞에서도 쓴다. 근접을 뺀 자리를 이게 메운다.
+            //    ★착탄을 전용 "바닥 폭발" VFX 로 바꿨다. 일반 착탄 VFX 를 쓰니
+            //      뭐가 올라오는 공격인지 안 읽혔다(종욱 지적).
+            new HellAttackConfig { label = "지옥불분출", state = "Erupt", clipName = "CastStart",
+                windupState = "CastReady", windupClip = "CastToTargetStart",
+                telegraph = HellTelegraphKind.FillCircle, groundTargetsPlayer = true,
+                weight = 1.1f, minRange = 0f, maxRange = 14f,
+                hitTime = 0.35f, totalTime = 1.4f, cooldown = 6f, damageMul = 1.3f,
+                radius = 2.6f, telegraphTime = 1.15f,
+                impactVfxPath = FloorBlast, impactScale = 1.6f, impactLift = 0f },
+        },
+        // 3) ★강하 내려꽂기 = 이 몹만 할 수 있는 공격.
+        //    떠 있다는 특성을 실제로 쓴다. 높이 떠올랐다가 표시된 자리로 내리꽂는다.
+        //    앞의 두 패턴이 "제자리에서 마법"이라 서로 헷갈렸는데,
+        //    이건 몹이 물리적으로 날아오므로 절대 안 헷갈린다.
+        //    Jump 클립이 없어서 비행 클립(Fly3)을 상승/체공에, 착지는 안 쓰던 Attack2(후려치기)로 돌려썼다.
+        useLeap = true, leapWeight = 1f, leapMinRange = 3f, leapMaxRange = 14f,
+        leapCooldown = 8f, leapFlyTime = 0.75f, leapDamageMul = 1.4f, leapRadius = 3f,
+        // 날개 달린 놈이라 포물선을 높게. 떠올랐다 꽂히는 게 보여야 한다.
+        leapArcHeight = 5f, leapTelegraphTime = 1.2f,
+        clipJumpStart = "Fly3", clipJumpFly = "Fly3", clipJumpEnd = "Attack2",
+        leapImpactVfxPath = FloorBlast,
+    };
+
     // ── 헬사이클롭: 준보스. 느리고 아프다. 전조가 제일 길어서 확실히 보고 피할 수 있다.
     static HellConfig Cyclop() => new HellConfig
     {
@@ -256,6 +346,10 @@ public class HellConfig
     public float maxHP = 100, moveSpeed = 4f, attackDamage = 15f, attackRange = 2.5f, attackCooldown = 1.5f;
     public float visionRange = 18f, visionAngle = 300f;
     public float bodyHeight = 1.8f, bodyRadius = 0.6f, scale = 1f;
+    // ★부유 높이(m). NavMeshAgent.baseOffset 에 들어간다.
+    //   길은 지상 NavMesh 를 그대로 따라가되 몸만 이만큼 떠 있게 만든다.
+    //   걷기/뛰기 클립이 없는 비행 모델을 지상 몹으로 쓰려면 이게 필요하다.
+    public float hoverHeight = 0f;
     public float deathAnimDuration = 2f;
     // 사망 클립이 끝나고 시체가 남아있는 여유 시간(초). 툭 사라지면 어색하다.
     public float deathExtraTime = 0.8f;
@@ -371,6 +465,8 @@ public class HellConfig
 public class HellAttackConfig
 {
     public string label = "Attack", state = "Attack1", clipName = "Attack1";
+    // 패턴 전용 준비 자세(상태명/클립). 비우면 SO 공통 windupState 를 쓴다.
+    public string windupState = "", windupClip = "";
     public float weight = 1f;
     public float minRange = 0f, maxRange = 3f;
     // ★totalTime 은 이제 클립 길이에서 자동 계산된다(빌더가 실측). 여기 값은 클립을 못 읽었을 때의 대비책.
@@ -392,4 +488,6 @@ public class HellAttackConfig
     public float shotGap = 0.12f, spreadAngle = 0f;
     public bool homing = false;
     public bool lockFacing = false;
+    // 범위 판정을 몹 앞이 아니라 플레이어 발밑에 잡는다(분출류).
+    public bool groundTargetsPlayer = false;
 }

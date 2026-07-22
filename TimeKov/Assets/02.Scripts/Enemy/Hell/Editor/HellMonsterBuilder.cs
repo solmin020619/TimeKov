@@ -93,7 +93,13 @@ public static class HellMonsterBuilder
         }
 
         foreach (var a in c.attacks)
+        {
             AddState(sm, a.state, Clip(c, a.clipName));
+            // 패턴 전용 준비 자세. 비루프라 마지막 프레임에서 멈추는데, 시전 자세는
+            // 그게 오히려 맞다(손을 뻗은 채로 모으는 그림).
+            if (!string.IsNullOrEmpty(a.windupState) && !string.IsNullOrEmpty(a.windupClip))
+                AddState(sm, a.windupState, Clip(c, a.windupClip));
+        }
 
         if (c.useLeap)
         {
@@ -280,7 +286,7 @@ public static class HellMonsterBuilder
 
             list.Add(new HellAttack
             {
-                label = a.label, state = a.state, weight = a.weight,
+                label = a.label, state = a.state, windupState = a.windupState, weight = a.weight,
                 minRange = a.minRange, maxRange = a.maxRange,
                 hitTime = hit, totalTime = total, cooldown = a.cooldown,
                 damageMul = a.damageMul, radius = a.radius, halfAngle = a.halfAngle, reach = a.reach,
@@ -289,7 +295,7 @@ public static class HellMonsterBuilder
                 kind = a.kind, telegraph = a.telegraph,
                 telegraphTime = a.telegraphTime, telegraphScaleMul = a.telegraphScaleMul,
                 shots = a.shots, shotGap = a.shotGap, spreadAngle = a.spreadAngle, homing = a.homing,
-                lockFacing = a.lockFacing,
+                lockFacing = a.lockFacing, groundTargetsPlayer = a.groundTargetsPlayer,
             });
         }
         so.attacks = list.ToArray();
@@ -414,7 +420,8 @@ public static class HellMonsterBuilder
         agent.radius = Mathf.Max(0.3f, c.bodyRadius);
         agent.speed = c.moveSpeed;
         agent.stoppingDistance = 0f;
-        agent.baseOffset = 0f;
+        // 부유형(걷기 클립이 없는 비행 모델)은 몸만 띄운다. 경로는 지상 NavMesh 그대로.
+        agent.baseOffset = c.hoverHeight;
 
         var rb = GetOrAdd<Rigidbody>(go);
         rb.isKinematic = true; rb.useGravity = false;
@@ -455,10 +462,32 @@ public static class HellMonsterBuilder
     {
         var all = go.GetComponentsInChildren<Transform>(true);
 
+        // 1) 힌트 정확 일치
         if (!string.IsNullOrEmpty(c.muzzleBoneHint))
+        {
             foreach (var t in all)
                 if (t.name.Equals(c.muzzleBoneHint, System.StringComparison.OrdinalIgnoreCase))
                     return t;
+
+            // 2) 힌트 부분 일치. 본 이름이 "hand_r", "Bip01 L Hand" 처럼 접두/접미가 붙는 경우가 흔해서
+            //    "hand" 같은 짧은 힌트로도 잡히게 한다. 어느 본을 골랐는지 반드시 로그로 남긴다.
+            var hits = new List<Transform>();
+            foreach (var t in all)
+                if (t.name.IndexOf(c.muzzleBoneHint, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    hits.Add(t);
+
+            if (hits.Count > 0)
+            {
+                if (hits.Count > 1)
+                    Debug.Log($"[{c.enemyName}] 힌트 '{c.muzzleBoneHint}' 에 걸린 본 {hits.Count}개: " +
+                              $"{string.Join(", ", hits.ConvertAll(t => t.name))}\n" +
+                              "  (다른 걸 쓰려면 muzzleBoneHint 에 정확한 이름을 적어라)");
+                Debug.Log($"[{c.enemyName}] 발사 앵커로 '{hits[0].name}' 사용");
+                return hits[0];
+            }
+
+            Debug.LogWarning($"[{c.enemyName}] muzzleBoneHint '{c.muzzleBoneHint}' 에 맞는 본이 없다. 자동 탐색으로 넘어간다.");
+        }
 
         // 후보를 로그로 보여준다. 자동 선택이 마음에 안 들면 muzzleBoneHint 에 이름을 적으면 된다.
         var cands = new List<string>();
