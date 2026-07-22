@@ -36,11 +36,11 @@ public class HellMonsterData : MeleeEnemyData
     public GameObject fillCircleVfx;
     [Tooltip("차오르는 원 색. ★용암맵에서 빨간 원은 바닥에 묻힌다. " +
              "색조가 아니라 명도로 대비를 준다(하얗게 달아오른 쇳물 색). 알파 0 이면 공통 전조색을 쓴다.")]
-    public Color fillCircleColor = new Color(1f, 0.82f, 0.55f, 1f);
+    public Color fillCircleColor = new Color(1f, 0.34f, 0.06f, 1f);
     [Tooltip("차오르는 원이 스케일 1 일 때의 실제 반경(m). 코드가 자동 실측하며, 실패했을 때만 이 값을 쓴다.")]
-    public float fillCircleUnitRadius = 5f;
+    public float fillCircleUnitRadius = 2f;
     [Tooltip("원이 처음 뜰 때의 크기 비율. 여기서 1 까지 차오른다.")]
-    public float fillCircleFromScale = 0.05f;
+    public float fillCircleFromScale = 0.15f;
     [Tooltip("공격 시작 후 원이 남아있는 시간(초). 착지까지 보이게 넉넉히.")]
     public float fillCircleLinger = 1.2f;
     [Tooltip("테두리 밝기 비율. 안쪽 채움보다 어둡게 해서 채워지는 게 도드라지게 한다.")]
@@ -81,8 +81,13 @@ public class HellMonsterData : MeleeEnemyData
     public float leapMinRange = 6f;
     public float leapMaxRange = 14f;
     public float leapCooldown = 9f;
-    [Tooltip("도약 체공 시간(초).")]
+    [Tooltip("도약 체공 시간(초). 이건 애니 길이가 아니라 포물선 이동 시간이다(JumpFly 는 루프시킨다).")]
     public float leapFlyTime = 0.7f;
+    [Tooltip("도약 준비 동작 시간(초). ★빌더가 JumpStart 클립 길이를 재서 넣는다. " +
+             "짐작한 상수를 쓰면 웅크리다 말고 튀어나가는 그림이 된다.")]
+    public float leapStartTime = 0.4f;
+    [Tooltip("착지 후 마무리 동작 시간(초). ★빌더가 JumpEnd 클립 길이를 재서 넣는다.")]
+    public float leapEndTime = 0.6f;
     [Tooltip("도약 포물선 최고 높이(m). 몸집이 크면 같이 키워야 뛰는 느낌이 난다.")]
     public float leapArcHeight = 2.2f;
     [Tooltip("착지 예고 시간(초). 이 동안 걸어 나오면 헛착지한다.")]
@@ -108,6 +113,10 @@ public class HellMonsterData : MeleeEnemyData
     public float burrowRadius = 3f;
     public string burrowInState = "Submerge";
     public string burrowOutState = "Emerge";
+    [Tooltip("땅에 파고드는 동작 시간(초). ★빌더가 Submerge 클립 길이를 재서 넣는다.")]
+    public float burrowInTime = 0.6f;
+    [Tooltip("튀어나온 뒤 마무리 시간(초). ★빌더가 Emerge 클립 길이를 재서 넣는다.")]
+    public float burrowOutTime = 0.5f;
     public GameObject burrowImpactVfx;
 
     [Header("피격 반응")]
@@ -115,20 +124,32 @@ public class HellMonsterData : MeleeEnemyData
     public bool useHitReaction = true;
     [Tooltip("피격 모션 상태 이름. 여러 개면 번갈아 쓴다.")]
     public string[] hitStates = { "GetHit" };
-    [Tooltip("피격 모션 길이(초). 이 동안 이동이 멈춘다.")]
+    [Tooltip("피격 모션 길이(초). 이 동안 이동이 멈춘다. 빌더가 클립 길이를 재서 넣는다.")]
     public float hitReactionTime = 0.35f;
-    [Tooltip("피격 모션 재생 최소 간격(초). 연타 맞을 때 계속 리셋되면 몹이 굳어버린다.")]
+    [Tooltip("★흠칫 모션이 끝난 뒤 전투 자세로 한 박자 쉬는 시간(초).\n" +
+             "0 이면 흠칫이 끝나는 프레임에 바로 다음 공격 전조가 떠서, " +
+             "피격 모션이 채 끝나기도 전에 전조가 덮어쓴 것처럼 보인다.")]
+    public float hitRecoveryTime = 0.3f;
+    [Tooltip("피격 모션 재생 최소 간격(초). ★흠칫이 '끝난' 시점부터 잰다.\n" +
+             "이 시간 동안은 맞아도 안 흠칫하므로, 몹이 공격을 시도할 수 있는 창이기도 하다. " +
+             "너무 짧으면 두들기는 동안 몹이 아무것도 못 하는 허수아비가 된다.")]
     public float hitReactionCooldown = 0.7f;
-    [Tooltip("맞은 방향으로 밀리는 거리(m). 0 이면 안 밀린다.")]
-    public float knockbackDistance = 0.35f;
-    [Tooltip("밀리는 데 걸리는 시간(초).")]
-    public float knockbackTime = 0.15f;
+    [Tooltip("준비동작(전조) 중에 맞으면 공격이 끊긴다. 이미 나간 공격과 공중 도약은 안 끊긴다.")]
+    public bool hitCanInterruptAttack = true;
 
     [Header("애니 상태 이름")]
     public string idleState = "Idle";
     public string moveState = "Locomotion";
     public string roarState = "BattleRoar";
     public string dieState = "Die";
+    [Tooltip("★전조(준비동작) 중에 재생할 상태. 전투 대기 자세(BattleIdle)를 넣는다.\n" +
+             "이게 없으면 전조 1초 동안 애니메이터가 직전 상태에 그대로 멈춰 있는다. " +
+             "직전이 걷기면 제자리 걷기, 피격이면 흠칫한 자세로 굳은 채 불을 모으는 그림이 된다.\n" +
+             "빌더가 BattleIdle 이 없는 몹은 Idle 로 대체한다.")]
+    public string windupState = "BattleIdle";
+    [Tooltip("★행동 사이 휴식 중에 이 거리보다 가까우면 더 파고들지 않고 전투 자세로 선다.\n" +
+             "0 이면 항상 플레이어에게 붙는다(몸이 겹쳐서 밀치는 그림이 된다).")]
+    public float standoffDistance = 0f;
     [Tooltip("발견 시 포효를 한 번 하고 달려든다. 비우면 생략.")]
     public bool roarOnDetect = true;
     public float roarTime = 1.2f;

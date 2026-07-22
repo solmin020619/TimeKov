@@ -55,7 +55,12 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     private int _hitIdx;
     private float _fillTarget = 1f;
     private Vector3 _chargePivot;   // 차지 VFX 내부 중심 보정(프리팹마다 다름)
+    private Vector3 _fillPivot;
+    private Vector3 _fillSpot;
+    private GameObject _leapFill;
     private GameObject _outlineFx;  // 착지 예고 테두리(범위 고정 표시)
+    private Coroutine _actionCo;
+    private bool _interruptible;   // 준비동작 중 = 끊어도 되는 구간
     private float _actionGap;       // 행동 사이 강제 휴식(초)
 
     private void Awake()
@@ -119,12 +124,35 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     private void HandleDamage()
     {
         if (_dead || data == null || !data.useHitReaction) return;
-        if (_busy || _hitReacting) return;
+        if (_hitReacting) return;
         if (Time.time - _lastHitReact < data.hitReactionCooldown) return;
         if (data.hitStates == null || data.hitStates.Length == 0) return;
 
-        _lastHitReact = Time.time;
+        if (_busy)
+        {
+            // ★준비동작(전조) 중에만 끊는다.
+            //   전조는 길어서 대부분의 피격이 여기 걸리므로 흠칫이 자주 보인다.
+            //   반대로 이미 나간 공격이나 공중에 뜬 도약을 끊으면
+            //   공중에 멈춘 몹 같은 이상한 그림이 나오고, 읽고 피한 플레이어만 손해다.
+            if (!data.hitCanInterruptAttack || !_interruptible) return;
+            InterruptAction();
+        }
+
         StartCoroutine(HitReaction());
+    }
+
+    // 준비동작을 끊고 원래대로 되돌린다.
+    private void InterruptAction()
+    {
+        if (_actionCo != null) { StopCoroutine(_actionCo); _actionCo = null; }
+        _interruptible = false;
+        _busy = false;
+        ClearLeapCircle();
+        // 코루틴을 중간에 죽이면 그 안의 정리 코드가 안 돈다. 몸 상태는 여기서 되돌린다.
+        RestoreBodyState();
+        _motor.StopMove();
+        // 끊긴 직후 바로 다음 공격이 나가면 흠칫이 무의미해진다. 다른 행동과 같은 텀을 준다.
+        _actionGap = Random.Range(data.actionGapMin, Mathf.Max(data.actionGapMin, data.actionGapMax));
     }
 
     private IEnumerator HitReaction()
@@ -132,41 +160,40 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _hitReacting = true;
         _motor.StopMove();
 
-        // 맞은 지점 반대쪽 = 밀려날 방향
-        Vector3 push = Vector3.zero;
-        if (_health != null && data.knockbackDistance > 0f)
-        {
-            Vector3 d = transform.position - _health.LastHitPoint;
-            d.y = 0f;
-            // 히트포인트가 몸 중앙과 겹치면 방향이 안 나오므로 뒤로 민다
-            push = (d.sqrMagnitude > 0.01f ? d.normalized : -transform.forward) * data.knockbackDistance;
-        }
-
+        // 1) 흠칫 모션
         string st = data.hitStates[_hitIdx % data.hitStates.Length];
         _hitIdx++;
         Play(st);
+        yield return WaitBusy(data.hitReactionTime);
 
-        float dur = Mathf.Max(0.05f, data.hitReactionTime);
-        float kbT = Mathf.Max(0.01f, data.knockbackTime);
-        float t = 0f;
-        Vector3 from = transform.position;
-
-        while (t < dur && !_dead)
+        // 2) ★회복 한 박자. 이게 없으면 흠칫 모션이 끝나기도 전에 다음 행동이 시작돼
+        //    전조가 피격 모션 위로 덮어써진다("맞는 도중에 전조가 뜬다").
+        //    전투 자세로 잠깐 서서 맞은 걸 추스르는 그림을 만든다.
+        if (!_dead && data.hitRecoveryTime > 0f)
         {
-            t += Time.deltaTime;
-            if (push != Vector3.zero && t <= kbT)
-            {
-                // ★transform 을 직접 옮기면 NavMeshAgent 의 내부 위치와 어긋나 떨린다.
-                //   에이전트가 살아 있으면 Move 로 밀어야 한다.
-                Vector3 step = push * (Time.deltaTime / kbT);
-                if (_motor.AgentReady()) _motor.Agent.Move(step);
-                else transform.position = GroundSpot(transform.position + step);
-            }
-            yield return null;
+            Play(WindupState());
+            yield return WaitBusy(data.hitRecoveryTime);
         }
 
+        // ★경직 쿨은 "끝난 시점"부터 잰다.
+        //   시작 시점부터 재면 흠칫이 길어질수록 쿨을 스스로 잡아먹어서
+        //   맞는 족족 흠칫만 반복하는 허수아비가 된다.
+        _lastHitReact = Time.time;
         _hitReacting = false;
         _curState = null;   // 다음 Play 가 확실히 먹도록 리셋
+    }
+
+    // 경직 중에도 Speed 파라미터는 갱신해야 블렌드트리가 안 튄다.
+    private IEnumerator WaitBusy(float dur)
+    {
+        float t = 0f;
+        float end = Mathf.Max(0.05f, dur);
+        while (t < end && !_dead)
+        {
+            t += Time.deltaTime;
+            _motor.TickSpeedParam();
+            yield return null;
+        }
     }
 
     // ★StopAllCoroutines 는 코루틴을 yield 지점에서 즉사시키므로 코루틴 안의 정리 코드가 안 돈다.
@@ -178,6 +205,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _busy = false;
         _hitReacting = false;
         RestoreBodyState();
+        ClearLeapCircle();
         _motor.StopMove();
     }
 
@@ -188,6 +216,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _busy = false;
         _hitReacting = false;
         RestoreBodyState();
+        ClearLeapCircle();
     }
 
     // 잠복/도약이 중간에 끊겨도 몸이 사라지거나 공중에 뜬 채 남지 않게 한다.
@@ -235,12 +264,23 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         if (data.roarOnDetect && !_roared)
         {
             _roared = true;
-            StartCoroutine(Roar());
+            _actionCo = StartCoroutine(Roar());
             return;
         }
 
         float dist = _motor.PlanarDistance(_target.position);
         if (TryPickAction(dist)) return;
+
+        // ★이미 충분히 가까우면 더 파고들지 않고 전투 자세로 선다.
+        //   안 그러면 행동 사이 휴식 내내 플레이어 몸에 겹치도록 밀고 들어와서
+        //   "쉬는 틈"이 그림으로 안 보이고 카메라도 몹에 파묻힌다.
+        if (data.standoffDistance > 0f && dist <= data.standoffDistance)
+        {
+            _motor.StopMove();
+            Play(WindupState());
+            _motor.TickSpeedParam();
+            return;
+        }
 
         // 쓸 패턴이 없으면 붙는다
         _motor.Chase(_target.position);
@@ -248,10 +288,16 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _motor.TickSpeedParam();
     }
 
+    // 준비동작/대기용 전투 자세. 비어 있으면 Idle 로 떨어진다.
+    private string WindupState()
+        => string.IsNullOrEmpty(data.windupState) ? data.idleState : data.windupState;
+
     // 행동 하나가 끝났다. 다음 행동까지 숨 돌릴 틈을 준다.
     private void EndAction()
     {
         _busy = false;
+        _interruptible = false;
+        _actionCo = null;
         _actionGap = Random.Range(data.actionGapMin, Mathf.Max(data.actionGapMin, data.actionGapMax));
     }
 
@@ -322,9 +368,13 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
             if (r <= 0f) { pick = _cand[i].idx; break; }
         }
 
-        if (pick == -1) StartCoroutine(LeapAttack());
-        else if (pick == -2) StartCoroutine(BurrowAttack());
-        else StartCoroutine(PerformAttack(pick));
+        // ★반환값을 반드시 _actionCo 에 담는다.
+        //   안 담으면 InterruptAction 의 StopCoroutine 이 null 을 보고 그냥 지나가서,
+        //   "준비동작 중 피격이면 공격이 끊긴다"가 통째로 죽는다. 그것만으로 끝이 아니라
+        //   _busy 만 풀린 채 코루틴은 살아 있어서 흠칫이 끝나는 순간 두 번째 행동이 겹쳐 돈다.
+        if (pick == -1) _actionCo = StartCoroutine(LeapAttack());
+        else if (pick == -2) _actionCo = StartCoroutine(BurrowAttack());
+        else _actionCo = StartCoroutine(PerformAttack(pick));
         return true;
     }
 
@@ -336,7 +386,8 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _motor.Feedback?.PlayDetect();
         Play(data.roarState);
         yield return new WaitForSeconds(data.roarTime);
-        _busy = false;
+        // 포효 직후 바로 공격이 나가면 포효가 전조 없는 기습처럼 보인다. 다른 행동과 같은 텀을 준다.
+        EndAction();
     }
 
     // ★공격 단일 진입점. 전조를 반드시 먼저 거친다.
@@ -350,7 +401,14 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _motor.StopMove();
 
         // 1) 전조: 형태는 패턴마다 다르다(원거리=입앞 차지 / 범위근접=바닥링 / 빠른평타=없음)
+        // ★애니메이터도 같이 준비 자세로 넘긴다.
+        //   여기서 상태를 안 바꾸면 전조 1초 내내 직전 상태에 굳어 있다.
+        //   걷다가 들어오면 제자리걸음, 맞고 들어오면 흠칫한 자세 그대로 불을 모으는 그림이 된다.
+        //   (컨트롤러에 전이가 하나도 없고 전부 CrossFade 로만 움직이는 구조라 스스로 안 빠져나온다)
+        Play(WindupState());
+        _interruptible = true;
         yield return Telegraph(a);
+        _interruptible = false;
         if (_dead) yield break;
 
         // 2) 공격 모션
@@ -410,11 +468,11 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         }
 
         var go = Instantiate(data.projectilePrefab, origin, Quaternion.LookRotation(aim));
-        // 날아가는 탄도 같은 색으로. 안 하면 전조만 빨갛고 탄은 원본 색이라 따로 논다.
-        PrepareTelegraph(go, data.telegraphColor);
-
         var fb = go.GetComponent<WyvernFireball>();
-        if (fb == null) { Destroy(go, 5f); return; }
+        if (fb == null) { VfxTint.Apply(go, data.telegraphColor); Destroy(go, 5f); return; }
+
+        // 탄과 착탄 VFX 를 한 번에 물들인다(착탄은 나중에 생기므로 여기서 예약해둬야 한다)
+        fb.SetTint(data.telegraphColor);
 
         fb.Launch(aim, data.attackDamage * a.damageMul, _motor.Player);
         // 유도는 가운데 한 발만. 전탄 유도는 근접 전용 플레이어에게 회피 불가다.
@@ -516,24 +574,27 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
                          + Vector3.up * 0.06f;
             Color cc = data.fillCircleColor.a > 0f ? data.fillCircleColor : c;
 
-            // 스케일 1 일 때 반경을 재서 원하는 반경에 정확히 맞춘다(= 보이는 원 = 피해 범위)
-            var probe = Instantiate(data.fillCircleVfx);
-            float unit = MeasureMeshRadius(probe);
-            Destroy(probe);
-            if (unit <= 0.01f) unit = Mathf.Max(0.05f, data.fillCircleUnitRadius);
-            _fillTarget = (r / unit) * a.telegraphScaleMul;
+            // ★파티클 VFX 로 그린다. 링 메시를 쓰려 했으나 그 머티리얼들은 파티클 전용이라
+            //   (정점 색을 받아야 보이고 _CoreColor 알파가 0) 맨 메시에 붙이면 투명하게 나온다.
+            //   입에서 모이는 차지는 이미 잘 보이는 게 확인됐으니 같은 걸 바닥에 쓴다.
+            _fillTarget = r / Mathf.Max(0.05f, data.fillCircleUnitRadius) * a.telegraphScaleMul;
 
-            // 1) 테두리: 전체 범위, 고정. 살짝 어둡게 해서 안쪽 채움이 도드라지게.
+            // 1) 테두리: 전체 범위를 처음부터 보여준다. 어둡게 깔아서 채움이 도드라지게.
             _outlineFx = Instantiate(data.fillCircleVfx, spot, Quaternion.identity);
             _outlineFx.transform.localScale = Vector3.one * _fillTarget;
-            TintRenderers(_outlineFx, cc * data.fillOutlineDim);
+            _outlineFx.transform.position = spot - _outlineFx.transform.rotation * (LocalCenter(_outlineFx) * _fillTarget);
+            PrepareTelegraph(_outlineFx, cc * data.fillOutlineDim);
             Destroy(_outlineFx, dur + data.fillCircleLinger);
 
-            // 2) 채움: 가운데서 시작해 테두리까지 차오른다.
+            // 2) 채움: 가운데서 시작해 테두리까지 차오른다. 꽉 차는 순간 = 덮치는 순간.
             fx = Instantiate(data.fillCircleVfx, spot, Quaternion.identity);
-            fx.transform.localScale = Vector3.one * _fillTarget * data.fillCircleFromScale;
-            TintRenderers(fx, cc);
+            float s0 = _fillTarget * data.fillCircleFromScale;
+            fx.transform.localScale = Vector3.one * s0;
+            _fillPivot = LocalCenter(fx);
+            fx.transform.position = spot - fx.transform.rotation * (_fillPivot * s0);
+            PrepareTelegraph(fx, cc);
             filling = true;
+            _fillSpot = spot;
             Destroy(fx, dur + data.fillCircleLinger);
         }
         else if (a.telegraph == HellTelegraphKind.Ground && data.groundTelegraphVfx != null)
@@ -566,6 +627,8 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
                 float k = Mathf.Clamp01(t / dur);
                 float s = Mathf.Lerp(data.fillCircleFromScale, 1f, k) * _fillTarget;
                 fx.transform.localScale = Vector3.one * s;
+                // 커지면서 내부 오프셋도 같이 커지므로 매번 다시 중심을 맞춘다
+                fx.transform.position = _fillSpot - fx.transform.rotation * (_fillPivot * s);
             }
 
             // 전조 중 플레이어를 향해 돈다. 단 착지점을 이미 확정한 도약은 고정해야
@@ -610,6 +673,42 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         }
     }
 
+    // 착지 예고 원. 테두리(범위 고정) + 채움(차오름) 2겹.
+    // 보이는 반경 = data.leapRadius = 실제 피해 반경. 셋이 같은 값에서 나온다.
+    private void SpawnLeapCircle(Vector3 spot)
+    {
+        ClearLeapCircle();
+        if (data.fillCircleVfx == null) return;
+
+        _fillSpot = spot + Vector3.up * 0.06f;
+        _fillTarget = data.leapRadius / Mathf.Max(0.05f, data.fillCircleUnitRadius);
+        Color c = data.fillCircleColor.a > 0f ? data.fillCircleColor : data.telegraphColor;
+
+        _outlineFx = Instantiate(data.fillCircleVfx, _fillSpot, Quaternion.identity);
+        _outlineFx.transform.localScale = Vector3.one * _fillTarget;
+        PrepareTelegraph(_outlineFx, c * data.fillOutlineDim);
+
+        _leapFill = Instantiate(data.fillCircleVfx, _fillSpot, Quaternion.identity);
+        _fillPivot = LocalCenter(_leapFill);
+        PrepareTelegraph(_leapFill, c);
+        TickLeapCircle(0f);
+    }
+
+    // k = 0~1. 1 이 되는 순간이 착지이자 피해 판정 시점이다.
+    private void TickLeapCircle(float k)
+    {
+        if (_leapFill == null) return;
+        float s = Mathf.Lerp(data.fillCircleFromScale, 1f, Mathf.Clamp01(k)) * _fillTarget;
+        _leapFill.transform.localScale = Vector3.one * s;
+        _leapFill.transform.position = _fillSpot - _leapFill.transform.rotation * (_fillPivot * s);
+    }
+
+    private void ClearLeapCircle()
+    {
+        if (_leapFill != null) { Destroy(_leapFill, data.fillCircleLinger); _leapFill = null; }
+        if (_outlineFx != null) { Destroy(_outlineFx, data.fillCircleLinger); _outlineFx = null; }
+    }
+
     // 도약 돌진: 멀리서 붙는 용도. 전조 -> 점프 -> 착지 강타.
     private IEnumerator LeapAttack()
     {
@@ -629,17 +728,48 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         Vector3 to = GroundSpot(aim);
         _motor.FaceInstant(to);
 
-        yield return Telegraph(_leapTele, to);
+        // ★원이 "차오르는 게이지" 역할을 한다. 전조 + 도약준비 + 체공 전체에 걸쳐 채워서
+        //   ★꽉 차는 순간 = 착지 = 피해 판정 순간. 셋이 정확히 같은 시점이다.
+        //   그래서 원 안에 있으면 맞고 밖이면 안 맞는 게 눈으로 보장된다.
+        float tele = Mathf.Max(0.05f, data.leapTelegraphTime);
+        // ★도약 준비 동작은 클립 길이 그대로 쓴다(빌더 실측).
+        //   예전엔 0.25초 상수라, 웅크리는 모션이 반도 안 나오고 튀어나갔다.
+        float startT = Mathf.Max(0.05f, data.leapStartTime);
+        float fly = Mathf.Max(0.1f, data.leapFlyTime);
+        float total = tele + startT + fly;
+
+        SpawnLeapCircle(to);
+        float elapsed = 0f;
+        _interruptible = true;   // 준비 구간만 끊을 수 있다
+
+        // 전조 동안은 전투 자세로 노려본다. 여기서 상태를 안 잡으면 걷던 자세로 원만 차오른다.
+        Play(WindupState());
+
+        // 1) 전조: 제자리에서 원이 차오르기 시작
+        while (elapsed < tele && !_dead)
+        {
+            elapsed += Time.deltaTime;
+            TickLeapCircle(elapsed / total);
+            _motor.TickSpeedParam();
+            yield return null;
+        }
+        _interruptible = false;   // 여기부터는 커밋. 공중에서 멈추면 안 된다
         if (_dead) yield break;
 
         Vector3 from = transform.position;
 
+        // 2) 도약 준비 동작
         Play(data.leapStartState);
-        yield return new WaitForSeconds(0.25f);
+        while (elapsed < tele + startT && !_dead)
+        {
+            elapsed += Time.deltaTime;
+            TickLeapCircle(elapsed / total);
+            yield return null;
+        }
         if (_dead) yield break;
 
+        // 3) 체공. 착지 시점에 원이 100% 가 된다.
         Play(data.leapFlyState);
-        float fly = Mathf.Max(0.1f, data.leapFlyTime);
         float t = 0f;
         bool navOff = _motor.AgentReady();
         if (navOff) _motor.Agent.enabled = false;   // 포물선 이동은 에이전트를 잠깐 끈다
@@ -647,12 +777,16 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         while (t < fly && !_dead)
         {
             t += Time.deltaTime;
+            elapsed += Time.deltaTime;
+            TickLeapCircle(elapsed / total);
+
             float k = Mathf.Clamp01(t / fly);
             Vector3 p = Vector3.Lerp(from, to, k);
             p.y += Mathf.Sin(k * Mathf.PI) * data.leapArcHeight;   // 포물선
             transform.position = p;
             yield return null;
         }
+        TickLeapCircle(1f);
 
         if (navOff)
         {
@@ -664,16 +798,28 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         Play(data.leapEndState);
         if (data.leapImpactVfx != null)
         {
+            // ★도약은 착지 원이 빨강이므로 폭발도 빨강으로 묶는다.
+            //   원은 빨강인데 터질 때만 보라면 같은 공격으로 안 읽힌다.
+            //   원거리(보라)와 도약(빨강)이 색으로 구분되는 게 오히려 읽기 쉽다.
             var v = Instantiate(data.leapImpactVfx, transform.position, Quaternion.identity);
-            PrepareTelegraph(v, data.telegraphColor);
+            PrepareTelegraph(v, data.fillCircleColor.a > 0f ? data.fillCircleColor : data.telegraphColor);
             Destroy(v, 4f);
         }
+        // ★판정 중심 = 원 중심(착지 지점). 몹 위치로 재면 착지가 살짝 밀렸을 때 원과 어긋난다.
         var ps = _motor.PlayerStat;
-        if (ps != null && !ps.IsDead && _motor.Player != null
-            && _motor.PlanarDistance(_motor.Player.position) <= data.leapRadius)
-            ps.TakeDamage(data.attackDamage * data.leapDamageMul, transform.position);
+        if (ps != null && !ps.IsDead && _motor.Player != null)
+        {
+            Vector3 pp = _motor.Player.position; pp.y = 0f;
+            Vector3 cc2 = to; cc2.y = 0f;
+            if (Vector3.Distance(pp, cc2) <= data.leapRadius)
+                ps.TakeDamage(data.attackDamage * data.leapDamageMul, transform.position);
+        }
 
-        yield return new WaitForSeconds(0.5f);
+        ClearLeapCircle();
+
+        // ★착지 마무리 동작이 끝날 때까지 기다린다(빌더가 JumpEnd 클립 길이를 재서 넣는다).
+        //   상수 0.5초였을 땐 일어서다 말고 걷기로 튀었다.
+        yield return new WaitForSeconds(Mathf.Max(0.05f, data.leapEndTime));
         EndAction();
     }
 
@@ -685,7 +831,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _motor.StopMove();
 
         Play(data.burrowInState);
-        yield return new WaitForSeconds(0.6f);
+        yield return new WaitForSeconds(Mathf.Max(0.05f, data.burrowInTime));
         if (_dead) yield break;
 
         SetRenderers(false);
@@ -704,8 +850,15 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         }
         SetRenderers(true);
 
-        // 튀어나오는 것 자체가 전조 역할이지만, 규칙대로 전조도 같이 띄운다
+        // ★순서 주의. 예전엔 Emerge 를 켠 직후 바로 전조로 넘어가서,
+        //   등장 모션이 전조 1초 사이에 다 소진되고 남은 시간 동안 마지막 프레임에 굳어 있었다.
+        //   (Emerge 는 루프 대상도 아니다) -> 등장 모션을 끝까지 보여준 뒤에 전조를 띄운다.
         Play(data.burrowOutState);
+        yield return new WaitForSeconds(Mathf.Max(0.05f, data.burrowOutTime));
+        if (_dead) yield break;
+
+        // 튀어나오는 것 자체가 예고지만, 규칙대로 전조도 거친다. 전조 동안은 전투 자세.
+        Play(WindupState());
         yield return Telegraph(_burrowTele);
         if (_dead) yield break;
 
@@ -720,7 +873,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
             && _motor.PlanarDistance(_motor.Player.position) <= data.burrowRadius)
             ps.TakeDamage(data.attackDamage * data.burrowDamageMul, transform.position);
 
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(0.4f);
         EndAction();
     }
 
@@ -739,54 +892,13 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         => NavMesh.SamplePosition(pos, out var hit, 4f, NavMesh.AllAreas) ? hit.position : pos;
 
     // 전조 프리팹 준비. 두 가지를 한 번에 한다.
-    // 1) 흰색 머티리얼이라 파티클 색으로 몹별 색을 낸다(화염보스와 같은 방식).
-    // 2) ★scalingMode 를 Hierarchy 로 바꾼다. 이 에셋의 자식 파티클은 전부 Local 이라
-    //    부모(루트) 스케일을 무시한다 -> 안 바꾸면 아래 스케일 보간이 화면에 전혀 안 나타난다.
-    private static void PrepareTelegraph(GameObject go, Color c)
-    {
-        Color pc = ToParticleColor(c);
-        foreach (var ps in go.GetComponentsInChildren<ParticleSystem>(true))
-        {
-            var main = ps.main;
-            main.startColor = new ParticleSystem.MinMaxGradient(pc);
-            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
-        }
-
-        // ★파티클 색만 바꾸면 일부가 원래 색(보라/파랑)으로 남는다.
-        //   이 팩은 셰이더그래프가 자체 HDR 색 프로퍼티(Color_882B4FC 등, 8~32배)를 들고 있어서
-        //   그게 최종 색을 지배한다. 재질 쪽 색도 같이 물들여야 전부 통일된다.
-        foreach (var r in go.GetComponentsInChildren<Renderer>(true))
-            foreach (var m in r.materials)
-                TintMaterialColors(m, pc);
-    }
-
-    // 재질의 Color 프로퍼티를 색조만 바꿔치기한다. 세기(HDR 배율)와 알파는 그대로 둔다.
-    // 세기를 건드리면 이펙트가 뭉개지고, 색조만 바꾸면 원본 연출을 살린 채 톤만 맞출 수 있다.
-    private static void TintMaterialColors(Material m, Color hue)
-    {
-        if (m == null || m.shader == null) return;
-
-        var sh = m.shader;
-        int n = sh.GetPropertyCount();
-        for (int i = 0; i < n; i++)
-        {
-            if (sh.GetPropertyType(i) != UnityEngine.Rendering.ShaderPropertyType.Color) continue;
-
-            int id = sh.GetPropertyNameId(i);
-            Color c = m.GetColor(id);
-
-            // 검게 꺼둔 프로퍼티는 건드리지 않는다(켜버리면 없던 발광이 생긴다)
-            float intensity = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
-            if (intensity <= 0.001f) continue;
-
-            m.SetColor(id, new Color(hue.r * intensity, hue.g * intensity, hue.b * intensity, c.a));
-        }
-    }
+    // 전조/이펙트 색칠. 공용 유틸로 뺐다(착탄 VFX 도 같은 로직을 써야 해서).
+    private static void PrepareTelegraph(GameObject go, Color c) => VfxTint.Apply(go, c);
 
     // ★VFX 프리팹의 "보이는 덩어리"가 원점에서 얼마나 치우쳐 있는지 잰다.
     //   Charge_07 처럼 자식이 z=0.8 에 있으면 원점에 맞춰 띄워도 눈에는 앞쪽에 뜬다.
     //   방출량이 많은 파티클일수록 시각적 비중이 크므로 그걸 가중치로 쓴다.
-    //   헬 5형제가 어떤 Charge 번호를 쓰든 이 계산이 알아서 보정한다.
+    //   헬 5형제가 어떤 VFX 를 쓰든 이 계산이 알아서 보정한다.
     private static Vector3 LocalCenter(GameObject go)
     {
         Vector3 sum = Vector3.zero;
@@ -802,68 +914,11 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
             for (int i = 0; i < em.burstCount; i++) w += em.GetBurst(i).count.constantMax;
             if (w <= 0f) w = 1f;
 
-            // 루트 기준 로컬 좌표(루트 스케일은 빼고 순수 오프셋만)
             Vector3 local = go.transform.InverseTransformPoint(ps.transform.position);
             sum += local * w;
             total += w;
         }
 
         return total > 0f ? sum / total : Vector3.zero;
-    }
-
-    // 메시 기반 지시자 색칠. 파티클이 아니라 MeshRenderer 라 startColor 가 아니라 재질을 건드린다.
-    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-    private static readonly int ColorId = Shader.PropertyToID("_Color");
-    private static readonly int TintId = Shader.PropertyToID("_TintColor");
-
-    private static void TintRenderers(GameObject go, Color c)
-    {
-        foreach (var r in go.GetComponentsInChildren<Renderer>(true))
-            foreach (var m in r.materials)
-            {
-                if (m == null) continue;
-                if (m.HasProperty(BaseColorId)) m.SetColor(BaseColorId, c);
-                if (m.HasProperty(ColorId)) m.SetColor(ColorId, c);
-                if (m.HasProperty(TintId)) m.SetColor(TintId, c);
-            }
-        // 파티클도 섞여 있으면 같이 물들인다
-        PrepareTelegraph(go, c);
-    }
-
-    // 스케일 1 일 때 이 오브젝트가 바닥에 그리는 반경(m).
-    // ★파티클 shape 반경으로 재면 안 된다. 그건 "입자를 어디서 뿜는가"지 "화면에 보이는 크기"가 아니다.
-    //   실제로 그렇게 쟀다가 원이 3배 넘게 커졌다. 메시 bounds 는 스폰 직후에도 유효하고 정확하다.
-    private static float MeasureMeshRadius(GameObject go)
-    {
-        float max = 0f;
-        foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true))
-        {
-            var m = mf.sharedMesh;
-            if (m == null) continue;
-
-            // 눕혀둔 경우 로컬 축이 바뀌므로, 월드로 바꿔서 바닥(XZ) 반경을 잰다.
-            Vector3 e = m.bounds.extents;
-            Matrix4x4 toRoot = go.transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
-            Vector3 ex = toRoot.MultiplyVector(new Vector3(e.x, 0f, 0f));
-            Vector3 ey = toRoot.MultiplyVector(new Vector3(0f, e.y, 0f));
-            Vector3 ez = toRoot.MultiplyVector(new Vector3(0f, 0f, e.z));
-
-            float r = 0f;
-            foreach (var v in new[] { ex, ey, ez })
-                r = Mathf.Max(r, new Vector2(v.x, v.z).magnitude);
-
-            if (r > max) max = r;
-        }
-        return max;
-    }
-
-    // ★파티클 색은 8비트 정점 스트림이라 1을 넘으면 잘린다.
-    //   (8, 1.1, 0.1) 같은 HDR 값을 그대로 넣으면 (1, 1, 0.1) = 노랑이 돼버린다.
-    //   빨강을 넣었는데 노랗게 나오던 원인. 최대 성분으로 나눠서 색조를 보존한 채 0~1 로 내린다.
-    private static Color ToParticleColor(Color c)
-    {
-        float m = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
-        if (m > 1f) return new Color(c.r / m, c.g / m, c.b / m, c.a);
-        return c;
     }
 }

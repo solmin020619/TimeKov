@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class EnemyFeedback : MonoBehaviour
@@ -47,6 +48,52 @@ public class EnemyFeedback : MonoBehaviour
         if (data == null) return;
         Play(data.hitVFX, data.hitSound, hitPoint);
         TrySetTrigger(data.hitTrigger);
+
+        // ★타격감. 전 몹 공통이라 보스도 같이 받는다.
+        //   패턴을 끊지 않으므로 보스 설계와 충돌하지 않는다.
+        //   (피격 플래시는 시도했다가 뺐다. 신규 몬스터는 노출 프로퍼티가 0개인 셰이더그래프를 써서
+        //    색을 칠하는 방식이 아예 안 먹고, 재질을 통째로 갈아끼우는 방식은 그림이 과했다.)
+        HitStop.Play(data.hitStopTime, data.hitStopScale);
+        if (data.knockbackDistance > 0f) StartKnockback(hitPoint);
+    }
+
+    // ── 넉백: 맞은 방향 반대로 살짝 밀림 ──
+    private Coroutine _knockCo;
+
+    private void StartKnockback(Vector3 hitPoint)
+    {
+        Vector3 dir = transform.position - hitPoint;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) dir = -transform.forward;
+
+        if (_knockCo != null) StopCoroutine(_knockCo);
+        _knockCo = StartCoroutine(KnockRoutine(dir.normalized * data.knockbackDistance));
+    }
+
+    private IEnumerator KnockRoutine(Vector3 push)
+    {
+        var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        float dur = Mathf.Max(0.02f, data.knockbackTime);
+        float t = 0f;
+
+        while (t < dur)
+        {
+            float dt = Time.deltaTime;
+            t += dt;
+            Vector3 step = push * (dt / dur);
+
+            // ★transform 을 직접 옮기면 NavMeshAgent 내부 위치와 어긋나 떨린다.
+            if (agent != null && agent.enabled && agent.isOnNavMesh) agent.Move(step);
+            else transform.position += step;
+
+            yield return null;
+        }
+        _knockCo = null;
+    }
+
+    private void OnDisable()
+    {
+        _knockCo = null;
     }
 
     public void PlayAttack()

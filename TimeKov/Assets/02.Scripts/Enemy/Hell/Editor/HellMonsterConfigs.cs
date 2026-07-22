@@ -60,19 +60,23 @@ public static class HellMonsterConfigs
         telegraphTime = 0.85f, telegraphHeight = 1.65f, telegraphScale = 1.4f,
         // ★파티클 색은 0~1 로 넣는다. HDR(8, 1.1, 0.1) 처럼 넣으면 잘려서 노랗게 나온다.
         //   녹은 쇳물 느낌 = 빨강 베이스에 주황이 살짝.
-        telegraphColor = new Color(1f, 0.28f, 0.04f, 1f),
+        telegraphColor = new Color(0.72f, 0.16f, 1f, 1f),
+        // 단발이라 크고 묵직하게. 판정도 비주얼에 맞춰 같이 키운다.
+        projectileScale = 1.8f, projectileHitRadius = 1.3f, projectileExplodeRadius = 2.6f,
+        projectileSpeed = 13f,
         // ★공격은 딱 2종. 밋밋한 근접 평타(물기/할퀴기/강타)는 전부 뺐다.
         //   멀면 불을 뿜고, 붙을 땐 덮친다. 두 개 다 전조가 확실해서 읽고 피할 수 있다.
         attacks = new List<HellAttackConfig>
         {
             // minRange 0 = 코앞에서도 뿜는다. 근접 평타를 뺐기 때문에 이게 없으면
             // 붙어 있을 때 도약 쿨 도는 동안 아무것도 안 하고 서 있는 구멍이 생긴다.
+            // 3갈래로 흩뿌리면 하나하나가 빈약해 보인다. 큰 거 한 방이 낫다.
             new HellAttackConfig { label = "화염토해내기", state = "Spit", clipName = "BattleRoar2",
                 kind = HellAttackKind.Ranged, telegraph = HellTelegraphKind.Charge,
                 weight = 1f, minRange = 0f, maxRange = 18f,
-                hitTime = 0.5f, totalTime = 1.8f, cooldown = 4f, damageMul = 0.8f,
+                hitTime = 0.5f, totalTime = 1.8f, cooldown = 4f, damageMul = 1.1f,
                 telegraphTime = 1f, telegraphScaleMul = 0.6f,
-                shots = 3, shotGap = 0.14f, spreadAngle = 12f },
+                shots = 1, spreadAngle = 0f },
         },
         // 도약이 곧 근접 공격이다. 붙어 있을 때도 쓸 수 있게 최소거리를 없앴다.
         useLeap = true, leapWeight = 1.2f, leapMinRange = 2.5f, leapMaxRange = 15f,
@@ -130,6 +134,8 @@ public static class HellMonsterConfigs
         bodyHeight = 1.4f, bodyRadius = 0.75f, scale = 1f, eyeHeight = 1.0f,
         clipIdle = "Idle", clipWalk = "Walk", clipRun = "Run",   // ★이 몹만 Idle1 이 아니라 Idle
         clipRoar = "BattleRoar", clipDeath = "Death",            // ★BattleRoar1 이 아니라 BattleRoar
+        // ★이 몹만 피격 클립이 GetHit 하나뿐이다(다른 3종은 GetHit1/GetHit2).
+        hitStates = new[] { "GetHit" }, hitClips = new[] { "GetHit" },
         roarTime = 1.2f,
         telegraphVfxPath = Charge(6), muzzleVfxPath = Muzzle(6),
         projectileVfxPath = Shot(6), projectileHitVfxPath = Hit(6),
@@ -212,12 +218,23 @@ public class HellConfig
     public float visionRange = 18f, visionAngle = 300f;
     public float bodyHeight = 1.8f, bodyRadius = 0.6f, scale = 1f;
     public float deathAnimDuration = 2f;
+    // 사망 클립이 끝나고 시체가 남아있는 여유 시간(초). 툭 사라지면 어색하다.
+    public float deathExtraTime = 0.8f;
     public float eyeHeight = 1.6f;   // 시야 레이 시작 높이. 큰 몹은 올린다.
 
     public string clipIdle = "Idle1", clipWalk = "Walk", clipRun = "Run";
     public string clipRoar = "BattleRoar1", clipDeath = "Death";
+    // ★전조(준비동작) 중에 재생할 전투 대기 자세. 없는 몹은 빌더가 Idle 로 대체한다.
+    public string clipWindup = "BattleIdle";
     public float walkSpeedRef = 2f, runSpeedRef = 5f;
+    // 포효 길이는 클립에서 잰다. 이 값은 클립을 못 읽었을 때의 대비책.
     public float roarTime = 1.2f;
+    public float roarRatio = 0.95f;
+    // 도약 마무리(JumpEnd) 를 클립의 몇 %까지 볼지. 회복 꼬리는 조금 잘라도 자연스럽다.
+    public float leapEndRatio = 0.8f;
+    // ★행동 사이 휴식 때 설 거리 = attackRange x 이 값.
+    //   0 이면 계속 플레이어 몸에 파고든다.
+    public float standoffRatio = 0.85f;
 
     public string telegraphVfxPath = "";
     // 지면 전조. 예전엔 내가 만든 단순 링(Wyvern_Telegraph)이라 싸구려로 보였다.
@@ -228,21 +245,30 @@ public class HellConfig
     public float groundTelegraphUnitRadius = 1.2f;
 
     // 차오르는 원(도약 착지 예고). 저작된 AOE 마법진을 빨갛게 물들여 쓴다.
-    public float fillCircleUnitRadius = 5f, fillCircleFromScale = 0.05f, fillCircleLinger = 1.2f;
-    public Color fillCircleColor = new Color(1f, 0.82f, 0.55f, 1f);
+    public float fillCircleUnitRadius = 2f, fillCircleFromScale = 0.15f, fillCircleLinger = 1.2f;
+    public Color fillCircleColor = new Color(1f, 0.34f, 0.06f, 1f);
     public float fillOutlineDim = 0.45f;
     public float actionGapMin = 1.2f, actionGapMax = 2f;
+    // 원 색은 fillCircleColor + VfxTint 가 결정한다. 머티리얼을 따로 지정하지 않는다.
+    // (예전엔 링 메시를 조립했는데 그 머티리얼이 파티클 전용이라 안 보였다 -> 저작 VFX 로 교체)
     public string fillCircleVfxPath =
-        "Assets/00.창동에셋/VFX/VFX(전조)/Anime VFX URP/Shared/Meshes/SM_VFX_Ring01.prefab";
-    public string fillCircleMaterialPath =
-        "Assets/00.창동에셋/VFX/VFX(전조)/Anime VFX URP/Shared/Materials/M_VFX_Ring_01_Add.mat";
+        "Assets/00.창동에셋/VFX/VFX(눈)/Elemental VFX Mega Bundle/Frost/AOE Magic Circle Snowburst.prefab";
 
     // 피격 반응
     public bool useHitReaction = true;
     public string[] hitStates = { "GetHit1", "GetHit2" };
     public string[] hitClips = { "GetHit1", "GetHit2" };
     public float hitReactionTime = 0.35f, hitReactionCooldown = 0.7f;
+    // ★피격 클립을 끝까지 본다(1.0). 예전엔 0.7 로 잘랐는데, 모션이 아직 움직이는 중에
+    //   다음 행동이 시작돼서 "맞는 도중에 전조가 뜬다"로 보였다.
+    public float hitReactionRatio = 1f;
+    // 흠칫이 끝난 뒤 전투 자세로 한 박자 쉬는 시간. 이 틈이 피격과 다음 동작을 갈라준다.
+    public float hitRecoveryTime = 0.3f;
+    // 준비동작 중에 맞으면 공격이 끊긴다. 여러 마리가 몰려나오는 일반몹이라 켜도 무방하다.
+    public bool hitCanInterruptAttack = true;
     public float knockbackDistance = 0.35f, knockbackTime = 0.15f;
+    // 타격감. 히트스톱 = 맞는 순간 시간이 살짝 늦어짐.
+    public float hitStopTime = 0.05f, hitStopScale = 0.08f;
     public float telegraphTime = 0.9f, telegraphScale = 1f, telegraphHeight = 1.2f;
     public Color telegraphColor = new Color(4f, 0.7f, 0.15f, 1f);
 
@@ -253,6 +279,7 @@ public class HellConfig
     // 원거리 (패턴에 kind=Ranged 가 하나라도 있으면 빌더가 투사체를 굽는다)
     public string projectileVfxPath = "", projectileHitVfxPath = "", muzzleVfxPath = "";
     public float projectileSpeed = 14f, projectileHitRadius = 0.9f, projectileExplodeRadius = 2f;
+    public float projectileScale = 1f;
     public bool HasRanged => attacks != null && attacks.Exists(a => a.kind == HellAttackKind.Ranged);
 
     public List<HellAttackConfig> attacks = new List<HellAttackConfig>();
@@ -288,7 +315,13 @@ public class HellAttackConfig
     public string label = "Attack", state = "Attack1", clipName = "Attack1";
     public float weight = 1f;
     public float minRange = 0f, maxRange = 3f;
+    // ★totalTime 은 이제 클립 길이에서 자동 계산된다(빌더가 실측). 여기 값은 클립을 못 읽었을 때의 대비책.
+    //   totalTimeRatio = 클립의 몇 %를 볼지. 1 이면 끝까지, 0.9 면 회복 꼬리를 살짝 자른다.
     public float hitTime = 0.45f, totalTime = 1.4f, cooldown = 3f;
+    public float totalTimeRatio = 0.92f;
+    // 타격 이후 회복 동작을 최대 몇 초까지 볼지. 긴 클립(포효 등)을 공격으로 돌려쓸 때
+    // 몹이 한참 굳어 있는 걸 막는 상한이다.
+    public float tailMax = 0.9f;
     public float damageMul = 1f, radius = 0f, halfAngle = 70f, reach = 0f;
     public string impactVfxPath = "";
 

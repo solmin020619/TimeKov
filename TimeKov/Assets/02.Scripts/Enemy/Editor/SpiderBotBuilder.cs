@@ -199,6 +199,8 @@ public static class SpiderBotBuilder
         sobj.ApplyModifiedProperties();
 
         WireRewards(go);
+        // 머리 위 체력바 + 이름표. 이 빌더는 모델에서 조립하므로 BaseEnemy 처럼 상속받지 못한다.
+        EnemyBuildUtil.AttachWorldHpBar(go, "SpiderBot");
 
         PrefabUtility.SaveAsPrefabAsset(go, PrefabPath, out bool ok);
         Object.DestroyImmediate(go);

@@ -78,10 +78,19 @@ public static class HellMonsterBuilder
         AddState(sm, "BattleRoar", Clip(c, c.clipRoar));
         AddState(sm, "Die", Clip(c, c.clipDeath));
 
-        // 피격 반응 상태(맞으면 흠칫)
-        if (c.useHitReaction && c.hitStates != null)
-            for (int i = 0; i < c.hitStates.Length; i++)
-                AddState(sm, c.hitStates[i], Clip(c, i < c.hitClips.Length ? c.hitClips[i] : c.hitClips[0]));
+        // ★준비동작(전조) 전용 상태. 전투 대기 자세.
+        //   이 컨트롤러는 전이가 하나도 없고 전부 코드 CrossFade 로만 움직인다.
+        //   그래서 전조 동안 상태를 안 바꾸면 직전 클립 마지막 프레임에 굳어 있는다.
+        //   BattleIdle 이 없는 몹(헬버그/헬사이클롭)은 Idle 로 대체된다.
+        if (WindupClipName(c) == c.clipWindup)
+            AddState(sm, "BattleIdle", Clip(c, c.clipWindup));
+
+        // 피격 반응 상태(맞으면 흠칫). 클립이 있는 것만 만든다 - SO 의 hitStates 와 목록이 같아야 한다.
+        foreach (var hs in ValidHitStates(c))
+        {
+            int i = System.Array.IndexOf(c.hitStates, hs);
+            AddState(sm, hs, Clip(c, i < c.hitClips.Length ? c.hitClips[i] : c.hitClips[0]));
+        }
 
         foreach (var a in c.attacks)
             AddState(sm, a.state, Clip(c, a.clipName));
@@ -150,7 +159,21 @@ public static class HellMonsterBuilder
         so.attackDamage = c.attackDamage; so.attackRange = c.attackRange;
         so.attackApproachRatio = 0.9f; so.attackCooldown = c.attackCooldown;
         so.targetLostMemory = 3f;
-        so.deathAnimDuration = c.deathAnimDuration;
+        // ★사망 애니가 끝나기 전에 Destroy 되던 문제.
+        //   상수로 짐작하지 말고 실제 클립 길이를 재서 맞춘다. 몹마다 길이가 다르고
+        //   클립을 교체해도 자동으로 따라간다.
+        var deathClip = Clip(c, c.clipDeath);
+        if (deathClip != null && deathClip.length > 0.01f)
+        {
+            so.deathAnimDuration = deathClip.length + c.deathExtraTime;
+            Debug.Log($"[{c.enemyName}] 사망 클립 {deathClip.length:F2}초 + 여유 {c.deathExtraTime:F2} " +
+                      $"-> 소멸까지 {so.deathAnimDuration:F2}초");
+        }
+        else
+        {
+            so.deathAnimDuration = c.deathAnimDuration;
+            Debug.LogWarning($"[{c.enemyName}] 사망 클립 길이를 못 읽어 기본값 {c.deathAnimDuration} 사용");
+        }
         so.detectStunDuration = 0f;
         so.attackTrigger = "Attack"; so.hitTrigger = "Hit"; so.detectTrigger = "Detect"; so.dieTrigger = "Die";
 
@@ -158,7 +181,7 @@ public static class HellMonsterBuilder
         so.telegraphVfx = Load(c.telegraphVfxPath);
         so.groundTelegraphVfx = Load(c.groundTelegraphVfxPath);
         so.groundTelegraphUnitRadius = c.groundTelegraphUnitRadius;
-        so.fillCircleVfx = EnsureRing(c);
+        so.fillCircleVfx = Load(c.fillCircleVfxPath);
         so.fillCircleUnitRadius = c.fillCircleUnitRadius;
         so.fillCircleColor = c.fillCircleColor;
         so.fillOutlineDim = c.fillOutlineDim;
@@ -167,11 +190,41 @@ public static class HellMonsterBuilder
         so.fillCircleFromScale = c.fillCircleFromScale;
         so.fillCircleLinger = c.fillCircleLinger;
         so.useHitReaction = c.useHitReaction;
-        so.hitStates = c.hitStates;
-        so.hitReactionTime = c.hitReactionTime;
-        so.hitReactionCooldown = c.hitReactionCooldown;
+        // ★클립이 실제로 있는 상태만 남긴다.
+        //   헬버그는 GetHit 하나뿐인데 기본값이 GetHit1/GetHit2 라, 그대로 두면
+        //   모션 없는 빈 상태로 CrossFade 해서 맞을 때마다 기본(바인드) 포즈로 튄다.
+        so.hitStates = ValidHitStates(c);
+        so.hitCanInterruptAttack = c.hitCanInterruptAttack;
+        // ★사망과 같은 함정. 상수로 짐작하면 클립이 더 길 때 도중에 잘려서
+        //   "맞는 중인데 공격 모션으로 튄다"가 된다. 실제 클립 길이로 맞춘다.
+        var hitClip = c.hitClips != null && c.hitClips.Length > 0 ? Clip(c, c.hitClips[0]) : null;
+        if (hitClip != null && hitClip.length > 0.01f)
+        {
+            so.hitReactionTime = hitClip.length * c.hitReactionRatio;
+            Debug.Log($"[{c.enemyName}] 피격 클립 {hitClip.length:F2}초 x {c.hitReactionRatio:F2} " +
+                      $"-> 경직 {so.hitReactionTime:F2}초");
+        }
+        else so.hitReactionTime = c.hitReactionTime;
+        so.hitRecoveryTime = c.hitRecoveryTime;
+
+        // ★불변식: 흠칫 쿨은 가장 긴 전조보다 길어야 한다.
+        //   쿨이 전조보다 짧으면, 플레이어가 계속 때리는 동안 몹은 전조를 띄우다 매번 끊겨서
+        //   단 한 번도 공격을 못 하는 허수아비가 된다. 최소 한 번은 끝까지 띄울 창을 보장한다.
+        float longestTele = c.telegraphTime;
+        if (c.attacks != null)
+            foreach (var a in c.attacks)
+                longestTele = Mathf.Max(longestTele, a.telegraphTime > 0f ? a.telegraphTime : c.telegraphTime);
+        if (c.useLeap) longestTele = Mathf.Max(longestTele, c.leapTelegraphTime);
+
+        so.hitReactionCooldown = Mathf.Max(c.hitReactionCooldown, longestTele + 0.2f);
+        if (so.hitReactionCooldown > c.hitReactionCooldown + 0.001f)
+            Debug.Log($"[{c.enemyName}] 흠칫 쿨 {c.hitReactionCooldown:F2} -> {so.hitReactionCooldown:F2}초로 올림 " +
+                      $"(가장 긴 전조 {longestTele:F2}초보다 짧으면 두들기는 동안 공격을 한 번도 못 한다)");
         so.knockbackDistance = c.knockbackDistance;
         so.knockbackTime = c.knockbackTime;
+        // ★SO 는 한 번 저장되면 클래스 기본값이 바뀌어도 옛 값이 남는다. 여기서 매번 다시 박는다.
+        so.hitStopTime = c.hitStopTime;
+        so.hitStopScale = c.hitStopScale;
         so.muzzleVfx = Load(c.muzzleVfxPath);
         so.projectilePrefab = c.HasRanged ? EnsureProjectile(c) : null;
         so.telegraphTime = c.telegraphTime;
@@ -183,11 +236,38 @@ public static class HellMonsterBuilder
         var list = new List<HellAttack>();
         foreach (var a in c.attacks)
         {
+            // ★공격 모션 길이를 클립에서 실측한다.
+            //   상수로 박아두면 클립이 더 길 때 휘두르다 말고 걷기로 튀고,
+            //   더 짧으면 다 끝난 자세로 굳은 채 서 있는다. 둘 다 "타이밍이 안 맞는" 증상이다.
+            //   ratio 는 회복 꼬리를 얼마나 볼지. 1 이면 클립을 끝까지 본다.
+            float total = TimeFromClip(c, a.clipName, a.totalTimeRatio, a.totalTime, $"공격 '{a.label}' 길이");
+
+            // 타격 시점이 모션 길이를 넘으면 데미지가 영영 안 들어간다.
+            float hit = a.hitTime;
+            if (hit >= total)
+            {
+                hit = total * 0.55f;
+                Debug.LogWarning($"[{c.enemyName}] 공격 '{a.label}' 의 hitTime {a.hitTime:F2} 가 " +
+                                 $"모션 길이 {total:F2} 이상이라 {hit:F2} 로 당겼다.");
+            }
+
+            // ★실측의 부작용 상한. 남는 클립을 공격으로 돌려쓰면(헬하운드의 화염토해내기 = BattleRoar2)
+            //   클립이 3초를 넘기도 한다. 그대로 두면 일반몹이 한 번 쏘고 3초를 굳어 있는다.
+            //   타격 이후 회복 꼬리만 잘라낸다. 타격 전 준비동작은 절대 안 자른다.
+            float cap = hit + Mathf.Max(0.1f, a.tailMax);
+            if (total > cap)
+            {
+                Debug.Log($"[{c.enemyName}] 공격 '{a.label}' 모션이 {total:F2}초로 길어 " +
+                          $"타격 후 {a.tailMax:F2}초까지만 쓴다 -> {cap:F2}초 " +
+                          "(더 길게 보고 싶으면 config 의 tailMax 를 올려라)");
+                total = cap;
+            }
+
             list.Add(new HellAttack
             {
                 label = a.label, state = a.state, weight = a.weight,
                 minRange = a.minRange, maxRange = a.maxRange,
-                hitTime = a.hitTime, totalTime = a.totalTime, cooldown = a.cooldown,
+                hitTime = hit, totalTime = total, cooldown = a.cooldown,
                 damageMul = a.damageMul, radius = a.radius, halfAngle = a.halfAngle, reach = a.reach,
                 impactVfx = string.IsNullOrEmpty(a.impactVfxPath) ? null : Load(a.impactVfxPath),
                 kind = a.kind, telegraph = a.telegraph,
@@ -200,19 +280,41 @@ public static class HellMonsterBuilder
         so.repeatPenalty = 0.35f;
 
         so.useLeap = c.useLeap;
+        if (c.useLeap)
+        {
+            // 준비 동작은 끝까지 본다(웅크리다 마는 그림 방지). 마무리는 꼬리를 조금 자른다.
+            so.leapStartTime = TimeFromClip(c, c.clipJumpStart, 1f, 0.4f, "도약 준비");
+            so.leapEndTime = TimeFromClip(c, c.clipJumpEnd, c.leapEndRatio, 0.6f, "도약 마무리");
+        }
         so.leapWeight = c.leapWeight; so.leapMinRange = c.leapMinRange; so.leapMaxRange = c.leapMaxRange;
         so.leapCooldown = c.leapCooldown; so.leapFlyTime = c.leapFlyTime;
         so.leapDamageMul = c.leapDamageMul; so.leapRadius = c.leapRadius; so.leapArcHeight = c.leapArcHeight; so.leapTelegraphTime = c.leapTelegraphTime; so.leapTelegraphScale = c.leapTelegraphScale;
         so.leapImpactVfx = string.IsNullOrEmpty(c.leapImpactVfxPath) ? null : Load(c.leapImpactVfxPath);
 
         so.useBurrow = c.useBurrow;
+        if (c.useBurrow)
+        {
+            so.burrowInTime = TimeFromClip(c, c.clipSubmerge, 1f, 0.6f, "잠복 진입");
+            so.burrowOutTime = TimeFromClip(c, c.clipEmerge, 0.8f, 0.5f, "잠복 등장");
+        }
         so.burrowWeight = c.burrowWeight; so.burrowCooldown = c.burrowCooldown;
         so.burrowUnderTime = c.burrowUnderTime; so.burrowEmergeDistance = c.burrowEmergeDistance;
         so.burrowDamageMul = c.burrowDamageMul; so.burrowRadius = c.burrowRadius;
         so.burrowImpactVfx = string.IsNullOrEmpty(c.burrowImpactVfxPath) ? null : Load(c.burrowImpactVfxPath);
 
-        so.roarOnDetect = true; so.roarTime = c.roarTime;
+        so.roarOnDetect = true;
+        so.roarTime = TimeFromClip(c, c.clipRoar, c.roarRatio, c.roarTime, "포효");
         so.idleState = "Idle"; so.moveState = "Locomotion"; so.roarState = "BattleRoar"; so.dieState = "Die";
+
+        // ★전조 중에 재생할 전투 자세. BattleIdle 이 없는 몹은 Idle 로 떨어진다.
+        so.windupState = WindupClipName(c) == c.clipWindup ? "BattleIdle" : "Idle";
+        // ★행동 사이 휴식 때 파고들지 않고 설 거리.
+        //   BossMotor 가 Agent.stoppingDistance 를 attackRange x attackApproachRatio(0.9) 로 잡는다.
+        //   즉 에이전트는 그 거리에서 알아서 멈춘다. standoff 를 그보다 짧게 잡으면
+        //   조건이 영영 참이 안 돼서 전투 자세로 서는 연출이 통째로 죽는다(그게 기본값 0.85 였다).
+        //   에이전트 정지 거리보다 반드시 바깥으로 잡는다.
+        float agentStop = c.attackRange * 0.9f;
+        so.standoffDistance = Mathf.Max(c.attackRange * c.standoffRatio, agentStop + 0.3f);
 
         EditorUtility.SetDirty(so);
         return so;
@@ -235,6 +337,7 @@ public static class HellMonsterBuilder
         var root = (GameObject)PrefabUtility.InstantiatePrefab(visual);
         PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
         root.name = $"{c.PrefabName}_Projectile";
+        root.transform.localScale = Vector3.one * c.projectileScale;
 
         var fb = root.AddComponent<WyvernFireball>();
         var so = new SerializedObject(fb);
@@ -248,57 +351,6 @@ public static class HellMonsterBuilder
         var saved = PrefabUtility.SaveAsPrefabAsset(root, path, out bool ok);
         Object.DestroyImmediate(root);
         if (!ok) Debug.LogWarning($"[{c.enemyName}] 투사체 프리팹 저장 실패");
-        return saved;
-    }
-
-    // 착지 예고용 링 프리팹 조립.
-    // ★SM_VFX_Ring 메시 프리팹은 머티리얼이 비어 있어서 그냥 쓰면 분홍으로 나온다.
-    //   같은 팩의 저작된 링 머티리얼을 물려서 바닥에 눕힌 링을 만든다.
-    static GameObject EnsureRing(HellConfig c)
-    {
-        EnsureFolder(c.WorkFolder);
-        string path = $"{c.WorkFolder}/{c.PrefabName}_Ring.prefab";
-
-        var src = AssetDatabase.LoadAssetAtPath<GameObject>(c.fillCircleVfxPath);
-        if (src == null)
-        {
-            Debug.LogWarning($"[{c.enemyName}] 링 메시 없음: {c.fillCircleVfxPath}");
-            return AssetDatabase.LoadAssetAtPath<GameObject>(path);
-        }
-
-        var mat = AssetDatabase.LoadAssetAtPath<Material>(c.fillCircleMaterialPath);
-        if (mat == null) Debug.LogWarning($"[{c.enemyName}] 링 머티리얼 없음(분홍으로 보인다): {c.fillCircleMaterialPath}");
-
-        var root = (GameObject)PrefabUtility.InstantiatePrefab(src);
-        PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-        root.name = $"{c.PrefabName}_Ring";
-
-        // ★메시가 이미 바닥에 누워 있는지(XZ 평면) 세로로 서 있는지(XY 평면) 보고 결정한다.
-        //   무조건 90도 돌리면, 이미 누워 있는 메시는 세워져서 위에서 볼 때 선으로만 보인다.
-        //   실제로 그래서 원이 안 보였다.
-        var mf = root.GetComponentInChildren<MeshFilter>(true);
-        if (mf != null && mf.sharedMesh != null)
-        {
-            Vector3 e = mf.sharedMesh.bounds.extents;
-            bool flatAlready = e.y <= e.z * 0.5f;   // 높이가 거의 없으면 이미 바닥 평면
-            root.transform.localRotation = flatAlready ? Quaternion.identity : Quaternion.Euler(90f, 0f, 0f);
-            Debug.Log($"[{c.enemyName}] 링 메시 bounds {e} -> {(flatAlready ? "이미 눕혀짐(회전 안 함)" : "세워져 있어 90도 눕힘")}");
-        }
-        else root.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-
-        if (mat != null)
-            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
-            {
-                var arr = new Material[r.sharedMaterials.Length == 0 ? 1 : r.sharedMaterials.Length];
-                for (int i = 0; i < arr.Length; i++) arr[i] = mat;
-                r.sharedMaterials = arr;
-                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                r.receiveShadows = false;
-            }
-
-        var saved = PrefabUtility.SaveAsPrefabAsset(root, path, out bool ok);
-        Object.DestroyImmediate(root);
-        if (!ok) Debug.LogWarning($"[{c.enemyName}] 링 프리팹 저장 실패");
         return saved;
     }
 
@@ -360,6 +412,8 @@ public static class HellMonsterBuilder
         sobj.ApplyModifiedProperties();
 
         WireRewards(go, c.sourceId);
+        // 머리 위 체력바 + 이름표. 이 빌더는 모델에서 조립하므로 BaseEnemy 처럼 상속받지 못한다.
+        EnemyBuildUtil.AttachWorldHpBar(go, c.enemyName);
 
         PrefabUtility.SaveAsPrefabAsset(go, c.PrefabPath, out bool ok);
         Object.DestroyImmediate(go);
@@ -486,9 +540,18 @@ public static class HellMonsterBuilder
     }
 
     // -- helpers --
+    // ★루프로 만들어야 하는 클립들.
+    //   FBX 기본은 loopTime=0 이라, 루프를 안 걸면 한 번 재생하고 마지막 프레임에 굳는다.
+    //   - Idle/Walk/Run: 블렌드트리라 계속 돌아야 한다
+    //   - BattleIdle: 전조 시간이 클립보다 길면 중간에 굳는다
+    //   - JumpFly: 체공 시간이 클립보다 길면 공중에서 자세가 굳는다
     static void NormalizeLoopClips(HellConfig c)
     {
-        foreach (var name in new[] { c.clipIdle, c.clipWalk, c.clipRun })
+        var names = new List<string> { c.clipIdle, c.clipWalk, c.clipRun };
+        if (HasClip(c, c.clipWindup)) names.Add(c.clipWindup);
+        if (c.useLeap) names.Add(c.clipJumpFly);
+
+        foreach (var name in names)
         {
             if (string.IsNullOrEmpty(name)) continue;
             var importer = FindImporter(c, name);
@@ -522,6 +585,62 @@ public static class HellMonsterBuilder
                                 .OfType<AnimationClip>().FirstOrDefault(x => !x.name.StartsWith("__preview"));
         if (clip == null) Debug.LogWarning($"[{c.enemyName}] 클립 없음: {c.AnimFolder}/{fbxName}.FBX");
         return clip;
+    }
+
+    // 클립이 실제로 존재하는지(경고 없이).
+    static bool HasClip(HellConfig c, string fbxName)
+    {
+        if (string.IsNullOrEmpty(fbxName)) return false;
+        foreach (var ext in new[] { "FBX", "fbx" })
+            if (AssetDatabase.LoadAllAssetRepresentationsAtPath($"{c.AnimFolder}/{fbxName}.{ext}")
+                             .OfType<AnimationClip>().Any(x => !x.name.StartsWith("__preview")))
+                return true;
+        return false;
+    }
+
+    // 전투 대기 클립. 없는 몹은 Idle 로 대체한다.
+    static string WindupClipName(HellConfig c)
+        => HasClip(c, c.clipWindup) ? c.clipWindup : c.clipIdle;
+
+    // 클립이 실존하는 피격 상태만 골라낸다. 컨트롤러도 이 목록으로만 만든다.
+    static string[] ValidHitStates(HellConfig c)
+    {
+        if (!c.useHitReaction || c.hitStates == null) return new string[0];
+
+        var ok = new List<string>();
+        for (int i = 0; i < c.hitStates.Length; i++)
+        {
+            string clip = i < c.hitClips.Length ? c.hitClips[i] : c.hitClips[0];
+            if (HasClip(c, clip)) ok.Add(c.hitStates[i]);
+            else Debug.LogWarning($"[{c.enemyName}] 피격 클립 '{clip}' 이 없어 상태 '{c.hitStates[i]}' 를 뺐다. " +
+                                  "config 의 hitStates/hitClips 를 실제 파일명에 맞춰라.");
+        }
+        if (ok.Count == 0)
+            Debug.LogWarning($"[{c.enemyName}] 쓸 수 있는 피격 클립이 하나도 없다. 맞아도 흠칫하지 않는다.");
+        return ok.ToArray();
+    }
+
+    // ★클립 길이 실측. 못 읽으면 0.
+    //   시간 상수를 손으로 박으면 몹/클립이 바뀔 때마다 전부 틀린다.
+    //   이 프로젝트에서 사망 애니 잘림 / 피격 모션 잘림이 전부 같은 원인이었다.
+    static float ClipLen(HellConfig c, string fbxName)
+    {
+        var clip = Clip(c, fbxName);
+        return clip != null ? clip.length : 0f;
+    }
+
+    // 실측값이 있으면 그걸 쓰고, 없으면 config 상수로 떨어진다. 어느 쪽을 썼는지 로그로 남긴다.
+    static float TimeFromClip(HellConfig c, string fbxName, float ratio, float fallback, string what)
+    {
+        float len = ClipLen(c, fbxName);
+        if (len <= 0.01f)
+        {
+            Debug.LogWarning($"[{c.enemyName}] {what}: 클립 '{fbxName}' 길이를 못 읽어 상수 {fallback:F2}초 사용");
+            return fallback;
+        }
+        float v = len * ratio;
+        Debug.Log($"[{c.enemyName}] {what}: {fbxName} {len:F2}초 x {ratio:F2} -> {v:F2}초 (상수였다면 {fallback:F2})");
+        return v;
     }
 
     static GameObject Load(string path)

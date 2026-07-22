@@ -107,4 +107,16 @@ public class MeleeEnemyData : ScriptableObject
     public GameObject deathVFX;
     [Tooltip("사망 시 재생 소리")]
     public AudioClip deathSound;
+
+    [Header("타격감 (전 몹 공통. 패턴을 끊지 않으므로 보스에도 안전하다)")]
+    [Tooltip("맞는 순간 시간이 잠깐 늦어지는 시간(초). 0 이면 없음. 0.04~0.08 권장.")]
+    public float hitStopTime = 0.05f;
+    [Tooltip("히트스톱 동안의 시간 배율. 낮을수록 강하게 걸린다. 0 은 쓰지 않는다.")]
+    [Range(0.01f, 0.9f)] public float hitStopScale = 0.08f;
+
+    [Tooltip("맞고 밀려나는 거리(m). ★기본 0(꺼짐). 필요한 몹만 켠다. " +
+             "보스는 덩치가 커서 밀리면 어색하고, 밀다가 NavMesh 밖으로 나갈 위험도 있다.")]
+    public float knockbackDistance = 0f;
+    [Tooltip("밀리는 데 걸리는 시간(초).")]
+    public float knockbackTime = 0.12f;
 }

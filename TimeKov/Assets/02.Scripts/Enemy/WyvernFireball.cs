@@ -41,6 +41,17 @@ public class WyvernFireball : MonoBehaviour
     // 보스가 페이즈2+ 발사 시 켬: 일정 시간 플레이어 쪽으로 곡선 추적(직선이라 걸어서 피하던 것 보완)
     public void SetHoming(bool on) => _homing = on;
 
+    // 이 탄과 착탄 VFX 를 지정한 색으로 물들인다. 안 부르면 원본 색 그대로다.
+    public void SetTint(Color c)
+    {
+        _tint = c;
+        _tinted = true;
+        VfxTint.Apply(gameObject, c);
+    }
+
+    private Color _tint = Color.white;
+    private bool _tinted;
+
     private void Update()
     {
         if (_done) return;
@@ -87,7 +98,12 @@ public class WyvernFireball : MonoBehaviour
         _done = true;
 
         if (explodeVfx != null)
-            Instantiate(explodeVfx, transform.position, Quaternion.identity);
+        {
+            var fx = Instantiate(explodeVfx, transform.position, Quaternion.identity);
+            // ★착탄 VFX 는 여기서 새로 생기므로 발사체에 칠한 색이 안 따라온다.
+            //   안 물들이면 맞는 순간에만 원래 색(보라 등)이 튀어나온다.
+            if (_tinted) VfxTint.Apply(fx, _tint);
+        }
 
         // 범위 데미지(플레이어만)
         if (_target != null)
