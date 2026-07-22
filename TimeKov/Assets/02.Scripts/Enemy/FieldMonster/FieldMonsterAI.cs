@@ -79,6 +79,9 @@ public class FieldMonsterAI : MonoBehaviour
     private bool freezeFacing;    // 회전 완전 고정(공격 후 스텝: 공격 시점 시선 유지). faceTarget보다 우선.
     private bool dead;
     private bool awake;           // 휴면형: 기상(조립) 완료 상태. 휴면(바위 더미) 중엔 false → 피격 경직 억제.
+    private GameObject dormantGroundFx;   // 휴면 중 상시 지면 VFX 인스턴스(각성 시 제거).
+    private Transform sweepBone;          // 스윕 판정 구를 붙일 이동 본(스윕 때 훑는 머리/몸통). 없으면 몸통 원점.
+    private bool staggered;               // 이번 공격 도중 경직(Hit)이 걸렸는가 → 걸리면 공격 판정 취소.
     private Transform driftBone;  // 루트 모션 드리프트 제거용 스킨 루트 본(cancelRootDrift 시)
     private Vector3 driftBoneInit;
     private Vector3 homePos;
@@ -180,6 +183,10 @@ public class FieldMonsterAI : MonoBehaviour
         if (telegraphAnchor == null && data != null && (data.breathAttack || data.dualAttack || data.ranged))
             telegraphAnchor = FindHeadBone();
 
+        // 스윕 판정 본 — 스윕 때 움직이는 본(머리 등)에 판정 구를 붙여 '몸이 훑는 위치'에서 타격.
+        if (data != null && data.sweepAttack && !string.IsNullOrEmpty(data.sweepHitBone))
+            sweepBone = FindBoneByName(data.sweepHitBone);
+
         // 루트 모션 드리프트 제거 대상 본 캡처 — 스킨 rootBone 에서 '아마추어 최상위 본'(Animator 직속 자식,
         //   예: DragonRoot)까지 올라간다. 걷기 이동은 보통 그 최상위 본에 실려서 밀리기 때문.
         if (data != null && data.cancelRootDrift)
@@ -220,14 +227,18 @@ public class FieldMonsterAI : MonoBehaviour
         //   -> 매 피격마다 모션이 끊기지 않고 확률적으로만 경직. staggerChance=1 이면 항상(기존 동작).
         //   ※휴면(바위 더미) 중엔 경직 억제 — 안 그러면 피격 Hit 애니가 골렘을 어정쩡하게 세운다.
         bool dormant = data.startDormant && !awake;
+        bool st = !dormant && Random.value < data.staggerChance;
         if (hasStaggerParam && animator != null)
-            animator.SetBool(staggerHash, !dormant && Random.value < data.staggerChance);
+            animator.SetBool(staggerHash, st);
+        // ★경직이 걸리면 진행 중인 공격 판정을 취소(피격 모션 나오면서 데미지 들어가는 것 방지).
+        if (st) staggered = true;
     }
 
     // EnemyHealth 는 EnemyBrain 만 꺼준다 -> 이 AI 는 스스로 멈춰야 시체가 안 따라온다.
     private void OnDied()
     {
         dead = true;
+        RemoveDormantGround();        // 잠복 지면 VFX 정리(죽으면 남지 않게)
         DestroyTelegraph();           // 시전 중 죽으면 전조가 남지 않게
         StopAllCoroutines();          // 스텝 중이었다면 DoStep 의 정리 코드가 안 돌므로
         speedOverride = -1f;          // 여기서 직접 되돌린다(안 하면 죽은 채 걷는 모션)
@@ -311,6 +322,7 @@ public class FieldMonsterAI : MonoBehaviour
     private IEnumerator Brain()
     {
         awake = !data.startDormant;   // 휴면형이면 처음엔 잠들어 있음 → 첫 발견에만 기상(Detect) 연출
+        if (data.startDormant && !awake) SpawnDormantGround();   // 잠복 지면 VFX(상시)
         while (!dead)
         {
             // 1) 타깃 없음 — 대기/배회.
@@ -338,6 +350,7 @@ public class FieldMonsterAI : MonoBehaviour
             // 2) 발견 연출 — 일반 몹은 매번 포효, 휴면형은 '첫 기상'에만(재조우 시 생략).
             if (!data.startDormant || !awake)
             {
+                if (data.startDormant) { RemoveDormantGround(); SpawnAppearBurst(); }   // 각성: 잠복 지면 VFX 제거 + 등장 버스트 1회
                 feedback?.PlayDetect();
                 yield return DetectPause();
             }
@@ -377,6 +390,7 @@ public class FieldMonsterAI : MonoBehaviour
         float end = Time.time + Mathf.Max(0.1f, data.sleepAnimDuration);
         while (Time.time < end && !dead) yield return null;   // 붕괴 애니 재생 동안 대기(중간에 튀지 않게)
         freezeFacing = false;
+        if (!dead) SpawnDormantGround();   // 휴면 복귀 → 잠복 지면 VFX 재생
     }
 
     private IEnumerator Idle()
@@ -484,6 +498,7 @@ public class FieldMonsterAI : MonoBehaviour
     private IEnumerator AttackOnce()
     {
         Stop();
+        staggered = false;                     // 이번 공격 시작 — 경직 플래그 초기화
 
         // 공격 시작 순간 플레이어를 향해 1회 '조준'한 뒤, 공격 내내 시선을 '고정'한다.
         //   공격 중에도 계속 플레이어를 따라보면 회피가 무의미하고 부자연스럽다.
@@ -543,12 +558,35 @@ public class FieldMonsterAI : MonoBehaviour
         if (animator != null && !string.IsNullOrEmpty(attackTrigger))
             animator.SetTrigger(attackTrigger);
 
+        // 스윕 공격: 단발 대신 '스윕 구간' 동안 반경 안에 들어오면 1회 히트(몸이 훑고 지날 때 맞음).
+        bool sweeping = data.sweepAttack && !fireRanged;
+        float sweepStart = data.animLength * data.sweepStartRatio;
+        float sweepEnd   = data.animLength * data.sweepEndRatio;
+
         float t = 0f;
         bool damaged = false;
         while (t < lockLen && !dead)
         {
+            // ★공격 도중 경직(Hit)이 걸리면 즉시 중단 → 아직 안 들어간 공격 판정 취소.
+            if (staggered) break;
             t += Time.deltaTime;
-            if (!damaged && t >= fireAt)
+            if (sweeping)
+            {
+                if (t >= sweepStart && !data.telegraphSyncToHit) DestroyTelegraph();
+                // 스윕 활성 구간 동안, '이동하는 판정 본'(머리 등)이 플레이어에 sweepHitRadius 안으로
+                //   접근하는 순간 1회 히트. 본이 훑고 지나므로 히트 타이밍이 플레이어 위치에 따라 달라짐.
+                if (!damaged && t >= sweepStart && t <= sweepEnd && playerTf != null)
+                {
+                    Vector3 hp = sweepBone != null ? sweepBone.position : transform.position;
+                    Vector3 d = playerTf.position - hp; d.y = 0f;
+                    if (d.magnitude <= data.sweepHitRadius)
+                    {
+                        damaged = true;
+                        if (playerStat != null) playerStat.TakeDamage(data.attackDamage);
+                    }
+                }
+            }
+            else if (!damaged && t >= fireAt)
             {
                 damaged = true;
                 // sync 전조는 마지막 '터지는' 연출까지 보이게 즉시 삭제하지 않는다(폴백 수명으로 정리).
@@ -597,6 +635,7 @@ public class FieldMonsterAI : MonoBehaviour
                     transform.rotation = Quaternion.RotateTowards(
                         transform.rotation, Quaternion.LookRotation(d), data.angularSpeed * Time.deltaTime);
             }
+            if (staggered) yield break;    // 준비 중 경직 → 돌진 취소(판정 없음)
             w += Time.deltaTime;
             yield return null;
         }
@@ -618,6 +657,7 @@ public class FieldMonsterAI : MonoBehaviour
         float t = 0f;
         while (t < data.chargeDuration && !dead)
         {
+            if (staggered) yield break;    // ★돌진 중 경직 → 즉시 중단(접촉 판정 취소)
             t += Time.deltaTime;
             Vector3 step = dir * data.chargeSpeed * Time.deltaTime;
             if (nav != null && nav.enabled) nav.Move(step);   // navmesh 위에서 전진
@@ -890,6 +930,48 @@ public class FieldMonsterAI : MonoBehaviour
         if (ps != null) ps.TakeDamage(data.attackDamage);
     }
 
+    /// <summary>휴면 중 발밑 상시 지면 VFX 생성(루프). 이미 있으면 무시. 몸에 붙여 제자리 유지.</summary>
+    private void SpawnDormantGround()
+    {
+        if (data.dormantGroundVFX == null || dormantGroundFx != null) return;
+        dormantGroundFx = Instantiate(data.dormantGroundVFX);
+        var t = dormantGroundFx.transform;
+        t.SetParent(transform, false);        // ★프리팹 로컬 회전(눕힘) 보존 — 몸 Y회전만 덧입힘(월드로 덮어쓰면 세로로 섬)
+        t.localPosition = Vector3.zero;       // 발밑(몸 원점)에 배치
+        if (data.dormantGroundScale > 0f && !Mathf.Approximately(data.dormantGroundScale, 1f))
+            t.localScale *= data.dormantGroundScale;
+        // VFX 팩 데모 스크립트 제거(카메라 의존 로그 등) — 순수 시각효과만.
+        foreach (var mb in dormantGroundFx.GetComponentsInChildren<MonoBehaviour>(true))
+            if (mb != null) Destroy(mb);
+        foreach (var au in dormantGroundFx.GetComponentsInChildren<AudioSource>(true))
+            if (au != null) Destroy(au);        // 내장 오디오 제거(사운드는 SO 슬롯으로만)
+    }
+
+    /// <summary>등장(각성) 순간 1회 버스트 VFX. 루프 프리팹이라도 loop 를 꺼서 한 사이클만 재생 후 소멸.</summary>
+    private void SpawnAppearBurst()
+    {
+        if (data.appearBurstVFX == null) return;
+        var fx = Instantiate(data.appearBurstVFX, transform.position, data.appearBurstVFX.transform.rotation);
+        if (data.appearBurstScale > 0f && !Mathf.Approximately(data.appearBurstScale, 1f))
+            fx.transform.localScale *= data.appearBurstScale;
+        // ★루프 끄기 — 등장 때 한 번만 터지고 끝(반복 방지).
+        foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            var m = ps.main; m.loop = false;
+        }
+        foreach (var mb in fx.GetComponentsInChildren<MonoBehaviour>(true))
+            if (mb != null) Destroy(mb);
+        foreach (var au in fx.GetComponentsInChildren<AudioSource>(true))
+            if (au != null) Destroy(au);        // VFX 팩 내장 오디오 제거(시끄러움) — 사운드는 SO 슬롯으로만
+        Destroy(fx, Mathf.Max(0.5f, data.appearBurstLifeTime));
+    }
+
+    /// <summary>상시 지면 VFX 제거(각성/사망 시). 잔여 없이 즉시.</summary>
+    private void RemoveDormantGround()
+    {
+        if (dormantGroundFx != null) { Destroy(dormantGroundFx); dormantGroundFx = null; }
+    }
+
     /// <summary>근접 타격 순간의 슬램/클랩 VFX. 명중 여부와 무관하게 재생(헛쳐도 이펙트는 난다).
     /// 몸 기준 오프셋 위치의 '월드'에 스폰 → 몸을 따라가지 않고 그 자리에 남았다 소멸.</summary>
     private void SpawnMeleeImpact()
@@ -914,6 +996,15 @@ public class FieldMonsterAI : MonoBehaviour
 
     /// <summary>머리(주둥이) 본 추정 — 이름으로 못 찾을 때. 스킨 본 중 '전방+위'로 가장 뻗은 본을 고른다.
     /// (아이들 포즈 기준: 머리가 가장 앞·위, 꼬리는 뒤, 다리는 아래). 브레스를 여기 부착해 머리를 따라가게.</summary>
+    /// <summary>자식 계층에서 이름이 정확히 일치하는 본(Transform)을 찾는다. 없으면 null.</summary>
+    private Transform FindBoneByName(string boneName)
+    {
+        if (string.IsNullOrEmpty(boneName)) return null;
+        foreach (var tr in GetComponentsInChildren<Transform>(true))
+            if (tr != null && tr.name == boneName) return tr;
+        return null;
+    }
+
     private Transform FindHeadBone()
     {
         var skinned = GetComponentInChildren<SkinnedMeshRenderer>();
@@ -957,6 +1048,7 @@ public class FieldMonsterAI : MonoBehaviour
         float nextTick = Time.time;              // 시작하자마자 1틱 판정
         while (Time.time < end && !dead)
         {
+            if (staggered) break;                // ★분사 중 경직 → 브레스 중단(이후 틱 판정 없음)
             if (fx != null)
             {
                 fx.transform.position = MuzzlePos();   // 머리(주둥이) 위치 추적
@@ -1037,7 +1129,7 @@ public class FieldMonsterAI : MonoBehaviour
         int n = Mathf.Max(1, data.projectileCount);
         for (int i = 0; i < n; i++)
         {
-            if (dead) yield break;
+            if (dead || staggered) yield break;   // 낙하 시퀀스 중 경직 → 이후 낙하 중단
             SpawnOneSkyfall();
             if (i < n - 1 && data.projectileInterval > 0f)
                 yield return new WaitForSeconds(data.projectileInterval);
@@ -1117,7 +1209,7 @@ public class FieldMonsterAI : MonoBehaviour
         int n = Mathf.Max(1, data.projectileCount);
         for (int i = 0; i < n; i++)
         {
-            if (dead) yield break;
+            if (dead || staggered) yield break;   // 연발 중 경직 → 이후 발사 중단
             FireProjectile();
             if (i < n - 1 && data.projectileInterval > 0f)
                 yield return new WaitForSeconds(data.projectileInterval);

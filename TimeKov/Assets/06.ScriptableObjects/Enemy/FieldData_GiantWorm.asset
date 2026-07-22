@@ -1,0 +1,141 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02537cf28553a6646b59dc3c166b14da, type: 3}
+  m_Name: FieldData_GiantWorm
+  m_EditorClassIdentifier: 
+  enemyName: "\uC790\uC774\uC5B8\uD2B8\uC6DC"
+  enemyId: giant_worm
+  maxHP: 200
+  moveSpeed: 2
+  acceleration: 12
+  angularSpeed: 120
+  stoppingDistance: 0
+  visionRange: 5.5
+  visionAngle: 360
+  attackDamage: 35
+  attackRange: 6
+  attackApproachRatio: 1
+  attackCooldown: 0.8
+  hitDelay: 3.083334
+  animLength: 6.166668
+  attackTrigger: Attack
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 1.5
+  deathAnimDuration: 3.3333359
+  detectStunDuration: 3.3333333
+  spawnVFX: {fileID: 0}
+  spawnSound: {fileID: 0}
+  detectVFX: {fileID: 0}
+  detectSound: {fileID: 0}
+  hitVFX: {fileID: 0}
+  hitSound: {fileID: 0}
+  attackVFX: {fileID: 0}
+  attackSound: {fileID: 0}
+  deathVFX: {fileID: 0}
+  deathSound: {fileID: 0}
+  hitStopTime: 0.05
+  hitStopScale: 0.08
+  knockbackDistance: 0
+  knockbackTime: 0.12
+  telegraphVFX: {fileID: 0}
+  telegraphSound: {fileID: 0}
+  telegraphLifeTime: 3.233334
+  telegraphLocalOffset: {x: 0, y: 0, z: 0}
+  telegraphScale: 1
+  telegraphStripObjects: []
+  telegraphSyncToHit: 0
+  telegraphGrow: 0
+  telegraphGrowFrom: 0.15
+  attackSpeedMul: 1
+  staggerChance: 0.1
+  startDormant: 1
+  sleepAfterIdle: 8
+  sleepAnimDuration: 2.3333359
+  dormantGroundVFX: {fileID: 1946735441314024, guid: 0bb42450c5043dd4691037643b40d519, type: 3}
+  dormantGroundScale: 1
+  appearBurstVFX: {fileID: 1937569298127228, guid: 63c167b821ab97d4a8e5f22fb2a531ad, type: 3}
+  appearBurstScale: 1
+  appearBurstLifeTime: 3
+  meleeImpactVFX: {fileID: 0}
+  meleeImpactOffset: {x: 0, y: 0, z: 1.5}
+  meleeImpactScale: 1
+  meleeImpactLifeTime: 3
+  chargeAttack: 0
+  chargeWindup: 6.166668
+  chargeSpeed: 9
+  chargeDuration: 0.7
+  chargeHitRadius: 1.3
+  chargeEndDuration: 0.4
+  sweepAttack: 1
+  sweepStartRatio: 0.2
+  sweepEndRatio: 0.6
+  sweepHitBone: Head Control
+  sweepHitRadius: 2.5
+  dualAttack: 0
+  meleeRange: 3.5
+  meleeHitDelay: 3.083334
+  meleeAnimLength: 6.166668
+  breathAttack: 0
+  breathVFX: {fileID: 0}
+  breathStreamAxis: {x: 0, y: 0, z: 1}
+  breathRange: 8
+  breathAngle: 35
+  breathStartDelay: 0.3
+  breathDuration: 1.2
+  breathTickInterval: 0.5
+  skyfallAttack: 0
+  skyfallVFX: {fileID: 0}
+  skyfallVfxEuler: {x: 0, y: 0, z: 0}
+  flattenParticles: []
+  skyfallHeight: 10
+  skyfallFallTime: 0.6
+  skyfallImpactRadius: 1.8
+  impactStripObjects: []
+  skyfallSpread: 3
+  skyfallMaxTilt: 0
+  skyfallGroundClearance: 0.1
+  ranged: 0
+  projectileVFX: {fileID: 0}
+  muzzleVFX: {fileID: 0}
+  impactVFX: {fileID: 0}
+  projectileSpeed: 14
+  projectileHitRadius: 0.6
+  projectileScale: 1
+  projectileCount: 1
+  projectileInterval: 0.15
+  projectileLifeTime: 4
+  projectileHomingDeg: 0
+  projectileHomingDuration: 0
+  projectileBlockMask:
+    serializedVersion: 2
+    m_Bits: 3694721
+  projectileSpawnHeight: 1.2
+  projectileAimHeight: 1
+  openingStep: 0
+  openingStepDuration: 0
+  postAttackPause: 0.7
+  afterAttackStep: 0
+  afterAttackStepDurationRange: {x: 0.8, y: 3.2}
+  retreatDiagonalMaxAngle: 45
+  stepSpeedMul: 0.5
+  strafeSpeedMul: 0.5
+  strafeAnimSpeedMul: 1
+  cancelRootDrift: 0
+  walkAnimRefSpeed: 2.5
+  walkAnimSpeedClamp: {x: 0.4, y: 2.5}
+  locoDirDamp: 0.12
+  wander: 0
+  wanderRadius: 6
+  wanderPauseRange: {x: 1.5, y: 4}
+  wanderSpeedMul: 0.4

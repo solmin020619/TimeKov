@@ -80,6 +80,23 @@ public class FieldMonsterData : MeleeEnemyData
     [Tooltip("붕괴(휴면 복귀) 애니 길이(초). 빌더가 crumble 클립에서 자동 계산.")]
     public float sleepAnimDuration = 1f;
 
+    [Tooltip("휴면(Dormant) 중 발밑에 상시 재생되는 지면 VFX(루프). 발견해 각성하면 제거, 휴면 복귀 시 다시 생성. " +
+             "예: 모래 웅덩이 'Sand Ground'. 비면 없음.")]
+    public GameObject dormantGroundVFX;
+
+    [Tooltip("dormantGroundVFX 스케일 배수.")]
+    public float dormantGroundScale = 1f;
+
+    [Tooltip("등장(각성) 순간 1회 재생하는 버스트 VFX. 루프 프리팹이어도 loop 를 꺼 한 번만 터진다. " +
+             "예: 모래 폭발 'Sand FX 3'. 비면 없음.")]
+    public GameObject appearBurstVFX;
+
+    [Tooltip("appearBurstVFX 스케일 배수.")]
+    public float appearBurstScale = 1f;
+
+    [Tooltip("appearBurstVFX 소멸까지 시간(초). 버스트 재생+페이드 여유.")]
+    public float appearBurstLifeTime = 3f;
+
     // ── 근접 타격 VFX ──────────────────────────────────────────────
     // 근접 공격 접점(hitDelay)에 스폰. 명중 여부와 무관하게 항상 재생(헛쳐도 슬램 이펙트는 난다) = 묵직함.
     [Header("── 근접 타격 VFX ──")]
@@ -120,6 +137,24 @@ public class FieldMonsterData : MeleeEnemyData
     // ── 이중 공격 (근접 + 원거리, 거리로 선택) ─────────────────────
     // dualAttack=true 면 플레이어와의 거리로 공격을 고른다: meleeRange 안이면 근접(물기),
     //   밖이면 원거리(브레스=발사체). 근접/원거리 각각 다른 클립·타이밍을 쓴다.
+    [Header("── 스윕 공격 (몸으로 주변 휩쓸기) ──")]
+    [Tooltip("켜면 단발 타격 대신 '스윕 구간' 동안 반경(attackRange) 안에 들어오면 1회 히트. " +
+             "몸이 실제로 훑고 지날 때 맞는 느낌(고정형 웜 등).")]
+    public bool sweepAttack = false;
+
+    [Tooltip("스윕 판정 시작 시점(공격 애니 길이 대비 비율). 예: 0.2 = 20% 지점부터 몸이 훑기 시작.")]
+    public float sweepStartRatio = 0.2f;
+
+    [Tooltip("스윕 판정 끝 시점(비율). 예: 0.8 = 80% 지점까지 훑음. 이 구간 안에 반경 진입 시 히트.")]
+    public float sweepEndRatio = 0.8f;
+
+    [Tooltip("스윕 판정 구를 붙일 본 이름(스윕 때 움직이는 머리/몸통). 이 본이 훑고 지나므로 히트 타이밍이 " +
+             "플레이어 위치에 따라 달라진다. 비면 몸통 원점 고정. 예: 'Head Control'.")]
+    public string sweepHitBone;
+
+    [Tooltip("스윕 판정 구 반경(m). 판정 본이 플레이어에 이만큼 접근하면 히트.")]
+    public float sweepHitRadius = 2f;
+
     [Header("── 이중 공격 (근접+원거리) ──")]
     [Tooltip("켜면 거리로 근접/원거리를 자동 선택. meleeRange 안=근접(clipAttack 은 원거리, meleeClip 은 근접).")]
     public bool dualAttack = false;

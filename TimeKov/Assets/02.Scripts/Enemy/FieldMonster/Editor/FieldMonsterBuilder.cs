@@ -309,6 +309,8 @@ public static class FieldMonsterBuilder
         so.chargeSpeed = c.chargeSpeed; so.chargeDuration = c.chargeDuration; so.chargeHitRadius = c.chargeHitRadius;
         // 이중 공격 — 근접 타이밍은 근접 클립 길이(배속 반영)로 자동.
         so.dualAttack = c.dualAttack; so.meleeRange = c.meleeRange;
+        so.sweepAttack = c.sweepAttack; so.sweepStartRatio = c.sweepStartRatio; so.sweepEndRatio = c.sweepEndRatio;
+        so.sweepHitBone = c.sweepHitBone; so.sweepHitRadius = c.sweepHitRadius;
         float mLen = string.IsNullOrEmpty(c.meleeClip)
             ? so.animLength : ClipLength(c, c.meleeClip, 1.0f) / Mathf.Max(0.01f, c.attackSpeedMul);
         so.meleeAnimLength = mLen; so.meleeHitDelay = mLen * c.meleeHitDelayRatio;
@@ -369,6 +371,9 @@ public static class FieldMonsterBuilder
         so.wander = c.wander; so.wanderRadius = c.wanderRadius;
 
         so.spawnVFX    = LoadIf<GameObject>(c.spawnVfx);
+        so.detectVFX   = LoadIf<GameObject>(c.detectVfx);
+        so.dormantGroundVFX = LoadIf<GameObject>(c.dormantGroundVfx); so.dormantGroundScale = c.dormantGroundScale;
+        so.appearBurstVFX = LoadIf<GameObject>(c.appearBurstVfx); so.appearBurstScale = c.appearBurstScale; so.appearBurstLifeTime = c.appearBurstLifeTime;
         so.detectSound = LoadIf<AudioClip>(c.sndDetect);
         so.attackSound = LoadIf<AudioClip>(c.sndAttack);
         so.deathSound  = LoadIf<AudioClip>(c.sndDie);
@@ -615,6 +620,10 @@ public class FieldMonsterBuildConfig
     public float chargeSpeed = 9f, chargeDuration = 0.7f, chargeHitRadius = 1.3f;
 
     // ── 이중 공격(근접+원거리, 선택) ──
+    public bool sweepAttack = false;                        // 스윕: 구간 동안 이동 본이 플레이어에 접근 시 히트
+    public float sweepStartRatio = 0.2f, sweepEndRatio = 0.8f;
+    public string sweepHitBone;                             // 판정 본(예: 'Head Control')
+    public float sweepHitRadius = 2f;
     public bool dualAttack = false;
     public float meleeRange = 3.5f;   // 이 안이면 근접, 밖이면 원거리
 
@@ -656,4 +665,10 @@ public class FieldMonsterBuildConfig
     // ── 에셋(선택. 없으면 슬롯만) ──
     public string telegraphVfx = "Assets/00.창동에셋/VFX/VFX(전조)/ChargeProjectiles_Chargefx/Prefabs_Chargefx/Charge/Charge_01.prefab";
     public string spawnVfx, sndDetect, sndAttack, sndDie;
+    public string detectVfx;                       // 발견 시 재생(예: 등장 폭발 'Sand FX 3')
+    public string dormantGroundVfx;                // 휴면 중 상시 지면 VFX(예: 'Sand Ground')
+    public float  dormantGroundScale = 1f;
+    public string appearBurstVfx;                  // 등장 순간 1회 버스트(예: 'Sand FX 3')
+    public float  appearBurstScale = 1f;
+    public float  appearBurstLifeTime = 3f;
 }
