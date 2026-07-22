@@ -39,6 +39,20 @@ public class EnemySpawnPoint : MonoBehaviour
     [Tooltip("여기에 적을 추가한다. 단일몹/보스도 항목 1개(maxCount=1)로 넣으면 됨. 비우면 아무것도 안 나옴.")]
     [SerializeField] private List<SpawnEntry> spawnEntries = new();
 
+    [Header("구역 전체 제한")]
+    [Tooltip("이 구역에 동시에 살아있을 수 있는 총 마리수. 0 = 무제한.\n" +
+             "항목별 최대수를 다 더한 값보다 작게 주면, 종류는 섞이되 총량은 안 넘는다.\n" +
+             "큰 박스에 여러 종을 넣고 '뿌리는' 배치를 할 때 이걸로 부하를 잡는다.")]
+    [Min(0)] [SerializeField] private int totalMaxAlive = 0;
+
+    [Tooltip("스폰할 때 이미 살아있는 적과 이만큼은 떨어뜨린다(m). 0 = 안 씀.\n" +
+             "넓은 구역에 랜덤으로 뿌리면 몹이 한 곳에 뭉치는데, 그걸 막는다.")]
+    [Min(0f)] [SerializeField] private float minSpawnSpacing = 0f;
+
+    [Tooltip("플레이어가 이 거리 안에 있으면 리스폰을 미룬다(m). 0 = 거리 무시하고 바로 리스폰.\n" +
+             "눈앞에서 몹이 튀어나오는 걸 막는다. 구역이 넓을수록 유용.")]
+    [Min(0f)] [SerializeField] private float respawnPlayerDistance = 0f;
+
     [Header("초기 스폰")]
     [Tooltip("시작 시 항목별 maxCount까지 자동 스폰(해금형 엘리트 제외 = 일반몹 처치 후 등장)")]
     [SerializeField] private bool spawnOnStart = true;
@@ -69,6 +83,10 @@ public class EnemySpawnPoint : MonoBehaviour
     [SerializeField] private bool drawGizmos = true;
     [SerializeField] private Color areaColor = new Color(1f, 0.5f, 0f, 0.25f);
     [SerializeField] private Color waypointColor = new Color(0.2f, 0.8f, 1f, 1f);
+
+    // 인스펙터(EnemySpawnPointEditor)에서 플레이 중 현황을 보여주기 위한 읽기 전용 창구
+    public int EditorAliveCount => aliveEnemies != null ? aliveEnemies.Count : 0;
+    public int EditorTotalMaxAlive => totalMaxAlive;
 
     private BoxCollider area;
     private readonly List<BoxCollider> _excluders = new();
@@ -257,7 +275,22 @@ public class EnemySpawnPoint : MonoBehaviour
         StartCoroutine(RespawnEntryAfterDelay(entryIndex, delay));
     }
 
-    // 지금 즉시 스폰 가능한지(살아있는 수 < 최대 + 엘리트 해금 충족)
+    // 구역 전체 현황 — totalMaxAlive 판정용
+    private int TotalAlive()
+    {
+        int n = 0;
+        for (int i = 0; i < _aliveByEntry.Length; i++) n += _aliveByEntry[i];
+        return n;
+    }
+
+    private int TotalPending()
+    {
+        int n = 0;
+        for (int i = 0; i < _pendingByEntry.Length; i++) n += _pendingByEntry[i];
+        return n;
+    }
+
+    // 지금 즉시 스폰 가능한지(살아있는 수 < 최대 + 엘리트 해금 충족 + 구역 총량)
     private bool CanSpawnEntry(int i)
     {
         if (i < 0 || i >= spawnEntries.Count) return false;
@@ -265,6 +298,7 @@ public class EnemySpawnPoint : MonoBehaviour
         if (e == null || e.prefab == null) return false;
         if (_aliveByEntry[i] >= Mathf.Max(1, e.maxCount)) return false;
         if (e.isElite && e.unlockAfterNormalKills > 0 && _normalKills < e.unlockAfterNormalKills) return false;
+        if (totalMaxAlive > 0 && TotalAlive() >= totalMaxAlive) return false;
         return true;
     }
 
@@ -276,6 +310,7 @@ public class EnemySpawnPoint : MonoBehaviour
         if (e == null || e.prefab == null) return false;
         if (_aliveByEntry[i] + _pendingByEntry[i] >= Mathf.Max(1, e.maxCount)) return false;
         if (e.isElite && e.unlockAfterNormalKills > 0 && _normalKills < e.unlockAfterNormalKills) return false;
+        if (totalMaxAlive > 0 && TotalAlive() + TotalPending() >= totalMaxAlive) return false;
         return true;
     }
 
@@ -283,8 +318,33 @@ public class EnemySpawnPoint : MonoBehaviour
     {
         _pendingByEntry[i]++;
         yield return new WaitForSeconds(delay + Random.Range(0f, 1f));
+
+        // 플레이어가 가까우면 멀어질 때까지 대기 — 눈앞에서 튀어나오는 걸 막는다.
+        // 여기서 계속 pending 을 물고 있으므로 그 사이 다른 놈이 자리를 채가지 않는다.
+        if (respawnPlayerDistance > 0f)
+        {
+            float sqr = respawnPlayerDistance * respawnPlayerDistance;
+            while (true)
+            {
+                var p = GetPlayerTransform();
+                if (p == null) break;                                   // 플레이어 없으면(사망/씬전환) 그냥 진행
+                if ((p.position - transform.position).sqrMagnitude > sqr) break;
+                yield return new WaitForSeconds(1f);
+            }
+        }
+
         _pendingByEntry[i] = Mathf.Max(0, _pendingByEntry[i] - 1);
         if (CanSpawnEntry(i)) SpawnEntryOne(i);
+    }
+
+    // 플레이어는 씬에 하나 — 매번 찾지 않게 캐시
+    private static Transform _playerT;
+    private static Transform GetPlayerTransform()
+    {
+        if (_playerT != null) return _playerT;
+        var p = FindFirstObjectByType<Player>();
+        _playerT = p != null ? p.transform : null;
+        return _playerT;
     }
 
     // 해금되는 순간(일반몹 N킬 달성) 엘리트가 곧장 나오게 하는 첫 등장 지연(초).
@@ -321,11 +381,27 @@ public class EnemySpawnPoint : MonoBehaviour
         return list;
     }
 
+    // 이미 살아있는 적과 너무 붙었는지 (minSpawnSpacing)
+    private bool IsTooCloseToAlive(Vector3 pos)
+    {
+        if (minSpawnSpacing <= 0f) return false;
+        float sqr = minSpawnSpacing * minSpawnSpacing;
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            var e = aliveEnemies[i];
+            if (e == null) continue;
+            if ((e.transform.position - pos).sqrMagnitude < sqr) return true;
+        }
+        return false;
+    }
+
     private bool TryGetRandomNavPos(out Vector3 result)
     {
         if (area == null) area = GetComponent<BoxCollider>();
-        // 최대 10번 시도
-        for (int i = 0; i < 10; i++)
+        // ★간격 조건이 켜져 있으면 후보를 더 많이 뽑아본다.
+        //   10번만 뽑으면 좁은 구역에서 전부 탈락해 스폰이 조용히 누락된다.
+        int tries = minSpawnSpacing > 0f ? 30 : 10;
+        for (int i = 0; i < tries; i++)
         {
             // 영역 내 XZ 랜덤 + Y는 영역 상단 (위에서 raycast down)
             Vector3 local = new Vector3(
@@ -352,6 +428,8 @@ public class EnemySpawnPoint : MonoBehaviour
             if (NavMesh.SamplePosition(candidate, out NavMeshHit navHit, navMeshSampleRadius, NavMesh.AllAreas))
             {
                 if (IsInExcludedZone(navHit.position)) continue;
+                // 마지막 몇 번은 간격 조건을 포기한다. 안 그러면 자리가 빡빡할 때 아예 못 나온다.
+                if (i < tries - 5 && IsTooCloseToAlive(navHit.position)) continue;
                 result = navHit.position;
                 return true;
             }
