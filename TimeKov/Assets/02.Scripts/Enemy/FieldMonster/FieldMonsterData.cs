@@ -117,6 +117,87 @@ public class FieldMonsterData : MeleeEnemyData
     [Tooltip("돌진 종료(ChargeEnd) 모션 시간(초). 빌더가 종료 클립 길이로 자동 세팅.")]
     public float chargeEndDuration = 0.5f;
 
+    // ── 이중 공격 (근접 + 원거리, 거리로 선택) ─────────────────────
+    // dualAttack=true 면 플레이어와의 거리로 공격을 고른다: meleeRange 안이면 근접(물기),
+    //   밖이면 원거리(브레스=발사체). 근접/원거리 각각 다른 클립·타이밍을 쓴다.
+    [Header("── 이중 공격 (근접+원거리) ──")]
+    [Tooltip("켜면 거리로 근접/원거리를 자동 선택. meleeRange 안=근접(clipAttack 은 원거리, meleeClip 은 근접).")]
+    public bool dualAttack = false;
+
+    [Tooltip("이 거리(m) 안에 플레이어가 있으면 근접(물기), 밖이면 원거리(브레스).")]
+    public float meleeRange = 3.5f;
+
+    [Tooltip("근접 공격 타격 시각(초). 빌더가 근접 클립 길이로 자동.")]
+    public float meleeHitDelay = 0.4f;
+
+    [Tooltip("근접 공격 모션 잠금 길이(초). 빌더가 근접 클립 길이로 자동.")]
+    public float meleeAnimLength = 0.8f;
+
+    // ── 브레스 (원거리 대체: 발사체 대신 입에서 뿜는 원뿔 분사) ──
+    [Tooltip("켜면 원거리 공격이 발사체 대신 '브레스'(입에 부착된 제자리 스트림 + 전방 원뿔 피해).")]
+    public bool breathAttack = false;
+
+    [Tooltip("브레스 스트림 VFX(입에 부착, 전방으로 분사). 이동은 안 하고 제자리에서 뿜는다.")]
+    public GameObject breathVFX;
+
+    [Tooltip("브레스 VFX 스트림이 뻗는 '로컬 축'. 이 축을 전방(플레이어 쪽)에 정렬한다. " +
+             "기본 (0,0,1)=로컬 +Z. 스트림이 위로 뻗으면 (0,1,0), 옆이면 (1,0,0) 등. 피해 판정(전방)과는 무관.")]
+    public Vector3 breathStreamAxis = new Vector3(0f, 0f, 1f);
+
+    [Tooltip("브레스 사거리(m). 이 안 + 원뿔 각 안의 플레이어가 피해.")]
+    public float breathRange = 8f;
+
+    [Tooltip("브레스 원뿔 '전체' 각도(도). 이 각의 절반 안이면 명중.")]
+    public float breathAngle = 35f;
+
+    [Tooltip("브레스 시작 지연(초). 공격 트리거 후 이 시간 뒤에 VFX·피해 시작. 애니의 '입 벌려 뿜는' 순간에 맞춘다. " +
+             "(hitDelay=50% 대신 이 값을 써서 VFX 가 늦게 나오는 문제 방지)")]
+    public float breathStartDelay = 0.3f;
+
+    [Tooltip("브레스 분사 지속(초). 이 동안 제자리에서 뿜으며 시선 고정.")]
+    public float breathDuration = 1.2f;
+
+    [Tooltip("브레스 피해 틱 간격(초). 원뿔 안에 머물면 이 간격마다 피해.")]
+    public float breathTickInterval = 0.5f;
+
+    // ── 하늘 낙하 (원거리 대체: 플레이어 주변에 얼음이 위에서 떨어져 착지 피해) ──
+    [Header("── 하늘 낙하 (선택) ──")]
+    [Tooltip("켜면 원거리가 '하늘 낙하': 플레이어 주변(spread) 여러 지점에 얼음이 위에서 떨어져 착지 반경 피해. " +
+             "발사 수/간격은 projectileCount/projectileInterval, 피해는 attackDamage, 착지 VFX는 impactVFX.")]
+    public bool skyfallAttack = false;
+
+    [Tooltip("떨어지는 얼음 VFX(낙하 중). 착지 VFX 는 impactVFX 사용.")]
+    public GameObject skyfallVFX;
+
+    [Tooltip("낙하 VFX 회전 보정(오일러, 도). VFX 가 세로로 서면 바닥에 눕히는 용도(예: (-90,0,0)).")]
+    public Vector3 skyfallVfxEuler = Vector3.zero;
+
+    [Tooltip("바닥에 눕힐 파티클 이름들(카메라 향하는 빌보드 → 수평 빌보드). 예: 눈꽃 'SnowflakeAtlas'.")]
+    public string[] flattenParticles;
+
+    [Tooltip("낙하 시작 높이(m). 이 높이에서 착지점까지 떨어진다.")]
+    public float skyfallHeight = 10f;
+
+    [Tooltip("낙하 시간(초). 플레이어가 착지 전에 피할 시간(예고).")]
+    public float skyfallFallTime = 0.6f;
+
+    [Tooltip("착지 피해 반경(m). 착지점 이 반경 안의 플레이어가 피해.")]
+    public float skyfallImpactRadius = 1.8f;
+
+    [Tooltip("착지(impactVFX)에서 제거할 자식 오브젝트 이름들(예: 흙먼지 'Smoke_Generic_AlphaSoft'). " +
+             "원본은 그대로, 스폰된 인스턴스에서만 제거.")]
+    public string[] impactStripObjects;
+
+    [Tooltip("플레이어 주변 무작위 분산 반경(m). 낙하 지점이 이 안에 흩어진다(회피 가능).")]
+    public float skyfallSpread = 3f;
+
+    [Tooltip("경사면에서 VFX 를 지면 법선에 맞춰 기울일 최대 각도(도). 0 이면 항상 수평(경사에 묻힘). " +
+             "예: 45 → 경사 표면에 밀착하되 45도까지만 기울임(절벽에서 과회전 방지).")]
+    public float skyfallMaxTilt = 0f;
+
+    [Tooltip("VFX 를 지면 법선 방향으로 띄우는 거리(m). 넓은 장판이 곡면 터레인에 묻히는 것 완화. 기본 0.1.")]
+    public float skyfallGroundClearance = 0.1f;
+
     // ── 원거리 공격 (얼음/마법 발사체) ─────────────────────────────
     // ranged=true 면 hitDelay 시점에 근접 타격 대신 발사체(FieldMonsterProjectile)를 쏜다.
     // 발사체는 발사 순간 플레이어 위치를 향해 날아가고(회피 가능), 스치면 피격 판정을 준다.
@@ -203,6 +284,10 @@ public class FieldMonsterData : MeleeEnemyData
     // ── 이동 애니 속도 동기화 ──────────────────────────────────────
     // 클립이 제자리(in-place) 애니라 루트모션이 없어서 Unity가 자동으로 발을 맞춰주지 못한다.
     // -> "이 클립이 자연스러워 보이는 속도"를 적어두고, 실제속도/기준속도 만큼 재생 배속을 건다.
+    [Tooltip("루트 모션 드리프트 제거. 루트 모션 노드가 없는 리그에서 걷기 클립이 앞으로 밀렸다 루프에서 " +
+             "되돌아오는(텔레포트처럼) 것을 막는다. 스킨 루트 본의 수평(XZ) 이동을 매 프레임 제자리로 되돌림.")]
+    public bool cancelRootDrift = false;
+
     [Header("── 이동 애니 동기화 (발 미끄러짐 방지) ──")]
     [Tooltip("걷기 애니가 원래 속도(1배속)로 자연스러워 보이는 이동 속도(m/s).\n" +
              "발이 헛돌면(애니가 빠름) 값을 올리고, 발이 질질 끌리면(애니가 느림) 내린다.")]

@@ -1,0 +1,149 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02537cf28553a6646b59dc3c166b14da, type: 3}
+  m_Name: FieldData_BoneDragon
+  m_EditorClassIdentifier: 
+  enemyName: "\uBCF8\uB4DC\uB798\uACE4"
+  enemyId: bone_dragon
+  maxHP: 150
+  moveSpeed: 3
+  acceleration: 12
+  angularSpeed: 480
+  stoppingDistance: 0
+  visionRange: 24
+  visionAngle: 300
+  attackDamage: 25
+  attackRange: 12
+  attackApproachRatio: 0.85
+  attackCooldown: 0.8
+  hitDelay: 0.6666667
+  animLength: 3.3333335
+  attackTrigger: Attack
+  hitTrigger: Hit
+  detectTrigger: Detect
+  dieTrigger: Die
+  targetLostMemory: 1.5
+  deathAnimDuration: 2.666668
+  detectStunDuration: 2.5000002
+  spawnVFX: {fileID: 0}
+  spawnSound: {fileID: 0}
+  detectVFX: {fileID: 0}
+  detectSound: {fileID: 0}
+  hitVFX: {fileID: 0}
+  hitSound: {fileID: 0}
+  attackVFX: {fileID: 0}
+  attackSound: {fileID: 8300000, guid: 4f1f344aaaf604b9285fe4c737394e58, type: 3}
+  deathVFX: {fileID: 0}
+  deathSound: {fileID: 8300000, guid: c6779fac8aaa04acb82191ed991fde26, type: 3}
+  hitStopTime: 0.05
+  hitStopScale: 0.08
+  knockbackDistance: 0
+  knockbackTime: 0.12
+  telegraphVFX: {fileID: 0}
+  telegraphSound: {fileID: 0}
+  telegraphLifeTime: 0.8166667
+  telegraphLocalOffset: {x: 0, y: 0, z: 0}
+  telegraphScale: 1
+  telegraphStripObjects: []
+  telegraphSyncToHit: 0
+  telegraphGrow: 0
+  telegraphGrowFrom: 0.15
+  attackSpeedMul: 0.9
+  staggerChance: 0.25
+  startDormant: 0
+  sleepAfterIdle: 0
+  sleepAnimDuration: 0
+  meleeImpactVFX: {fileID: 0}
+  meleeImpactOffset: {x: 0, y: 0, z: 1.5}
+  meleeImpactScale: 1
+  meleeImpactLifeTime: 3
+  chargeAttack: 0
+  chargeWindup: 3.3333335
+  chargeSpeed: 9
+  chargeDuration: 0.7
+  chargeHitRadius: 1.3
+  chargeEndDuration: 0.4
+  dualAttack: 0
+  meleeRange: 3.5
+  meleeHitDelay: 0.83333546
+  meleeAnimLength: 1.6666709
+  breathAttack: 0
+  breathVFX: {fileID: 0}
+  breathStreamAxis: {x: 0, y: 0, z: 1}
+  breathRange: 8
+  breathAngle: 35
+  breathStartDelay: 0.3
+  breathDuration: 1.2
+  breathTickInterval: 0.5
+  skyfallAttack: 1
+  skyfallVFX: {fileID: 2356528667524297571, guid: 58bcfc6951d5a114c9a149db074649fa, type: 3}
+  skyfallVfxEuler: {x: 0, y: 0, z: 0}
+  flattenParticles:
+  - SnowflakeAtlas
+  skyfallHeight: 10
+  skyfallFallTime: 0.7
+  skyfallImpactRadius: 3.3
+  impactStripObjects:
+  - PS_SkyShot_Frost
+  - MA_Laser_01
+  - MFX_Glow_ConeAttack02
+  - GhostTrail 1
+  - CS_Impact_Circle_Wind_Soft_Thin
+  - ConalATK_PanningNoise_Misty
+  - Spark2_Additive
+  - Trai2
+  - ImpactLightrays_Blurry 1
+  - Flecks_Clipped_Alpha
+  - WaterNoise_MaskedAlpha_02
+  - Smoke_HarsherAlbedo_Alpha_Mist_Soft
+  - Smoke_HarshBlack_Alpha
+  - MA_UB_DecalSnowflake
+  - Crack_Hole
+  - MA_Crater_Erosion
+  - Smoke_Generic_AlphaSoft
+  skyfallSpread: 3.5
+  skyfallMaxTilt: 45
+  skyfallGroundClearance: 0.4
+  ranged: 1
+  projectileVFX: {fileID: 0}
+  muzzleVFX: {fileID: 0}
+  impactVFX: {fileID: 6436957164297628535, guid: b4b45436270277f48a4de0b7d655ef79, type: 3}
+  projectileSpeed: 14
+  projectileHitRadius: 0.6
+  projectileScale: 0.5
+  projectileCount: 6
+  projectileInterval: 0.45
+  projectileLifeTime: 4
+  projectileHomingDeg: 0
+  projectileHomingDuration: 0
+  projectileBlockMask:
+    serializedVersion: 2
+    m_Bits: 3694721
+  projectileSpawnHeight: 1.2
+  projectileAimHeight: 1
+  openingStep: 0
+  openingStepDuration: 0
+  postAttackPause: 0.7
+  afterAttackStep: 6
+  afterAttackStepDurationRange: {x: 0.6, y: 1.8}
+  retreatDiagonalMaxAngle: 0
+  stepSpeedMul: 0.6
+  strafeSpeedMul: 0.5
+  strafeAnimSpeedMul: 1
+  cancelRootDrift: 1
+  walkAnimRefSpeed: 2.5
+  walkAnimSpeedClamp: {x: 0.4, y: 2.5}
+  locoDirDamp: 0.12
+  wander: 1
+  wanderRadius: 5
+  wanderPauseRange: {x: 1.5, y: 4}
+  wanderSpeedMul: 0.4
