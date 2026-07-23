@@ -5,10 +5,10 @@
 // - 충전 키트 전송 판정 / 소모 / 전송률 상승 / 구간 보상·지역 해금 통지
 // - 씬 어딘가에 하나만 배치 (싱글톤)  ─ CoreUpgradeManager 와 동일한 매니저 패턴
 //
-// ⚠️ 저장(persistence): 전송률·해금·보상 상태는 세이브에 남아야 하지만
-//    GameSaveData.cs 는 팀원 담당 파일이라 지금은 필드를 추가하지 않는다.
-//    아래 LoadState()/SaveState() 는 런타임 전용 stub 이며, 팀원과 GameSaveData
-//    필드를 조율한 뒤 ISaveable 로 승격한다. (CoreUpgradeManager.Capture 참고)
+// 저장(persistence): ISaveable 로 GameSaveData.transmissionRate 에 전송률을 저장한다.
+//    수령한 10% 마일스톤은 전송률 이하로 도출(재지급 방지). 설비해금/아이템/부품 등 실제 보상
+//    효과는 각 시스템(FacilityUnlockManager/인벤/ShipRepair)이 따로 저장한다.
+//    런타임 정적 효과(창고포트 상한 +1)만 복원 시 재적용한다.
 // =====================================================================
 
 using System;
@@ -18,7 +18,7 @@ using UnityEngine;
 /// <summary>전송 지역. 각 지역이 전체 전송률의 25% 구간을 담당한다.</summary>
 public enum TransmissionRegion { Nature, Snow, Desert, Lava }
 
-public class TransmissionManager : MonoBehaviour
+public class TransmissionManager : MonoBehaviour, ISaveable
 {
     // ── 싱글톤 ────────────────────────────────────────────────────────
     public static TransmissionManager Instance { get; private set; }
@@ -27,16 +27,15 @@ public class TransmissionManager : MonoBehaviour
     public const int MaxRate = 100;
 
     // ── 충전 키트 정의 ────────────────────────────────────────────────
-    // 실제 아이템 데이터(GameDataUtility.GetItem)가 아직 없어 placeholder 로 둔다.
-    // TODO: 데이터시트에 충전 키트 아이템이 추가되면 itemId 를 실제 값으로 교체하고
-    //       displayName 은 GameDataUtility.GetItem(itemId).itemName 으로 대체.
+    // 표시 이름은 ItemData 시트(itemName)에서 GetKitName 으로 자동 조회한다.
+    // 여기(kitDefs)엔 실제 itemId + 지역/보스/상승률만 등록한다(시트에 없는 값).
     [Serializable]
     public class ChargedKitDef
     {
-        [Tooltip("가방에서 이 키트를 식별하는 아이템 ID (placeholder).")]
+        [Tooltip("가방에서 이 키트를 식별하는 실제 아이템 ID (ItemData 시트 기준).")]
         public int itemId;
-        [Tooltip("UI 표시 이름 (아이템 데이터 붙기 전 임시).")]
-        public string displayName = "충전 키트";
+        [Tooltip("표시 이름 폴백. 비우면 ItemData 시트(itemName)에서 자동으로 가져온다.")]
+        public string displayName = "";
         [Tooltip("이 키트가 속한 지역. 해당 지역 전송 구간에서만 사용 가능.")]
         public TransmissionRegion region;
         [Tooltip("보스 재료가 포함된 특수 키트 여부. 지역 마지막 구간(보스 구간)을 채운다.")]
@@ -45,19 +44,13 @@ public class TransmissionManager : MonoBehaviour
         public int ratePercent = 5;
     }
 
-    [Header("충전 키트 목록 (밸런스 값 — Inspector 에서 조정)")]
+    // 충전 키트 목록 — 실제 아이템이 ItemData 시트에 추가되면 여기에 등록한다.
+    //   표시 이름은 시트(itemName)에서 자동으로 가져오므로(GetKitName) 여기선 지정 불필요.
+    //   지역/보스/상승률은 시트에 없는 값이라 등록 시 지정한다.
+    //   예) new ChargedKitDef { itemId = <실제 itemId>, region = TransmissionRegion.Nature, isBoss = false, ratePercent = 5 }
+    [Header("충전 키트 등록 (실제 itemId + 지역/보스/상승률). 이름은 시트에서 자동)")]
     [SerializeField]
-    private List<ChargedKitDef> kitDefs = new()
-    {
-        new ChargedKitDef { itemId = 7001, displayName = "자연 충전키트",      region = TransmissionRegion.Nature, isBoss = false, ratePercent = 5 },
-        new ChargedKitDef { itemId = 7002, displayName = "자연 보스 충전키트", region = TransmissionRegion.Nature, isBoss = true,  ratePercent = 5 },
-        new ChargedKitDef { itemId = 7003, displayName = "설원 충전키트",      region = TransmissionRegion.Snow,   isBoss = false, ratePercent = 5 },
-        new ChargedKitDef { itemId = 7004, displayName = "설원 보스 충전키트", region = TransmissionRegion.Snow,   isBoss = true,  ratePercent = 5 },
-        new ChargedKitDef { itemId = 7005, displayName = "사막 충전키트",      region = TransmissionRegion.Desert, isBoss = false, ratePercent = 5 },
-        new ChargedKitDef { itemId = 7006, displayName = "사막 보스 충전키트", region = TransmissionRegion.Desert, isBoss = true,  ratePercent = 5 },
-        new ChargedKitDef { itemId = 7007, displayName = "용암 충전키트",      region = TransmissionRegion.Lava,   isBoss = false, ratePercent = 5 },
-        new ChargedKitDef { itemId = 7008, displayName = "용암 보스 충전키트", region = TransmissionRegion.Lava,   isBoss = true,  ratePercent = 5 },
-    };
+    private List<ChargedKitDef> kitDefs = new();
 
     [Header("지역별 일반 전송 상한 (구간 시작 기준 오프셋 %)")]
     [Tooltip("각 25% 구간에서 '일반' 키트로 채울 수 있는 최대치(구간 시작 + 이 값).\n" +
@@ -69,9 +62,8 @@ public class TransmissionManager : MonoBehaviour
     /// <summary>현재 시간에너지 전송률 (정수 0~100). 감소하지 않는다.</summary>
     public int TransmissionRate { get; private set; }
 
-    // 이미 처리한 10% 정규 보상 구간 / 지역 해금 (중복 처리 방지).
+    // 이미 처리한 10% 정규 보상 구간 (중복 지급 방지).
     private readonly HashSet<int> _claimedMilestones = new();
-    private readonly HashSet<TransmissionRegion> _unlockedRegions = new();
     private bool _endingFired;
 
     // ── 이벤트 (UI / 피드백에서 구독) ─────────────────────────────────
@@ -79,8 +71,6 @@ public class TransmissionManager : MonoBehaviour
     public static event Action<int> OnRateChanged;
     /// <summary>10% 단위 정규 보상 구간을 통과했을 때. 인자 = 달성 %(10,20,...).</summary>
     public static event Action<int> OnRewardMilestone;
-    /// <summary>25/50/75% 달성으로 다음 지역이 해금됐을 때. 인자 = 해금된 지역.</summary>
-    public static event Action<TransmissionRegion> OnRegionUnlocked;
     /// <summary>전송률 100% 달성(엔딩 트리거) 시 1회.</summary>
     public static event Action OnEndingReached;
 
@@ -89,11 +79,13 @@ public class TransmissionManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        LoadState();
+        SaveSlotManager.Instance?.Register(this);
+        RestoreFromSave();
     }
 
     private void OnDestroy()
     {
+        SaveSlotManager.Instance?.Unregister(this);
         if (Instance == this) Instance = null;
     }
 
@@ -139,6 +131,15 @@ public class TransmissionManager : MonoBehaviour
         foreach (var k in kitDefs)
             if (k != null && GetOwnedCount(k.itemId) > 0)
                 yield return k;
+    }
+
+    /// <summary>키트 표시 이름 — ItemData 시트(itemName)에서 우선 조회. 없으면 displayName/기본값.</summary>
+    public string GetKitName(ChargedKitDef kit)
+    {
+        if (kit == null) return "";
+        if (GameDataHolder.I != null && GameDataHolder.I.ItemData.TryGet(kit.itemId.ToString(), out var d) && !string.IsNullOrEmpty(d.itemName))
+            return d.itemName;
+        return string.IsNullOrEmpty(kit.displayName) ? "충전 키트" : kit.displayName;
     }
 
     /// <summary>이 키트를 전송하면 도달할 전송률(%). 실패 조건이면 현재 전송률 그대로.</summary>
@@ -212,10 +213,9 @@ public class TransmissionManager : MonoBehaviour
             return false;
         }
 
-        // ③ 전송률 상승 + 보상/해금 처리
+        // ③ 전송률 상승 + 보상 지급 (상태 변경은 SaveSlotManager 자동 저장이 캡처)
         ApplyRate(projected);
         ToastManager.Success("시간에너지 전송이 완료되었습니다.");
-        SaveState();
         return true;
     }
 
@@ -232,20 +232,15 @@ public class TransmissionManager : MonoBehaviour
         TransmissionRate = newRate;
         OnRateChanged?.Invoke(TransmissionRate);
 
-        // 10% 단위 정규 보상 — prev 초과 ~ 현재 이하 구간을 순서대로
+        // 10% 단위 정규 보상 — prev 초과 ~ 현재 이하 구간을 순서대로 실제 지급.
         for (int m = 10; m <= 100; m += 10)
         {
             if (m > prev && m <= TransmissionRate && _claimedMilestones.Add(m))
             {
-                // TODO 보상 지급: 설비 설계도/아이템 등 실제 지급은 보상 시스템 확정 후 연결.
-                OnRewardMilestone?.Invoke(m);
+                GrantMilestoneRewards(m);      // 설비 해금·우주선 부품·아이템 등 실제 지급
+                OnRewardMilestone?.Invoke(m);  // UI 리빌 카드 연출
             }
         }
-
-        // 25/50/75% — 다음 지역 해금 (한 번만)
-        TryUnlockAt(25, TransmissionRegion.Snow);
-        TryUnlockAt(50, TransmissionRegion.Desert);
-        TryUnlockAt(75, TransmissionRegion.Lava);
 
         // 100% — 엔딩 (1회)
         if (TransmissionRate >= MaxRate && !_endingFired)
@@ -255,14 +250,98 @@ public class TransmissionManager : MonoBehaviour
         }
     }
 
-    private void TryUnlockAt(int threshold, TransmissionRegion region)
+    // ── 마일스톤 보상 지급 (기획표 2026-07) ────────────────────────────
+    // 각 % 도달 시 1회. 설비는 이름으로 FacilityData 조회→해금, 우주선 부품은 수리 매니저로
+    // 바로 흡수(인벤 아님), 창고포트 상한 +1, 90% 앰플 묶음은 가방 지급.
+    // 튜토리얼 티어(생체추출기·생체배양기)는 기존 방식 유지 — 여기서 건드리지 않는다.
+    private void GrantMilestoneRewards(int pct)
     {
-        if (TransmissionRate >= threshold && _unlockedRegions.Add(region))
+        // 설비 해금(공유 소스 — UI 카드 아이콘도 같은 목록을 쓴다)
+        foreach (var facilityName in MilestoneFacilityNames(pct))
+            UnlockFacilityByName(facilityName);
+
+        // 설비 외 보상
+        switch (pct)
         {
-            // TODO 지역 해금: 실제 이동 목적지 활성화는 지역/이동 시스템 확정 후 연결.
-            OnRegionUnlocked?.Invoke(region);
+            case 20: ShipRepairManager.Instance?.CollectExtraPart(3); break;                     // 선체 보강재(Lv.3)
+            case 50: ShipRepairManager.Instance?.CollectExtraPart(4); break;                     // 동력 안정기(Lv.4)
+            case 70: FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 1); break; // 창고 출력 포트 건설 수 +1
+            case 80: ShipRepairManager.Instance?.CollectExtraPart(5); break;                     // 엔진(Lv.5)
+            case 90: GrantSupplyPackage(); break;                                                // 최종 보급 꾸러미
+            // 100%: 없음
         }
     }
+
+    // 각 마일스톤이 해금하는 설비 이름(없으면 빈 배열). 지급 로직과 UI 카드 아이콘이 공유하는 단일 소스.
+    private static string[] MilestoneFacilityNames(int pct) => pct switch
+    {
+        10 => new[] { "용해로" },
+        20 => new[] { "코어 합성기" },
+        30 => new[] { "화학 정제기" },
+        40 => new[] { "저장고" },
+        50 => new[] { "창고 출력 포트" },
+        60 => new[] { "생체 분리기", "에너지 변환기" },
+        _  => System.Array.Empty<string>(),
+    };
+
+    /// <summary>UI 리빌 카드용: 이 마일스톤이 해금하는 설비 id 목록(이름→FacilityData 조회). 없으면 빈 리스트.</summary>
+    public List<int> GetRewardFacilityIds(int pct)
+    {
+        var result = new List<int>();
+        var fd = GameDataHolder.I != null ? GameDataHolder.I.FacilityData : null;
+        if (fd == null) return result;
+        foreach (var name in MilestoneFacilityNames(pct))
+        {
+            string target = Norm(name);
+            for (int id = 1; id <= FacilityUnlockManager.MaxSlots; id++)
+                if (fd.TryGet(id.ToString(), out var d) && Norm(d.facilityName) == target) { result.Add(id); break; }
+        }
+        return result;
+    }
+
+    // 90% 최종 보급 꾸러미 — 앰플 4종을 가방에 지급. 이름은 아이템 시트(itemName) 기준.
+    private void GrantSupplyPackage()
+    {
+        GrantItemByName("고급 회복 앰플", 10);
+        GrantItemByName("공격력 앰플", 3);
+        GrantItemByName("방어력 앰플", 3);
+        GrantItemByName("스태미나 앰플", 3);
+    }
+
+    // 이름으로 설비를 찾아 해금(슬롯 1~9). 공백 차이는 무시하고 매칭.
+    private void UnlockFacilityByName(string facilityName)
+    {
+        var mgr = FacilityUnlockManager.Instance;
+        var fd  = GameDataHolder.I != null ? GameDataHolder.I.FacilityData : null;
+        if (mgr == null || fd == null) { Debug.LogWarning($"[Transmission] 설비 해금 불가(매니저/데이터 없음): {facilityName}"); return; }
+
+        string target = Norm(facilityName);
+        for (int id = 1; id <= FacilityUnlockManager.MaxSlots; id++)
+            if (fd.TryGet(id.ToString(), out var d) && Norm(d.facilityName) == target)
+            {
+                mgr.TryUnlock(id);
+                return;
+            }
+        Debug.LogWarning($"[Transmission] FacilityData 에서 '{facilityName}' 설비를 못 찾음 — 시트 이름 확인 필요.");
+    }
+
+    // 이름으로 아이템을 찾아 가방에 지급. 공백 차이는 무시하고 매칭.
+    private void GrantItemByName(string itemName, int amount)
+    {
+        var idata = GameDataHolder.I != null ? GameDataHolder.I.ItemData : null;
+        if (idata == null || InventoryManager.Instance == null) { Debug.LogWarning($"[Transmission] 아이템 지급 불가: {itemName}"); return; }
+
+        string target = Norm(itemName);
+        foreach (var d in idata.All)
+            if (Norm(d.itemName) == target && int.TryParse(d.SheetId.ToString(), out int itemId))
+            {
+                InventoryManager.Instance.AddItem(itemId, amount, markAsNew: true);
+                return;
+            }
+        Debug.LogWarning($"[Transmission] ItemData 에서 '{itemName}' 아이템을 못 찾음 — 시트 이름 확인 필요.");
+    }
+
+    private static string Norm(string s) => string.IsNullOrEmpty(s) ? "" : s.Replace(" ", "");
 
     private int SegmentCapFor(ChargedKitDef kit)
     {
@@ -284,17 +363,31 @@ public class TransmissionManager : MonoBehaviour
         return (TransmissionRegion)idx;
     }
 
-    // ── 저장 seam (팀원과 GameSaveData 조율 후 ISaveable 로 승격) ───────
-    // 현재는 런타임 전용 — 재시작 시 0%부터. 정식 저장은 아래 TODO 참고.
-    private void LoadState()
+    // ── 통합 세이브 (ISaveable) ────────────────────────────────────────
+    // 슬롯 기반. 활성 슬롯 없으면(World 씬 직접 Play) 복원 스킵 = 매번 0%(샌드박스).
+    // 저장 시점은 SaveSlotManager 가 관리(자동 30초 + 앱 종료). 여기선 상태만 바꾸면 캡처된다.
+    public void Capture(GameSaveData data)
     {
-        // TODO: SaveSlotManager.Instance.Data 의 전송 필드에서 복원.
-        //   TransmissionRate = data.transmissionRate;
-        //   _claimedMilestones / _unlockedRegions 도 복원.
+        if (data == null) return;
+        data.transmissionRate          = TransmissionRate;
+        data.transmissionEndingReached = _endingFired;
     }
 
-    private void SaveState()
+    private void RestoreFromSave()
     {
-        // TODO: GameSaveData 에 필드 추가 후 SaveSlotManager.Instance?.SaveActive();
+        var mgr = SaveSlotManager.Instance;
+        if (mgr == null || !mgr.HasActiveSlot) return;   // 활성 슬롯 없으면 기본값(0%) 유지
+
+        TransmissionRate = Mathf.Clamp(mgr.Data.transmissionRate, 0, MaxRate);
+        _endingFired     = mgr.Data.transmissionEndingReached;
+
+        // 전송률 이하의 10% 마일스톤은 이미 수령한 것으로 표시(재지급 방지).
+        // 설비해금/아이템/부품 등 실제 보상 효과는 각 시스템이 따로 저장·복원한다.
+        for (int m = 10; m <= 100; m += 10)
+            if (m <= TransmissionRate) _claimedMilestones.Add(m);
+
+        // 런타임 정적(FacilityBuildLimit)은 세션마다 초기화되므로, 70% 보상(창고포트 상한 +1)만 재적용.
+        if (TransmissionRate >= 70)
+            FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 1);
     }
 }
