@@ -63,7 +63,6 @@ public class ShipRepairUI : MonoBehaviour
 
     private readonly List<Image> _pips = new();
     private TextMeshProUGUI _partCardName;     // 아이콘 아래 부품 이름
-    private TextMeshProUGUI _partCardSub;      // 다음 수리 필요 개수 안내
     private TextMeshProUGUI _partOwnedText;    // 좌측 큰 숫자 (보유)
     private TextMeshProUGUI _partReqText;      // 우측 큰 숫자 (필요)
     private Image _partCardGauge;              // 아이콘 둘레 링 게이지 (보유/필요 비율로 차오름)
@@ -71,6 +70,10 @@ public class ShipRepairUI : MonoBehaviour
     private Image _partIconGlow;               // 아이콘 뒤 후광 (DriveAmbient 가 맥동)
     private float _partGlowBaseA = 0.10f;      // 상태별 후광 기준 알파 (맥동의 중심값)
     private bool _dynamicBuilt;
+    private readonly List<ExtraChip> _extraChips = new();   // 특수 부품(전송 보상) 칩
+    private struct ExtraChip { public int level; public Image bg; public TextMeshProUGUI nameT; }
+    private GameObject _chipTip;   // 특수부품 호버 툴팁(시간에너지 UI 스타일 따라함)
+    private TextMeshProUGUI _chipTipTitle, _chipTipBody, _chipTipState;
     private int  _openedFrame = -1;
     private Image _holoGlowImg;      // 링 뒤 후광 (맥동 연출용)
     private Image _shipSlotImg;      // 우주선 홀로그램 아트 슬롯 (PNG 오면 자동 연결)
@@ -301,6 +304,7 @@ public class ShipRepairUI : MonoBehaviour
         _openedFrame = Time.frameCount;
 
         BuildDynamic();
+        HideChipTooltip();   // 닫았다 열 때 호버 툴팁 잔상 제거
         Refresh();
 
         GameSfx.Play(SfxId.PanelShipRepairToggle);   // 우주선 수리 전용 열기음
@@ -339,10 +343,20 @@ public class ShipRepairUI : MonoBehaviour
                 _pips.Add(MakePip(pipContainer));
         }
 
-        // 부품 카드 (단일 부품 - 보유/필요 하나로 통일)
+        // 부품 카드 (단일 부품 - 보유/필요 하나로 통일) + 특수 부품(전송 보상) 칩
         if (partsContent != null)
+        {
             MakePartCard(partsContent);
+            MakeExtraPartsRow(partsContent);
 
+            // 하단 안내줄("부품은 맵 곳곳...")은 숨기고, 부품 영역을 그만큼 아래로 넓힌다.
+            // (칩이 늘어난 만큼 세로가 초과해 위로 밀려 링과 겹치던 것 해소. 빌더 재실행 없이 런타임 처리.)
+            var hint = partsContent.parent != null ? partsContent.parent.Find("PartsHint") : null;
+            if (hint != null) hint.gameObject.SetActive(false);
+            partsContent.offsetMin = new Vector2(partsContent.offsetMin.x, 76f);
+        }
+
+        BuildChipTooltip();   // 특수부품 호버 툴팁 1회 생성
         _dynamicBuilt = true;
     }
 
@@ -473,12 +487,152 @@ public class ShipRepairUI : MonoBehaviour
         _partCardName.fontSize = 20f; _partCardName.fontStyle = FontStyles.Bold;
         _partCardName.alignment = TextAlignmentOptions.Center; _partCardName.raycastTarget = false;
         _partCardName.color = TextMain;
+        // 부품 이름 아래 안내줄(_partCardSub)은 잔소리라 제거(종욱 요청). 보유/필요 큰 숫자로 충분.
+    }
 
-        Put("Sub", new Vector2(420, 22), new Vector2(0, -108), out var subGo);
-        _partCardSub = subGo.AddComponent<TextMeshProUGUI>();
-        _partCardSub.fontSize = 13f;
-        _partCardSub.alignment = TextAlignmentOptions.Center; _partCardSub.raycastTarget = false;
-        _partCardSub.color = TextDim;
+    // 특수 부품(전송 보상) 전시 — 선체 보강재/동력 안정기/엔진 등. 복구 에너지(개수제)와 달리
+    //   레벨당 1개(보유/미보유)라 시간에너지 전송으로만 얻는다. 그걸 상시 눈에 보이게 한다.
+    //   데이터 = ShipRepairManager.ExtraPartNameFor/HasExtraPart (레벨 순회 = 데이터 정의 따라감, 하드코딩 X).
+    private void MakeExtraPartsRow(RectTransform parent)
+    {
+        var mgr = ShipRepairManager.Instance;
+        if (mgr == null) return;
+
+        var levels = new List<int>();
+        for (int lv = 1; lv <= mgr.MaxLevel; lv++)
+            if (!string.IsNullOrEmpty(mgr.ExtraPartNameFor(lv))) levels.Add(lv);
+        if (levels.Count == 0) return;   // 특수 부품 정의 없으면 섹션 자체 생략
+
+        // ★섹션 = 높이만 잡는 빈 컨테이너(순수 LayoutElement). HLG 를 섹션에 직접 붙이면
+        //   childForceExpandHeight 가 flexibleHeight(>=1)를 만들어서, 부모 VerticalLayoutGroup 이
+        //   남는 세로 공간만큼 섹션을 늘려버린다 = preferredHeight 가 무시됨(칩이 계속 뚱뚱했던 진짜 원인).
+        //   그래서 HLG 는 '채우기 앵커' 자식(Chips)에 두고, 섹션은 LayoutElement 로 높이만 고정한다.
+        var secGo = new GameObject("ExtraParts", typeof(RectTransform));
+        secGo.transform.SetParent(parent, false);
+        secGo.AddComponent<LayoutElement>().preferredHeight = 58f;   // ★칩 세로 높이 = 여기 하나만 바꾸면 됨
+        var sec = (RectTransform)secGo.transform;
+
+        var rowGo = new GameObject("Chips", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        rowGo.transform.SetParent(sec, false);
+        var rrt = (RectTransform)rowGo.transform;
+        rrt.anchorMin = Vector2.zero; rrt.anchorMax = Vector2.one; rrt.pivot = new Vector2(0.5f, 0.5f);
+        rrt.offsetMin = new Vector2(6f, 1f); rrt.offsetMax = new Vector2(-6f, -1f);
+        var hlg = rowGo.GetComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 8f; hlg.childAlignment = TextAnchor.MiddleCenter;
+        hlg.childControlWidth = hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = hlg.childForceExpandHeight = true;
+
+        foreach (int lv in levels)
+            _extraChips.Add(MakeExtraChip(rrt, lv, mgr.ExtraPartNameFor(lv)));
+    }
+
+    private ExtraChip MakeExtraChip(RectTransform parent, int level, string partName)
+    {
+        var chip = new ExtraChip { level = level };
+
+        var go = new GameObject($"Chip_Lv{level}", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(parent, false);
+        chip.bg = go.GetComponent<Image>();
+        chip.bg.sprite = _rowSpr != null ? _rowSpr
+            : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 220), new Color32(16, 22, 32, 235), 64, 12);
+        chip.bg.raycastTarget = true;   // 호버 툴팁을 받으려면 레이캐스트 대상이어야 함
+
+        // 이름만 (상태 텍스트 없음 - 보유/미보유는 색으로 구분). "우주선 " 접두사는 군더더기라 뗀다.
+        var nGo = new GameObject("Name", typeof(RectTransform));
+        nGo.transform.SetParent(go.transform, false);
+        var nrt = (RectTransform)nGo.transform;
+        nrt.anchorMin = Vector2.zero; nrt.anchorMax = Vector2.one; nrt.offsetMin = new Vector2(4f, 0f); nrt.offsetMax = new Vector2(-4f, 0f);
+        chip.nameT = nGo.AddComponent<TextMeshProUGUI>();
+        chip.nameT.text = partName.StartsWith("우주선 ") ? partName.Substring(4) : partName;
+        chip.nameT.fontSize = 18f; chip.nameT.fontStyle = FontStyles.Bold;
+        chip.nameT.alignment = TextAlignmentOptions.Center; chip.nameT.raycastTarget = false;
+
+        var hover = go.AddComponent<ChipHover>();
+        hover.ui = this; hover.level = level; hover.rect = (RectTransform)go.transform;
+
+        return chip;
+    }
+
+    // 시간에너지 UI(TransmissionComputerUI)의 호버 툴팁을 따라한 간이 버전.
+    //   칩에 마우스를 올리면 "이게 뭐지?" 하다가도 "몇 %에서 얻는 거구나" 하고 이해되게 한다.
+    //   연출(DOTween 페이드)은 생략하고 룩만 맞춘다(다크 라운드박스 + 아웃라인 + 제목/본문/상태 3줄).
+    private void BuildChipTooltip()
+    {
+        if (_chipTip != null || panelRoot == null) return;
+
+        _chipTip = new GameObject("ChipTooltip", typeof(RectTransform), typeof(Image));
+        _chipTip.transform.SetParent(panelRoot.transform, false);
+        var rt = (RectTransform)_chipTip.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.pivot = new Vector2(0.5f, 0f);   // 아래 기준 = 칩 위에 뜸
+        rt.sizeDelta = new Vector2(240, 84);
+        var box = _chipTip.GetComponent<Image>();
+        box.sprite = UISpriteFactory.RoundedRect(48, 12); box.type = Image.Type.Sliced;
+        box.color = new Color(0.06f, 0.10f, 0.18f, 0.98f); box.raycastTarget = false;
+        var ol = _chipTip.AddComponent<UnityEngine.UI.Outline>();
+        ol.effectColor = new Color(Holo.r, Holo.g, Holo.b, 0.5f); ol.effectDistance = new Vector2(1.2f, -1.2f);
+
+        _chipTipTitle = TipLine(12f, 24f, 17, Holo, FontStyles.Bold);
+        _chipTipBody  = TipLine(38f, 20f, 14, TextMain, FontStyles.Normal);
+        _chipTipState = TipLine(60f, 18f, 12, TextDim, FontStyles.Normal);
+
+        _chipTip.SetActive(false);
+    }
+
+    private TextMeshProUGUI TipLine(float topY, float h, int fontSize, Color col, FontStyles style)
+    {
+        var g = new GameObject("Line", typeof(RectTransform));
+        g.transform.SetParent(_chipTip.transform, false);
+        var rt = (RectTransform)g.transform;
+        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
+        rt.offsetMin = new Vector2(14f, -(topY + h)); rt.offsetMax = new Vector2(-14f, -topY);
+        var t = g.AddComponent<TextMeshProUGUI>();
+        t.fontSize = fontSize; t.fontStyle = style; t.color = col;
+        t.alignment = TextAlignmentOptions.Left; t.raycastTarget = false;
+        return t;
+    }
+
+    public void ShowChipTooltip(int level, RectTransform anchor)
+    {
+        if (_chipTip == null || anchor == null) return;
+        var mgr = ShipRepairManager.Instance;
+        bool used = mgr != null && mgr.CurrentLevel >= level;   // 그 레벨까지 수리됨 = 사용 완료
+        bool have = !used && mgr != null && mgr.HasExtraPart(level);
+        int pct = ShipPartMilestone(level);
+
+        string stateText; Color col;
+        if (used)      { stateText = "사용됨 (수리 완료)"; col = Holo; }
+        else if (have) { stateText = "보유 중";           col = DoneCol; }
+        else           { stateText = "미획득";            col = TextDim; }
+
+        _chipTipTitle.text = mgr != null ? mgr.ExtraPartNameFor(level) : "";
+        _chipTipTitle.color = (used || have) ? col : TextMain;   // 미획득 제목은 읽히게 흰색
+        _chipTipBody.text = pct > 0 ? $"시간에너지 전송률 {pct}% 에서 획득" : "시간에너지 전송으로 획득";
+        _chipTipState.text = stateText;
+        _chipTipState.color = col;
+        var ol = _chipTip.GetComponent<UnityEngine.UI.Outline>();
+        if (ol != null) ol.effectColor = new Color(col.r, col.g, col.b, 0.5f);
+
+        _chipTip.SetActive(true);
+        _chipTip.transform.SetAsLastSibling();
+        // 칩 상단 중앙 위에 배치(월드좌표 직접 세팅이라 부모 pivot 무관) + 살짝 위로.
+        _chipTip.transform.position = anchor.TransformPoint(new Vector3(0f, anchor.rect.height * 0.5f, 0f));
+        ((RectTransform)_chipTip.transform).anchoredPosition += new Vector2(0f, 12f);
+    }
+
+    public void HideChipTooltip()
+    {
+        if (_chipTip != null) _chipTip.SetActive(false);
+    }
+
+    // 각 특수부품(레벨)이 나오는 시간에너지 전송률(%). ★출처=TransmissionManager.GrantMilestoneRewards
+    //   (20%->Lv3 선체 보강재 / 50%->Lv4 동력 안정기 / 80%->Lv5 엔진). 그쪽 매핑 바뀌면 여기도 맞춰라.
+    private static int ShipPartMilestone(int level) => level switch { 3 => 20, 4 => 50, 5 => 80, _ => 0 };
+
+    private class ChipHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    {
+        public ShipRepairUI ui; public int level; public RectTransform rect;
+        public void OnPointerEnter(PointerEventData e) { if (ui != null) ui.ShowChipTooltip(level, rect); }
+        public void OnPointerExit(PointerEventData e)  { if (ui != null) ui.HideChipTooltip(); }
     }
 
     // ── 갱신 ──────────────────────────────────────────────────────────
@@ -554,10 +708,6 @@ public class ShipRepairUI : MonoBehaviour
 
         if (_partCardName != null)
             _partCardName.text = mgr.PartName;
-        if (_partCardSub != null)
-            _partCardSub.text = maxed
-                ? "모든 수리가 끝났습니다"
-                : (enough ? "다음 수리 준비 완료" : $"다음 수리까지 {req - count}개 더 필요");
 
         if (_partOwnedText != null)
         {
@@ -583,15 +733,35 @@ public class ShipRepairUI : MonoBehaviour
             _partCardGauge.color = state;
         }
 
-        // 수리 버튼
+        // 특수 부품(전송 보상) 칩: 미획득=회색 / 보유(먹었고 아직 안 씀)=초록 / 이미 사용(그 레벨까지 수리 완료)=파랑.
+        //   ★수리하면 extraMask 가 소모돼 HasExtraPart 가 false 로 돌아간다 -> 그것만 보면 "미획득"이랑 구분 안 됨.
+        //     그래서 CurrentLevel >= 부품레벨 이면 "사용 완료"로 따로 처리한다(한 번만 먹는 부품이라 이게 자연스럽다).
+        foreach (var chip in _extraChips)
+        {
+            int lv = chip.level;
+            bool used = mgr.CurrentLevel >= lv;         // 그 레벨까지 수리됨 = 이 부품 사용 완료
+            bool have = !used && mgr.HasExtraPart(lv);   // 획득했고 아직 안 씀
+            if (chip.bg != null)
+                chip.bg.color = used ? new Color(0.26f, 0.45f, 0.62f, 1f)   // 파랑 틴트(완료)
+                              : have ? new Color(0.30f, 0.62f, 0.44f, 1f)   // 초록 틴트(보유)
+                              : Color.white;                                 // 기본 어두움(미획득)
+            if (chip.nameT != null)
+                chip.nameT.color = used ? Holo : have ? DoneCol : TextMain;
+        }
+
+        // 수리 버튼 (완전 수리 + 시간에너지 100% = "탈출하기" 로 전환 = 게임 클리어 트리거)
         bool canRepair = mgr.CanRepairNext();
+        bool canEscape = ShipEscape.CanEscape();   // 우주선 Lv.최대 AND 전송률 100%
+        bool canAct = canEscape || canRepair;
         if (repairButton != null)
         {
-            repairButton.interactable = canRepair;
-            if (repairButton.image != null) repairButton.image.color = canRepair ? BtnReady : BtnLocked;
+            repairButton.interactable = canAct;
+            if (repairButton.image != null) repairButton.image.color = canAct ? BtnReady : BtnLocked;
         }
         if (repairButtonText != null)
-            repairButtonText.text = maxed ? "수리 완료" : (canRepair ? "수리 실행" : BlockedReason(mgr, count));
+            repairButtonText.text = maxed
+                ? (canEscape ? "탈출하기" : EscapeBlockedReason())   // 수리는 끝났지만 전송률 미완이면 이유 표기
+                : (canRepair ? "수리 실행" : BlockedReason(mgr, count));
     }
 
     // 왜 수리를 못 하는지 버튼에 그대로 적는다.
@@ -606,6 +776,14 @@ public class ShipRepairUI : MonoBehaviour
         if (!string.IsNullOrEmpty(extra)) return $"{extra} 필요";
 
         return "수리 불가";
+    }
+
+    // 수리는 끝났지만(Lv.최대) 아직 탈출 못 하는 이유 = 시간에너지 전송률 미완(100% 필요).
+    private static string EscapeBlockedReason()
+    {
+        var tm = TransmissionManager.Instance;
+        int rate = tm != null ? tm.TransmissionRate : 0;
+        return $"시간에너지 {rate}% / 100%";
     }
 
     private enum StatKind { Zone, Fuel, Speed }
@@ -675,6 +853,14 @@ public class ShipRepairUI : MonoBehaviour
         if (mgr == null) return;
 
         UISoundManager.Instance?.PlayButtonClick();
+
+        // 완전 수리 + 시간에너지 100% 면 이 버튼은 "탈출하기" = 게임 클리어(페이드 후 메인 메뉴).
+        if (ShipEscape.CanEscape())
+        {
+            ShipEscape.Run();
+            return;
+        }
+
         mgr.TryRepairNext();   // 성공 시 OnChanged -> Refresh 자동
         Refresh();
     }

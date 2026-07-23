@@ -9,9 +9,10 @@
 // ============================================================
 //  F1 = 플레이어 즉사 (사망/부활 연출 테스트)      Debug/DevHotkeys.cs           [에디터/Dev빌드 전용 가드 있음]
 //  F2 = 코어 레벨 +1 강제 (재료/확률 무시)         Manager/CoreUpgradeManager.cs [에디터/Dev빌드 전용 가드 있음]
-//  F3 = 도감 전부해금 토글 (도감 열려 있을 때만)    UI/CodexUI.cs                 [에디터/Dev빌드 전용 가드 있음]
+//  F3 = 도감 전부해금 토글(도감 열렸을 때만) UI/CodexUI.cs  +  시간에너지 전송률 +5%(TransmissionManager, 재원)  [Dev 전용]
+//       ★F3 이중 바인딩: 도감 닫힌 상태 F3 = 전송률만. 도감 열린 상태 F3 = 도감해금 + 전송률 둘 다(주의).
 //  F4 = 테스트 아이템 지급                         Factory/TestItemSpawner.cs    [에디터/Dev빌드 전용 가드 있음]  (debugKey = 인스펙터 직렬화값)
-//  F5 = 우주선 다음 수리 재료 전부 지급             Debug/DevHotkeys.cs           [에디터/Dev빌드 전용 가드 있음]
+//  F5 = 우주선 복구 에너지 지급 (맵 부품만; 특수 부품 선체보강재/동력안정기/엔진은 F3 전송률로만)  Debug/DevHotkeys.cs  [Dev 전용]
 //  F6 = 플레이어 비행 토글 (Space 상승+애니정지 <-> 다시 누르면 낙하)  Debug/DevHotkeys.cs [에디터/Dev빌드 전용 가드 있음]
 //  F7 = 현재 튜토리얼 퀘스트 스킵 (보상 정상 지급)               Debug/DevHotkeys.cs [에디터/Dev빌드 전용 가드 있음]
 //  `  = 설비 1~9 전부 즉시 해금                    Grid/FacilityUnlockManager.cs [에디터/Dev빌드 전용 가드 있음]
@@ -70,10 +71,12 @@ public class DevHotkeys : MonoBehaviour
         int lack = ship.NextRequiredParts - ship.PartCount;
         if (lack > 0) ship.AddParts(lack);
 
-        // 레벨 전용 추가 재료(선체 보강재 / 동력 안정기 / 엔진)
-        if (!ship.NextExtraReady) ship.CollectExtraPart(ship.CurrentLevel + 1);
+        // ★특수 부품(선체 보강재 / 동력 안정기 / 엔진)은 F5 로 일부러 안 준다.
+        //   이건 시간에너지 전송률(20/50/80%) 보상 전용이라, F5 로 주면 전송률 게이트를 우회해서
+        //   "전송률 20%인데 만렙" 같은 테스트 혼란이 생긴다. F5 는 맵 부품(복구 에너지)만.
+        //   특수 부품이 필요하면 F3(전송률 +5%)로 전송률을 올려서 받아라.
 
-        Debug.Log($"[Dev] 우주선 Lv.{ship.CurrentLevel} -> Lv.{ship.CurrentLevel + 1} 수리 재료 지급 완료");
+        Debug.Log($"[Dev] 우주선 복구 에너지 지급(Lv.{ship.CurrentLevel} 기준). 특수 부품은 F3 전송률로만 획득.");
     }
 }
 #endif
