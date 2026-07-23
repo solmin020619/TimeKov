@@ -9,14 +9,16 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: M_VFX_SmokeDarknessTransition_01
   m_Shader: {fileID: 4800000, guid: 89bac1ee52a2f694c8ab26ffca9bd86c, type: 3}
-  m_ValidKeywords:
-  - _ENABLE_FOG_ON_TRANSPARENT
-  - _SURFACE_TYPE_TRANSPARENT
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
   m_InvalidKeywords:
   - _ADD_PRECOMPUTED_VELOCITY
   - _DOUBLESIDED_ON
+  - _ENABLE_FOG_ON_TRANSPARENT
+  - _SURFACE_TYPE_TRANSPARENT
   m_LightmapFlags: 0
-  m_EnableInstancingVariants: 0
+  m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 1
   m_CustomRenderQueue: 3000
   stringTagMap:
@@ -25,6 +27,7 @@ Material:
   disabledShaderPasses:
   - DistortionVectors
   - TransparentBackface
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -145,3 +148,4 @@ Material:
     - _Noise_02_Scale: {r: 2, g: 5, b: 0, a: 0}
     - _Noise_02_Speed: {r: -0.5, g: -0.5, b: 0, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
