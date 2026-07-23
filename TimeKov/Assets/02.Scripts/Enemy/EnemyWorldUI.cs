@@ -23,6 +23,12 @@ public class EnemyWorldUI : MonoBehaviour
     [Tooltip("몬스터 실제 메쉬 윗부분에서 이만큼(월드 단위) 위에 띄운다. 모든 몬스터 동일 간격.")]
     [SerializeField] private float headGap = 0.4f;
 
+    [Header("이름 가독성 (밝은 배경 대비)")]
+    [Tooltip("이름 글자가 흰색이라 눈밭/밝은 배경에서 안 보임. 검은 외곽선으로 어디서나 읽히게. 폭 0 = 끔.")]
+    [SerializeField] private Color nameOutlineColor = Color.black;
+    [Range(0f, 0.5f)]
+    [SerializeField] private float nameOutlineWidth = 0.2f;
+
     private EnemyHealth targetHealth;
     private Transform targetTransform;
     private Camera cam;
@@ -41,6 +47,26 @@ public class EnemyWorldUI : MonoBehaviour
 
         if (nameText == null)
             nameText = GetComponentInChildren<TextMeshProUGUI>(true);
+
+        ApplyNameOutline();   // 이름에 검은 외곽선(밝은 배경 가독성)
+    }
+
+    // 이름 글자(흰색)가 눈밭/밝은 배경에서 안 보이는 문제. 검은 외곽선으로 어디서나 읽히게 한다.
+    //   머티리얼을 몹마다 인스턴스로 만들면 배칭이 깨져 드로우콜이 는다(성능 병목). 외곽선 머티리얼을
+    //   딱 하나만(static) 만들어 전 몬스터 이름이 공유 = 배칭 유지(밝은 배경 몹 여럿 떠도 드로우콜 안 늚).
+    private static Material _nameOutlineMat;
+
+    private void ApplyNameOutline()
+    {
+        if (nameText == null || nameOutlineWidth <= 0f) return;
+        if (_nameOutlineMat == null)
+        {
+            _nameOutlineMat = new Material(nameText.fontSharedMaterial);
+            _nameOutlineMat.SetColor(ShaderUtilities.ID_OutlineColor, nameOutlineColor);
+            _nameOutlineMat.SetFloat(ShaderUtilities.ID_OutlineWidth, nameOutlineWidth);
+        }
+        nameText.fontSharedMaterial = _nameOutlineMat;
+        nameText.UpdateMeshPadding();   // 외곽선 폭만큼 메쉬 패딩 재계산(안 하면 외곽선이 잘림)
     }
 
     public void Initialize(EnemyHealth health, string enemyName)

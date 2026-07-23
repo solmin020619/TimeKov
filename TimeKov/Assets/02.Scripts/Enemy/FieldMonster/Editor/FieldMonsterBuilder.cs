@@ -423,7 +423,7 @@ public static class FieldMonsterBuilder
         //   BaseEnemy 에는 EnemyAbsorbOnDeath 가 없어서, 여기서 안 붙이면 필드몹 전종이 빠진다.
         EnemyBuildUtil.AttachTimeAbsorb(root, c.enemyName);
 
-        FitBodyToModel(root, vis, c.scale, c.navRadius);
+        FitBodyToModel(root, vis, c.scale, c.navRadius, c.bodyHeightMul);
         {
             var navA = root.GetComponent<NavMeshAgent>();
             if (navA != null && c.navAvoidanceType >= 0)
@@ -435,7 +435,7 @@ public static class FieldMonsterBuilder
         PrefabUtility.UnloadPrefabContents(root);
     }
 
-    static void FitBodyToModel(GameObject root, GameObject vis, float scale, float navRadiusOverride)
+    static void FitBodyToModel(GameObject root, GameObject vis, float scale, float navRadiusOverride, float heightMul)
     {
         var rs = vis.GetComponentsInChildren<Renderer>(true);
         if (rs.Length == 0) return;
@@ -445,8 +445,15 @@ public static class FieldMonsterBuilder
         float h = Mathf.Max(0.2f, b.size.y);
         float r = Mathf.Max(0.15f, Mathf.Max(b.size.x, b.size.z) * 0.4f);
 
+        // center 를 h/2 로 두면 "모델 발바닥이 root Y=0" 이라고 가정하는 셈이다. 피벗이 발이 아니라
+        //   바운드가 root 아래로 내려가는 모델(록몬스터/거미여왕/본드래곤/자이언트웜)에선 콜라이더가
+        //   위로 밀려 실제 머리보다 높아진다 = 체력바가 붕 뜨고 히트박스가 머리 위 허공까지 잡는다.
+        //   실제 바운드 중심에 맞춰 콜라이더를 모델에 정렬한다(발이 root 에 있는 몹은 결과 동일 = 무영향).
+        //   heightMul<1 이면 머리 위 지오메트리(본드래곤 날개 등)를 빼고 발바닥부터 그만큼만 세운다.
+        float feetY = b.min.y - root.transform.position.y;
+        float useH  = h * (heightMul > 0f ? heightMul : 1f);
         var cap = root.GetComponent<CapsuleCollider>();
-        if (cap != null) { cap.height = h; cap.radius = r; cap.center = new Vector3(0f, h * 0.5f, 0f); }
+        if (cap != null) { cap.height = useH; cap.radius = r; cap.center = new Vector3(0f, feetY + useH * 0.5f, 0f); }
         var nav = root.GetComponent<NavMeshAgent>();
         // 콜라이더(피격)는 bounds 크기, nav 반경은 오버라이드 우선 — 큰 몸집이 네비메시 경계에 끼여
         //   순간 앞뒤로 튀는(텔레포트) 것 방지. navRadius 0 이면 bounds 자동.
@@ -600,6 +607,7 @@ public class FieldMonsterBuildConfig
     public float visionRange = 18f, visionAngle = 300f;
     public float scale = 1f;
     public float navRadius = 0f;   // NavMeshAgent 반경 오버라이드(0=모델 bounds 자동). 큰 몹은 작게 줘 경계 끼임/텔레포트 방지.
+    public float bodyHeightMul = 1f;   // 콜라이더/체력바 높이 배율(1=바운드 그대로). 머리 위에 날개/뿔이 솟아 바가 뜨는 몹만 <1 로.
     public int navAvoidanceType = -1;   // NavMeshAgent 장애물 회피(-1=유지, 0=None/1=Low/…/4=High). 큰 몹은 0으로 RVO 지터 방지.
 
     // ── 전조/패턴(기본 = 거미S3형) ──

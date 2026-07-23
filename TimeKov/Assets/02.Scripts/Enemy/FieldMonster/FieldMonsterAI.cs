@@ -78,6 +78,7 @@ public class FieldMonsterAI : MonoBehaviour
     private bool faceTarget;      // 스텝/공격 중엔 진행 방향 말고 타깃을 계속 주시
     private bool freezeFacing;    // 회전 완전 고정(공격 후 스텝: 공격 시점 시선 유지). faceTarget보다 우선.
     private bool dead;
+    private EnemyWorldUI worldUI;  // 체력바+이름(중첩 프리팹). 휴면(위장) 중엔 통째로 숨긴다.
     private bool awake;           // 휴면형: 기상(조립) 완료 상태. 휴면(바위 더미) 중엔 false → 피격 경직 억제.
     private GameObject dormantGroundFx;   // 휴면 중 상시 지면 VFX 인스턴스(각성 시 제거).
     private Transform sweepBone;          // 스윕 판정 구를 붙일 이동 본(스윕 때 훑는 머리/몸통). 없으면 몸통 원점.
@@ -110,6 +111,7 @@ public class FieldMonsterAI : MonoBehaviour
         if (visionSensor == null) visionSensor = GetComponentInChildren<VisionSensor>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        worldUI = GetComponentInChildren<EnemyWorldUI>(true);
 
         // 씬에 놓인 낡은 인스턴스(프리팹 구조 변경/재빌드로 컨트롤러 참조가 끊긴 것)를 런타임에 자가복구.
         // 이게 있으면 "Animator is not playing an AnimatorController" 로 애니가 안 나오던 게 스스로 고쳐진다.
@@ -319,9 +321,17 @@ public class FieldMonsterAI : MonoBehaviour
     }
 
     // ── 메인 루프 ──────────────────────────────────────────────────
+    // 휴면(바위 더미/모래 속) 위장 토글. 각성 여부에 따라 체력바+이름도 함께 숨긴다.
+    //   위장 중(!awake)엔 체력바가 뜨면 정체가 드러나므로 통째로 감춘다(SetHidden = CanvasGroup alpha).
+    private void SetAwake(bool value)
+    {
+        awake = value;
+        if (worldUI != null) worldUI.SetHidden(!value);
+    }
+
     private IEnumerator Brain()
     {
-        awake = !data.startDormant;   // 휴면형이면 처음엔 잠들어 있음 → 첫 발견에만 기상(Detect) 연출
+        SetAwake(!data.startDormant);   // 휴면형이면 처음엔 잠들어 있음 → 첫 발견에만 기상(Detect) 연출
         if (data.startDormant && !awake) SpawnDormantGround();   // 잠복 지면 VFX(상시)
         while (!dead)
         {
@@ -338,7 +348,7 @@ public class FieldMonsterAI : MonoBehaviour
                     float sleepAt = Time.time + data.sleepAfterIdle;
                     while (Target == null && !dead && Time.time < sleepAt)
                         yield return data.wander ? Wander() : Idle();
-                    if (!dead && Target == null) { yield return Crumble(); awake = false; }
+                    if (!dead && Target == null) { yield return Crumble(); SetAwake(false); }
                 }
                 else
                 {
@@ -354,7 +364,7 @@ public class FieldMonsterAI : MonoBehaviour
                 feedback?.PlayDetect();
                 yield return DetectPause();
             }
-            awake = true;
+            SetAwake(true);
             yield return DoStep(data.openingStep, data.openingStepDuration);
 
             // 3) 전투 루프 — 접근 → 전조+공격 → 스텝 → 반복

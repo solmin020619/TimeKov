@@ -44,6 +44,7 @@ public static class BoneDragonBuilder
             attackRange = 12f, attackApproachRatio = 0.85f,   // ~10m 에서 브레스 사거리
             visionRange = 24f, visionAngle = 300f,
             navRadius = 1.2f,   // 큰 몸집이라 nav 반경 작게(경계 끼임 방지). 콜라이더는 크게 유지.
+            bodyHeightMul = 0.55f,   // 날개가 머리 위로 솟아 체력바가 떠서, 콜라이더 높이를 몸통 기준으로 낮춤.
             navAvoidanceType = 0,   // 장애물 회피 None.
             cancelRootDrift = true, // ★걷기 클립이 앞으로 밀렸다 되돌아오는(텔레포트) 것 제거 — 진짜 원인.
             staggerChance = 0.25f,
