@@ -25,30 +25,20 @@ public class UIPanelSound : MonoBehaviour
         _initialized = true;
     }
 
+    // [2026-07 사운드 통합] 패널 열닫음은 각 패널을 여는 컨트롤러에서 패널별 SfxId 로 직접 재생하도록 이관했다
+    //   (스탯/설정=GameUIController, 창고=InventoryUIController, 전송기=TransmissionComputerUI, 수리=ShipRepairUI …).
+    //   이 범용 컴포넌트가 UIPanelOpen/Close 를 내면 새 패널별 사운드와 중복되므로 재생을 비활성화한다.
+    //   override 클립을 쓰던 패널이 있으면 그 클립만 유지되도록 아래 분기에서 override 만 재생한다(기본 범용음은 무음).
+
     private void OnEnable()
     {
-        // Start() 이전에는 무시 (씬 로드 시 자동 발동 방지)
         if (!_initialized) return;
-
-        var mgr = UISoundManager.Instance;
-        if (mgr == null) return;
-
-        if (overrideOpenClip != null)
-            mgr.PlayClip(overrideOpenClip);
-        else
-            mgr.PlayPanelOpen();
+        if (overrideOpenClip != null) UISoundManager.Instance?.PlayClip(overrideOpenClip);
     }
 
     private void OnDisable()
     {
         if (!_initialized) return;
-
-        var mgr = UISoundManager.Instance;
-        if (mgr == null) return;
-
-        if (overrideCloseClip != null)
-            mgr.PlayClip(overrideCloseClip);
-        else
-            mgr.PlayPanelClose();
+        if (overrideCloseClip != null) UISoundManager.Instance?.PlayClip(overrideCloseClip);
     }
 }

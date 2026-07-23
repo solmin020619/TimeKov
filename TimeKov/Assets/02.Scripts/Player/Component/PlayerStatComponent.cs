@@ -135,6 +135,8 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
 
         if (CurrentHp <= 0) { OnDead?.Invoke(); return; }
 
+        _player?.Audio?.PlayHurt();   // 피격음(비치명타). 클립 2종 랜덤(번갈아) = GameSfxConfig PlayerHurt clips.
+
         // [학살 플레이] 공격/스킬/대시 등 행동 중 피격은 데미지만 받고 행동을 끊지 않는다.
         // 잡몹에 둘러싸여도 콤보가 뚝뚝 끊기지 않도록 — 가만히/이동 중일 때만 경직.
         if (IsInAction())

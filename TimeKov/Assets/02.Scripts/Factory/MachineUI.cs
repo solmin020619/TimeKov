@@ -1784,6 +1784,7 @@ public class MachineUI : MonoBehaviour
                 {
                     if (_selectedRecipeIndex == idx) return;
                     _selectedRecipeIndex = idx;
+                    GameSfx.Play(SfxId.CodexTabClick);   // 레시피 전환음(도감 상단 탭과 동일한 위젯 전환음)
                     BuildRecipeSlots();
                     RefreshOutputSlots();
                 });

@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class TransmissionComputerUI : MonoBehaviour
@@ -90,7 +91,7 @@ public class TransmissionComputerUI : MonoBehaviour
     private readonly List<Image> _rewardTint = new();            // 리빌 색으로 물들일 장식(악센트/프레임/구분선 등)
     private Vector2 _cardHome;                                   // 카드 슬라이드 기준 위치
     private Sequence _rewardSeq;
-    private struct Reveal { public string title, name, desc; public Color color; public int markerPct; public int order; }
+    private struct Reveal { public string title, name, desc; public Color color; public int markerPct; public int order; public bool milestone; }
     private readonly Queue<Reveal> _revealQ = new();
     private bool _revealBusy;
     private bool _revealStartScheduled;   // 같은 rate 변경의 여러 리빌을 모아 한 번에 정렬·재생하기 위한 지연 플래그
@@ -148,6 +149,7 @@ public class TransmissionComputerUI : MonoBehaviour
         RefreshAll();
         SetGauge(_m.progress, false);
         PlayOpenAnim();
+        GameSfx.Play(SfxId.PanelTransmissionToggle);   // 시간에너지 전송기 열기음
     }
 
     public void HidePanel() { KillAll(); if (_root != null) _root.SetActive(false); }
@@ -155,6 +157,7 @@ public class TransmissionComputerUI : MonoBehaviour
     public void Close()
     {
         LastCloseFrame = Time.frameCount;
+        GameSfx.Play(SfxId.PanelTransmissionToggle);   // 시간에너지 전송기 닫기음(열/닫 공용 클립)
         GameUIController.Instance?.CloseTransmissionUI();
         if (_cg == null) { _root.SetActive(false); return; }
         KillAll();
@@ -502,6 +505,7 @@ public class TransmissionComputerUI : MonoBehaviour
         _sendBtnImg = send; _sendBtn = send.gameObject.AddComponent<Button>(); _sendBtn.targetGraphic = send;
         _sendBtn.navigation = new Navigation { mode = Navigation.Mode.None };
         _sendBtn.onClick.AddListener(OnSend); _sendBtnCg = send.gameObject.AddComponent<CanvasGroup>();
+        AddButtonSfx(_sendBtn);
         Outline(send.gameObject, C("FFFFFF", 0.35f));
         var tri = Img("sendTri", send.gameObject, 0, 0, 15, 16, C("06202E"), TriTex());
         tri.rectTransform.anchorMin = tri.rectTransform.anchorMax = tri.rectTransform.pivot = new Vector2(0.5f, 0.5f);
@@ -511,7 +515,7 @@ public class TransmissionComputerUI : MonoBehaviour
 
         var close = Img("closeBtn", rp.transform, ix + sendW + 14, btnY, 130, 62, C("E8F2FB", 0.07f), UISpriteFactory.RoundedRect(48, 12));
         var cb = close.gameObject.AddComponent<Button>(); cb.targetGraphic = close; cb.navigation = new Navigation { mode = Navigation.Mode.None };
-        cb.onClick.AddListener(Close); Outline(close.gameObject, C("E2EDF8", 0.25f));
+        cb.onClick.AddListener(Close); AddButtonSfx(cb); Outline(close.gameObject, C("E2EDF8", 0.25f));
         Txt("closeTxt", close.gameObject, 0, 0, 130, 62, "닫기 ESC", _mono, 18, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
 
         // 이벤트 로그 (헤더 아래 로그 라인 — 위/아래 여백 균등)
@@ -523,6 +527,19 @@ public class TransmissionComputerUI : MonoBehaviour
         _logText = Txt("logLines", logBox.transform, 15, 34, iw - 30, logH - 34 - 8, "", _mono, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.TopLeft);
     }
 
+    // 버튼 호버/클릭 사운드 — 씬 세팅 없이 코드로 부착(GameSfx 통합음).
+    //   호버: PointerEnter 시 재생하되 잠긴 버튼(interactable=false)은 무음.
+    //   클릭: onClick 은 interactable 일 때만 발화하므로 그대로 붙이면 잠금 시 자동 무음.
+    private static void AddButtonSfx(Button btn)
+    {
+        if (btn == null) return;
+        var trig = btn.gameObject.GetComponent<EventTrigger>() ?? btn.gameObject.AddComponent<EventTrigger>();
+        var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ => { if (btn.interactable) GameSfx.Play(SfxId.UIButtonHover); });
+        trig.triggers.Add(enter);
+        btn.onClick.AddListener(() => GameSfx.Play(SfxId.UIButtonClick));
+    }
+
     private KitRow BuildKitRow(GameObject parent, Kit k)
     {
         var go = NewGO($"kit_{k.id}", parent.transform);
@@ -531,6 +548,7 @@ public class TransmissionComputerUI : MonoBehaviour
         var bg = go.AddComponent<Image>(); bg.sprite = UISpriteFactory.RoundedRect(24, 12); bg.type = Image.Type.Sliced; bg.color = new Color(0, 0, 0, 0);
         var btn = go.AddComponent<Button>(); btn.targetGraphic = bg; btn.navigation = new Navigation { mode = Navigation.Mode.None };
         btn.onClick.AddListener(() => OnKitClick(k));
+        AddButtonSfx(btn);   // 키트 행 호버/클릭음(잠긴 행은 클릭음 자동 무음)
         var outline = go.AddComponent<UnityEngine.UI.Outline>(); outline.effectColor = new Color(0, 0, 0, 0); outline.effectDistance = new Vector2(1, -1);
         // 행 호버 시 사용 여부/사유 툴팁
         go.AddComponent<KitRowHover>().Init(this, k, (RectTransform)go.transform);
@@ -956,7 +974,7 @@ public class TransmissionComputerUI : MonoBehaviour
         _revealQ.Enqueue(new Reveal
         {
             title = $"구간 달성 · {pct}%", name = $"{_m.RewardName(pct)} 획득!",
-            desc = _m.RewardDesc(pct), color = RegionColorForPct(pct), markerPct = pct, order = pct
+            desc = _m.RewardDesc(pct), color = RegionColorForPct(pct), markerPct = pct, order = pct, milestone = true
         });
         ScheduleRevealStart();
     }
@@ -1039,6 +1057,8 @@ public class TransmissionComputerUI : MonoBehaviour
         _rewardSeq.AppendCallback(() =>
         {
             _rewardCg.blocksRaycasts = true;
+            // 퍼센트 보상(설비 획득) 카드가 뜨는 순간 획득음. 지역 개방 카드는 제외(구간 해금 연출은 삭제 예정).
+            if (r.milestone) GameSfx.Play(SfxId.FacilityUnlockReveal);
             if (r.markerPct >= 0) FlashMarker(r.markerPct, col);
             // 카드: 아래→위 슬라이드
             _rewardCard.DOAnchorPos(_cardHome, 0.42f).SetEase(Ease.OutCubic).SetUpdate(true);

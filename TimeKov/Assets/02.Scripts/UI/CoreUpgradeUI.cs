@@ -200,6 +200,7 @@ public class CoreUpgradeUI : MonoBehaviour
     public void Open()
     {
         panelRoot?.SetActive(true);
+        UISoundManager.Instance?.PlayPanelOpen();   // 코어 강화 UI 열기음(기지 업그레이드 UI와 동일 패널음)
         _openedFrame = Time.frameCount;
         EnsureUpgradeLayout();            // 강화 버튼 위치/배경/발광 코드로 보장(메뉴 재실행 불필요)
         ResetCatchVisual();
@@ -221,6 +222,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (_phase != CatchPhase.Idle) return;   // 미니게임 진행 중 닫기 방지
         LastCloseFrame = Time.frameCount;        // 같은 프레임에 터미널 F가 다시 여는 것 방지
         panelRoot?.SetActive(false);
+        UISoundManager.Instance?.PlayPanelClose();   // 코어 강화 UI 닫기음(닫기 버튼/외부 닫기 공통)
         GameUIController.Instance?.CloseCoreUpgradeUI();
     }
 
@@ -822,6 +824,8 @@ public class CoreUpgradeUI : MonoBehaviour
 
     private void OnClickUpgrade()
     {
+        if (_phase != CatchPhase.Idle && _phase != CatchPhase.Spin) return;   // judge/result 중이면 무음·무시
+        UISoundManager.Instance?.PlayButtonClick();   // 강화 버튼 클릭음(시작/정지 공통)
         if (_phase == CatchPhase.Spin) { StopSpin(false); return; }   // 정지!
         if (_phase != CatchPhase.Idle) return;                        // judge/result 중 무시
 

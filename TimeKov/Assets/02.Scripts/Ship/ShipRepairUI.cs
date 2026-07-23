@@ -87,6 +87,7 @@ public class ShipRepairUI : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
+        closeButton?.onClick.AddListener(() => UISoundManager.Instance?.PlayButtonClick());   // 닫기 버튼 클릭음(수리 버튼은 OnClickRepair 에서 재생)
         closeButton?.onClick.AddListener(Close);
         repairButton?.onClick.AddListener(OnClickRepair);
         panelRoot?.SetActive(false);
@@ -302,7 +303,7 @@ public class ShipRepairUI : MonoBehaviour
         BuildDynamic();
         Refresh();
 
-        UISoundManager.Instance?.PlayPanelOpen();
+        GameSfx.Play(SfxId.PanelShipRepairToggle);   // 우주선 수리 전용 열기음
     }
 
     /// <summary>패널만 숨긴다(상태 통보 없음) — GameUIController.CloseAll 이 호출.</summary>
@@ -317,7 +318,7 @@ public class ShipRepairUI : MonoBehaviour
 
         LastCloseFrame = Time.frameCount;
         HidePanel();
-        UISoundManager.Instance?.PlayPanelClose();
+        GameSfx.Play(SfxId.PanelShipRepairToggle);   // 우주선 수리 전용 닫기음(열/닫 공용 클립)
         GameUIController.Instance?.CloseShipRepairUI();
     }
 

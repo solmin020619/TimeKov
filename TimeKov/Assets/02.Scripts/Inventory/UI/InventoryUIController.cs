@@ -313,6 +313,7 @@ public class InventoryUIController : MonoBehaviour
 
         _isOpen = true;
         inventoryRoot.SetActive(true);
+        if (!TimeKov.UI.WindowManager.SuppressPanelSfx) GameSfx.Play(SfxId.PanelWarehouseOpen);   // 창고(인벤토리) 열기음(코드 직결 — 씬 WindowManager 미사용)
 
         // 창고 표시 판정: 상자 파밍 중이면 창고 X(가방+상자만), 그 외엔 결계존 안일 때만 창고 자동 연동.
         // (구 WarehouseInteractable F 상호작용 폐기 -> 결계존 기반으로 일원화)
@@ -406,6 +407,7 @@ public class InventoryUIController : MonoBehaviour
     public void CloseInternal()
     {
         if (inventoryRoot == null) return;
+        if (_isOpen && !TimeKov.UI.WindowManager.SuppressPanelSfx) GameSfx.Play(SfxId.PanelWarehouseClose);   // 창고(인벤토리) 닫기음(코드 직결). 실제 열려있던 경우만.
 
         // 드래그 중이었으면 강제 종료 (ESC로 닫을 때 Ghost 화면 잔재 방지)
         InventoryDragHandler.Instance?.EndDrag();
