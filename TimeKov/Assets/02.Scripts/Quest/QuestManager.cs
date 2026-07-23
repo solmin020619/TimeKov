@@ -373,6 +373,24 @@ public class QuestManager : MonoBehaviour
         // BeginAll 호출 안 함. Setup이 호출
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    /// <summary>개발용(F7): 진행 중인 첫 카테고리의 활성 퀘스트를 강제 완료(스킵).
+    /// 활성 objective 를 전부 강제 완료시켜, 보상 지급/완료 연출/다음 퀘 진행의 정상 흐름을 그대로 탄다.</summary>
+    public void DevSkipCurrentQuest()
+    {
+        foreach (var rt in _runtimes)
+        {
+            if (rt.IsCategoryDone || rt.activeObjectives == null) continue;   // 완료/전환 중은 건너뜀
+            // 완료 콜백이 activeObjectives 를 null 로 바꾸므로 스냅샷으로 순회.
+            var snapshot = (ObjectiveSO[])rt.activeObjectives.Clone();
+            foreach (var o in snapshot)
+                if (o != null && !o.IsCompleted) o.DevForceComplete();
+            return;   // 한 번에 한 퀘만
+        }
+        Debug.Log("[Dev] 스킵할 활성 퀘스트가 없다 (전부 완료 or 완료연출 전환 중)");
+    }
+#endif
+
 #if UNITY_EDITOR
     [ContextMenu("Reset All Progress")]
     void ResetAllMenu() => ResetAll();

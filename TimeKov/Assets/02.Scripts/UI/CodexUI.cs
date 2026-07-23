@@ -324,7 +324,7 @@ public class CodexUI : MonoBehaviour
 
         // 상단: 카테고리 + 수치(모노, 우측정렬)
         Txt(Make("ctxt", _completionBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -17f), new Vector2(0f, 0f)),
-            TabNames[_tab] + " 도감  " + got + " / " + total + "  ·  " + pct + "%", 14f, FontStyles.Bold, TxtSub, TextAlignmentOptions.Right);
+            TabNames[_tab] + " 도감  " + got + " / " + total + "  (" + pct + "%)", 14f, FontStyles.Bold, TxtSub, TextAlignmentOptions.Right);
 
         // 하단: 진행 바(트랙 + 채움)
         var track = Make("track", _completionBox, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 3f), new Vector2(0f, 9f));
@@ -838,45 +838,31 @@ public class CodexUI : MonoBehaviour
         return SortMonsters(list);
     }
 
-    // 도감 몬스터 정렬: 베이스+엘리트 묶음(베이스 먼저), 늑대인간/와이번은 맨 뒤(와이번 최후미).
-    // sourceId 기준 - 엘리트는 "..._Elite", 묶음 키(family)는 _Elite 떼낸 베이스 id.
+    // 도감 몬스터 정렬: 맵 순서(자연 -> 설산 -> 용암 -> 사막). 맵 안에서는 보스를 맨 뒤로,
+    // 나머지는 config(CodexPreviewConfig 등록) 순서 유지. 맵 판정은 displayName 키워드로(sourceId 무관).
     private static Entry[] SortMonsters(Entry[] src)
     {
-        var famFirst = new Dictionary<string, int>();
-        for (int i = 0; i < src.Length; i++)
-        {
-            string fam = MonsterFamily(src[i]);
-            if (!famFirst.ContainsKey(fam)) famFirst[fam] = i;
-        }
         var order = new int[src.Length];
         for (int i = 0; i < src.Length; i++) order[i] = i;
-        System.Array.Sort(order, (a, b) =>
-        {
-            long ka = MonsterSortKey(src[a], famFirst), kb = MonsterSortKey(src[b], famFirst);
-            if (ka != kb) return ka.CompareTo(kb);
-            return a.CompareTo(b);   // 동률은 원래 순서 유지(안정)
-        });
+        // index를 정렬 키에 포함 -> 같은 맵/보스여부면 등록 순서 그대로(안정 정렬)
+        System.Array.Sort(order, (a, b) => MonsterSortKey(src[a], a).CompareTo(MonsterSortKey(src[b], b)));
         var outp = new Entry[src.Length];
         for (int i = 0; i < src.Length; i++) outp[i] = src[order[i]];
         return outp;
     }
 
-    private static string MonsterFamily(Entry e)
+    // 이름 키워드로 맵을 판정(자연0/설산1/용암2/사막3). 맵 안에서 보스는 뒤로, 그 외는 등록 순서(index).
+    // 새 몬스터 추가 시 이름에 맵 키워드(서리/얼음/헬/용암/모래 등)만 들어가면 자동 분류된다.
+    private static long MonsterSortKey(Entry e, int index)
     {
-        string sid = e != null && e.monsterSourceId != null ? e.monsterSourceId : "";
-        return sid.ToLowerInvariant().EndsWith("_elite") ? sid.Substring(0, sid.Length - 6) : sid;
-    }
-
-    private static long MonsterSortKey(Entry e, Dictionary<string, int> famFirst)
-    {
-        string sid = e != null && e.monsterSourceId != null ? e.monsterSourceId : "";
-        string low = sid.ToLowerInvariant();
-        bool isElite = low.EndsWith("_elite");
-        string fam = isElite ? sid.Substring(0, sid.Length - 6) : sid;
-        int endRank = low.Contains("wyvern") ? 2 : low.Contains("werewolf") ? 1 : 0;  // 와이번 최후미, 늑대인간 그 앞
-        int famOrder = famFirst.TryGetValue(fam, out int fo) ? fo : 9999;
-        int eliteRank = isElite ? 1 : 0;   // 같은 묶음서 베이스 먼저, 엘리트 뒤
-        return (long)endRank * 1000000L + (long)famOrder * 100L + eliteRank;
+        string n = e != null && e.name != null ? e.name : "";
+        int map;
+        if (n.Contains("서리") || n.Contains("얼음") || n.Contains("본드래곤")) map = 1;      // 설산
+        else if (n.Contains("헬") || n.Contains("용암") || n.Contains("화염")) map = 2;       // 용암
+        else if (n.Contains("모래") || n.Contains("자이언트") || n.Contains("자폭")) map = 3;  // 사막
+        else map = 0;                                                                          // 자연
+        int boss = (n.Contains("와이번") || n.Contains("정령") || n.Contains("보스")) ? 1 : 0; // 맵 내 보스는 맨 뒤
+        return (long)map * 1000000L + (long)boss * 10000L + index;
     }
 
     private void EnsurePortrait()
@@ -1233,7 +1219,7 @@ public class CodexUI : MonoBehaviour
         var body = MainHeader("설비 - FACILITY", selName, TxtMain, true);
         Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), "제작 가능 레시피 - RECIPES", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         // 재료가 클릭 가능하다는 상시 힌트(호버 발광/툴팁과 함께 발견성 확보). RECIPES 라벨 바로 옆.
-        Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), "·  재료를 누르면 출처 보기", 14f, FontStyles.Bold, Accent, TextAlignmentOptions.Left);
+        Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), "재료를 누르면 출처 보기", 14f, FontStyles.Bold, Accent, TextAlignmentOptions.Left);
         // 잭팟 설명(우측). 마스터한 레시피의 보너스 = 직관적 안내.
         Txt(Make("jl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(-12f, -6f)),
             "레시피 10회 제작 후 활성화 시 -> 제작마다 10% 확률로 2배 생산!", 13f, FontStyles.Normal, C32(165, 130, 60), TextAlignmentOptions.Right);

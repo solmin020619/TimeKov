@@ -370,7 +370,8 @@ public static class FieldMonsterBuilder
         so.cancelRootDrift = c.cancelRootDrift;
         so.wander = c.wander; so.wanderRadius = c.wanderRadius;
 
-        so.spawnVFX    = LoadIf<GameObject>(c.spawnVfx);
+        // 스폰 VFX: config 에 명시값이 있으면 그걸, 없으면 sourceId 기준 맵 테마로 자동 배정(EnemySpawnVfx).
+        so.spawnVFX    = LoadIf<GameObject>(!string.IsNullOrEmpty(c.spawnVfx) ? c.spawnVfx : EnemySpawnVfx.ForSourceId(c.sourceId));
         so.detectVFX   = LoadIf<GameObject>(c.detectVfx);
         so.dormantGroundVFX = LoadIf<GameObject>(c.dormantGroundVfx); so.dormantGroundScale = c.dormantGroundScale;
         so.appearBurstVFX = LoadIf<GameObject>(c.appearBurstVfx); so.appearBurstScale = c.appearBurstScale; so.appearBurstLifeTime = c.appearBurstLifeTime;

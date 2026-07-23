@@ -246,7 +246,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         if (target != null && !_engaged)
         {
             _engaged = true;
-            BossHealthBarUI.Show(_health, data != null ? data.enemyName : "화염보스", bossSubtitle);
+            BossHealthBarUI.Show(_health, data != null ? data.enemyName : "화염정령", bossSubtitle);
             _feedback?.PlayDetect();
         }
         if (target == null) return;   // 고정형 = 추격 없음. 애니는 exitTime 으로 알아서 Idle 복귀(매프레임 crossfade 금지)

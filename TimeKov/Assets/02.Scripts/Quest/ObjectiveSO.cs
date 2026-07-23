@@ -67,4 +67,9 @@ public abstract class ObjectiveSO : ScriptableObject
     }
 
     protected void ReportProgress(float p) => OnProgressChanged?.Invoke(Mathf.Clamp01(p));
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    /// <summary>개발용: 조건 무시하고 이 objective 를 즉시 완료(퀘스트 스킵 개발자키 F7에서 사용).</summary>
+    public void DevForceComplete() => Complete();
+#endif
 }

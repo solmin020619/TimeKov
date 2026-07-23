@@ -64,7 +64,7 @@ public static class FireBossBuilder
         {
             EnsureFolder(SoFolder);
             so = ScriptableObject.CreateInstance<MeleeEnemyData>();
-            so.enemyName = "화염보스"; so.enemyId = "fire_boss";
+            so.enemyName = "화염정령"; so.enemyId = "fire_boss";
             so.maxHP = 850f;   // 최대 보스. 이동 못하니 카이팅 안티어트리션(리쉬 리셋)과 광역으로 압박
             so.moveSpeed = 0f; so.acceleration = 0f; so.angularSpeed = 240f; so.stoppingDistance = 0f;
             so.visionRange = 35f; so.visionAngle = 360f;
