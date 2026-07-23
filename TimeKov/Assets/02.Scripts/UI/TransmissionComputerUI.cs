@@ -8,7 +8,7 @@
 // 주의(스펙 F-3): 특수 글리프(✓ ? ▤ ◆ ★ ▶ ●)는 폰트 아틀라스에 없어 □로 깨지므로
 //   전부 도형/스프라이트로 그린다(텍스트로 안 씀). "?"만 예외로 폰트 텍스트 사용.
 // 근사 처리: 점선 링→저알파 실선, 4색 게이지→절차 생성 가로 그라데이션 텍스처.
-// 데이터는 스펙 D의 시안 데모 모델(진행 42%, 설원 키트) — 실 인벤토리 연동은 후속.
+// 데이터는 전부 TransmissionManager 실연동(전송률·구역·보상·저장) + 인벤토리 보유 키트. Model 어댑터가 감싼다.
 // =====================================================================
 
 using System;
@@ -298,7 +298,7 @@ public class TransmissionComputerUI : MonoBehaviour
         fillGo.gameObject.AddComponent<RectMask2D>();
         _fill = Img2(NewGO("fillImg", fillGo), HGrad());
         Stretch(_fill.gameObject); _fill.type = Image.Type.Filled; _fill.fillMethod = Image.FillMethod.Horizontal;
-        _fill.fillOrigin = (int)Image.OriginHorizontal.Left; _fill.fillAmount = 0.42f; _fill.raycastTarget = false;
+        _fill.fillOrigin = (int)Image.OriginHorizontal.Left; _fill.fillAmount = 0f; _fill.raycastTarget = false;   // Open 시 SetGauge(실제 전송률)로 채움
         // 스윕 하이라이트(E-1) — fill 마스크 내부에서 이동
         _sweepMaskRT = fillGo;
         _sweep = TL(NewGO("sweep", fillGo), 0, 0, 70, th);
@@ -321,7 +321,7 @@ public class TransmissionComputerUI : MonoBehaviour
         // 진행 노드 — 바 한가운데에 들어가는 원형 노브(슬라이더 손잡이) 스타일.
         _node = NewRT("node", track.gameObject);
         _node.anchorMin = _node.anchorMax = new Vector2(0, 0.5f); _node.pivot = new Vector2(0.5f, 0.5f);
-        _node.sizeDelta = new Vector2(34, th); _node.anchoredPosition = new Vector2(tw * 0.42f, 0);
+        _node.sizeDelta = new Vector2(34, th); _node.anchoredPosition = new Vector2(0f, 0);   // Open 시 SetGauge 로 실제 위치 이동
         // 노브: 글로우 → 어두운 원판 → 밝은 링 → 코어 (바 중앙). 연결선 없이 노브만으로 위치 표시.
         var glow = Img("nGlow", _node.gameObject, 0, 0, 30, 30, C("4CC9F7", 0.22f), UISpriteFactory.Disc(48)); CenterIn(glow, _node); glow.raycastTarget = false;
         var knob = Img("nKnob", _node.gameObject, 0, 0, 20, 20, C("0A1420", 0.98f), UISpriteFactory.Disc(48)); CenterIn(knob, _node); knob.raycastTarget = false;
@@ -916,7 +916,7 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         if (TransmissionManager.Instance != null) return;
         new GameObject("TransmissionManager").AddComponent<TransmissionManager>();
-        Debug.LogWarning("[TransmissionUI] 씬에 TransmissionManager가 없어 런타임 생성했습니다(기본 키트 정의 사용).");
+        Debug.LogWarning("[TransmissionUI] 씬에 TransmissionManager가 없어 런타임 생성했습니다.");
     }
 
     private void SubscribeManager()
@@ -924,7 +924,6 @@ public class TransmissionComputerUI : MonoBehaviour
         if (_mgrSubscribed) return;
         TransmissionManager.OnRateChanged    += HandleRateChanged;
         TransmissionManager.OnRewardMilestone += HandleMilestone;
-        TransmissionManager.OnRegionUnlocked += HandleRegionUnlocked;
         _mgrSubscribed = true;
     }
     private void UnsubscribeManager()
@@ -932,7 +931,6 @@ public class TransmissionComputerUI : MonoBehaviour
         if (!_mgrSubscribed) return;
         TransmissionManager.OnRateChanged    -= HandleRateChanged;
         TransmissionManager.OnRewardMilestone -= HandleMilestone;
-        TransmissionManager.OnRegionUnlocked -= HandleRegionUnlocked;
         _mgrSubscribed = false;
     }
 
@@ -973,20 +971,8 @@ public class TransmissionComputerUI : MonoBehaviour
         if (!IsOpen) return;   // 닫혀있으면 연출 스킵(스테일 큐 방지)
         _revealQ.Enqueue(new Reveal
         {
-            title = $"구간 달성 · {pct}%", name = $"{_m.RewardName(pct)} 획득!",
+            title = $"구간 달성 {pct}%", name = pct >= 100 ? _m.RewardName(pct) : $"{_m.RewardName(pct)} 획득!",
             desc = _m.RewardDesc(pct), color = RegionColorForPct(pct), markerPct = pct, order = pct, milestone = true
-        });
-        ScheduleRevealStart();
-    }
-    private void HandleRegionUnlocked(TransmissionRegion r)
-    {
-        _m.logs.Add($"{RegionKo[(int)r]} 구간 해금"); if (IsOpen) RefreshLog();
-        if (!IsOpen) return;
-        _revealQ.Enqueue(new Reveal
-        {
-            title = "구간 해금", name = $"{RegionKo[(int)r]} 구간 개방!",
-            desc = "새로운 지역으로 시간에너지 전송을 이어갈 수 있습니다.", color = RegionCol[(int)r], markerPct = -1,
-            order = (int)r * 25   // 해금 임계값(설원 25 / 사막 50 / 용암 75) — 같은 지점의 보상보다 앞서게 하는 정렬 키
         });
         ScheduleRevealStart();
     }
@@ -1036,10 +1022,9 @@ public class TransmissionComputerUI : MonoBehaviour
         _rewardIconFrame.effectColor = col;
         foreach (var im in _rewardTint) if (im != null) im.color = col;
 
-        // 타입별 아이콘: 지점 보상=설계도, 구간 해금=지역 마름모
+        // 아이콘: 설비 보상=탑뷰와 동일한 설비 이미지(2개면 대각선 반반), 그 외=보석 엠블럼(설비 사진과 다른 느낌).
         foreach (Transform t in _rewardIconHolder) Destroy(t.gameObject);
-        if (r.markerPct >= 0) BuildDoc(_rewardIconHolder.gameObject, col);
-        else BuildRegionGlyph(_rewardIconHolder.gameObject, col);
+        BuildRewardIcon(_rewardIconHolder.gameObject, r.markerPct, col);
 
         // 초기 상태로 리셋
         _reward.SetActive(true); _reward.transform.SetAsLastSibling();
@@ -1344,39 +1329,18 @@ public class TransmissionComputerUI : MonoBehaviour
         public float progress => Mgr != null ? Mgr.TransmissionRate : 0f;
         public TransmissionRegion Cur => Mgr != null ? Mgr.CurrentRegion : TransmissionRegion.Nature;
 
-        // ⚠️[임시 UI 확인용] 인벤토리에 키트가 없어도 더미 키트를 띄우고, 전송 시 인벤토리 소모 없이
-        //   전송률만 올려(DevAddRate) 게이지·보상 연출을 확인한다. UI 검증이 끝나면 이 플래그를 false 로
-        //   되돌리고 관련 임시 분기(RebuildKits/Usable/Send)를 제거할 것.
-#if UNITY_EDITOR
-        public static readonly bool TempKitPreview = true;
-#else
-        public static readonly bool TempKitPreview = false;
-#endif
-
-        // 인벤토리에 실제 보유한 키트로 목록 재구성.
+        // 인벤토리에 실제 보유한 키트로 목록 재구성. 이름은 ItemData 시트에서 가져온다.
         public void RebuildKits()
         {
             kits.Clear();
             if (Mgr != null)
-            {
-                if (TempKitPreview)
-                {
-                    // [임시] 인벤토리 무시 — 정의된 전 키트를 더미 수량으로 표시.
-                    foreach (var d in Mgr.KitDefs)
-                        kits.Add(new Kit
-                        {
-                            def = d, id = d.itemId.ToString(), name = d.displayName,
-                            region = d.region, isBoss = d.isBoss, gain = d.ratePercent, qty = 9
-                        });
-                }
-                else foreach (var d in Mgr.GetOwnedKits())
+                foreach (var d in Mgr.GetOwnedKits())
                     kits.Add(new Kit
                     {
-                        def = d, id = d.itemId.ToString(), name = d.displayName,
+                        def = d, id = d.itemId.ToString(), name = Mgr.GetKitName(d),
                         region = d.region, isBoss = d.isBoss, gain = d.ratePercent,
                         qty = Mgr.GetOwnedCount(d.itemId)
                     });
-            }
             if (selectedId != null && Selected() == null) selectedId = null;  // 선택 키트가 소진됐으면 해제
         }
 
@@ -1386,14 +1350,6 @@ public class TransmissionComputerUI : MonoBehaviour
         public bool Usable(Kit k)
         {
             if (Mgr == null || k == null) return false;
-            if (TempKitPreview)
-            {
-                // [임시] 인벤토리 검사만 생략하고 구간/상한/보스 규칙은 그대로 미리보기.
-                if (progress >= TransmissionManager.MaxRate) return false;
-                if (k.region != Cur) return false;
-                if (!k.isBoss && progress >= Mgr.CurrentRegionNormalCap) return false;
-                return Target(k) > Mathf.RoundToInt(progress);
-            }
             return Mgr.CanTransmit(k.def, out _);
         }
         public int Target(Kit k) => (Mgr != null && k != null) ? Mgr.GetProjectedRate(k.def) : Mathf.RoundToInt(progress);
@@ -1412,16 +1368,6 @@ public class TransmissionComputerUI : MonoBehaviour
         public bool Send(Kit k)
         {
             if (Mgr == null || k == null) return false;
-#if UNITY_EDITOR
-            if (TempKitPreview)
-            {
-                // [임시] 인벤토리 소모 없이 전송률만 올려 게이지/보상 연출 확인. (DevAddRate = 에디터 전용)
-                int delta = Mgr.GetProjectedRate(k.def) - Mgr.TransmissionRate;
-                if (delta <= 0) return false;
-                Mgr.DevAddRate(delta);
-                return true;
-            }
-#endif
             return Mgr.TryTransmit(k.def.itemId);
         }
 
@@ -1432,20 +1378,26 @@ public class TransmissionComputerUI : MonoBehaviour
             return pct == next ? MState.Next : MState.Locked;
         }
 
+        // 실제 지급 보상(TransmissionManager.GrantMilestoneRewards)과 일치. 귀환석은 2단계 예정이라 제외.
         public string RewardName(int pct) => pct switch
         {
-            10 => "설비 설계도 I", 20 => "설비 설계도 II", 30 => "설비 설계도 III",
-            40 => "설비 설계도 IV", 50 => "설비 설계도 V", 60 => "설비 설계도 VI",
-            70 => "영구 귀환석", 80 => "우주선 부품 A", 90 => "우주선 부품 B",
-            _ => "최종 보상 - 엔딩"
+            10 => "용해로", 20 => "코어 합성기 / 선체 보강재", 30 => "화학 정제기",
+            40 => "저장고", 50 => "창고 출력 포트 / 동력 안정기", 60 => "생체 분리기 / 에너지 변환기",
+            70 => "창고 출력 포트 증설", 80 => "우주선 엔진", 90 => "최종 보급 꾸러미",
+            _ => "전송 완료"
         };
 
-        // 보상 설명(연출용). TODO: 실제 설비 이름/효과는 보상 데이터 확정 후 교체.
         public string RewardDesc(int pct) => pct switch
         {
-            10 or 20 or 30 or 40 or 50 or 60 => "새로운 설비 설계도를 사용할 수 있습니다.",
-            70 => "언제든 기지로 즉시 귀환할 수 있습니다.",
-            80 or 90 => "우주선 복원에 필요한 핵심 부품을 확보했습니다.",
+            10 => "용해로 설비를 해금했습니다.",
+            20 => "코어 합성기 해금 + 우주선 선체 보강재를 확보했습니다.",
+            30 => "화학 정제기 설비를 해금했습니다.",
+            40 => "저장고 설비를 해금했습니다.",
+            50 => "창고 출력 포트 해금 + 우주선 동력 안정기를 확보했습니다.",
+            60 => "생체 분리기, 에너지 변환기 설비를 해금했습니다.",
+            70 => "창고 출력 포트 건설 수가 1 늘어났습니다.",
+            80 => "우주선 엔진을 확보했습니다.",
+            90 => "최종 보급 꾸러미(앰플 4종)를 받았습니다.",
             _ => "시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!"
         };
 
@@ -1631,6 +1583,85 @@ public class TransmissionComputerUI : MonoBehaviour
         b.rectTransform.anchoredPosition = new Vector2(2.5f, 1f); b.rectTransform.localRotation = Quaternion.Euler(0, 0, -45); b.raycastTarget = false;
     }
     // 설계도(문서) 아이콘 = 3줄 막대
+    // 리빌 카드 아이콘 — 설비 보상이면 탑뷰와 동일한 설비 이미지(2개면 대각선 반반),
+    //   비설비 보상(창고포트 증설·엔진·보급꾸러미 등)은 설비 사진과 다른 느낌으로 보석 엠블럼.
+    private void BuildRewardIcon(GameObject holder, int pct, Color col)
+    {
+        var ids = TransmissionManager.Instance != null ? TransmissionManager.Instance.GetRewardFacilityIds(pct) : null;
+        var db  = FacilityIconDatabase.Instance;
+
+        if (ids != null && ids.Count >= 2 && db != null)
+        {
+            // 2개 — "/" 대각선 기준 왼쪽위 / 오른쪽아래로 반반 분할(각 설비가 자기 삼각형 코너를 채움).
+            //   삼각형 마스크에 간격을 넣어 구분선처럼 보이게 한다(별도 선 불필요).
+            AddFacilityHalf(holder, db.GetIcon(ids[0]), true);   // 왼쪽위
+            AddFacilityHalf(holder, db.GetIcon(ids[1]), false);  // 오른쪽아래
+            return;
+        }
+        if (ids != null && ids.Count == 1 && db != null)
+        {
+            var sp = db.GetIcon(ids[0]);
+            if (sp != null) { AddFacilityImg(holder, sp, Vector2.zero, 1f); return; }
+            // 설비 이미지가 없으면(예: 저장고) 아래 엠블럼으로 폴백
+        }
+
+        // 비설비 보상 또는 이미지 없음 — 보석 엠블럼.
+        BuildGem(holder, col);
+    }
+
+    // 홀더 중앙에 설비 이미지 1장(원본 비율 유지). offset/scale 로 대각선 배치.
+    private void AddFacilityImg(GameObject holder, Sprite sp, Vector2 offset, float scale)
+    {
+        if (sp == null) return;
+        var go = new GameObject("facIcon", typeof(RectTransform));
+        var rt = (RectTransform)go.transform; rt.SetParent(holder.transform, false);
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(28f, 28f) * scale; rt.anchoredPosition = offset;
+        var img = go.AddComponent<Image>(); img.sprite = sp; img.preserveAspect = true; img.raycastTarget = false;
+    }
+
+    // 설비 2개 대각 분할: 설비 이미지를 삼각형 절반으로 마스킹하고, 내용이 그 삼각형 코너로 오도록 배치.
+    private void AddFacilityHalf(GameObject holder, Sprite sp, bool topLeft)
+    {
+        if (sp == null) return;
+        var maskGO = new GameObject(topLeft ? "halfTL" : "halfBR", typeof(RectTransform));
+        var mrt = (RectTransform)maskGO.transform; mrt.SetParent(holder.transform, false);
+        mrt.anchorMin = mrt.anchorMax = mrt.pivot = new Vector2(0.5f, 0.5f);
+        mrt.sizeDelta = new Vector2(28f, 28f); mrt.anchoredPosition = Vector2.zero;
+        var mImg = maskGO.AddComponent<Image>(); mImg.sprite = TriangleSprite(topLeft); mImg.raycastTarget = false;
+        maskGO.AddComponent<Mask>().showMaskGraphic = false;
+
+        var go = new GameObject("facIcon", typeof(RectTransform));
+        var rt = (RectTransform)go.transform; rt.SetParent(maskGO.transform, false);
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(17f, 17f);   // 각 반쪽에 또렷이 들어갈 크기
+        rt.anchoredPosition = topLeft ? new Vector2(-6f, 6f) : new Vector2(6f, -6f);  // 각 삼각형 반쪽 중앙으로
+        var img = go.AddComponent<Image>(); img.sprite = sp; img.preserveAspect = true; img.raycastTarget = false;
+    }
+
+    // 반반 대각 마스크("/" 대각선 기준 왼쪽위 / 오른쪽아래). 두 절반 사이 간격으로 구분선 효과. 캐시.
+    private static Sprite _triTL, _triBR;
+    private static Sprite TriangleSprite(bool topLeft)
+    {
+        if (topLeft && _triTL != null) return _triTL;
+        if (!topLeft && _triBR != null) return _triBR;
+        const int S = 64, gap = 2;
+        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[S * S];
+        var on = new Color32(255, 255, 255, 255); var off = new Color32(255, 255, 255, 0);
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                int d = y - x;   // >0 = 왼쪽위(/ 대각 기준), <0 = 오른쪽아래
+                bool onHalf = topLeft ? (d > gap) : (d < -gap);
+                px[y * S + x] = onHalf ? on : off;
+            }
+        tex.SetPixels32(px); tex.Apply();
+        var sp = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), 100f);
+        if (topLeft) _triTL = sp; else _triBR = sp;
+        return sp;
+    }
+
     private void BuildDoc(GameObject parent, Color col)
     {
         for (int i = 0; i < 3; i++)

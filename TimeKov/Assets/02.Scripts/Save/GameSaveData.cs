@@ -78,6 +78,14 @@ public class GameSaveData
     public int shipRepairPartsMask = 0;
     public int shipRepairExtraMask = 0;
 
+    // ── 시간에너지 전송 (TransmissionManager) ────────────────────────────────
+    // transmissionRate = 전송률(0~100, 감소 안 함) = 진행의 단일 소스.
+    //   수령한 10% 마일스톤은 rate 이하 전부로 도출(재지급 방지). 설비해금/아이템/부품 등 실제
+    //   보상 효과는 각 시스템(FacilityUnlockManager/인벤/ShipRepair)이 따로 저장하므로 여기선 rate만.
+    //   transmissionEndingReached = 100% 엔딩 트리거 1회 발생 여부.
+    public int transmissionRate = 0;
+    public bool transmissionEndingReached = false;
+
     // ── 도감: 아이템 최초 획득 기록 (ItemDiscovery) ──────────────────────────
     public List<int> discoveredItemIds = new();
 
