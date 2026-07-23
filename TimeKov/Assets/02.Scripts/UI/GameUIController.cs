@@ -246,6 +246,8 @@ public class GameUIController : MonoBehaviour
 
     public void CloseAll()
     {
+        TimeKov.UI.WindowManager.SuppressPanelSfx = true;   // 일괄 닫기 — 개별 패널 닫기음 억제(사망/전환 시 우르르 방지)
+        try {
         // PlayerStat도 ESC로 같이 닫음 (단, _currentState와 독립이라 SetState 밖에서 처리)
         if (statPanel != null) statPanel.SetActive(false);
 
@@ -269,6 +271,7 @@ public class GameUIController : MonoBehaviour
 
         // PlayerStat은 별도 채널이라 명시적 mirror
         TimeKov.UI.WindowManager.I?.Close("PlayerStat");
+        } finally { TimeKov.UI.WindowManager.SuppressPanelSfx = false; }
     }
 
     /// <summary>이전 API 호환 — CloseAll()과 동일</summary>
@@ -413,6 +416,8 @@ public class GameUIController : MonoBehaviour
 
         statPanel.SetActive(!statPanel.activeSelf);
 
+        GameSfx.Play(SfxId.PanelStatToggle);   // 스탯창 열·닫 공용음(코드 직결 — 씬 WindowManager 미사용)
+
         // WindowManager mirror — PlayerStat은 _currentState와 독립이라 SetState 안 거침
         var wm = TimeKov.UI.WindowManager.I;
         if (wm != null)
@@ -436,6 +441,15 @@ public class GameUIController : MonoBehaviour
         // 누락 없이 보장하기 위해 모든 진입 경로의 단일 지점인 여기서 처리한다.
         if (newState == UIState.Settings && oldState != UIState.Settings)
             GlobalSettingsManager.Instance?.RefreshOnOpen();
+
+        // 설정창 열·닫음(코드 직결 — 씬 WindowManager 미사용). 일괄 닫기(사망 등) 중엔 억제.
+        if (!TimeKov.UI.WindowManager.SuppressPanelSfx)
+        {
+            if (newState == UIState.Settings && oldState != UIState.Settings)
+                GameSfx.Play(SfxId.PanelSettingsOpen);
+            else if (oldState == UIState.Settings && newState != UIState.Settings)
+                GameSfx.Play(SfxId.PanelSettingsClose);
+        }
 
         ApplyState();
 

@@ -543,6 +543,10 @@ public class BuildManager : MonoBehaviour, ISaveable
         currentIndex = -1;
         CurrentSubMode = BuildSubMode.Facility;
 
+        GameSfx.Play(SfxId.BuildModeEnter);   // 탑뷰(건설모드) 전환 진입음
+
+
+
         if (previewMarker != null)
             previewMarker.SetActive(false);
 
@@ -1426,5 +1430,6 @@ public class BuildManager : MonoBehaviour, ISaveable
             if (slot != null && slot.HasPendingUnlock)
                 slot.PlayUnlockSequence(order++ * 0.26f);
         }
+        // 잠금 해제 연출음(달달→탕)은 각 슬롯의 UnlockRoutine 에서 슬롯별로 재생 — 여러 개 동시 해금 시 스태거대로 순차로 여러 번 난다.
     }
 }

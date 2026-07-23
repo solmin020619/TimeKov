@@ -15,7 +15,7 @@ Material:
   m_InvalidKeywords:
   - _NODE_5845_ON
   m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
+  m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
@@ -49,6 +49,7 @@ Material:
     - _SoftParticlesEnabled: 0
     - _UseFresnel: 0
     - _UseParticleAlphaDissolve: 0
+    - _VertexAlphaRef: 1
     m_Colors:
     - _DissolveEdgeColor: {r: 1, g: 0, b: 0, a: 1}
     - _FlowSpeed: {r: 0, g: 0, b: 0, a: 0}
@@ -57,3 +58,4 @@ Material:
     - _OverlayFlowSpeed: {r: 0, g: 0, b: 0, a: 0}
     - _TintColor: {r: 0.7735849, g: 0.7633677, b: 0.7633677, a: 0.85882354}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1

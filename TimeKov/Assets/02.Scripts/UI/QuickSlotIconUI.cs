@@ -355,6 +355,7 @@ public class QuickSlotIconUI : MonoBehaviour
     {
         if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
 
+        GameSfx.Play(SfxId.FacilityUnlockReveal);   // 이 슬롯의 잠금 해제 연출음(달달→탕). 슬롯마다 스태거로 호출돼 순차로 여러 번 난다.
         _skin.DOShakeAnchorPos(0.36f, new Vector2(7f, 3f), 20, 90, false, true).SetUpdate(true);
         _skin.DOShakeRotation(0.36f, new Vector3(0, 0, 10f), 20, 90).SetUpdate(true);
         yield return new WaitForSecondsRealtime(0.4f);

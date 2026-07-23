@@ -179,11 +179,17 @@ namespace TimeKov.UI
             var rule = openPolicy != null ? openPolicy.FindRule(w.WindowId) : null;
             if (rule != null)
             {
-                for (int i = 0; i < rule.closeOthers.Count; i++)
+                bool prev = SuppressPanelSfx;
+                SuppressPanelSfx = true;   // 다른 창 열며 자동 닫히는 창의 닫기음은 억제(중복음 방지)
+                try
                 {
-                    var other = Find(rule.closeOthers[i]);
-                    if (other != null && IsOpen(other)) Close(other);
+                    for (int i = 0; i < rule.closeOthers.Count; i++)
+                    {
+                        var other = Find(rule.closeOthers[i]);
+                        if (other != null && IsOpen(other)) Close(other);
+                    }
                 }
+                finally { SuppressPanelSfx = prev; }
             }
 
             if (w.Layer == UILayer.Modal)
@@ -196,6 +202,8 @@ namespace TimeKov.UI
 
             try { w.OnOpen(); }
             catch (System.Exception e) { Debug.LogException(e); }
+
+            PlayWindowSfx(w.WindowId, true);   // 패널 열기음(창 id별)
 
             // 정책: alsoOpen 나중 처리 (자기 자신 다 켜진 후)
             if (rule != null)
@@ -242,20 +250,41 @@ namespace TimeKov.UI
             try { w.OnClose(); }
             catch (System.Exception e) { Debug.LogException(e); }
 
+            PlayWindowSfx(w.WindowId, false);   // 패널 닫기음(창 id별)
+
             ApplyGlobalState();
+        }
+
+        // 창 id별 열/닫 효과음. 지정 안 된 창은 무음(도감·인벤토리 등은 자체/미지정).
+        //   스탯·전송기·수리는 열/닫 공용 1클립, 설정·창고는 열/닫 분리.
+        // CloseAll / 자동 연쇄 닫힘 / 외부 일괄 닫기(GameUIController.CloseAll 등) 중엔 닫기음 억제.
+        public static bool SuppressPanelSfx;
+
+        private static void PlayWindowSfx(string id, bool opening)
+        {
+            if (SuppressPanelSfx) return;
+            // 스탯·설정·창고 열닫음은 각 컨트롤러(GameUIController·InventoryUIController)에서 직접 재생하도록 이관.
+            //   (이 씬에는 WindowManager 오브젝트가 없어 이 경로가 안 타므로, 씬 의존을 제거하고 컨트롤러 직결로 통일)
+            //   WindowManager 가 다시 씬에 추가되어도 중복음이 안 나도록 여기서는 재생하지 않는다.
         }
 
         public void CloseAll(bool includeModals = true)
         {
-            // 최근 열린 것부터
-            for (int i = _openOrder.Count - 1; i >= 0; i--)
-                Close(_openOrder[i]);
-
-            if (includeModals)
+            bool prev = SuppressPanelSfx;
+            SuppressPanelSfx = true;   // 일괄 닫기 — 개별 닫기음 억제(사망/전환 시 우르르 방지)
+            try
             {
-                while (_modalStack.Count > 0)
-                    Close(_modalStack.Peek());
+                // 최근 열린 것부터
+                for (int i = _openOrder.Count - 1; i >= 0; i--)
+                    Close(_openOrder[i]);
+
+                if (includeModals)
+                {
+                    while (_modalStack.Count > 0)
+                        Close(_modalStack.Peek());
+                }
             }
+            finally { SuppressPanelSfx = prev; }
         }
 
         // Unregister 시 강제 정리 (OnClose 호출 없이 컨테이너에서만 제거)

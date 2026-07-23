@@ -168,6 +168,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
+        BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
         if (_health != null) _health.Invulnerable = false;   // 회복 중 사망 시 무적 잔존 방지
         _lockScale = false;                                  // 회복 중 사망 시 스케일 고정 해제(사망 애니 정상 재생)
         EndDiveCleanup();   // 다이브/포효띄움 중 사망 시 공중에 멈추지 않게 지면 복구(에이전트 꺼져 있으면 재활성+스냅, 아니면 no-op)
@@ -190,6 +191,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     {
         _leash.Clear();
         _engaged = false;
+        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
 
         StopAllCoroutines();
         _attacking = false;
@@ -230,6 +232,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
             _engaged = true;
             BossHealthBarUI.Show(_health, data != null ? data.enemyName : "보스", bossSubtitle);
             _feedback?.PlayDetect();   // SO detectSound 1회 재생(다른 적과 동일 훅)
+            BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지)
         }
         if (target == null) { StopMove(); return; }
         if (data == null) return;

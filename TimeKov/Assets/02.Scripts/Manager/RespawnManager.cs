@@ -63,6 +63,37 @@ public class RespawnManager : MonoBehaviour, ISaveLoadListener
     // 부활하기 버튼 클릭 신호
     private bool _respawnRequested = false;
 
+    // 게임오버 배경 루프 전용 AudioSource(즉시음은 GameSfx 원샷).
+    private AudioSource _gameOverLoopSrc;
+
+    // 게임오버(사망 화면): 즉시음 1회 + 배경 루프 시작. 루프는 리스폰 시 StopGameOverAudio 로 정지.
+    private void StartGameOverAudio()
+    {
+        BattleBgm.SuspendForGameOver();   // 보스전 중이면 전투 BGM 페이드아웃(게임오버 사운드와 안 겹치게)
+        GameSfx.Play(SfxId.GameOverImmediate);   // 즉시음(2D 원샷)
+
+        if (!GameSfx.TryGet(SfxId.GameOverLoopBg, out var clip, out var vol) || clip == null) return;
+        if (_gameOverLoopSrc == null)
+        {
+            var go = new GameObject("[GameOverLoop]");
+            go.transform.SetParent(transform);
+            _gameOverLoopSrc = go.AddComponent<AudioSource>();
+            _gameOverLoopSrc.spatialBlend = 0f;      // 2D
+            _gameOverLoopSrc.playOnAwake = false;
+            _gameOverLoopSrc.loop = false;   // 루프 없이 1회만 재생(리스폰 전에 끝나면 그대로 멈춤)
+            _gameOverLoopSrc.ignoreListenerPause = true;   // timeScale/pause 중에도 재생
+        }
+        _gameOverLoopSrc.clip = clip;
+        _gameOverLoopSrc.volume = vol * GlobalSettingsManager.CurrentBGMVolume;   // 배경음이라 BGM 볼륨 반영
+        _gameOverLoopSrc.Play();
+    }
+
+    private void StopGameOverAudio()
+    {
+        if (_gameOverLoopSrc != null) _gameOverLoopSrc.Stop();
+        BattleBgm.ResumeAfterGameOver();   // 리스폰: 정지해 뒀던 필드 BGM 재개
+    }
+
     IEnumerator RespawnRoutine()
     {
         _isRespawning     = true;
@@ -88,6 +119,7 @@ public class RespawnManager : MonoBehaviour, ISaveLoadListener
             DropInventoryItems();
 
         // 3. DEFEAT 오버레이 표시 + 카운트다운 후 버튼 활성화
+        StartGameOverAudio();   // 즉시음 1회 + 배경 루프(리스폰 시 정지)
         if (deathOverlay != null)
         {
             deathOverlay.Show(RespawnDelay, () => _respawnRequested = true);
@@ -98,6 +130,7 @@ public class RespawnManager : MonoBehaviour, ISaveLoadListener
             Debug.LogWarning("[RespawnManager] deathOverlay가 null → 딜레이로 대체");
             yield return new WaitForSeconds(RespawnDelay);
         }
+        StopGameOverAudio();
 
         // 2. 스탯 회복 (IsDead → false). 부활 체력은 코어 레벨 기반(없으면 인스펙터 폴백).
         float respawnPct = CoreUpgradeManager.Instance != null

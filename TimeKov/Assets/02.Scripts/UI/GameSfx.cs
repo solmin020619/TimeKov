@@ -71,6 +71,25 @@ public enum SfxId
     MachineLoop,
     MachineProductionStart,
     MachineProductionDone,
+
+    // ── 패널 열닫 (WindowManager 중앙 개폐 / 각 UI Open·Close) ──
+    PanelStatToggle,          // 스탯창(C) 열·닫 공용(1클립)
+    PanelSettingsOpen,        // 설정창(Esc) 열기
+    PanelSettingsClose,       // 설정창(Esc) 닫기
+    PanelWarehouseOpen,       // 창고(=인벤토리) 열기
+    PanelWarehouseClose,      // 창고(=인벤토리) 닫기
+    PanelTransmissionToggle,  // 시간에너지 전송기 열·닫 공용(1클립)
+    PanelShipRepairToggle,    // 우주선 수리 열·닫 공용(1클립)
+
+    // ── 월드/이벤트 ──
+    BuildModeEnter,           // 탑뷰(건설모드) 전환 진입음
+    ShipPartPickup,           // 우주선 부품(부품0/1/2) 획득음
+    FacilityUnlockReveal,     // 탑뷰에서 설비 잠금 해제 연출(달달→탕) 시작음
+    GameOverImmediate,        // 게임오버(사망 화면) 즉시음 1회
+    GameOverLoopBg,           // 게임오버 배경 루프(즉시음과 동시 시작 → 리스폰 시 정지). 클립만 여기서 관리.
+
+    // ── 전투 브금 (BattleBgm · 클립만 여기서 관리, 재생은 BattleBgm 전용 소스) ──
+    WyvernBattleBgm,          // 와이번 보스전 전용 BGM(교전 시 재생 → 처치/이탈 시 정지)
 }
 
 // 런타임 UI/이벤트 효과음 재생기 (지연 싱글톤, 씬 세팅 불필요).

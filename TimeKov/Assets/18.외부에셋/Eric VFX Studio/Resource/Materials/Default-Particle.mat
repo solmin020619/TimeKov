@@ -16,7 +16,7 @@ Material:
   - _EMISSION
   - _SUNDISK_HIGH_QUALITY
   m_LightmapFlags: 1
-  m_EnableInstancingVariants: 0
+  m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
@@ -128,6 +128,7 @@ Material:
     - _UVSec: 0
     - _UseFresnel: 0
     - _UseParticleAlphaDissolve: 0
+    - _VertexAlphaRef: 1
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}

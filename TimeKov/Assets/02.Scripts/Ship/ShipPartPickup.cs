@@ -59,6 +59,8 @@ public class ShipPartPickup : MonoBehaviour
     {
         _taken = true;
 
+        GameSfx.Play(SfxId.ShipPartPickup, transform.position);   // 우주선 부품 전용 획득음(3D)
+
         var mgr = ShipRepairManager.Instance;
         if (mgr != null)
         {
