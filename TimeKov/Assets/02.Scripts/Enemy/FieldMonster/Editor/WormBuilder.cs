@@ -41,7 +41,7 @@ public static class WormBuilder
             enemyName = "자이언트웜", enemyId = "giant_worm", sourceId = "MeleeBot_GiantWorm",
 
             // 스탯 — 고정 매복 엘리트. 사거리=스윕 반경, 시야=사거리(그 안에 들어와야 감지·타격) → 이동 불필요
-            maxHP = 200f, moveSpeed = 2f, attackDamage = 35f,
+            maxHP = 180f, moveSpeed = 2f, attackDamage = 24f,
             attackRange = 6f, attackApproachRatio = 1.0f,     // 접근 안 함(그 자리서 스윕). reach(6)≥시야(5.5) → Chase 무이동
             visionRange = 5.5f, visionAngle = 360f,           // 사방 감지(사거리 안일 때만)
 

@@ -20,7 +20,8 @@ public static class MushroomBuilder
     //   예전엔 4종이 sourceId 를 공유해서 도감/드롭이 한 몬스터로 뭉쳐 있었다.
     public static void BuildNature() => Make("머쉬룸몬스터기본",                        // 자연(Red). 기존 이름 유지(씬 인스턴스 보존)
         OutSO + "/FieldData_Mushroom.asset",        OutPre + "/Enemy_Mushroom.prefab",
-        "머쉬룸",      "mushroom",        "MeleeBot_Mushroom");
+        "머쉬룸",      "mushroom",        "MeleeBot_Mushroom",
+        hp: 60f, atk: 12f);   // 자연맵 입문 = 서리/용암/모래 머쉬룸(95/16)보다 약하게
 
     public static void BuildSnow()   => Make("머쉬룸몬스터3",                           // 설산(Cold)
         OutSO + "/FieldData_Mushroom_Snow.asset",   OutPre + "/Enemy_Mushroom_Snow.prefab",
@@ -36,7 +37,8 @@ public static class MushroomBuilder
 
     // ── 공통 설정(패턴/스탯/클립) — 모델 프리팹 + 출력 경로 + 정체만 갈아끼움 ──
     static void Make(string modelName, string soPath, string prefabPath,
-                     string name, string id, string sid)
+                     string name, string id, string sid,
+                     float hp = 95f, float atk = 16f)   // 자연은 BuildNature 에서 낮춰 부른다(입문맵). 서리/용암/모래는 기본값(95/16).
     {
         FieldMonsterBuilder.Build(new FieldMonsterBuildConfig
         {
@@ -66,7 +68,7 @@ public static class MushroomBuilder
             enemyName = name, enemyId = id, sourceId = sid,
 
             // 스탯 — 먼 거리에서 달려드는 돌진형(중간 체력)
-            maxHP = 80f, moveSpeed = 3.5f, attackDamage = 20f,
+            maxHP = hp, moveSpeed = 3.5f, attackDamage = atk,
             attackRange = 10f, attackApproachRatio = 0.9f,   // ~9m 안 들어오면 돌진 개시(멀리서 시작)
             visionRange = 20f, visionAngle = 300f,
             staggerChance = 0.4f,   // 피격 경직 40%
