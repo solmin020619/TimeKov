@@ -29,6 +29,10 @@ public class CodexPreviewConfig : ScriptableObject
         public float fillScale = 0.7f;
         [Tooltip("프레임 내 수평 위치(월드 단위). + = 왼쪽으로, - = 오른쪽으로. 모델이 한쪽 치우치면 보정")]
         public float xOffset = 0f;
+
+        [Tooltip("프리뷰에서 강제로 재생할 애니 상태 이름(layer 0). 비워두면 기본 상태 재생.\n" +
+                 "화염보스처럼 기본 상태가 '등장/상승' 클립이라 프리뷰가 떠오르는 경우 'Idle' 지정.")]
+        public string previewAnimState = "";
     }
 
     public List<MonsterEntry> monsters = new List<MonsterEntry>();

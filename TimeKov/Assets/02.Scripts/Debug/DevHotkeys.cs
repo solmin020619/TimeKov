@@ -12,9 +12,11 @@
 //  F3 = 도감 전부해금 토글 (도감 열려 있을 때만)    UI/CodexUI.cs                 [에디터/Dev빌드 전용 가드 있음]
 //  F4 = 테스트 아이템 지급                         Factory/TestItemSpawner.cs    [에디터/Dev빌드 전용 가드 있음]  (debugKey = 인스펙터 직렬화값)
 //  F5 = 우주선 다음 수리 재료 전부 지급             Debug/DevHotkeys.cs           [에디터/Dev빌드 전용 가드 있음]
+//  F6 = 플레이어 비행 토글 (Space 상승+애니정지 <-> 다시 누르면 낙하)  Debug/DevHotkeys.cs [에디터/Dev빌드 전용 가드 있음]
+//  F7 = 현재 튜토리얼 퀘스트 스킵 (보상 정상 지급)               Debug/DevHotkeys.cs [에디터/Dev빌드 전용 가드 있음]
 //  `  = 설비 1~9 전부 즉시 해금                    Grid/FacilityUnlockManager.cs [에디터/Dev빌드 전용 가드 있음]
 //
-//  F1~F5 + ` : 정식 빌드에선 컴파일에서 빠진다(에디터/Development Build 에서만 동작).
+//  F1~F7 + ` : 정식 빌드에선 컴파일에서 빠진다(에디터/Development Build 에서만 동작).
 // ============================================================
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -45,6 +47,18 @@ public class DevHotkeys : MonoBehaviour
         //   (추가 재료 = 시간에너지 보상) 맵에 테스트용 픽업을 깔 이유가 없다. 이 키로 대체한다.
         if (Input.GetKeyDown(KeyCode.F5))
             GrantShipRepairMaterials();
+
+        // F6 = 플레이어 비행 토글. 애니 정지 + 자유 비행 -> 다시 누르면 중력 복귀(낙하).
+        //   높은 곳 확인/맵 이동 테스트용. WASD 수평 조종 + Space 상승(누르는 동안).
+        if (Input.GetKeyDown(KeyCode.F6))
+        {
+            var p = FindAnyObjectByType<Player>();
+            if (p != null && p.Movement != null) p.Movement.SetFlyMode(!p.Movement.FlyMode);
+        }
+
+        // F7 = 현재 진행 중인 튜토리얼 퀘스트 강제 완료(스킵). 보상도 정상 지급되고 다음 퀘로 넘어간다.
+        if (Input.GetKeyDown(KeyCode.F7))
+            QuestManager.Instance?.DevSkipCurrentQuest();
     }
 
     private static void GrantShipRepairMaterials()

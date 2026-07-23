@@ -50,6 +50,12 @@ public class PlayerMovementComponent : MonoBehaviour
     [Tooltip("자동으로 올라설 수 있는 최대 턱/계단 높이. 이보다 높으면 벽으로 취급해 막힘")]
     public float MaxStepHeight = 0.3f;
 
+    [Header("Dev Fly (개발자키 F6 - 테스트용)")]
+    [Tooltip("비행 모드 수평 이동 속도(빠르게)")]
+    public float FlySpeed = 20f;
+    [Tooltip("비행 모드 상승 속도(비행 중 Space 누르는 동안 이 속도로 상승)")]
+    public float FlyRiseSpeed = 12f;
+
     private Player _player;
     private Rigidbody _rb;
     private CapsuleCollider _capsule;
@@ -84,6 +90,7 @@ public class PlayerMovementComponent : MonoBehaviour
     private Vector3 _dashDir;          // 대쉬 수평 방향(정규화)
     private float   _dashSpeed;        // 대쉬 속도
     private bool _movementLocked;
+    private bool _flyMode;                  // 개발자 비행(F6) 토글
     private float _postUnlockPhysTimer;   // 물리 dead zone: 이 시간 동안 velocity=0 (공격 후 즉시 이동 차단)
     private float _postUnlockAnimTimer;   // 애니메이션 sync: IsPostLockTransition 유지 (damping=0)
     private const float POST_UNLOCK_PHYS = 0.15f; // 물리 dead zone 길이
@@ -247,6 +254,9 @@ public class PlayerMovementComponent : MonoBehaviour
             return;
         }
         _deadHandled = false;   // 살아있음 = 다음 사망 위해 재무장(부활/리셋 포함)
+
+        // 개발자 비행(F6): 물리 파이프라인 전체를 건너뛰고 자유 비행. 살아있을 때만(사망은 위에서 처리).
+        if (_flyMode) { HandleFly(); return; }
 
         // 대쉬 중: 물리를 대쉬 전용으로 구동(경사 투영) + 표면을 막 벗어난 순간(크레스트) 스냅으로
         // 지면에 붙잡음 → 경사 대쉬가 꼭대기에서 공중에 뜨는 것 방지. (접지 중엔 스냅 안 함 = 관통 없음)
@@ -812,6 +822,32 @@ public class PlayerMovementComponent : MonoBehaviour
         Vector3 held = GetMoveDirection(_player.Input.MoveInputRaw);
         _planarVel = held.sqrMagnitude > 0.01f ? held * MoveSpeed : Vector3.zero;
         _rb.linearVelocity = new Vector3(_planarVel.x, _rb.linearVelocity.y, _planarVel.z);
+    }
+
+    // ── 개발자 비행(F6) ──────────────────────────────────────────
+    public bool FlyMode => _flyMode;
+
+    /// <summary>개발용 비행 토글. on=중력/이동 파이프라인 무시하고 떠오름 + 애니 정지. off=중력 복귀 -> 낙하.</summary>
+    public void SetFlyMode(bool on)
+    {
+        if (_flyMode == on) return;
+        _flyMode = on;
+        _isJumping = false;
+        _jumpRequested = false;
+        _dashDriving = false;
+        _stepping = false;
+        _rb.linearVelocity = Vector3.zero;
+        _player.Anim?.SetFrozen(on);   // 켜면 현재 포즈 고정, 끄면 애니 재개
+    }
+
+    void HandleFly()
+    {
+        // 수평 = 카메라 기준 방향키. 수직 = Space 누르는 동안만 상승(안 누르면 그 높이 유지=호버).
+        // 다시 F6 누르면 비행 해제 -> 중력 복귀(낙하).
+        _jumpRequested = false;   // 비행 중 Space 로 점프가 큐잉되지 않게
+        Vector3 horiz = GetMoveDirection(_player.Input.MoveInputRaw) * FlySpeed;
+        float vy = Input.GetKey(KeyCode.Space) ? FlyRiseSpeed : 0f;
+        _rb.linearVelocity = new Vector3(horiz.x, vy, horiz.z);
     }
 
     // 설비·건물 등 GroundMask 가 아닌 콜라이더에 닿은 채 이동 입력이 없으면

@@ -82,6 +82,18 @@ public class CodexMonsterPortrait : MonoBehaviour
         StripForPreview(_current);
         _holder.gameObject.SetActive(true);
 
+        // 일부 몹(화염보스)은 애니메이터 기본 상태가 '등장/상승' 클립이라 프리뷰가 위로 떠오른다.
+        // previewAnimState 가 지정돼 있으면 그 상태(idle 등)를 강제 재생 + 즉시 평가해 안정 포즈로 잡는다.
+        if (!string.IsNullOrEmpty(e.previewAnimState))
+        {
+            var anim = _current.GetComponentInChildren<Animator>(true);
+            if (anim != null && anim.HasState(0, Animator.StringToHash(e.previewAnimState)))
+            {
+                anim.Play(e.previewAnimState, 0, 0f);
+                anim.Update(0f);   // 바운드 계산 전에 그 포즈로 즉시 평가
+            }
+        }
+
         var b = CalcBounds(_current);
         // 값이 0(미설정)이면 기본값. yaw 기본 30 = 3/4 뷰(정면은 4족/긴 몸체의 깊이가 안 보여 과확대됨).
         float aimH = e.aimHeight > 0.01f ? e.aimHeight : 0.5f;
@@ -137,14 +149,31 @@ public class CodexMonsterPortrait : MonoBehaviour
             rb.isKinematic = true; rb.detectCollisions = false;
         }
         // 애니메이터는 켜둠(정지 중 idle 재생되게 unscaled). 끄면 T포즈로 굳음.
+        // applyRootMotion 끔 = 스폰/등장 클립의 루트 모션으로 프리뷰가 위로 떠오르는 것 방지(화염보스).
+        // 루트 위치/스케일 커브(applyRootMotion 이 안 막는 것)는 LateUpdate 에서 추가로 고정.
         foreach (var a in go.GetComponentsInChildren<Animator>(true))
+        {
             a.updateMode = AnimatorUpdateMode.UnscaledTime;
+            a.applyRootMotion = false;
+        }
     }
 
     public void ClearInstance()
     {
         if (_current != null) { Destroy(_current); _current = null; }
         if (_cam != null) _cam.enabled = false;
+    }
+
+    // 프리뷰 인스턴스가 자기 애니메이션(루트 모션 / 루트의 위치·스케일 커브)으로 프레임 밖으로
+    // 떠오르거나 커지는 것 방지. 일부 클립(화염보스 등)이 루트를 위로 크게 올린다.
+    // 애니메이션은 계속 재생하되(idle 유지) 루트의 위치/스케일만 매 프레임 고정한다.
+    void LateUpdate()
+    {
+        if (_current != null)
+        {
+            _current.transform.localPosition = Vector3.zero;
+            _current.transform.localScale = Vector3.one;
+        }
     }
 
     void OnDestroy()

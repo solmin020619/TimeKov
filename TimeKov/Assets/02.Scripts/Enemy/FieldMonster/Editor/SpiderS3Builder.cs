@@ -42,7 +42,7 @@ public static class SpiderS3Builder
             staggerChance = 0.45f,   // 가벼운 몹 — 자주(그래도 매번은 아님) 경직
 
             // 사운드(있는 것만)
-            spawnVfx  = "Assets/18.외부에셋/Eric VFX Studio/몬스터스폰VFX/Prefabs/FX_MagicCircle_Icearrow01.prefab",
+            // spawnVfx 는 FieldMonsterBuilder 가 sourceId(자연) 기준 자동 배정(EnemySpawnVfx). 여기서 명시 안 함.
             sndDetect = "Assets/10. Sound/1. 사운드 모음/몬스터/거미/M_SpiderFind.mp3",
             sndAttack = "Assets/10. Sound/1. 사운드 모음/몬스터/거미/M_SpiderAttack.mp3",
             sndDie    = "Assets/10. Sound/1. 사운드 모음/몬스터/거미/M_SpiderDie.mp3",

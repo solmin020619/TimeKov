@@ -116,6 +116,12 @@ public class PlayerAnimatorComponent : MonoBehaviour
         _player.Audio?.PlayJump();
     }
 
+    /// <summary>개발용(비행 등): 애니메이션 정지/재개. speed 토글이라 이동 파라미터가 바뀌어도 현재 포즈가 고정된다.</summary>
+    public void SetFrozen(bool frozen)
+    {
+        if (_anim != null) _anim.speed = frozen ? 0f : 1f;
+    }
+
     public void ResetToIdle()
     {
         // GS_Die는 Action Layer(레이어 1)에 있음 → 레이어 1도 Empty로 리셋해야 함
