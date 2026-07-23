@@ -48,6 +48,7 @@ public static class SpiderQueenBuilder
         soPath: OutSO + "/FieldData_SpiderQueen_Nature.asset",
         prefabPath: OutPre + "/Enemy_SpiderQueen_Nature.prefab",
         name: "숲 거미여왕", id: "spider_queen_nature", sid: "MeleeBot_SpiderQueen_Nature",
+        hp: 240f, atk: 20f,                                      // 자연 중간보스 = 3 거미여왕 중 최약(설산 본드래곤 320보다 아래)
         ranged: false,                                           // ★근접
         attackClip: "Anim@Spider_S_Queen_attack5",               // 근접 공격 모션
         atkRange: 3.2f,
@@ -64,6 +65,7 @@ public static class SpiderQueenBuilder
                      string tele, string muzzle, string proj, string impact,
                      string soPath, string prefabPath,
                      string name, string id, string sid,
+                     float hp = 290f, float atk = 24f,   // 서리/사막 = 엘리트(기본값). 자연은 BuildNature 에서 낮춰 부른다(중간보스).
                      bool ranged = true,
                      string attackClip = "Anim@Spider_S_Queen_attack3",
                      float atkRange = 13f, float approachRatio = 0.85f,
@@ -97,7 +99,7 @@ public static class SpiderQueenBuilder
             enemyName = name, enemyId = id, sourceId = sid,
 
             // 스탯(공통)
-            maxHP = 200f, moveSpeed = 3.5f, attackDamage = 25f,
+            maxHP = hp, moveSpeed = 3.5f, attackDamage = atk,
             attackRange = atkRange, attackApproachRatio = approachRatio,
             visionRange = 22f, visionAngle = 320f,
             walkAnimRefSpeed = 2.0f,

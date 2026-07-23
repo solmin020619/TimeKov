@@ -52,7 +52,7 @@ public static class HellMonsterConfigs
         folderName = "헬하운드",
         // ★크기 1.5배. 콜라이더는 로컬값이라 scale 이 알아서 키우지만,
         //   월드 좌표로 도는 값들(사거리/시야높이/전조높이/입오프셋)은 여기서 직접 1.5배 해줬다.
-        maxHP = 90, moveSpeed = 5.4f, attackDamage = 14f, attackRange = 3.9f, attackCooldown = 1.4f,
+        maxHP = 110, moveSpeed = 5.4f, attackDamage = 16f, attackRange = 3.9f, attackCooldown = 1.4f,
         visionRange = 20f, visionAngle = 300f,
         bodyHeight = 1.6f, bodyRadius = 0.6f, scale = 1.5f, eyeHeight = 1.8f,
         clipIdle = "Idle1", clipWalk = "Walk", clipRun = "Run",
@@ -103,7 +103,7 @@ public static class HellMonsterConfigs
     {
         enemyName = "헬뱃", enemyId = "hell_bat", sourceId = "hell_bat",
         folderName = "헬뱃",
-        maxHP = 65, moveSpeed = 5.2f, attackDamage = 11f, attackRange = 2.3f, attackCooldown = 1.2f,
+        maxHP = 80, moveSpeed = 5.2f, attackDamage = 13f, attackRange = 2.3f, attackCooldown = 1.2f,
         visionRange = 18f, visionAngle = 280f,
         bodyHeight = 1.5f, bodyRadius = 0.55f, scale = 1f, eyeHeight = 1.2f,
         clipIdle = "Idle1", clipWalk = "Walk", clipRun = "Run",
@@ -146,7 +146,7 @@ public static class HellMonsterConfigs
     {
         enemyName = "헬버그", enemyId = "hell_bug", sourceId = "hell_bug",
         folderName = "헬버그",
-        maxHP = 110, moveSpeed = 3.6f, attackDamage = 16f, attackRange = 2.8f, attackCooldown = 1.8f,
+        maxHP = 130, moveSpeed = 3.6f, attackDamage = 18f, attackRange = 2.8f, attackCooldown = 1.8f,
         visionRange = 17f, visionAngle = 360f,
         bodyHeight = 1.4f, bodyRadius = 0.75f, scale = 1f, eyeHeight = 1.0f,
         clipIdle = "Idle", clipWalk = "Walk", clipRun = "Run",   // ★이 몹만 Idle1 이 아니라 Idle
@@ -201,7 +201,7 @@ public static class HellMonsterConfigs
     {
         enemyName = "헬플라잉데몬", enemyId = "hell_flying_demon", sourceId = "hell_flying_demon",
         folderName = "헬플라잉데몬",
-        maxHP = 75, moveSpeed = 4.4f, attackDamage = 13f, attackRange = 2.6f, attackCooldown = 1.6f,
+        maxHP = 90, moveSpeed = 4.4f, attackDamage = 15f, attackRange = 2.6f, attackCooldown = 1.6f,
         visionRange = 20f, visionAngle = 300f,
         bodyHeight = 1.7f, bodyRadius = 0.6f, scale = 1f, eyeHeight = 1.3f,
         // ★몸만 띄운다. 다리가 땅에 닿으면 걷기 클립이 없는 게 바로 티가 난다.
@@ -278,7 +278,7 @@ public static class HellMonsterConfigs
     {
         enemyName = "헬사이클롭", enemyId = "hell_cyclop", sourceId = "hell_cyclop",
         folderName = "헬사이클롭",
-        maxHP = 220, moveSpeed = 3.2f, attackDamage = 24f, attackRange = 3.4f, attackCooldown = 2.4f,
+        maxHP = 260, moveSpeed = 3.2f, attackDamage = 24f, attackRange = 3.4f, attackCooldown = 2.4f,
         visionRange = 22f, visionAngle = 270f,
         bodyHeight = 2.6f, bodyRadius = 0.95f, scale = 1f, eyeHeight = 2.0f,
         clipIdle = "Idle1", clipWalk = "Walk", clipRun = "Run",

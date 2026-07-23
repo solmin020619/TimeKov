@@ -20,7 +20,8 @@ public static class RockMonsterBuilder
     // ★[07-22] 테마마다 정체(이름/id/드롭키)를 따로 준다. 도감엔 4칸으로 뜨고 맵마다 다른 걸 떨굴 수 있다.
     public static void BuildNature() => Make("록몬스터기본",                         // 자연(Default). 기존 이름 유지(씬 인스턴스 보존)
         OutSO + "/FieldData_RockMonster.asset",       OutPre + "/Enemy_RockMonster.prefab",
-        "록몬스터",      "rock_monster",        "MeleeBot_RockMonster");
+        "록몬스터",      "rock_monster",        "MeleeBot_RockMonster",
+        hp: 130f, atk: 15f);   // 자연맵 입문 = 서리/용암/모래 록몬(190/22)보다 약하게
 
     public static void BuildSnow()   => Make("록몬스터5",                            // 설산(Snow)
         OutSO + "/FieldData_RockMonster_Snow.asset",  OutPre + "/Enemy_RockMonster_Snow.prefab",
@@ -36,7 +37,8 @@ public static class RockMonsterBuilder
 
     // ── 공통 설정(패턴/스탯/클립) — 모델 프리팹 + 출력 경로 + 정체만 갈아끼움 ──
     static void Make(string modelName, string soPath, string prefabPath,
-                     string name, string id, string sid)
+                     string name, string id, string sid,
+                     float hp = 190f, float atk = 22f)   // 자연은 BuildNature 에서 낮춰 부른다(입문맵). 서리/용암/모래는 기본값(190/22).
     {
         FieldMonsterBuilder.Build(new FieldMonsterBuildConfig
         {
@@ -67,7 +69,7 @@ public static class RockMonsterBuilder
             enemyName = name, enemyId = id, sourceId = sid,
 
             // 스탯 — 느리고 단단한 강타형
-            maxHP = 180f, moveSpeed = 2.2f, attackDamage = 30f, attackRange = 2.8f,
+            maxHP = hp, moveSpeed = 2.2f, attackDamage = atk, attackRange = 2.8f,
             visionRange = 16f, visionAngle = 260f,
             angularSpeed = 130f,     // 무거운 골렘 — 천천히 회전
             staggerChance = 0.15f,   // 웬만해선 경직 안 함(패턴 유지)

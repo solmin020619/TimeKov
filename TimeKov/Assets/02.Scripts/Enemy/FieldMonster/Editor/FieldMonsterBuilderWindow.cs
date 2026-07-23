@@ -38,8 +38,42 @@ public class FieldMonsterBuilderWindow : EditorWindow
         EditorGUILayout.HelpBox("원본 참조 방식. 재실행해도 안전(멱등). 빌드 후 씬의 인스턴스는 재생 시 자가복구.", MessageType.None);
         EditorGUILayout.Space();
 
+        // 일괄 빌드 - 전 종 한 번에. 스탯 밸런싱처럼 전체 반영할 때 개별로 14번 안 눌러도 된다.
+        var prev = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.6f, 0.85f, 1f);
+        if (GUILayout.Button($"전체 빌드 ({Builders.Length}종)", GUILayout.Height(34f)))
+            BuildAll();
+        GUI.backgroundColor = prev;
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("개별 빌드", EditorStyles.miniBoldLabel);
+
         foreach (var b in Builders)
             if (GUILayout.Button($"Build {b.label}", GUILayout.Height(28f)))
                 b.build();
+    }
+
+    // 등록된 빌더를 순서대로 전부 실행. 하나 실패해도 나머지는 계속 굽는다(집계 후 로그).
+    static void BuildAll()
+    {
+        if (!EditorUtility.DisplayDialog("필드 몬스터 전체 빌드",
+            $"{Builders.Length}종을 전부 다시 굽는다(프리팹/SO 덮어씀). 스폰VFX는 sourceId 기준 자동 재배정.\n계속?",
+            "빌드", "취소")) return;
+
+        int ok = 0, fail = 0;
+        try
+        {
+            for (int i = 0; i < Builders.Length; i++)
+            {
+                var b = Builders[i];
+                EditorUtility.DisplayProgressBar("필드 몬스터 전체 빌드",
+                    $"({i + 1}/{Builders.Length}) {b.label}", (float)i / Builders.Length);
+                try { b.build(); ok++; }
+                catch (System.Exception e) { fail++; Debug.LogError($"[FieldBuildAll] {b.label} 실패: {e.Message}\n{e}"); }
+            }
+        }
+        finally { EditorUtility.ClearProgressBar(); }
+
+        Debug.Log($"[FieldBuildAll] 완료: 성공 {ok} / 실패 {fail} (총 {Builders.Length}). 실패 있으면 위 에러 로그 확인.");
     }
 }
