@@ -79,8 +79,25 @@ public class TransmissionManager : MonoBehaviour, ISaveable
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        EnsureKitDefs();
         SaveSlotManager.Instance?.Register(this);
         RestoreFromSave();
+    }
+
+    // kitDefs 가 비어 있으면(인스펙터 미등록) 아이템 ID 규약으로 자동 구성한다.
+    //   83xx = 지역 '일반' 충전 키트, 84xx = 지역 '특수(보스)' 충전 키트.
+    //   끝자리 1/2/3/4 = 자연/설원/사막/용암(TransmissionRegion 순서와 동일).
+    //   표시 이름은 GetKitName 이 시트(itemName)에서 가져오므로 여기선 지정하지 않는다.
+    //   ★인스펙터에 하나라도 등록돼 있으면 그 값을 존중하고 자동 구성은 건너뛴다.
+    private void EnsureKitDefs()
+    {
+        if (kitDefs != null && kitDefs.Count > 0) return;
+        kitDefs = new List<ChargedKitDef>(8);
+        for (int region = 0; region < 4; region++)
+        {
+            kitDefs.Add(new ChargedKitDef { itemId = 8301 + region, region = (TransmissionRegion)region, isBoss = false, ratePercent = 5 });
+            kitDefs.Add(new ChargedKitDef { itemId = 8401 + region, region = (TransmissionRegion)region, isBoss = true,  ratePercent = 5 });
+        }
     }
 
     private void OnDestroy()
@@ -273,14 +290,18 @@ public class TransmissionManager : MonoBehaviour, ISaveable
     }
 
     // 각 마일스톤이 해금하는 설비 이름(없으면 빈 배열). 지급 로직과 UI 카드 아이콘이 공유하는 단일 소스.
+    // ★합성기(코어 키트 + 시간 키트 제작)는 튜토리얼에서 지급한다. 전송에 필수인 설비라
+    //   마일스톤(전송률 보상)에 두면 순환 잠금이 된다:
+    //   합성기 없음 -> 충전 키트 제작 불가 -> 전송률 못 올림 -> 합성기 해금 불가.
+    //   그래서 여기선 합성기를 빼고 나머지 6종을 10~60% 에 한 칸씩 당겨 배치한다.
     private static string[] MilestoneFacilityNames(int pct) => pct switch
     {
         10 => new[] { "용해로" },
-        20 => new[] { "코어 합성기" },
-        30 => new[] { "화학 정제기" },
-        40 => new[] { "저장고" },
-        50 => new[] { "창고 출력 포트" },
-        60 => new[] { "생체 분리기", "에너지 변환기" },
+        20 => new[] { "화학 정제기" },
+        30 => new[] { "저장고" },
+        40 => new[] { "창고 출력 포트" },
+        50 => new[] { "생체 분리기" },
+        60 => new[] { "에너지 변환기" },
         _  => System.Array.Empty<string>(),
     };
 

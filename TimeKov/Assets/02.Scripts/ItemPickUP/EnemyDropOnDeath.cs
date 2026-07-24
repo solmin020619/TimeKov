@@ -69,6 +69,13 @@ public class EnemyDropOnDeath : MonoBehaviour
         }
     }
 
+    // 지역 보스 시간핵(8501~8504) = "미보유면 1개 확정, 이미 있으면 안 줌".
+    //   지역 완주의 마지막 관문(특수 충전 키트 재료)이라 확률에 맡기지 않는다.
+    //   가중치 풀에선 항상 제외하므로 다른 드롭 확률을 잠식하지 않는다.
+    //   시간핵 maxStack=1 이라 중복 보유는 자연히 차단된다.
+    private const int TimeCoreIdMin = 8501;
+    private const int TimeCoreIdMax = 8504;
+
     private List<(int itemId, int count)> Roll()
     {
         var result = new List<(int itemId, int count)>();
@@ -76,7 +83,7 @@ public class EnemyDropOnDeath : MonoBehaviour
         string myId = sourceId != null ? sourceId.Trim() : "";
         if (myId.Length == 0) return result;
 
-        // 몹 드롭 = 한 종만 뽑음(dropChance 를 가중치로). 합 100 맞추면 그게 곧 %, 빈손 없음.
+        // 이 몹의 드롭 행 수집
         var pool = new List<DropTableSheetData>();
         foreach (var row in GameDataHolder.I.DropTable.All)
         {
@@ -85,6 +92,18 @@ public class EnemyDropOnDeath : MonoBehaviour
         }
         if (pool.Count == 0) return result;
 
+        // 시간핵은 가중치와 별개 — 풀에서 빼내고, 아직 없으면 1개 확정 지급.
+        for (int i = pool.Count - 1; i >= 0; i--)
+        {
+            int coreId = ExtractItemId(pool[i].SheetId);
+            if (coreId < TimeCoreIdMin || coreId > TimeCoreIdMax) continue;
+            pool.RemoveAt(i);
+            bool owned = InventoryManager.Instance != null && InventoryManager.Instance.GetTotalItemCount(coreId) > 0;
+            if (!owned) result.Add((coreId, 1));
+        }
+        if (pool.Count == 0) return result;   // 시간핵 행만 있던 경우(안전 가드)
+
+        // 나머지 = 한 종만 뽑음(dropChance 를 가중치로). 합 100 맞추면 그게 곧 %, 빈손 없음.
         var picked = WeightedPickOne(pool);
         int itemId = ExtractItemId(picked.SheetId);
         if (itemId <= 0) return result;

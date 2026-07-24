@@ -19,6 +19,15 @@ public class PlayerInteractComponent : MonoBehaviour
 
     void Update()
     {
+        // 차단 UI(설정/인벤/공장 등)가 열려 있거나 사망 오버레이 중이면
+        // 힌트를 내리고 감지를 멈춘다. 안 그러면 열린 메뉴 위로 F 알약이 그대로 떠 있다.
+        // (입력 자체는 PlayerInputComponent.IsBlocked 가 이미 막지만, 힌트 표시는 여기서 별도로 꺼야 한다)
+        if (PlayerInputComponent.IsBlocked || DeathOverlayUI.IsOpen)
+        {
+            UpdateHint(null);
+            return;
+        }
+
         // 매 프레임 nearest 파악 → 힌트 갱신
         IInteractable nearest = FindClosest();
         UpdateHint(nearest);
