@@ -22,6 +22,12 @@ public class WarpPoint : MonoBehaviour
     [Tooltip("이 지점으로 워프해 올 때 플레이어가 나타날 위치(원통 밖 지면). 비우면 이 오브젝트 위치(원통 중앙).")]
     public Transform arrivalPoint;
 
+    [Header("통 색상")]
+    [Tooltip("켜면 실행 시 이 워프 통(및 자식)의 발광/HDR 색을 지역 색으로 바꾼다. 설산=원본 유지.")]
+    public bool recolorTube = true;
+    [Tooltip("색을 바꿀 렌더러를 직접 지정(비우면 자식 렌더러 전체에서 발광 색만 자동으로 찾음).")]
+    public Renderer[] tubeRenderers;
+
     [Header("VFX (비우면 없음)")]
     [Tooltip("출발(사라짐) 연출 프리팹.")]
     public GameObject departureVfx;

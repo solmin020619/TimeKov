@@ -21,10 +21,16 @@ public class WarpManager : MonoBehaviour, ISaveable
     [SerializeField] private GameObject defaultDepartureVfx;
     [Tooltip("도착(스폰) VFX. 예) Spawn_06")]
     [SerializeField] private GameObject defaultArrivalVfx;
-    [Tooltip("지역별 색 틴트(HDR 곱연산). 설산=흰색(원본 유지), 사막=황토, 용암=빨강.")]
+    [Tooltip("지역별 VFX 색(밝기 유지 + 색조 교체). 설산=흰색(원본 유지), 사막=황토, 용암=빨강.")]
     [SerializeField] private Color snowTint = Color.white;
     [SerializeField] private Color desertTint = new Color(0.82f, 0.60f, 0.28f, 1f);
     [SerializeField] private Color lavaTint = new Color(1.00f, 0.25f, 0.12f, 1f);
+
+    [Header("통 발광 재질 (지역별 교체 — 통의 흰색 'Light_White' 재질을 지역 재질로 바꿈)")]
+    [Tooltip("사막 통 발광 재질. 예) Light_Yellow")]
+    [SerializeField] private Material tubeLightDesert;
+    [Tooltip("용암 통 발광 재질. 예) Light_Red")]
+    [SerializeField] private Material tubeLightLava;
 
     [Header("워프 충전 (원통 안에서 대기)")]
     [Tooltip("원통 안에 들어온 뒤 실제 워프까지 대기하는 시간(출발 VFX 길이에 맞춤). Recall_06 ≈ 5초. 도중에 나가면 취소.")]
@@ -66,7 +72,57 @@ public class WarpManager : MonoBehaviour, ISaveable
     private void Start()
     {
         if (activateAllForTest) ActivateAllRegionPoints();
+        RecolorAllTubes();
     }
+
+    // 씬의 모든 워프 통 발광 색을 지역 색으로 교체(런타임 머티리얼 인스턴스라 에셋/씬은 불변).
+    private void RecolorAllTubes()
+    {
+        foreach (var wp in FindObjectsByType<WarpPoint>(FindObjectsSortMode.None))
+            RecolorTube(wp);
+    }
+
+    // 통의 파란 발광 재질(Light_Blue)을 지역 재질로 교체. 설산=교체 안 함(파랑 유지).
+    //   sharedMaterials 로 교체 → 런타임 렌더러만 바뀌고 에셋/씬은 불변, 배칭도 유지.
+    private void RecolorTube(WarpPoint wp)
+    {
+        if (wp == null || !wp.recolorTube) return;
+        Material target = TubeMatFor(wp.region);
+        if (target == null) return;   // 설산 등 지정 없음 → 기본 유지
+
+        var renderers = (wp.tubeRenderers != null && wp.tubeRenderers.Length > 0)
+            ? wp.tubeRenderers
+            : wp.GetComponentsInChildren<Renderer>(true);
+        int swapped = 0;
+        foreach (var r in renderers)
+        {
+            if (r == null) continue;
+            var mats = r.sharedMaterials;   // 복사본 반환 → 수정 후 재할당
+            bool changed = false;
+            for (int i = 0; i < mats.Length; i++)
+                if (mats[i] != null && IsTubeLight(mats[i].name))
+                {
+                    mats[i] = target;
+                    changed = true;
+                    swapped++;
+                }
+            if (changed) r.sharedMaterials = mats;
+        }
+        if (swapped == 0)
+            Debug.LogWarning($"[Warp] '{wp.name}' 통 발광 재질(Light_White)을 못 찾아 색 교체 안 됨. " +
+                             "WarpPoint 의 Tube Renderers 에 통의 발광 렌더러를 직접 지정하세요.", wp);
+    }
+
+    private Material TubeMatFor(TransmissionRegion r) => r switch
+    {
+        TransmissionRegion.Desert => tubeLightDesert,
+        TransmissionRegion.Lava => tubeLightLava,
+        _ => null,   // 설산=기본(흰색) 유지
+    };
+
+    // 통의 발광 링 재질 판별(교체 대상). 통은 Light_White 를 쓴다(일부 파란 Light_Blue 도 대비).
+    private static bool IsTubeLight(string matName) =>
+        matName.StartsWith("Light_White") || matName.StartsWith("Light_Blue");
 
     private void OnDestroy()
     {
