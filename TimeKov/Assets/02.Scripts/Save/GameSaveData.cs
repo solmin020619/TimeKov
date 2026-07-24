@@ -90,6 +90,12 @@ public class GameSaveData
     // 활성화한 지역 워프 지점의 warpId 목록. 활성화돼야 기지→지역 워프의 랜덤 도착 후보가 된다.
     public List<string> activatedWarpIds = new();
 
+    // ── 귀환석 (ReturnStoneManager) ──────────────────────────────────────────
+    // returnStoneLevel = 보유 레벨(0=미보유, 1~3. 쿨타임 15/10/5분). 추후 시간에너지 보상으로 설정.
+    // returnStoneCooldownRemaining = 남은 쿨타임(초). '결계 밖'에서 보낸 시간으로만 차감된다.
+    public int returnStoneLevel = 0;
+    public float returnStoneCooldownRemaining = 0f;
+
     // ── 도감: 아이템 최초 획득 기록 (ItemDiscovery) ──────────────────────────
     public List<int> discoveredItemIds = new();
 
