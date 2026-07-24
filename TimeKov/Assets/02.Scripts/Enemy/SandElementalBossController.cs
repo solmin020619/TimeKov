@@ -30,6 +30,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
     [Header("모래 파도 (SandWave - 전방 부채꼴 스윕. 중거리 견제)")]
     [SerializeField] private GameObject waveVfx;
+    [Tooltip("지면 VFX(모래 파도 등)를 지면에서 살짝 띄우는 높이(m). 0이면 지면과 딱 붙어 울퉁불퉁한 사막 지형을 뚫었다 안 뚫었다 하며 치지직거린다(z-fighting/클리핑). 여전하면 이 값을 키워라.")]
+    [SerializeField] private float groundVfxLift = 0.1f;
     [SerializeField] private float waveRange = 9f;
     [SerializeField] private float waveCooldown = 4.5f;
     [SerializeField] private float waveWindup = 0.7f;       // Cast1 시전
@@ -445,7 +447,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
             if (waveVfx != null)
             {
                 Vector3 front = GroundSpot(transform.position + transform.forward * (waveRange * 0.4f));
-                var wv = Instantiate(waveVfx, front, transform.rotation);
+                var wv = Instantiate(waveVfx, front + Vector3.up * groundVfxLift, transform.rotation);
                 Destroy(wv, 2.5f);   // 루프 서브이미터라 자동 소멸 안 됨 -> 예약 삭제
             }
             if (_motor.PlayerInArc(waveRange, waveHalfAngle))
@@ -527,7 +529,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         {
             Vector3 spot = GroundSpot(_player.position);
             SpawnTelegraph(spot, quicksandRadius, quicksandDuration);
-            GameObject field = quicksandVfx != null ? Instantiate(quicksandVfx, spot, Quaternion.identity) : null;
+            GameObject field = quicksandVfx != null ? Instantiate(quicksandVfx, spot + Vector3.up * groundVfxLift, Quaternion.identity) : null;
             if (field != null) Destroy(field, quicksandDuration + 1f);   // 자체 예약(티커가 끊겨도 정리됨)
             StartCoroutine(QuicksandField(spot, field));
         }
@@ -649,7 +651,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
         // 2) 착지 지점 스냅샷 + Sand_Smash 스폰(내장 예고 시작) + 그 상공으로 이동(조준)
         Vector3 land = GroundSpot(_player != null ? _player.position : start);
-        if (slamVfx != null) { var sl = Instantiate(slamVfx, land, Quaternion.identity); Destroy(sl, 3.5f); }   // 루프 서브이미터 -> 예약 삭제
+        if (slamVfx != null) { var sl = Instantiate(slamVfx, land + Vector3.up * groundVfxLift, Quaternion.identity); Destroy(sl, 3.5f); }   // 루프 서브이미터 -> 예약 삭제
         Vector3 over = new Vector3(land.x, land.y + diveHeight, land.z);
         _motor.FaceInstant(land);
         yield return MoveBetween(apexUp, over, diveHoverTime);
@@ -802,7 +804,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private void SpawnTelegraph(Vector3 pos, float radius, float life = 3f)
     {
         if (telegraphVfx == null) return;
-        var t = Instantiate(telegraphVfx, pos + Vector3.up * 0.05f, Quaternion.identity);
+        var t = Instantiate(telegraphVfx, pos + Vector3.up * groundVfxLift, Quaternion.identity);
         t.transform.localScale = Vector3.one * radius * telegraphScaleMul;
         Destroy(t, life);
     }
