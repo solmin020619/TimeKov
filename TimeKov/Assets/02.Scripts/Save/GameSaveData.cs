@@ -86,6 +86,10 @@ public class GameSaveData
     public int transmissionRate = 0;
     public bool transmissionEndingReached = false;
 
+    // ── 워프 시스템 (WarpManager) ────────────────────────────────────────────
+    // 활성화한 지역 워프 지점의 warpId 목록. 활성화돼야 기지→지역 워프의 랜덤 도착 후보가 된다.
+    public List<string> activatedWarpIds = new();
+
     // ── 도감: 아이템 최초 획득 기록 (ItemDiscovery) ──────────────────────────
     public List<int> discoveredItemIds = new();
 
