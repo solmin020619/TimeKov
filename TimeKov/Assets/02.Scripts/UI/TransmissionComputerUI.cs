@@ -340,8 +340,8 @@ public class TransmissionComputerUI : MonoBehaviour
         _nodeLabel = Txt("nLbl", _nodeLabelRT.gameObject, 0, 0, 60, 24, "42%", _mono, 14, AccentBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
         Stretch(_nodeLabel.gameObject);
 
-        // 마커 10개
-        for (int p = 10; p <= 100; p += 10) BuildMarker(track.gameObject, p, tw, th);
+        // 마커 — 보상 걸린 마일스톤마다(불균등: 5/15/25/75 등). TransmissionManager 와 공유.
+        foreach (int p in TransmissionManager.RewardMilestones) BuildMarker(track.gameObject, p, tw, th);
         // 진행 노드를 마커보다 위로 — 같은 지점(예: 80%)에서 겹쳐도 노드가 가려지지 않게.
         _node.SetAsLastSibling();
 
@@ -948,9 +948,9 @@ public class TransmissionComputerUI : MonoBehaviour
         DOVirtual.DelayedCall(0.9f, () =>
         {
             RefreshMarkers();
-            // 이번 상승으로 새로 완료된 10% 마커를 펄스.
-            for (int pct = ((oldRate / 10) + 1) * 10; pct <= newRate && pct <= 100; pct += 10)
-                FlashMarker(pct, RegionColorForPct(pct));
+            // 이번 상승으로 새로 넘긴 마일스톤 마커를 펄스.
+            foreach (int pct in TransmissionManager.RewardMilestones)
+                if (pct > oldRate && pct <= newRate) FlashMarker(pct, RegionColorForPct(pct));
             // 새로 진입한 구간(25/50/75)의 레전드 도트를 펄스.
             for (int b = ((oldRate / 25) + 1) * 25; b <= newRate && b <= 100; b += 25)
                 PulseLegendDot(b / 25);
@@ -1378,26 +1378,32 @@ public class TransmissionComputerUI : MonoBehaviour
             return pct == next ? MState.Next : MState.Locked;
         }
 
-        // 실제 지급 보상(TransmissionManager.GrantMilestoneRewards)과 일치. 귀환석은 2단계 예정이라 제외.
+        // 실제 지급 보상(TransmissionManager.GrantMilestoneRewards)과 일치해야 함(2026-07-24 확정표).
         public string RewardName(int pct) => pct switch
         {
-            10 => "용해로", 20 => "코어 합성기 / 선체 보강재", 30 => "화학 정제기",
-            40 => "저장고", 50 => "창고 출력 포트 / 동력 안정기", 60 => "생체 분리기 / 에너지 변환기",
-            70 => "창고 출력 포트 증설", 80 => "우주선 엔진", 90 => "최종 보급 꾸러미",
+            5  => "시간에너지 합성기", 10 => "용해로", 15 => "창고 출력 포트",
+            20 => "저장고 / 귀환석 Lv.1", 25 => "선체 보강재", 30 => "코어 합성기",
+            40 => "귀환석 Lv.2", 50 => "동력 안정기", 60 => "생체 분리기 / 에너지 변환기",
+            70 => "창고포트 상한 +1 / 귀환석 Lv.3", 75 => "우주선 엔진", 80 => "창고포트 상한 +3",
+            90 => "창고포트 상한 +2 / 앰플 꾸러미 / 코어 키트 V",
             _ => "전송 완료"
         };
 
         public string RewardDesc(int pct) => pct switch
         {
+            5  => "시간에너지 합성기 설비를 해금했습니다. 이제 충전 키트를 직접 제작할 수 있습니다.",
             10 => "용해로 설비를 해금했습니다.",
-            20 => "코어 합성기 해금 + 우주선 선체 보강재를 확보했습니다.",
-            30 => "화학 정제기 설비를 해금했습니다.",
-            40 => "저장고 설비를 해금했습니다.",
-            50 => "창고 출력 포트 해금 + 우주선 동력 안정기를 확보했습니다.",
+            15 => "창고 출력 포트 설비를 해금했습니다.",
+            20 => "저장고 해금 + 귀환석 Lv.1(쿨타임 15분)을 획득했습니다.",
+            25 => "우주선 선체 보강재를 확보했습니다.",
+            30 => "코어 합성기 설비를 해금했습니다.",
+            40 => "귀환석 Lv.2(쿨타임 10분)로 강화되었습니다.",
+            50 => "우주선 동력 안정기를 확보했습니다.",
             60 => "생체 분리기, 에너지 변환기 설비를 해금했습니다.",
-            70 => "창고 출력 포트 건설 수가 1 늘어났습니다.",
-            80 => "우주선 엔진을 확보했습니다.",
-            90 => "최종 보급 꾸러미(앰플 4종)를 받았습니다.",
+            70 => "창고 출력 포트 건설 수 +1 + 귀환석 Lv.3(쿨타임 5분)로 강화되었습니다.",
+            75 => "우주선 엔진을 확보했습니다.",
+            80 => "창고 출력 포트 건설 수가 3 늘어났습니다.",
+            90 => "창고 출력 포트 건설 수 +2 + 앰플 꾸러미(대량) + 코어 키트 V x5를 받았습니다.",
             _ => "시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!"
         };
 

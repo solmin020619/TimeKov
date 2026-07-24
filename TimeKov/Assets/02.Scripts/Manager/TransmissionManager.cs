@@ -238,8 +238,11 @@ public class TransmissionManager : MonoBehaviour, ISaveable
 
     // ── 내부 처리 ─────────────────────────────────────────────────────
 
-    // 전송률을 newRate 로 올린다(감소 불가). 통과한 10% 보상 구간과 25/50/75/100 해금을
-    // 낮은 구간부터 순서대로, 이미 처리한 건 건너뛰며 통지한다.
+    /// <summary>보상이 걸린 전송률 마일스톤(불균등 5/10/25 간격). ApplyRate/복원/UI 가 공유하는 단일 소스.</summary>
+    public static readonly int[] RewardMilestones = { 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100 };
+
+    // 전송률을 newRate 로 올린다(감소 불가). 통과한 보상 마일스톤을 낮은 것부터 순서대로,
+    // 이미 처리한 건 건너뛰며 지급/통지한다.
     private void ApplyRate(int newRate)
     {
         newRate = Mathf.Clamp(newRate, TransmissionRate, MaxRate);
@@ -249,8 +252,8 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         TransmissionRate = newRate;
         OnRateChanged?.Invoke(TransmissionRate);
 
-        // 10% 단위 정규 보상 — prev 초과 ~ 현재 이하 구간을 순서대로 실제 지급.
-        for (int m = 10; m <= 100; m += 10)
+        // 보상 마일스톤 — prev 초과 ~ 현재 이하 구간을 순서대로 실제 지급.
+        foreach (int m in RewardMilestones)
         {
             if (m > prev && m <= TransmissionRate && _claimedMilestones.Add(m))
             {
@@ -267,83 +270,74 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         }
     }
 
-    // ── 마일스톤 보상 지급 (기획표 2026-07) ────────────────────────────
-    // 각 % 도달 시 1회. 설비는 이름으로 FacilityData 조회→해금, 우주선 부품은 수리 매니저로
-    // 바로 흡수(인벤 아님), 창고포트 상한 +1, 90% 앰플 묶음은 가방 지급.
-    // 튜토리얼 티어(생체추출기·생체배양기)는 기존 방식 유지 — 여기서 건드리지 않는다.
+    // ── 마일스톤 보상 지급 (기획표 2026-07-24 확정) ────────────────────────
+    // 각 % 도달 시 1회. 설비는 facilityId 직접 해금(이름 매칭 폐기 - 시트 개명 시 깨지던 버그 방지),
+    // 우주선 부품은 수리 매니저로 바로 흡수, 창고포트 상한 증설(70/80/90 다단계),
+    // 앰플 꾸러미·코어 키트는 가방 지급, 귀환석은 레벨 세팅.
+    // ★시간에너지 합성기(3, 충전키트 제조기)는 5% 최초 보상 — 튜토가 스타터 키트로 5% 도달시켜 부트스트랩(순환잠금 회피).
+    // ★튜토리얼(생체추출기1·생체배양기2)은 튜토에서 지급 — 여기서 건드리지 않는다.
     private void GrantMilestoneRewards(int pct)
     {
         // 설비 해금(공유 소스 — UI 카드 아이콘도 같은 목록을 쓴다)
-        foreach (var facilityName in MilestoneFacilityNames(pct))
-            UnlockFacilityByName(facilityName);
+        foreach (int fid in MilestoneFacilityIds(pct))
+            FacilityUnlockManager.Instance?.TryUnlock(fid);
 
         // 설비 외 보상
         switch (pct)
         {
-            case 20: ShipRepairManager.Instance?.CollectExtraPart(3); break;                     // 선체 보강재(Lv.3)
+            case 20: ReturnStoneManager.Instance?.SetLevel(1); break;                            // 귀환석 Lv.1(쿨 15분) - 자연 탐험 안전망
+            case 25: ShipRepairManager.Instance?.CollectExtraPart(3); break;                     // 선체 보강재(수리 Lv.3)
+            case 40: ReturnStoneManager.Instance?.SetLevel(2); break;                            // 귀환석 Lv.2(쿨 10분)
             case 50: ShipRepairManager.Instance?.CollectExtraPart(4); break;                     // 동력 안정기(Lv.4)
-            case 70: FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 1); break; // 창고 출력 포트 건설 수 +1
-            case 80: ShipRepairManager.Instance?.CollectExtraPart(5); break;                     // 엔진(Lv.5)
-            case 90: GrantSupplyPackage(); break;                                                // 최종 보급 꾸러미
-            // 100%: 없음
+            case 70:                                                                             // 창고포트 상한 +1(총2) + 귀환석 Lv.3(쿨 5분)
+                FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 1);
+                ReturnStoneManager.Instance?.SetLevel(3);
+                break;
+            case 75: ShipRepairManager.Instance?.CollectExtraPart(5); break;                     // 엔진(Lv.5)
+            case 80: FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 3); break; // 창고포트 상한 +3(총5) - 극후반 파격
+            case 90:                                                                             // 창고포트 상한 +2(총7) + 앰플 꾸러미 + 코어 키트 V x5
+                FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 2);
+                GrantSupplyPackage();
+                GrantItemById(CoreKitVId, 5);
+                break;
+            // 100%: 엔딩(_endingFired 처리)
         }
     }
 
-    // 각 마일스톤이 해금하는 설비 이름(없으면 빈 배열). 지급 로직과 UI 카드 아이콘이 공유하는 단일 소스.
-    // ★합성기(코어 키트 + 시간 키트 제작)는 튜토리얼에서 지급한다. 전송에 필수인 설비라
-    //   마일스톤(전송률 보상)에 두면 순환 잠금이 된다:
-    //   합성기 없음 -> 충전 키트 제작 불가 -> 전송률 못 올림 -> 합성기 해금 불가.
-    //   그래서 여기선 합성기를 빼고 나머지 6종을 10~60% 에 한 칸씩 당겨 배치한다.
-    private static string[] MilestoneFacilityNames(int pct) => pct switch
+    private const int CoreKitVId = 6105;   // 코어 키트 V (코어 레벨 9/10 강화 재료, 1회 시도당 1개 소모)
+
+    // 각 마일스톤이 해금하는 설비 id(없으면 빈 배열). 지급 로직과 UI 카드가 공유하는 단일 소스.
+    //   이름 매칭 대신 id 직접 참조 — FacilityData 이름이 바뀌어도 안 깨진다.
+    //   5=시간에너지합성기(3, 최초·부트스트랩), 10=용해로(6), 15=창고출력포트(9), 20=저장고(8),
+    //   30=코어합성기(7), 60=생체분리기(4)+에너지변환기(5, 둘이 짝이라 함께).
+    private static int[] MilestoneFacilityIds(int pct) => pct switch
     {
-        10 => new[] { "용해로" },
-        20 => new[] { "화학 정제기" },
-        30 => new[] { "저장고" },
-        40 => new[] { "창고 출력 포트" },
-        50 => new[] { "생체 분리기" },
-        60 => new[] { "에너지 변환기" },
-        _  => System.Array.Empty<string>(),
+        5  => new[] { 3 },
+        10 => new[] { 6 },
+        15 => new[] { 9 },
+        20 => new[] { 8 },
+        30 => new[] { 7 },
+        60 => new[] { 4, 5 },
+        _  => System.Array.Empty<int>(),
     };
 
-    /// <summary>UI 리빌 카드용: 이 마일스톤이 해금하는 설비 id 목록(이름→FacilityData 조회). 없으면 빈 리스트.</summary>
-    public List<int> GetRewardFacilityIds(int pct)
-    {
-        var result = new List<int>();
-        var fd = GameDataHolder.I != null ? GameDataHolder.I.FacilityData : null;
-        if (fd == null) return result;
-        foreach (var name in MilestoneFacilityNames(pct))
-        {
-            string target = Norm(name);
-            for (int id = 1; id <= FacilityUnlockManager.MaxSlots; id++)
-                if (fd.TryGet(id.ToString(), out var d) && Norm(d.facilityName) == target) { result.Add(id); break; }
-        }
-        return result;
-    }
+    /// <summary>UI 리빌 카드용: 이 마일스톤이 해금하는 설비 id 목록. 없으면 빈 리스트.</summary>
+    public List<int> GetRewardFacilityIds(int pct) => new List<int>(MilestoneFacilityIds(pct));
 
-    // 90% 최종 보급 꾸러미 — 앰플 4종을 가방에 지급. 이름은 아이템 시트(itemName) 기준.
+    // 90% 앰플 꾸러미(증량) — 최종 보스 앞 대량 보급. 이름은 아이템 시트(itemName) 기준.
     private void GrantSupplyPackage()
     {
-        GrantItemByName("고급 회복 앰플", 10);
-        GrantItemByName("공격력 앰플", 3);
-        GrantItemByName("방어력 앰플", 3);
-        GrantItemByName("스태미나 앰플", 3);
+        GrantItemByName("고급 회복 앰플", 20);
+        GrantItemByName("공격력 앰플", 5);
+        GrantItemByName("방어력 앰플", 5);
+        GrantItemByName("스태미나 앰플", 5);
     }
 
-    // 이름으로 설비를 찾아 해금(슬롯 1~9). 공백 차이는 무시하고 매칭.
-    private void UnlockFacilityByName(string facilityName)
+    // itemId 로 가방에 직접 지급(이름 조회 불필요한 확정 아이템용).
+    private void GrantItemById(int itemId, int amount)
     {
-        var mgr = FacilityUnlockManager.Instance;
-        var fd  = GameDataHolder.I != null ? GameDataHolder.I.FacilityData : null;
-        if (mgr == null || fd == null) { Debug.LogWarning($"[Transmission] 설비 해금 불가(매니저/데이터 없음): {facilityName}"); return; }
-
-        string target = Norm(facilityName);
-        for (int id = 1; id <= FacilityUnlockManager.MaxSlots; id++)
-            if (fd.TryGet(id.ToString(), out var d) && Norm(d.facilityName) == target)
-            {
-                mgr.TryUnlock(id);
-                return;
-            }
-        Debug.LogWarning($"[Transmission] FacilityData 에서 '{facilityName}' 설비를 못 찾음 — 시트 이름 확인 필요.");
+        if (InventoryManager.Instance == null) { Debug.LogWarning($"[Transmission] 아이템 지급 불가(인벤 없음): {itemId}"); return; }
+        InventoryManager.Instance.AddItem(itemId, amount, markAsNew: true);
     }
 
     // 이름으로 아이템을 찾아 가방에 지급. 공백 차이는 무시하고 매칭.
@@ -402,16 +396,19 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         TransmissionRate = Mathf.Clamp(mgr.Data.transmissionRate, 0, MaxRate);
         _endingFired     = mgr.Data.transmissionEndingReached;
 
-        // 전송률 이하의 10% 마일스톤은 이미 수령한 것으로 표시(재지급 방지).
+        // 전송률 이하 마일스톤은 이미 수령한 것으로 표시(재지급 방지).
         // 설비해금/아이템/부품 등 실제 보상 효과는 각 시스템이 따로 저장·복원한다.
-        for (int m = 10; m <= 100; m += 10)
+        foreach (int m in RewardMilestones)
             if (m <= TransmissionRate) _claimedMilestones.Add(m);
 
-        // 런타임 정적(FacilityBuildLimit)은 static 이라 앱을 껐다 켜면 리셋되지만, 같은 앱에서
-        // 타이틀->월드 재진입 시엔 리셋되지 않는다. 그래서 70% 보상(창고포트 상한 +1)은 가산이 아니라
-        // "기본값 + 1" 절대값으로 재적용한다 - 재진입마다 +1씩 누적되면 사실상 상한이 사라진다.
-        if (TransmissionRate >= 70)
+        // 런타임 정적(FacilityBuildLimit)은 static 이라 앱 재시작엔 리셋되지만 같은 앱 재진입엔 안 된다.
+        // 그래서 창고포트 상한 보상(70:+1 / 80:+3 / 90:+2)은 가산이 아니라 "기본값+누적보너스" 절대값으로 재적용.
+        int portBonus = 0;
+        if (TransmissionRate >= 70) portBonus += 1;
+        if (TransmissionRate >= 80) portBonus += 3;
+        if (TransmissionRate >= 90) portBonus += 2;
+        if (portBonus > 0)
             FacilityBuildLimit.SetMax(FacilityBuildLimit.WarehousePortId,
-                                      FacilityBuildLimit.DefaultMax(FacilityBuildLimit.WarehousePortId) + 1);
+                                      FacilityBuildLimit.DefaultMax(FacilityBuildLimit.WarehousePortId) + portBonus);
     }
 }
