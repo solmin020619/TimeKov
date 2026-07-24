@@ -183,6 +183,35 @@ public class PlayerAnimatorComponent : MonoBehaviour
     }
 
     public void PlayHit(bool isLeft) => _anim.SetTrigger(isLeft ? HitLHash : HitRHash);
+
+    /// <summary>귀환석 채널링 모션 시작 — Action Layer(1)의 "Channel" 상태(GS_CrouchIdle, 루프)를 강제 재생.
+    /// 진행 중이던 액션/대기 트리거를 먼저 제거해, 다른 모션 도중 눌러도 채널 상태가 튕기지 않게 한다.</summary>
+    public void PlayChannel()
+    {
+        if (_anim == null) return;
+        ResetActionTriggers();
+        _anim.SetLayerWeight(1, 1f);          // 크라우치가 전신으로 보이게 Action 레이어 강제
+        _anim.Play("Channel", 1, 0f);         // 트랜지션에 밀리지 않게 강제 진입(PlayDie와 동일 방식)
+    }
+
+    // 채널 진입/사망이 다른 액션 트리거에 밀려 안 나오는 것 방지 — 대기 중 트리거 일괄 제거.
+    private void ResetActionTriggers()
+    {
+        _anim.ResetTrigger(Attack1Hash); _anim.ResetTrigger(Attack2Hash); _anim.ResetTrigger(Attack3Hash);
+        _anim.ResetTrigger(Skill1Hash);  _anim.ResetTrigger(Skill2Hash);  _anim.ResetTrigger(Skill3Hash);
+        _anim.ResetTrigger(DashFHash);   _anim.ResetTrigger(DashBHash);
+        _anim.ResetTrigger(DashRHash);   _anim.ResetTrigger(DashLHash);
+        _anim.ResetTrigger(HitLHash);    _anim.ResetTrigger(HitRHash);
+        _anim.ResetTrigger(JumpHash);
+    }
+
+    /// <summary>채널링 종료 — Action Layer를 Empty 로 빼 이동/대기로 복귀.</summary>
+    public void StopChannel(float fade = 0.15f)
+    {
+        if (_anim == null) return;
+        _anim.CrossFade("Empty", fade, 1);
+    }
+
     public void PlayDie()
     {
         // 죽는 애니가 확실히, 전신으로 나오게:

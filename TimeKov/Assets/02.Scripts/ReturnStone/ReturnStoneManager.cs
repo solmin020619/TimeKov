@@ -38,8 +38,12 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     [SerializeField] private float blackHold = 0.15f;
 
     [Header("연출 (선택)")]
-    [Tooltip("준비 중 플레이어 주변에 재생할 이펙트(플레이어 자식으로 붙음).")]
+    [Tooltip("준비 중 플레이어 발밑(지면)에 재생할 이펙트(플레이어 자식으로 붙음). 예) Sci-fi buff sphere")]
     [SerializeField] private GameObject channelVfx;
+    [Tooltip("채널 VFX 높이 미세조정(+위/-아래). 기본은 발밑 지면.")]
+    [SerializeField] private float channelVfxYOffset = 0f;
+    [Tooltip("기지 도착 시 도착 지점에 재생할 이펙트. 예) Spawn_06")]
+    [SerializeField] private GameObject arriveVfx;
     [SerializeField] private AudioClip channelSound;
     [SerializeField] private AudioClip arriveSound;
 
@@ -130,6 +134,20 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
         if (player.Stat != null && player.Stat.IsDead) return false;
 
+        // 스킬/공격 모션 중에는 사용 불가 — 즉발기는 이펙트를 못 되돌리므로 모션이 끝난 뒤 사용.
+        if (player.Skill != null && player.Skill.IsExecuting)
+        {
+            ToastManager.Warning("행동 중에는 귀환석을 사용할 수 없습니다.");
+            return false;
+        }
+
+        // 이동 중에는 사용 불가 — 채널은 제자리에서만. (가만히 선 뒤 사용)
+        if (player.Input != null && player.Input.MoveInputRaw.sqrMagnitude > 0.01f)
+        {
+            ToastManager.Warning("이동 중에는 귀환석을 사용할 수 없습니다.");
+            return false;
+        }
+
         if (player.Stat != null && player.Stat.IsInBase)
         {
             ToastManager.Info("기지 안에서는 귀환석이 필요 없습니다.");
@@ -152,6 +170,10 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
         // 사용 중 정지: 시작 시 속도 제거(제자리 유지). 이후 이동 입력은 취소로 처리된다.
         FreezePlayer(player);
+        // 진행 중이던 액션을 실제로 중단 — 애니만 끊기고 이펙트/사운드가 계속 나가는 것 방지.
+        player.Skill?.Interrupt();    // 공격/스킬 코루틴 중단(미발생 히트/이펙트/스윙 사운드 정지)
+        player.Dash?.CancelDash();    // 대시 중단(EndDash가 채널 모션 덮는 것 방지)
+        player.Anim?.PlayChannel();   // 채널링 모션(웅크려 집중)
 
         bool cancelled = false;
         Action onHurt = () => { if (cancelOnDamage) cancelled = true; };
@@ -173,6 +195,8 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
         if (stat != null) { stat.OnHurt -= onHurt; stat.OnDead -= onDead; }
         if (vfx != null) Destroy(vfx);
+        // 사망 시엔 사망 모션에 맡기고, 그 외에만 채널 모션 해제(취소/완료 공통).
+        if (stat == null || !stat.IsDead) player.Anim?.StopChannel();
 
         if (cancelled || (stat != null && stat.IsDead))
         {
@@ -211,8 +235,10 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
         yield return Fade(0f, 1f);
         yield return new WaitForSecondsRealtime(blackHold);
 
-        TeleportPlayer(player.transform, ReturnDest());
-        PlaySound(arriveSound, player.transform.position);
+        Vector3 dest = ReturnDest();
+        TeleportPlayer(player.transform, dest);
+        SpawnAt(arriveVfx, dest);
+        PlaySound(arriveSound, dest);
 
         yield return Fade(1f, 0f);
         PlayerInputComponent.IsBlocked = false;
@@ -266,7 +292,23 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     private GameObject SpawnChannelVfx(Player player)
     {
         if (channelVfx == null) return null;
-        return Instantiate(channelVfx, player.transform.position, Quaternion.identity, player.transform);
+        // 플레이어 트랜스폼 원점이 발이 아니라 골반쯤이라, 콜라이더 바닥(발밑=지면)에 스폰한다.
+        Vector3 pos = FeetPosition(player) + Vector3.up * channelVfxYOffset;
+        return Instantiate(channelVfx, pos, Quaternion.identity, player.transform);
+    }
+
+    private static Vector3 FeetPosition(Player player)
+    {
+        var p = player.transform.position;
+        var col = player.GetComponentInChildren<Collider>();
+        return col != null ? new Vector3(p.x, col.bounds.min.y, p.z) : p;
+    }
+
+    private void SpawnAt(GameObject prefab, Vector3 pos)
+    {
+        if (prefab == null) return;
+        var go = Instantiate(prefab, pos, Quaternion.identity);
+        Destroy(go, 5f);
     }
 
     private void PlaySound(AudioClip clip, Vector3 pos)

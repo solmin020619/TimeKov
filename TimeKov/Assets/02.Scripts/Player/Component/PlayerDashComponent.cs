@@ -121,7 +121,21 @@ public class PlayerDashComponent : MonoBehaviour
             _player.Anim?.ReturnToLocomotion();
         }
 
-        StartCoroutine(DashRoutine());
+        _dashRoutine = StartCoroutine(DashRoutine());
+    }
+
+    private Coroutine _dashRoutine;
+
+    /// <summary>진행 중인 대시를 즉시 취소(귀환석 채널 등에서 호출). 애니메이터는 건드리지 않아
+    /// 이후 채널 모션이 덮어쓸 수 있게 한다(EndDash 미호출).</summary>
+    public void CancelDash()
+    {
+        if (!IsDashing) return;
+        if (_dashRoutine != null) StopCoroutine(_dashRoutine);
+        _dashRoutine = null;
+        _player.Movement.EndDashDrive();                               // 대시 물리 구동 해제
+        _player.Movement.LockMovement(false, applyPostUnlockDelay: false);
+        IsDashing = false;
     }
 
     IEnumerator DashRoutine()
