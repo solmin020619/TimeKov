@@ -14,11 +14,17 @@ public static class FacilityBuildLimit
 {
     public const int WarehousePortId = 9;
 
-    // 기본 상한(새 게임 기준). 여기 없는 설비 = 무제한.
-    private static readonly Dictionary<int, int> _max = new Dictionary<int, int>
+    // 기본 상한(새 게임/앱 재시작 기준). 여기 없는 설비 = 무제한.
+    // ★런타임 값(_max)과 분리해 둔다: 이 클래스는 static 이라 _max 가 씬 재로드/슬롯 전환으로
+    //   리셋되지 않는다. 그래서 진행 보상 복원은 "기본값 + 보너스" 절대값(SetMax)으로 다시 계산해야
+    //   한다 - 가산(IncreaseMax)으로 재적용하면 타이틀->월드 재진입 때마다 상한이 계속 누적된다.
+    private static readonly Dictionary<int, int> _defaultMax = new Dictionary<int, int>
     {
         { WarehousePortId, 1 },
     };
+
+    // 현재 상한(진행 보상이 올린 값 포함). 기본값 템플릿을 복제해서 시작.
+    private static readonly Dictionary<int, int> _max = new Dictionary<int, int>(_defaultMax);
 
     /// <summary>상한이 바뀔 때(우주선 수리 보상 등). 건축 바 UI 갱신용.</summary>
     public static event Action OnChanged;
@@ -27,6 +33,10 @@ public static class FacilityBuildLimit
 
     public static int GetMax(int facilityId)
         => _max.TryGetValue(facilityId, out var m) ? m : int.MaxValue;
+
+    /// <summary>기본(새 게임) 상한. 진행 보상 복원이 "기본값 + 보너스" 절대값을 계산할 때 쓴다.</summary>
+    public static int DefaultMax(int facilityId)
+        => _defaultMax.TryGetValue(facilityId, out var m) ? m : int.MaxValue;
 
     public static void SetMax(int facilityId, int max)
     {

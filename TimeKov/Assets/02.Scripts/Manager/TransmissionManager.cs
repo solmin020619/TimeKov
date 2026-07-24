@@ -407,8 +407,11 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         for (int m = 10; m <= 100; m += 10)
             if (m <= TransmissionRate) _claimedMilestones.Add(m);
 
-        // 런타임 정적(FacilityBuildLimit)은 세션마다 초기화되므로, 70% 보상(창고포트 상한 +1)만 재적용.
+        // 런타임 정적(FacilityBuildLimit)은 static 이라 앱을 껐다 켜면 리셋되지만, 같은 앱에서
+        // 타이틀->월드 재진입 시엔 리셋되지 않는다. 그래서 70% 보상(창고포트 상한 +1)은 가산이 아니라
+        // "기본값 + 1" 절대값으로 재적용한다 - 재진입마다 +1씩 누적되면 사실상 상한이 사라진다.
         if (TransmissionRate >= 70)
-            FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 1);
+            FacilityBuildLimit.SetMax(FacilityBuildLimit.WarehousePortId,
+                                      FacilityBuildLimit.DefaultMax(FacilityBuildLimit.WarehousePortId) + 1);
     }
 }
