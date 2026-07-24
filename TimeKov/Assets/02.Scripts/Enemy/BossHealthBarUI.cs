@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 // 팰월드식 상단 보스 체력바. 런타임 지연 싱글톤(씬 세팅/프리팹 불필요).
 // 보스 교전 시작 시 BossHealthBarUI.Show(health, 이름) 호출 -> 상단 중앙에 등장. 보스 사망/소멸 시 자동 페이드 아웃.
-// 66%/33% 위치에 페이즈 눈금(포효 페이즈와 일치).
 public class BossHealthBarUI : MonoBehaviour
 {
     private static BossHealthBarUI _instance;
@@ -13,8 +12,12 @@ public class BossHealthBarUI : MonoBehaviour
 
     private CanvasGroup _cg;
     private Image _fill;
+    private RectTransform _fillRt;   // 채움 막대(폭으로 비운다 - Filled 아님)
+    private float _fillMaxWidth;     // 채움 100% 일 때 폭
+    private float _fillFrac = 1f;    // 현재 표시 비율(부드럽게 보간)
     private TMP_Text _nameText;
     private TMP_Text _subText;
+    private RectTransform _decoLine1, _decoLine2;   // 수식어 양옆 장식 선(수식어 없으면 숨김)
 
     private EnemyHealth _target;
     private bool _visible;
@@ -61,11 +64,9 @@ public class BossHealthBarUI : MonoBehaviour
     private void OnDestroy() { if (_instance == this) _instance = null; }
 
     // ── 구성 ──
-    private static readonly Color BackCol  = new Color(0.04f, 0.06f, 0.09f, 0.55f);
-    private static readonly Color TrackCol = new Color(0.10f, 0.05f, 0.06f, 0.92f);
-    private static readonly Color FillCol  = new Color(0.86f, 0.16f, 0.18f, 1f);
-    private static readonly Color FrameCol = new Color(0.85f, 0.78f, 0.55f, 0.55f);
-    private static readonly Color NotchCol = new Color(1f, 1f, 1f, 0.5f);
+    private static readonly Color FillCol     = new Color(0.86f, 0.16f, 0.18f, 1f);
+    private static readonly Color TrackBgCol  = new Color(0.06f, 0.02f, 0.03f, 0.80f);   // 빈 체력 트랙(어두운 배경)
+    private static readonly Color TextEdgeCol = new Color(0.30f, 0.03f, 0.04f, 0.95f);   // 이름/수식어 공통 빨강 엣지(빨강/하양 통일)
 
     private void Build()
     {
@@ -79,55 +80,78 @@ public class BossHealthBarUI : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 0.5f;
 
-        var root = NewRect("Root", (RectTransform)canvasGo.transform, new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(920f, 96f));
+        // 루트: 배경 패널 없음(월드 위에 텍스트+바만). 위->아래: 수식어(설명) / 이름 / 체력바.
+        var root = NewRect("Root", (RectTransform)canvasGo.transform, new Vector2(0.5f, 1f), new Vector2(0f, -16f), new Vector2(820f, 108f));
         _cg = root.gameObject.AddComponent<CanvasGroup>();
         _cg.alpha = 0f; _cg.blocksRaycasts = false; _cg.interactable = false;
 
-        // 배경 패널(가독성)
-        var back = NewRect("Back", root, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(920f, 96f));
-        Stretch(back);
-        Img(back, UISpriteFactory.RoundedRect(48, 16), BackCol);
+        // 수식어 행: [선] 수식어 [선] - 텍스트 폭에 맞춰 양옆에 딱 붙는다(팰월드식 " - a - " 느낌).
+        // HorizontalLayoutGroup 이 폭을 재서 항상 hug. childForceExpand=false 라 높이 늘림 이슈 없음.
+        var subRow = NewRect("SubRow", root, new Vector2(0.5f, 1f), new Vector2(0f, -4f), new Vector2(800f, 22f));
+        var hlg = subRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.childAlignment = TextAnchor.MiddleCenter;
+        hlg.spacing = 12f;
+        hlg.childControlWidth = true;  hlg.childControlHeight = false;
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
 
-        // 이름
-        _nameText = Txt("Name", root, new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(880f, 40f), 30f, FontStyles.Bold);
-        _nameText.alignment = TextAlignmentOptions.Center;
-        _nameText.color = new Color(0.96f, 0.95f, 0.92f, 1f);
+        _decoLine1 = MakeDecoLine(subRow);   // 수식어 왼쪽 선
 
-        // 부제(작게)
-        _subText = Txt("Sub", root, new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(880f, 18f), 14f, FontStyles.Normal);
+        // 수식어(설명) - 이름과 '똑같은' 엣지 효과(짙은 빨강). 알파로 차등하지 않고 크기만 다르게.
+        _subText = Txt("Sub", subRow, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 22f), 17f, FontStyles.Normal);
         _subText.alignment = TextAlignmentOptions.Center;
-        _subText.color = new Color(0.78f, 0.6f, 0.62f, 0.9f);
+        _subText.color = new Color(0.93f, 0.95f, 0.97f, 1f);
+        _subText.characterSpacing = 5f;
+        AddTextOutline(_subText, TextEdgeCol, 0.2f);
 
-        // 체력 트랙
-        var track = NewRect("Track", root, new Vector2(0.5f, 0f), new Vector2(0f, 16f), new Vector2(872f, 22f));
-        Img(track, UISpriteFactory.RoundedRect(32, 8), TrackCol);
-        var frame = NewRect("Frame", track, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        Stretch(frame);
-        var frImg = Img(frame, UISpriteFactory.RoundedRect(32, 8), new Color(0, 0, 0, 0));
-        var ol = frame.gameObject.AddComponent<UnityEngine.UI.Outline>();   // 전역 QuickOutline 충돌 회피(한정명 필수)
-        ol.effectColor = FrameCol; ol.effectDistance = new Vector2(2f, -2f);
+        _decoLine2 = MakeDecoLine(subRow);   // 수식어 오른쪽 선
 
-        // 채움(빨강, 좌->우 비움)
-        var fillRt = NewRect("Fill", track, new Vector2(0f, 0.5f), new Vector2(3f, 0f), Vector2.zero);
-        fillRt.anchorMin = new Vector2(0f, 0f); fillRt.anchorMax = new Vector2(1f, 1f);
-        fillRt.offsetMin = new Vector2(3f, 3f); fillRt.offsetMax = new Vector2(-3f, -3f);
-        _fill = Img(fillRt, UISpriteFactory.RoundedRect(32, 7), FillCol);
-        _fill.type = Image.Type.Filled;
-        _fill.fillMethod = Image.FillMethod.Horizontal;
-        _fill.fillOrigin = (int)Image.OriginHorizontal.Left;
-        _fill.fillAmount = 1f;
+        // 이름 - 수식어 아래, 크고 굵게. 흰 글자 + 짙은 빨강 엣지(빨강/하양 통일).
+        _nameText = Txt("Name", root, new Vector2(0.5f, 1f), new Vector2(0f, -34f), new Vector2(800f, 44f), 32f, FontStyles.Bold);
+        _nameText.alignment = TextAlignmentOptions.Center;
+        _nameText.color = new Color(0.98f, 0.97f, 0.94f, 1f);
+        AddTextOutline(_nameText, TextEdgeCol, 0.22f);
 
-        // 페이즈 눈금(66% / 33% = 포효 페이즈)
-        AddNotch(track, 0.66f);
-        AddNotch(track, 0.33f);
+        // 체력 트랙(바닥) - 절차 둥근사각 9-slice(Sliced). Filled 가 아니라 Sliced 라 늘려도 끝이 안 뾰족.
+        // 디자인 프레임 스프라이트(hpbar_rect)는 양끝에 세로 장식선이 있어 안 쓴다 - 깔끔한 단색 트랙.
+        var track = NewRect("Track", root, new Vector2(0.5f, 1f), new Vector2(0f, -82f), new Vector2(760f, 20f));
+        Img(track, UISpriteFactory.RoundedRect(32, 8), TrackBgCol);
+
+        // 채움(빨강) - 같은 9-slice(Sliced). fillAmount(Filled) 대신 '폭'을 직접 줄여 비운다
+        // (Filled 는 스프라이트를 통째로 늘려 끝이 뾰족해진다). 좌측 고정, 폭 = 트랙폭 * 비율.
+        const float fillInset = 3f;
+        var fillRt = NewRect("Fill", track, new Vector2(0f, 0.5f), new Vector2(fillInset, 0f), new Vector2(0f, 20f - fillInset * 2f));
+        _fill = Img(fillRt, UISpriteFactory.RoundedRect(32, 8), FillCol);
+        _fillRt = fillRt;
+        _fillMaxWidth = 760f - fillInset * 2f;
+        _fillFrac = 1f;
+        _fillRt.sizeDelta = new Vector2(_fillMaxWidth, _fillRt.sizeDelta.y);
 
         root.gameObject.SetActive(true);
     }
 
-    private void AddNotch(RectTransform track, float frac)
+    // TMP 텍스트에 색 아웃라인(인스턴스 머티리얼에만 - 공유 머티리얼 오염 방지).
+    // 배경 패널 없이 밝은 씬(눈밭/초원)에서도 읽히게 + 이름/수식어 동일한 빨강 엣지로 통일.
+    private static void AddTextOutline(TMP_Text t, Color color, float width)
     {
-        var n = NewRect("Notch", track, new Vector2(frac, 0.5f), Vector2.zero, new Vector2(2.5f, 18f));
-        Img(n, null, NotchCol);
+        if (t == null) return;
+        try
+        {
+            var mat = t.fontMaterial;   // getter 접근 시 인스턴스 머티리얼 생성
+            if (mat == null) return;
+            mat.SetColor(ShaderUtilities.ID_OutlineColor, color);
+            mat.SetFloat(ShaderUtilities.ID_OutlineWidth, width);
+        }
+        catch { /* 아웃라인 실패해도 바 자체는 정상 동작 */ }
+    }
+
+    // 수식어 양옆 장식 선 한 개 (HorizontalLayoutGroup 자식). 얇은 빨강, 폭 고정(56px)이라 텍스트 옆에 딱 붙는다.
+    private static RectTransform MakeDecoLine(RectTransform parent)
+    {
+        var rt = NewRect("Deco", parent, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(56f, 3f));
+        Img(rt, null, new Color(FillCol.r, FillCol.g, FillCol.b, 0.5f));
+        var le = rt.gameObject.AddComponent<LayoutElement>();
+        le.preferredWidth = 56f; le.minWidth = 56f; le.flexibleWidth = 0f;
+        return rt;
     }
 
     // ── 동작 ──
@@ -139,7 +163,12 @@ public class BossHealthBarUI : MonoBehaviour
 
         if (_nameText != null) _nameText.text = string.IsNullOrEmpty(bossName) ? "보스" : bossName;
         if (_subText != null) _subText.text = subtitle ?? "";
-        if (_fill != null) _fill.fillAmount = SafeFrac();
+        // 수식어가 없으면 양옆 장식 선도 숨긴다(" -  - " 처럼 텅 빈 선만 뜨는 걸 방지).
+        bool hasSub = !string.IsNullOrEmpty(subtitle);
+        if (_decoLine1 != null) _decoLine1.gameObject.SetActive(hasSub);
+        if (_decoLine2 != null) _decoLine2.gameObject.SetActive(hasSub);
+        _fillFrac = SafeFrac();
+        if (_fillRt != null) _fillRt.sizeDelta = new Vector2(_fillMaxWidth * _fillFrac, _fillRt.sizeDelta.y);
 
         _visible = true;   // 알파 페이드인은 Update가 거리/UI 조건 보고 처리
     }
@@ -163,8 +192,11 @@ public class BossHealthBarUI : MonoBehaviour
         float targetAlpha = show ? 1f : 0f;
         _cg.alpha = Mathf.MoveTowards(_cg.alpha, targetAlpha, Time.unscaledDeltaTime / FadeDur);
 
-        if (_fill != null && _target != null)
-            _fill.fillAmount = Mathf.Lerp(_fill.fillAmount, SafeFrac(), Time.unscaledDeltaTime * 8f);
+        if (_fillRt != null && _target != null)
+        {
+            _fillFrac = Mathf.Lerp(_fillFrac, SafeFrac(), Time.unscaledDeltaTime * 8f);
+            _fillRt.sizeDelta = new Vector2(_fillMaxWidth * _fillFrac, _fillRt.sizeDelta.y);
+        }
     }
 
     // 카메라-보스 거리가 ShowDistance 안인지 (멀리 가면 자동 숨김 -> 보스 리쉬 리셋과 짝).
