@@ -53,6 +53,12 @@ public class EnemySpawnPoint : MonoBehaviour
              "눈앞에서 몹이 튀어나오는 걸 막는다. 구역이 넓을수록 유용.")]
     [Min(0f)] [SerializeField] private float respawnPlayerDistance = 0f;
 
+    [Header("성능 (원거리 슬립)")]
+    [Tooltip("플레이어가 이 거리 밖이면 이 구역 몹을 despawn 하고 스폰도 멈춘다(m). 0 = 항상 유지(기존 동작).\n" +
+             "안 간/떠난 구역의 몹이 CPU를 안 먹게 한다. 다가갈 때 팝인이 안 보이게 시야보다 넉넉히 크게 줘라.\n" +
+             "재방문하면 몹은 새로 스폰된다(엘리트 해금 진행도는 유지).")]
+    [Min(0f)] [SerializeField] private float activateDistance = 0f;
+
     [Header("초기 스폰")]
     [Tooltip("시작 시 항목별 maxCount까지 자동 스폰(해금형 엘리트 제외 = 일반몹 처치 후 등장)")]
     [SerializeField] private bool spawnOnStart = true;
@@ -97,6 +103,7 @@ public class EnemySpawnPoint : MonoBehaviour
     private int[] _aliveByEntry;
     private int[] _pendingByEntry;
     private int _normalKills;
+    private bool _zoneAsleep;   // activateDistance 슬립 상태(몹 despawn 됨). 플레이어 접근 시 깨어나 재스폰.
     private readonly Dictionary<GameObject, int> _entryOf = new();
 
     // TryGetRandomNavPos 마지막 호출에서 raycast로 찾은 ground 정보 (SpawnPrefab에서 baseOffset 보정용)
@@ -154,12 +161,25 @@ public class EnemySpawnPoint : MonoBehaviour
             yield break;
         }
 
-        // 항목별로 maxCount 까지 초기 스폰(해금형 엘리트는 제외 = 일반몹 처치 후 등장)
+        // 원거리 슬립 사용 시: 시작부터 다 스폰하지 않고, 플레이어가 접근할 때만 스폰/멀면 despawn.
+        if (activateDistance > 0f)
+        {
+            StartCoroutine(ActivationLoop());
+            yield break;
+        }
+
+        yield return InitialSpawnAll();
+    }
+
+    // 항목별 maxCount 까지 스폰(초기 스폰 / 슬립에서 깨어날 때 공통).
+    //   해금형 엘리트는 아직 조건 미달이면 제외(일반몹 처치 후 등장). 이미 해금됐으면 재방문 시 같이 나온다.
+    private IEnumerator InitialSpawnAll()
+    {
         for (int i = 0; i < spawnEntries.Count; i++)
         {
             var e = spawnEntries[i];
             if (e == null || e.prefab == null) continue;
-            if (e.isElite && e.unlockAfterNormalKills > 0) continue;
+            if (e.isElite && e.unlockAfterNormalKills > 0 && _normalKills < e.unlockAfterNormalKills) continue;
             int want = Mathf.Max(1, e.maxCount);
             for (int k = 0; k < want; k++)
             {
@@ -293,6 +313,7 @@ public class EnemySpawnPoint : MonoBehaviour
     // 지금 즉시 스폰 가능한지(살아있는 수 < 최대 + 엘리트 해금 충족 + 구역 총량)
     private bool CanSpawnEntry(int i)
     {
+        if (_zoneAsleep) return false;   // 원거리 슬립 중엔 스폰 금지(깨어날 때 InitialSpawnAll 이 채운다)
         if (i < 0 || i >= spawnEntries.Count) return false;
         var e = spawnEntries[i];
         if (e == null || e.prefab == null) return false;
@@ -305,6 +326,7 @@ public class EnemySpawnPoint : MonoBehaviour
     // 예약(코루틴)까지 고려해 자리 남았는지 — 중복 예약으로 maxCount 초과 방지
     private bool CanScheduleEntry(int i)
     {
+        if (_zoneAsleep) return false;
         if (i < 0 || i >= spawnEntries.Count) return false;
         var e = spawnEntries[i];
         if (e == null || e.prefab == null) return false;
@@ -345,6 +367,59 @@ public class EnemySpawnPoint : MonoBehaviour
         var p = FindFirstObjectByType<Player>();
         _playerT = p != null ? p.transform : null;
         return _playerT;
+    }
+
+    // 원거리 슬립 (activateDistance)
+    // 플레이어가 구역에서 멀면 몹을 despawn 해 CPU 부하를 없애고, 가까워지면 다시 스폰한다.
+    //   0.5초마다 구역 박스까지 거리만 재는 아주 가벼운 폴링. 히스테리시스로 경계 깜빡임 방지.
+    private IEnumerator ActivationLoop()
+    {
+        _zoneAsleep = true;   // 시작은 잠든 상태 - 플레이어가 사거리에 들어와야 스폰
+        float on  = activateDistance;
+        float off = activateDistance * 1.15f;   // 깨는 거리보다 재우는 거리를 멀게(경계 떨림 방지)
+        float onSqr = on * on, offSqr = off * off;
+        var wait = new WaitForSeconds(0.5f);
+
+        while (true)
+        {
+            var p = GetPlayerTransform();
+            if (p != null && area != null)
+            {
+                // 구역 박스까지의 거리(안에 있으면 0) - 큰 박스도 안전하게 판정.
+                float d = (p.position - area.bounds.ClosestPoint(p.position)).sqrMagnitude;
+                if (_zoneAsleep) { if (d < onSqr) yield return WakeZone(); }
+                else             { if (d > offSqr) SleepZone(); }
+            }
+            yield return wait;
+        }
+    }
+
+    private IEnumerator WakeZone()
+    {
+        _zoneAsleep = false;
+        yield return InitialSpawnAll();   // 항목별 maxCount 까지 새로 스폰
+    }
+
+    // 구역의 살아있는 몹 전부 제거(처치 아님 - OnDeath 를 안 거쳐 킬 집계/퀘스트에 안 잡힌다) + 카운트/웨이포인트 정리.
+    private void SleepZone()
+    {
+        _zoneAsleep = true;
+        for (int i = aliveEnemies.Count - 1; i >= 0; i--)
+        {
+            var e = aliveEnemies[i];
+            if (e == null) continue;
+            if (enemyWaypoints.TryGetValue(e, out var pts))
+            {
+                foreach (var wp in pts) if (wp != null) Destroy(wp);
+                enemyWaypoints.Remove(e);
+            }
+            _entryOf.Remove(e);
+            Destroy(e);
+        }
+        aliveEnemies.Clear();
+        for (int i = 0; i < _aliveByEntry.Length; i++) _aliveByEntry[i] = 0;
+        // _pendingByEntry: 진행 중 리스폰 코루틴은 _zoneAsleep 게이트로 스폰 안 함(자연 정리).
+        // _normalKills: 엘리트 해금 진행도라 유지(재방문 시 이어짐).
     }
 
     // 해금되는 순간(일반몹 N킬 달성) 엘리트가 곧장 나오게 하는 첫 등장 지연(초).
