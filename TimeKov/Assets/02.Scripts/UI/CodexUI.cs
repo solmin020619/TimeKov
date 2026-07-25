@@ -785,6 +785,9 @@ public class CodexUI : MonoBehaviour
             if (FacilityUnlocked(id)) { e.state = St.Public; e.status = null; }
             list.Add(e);
         }
+        // 실제 게임 설비 순서(건축바 슬롯 순서)에 맞춘다 - facilityId 순이 아니라 SlotIndexOf 순.
+        //   건축바는 buildSlot 으로 재배치되는데 도감만 facilityId 순이라 위치가 어긋나던 것 정정.
+        list.Sort((a, b) => FacilityUnlockManager.SlotIndexOf(a.facilityId).CompareTo(FacilityUnlockManager.SlotIndexOf(b.facilityId)));
         return list.Count > 0 ? list.ToArray() : CloneDev(Facilities);
     }
 
