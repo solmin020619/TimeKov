@@ -233,7 +233,7 @@ public static class TutorialAssetBuilder
 
         quests.Add(BuildQuest("quest_tut_16b_rail_move", "레일 자동화 확인",
             CreateRailItemMove("obj_rail_move",
-                $"{Y}생체 추출기{E}에 재료를 넣고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}저절로 넘어가는지{E} 확인하세요.", 1)));
+                $"{Y}생체 추출기{E}에 재료를 넣고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}자동으로 넘어가는지{E} 확인하세요.", 1)));
 
         // ============================================================
         // 코어 강화 - 이동(보상 키트) -> [영상 안내 + 열기 + 강화] -> 결과/마무리
@@ -272,17 +272,17 @@ public static class TutorialAssetBuilder
         endgameQuests.Add(BuildQuestRewarded("quest_end_01_reach_transmit", "시간에너지 전송기로 이동",
             new[] { new QuestSO.QuestReward { itemId = StarterKitId, amount = 1 } },
             CreateReachTrigger("obj_reach_transmit",
-                $"기지의 {Y}시간에너지 전송기{E}로 {Y}이동{E}하세요. 시간에너지를 {Y}100%{E}까지 전송하고 우주선을 수리하면 {Y}탈출{E}할 수 있습니다.", "transmit")));
+                $"기지의 {Y}시간에너지 전송기{E}로 {Y}이동{E}하세요.", "transmit")));
 
         // 첫 전송 - 스타터 키트를 넣어 5% 달성. 5% 보상으로 시간에너지 합성기(3) 자동 해금 -> 이후 키트 자급.
         endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "첫 시간에너지 전송",
             CreateTransmissionRate("obj_first_transmit",
-                $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 시간에너지 전송률 {Y}5%{E}를 달성하세요. (달성 시 {Y}시간에너지 합성기{E}가 해금돼 키트를 직접 만들 수 있습니다)", 5)));
+                $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 전송률 {Y}5%{E}를 달성하세요.", 5)));
 
         // 장기 목표(상시) - 100% 전송 + 우주선 수리로 탈출. 튜토가 끝나도 방향을 남긴다.
         endgameQuests.Add(BuildQuest("quest_end_03_escape_goal", "탈출 준비",
             CreateTransmissionRate("obj_escape_goal",
-                $"각 지역에서 {Y}충전 키트{E}를 만들어 전송하고, 시간에너지 {Y}100%{E} 달성 + 우주선 수리를 마쳐 {Y}탈출{E}하세요.", 100)));
+                $"시간에너지 {Y}100%{E} 달성 + 우주선 수리를 마쳐 {Y}탈출{E}하세요.", 100)));
 
         // [2층] 상황별 발견 팝업 데이터셋 생성 (이벤트 처음 발생 시 1회 설명 팝업. Resources 런타임 로드).
         BuildDiscoveryCueSet();
@@ -655,7 +655,7 @@ public static class TutorialAssetBuilder
                 VPage("에너지 변환기 소개",
                     $"원료를 {Y}에너지 형태{E}로 변환하는 설비입니다. {Y}생체 분리기{E}의 산출물을 받아 가공합니다."),
                 VPage("원재료 무한 복제",
-                    $"{Y}생체 분리기{E}의 출력을 {Y}에너지 변환기{E}에, 변환기의 출력을 다시 분리기에 {Y}레일{E}로 물려 순환시키면 원재료가 계속 불어납니다. 이 {Y}순환 라인{E}으로 재료를 무한히 확보하세요.")),
+                    $"{Y}생체 분리기{E}와 {Y}에너지 변환기{E}의 출력을 {Y}레일{E}로 서로 물려 순환시키면 원재료가 계속 불어납니다. 이 {Y}순환 라인{E}으로 재료를 무한히 확보하세요.")),
 
             // 귀환석 - 첫 획득(전송 20% 보상) 순간. 기지 안이라 안전.
             Cue("returnstone", true, VPage("귀환석",
@@ -663,7 +663,7 @@ public static class TutorialAssetBuilder
 
             // 전송기 첫 상호작용 - 시스템 소개. 기지 안.
             Cue("interact:transmit", true, VPage("시간에너지 전송",
-                $"여기서 {Y}충전 키트{E}를 전송해 {Y}시간에너지 전송률{E}을 올립니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}. 지역별로 25%씩 채우며, 각 구간 마지막은 {Y}보스 재료{E}가 든 특수 키트가 필요합니다.")),
+                $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 지역별로 25%씩 채우고, 각 구간 마지막은 {Y}보스 재료{E} 특수 키트가 필요합니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}합니다.")),
 
             // 첫 워프 지점 활성화 - 워프 시스템 소개. 필드에서 밟는 순간 즉시(safe=true). WarpManager.TryFire("warp") 가 발화.
             Cue("warp", true, VPage("워프 지점",

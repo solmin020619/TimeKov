@@ -164,11 +164,18 @@ public class TutorialMarker : MonoBehaviour
         if (_markerCg != null) _markerCg.alpha = 1f;
         _wasVisible = true;
 
-        // 잔잔한 둥둥 (살아있는 느낌만, 과한 연출 없음)
+        // 둥둥 연출은 시야 밖(가장자리 클램프)일 때만. 시야 안(대상 위에 표시)이면 딱 고정한다 = 다른 게임처럼.
         if (_circle != null)
         {
-            float bob = Mathf.Sin(Time.unscaledTime * bobSpeed) * bobAmplitude;
-            _circle.localPosition = _circleHome + new Vector3(0f, bob, 0f);
+            if (onscreen)
+            {
+                _circle.localPosition = _circleHome;
+            }
+            else
+            {
+                float bob = Mathf.Sin(Time.unscaledTime * bobSpeed) * bobAmplitude;
+                _circle.localPosition = _circleHome + new Vector3(0f, bob, 0f);
+            }
         }
 
         // 거리
