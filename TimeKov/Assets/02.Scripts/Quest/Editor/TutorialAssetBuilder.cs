@@ -31,7 +31,7 @@ public static class TutorialAssetBuilder
     // -- 최종 FacilityData 시트 기준 --
     const int BioExtractorId = 1;   // 생체 추출기 (3x3)
     const int BioCultivatorId = 2;  // 생체 배양기 (5x5)
-    const int StorageId = 8;        // 저장고 (창고 용량 제공) - 튜토 필수 아님(숨김)
+    const int StorageId = 8;        // 저장고 (레일 아이템을 창고로 넣음 = 창고 출력 포트 반대) - 튜토 필수 아님(숨김)
     const int TotalFacilityCount = 8;   // 전체 설비 수 (마무리 "설비 해금하기" 목표 = x/8). 설비 수 바뀌면 여기 수정.
 
     // -- 최종 ItemData 시트 기준 --
@@ -644,7 +644,7 @@ public static class TutorialAssetBuilder
             Cue("facility:9", true, VPage("창고 출력 포트 소개",
                 $"{Y}창고{E}의 아이템을 {Y}레일{E}로 꺼내 다른 설비에 자동 공급하는 설비입니다.")),
             Cue("facility:8", true, VPage("저장고 소개",
-                $"{Y}창고 보관 용량{E}을 늘려주는 설비입니다.")),
+                $"레일로 들어온 아이템을 {Y}창고에 자동 보관{E}하는 설비입니다. {Y}창고 출력 포트{E}(창고에서 꺼내기)의 반대입니다.")),
             Cue("facility:7", true, VPage("코어 합성기 소개",
                 $"{Y}코어 강화{E}에 쓰는 {Y}코어 키트{E}를 만드는 설비입니다.")),
             // 생체 분리기 + 에너지 변환기 = 60% 동시 해금(원재료 무한복제 쌍). 한 팝업에 3페이지로 묶는다.

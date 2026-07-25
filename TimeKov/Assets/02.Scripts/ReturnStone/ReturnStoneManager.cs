@@ -63,6 +63,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     private CanvasGroup _fadeCg;
     private Player _player;
     private RespawnManager _respawn;
+    private ReturnStoneHudUI _hud;   // 스킬바 슬롯(잠금 오버레이 흔들기용)
 
     // ── 공개 API (보상/HUD 연동용) ────────────────────────────────────
     public int Level => level;
@@ -107,7 +108,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
             timeout -= Time.deltaTime;
             yield return null;
         }
-        ReturnStoneHudUI.Build(this, bar, hudSize);
+        _hud = ReturnStoneHudUI.Build(this, bar, hudSize);
     }
 
     private void OnDestroy()
@@ -131,7 +132,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     public bool TryUse()
     {
         if (_channeling) return false;
-        if (!IsOwned) { ToastManager.Warning("귀환석을 보유하고 있지 않습니다."); return false; }
+        if (!IsOwned) { _hud?.NudgeLock(); ToastManager.Warning("귀환석을 보유하고 있지 않습니다."); return false; }
 
         var player = ResolvePlayer();
         if (player == null) return false;

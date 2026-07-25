@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,6 +15,7 @@ public class ReturnStoneHudUI : MonoBehaviour
     private Image _ring;
     private Image _icon;
     private TextMeshProUGUI _cdText;
+    private RectTransform _lockOverlay;   // 미보유 시 자물쇠+쇠사슬 오버레이(대쉬 슬롯과 동일 PNG)
 
     private static readonly Color SkillRing = new Color32(80, 200, 235, 255);   // 스킬바와 동일한 시안
     private static readonly Color RingDim   = new Color(0.45f, 0.5f, 0.55f, 1f);
@@ -88,6 +90,9 @@ public class ReturnStoneHudUI : MonoBehaviour
         var keyT = NewText("Key", colRt, new Vector2(0.5f, 0f), Vector2.zero, new Vector2(50f, 22f), 14f);
         keyT.text = _mgr.UseKey == KeyCode.None ? "" : _mgr.UseKey.ToString();
 
+        // 미보유 잠금 오버레이(대쉬 슬롯과 동일 dash_lock_chain PNG). 보유하면 Refresh 가 끈다.
+        BuildLockOverlay(circle, size);
+
         Refresh();
     }
 
@@ -98,13 +103,14 @@ public class ReturnStoneHudUI : MonoBehaviour
         if (_mgr == null) return;
 
         bool owned = _mgr.IsOwned;
-        _cg.alpha = owned ? 1f : 0.4f;   // 부모(스킬바) 페이드와 곱해짐
+        if (_lockOverlay != null) _lockOverlay.gameObject.SetActive(!owned);   // 미보유 = 자물쇠 오버레이로 표시(대쉬와 통일)
+        _cg.alpha = 1f;   // 자체 dim 안 함 - 잠김 신호는 오버레이가 담당(부모 스킬바 페이드만 곱해짐)
 
         if (!owned)
         {
             _ring.fillAmount = 1f; _ring.color = RingDim;
             _cdText.text = "";
-            SetIconAlpha(0.6f);
+            SetIconAlpha(0.55f);   // 자물쇠 아래로 아이콘 살짝 어둡게
             return;
         }
 
@@ -138,6 +144,67 @@ public class ReturnStoneHudUI : MonoBehaviour
     {
         if (_icon == null) return;
         var c = _icon.color; c.a = a; _icon.color = c;
+    }
+
+    // ── 잠금(미보유) 오버레이 — 대쉬 슬롯과 동일(dash_lock_chain PNG, 없으면 절차 폴백) ──
+    private void BuildLockOverlay(RectTransform circle, float size)
+    {
+        var ov = NewChild("ReturnStoneLock", circle, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size, size));
+        ov.SetAsLastSibling();   // 아이콘/링 위에
+
+        var designed = Res("dash_lock_chain");   // 대쉬와 동일 PNG(자물쇠+쇠사슬). 있으면 통째 사용.
+        if (designed != null)
+        {
+            var img = ov.gameObject.AddComponent<Image>();
+            img.sprite = designed;
+            img.preserveAspect = true;
+            img.raycastTarget = false;
+        }
+        else
+        {
+            var dim = NewImage("Dim", ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 0.96f, size * 0.96f));
+            dim.sprite = UISpriteFactory.Circle(96);
+            dim.color = new Color(0.04f, 0.05f, 0.07f, 0.5f);
+
+            Color32 chainTop = new Color32(158, 166, 176, 255);
+            Color32 chainBot = new Color32(74, 80, 88, 255);
+            for (int i = 0; i < 2; i++)
+            {
+                var ch = NewImage("Chain" + i, ov, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size * 1.18f, size * 0.22f));
+                ch.sprite = UISpriteFactory.RoundedRectVGrad(chainTop, chainBot, 48, 10);
+                ch.type = Image.Type.Simple;
+                ch.rectTransform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 34f : -34f);
+            }
+
+            var lk = NewImage("Lock", ov, new Vector2(0.5f, 0.5f), new Vector2(0f, 2f), new Vector2(size * 0.5f, size * 0.5f));
+            lk.sprite = UISpriteFactory.Lock(96);
+            lk.color = new Color32(236, 233, 227, 255);
+            lk.preserveAspect = true;
+        }
+
+        ov.gameObject.SetActive(!_mgr.IsOwned);
+        _lockOverlay = ov;
+    }
+
+    // 잠긴 상태에서 H를 눌렀을 때 — 잠금 오버레이를 덜컹(대쉬 LockNudge 와 동일). ReturnStoneManager 가 호출.
+    public void NudgeLock()
+    {
+        if (_lockOverlay != null && _lockOverlay.gameObject.activeSelf)
+            StartCoroutine(LockNudge(_lockOverlay));
+    }
+
+    private IEnumerator LockNudge(RectTransform ov)
+    {
+        Vector2 basePos = ov.anchoredPosition;
+        float t = 0f; const float dur = 0.3f;
+        while (t < dur && ov != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float dx = Mathf.Sin(t * 58f) * 4f * (1f - t / dur);
+            ov.anchoredPosition = basePos + new Vector2(dx, 0f);
+            yield return null;
+        }
+        if (ov != null) ov.anchoredPosition = basePos;
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────────
