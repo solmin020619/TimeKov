@@ -118,8 +118,9 @@ public class BuildManager : MonoBehaviour, ISaveable
         return false;
     }
 
-    [Header("Build Slots (1~9 keys)")]
-    public BuildSlot[] buildSlots;
+    // 런타임 전용 — Start()의 InitDynamicUnlockSlots()가 해금상태 + 시트 buildSlot 컬럼 기준으로 매번 새로 만든다.
+    // 인스펙터에 직렬화하지 않는다(옛 고정배열 값은 Start에서 덮어써지던 죽은 데이터였음).
+    [System.NonSerialized] public BuildSlot[] buildSlots;
 
     [Header("UI Effects")]
     public HotbarSlotEffect[] slotEffects;
@@ -217,6 +218,7 @@ public class BuildManager : MonoBehaviour, ISaveable
         if (FacilityUnlockManager.Instance != null)
             FacilityUnlockManager.Instance.OnFacilityUnlocked -= HandleFacilityUnlocked;
 
+        DataBoot.OnDataLoaded -= OnDataLoadedRefreshSlots;   // 데이터 로드 전 파괴 시 대비
         SaveSlotManager.Instance?.Unregister(this);
     }
 
@@ -1370,25 +1372,14 @@ public class BuildManager : MonoBehaviour, ISaveable
         for (int i = 0; i < slotCount; i++)
             buildSlots[i] = new BuildSlot { facilityId = 0 };
 
-        // 아이콘 UI 초기화 — 잠긴 슬롯은 자물쇠, 이미 해금된 슬롯은 설비 표시
+        // 물리 슬롯 번호 라벨 + 잠금 상태로 리셋 (시트 데이터 불필요)
         if (slotIconUIs != null)
         {
             for (int i = 0; i < slotIconUIs.Length; i++)
             {
-                var slot = slotIconUIs[i];
-                if (slot == null) continue;
-                slot.SetSlotNumber(i + 1);
-                int facilityId = i + 1;
-                bool unlocked = FacilityUnlockManager.Instance != null && FacilityUnlockManager.Instance.IsUnlocked(facilityId);
-                if (unlocked)
-                {
-                    buildSlots[i].facilityId = facilityId;
-                    slot.SetFacility(facilityId);
-                }
-                else
-                {
-                    slot.Clear();
-                }
+                if (slotIconUIs[i] == null) continue;
+                slotIconUIs[i].SetSlotNumber(i + 1);   // 번호 = 물리 슬롯 위치(키 1~9), 항상 고정
+                slotIconUIs[i].Clear();
             }
         }
 
@@ -1405,6 +1396,45 @@ public class BuildManager : MonoBehaviour, ISaveable
             FacilityUnlockManager.Instance.OnFacilityUnlocked += HandleFacilityUnlocked;
         else
             Debug.LogWarning("[BuildManager] FacilityUnlockManager가 씬에 없음. 설비 해금 기능 비활성화.");
+
+        // 해금된 설비 배치는 시트(buildSlot 위치 + iconKey 아이콘)가 필요하다.
+        // 부팅 시 시트가 아직 로드 안 됐으면(기본해금 1·2번 아이콘이 비는 원인) 로드 완료 후 배치한다.
+        if (DataBoot.IsLoaded)
+            RefreshUnlockedSlots();
+        else
+            DataBoot.OnDataLoaded += OnDataLoadedRefreshSlots;
+    }
+
+    private void OnDataLoadedRefreshSlots()
+    {
+        DataBoot.OnDataLoaded -= OnDataLoadedRefreshSlots;
+        RefreshUnlockedSlots();
+    }
+
+    // 현재 해금된 설비들을 시트 buildSlot 위치에 아이콘까지 배치한다(멱등 — 여러 번 호출 안전).
+    private void RefreshUnlockedSlots()
+    {
+        if (buildSlots == null || slotIconUIs == null || FacilityUnlockManager.Instance == null) return;
+
+        // 슬롯 리셋
+        for (int i = 0; i < buildSlots.Length; i++) buildSlots[i].facilityId = 0;
+        for (int i = 0; i < slotIconUIs.Length; i++)
+            if (slotIconUIs[i] != null) slotIconUIs[i].Clear();
+
+        // 해금된 설비를 각자의 슬롯 위치(시트 buildSlot 컬럼, 비면 facilityId 순)에 배치
+        foreach (int facilityId in FacilityUnlockManager.Instance.UnlockedIds)
+        {
+            int idx = FacilityUnlockManager.SlotIndexOf(facilityId);
+            if (idx < 0 || idx >= buildSlots.Length) continue;
+            if (buildSlots[idx].facilityId != 0)
+            {
+                Debug.LogWarning($"[BuildManager] 슬롯 {idx + 1} 중복 — facilityId {buildSlots[idx].facilityId} 와 {facilityId}. 시트 buildSlot 확인.");
+                continue;
+            }
+            buildSlots[idx].facilityId = facilityId;
+            if (idx < slotIconUIs.Length && slotIconUIs[idx] != null)
+                slotIconUIs[idx].SetFacility(facilityId);
+        }
     }
 
     // 설비 해금 시 콜백 — 해당 슬롯에 facilityId 등록 + 아이콘 표시

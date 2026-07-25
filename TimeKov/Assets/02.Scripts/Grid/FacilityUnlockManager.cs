@@ -89,12 +89,26 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
     /// <summary>해금된 facilityId 목록 (읽기 전용).</summary>
     public IReadOnlyList<int> UnlockedIds => _unlockedIds;
 
+    /// <summary>
+    /// 설비의 퀵슬롯 위치(0-based). 시트 FacilityData.buildSlot 컬럼이 우선,
+    /// 비어 있으면 facilityId-1(옛 규칙: facilityId N번 = 키 N번)로 폴백한다.
+    /// 아이콘 iconKey 와 같은 방식 — 시트만 고치면 건축바 순서가 바뀐다.
+    /// </summary>
+    public static int SlotIndexOf(int facilityId)
+    {
+        if (GameDataHolder.I != null
+            && GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out var fd)
+            && int.TryParse(fd.buildSlot, out int bs) && bs >= 1 && bs <= MaxSlots)
+            return bs - 1;
+        return facilityId - 1;
+    }
+
     // ── 해금 ─────────────────────────────────────────────────────
 
     /// <summary>
     /// 설비를 해금한다.
-    /// facilityId가 그대로 슬롯 번호가 된다 (facilityId 1 → 슬롯 1번, facilityId 8 → 슬롯 8번).
-    /// 이미 해금됐거나 facilityId가 범위를 벗어나면 false 반환.
+    /// 슬롯 위치는 SlotIndexOf(시트 buildSlot 컬럼, 비면 facilityId 순)로 정해진다.
+    /// 이미 해금됐거나 슬롯 위치가 범위를 벗어나면 false 반환.
     /// </summary>
     public bool TryUnlock(int facilityId)
     {
@@ -103,11 +117,11 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
             return false;
         }
 
-        // facilityId 1 → slotIndex 0, facilityId 8 → slotIndex 7 (고정 배정)
-        int slotIndex = facilityId - 1;
+        // 슬롯 위치 = 시트 buildSlot 컬럼(비면 facilityId 순). 아이콘/도면처럼 시트로 조정.
+        int slotIndex = SlotIndexOf(facilityId);
         if (slotIndex < 0 || slotIndex >= MaxSlots)
         {
-            Debug.LogWarning($"[FacilityUnlockManager] facilityId={facilityId}는 슬롯 범위(1~{MaxSlots})를 벗어남. 해금 불가.");
+            Debug.LogWarning($"[FacilityUnlockManager] facilityId={facilityId}의 슬롯 위치가 범위(1~{MaxSlots})를 벗어남. 해금 불가.");
             return false;
         }
 
