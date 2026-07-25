@@ -105,18 +105,16 @@ namespace TIMEKOV.Factory
 
             ScanNearby();
 
+            // 에임(카메라가 보는 방향) 기준으로 대상 설비를 매 프레임 갱신 - 바라보는 설비가 강조/열림.
+            //   플레이어 위치 기준 근접만 보던 옛 방식(=엉뚱한 옆 설비가 잡히던 문제)을 대체한다.
             if (_selectShowing && facilitySelectPanel != null)
             {
-                float scroll = Input.GetAxis("Mouse ScrollWheel");
-                if (scroll > 0f)
+                var aimed = PickAimedMachine();
+                if (aimed != null)
                 {
-                    facilitySelectPanel.ScrollSelection(-1);
-                    SetOutline(facilitySelectPanel.SelectedMachine);
-                }
-                else if (scroll < 0f)
-                {
-                    facilitySelectPanel.ScrollSelection(1);
-                    SetOutline(facilitySelectPanel.SelectedMachine);
+                    facilitySelectPanel.SelectMachine(aimed);
+                    if (aimed != _outlinedMachine) SetOutline(aimed);
+                    if (hintText != null) hintText.text = $"F  —  {aimed.MachineName} 열기";
                 }
             }
 
@@ -169,11 +167,7 @@ namespace TIMEKOV.Factory
             {
                 if (NearMachinesChanged())
                     ShowSelectPanel();
-
-                if (hintText != null)
-                    hintText.text = _nearMachines.Count == 1
-                        ? $"F  —  {_nearMachines[0].name} 열기"
-                        : "스크롤  —  선택  /  F  —  열기";
+                // 힌트 텍스트는 Update 의 에임 추적 블록이 '바라보는 설비' 기준으로 매 프레임 설정한다.
             }
 
             _prevNearMachines.Clear();
@@ -188,6 +182,29 @@ namespace TIMEKOV.Factory
             return false;
         }
 
+        // 근처 설비 중 카메라가 '바라보는' 것(화면 중앙에 가장 가까운 것)을 고른다 = 에임 기반 타겟.
+        //   좌우로 나란한 두 설비도 카메라를 돌리면 그쪽이 잡힌다(마우스로 겨냥). 카메라 뒤 설비는 제외.
+        private MachineBase PickAimedMachine()
+        {
+            if (_nearMachines.Count == 0) return null;
+            if (_nearMachines.Count == 1) return _nearMachines[0].machine;
+            if (_cam == null) _cam = Camera.main;
+            if (_cam == null) return _nearMachines[0].machine;
+
+            Vector2 center = new Vector2(Screen.width, Screen.height) * 0.5f;
+            MachineBase best = null;
+            float bestSqr = float.MaxValue;
+            foreach (var (m, _) in _nearMachines)
+            {
+                if (m == null) continue;
+                Vector3 sp = _cam.WorldToScreenPoint(m.transform.position + Vector3.up);   // 바닥 말고 몸통 기준
+                if (sp.z <= 0f) continue;                                                   // 카메라 뒤
+                float sqr = ((Vector2)sp - center).sqrMagnitude;
+                if (sqr < bestSqr) { bestSqr = sqr; best = m; }
+            }
+            return best != null ? best : _nearMachines[0].machine;   // 다 뒤면 첫 번째로 폴백
+        }
+
         // ── 선택 패널 제어 ───────────────────────────────────────────────
 
         private void ShowSelectPanel()
@@ -195,7 +212,6 @@ namespace TIMEKOV.Factory
             if (facilitySelectPanel == null) return;
             facilitySelectPanel.Show(_nearMachines);
             _selectShowing = true;
-            ThirdPersonCamera.BlockZoom = true;
             SetOutline(facilitySelectPanel.SelectedMachine);
         }
 
@@ -205,7 +221,6 @@ namespace TIMEKOV.Factory
             SetOutline(null);
             facilitySelectPanel.Hide();
             _selectShowing = false;
-            ThirdPersonCamera.BlockZoom = false;
         }
 
         private void UpdatePanelPosition()

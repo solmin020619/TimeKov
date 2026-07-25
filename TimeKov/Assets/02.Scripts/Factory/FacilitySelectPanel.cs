@@ -66,6 +66,22 @@ public class FacilitySelectPanel : MonoBehaviour
         _rows[_selectedIndex].SetSelected(true);
     }
 
+    /// <summary>특정 설비를 선택 상태로 만든다(에임 추적용 - MachineInteraction 이 바라보는 설비로 매 프레임 호출).
+    /// 이미 선택돼 있으면 중복 갱신하지 않는다.</summary>
+    public void SelectMachine(MachineBase machine)
+    {
+        if (machine == null) return;
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            if (_rows[i] == null || _rows[i].Machine != machine) continue;
+            if (i == _selectedIndex) return;   // 이미 선택 - 매 프레임 재설정 방지
+            if (InRange(_selectedIndex)) _rows[_selectedIndex].SetSelected(false);
+            _selectedIndex = i;
+            _rows[i].SetSelected(true);
+            return;
+        }
+    }
+
     /// <summary>선택된 행을 flashCount회 깜빡인다. MachineInteraction에서 yield return으로 사용.</summary>
     public IEnumerator FlashSelected(float totalDuration = 0.4f, int flashCount = 3)
     {
