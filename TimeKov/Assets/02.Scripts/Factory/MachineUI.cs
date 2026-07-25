@@ -956,6 +956,7 @@ public class MachineUI : MonoBehaviour
             hintMgr.Hide("recipe_slot_hint");
             hintMgr.Hide("first_machine_hint");
         }
+        _noFuelTimer = 0f; _fuelHintOn = false;   // 연료 힌트 상태 초기화(강조 자체는 위 ClearDropHighlights가 끔)
 
         // [Gauge] 게이지 정리 — 패널 닫을 때 0%로 비우고 숨김
         if (processingGauge != null) processingGauge.StopAndHide();
@@ -2202,6 +2203,9 @@ public class MachineUI : MonoBehaviour
         // 흐름 레일: 아이템 통과 순간 연출은 항상 감지(가동 여부 무관), 중앙 화살표 펄스만 가동 시.
         UpdateFlowRails(isSelectedRecipeActive && _machine.IsProcessing);
 
+        // 연료 없을 때 몇 초 이상 연료가 안 들어가면(팩토리오식) 연료 슬롯을 강조해 위치를 안내. 마우스 무관.
+        UpdateFuelHint(_machine.Status == MachineStatus.NoFuel);
+
         if (statusText == null) return;
 
         if (_machine.Status == MachineStatus.NoFuel)
@@ -2327,6 +2331,33 @@ public class MachineUI : MonoBehaviour
         mgr.ShowOnUI("first_machine_hint", rect, canvas, 5f);
         PlayerPrefs.SetInt(FirstMachineHintKey, 1);
         PlayerPrefs.Save();
+    }
+
+    // ── 연료 없을 때 위치 힌트(팩토리오식) ──────────────────────────
+    // NoFuel 상태가 FuelHintDelay 초 이상 지속되면 연료 슬롯을 강조한다(마우스 움직임과 무관 - 그냥
+    // 연료가 몇 초간 안 들어가면 뜬다). 강조는 연료를 드래그로 집어들 때 뜨는 그 강조(SetDragHighlight)를
+    // 재사용해서 머신 UI 자체 요소로 확실히 보이게 한다. 연료가 채워지면(NoFuel 해제) 자동으로 꺼진다.
+    // want 인 동안은 매 프레임 다시 켜서(드래그 강조가 중간에 껐다 켜도) 유지하고, 해제는 1회만 한다.
+    const float FuelHintDelay = 2f;
+    private float _noFuelTimer;
+    private bool _fuelHintOn;
+
+    private void UpdateFuelHint(bool noFuel)
+    {
+        if (fuelDropSlot == null) return;
+        _noFuelTimer = noFuel ? _noFuelTimer + Time.unscaledDeltaTime : 0f;
+
+        bool want = noFuel && _noFuelTimer >= FuelHintDelay;
+        if (want)
+        {
+            fuelDropSlot.SetDragHighlight(true);   // 매 프레임 유지(드래그 강조가 꺼도 자기교정)
+            _fuelHintOn = true;
+        }
+        else if (_fuelHintOn)
+        {
+            fuelDropSlot.SetDragHighlight(false);  // 해제는 1회 -> 이후엔 드래그 시스템이 슬롯 강조를 소유
+            _fuelHintOn = false;
+        }
     }
 
     void ShowRecipeHintIfQuestActive()

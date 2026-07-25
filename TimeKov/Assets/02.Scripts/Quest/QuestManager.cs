@@ -58,6 +58,9 @@ public class QuestManager : MonoBehaviour
 
     [SerializeField] TutorialSO tutorial;
 
+    [Tooltip("개발용: 체크하면 퀘스트 시스템 전체를 끈다(테스트 중 퀘스트가 안 뜨게). 배포 전엔 반드시 해제.")]
+    [SerializeField] bool disableQuests = false;
+
     [Tooltip("ON: 진행도 저장 안 함 (매 Play마다 초기화, 개발용). OFF: 저장 슬롯에 저장 (production).")]
     [SerializeField] bool useNoOpStorage = true;
 
@@ -93,6 +96,14 @@ public class QuestManager : MonoBehaviour
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+
+        // 개발용 킬스위치: 켜면 퀘스트 전체 비활성. Instance 세팅 안 함 -> QuestPanelUI 등이 null 가드로 스킵.
+        // 테스트 중 퀘스트가 안 뜨게 할 때만 체크한다. 배포 전엔 반드시 해제.
+        if (disableQuests)
+        {
+            enabled = false;
+            return;
+        }
 
         // tutorial null이면 Instance 세팅 안 함. 외부 코드가 명시적 null 체크
         if (tutorial == null)
