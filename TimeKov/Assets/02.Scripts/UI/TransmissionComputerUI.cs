@@ -697,8 +697,8 @@ public class TransmissionComputerUI : MonoBehaviour
         _rewardDesc  = Txt("rwDesc", _rewardCard.gameObject, X0, 112, PW - X0 - 40, 42, "", _kr, 15, C("E8F2FB", 0.66f), TextAlignmentOptions.TopLeft);
         _rewardDesc.textWrappingMode = TextWrappingModes.Normal;
 
-        // 클릭 힌트(우하단)
-        _rewardHint = Txt("rwHint", _rewardCard.gameObject, PW - 210, PH - 30, 190, 18, "▸ 클릭하여 계속", _mono, 12, C("E8F2FB", 0.42f), TextAlignmentOptions.Right, 2);
+        // 클릭 힌트(우하단). 특수 글리프(삼각형 등)는 폰트 아틀라스에 없어 깨지므로(스펙 F-3) 순수 텍스트만.
+        _rewardHint = Txt("rwHint", _rewardCard.gameObject, PW - 210, PH - 30, 190, 18, "클릭하여 계속", _mono, 12, C("E8F2FB", 0.42f), TextAlignmentOptions.Right, 2);
 
         // 스윕 하이라이트(등장 시 좌→우로 한 번 지나감). 카드 마스크로 양끝 클리핑.
         _rewardSweep = TL(NewGO("rwSweep", _rewardCard), 0, 0, 90, PH);
@@ -1374,7 +1374,11 @@ public class TransmissionComputerUI : MonoBehaviour
         public MState MarkerState(int pct)
         {
             if (progress >= pct) return MState.Done;
-            int next = ((int)(progress / 10) + 1) * 10;   // progress 초과 첫 10% 지점
+            // 다음 = 현재 전송률을 초과하는 첫 보상 마일스톤. 마일스톤 간격이 5/10/25로 불균등이라
+            // 10% 격자로 계산하면 5% 지점(15, 25, 75 등)을 건너뛴다. 공유 소스에서 직접 찾는다.
+            int next = int.MaxValue;
+            foreach (int m in TransmissionManager.RewardMilestones)
+                if (m > progress && m < next) next = m;
             return pct == next ? MState.Next : MState.Locked;
         }
 
