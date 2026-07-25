@@ -25,6 +25,9 @@ public class EnemySpawnPointEditor : Editor
         Row("minSpawnSpacing",       "최소 간격 (m, 0=안씀)");
         Row("respawnPlayerDistance", "리스폰 최소 거리 (m, 0=안씀)");
 
+        Section("성능 (원거리 슬립)");
+        Row("activateDistance", "원거리 슬립 거리 (m, 0=안씀)");
+
         Section("시작할 때");
         Row("spawnOnStart",         "시작하자마자 스폰");
         Row("initialSpawnInterval", "한 마리당 터울 (초)");

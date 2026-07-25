@@ -57,7 +57,7 @@ public class EnemySpawnPoint : MonoBehaviour
     [Tooltip("플레이어가 이 거리 밖이면 이 구역 몹을 despawn 하고 스폰도 멈춘다(m). 0 = 항상 유지(기존 동작).\n" +
              "안 간/떠난 구역의 몹이 CPU를 안 먹게 한다. 다가갈 때 팝인이 안 보이게 시야보다 넉넉히 크게 줘라.\n" +
              "재방문하면 몹은 새로 스폰된다(엘리트 해금 진행도는 유지).")]
-    [Min(0f)] [SerializeField] private float activateDistance = 0f;
+    [Min(0f)] [SerializeField] private float activateDistance = 100f;
 
     [Header("초기 스폰")]
     [Tooltip("시작 시 항목별 maxCount까지 자동 스폰(해금형 엘리트 제외 = 일반몹 처치 후 등장)")]
