@@ -49,6 +49,10 @@ public class GameSaveData
     public bool hasPlayerPosition = false;
     public Vector3 playerPosition;
     public float playerRotationY;
+    // 위치를 저장한 씬 이름. 복원은 같은 씬일 때만 한다. 프롤로그(Tutorial) 좌표가 World로
+    // 새어들어와 바다 위 등 엉뚱한 곳에 스폰돼 즉사하던 것 방지. 다른 씬이거나 구버전 세이브(빈값)면
+    // 복원을 건너뛰고 그 씬에 배치된 기본 스폰 위치를 그대로 쓴다.
+    public string playerPositionScene = "";
 
     // ── Factory/Grid: 배치된 건물 / 레일 ─────────────────────────────────
     // 위치·회전·강화레벨만 저장. 레일은 연결 방향만 저장하고 흐름 화살표/포트 검증은

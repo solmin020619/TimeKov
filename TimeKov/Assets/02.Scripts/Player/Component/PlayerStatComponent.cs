@@ -74,7 +74,10 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
 
             _pendingHpPercent = data.playerHpPercent;
 
-            if (data.hasPlayerPosition)
+            // 위치 복원은 저장한 씬과 현재 씬이 같을 때만. 프롤로그(Tutorial)에서 저장된 좌표가
+            // World로 새어들어와 바다 위에 스폰돼 즉사하던 것 방지. 씬이 다르거나 구버전 세이브면
+            // 복원을 건너뛰고 World 씬에 배치된 기본 스폰 위치를 그대로 쓴다.
+            if (data.hasPlayerPosition && data.playerPositionScene == gameObject.scene.name)
             {
                 transform.position = data.playerPosition;
                 transform.rotation = Quaternion.Euler(0f, data.playerRotationY, 0f);
@@ -100,6 +103,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         data.hasPlayerPosition = true;
         data.playerPosition = transform.position;
         data.playerRotationY = transform.eulerAngles.y;
+        data.playerPositionScene = gameObject.scene.name;   // 이 위치를 저장한 씬(복원은 같은 씬일 때만)
     }
 
     void Update()

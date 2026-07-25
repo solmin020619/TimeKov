@@ -136,9 +136,9 @@ public static class TutorialAssetBuilder
             CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "", 1)));   // enemyId 빈값 = 아무 몹이나 1마리(거미/언데드/오크 다 인정)
 
         quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
-            CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 {Y}획득{E}하세요.", ItemSpiderVenom, 1),
-            CreateItemAcquire("obj_loot_corrosive", $"{Y}언데드{E}를 잡아 {Y}부식액{E}을 {Y}획득{E}하세요.", ItemCorrosive, 1),
-            CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
+            CreateItemAcquire("obj_loot_venom", $"{Y}거미{E}를 잡아 {Y}거미 독액{E}을 {Y}2개{E} {Y}획득{E}하세요.", ItemSpiderVenom, 2),
+            CreateItemAcquire("obj_loot_corrosive", $"{Y}언데드{E}를 잡아 {Y}부식액{E}을 {Y}2개{E} {Y}획득{E}하세요.", ItemCorrosive, 2),
+            CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
         // ============================================================
