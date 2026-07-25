@@ -42,6 +42,8 @@ public static class TutorialAssetBuilder
     const int CoreKitId       = 6101;  // 코어 키트 I (코어 1단계 강화 재료)
     const int CoreKitAmount   = 3;     // CoreLevelData lv1 requiredAmount
     const int ItemTwig        = 4101;  // 나뭇가지 = 설비 연료 (FuelConfig.fuelItemId). OakTreeEnt 단독 드롭.
+    const int StarterKitId    = 8301;  // 자연 일반 키트 (엔드게임 부트스트랩: 첫 전송 5% -> 시간에너지 합성기(3) 해금).
+                                       //   TransmissionManager.EnsureKitDefs 규약(83xx=지역 일반 키트, 자연=끝자리1)과 일치.
 
     // -- 스포트라이트 타깃 id (씬 UI 요소의 TutorialHighlightTarget 와 매칭) --
     const string TargetTimeBar      = "time_bar";        // 좌하단 시간/DECAY 막대
@@ -114,13 +116,9 @@ public static class TutorialAssetBuilder
                 TourStep($"우하단 {Y}스킬{E} 3개 - {Y}Q·E·R{E}로 사용하고, 쓰고 나면 {Y}쿨타임{E}이 끝나야 다시 쓸 수 있어요.", TargetSkillsAll))));
 
         // ============================================================
-        // 조작 - 자명한 입력은 좌측 텍스트만
+        // 조작 - 프롤로그(불시착 전)에서 WASD 이동/Space 점프/Shift 달리기를 이미 익히고 넘어온다.
+        //   여기서 재교육하지 않는다(중복 제거). 대시(우클릭)는 코어 1강 해금이라 초반 튜토 제외.
         // ============================================================
-        // 대시(우클릭)는 코어 1강에 해금되므로 초반 기본조작 튜토에선 제외(0강엔 잠겨있어 안내가 모순).
-        quests.Add(BuildQuest("quest_tut_01_basics", "기본 조작 익히기",
-            CreateMoveDistance("obj_move", $"{Y}WASD{E}로 {Y}이동{E}하세요.", 3f),
-            CreatePressKey("obj_jump", $"{Y}Space{E}로 {Y}점프{E}하세요.", KeyCode.Space, 1),
-            CreatePressKey("obj_run", $"{Y}Shift{E}로 {Y}달리기{E} (스태미나를 소모합니다)", KeyCode.LeftShift, 1)));
 
         quests.Add(BuildQuest("quest_tut_01b_reach_hunt", "사냥터로 이동",
             CreateReachTrigger("obj_reach_enemy", $"결계 밖 {Y}사냥터{E}로 {Y}이동{E}하세요. (결계 밖에선 {Y}시간{E}이 줄기 시작합니다)", "enemy")));
@@ -265,12 +263,35 @@ public static class TutorialAssetBuilder
         coreObjs.Add(CreateCoreUpgrade("obj_core_upgrade", $"{Y}강화 시작{E}을 누르고 {Y}정지! 버튼{E}으로 멈춰 코어를 강화해 보세요.", 0));
         quests.Add(BuildQuest("quest_tut_18_core", "코어 강화", coreObjs.ToArray()));
 
-        // (강화 결과/마무리 안내 팝업 제거 - 코어 UI 위에 또 뜨는 게 불필요. 아래 상시 목표가 다음 방향 제시.)
+        // (강화 결과/마무리 안내 팝업 제거 - 코어 UI 위에 또 뜨는 게 불필요. 아래 엔드게임 라인이 다음 방향 제시.)
+        // (구 quest_tut_22 "숨겨진 설비 찾기" 상시목표 제거 - 경제 재설계로 설비 3~9 는 전송 마일스톤 해금이라
+        //  '맵에서 F로 줍기'가 아님. 추출기1/배양기2 만 튜토 F해금. 방향 제시는 아래 엔드게임 라인이 담당.)
 
-        // 상시 목표 - 튜토 끝나도 막연하지 않게 남기는 목표 하나 (facilityId=0=아무거나, 상태조회형이라 갭안전)
-        quests.Add(BuildQuest("quest_tut_22_unlock_all", "설비 해금하기",
-            CreateFacilityUnlock("obj_unlock_all",
-                $"맵에 {Y}숨겨진 설비{E}를 찾아 {Y}F{E}로 {Y}해금{E}해보세요.", 0, TotalFacilityCount)));
+        // ============================================================
+        // [3층] 병렬 엔드게임 라인 (별 카테고리 = 메인 튜토 옆 두 번째 트래커, 온보딩 완료 후 등장/휴면).
+        //   전송/우주선/탈출을 직렬 온보딩에 안 끼우고 장기 목표로 상시 표시.
+        //   부트스트랩: 스타터 충전 키트로 첫 전송 5% -> 시간에너지 합성기(3) 해금 -> 이후 키트 자급(순환잠금 회피).
+        // ============================================================
+        var endgameQuests = new List<QuestSO>();
+
+        // 전송기로 이동 - 완료 시 스타터 충전 키트 지급(이걸로 다음 퀘에서 첫 전송).
+        endgameQuests.Add(BuildQuestRewarded("quest_end_01_reach_transmit", "시간에너지 전송기로 이동",
+            new[] { new QuestSO.QuestReward { itemId = StarterKitId, amount = 1 } },
+            CreateReachTrigger("obj_reach_transmit",
+                $"기지의 {Y}시간에너지 전송기{E}로 {Y}이동{E}하세요. 시간에너지를 {Y}100%{E}까지 전송하고 우주선을 수리하면 {Y}탈출{E}할 수 있습니다.", "transmit")));
+
+        // 첫 전송 - 스타터 키트를 넣어 5% 달성. 5% 보상으로 시간에너지 합성기(3) 자동 해금 -> 이후 키트 자급.
+        endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "첫 시간에너지 전송",
+            CreateTransmissionRate("obj_first_transmit",
+                $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 시간에너지 전송률 {Y}5%{E}를 달성하세요. (달성 시 {Y}시간에너지 합성기{E}가 해금돼 키트를 직접 만들 수 있습니다)", 5)));
+
+        // 장기 목표(상시) - 100% 전송 + 우주선 수리로 탈출. 튜토가 끝나도 방향을 남긴다.
+        endgameQuests.Add(BuildQuest("quest_end_03_escape_goal", "탈출 준비",
+            CreateTransmissionRate("obj_escape_goal",
+                $"각 지역에서 {Y}충전 키트{E}를 만들어 전송하고, 시간에너지 {Y}100%{E} 달성 + 우주선 수리를 마쳐 {Y}탈출{E}하세요.", 100)));
+
+        // [2층] 상황별 발견 팝업 데이터셋 생성 (이벤트 처음 발생 시 1회 설명 팝업. Resources 런타임 로드).
+        BuildDiscoveryCueSet();
 
         // CategorySO (GUID 유지)
         string catPath = $"{CategoriesFolder}/Cat_Tutorial_Main.asset";
@@ -283,7 +304,22 @@ public static class TutorialAssetBuilder
         cat.id = "tutorial_main";
         cat.title = "튜토리얼";
         cat.quests = quests.ToArray();
+        cat.activateAfterCategoryId = "";   // 메인은 시작부터 활성
         EditorUtility.SetDirty(cat);
+
+        // 엔드게임 카테고리 (GUID 유지) - 메인 튜토 완료 후 등장(휴면). 병렬 트래커로 상시 표시.
+        string endCatPath = $"{CategoriesFolder}/Cat_Tutorial_Endgame.asset";
+        var endgameCat = AssetDatabase.LoadAssetAtPath<CategorySO>(endCatPath);
+        if (endgameCat == null)
+        {
+            endgameCat = ScriptableObject.CreateInstance<CategorySO>();
+            AssetDatabase.CreateAsset(endgameCat, endCatPath);
+        }
+        endgameCat.id = "tutorial_endgame";
+        endgameCat.title = "엔드게임";
+        endgameCat.quests = endgameQuests.ToArray();
+        endgameCat.activateAfterCategoryId = "tutorial_main";   // 메인 튜토 완료 후 등장
+        EditorUtility.SetDirty(endgameCat);
 
         // TutorialSO (GUID 유지)
         string tutPath = $"{TutorialsFolder}/Tutorial_Main.asset";
@@ -294,24 +330,29 @@ public static class TutorialAssetBuilder
             AssetDatabase.CreateAsset(tut, tutPath);
         }
         tut.savePrefix = "tutorial";
-        tut.categories = new[] { cat };
+        tut.categories = new[] { cat, endgameCat };
         EditorUtility.SetDirty(tut);
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
+        // 도감 튜토 탭 재시청 목록 갱신 (퀘 영상 + 발견 큐 페이지 모두 포함) - 한 메뉴로 동기화.
+        CodexConfigPopulator.PopulateTutorial();
+
         Debug.Log(
-            $"[TutorialAssetBuilder] 생성 완료 - Quest {quests.Count}개 (영상 {(EnableVideoTutorials ? "ON" : "OFF")}).\n" +
+            $"[TutorialAssetBuilder] 생성 완료 - 메인 {quests.Count}개 + 엔드게임 {endgameQuests.Count}개 (영상 {(EnableVideoTutorials ? "ON" : "OFF")}).\n" +
             $"씬 세팅 체크:\n" +
-            $"1. QuestManager.tutorial = Tutorial_Main.asset\n" +
-            $"2. QuestTrigger(IsTrigger, Player Tag): 'enemy'(사냥터)/'build'(BuildZone과 겹침)/'1'(추출기위치)/'2'(배양기위치)/'core'(코어단말). 오타/중복/콜라이더 범위 확인\n" +
+            $"1. QuestManager.tutorial = Tutorial_Main.asset (카테고리 2개: 메인 + 엔드게임)\n" +
+            $"2. QuestTrigger(IsTrigger, Player Tag): 'enemy'(사냥터)/'build'(BuildZone과 겹침)/'1'(추출기위치)/'2'(배양기위치)/'core'(코어단말)/'transmit'(시간에너지 전송기). 오타/중복/콜라이더 범위 확인\n" +
             $"3. 'build' 트리거가 BuildManager.buildZoneCollider 와 정확히 겹쳐야(ReachTrigger는 되는데 EnterBuildMode가 안 되는 모순 방지)\n" +
             $"4. 드롭/스폰: tutorial_enemy 무한리스폰 + 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive} 드롭, OakTreeEnt 가 나뭇가지{ItemTwig} 떨굼(스폰풀에 OakTreeEnt 포함, NavMesh 베이크)\n" +
             $"5. 스포트라이트(코드 자동등록 외 수동 부착): time_bar/status_panel/stat_button(C_Icon)/tab_icon + 건설투어 타깃. 코어는 영상이라 코어 스포트 불필요\n" +
-            $"6. PlayerMovementWatcher: 이동/점프/달리기(Shift)/대시/Tab/B 등 필수 키는 코드에서 자동 감지(watchedKeys 인스펙터 설정 불필요). C는 GameUIController 자동발화\n" +
-            $"7. 영상 클립: Assets/12.Video/Tutorial/ 에 '페이지 제목'과 같은 파일명 mp4. 없으면 '영상 준비 중' 폴백\n" +
+            $"6. PlayerMovementWatcher: 이동/점프/달리기(Shift)/대시/Tab/B 등 필수 키는 코드에서 자동 감지. 프롤로그가 이동/점프/달리기 선행 교육(여기선 재교육 안 함)\n" +
+            $"7. 영상 클립: Assets/12.Video/Tutorial/ 에 '페이지 제목'과 같은 파일명 mp4(발견 큐 포함). 없으면 '영상 준비 중' 폴백\n" +
             $"8. 레일 자동화: 추출기 출구->배양기 입구 포트정렬 + 다른 연결가능 포트 차단 사전 플레이테스트\n" +
-            $"9. 코어: 단말이 BaseZone 콜라이더 안 + 코어키트 보상 증발 방지(가방/창고 여유). 시트 코어레벨1 키트={CoreKitId}/필요수<={CoreKitAmount}");
+            $"9. 코어: 단말이 BaseZone 콜라이더 안 + 코어키트 보상 증발 방지(가방/창고 여유). 시트 코어레벨1 키트={CoreKitId}/필요수<={CoreKitAmount}\n" +
+            $"10. [엔드게임] 'transmit' 트리거 = TransmissionComputerTerminal 위치. 스타터 키트 itemId={StarterKitId}(자연 일반 키트)가 ItemData 시트에 있고 전송 가능해야 부트스트랩 성립\n" +
+            $"11. [발견 팝업] DiscoveryCueManager 는 런타임 자동 생성(씬 배치 불필요). 큐셋=Resources/DiscoveryCues/DiscoveryCueSet");
     }
 
     // ============================================================
@@ -571,6 +612,66 @@ public static class TutorialAssetBuilder
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }
+
+    static TransmissionRateObjective CreateTransmissionRate(string name, string label, int targetRate)
+    {
+        var o = ScriptableObject.CreateInstance<TransmissionRateObjective>();
+        o.label = label; o.targetRate = targetRate;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    // ============================================================
+    // [2층] 상황별 발견 팝업 데이터셋 (Resources 런타임 로드)
+    //   설비 소개(3~9) / 귀환석 / 전송 소개. 전부 기지 안 이벤트라 safe=true(즉시 팝업).
+    //   ★title 은 전역 유일(시청기록 키) + 기존 퀘영상 제목과 겹치지 않게 '소개' 접미로 구분.
+    //   영상은 나중에 일괄 촬영(제목==파일명 자동연결). 지금은 텍스트 + '영상 준비 중' 폴백.
+    // ============================================================
+    static void BuildDiscoveryCueSet()
+    {
+        EnsureFolder("Assets", "Resources");
+        EnsureFolder("Assets/Resources", "DiscoveryCues");
+        string path = "Assets/Resources/DiscoveryCues/DiscoveryCueSet.asset";
+
+        var set = AssetDatabase.LoadAssetAtPath<DiscoveryCueSet>(path);
+        if (set == null)
+        {
+            set = ScriptableObject.CreateInstance<DiscoveryCueSet>();
+            AssetDatabase.CreateAsset(set, path);
+        }
+
+        set.cues = new List<DiscoveryCue>
+        {
+            // 설비 소개 - 전송 마일스톤으로 해금되는 순간(전송기 앞 = 기지 안) 1회.
+            Cue("facility:3", true, VPage("시간에너지 합성기 소개",
+                $"시간에너지 {Y}충전 키트{E}를 만드는 설비입니다. 여기서 만든 키트를 {Y}전송기{E}에 넣어 전송률을 올립니다.")),
+            Cue("facility:6", true, VPage("용해로 소개",
+                $"재료를 녹여 {Y}주괴{E} 등 기초 소재를 만드는 설비입니다.")),
+            Cue("facility:9", true, VPage("창고 출력 포트 소개",
+                $"{Y}창고{E}의 아이템을 {Y}레일{E}로 꺼내 다른 설비에 자동 공급하는 설비입니다.")),
+            Cue("facility:8", true, VPage("저장고 소개",
+                $"{Y}창고 보관 용량{E}을 늘려주는 설비입니다.")),
+            Cue("facility:7", true, VPage("코어 합성기 소개",
+                $"{Y}코어 강화{E}에 쓰는 {Y}코어 키트{E}를 만드는 설비입니다.")),
+            Cue("facility:4", true, VPage("생체 분리기 소개",
+                $"생체 재료를 분리해 {Y}상위 원료{E}를 얻는 설비입니다. {Y}에너지 변환기{E}와 함께 씁니다.")),
+            Cue("facility:5", true, VPage("에너지 변환기 소개",
+                $"원료를 {Y}에너지 형태{E}로 변환하는 설비입니다. {Y}생체 분리기{E}의 산출물을 받아 가공합니다.")),
+
+            // 귀환석 - 첫 획득(전송 20% 보상) 순간. 기지 안이라 안전.
+            Cue("returnstone", true, VPage("귀환석",
+                $"결계 밖 어디서든 {Y}기지로 긴급 복귀{E}하는 수단입니다. {Y}H{E}로 사용하면 잠시 채널링 후 기지로 텔레포트합니다. 레벨이 오를수록 {Y}쿨타임{E}이 짧아집니다.")),
+
+            // 전송기 첫 상호작용 - 시스템 소개. 기지 안.
+            Cue("interact:transmit", true, VPage("시간에너지 전송",
+                $"여기서 {Y}충전 키트{E}를 전송해 {Y}시간에너지 전송률{E}을 올립니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}. 지역별로 25%씩 채우며, 각 구간 마지막은 {Y}보스 재료{E}가 든 특수 키트가 필요합니다.")),
+        };
+
+        EditorUtility.SetDirty(set);
+    }
+
+    static DiscoveryCue Cue(string key, bool safe, params VideoTutorialPage[] pages)
+        => new DiscoveryCue { cueKey = key, safe = safe, pages = pages };
 
     // ============================================================
     // 영상 UI 스프라이트 / 클립 로드

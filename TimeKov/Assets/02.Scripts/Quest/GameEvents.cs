@@ -26,6 +26,8 @@ public static class GameEvents
     public static event Action<int> OnQuickSlotRegistered;            // itemId — 소모품을 퀵슬롯(V)에 등록
     public static event Action<int> OnQuickSlotUsed;                  // itemId — 등록 소모품을 V로 사용 시도(만피로 막혀도 시도는 발생)
     public static event Action<string> OnInteracted;                   // interactId — IInteractable 상호작용 완료
+    public static event Action<int> OnReturnStoneChanged;              // level — 귀환석 레벨 획득/상승(0->1 첫 획득 포함). 발견팝업용
+    public static event Action OnBaseEntered;                          // 결계(기지) 안으로 진입(밖->안 전이). 필드 발견팝업 지연 flush용
 
     public static void RaiseMovedDelta(float d) => OnPlayerMovedDelta?.Invoke(d);
     public static void RaiseTriggerEnter(string id) => OnTriggerEntered?.Invoke(id);
@@ -50,6 +52,8 @@ public static class GameEvents
     public static void RaiseQuickSlotUsed(int itemId) { Record(KeyQuickUse, 1); OnQuickSlotUsed?.Invoke(itemId); }
     public static void RaiseInteracted(string id) { Record(KeyInteracted(id), 1); OnInteracted?.Invoke(id); }
     public static string KeyInteracted(string id) => "interacted:" + id;
+    public static void RaiseReturnStoneChanged(int level) => OnReturnStoneChanged?.Invoke(level);
+    public static void RaiseBaseEntered() => OnBaseEntered?.Invoke();
 
     // ── 일회성 이벤트 lookback 캐시 ───────────────────────────────────────
     // 문제: 퀘↔퀘 사이 ~1.15초 갭 동안엔 활성 objective가 없어, 이때 플레이어가 다음 퀘가 시킬 행동을
@@ -115,6 +119,8 @@ public static class GameEvents
         OnQuickSlotRegistered = null;
         OnQuickSlotUsed = null;
         OnInteracted = null;
+        OnReturnStoneChanged = null;
+        OnBaseEntered = null;
         _recent.Clear();
     }
 }

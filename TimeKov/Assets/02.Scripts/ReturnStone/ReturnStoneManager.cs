@@ -75,8 +75,13 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     public KeyCode UseKey => useKey;
     public Sprite HudIcon => hudIcon;
 
-    /// <summary>레벨 설정(추후 시간에너지 보상에서 호출). 0~3.</summary>
-    public void SetLevel(int lv) => level = Mathf.Clamp(lv, 0, 3);
+    /// <summary>레벨 설정(시간에너지 보상에서 호출). 0~3. 실제 상승 시 발견팝업/HUD용 이벤트 발화.</summary>
+    public void SetLevel(int lv)
+    {
+        int prev = level;
+        level = Mathf.Clamp(lv, 0, 3);
+        if (level > prev) GameEvents.RaiseReturnStoneChanged(level);   // 첫 획득/상승 순간만(복원은 level 직접 세팅이라 무발화)
+    }
     public void Upgrade() => SetLevel(level + 1);
 
     private void Awake()

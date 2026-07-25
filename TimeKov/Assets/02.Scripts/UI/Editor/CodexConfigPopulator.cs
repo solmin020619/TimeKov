@@ -86,6 +86,17 @@ public static class CodexConfigPopulator
             foreach (var p in o.pages)
                 if (p != null) cfg.pages.Add(p);   // clip/title/body 그대로 복붙
 
+        // 발견 팝업(DiscoveryCueSet)의 페이지도 도감 재시청 대상에 포함.
+        // 이벤트로 뜨는 설명(설비 소개/귀환석/전송 등)도 놓쳤거나 다시 보고 싶을 때 도감서 열람.
+        var cueSets = AssetDatabase.FindAssets("t:DiscoveryCueSet")
+            .Select(g => AssetDatabase.LoadAssetAtPath<DiscoveryCueSet>(AssetDatabase.GUIDToAssetPath(g)))
+            .Where(s => s != null && s.cues != null);
+        foreach (var s in cueSets)
+            foreach (var c in s.cues)
+                if (c != null && c.pages != null)
+                    foreach (var p in c.pages)
+                        if (p != null) cfg.pages.Add(p);
+
         EditorUtility.SetDirty(cfg);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();

@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a466e23973e5e145bffecc7c46000e5, type: 3}
+  m_Name: DiscoveryCueSet
+  m_EditorClassIdentifier: 
+  cues:
+  - cueKey: facility:3
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uC2DC\uAC04\uC5D0\uB108\uC9C0 \uD569\uC131\uAE30 \uC18C\uAC1C"
+      body: "\uC2DC\uAC04\uC5D0\uB108\uC9C0 <color=#FFCC00>\uCDA9\uC804 \uD0A4\uD2B8</color>\uB97C
+        \uB9CC\uB4DC\uB294 \uC124\uBE44\uC785\uB2C8\uB2E4. \uC5EC\uAE30\uC11C \uB9CC\uB4E0
+        \uD0A4\uD2B8\uB97C <color=#FFCC00>\uC804\uC1A1\uAE30</color>\uC5D0 \uB123\uC5B4
+        \uC804\uC1A1\uB960\uC744 \uC62C\uB9BD\uB2C8\uB2E4."
+  - cueKey: facility:6
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uC6A9\uD574\uB85C \uC18C\uAC1C"
+      body: "\uC7AC\uB8CC\uB97C \uB179\uC5EC <color=#FFCC00>\uC8FC\uAD34</color>
+        \uB4F1 \uAE30\uCD08 \uC18C\uC7AC\uB97C \uB9CC\uB4DC\uB294 \uC124\uBE44\uC785\uB2C8\uB2E4."
+  - cueKey: facility:9
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uCC3D\uACE0 \uCD9C\uB825 \uD3EC\uD2B8 \uC18C\uAC1C"
+      body: "<color=#FFCC00>\uCC3D\uACE0</color>\uC758 \uC544\uC774\uD15C\uC744 <color=#FFCC00>\uB808\uC77C</color>\uB85C
+        \uAEBC\uB0B4 \uB2E4\uB978 \uC124\uBE44\uC5D0 \uC790\uB3D9 \uACF5\uAE09\uD558\uB294
+        \uC124\uBE44\uC785\uB2C8\uB2E4."
+  - cueKey: facility:8
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uC800\uC7A5\uACE0 \uC18C\uAC1C"
+      body: "<color=#FFCC00>\uCC3D\uACE0 \uBCF4\uAD00 \uC6A9\uB7C9</color>\uC744
+        \uB298\uB824\uC8FC\uB294 \uC124\uBE44\uC785\uB2C8\uB2E4."
+  - cueKey: facility:7
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uCF54\uC5B4 \uD569\uC131\uAE30 \uC18C\uAC1C"
+      body: "<color=#FFCC00>\uCF54\uC5B4 \uAC15\uD654</color>\uC5D0 \uC4F0\uB294
+        <color=#FFCC00>\uCF54\uC5B4 \uD0A4\uD2B8</color>\uB97C \uB9CC\uB4DC\uB294
+        \uC124\uBE44\uC785\uB2C8\uB2E4."
+  - cueKey: facility:4
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uC0DD\uCCB4 \uBD84\uB9AC\uAE30 \uC18C\uAC1C"
+      body: "\uC0DD\uCCB4 \uC7AC\uB8CC\uB97C \uBD84\uB9AC\uD574 <color=#FFCC00>\uC0C1\uC704
+        \uC6D0\uB8CC</color>\uB97C \uC5BB\uB294 \uC124\uBE44\uC785\uB2C8\uB2E4. <color=#FFCC00>\uC5D0\uB108\uC9C0
+        \uBCC0\uD658\uAE30</color>\uC640 \uD568\uAED8 \uC501\uB2C8\uB2E4."
+  - cueKey: facility:5
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uC5D0\uB108\uC9C0 \uBCC0\uD658\uAE30 \uC18C\uAC1C"
+      body: "\uC6D0\uB8CC\uB97C <color=#FFCC00>\uC5D0\uB108\uC9C0 \uD615\uD0DC</color>\uB85C
+        \uBCC0\uD658\uD558\uB294 \uC124\uBE44\uC785\uB2C8\uB2E4. <color=#FFCC00>\uC0DD\uCCB4
+        \uBD84\uB9AC\uAE30</color>\uC758 \uC0B0\uCD9C\uBB3C\uC744 \uBC1B\uC544 \uAC00\uACF5\uD569\uB2C8\uB2E4."
+  - cueKey: returnstone
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uADC0\uD658\uC11D"
+      body: "\uACB0\uACC4 \uBC16 \uC5B4\uB514\uC11C\uB4E0 <color=#FFCC00>\uAE30\uC9C0\uB85C
+        \uAE34\uAE09 \uBCF5\uADC0</color>\uD558\uB294 \uC218\uB2E8\uC785\uB2C8\uB2E4.
+        <color=#FFCC00>H</color>\uB85C \uC0AC\uC6A9\uD558\uBA74 \uC7A0\uC2DC \uCC44\uB110\uB9C1
+        \uD6C4 \uAE30\uC9C0\uB85C \uD154\uB808\uD3EC\uD2B8\uD569\uB2C8\uB2E4. \uB808\uBCA8\uC774
+        \uC624\uB97C\uC218\uB85D <color=#FFCC00>\uCFE8\uD0C0\uC784</color>\uC774
+        \uC9E7\uC544\uC9D1\uB2C8\uB2E4."
+  - cueKey: interact:transmit
+    safe: 1
+    pages:
+    - clip: {fileID: 0}
+      title: "\uC2DC\uAC04\uC5D0\uB108\uC9C0 \uC804\uC1A1"
+      body: "\uC5EC\uAE30\uC11C <color=#FFCC00>\uCDA9\uC804 \uD0A4\uD2B8</color>\uB97C
+        \uC804\uC1A1\uD574 <color=#FFCC00>\uC2DC\uAC04\uC5D0\uB108\uC9C0 \uC804\uC1A1\uB960</color>\uC744
+        \uC62C\uB9BD\uB2C8\uB2E4. <color=#FFCC00>100%</color> \uB2EC\uC131 + \uC6B0\uC8FC\uC120
+        \uC218\uB9AC\uB85C <color=#FFCC00>\uD0C8\uCD9C</color>. \uC9C0\uC5ED\uBCC4\uB85C
+        25%\uC529 \uCC44\uC6B0\uBA70, \uAC01 \uAD6C\uAC04 \uB9C8\uC9C0\uB9C9\uC740
+        <color=#FFCC00>\uBCF4\uC2A4 \uC7AC\uB8CC</color>\uAC00 \uB4E0 \uD2B9\uC218
+        \uD0A4\uD2B8\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4."

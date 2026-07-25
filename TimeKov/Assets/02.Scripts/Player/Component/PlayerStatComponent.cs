@@ -272,6 +272,9 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
             _lastOutsideWarnTime = Time.unscaledTime;
             ToastManager.Warning("결계 밖입니다. 시간이 줄어듭니다!");
         }
+        // 결계 밖→안 진입 전이: 필드에서 미뤄둔 발견 팝업을 이때 flush (전투/이동 중 방해 방지).
+        if (!wasInBase && inBase)
+            GameEvents.RaiseBaseEntered();
     }
     private float _lastOutsideWarnTime = -999f;
     private const float OutsideWarnCooldown = 8f;

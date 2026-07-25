@@ -57,5 +57,8 @@ public class TransmissionComputerTerminal : MonoBehaviour, IInteractable, IInter
         // 전송 컴퓨터 UI 오픈 (없으면 런타임 생성)
         GameUIController.Instance?.OpenTransmissionUI();
         TransmissionComputerUI.GetOrCreate().Open();
+
+        // 발견 팝업(시간에너지 전송 소개) 트리거 - 처음 열 때 1회. 기지 안이라 안전.
+        GameEvents.RaiseInteracted("transmit");
     }
 }

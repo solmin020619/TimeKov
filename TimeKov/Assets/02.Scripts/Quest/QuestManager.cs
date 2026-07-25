@@ -147,13 +147,32 @@ public class QuestManager : MonoBehaviour
         _hasBegun = true;
 
         foreach (var rt in _runtimes)
-            if (rt.activeObjectives == null && !rt.IsCategoryDone)
+            if (rt.activeObjectives == null && !rt.IsCategoryDone && !IsDormant(rt))
                 PresentCurrentQuest(rt);
+    }
+
+    // 이 카테고리가 아직 등장하면 안 되는(휴면) 상태인지. 선행 카테고리가 완료돼야 등장.
+    //   - 이미 진행도가 있으면(activeQuestIndex>0) 깨어난 것.
+    //   - 선행 카테고리가 이미 완료(저장에서 로드 등)면 등장.
+    bool IsDormant(CategoryRuntime rt)
+    {
+        if (rt?.data == null || string.IsNullOrEmpty(rt.data.activateAfterCategoryId)) return false;
+        if (rt.activeQuestIndex > 0) return false;
+        var prereq = FindRuntime(rt.data.activateAfterCategoryId);
+        if (prereq != null && prereq.IsCategoryDone) return false;
+        return true;
+    }
+
+    CategoryRuntime FindRuntime(string categoryId)
+    {
+        foreach (var rt in _runtimes)
+            if (rt.data != null && rt.data.id == categoryId) return rt;
+        return null;
     }
 
     void PresentCurrentQuest(CategoryRuntime rt)
     {
-        if (rt.IsCategoryDone) { OnCategoryCompleted?.Invoke(rt); CheckAllDone(); return; }
+        if (rt.IsCategoryDone) { CompleteCategory(rt); return; }
 
         var quest = rt.data.quests[rt.activeQuestIndex];
         if (quest == null || quest.objectives == null || quest.objectives.Length == 0)
@@ -273,7 +292,7 @@ public class QuestManager : MonoBehaviour
 
         if (!_runtimes.Contains(rt)) yield break;
 
-        if (rt.IsCategoryDone) { OnCategoryCompleted?.Invoke(rt); CheckAllDone(); }
+        if (rt.IsCategoryDone) CompleteCategory(rt);
         else PresentCurrentQuest(rt);
     }
 
@@ -285,8 +304,7 @@ public class QuestManager : MonoBehaviour
         if (rt.IsCategoryDone)
         {
             _storage.Flush();
-            OnCategoryCompleted?.Invoke(rt);
-            CheckAllDone();
+            CompleteCategory(rt);
         }
         else PresentCurrentQuest(rt);
     }
@@ -296,6 +314,24 @@ public class QuestManager : MonoBehaviour
         foreach (var rt in _runtimes) if (!rt.IsCategoryDone) return;
         OnAllCompleted?.Invoke();
         _storage.Flush();
+    }
+
+    // 카테고리 완료 통지 + 이 카테고리를 선행으로 기다리던 휴면 카테고리 깨우기 + 전체완료 확인.
+    void CompleteCategory(CategoryRuntime rt)
+    {
+        OnCategoryCompleted?.Invoke(rt);
+        WakeDependents(rt);
+        CheckAllDone();
+    }
+
+    // 완료된 카테고리를 activateAfterCategoryId 로 기다리던 휴면 카테고리를 등장시킨다.
+    void WakeDependents(CategoryRuntime completed)
+    {
+        if (completed?.data == null) return;
+        foreach (var rt in _runtimes)
+            if (rt.activeObjectives == null && !rt.IsCategoryDone
+                && rt.data != null && rt.data.activateAfterCategoryId == completed.data.id)
+                PresentCurrentQuest(rt);
     }
 
     // 퀘스트 완료 보상을 인벤토리로 지급한다. rewards 비어있으면 아무것도 안 함.

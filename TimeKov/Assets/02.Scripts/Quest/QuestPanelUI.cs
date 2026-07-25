@@ -50,6 +50,9 @@ public class QuestPanelUI : MonoBehaviour
             var w = Instantiate(categoryWidgetPrefab, categoryRoot);
             w.Init(rt);
             _widgets[rt] = w;
+            // 첫 퀘가 표시될 때까지 위젯 비활성 = 휴면(엔드게임) 카테고리가 빈 제목 높이만큼 공간 차지하는 것 방지.
+            // 메인은 BeginAll 이 같은 프레임에 첫 퀘를 present -> HandleQuestShown 에서 즉시 활성(깜빡임 없음).
+            w.gameObject.SetActive(false);
         }
 
         qm.OnQuestShown += HandleQuestShown;
@@ -97,6 +100,7 @@ public class QuestPanelUI : MonoBehaviour
     {
         if (_widgets.TryGetValue(rt, out var w) && w != null)
         {
+            if (!w.gameObject.activeSelf) w.gameObject.SetActive(true);   // 휴면 위젯이 깨어나 첫 퀘 표시
             w.ShowQuest(q);
             _lastShownWidget = w;
         }

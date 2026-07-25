@@ -24,6 +24,9 @@ public class TutorialVideoUI : MonoBehaviour
     // ── 싱글턴 (lazy, 런타임 자동 생성) ───────────────────────────────
     private static TutorialVideoUI _i;
     public static bool HasInstance => _i != null;
+    /// <summary>현재 팝업이 떠 있는지(발견 큐 등 다른 팝업이 겹쳐 뜨지 않게 게이트용).</summary>
+    public static bool IsShowing => _i != null && _i._open;
+    public bool IsOpen => _open;
     public static TutorialVideoUI I
     {
         get
