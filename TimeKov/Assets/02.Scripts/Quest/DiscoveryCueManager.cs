@@ -18,6 +18,7 @@ public class DiscoveryCueManager : MonoBehaviour
     private readonly Dictionary<string, DiscoveryCue> _byKey = new Dictionary<string, DiscoveryCue>();
     private readonly Queue<DiscoveryCue> _ready = new Queue<DiscoveryCue>();          // 표시 대기(순차)
     private readonly List<DiscoveryCue> _fieldPending = new List<DiscoveryCue>();     // 필드 - 거점 복귀 대기
+    private readonly List<DiscoveryCue> _buildPending = new List<DiscoveryCue>();     // 설비 소개 - 건축모드 진입 대기
     private readonly HashSet<string> _queuedThisSession = new HashSet<string>();      // 큐 중복 큐잉 방지(세션)
     private bool _showing;
 
@@ -50,7 +51,11 @@ public class DiscoveryCueManager : MonoBehaviour
         }
 
         // 필요한 이벤트만 구독(특히 OnItemAcquired 는 매 획득마다라 큐가 있을 때만).
-        if (needFacility) GameEvents.OnFacilityUnlocked += HandleFacilityUnlocked;
+        if (needFacility)
+        {
+            GameEvents.OnFacilityUnlocked += HandleFacilityUnlocked;      // 해금 순간 = 큐 적재
+            GameEvents.OnBuildModeEntered += HandleBuildModeEntered;      // 건축모드 진입 = 표시
+        }
         if (needReturn)   GameEvents.OnReturnStoneChanged += HandleReturnStone;
         if (needInteract) GameEvents.OnInteracted += HandleInteracted;
         if (needItem)     GameEvents.OnItemAcquired += HandleItemAcquired;
@@ -60,6 +65,7 @@ public class DiscoveryCueManager : MonoBehaviour
     private void OnDestroy()
     {
         GameEvents.OnFacilityUnlocked -= HandleFacilityUnlocked;
+        GameEvents.OnBuildModeEntered -= HandleBuildModeEntered;
         GameEvents.OnReturnStoneChanged -= HandleReturnStone;
         GameEvents.OnInteracted -= HandleInteracted;
         GameEvents.OnItemAcquired -= HandleItemAcquired;
@@ -81,6 +87,16 @@ public class DiscoveryCueManager : MonoBehaviour
         Pump();
     }
 
+    // 설비 소개 = 건축모드 진입 때 순차 표시. 전송 단말서 바로 뜨면 전송 UI(풀스크린)와 겹쳐 일부가 묻히던 것 방지
+    //   + 곧 지을 설비라 "해금 -> B로 건설" 흐름과 타이밍이 맞다. 여러 개 밀려있으면 _ready 큐로 순차.
+    private void HandleBuildModeEntered()
+    {
+        if (_buildPending.Count == 0) return;
+        foreach (var c in _buildPending) _ready.Enqueue(c);
+        _buildPending.Clear();
+        Pump();
+    }
+
     // ── 발화 ───────────────────────────────────────────────────────────
     /// <summary>이벤트가 없는 트리거(워프 등)에서 큐 키를 직접 발화. 매니저 없으면(큐셋 비어있음) 무해하게 무시.</summary>
     public static void TryFire(string key) => _i?.Fire(key);
@@ -92,7 +108,8 @@ public class DiscoveryCueManager : MonoBehaviour
         if (IsAlreadyWatched(cue)) return;              // 이전 슬롯/플레이에서 본 큐(세이브 기록)
         _queuedThisSession.Add(key);
 
-        if (cue.safe) { _ready.Enqueue(cue); Pump(); }
+        if (key.StartsWith("facility:")) _buildPending.Add(cue);   // 설비 소개 - 건축모드 진입 때 flush(전송 UI 충돌 회피)
+        else if (cue.safe) { _ready.Enqueue(cue); Pump(); }
         else _fieldPending.Add(cue);                    // 필드 - 거점 복귀 때 flush
     }
 

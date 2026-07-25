@@ -78,6 +78,10 @@ public class ShipPartPickup : MonoBehaviour
             {
                 mgr.CollectPickup(PickupKey(), amount);
             }
+
+            // 우주선 부품 첫 획득 -> 수리 시스템 소개 발견큐. safe:false 라 지금 뜨지 않고
+            // 기지 복귀(OnBaseEntered) 때 재생 = 결계 밖 전투 중 주워도 방해 없음. 중복은 큐가 알아서 1회.
+            DiscoveryCueManager.TryFire("shiprepair");
         }
 
         // 흡수 트레일: 픽업 위치 -> 플레이어 몸 중앙 (적 시간흡수와 동일한 LootBoxCollectFlyer 재사용)

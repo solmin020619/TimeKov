@@ -668,6 +668,11 @@ public static class TutorialAssetBuilder
             // 첫 워프 지점 활성화 - 워프 시스템 소개. 필드에서 밟는 순간 즉시(safe=true). WarpManager.TryFire("warp") 가 발화.
             Cue("warp", true, VPage("워프 지점",
                 $"필드의 {Y}워프 지점{E}을 처음 밟으면 활성화됩니다. 활성화된 지점을 다시 밟으면 {Y}기지로 복귀{E}, 기지의 워프대에서 그 지역으로 {Y}다시 이동{E}할 수 있습니다. 먼 지역을 빠르게 오가는 지름길입니다.")),
+
+            // 우주선 부품 첫 획득 - 수리 시스템 소개. 부품은 필드(결계 밖)에 있으므로 safe:false
+            //   = 팝업을 기지 복귀 때로 미룬다(전투 중 방해 방지 + 기지의 우주선 위치와 자연스럽게 연결). ShipPartPickup.TryFire("shiprepair").
+            Cue("shiprepair", false, VPage("우주선 수리 소개",
+                $"필드에서 모은 {Y}복구 에너지{E}로 기지의 {Y}폐우주선{E}을 수리합니다. 우주선에 {Y}F{E}로 단말을 열어 레벨을 올리면 {Y}건축 범위, 제작 속도, 연료 효율{E}이 좋아지고, {Y}Lv.5 완료 + 시간에너지 100%{E}면 {Y}탈출{E}할 수 있습니다.")),
         };
 
         EditorUtility.SetDirty(set);
