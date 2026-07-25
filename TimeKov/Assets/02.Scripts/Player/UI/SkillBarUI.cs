@@ -39,6 +39,7 @@ public class SkillBarUI : MonoBehaviour
     private bool _dashUnlockPending;   // 해금 이벤트 수신 -> 막는 UI 닫힌 순간 연출 발동(트리거)
     private bool _dashUnlocking;       // 풀림 연출 진행 중(중복/재표시 방지)
     private bool _registerFlashPending;   // 퀵슬롯 등록 수신 -> 인벤 닫혀 바 보이는 순간 칸 강조(트리거)
+    private bool _returnStoneRevealPending;   // 귀환석 해금/상승 수신 -> 막는 UI 닫힌 순간 바를 띄움(대쉬와 동일)
 
     // 표시/숨김 자가 관리(외부 페이더 의존 X). HUD와 동일 규칙: state==None일 때만 표시,
     // 결계 안에선 전투/대쉬/퀵슬롯/피격 시 잠깐 떴다가 다시 숨김, 결계 밖이면 항상.
@@ -116,6 +117,7 @@ public class SkillBarUI : MonoBehaviour
         _dashSlot = _slots.Find(s => s.kind == Kind.Dash);
         PlayerDashComponent.OnDashUnlocked += HandleDashUnlocked;   // 코어 1강 대쉬 해금 순간 아이콘 팝
         PlayerDashComponent.OnDashBlocked += HandleDashBlocked;     // 잠긴 대쉬 시도 시 바 띄우고 잠금 덜컹
+        GameEvents.OnReturnStoneChanged += HandleReturnStoneChanged;   // 귀환석 해금/상승 순간 바를 띄워 변화 인지
 
         GlobalSettingsManager.OnKeyBindingsChanged += RefreshKeyLabels;   // 설정창에서 "설정 적용" 누른 직후 라벨 갱신
     }
@@ -290,6 +292,18 @@ public class SkillBarUI : MonoBehaviour
             }
         }
 
+        // 귀환석 해금/상승 — 사용뿐 아니라 '해금'도 변화라, 막는 UI(전송 패널 등) 닫힌 순간 바를 띄워 보여준다.
+        if (_returnStoneRevealPending)
+        {
+            var guiR = GameUIController.Instance;
+            bool anyUIR = guiR != null && guiR.GetCurrentState() != GameUIController.UIState.None;
+            if (!anyUIR)
+            {
+                _returnStoneRevealPending = false;
+                _showTimer = Mathf.Max(_showTimer, 5f);
+            }
+        }
+
         // 퀵슬롯 등록 직후 — 인벤 닫혀 바가 보이는 순간 칸을 한 번 강조(등록됐음을 인지).
         if (_registerFlashPending)
         {
@@ -420,6 +434,7 @@ public class SkillBarUI : MonoBehaviour
         GameEvents.OnQuickSlotRegistered -= HandleQuickRegistered;   // 정적 이벤트 누수 방지(조건 밖에서 항상 해제)
         PlayerDashComponent.OnDashUnlocked -= HandleDashUnlocked;
         PlayerDashComponent.OnDashBlocked -= HandleDashBlocked;
+        GameEvents.OnReturnStoneChanged -= HandleReturnStoneChanged;
         GlobalSettingsManager.OnKeyBindingsChanged -= RefreshKeyLabels;
         foreach (var (id, rt) in _spotlights) TutorialOverlay.UnregisterTarget(id, rt);
         _spotlights.Clear();
@@ -444,6 +459,7 @@ public class SkillBarUI : MonoBehaviour
     // 코어 1강으로 우클릭 대쉬가 해금되는 순간 — 즉시 연출하지 않고 대기 플래그만 세움.
     // 보통 이 순간 코어 패널이 떠 있어 바가 가려지므로, 패널 닫혀 바가 보일 때 Update가 발동(트리거).
     void HandleDashUnlocked() => _dashUnlockPending = true;
+    void HandleReturnStoneChanged(int level) => _returnStoneRevealPending = true;
 
     // 잠긴 대쉬를 시도한 순간 — 바를 잠깐 띄우고 잠금 오버레이를 덜컹(왜 안 되는지=잠김을 보게).
     void HandleDashBlocked()
