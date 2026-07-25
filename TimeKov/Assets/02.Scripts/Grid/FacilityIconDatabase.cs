@@ -3,9 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
+// ì„¤ë¹„ ì•„ì´ì½˜ ì¡°íšŒ.
+//  1ìˆœìœ„: FacilityData ì‹œíŠ¸ì˜ iconKey -> Resources/Facilities/{iconKey} ì—ì„œ ìŠ¤í”„ë¼ì´íŠ¸ ë¡œë“œ.
+//         (ì‹œíŠ¸ í•œ ê³³ë§Œ ê³ ì¹˜ë©´ ì•„ì´ì½˜ì´ ë°”ë€ë‹¤. ì•„ì´í…œ ì•„ì´ì½˜(ItemDatabase.GetIcon)ê³¼ ê°™ì€ ë°©ì‹.)
+//  2ìˆœìœ„(í´ë°±): ì•„ë˜ entries ì¸ìŠ¤í™í„° ìˆ˜ë™ ë§¤í•‘. iconKey ë¯¸ì„¤ì •/ìŠ¤í”„ë¼ì´íŠ¸ ë¯¸ë°°ì¹˜/ë°ì´í„° ë¯¸ë¡œë“œ ì‹œ ì‚¬ìš©.
+//  => ì‹œíŠ¸/Resources ì„¸íŒ… ì „ì—ë„ ê¸°ì¡´ ë™ì‘ ê·¸ëŒ€ë¡œë¼ ë¬´íšŒê·€.
 public class FacilityIconDatabase : MonoBehaviour
 {
-    // ¦¡¦¡ Singleton ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // â”€â”€ ì‹±ê¸€í†¤ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public static FacilityIconDatabase Instance { get; private set; }
 
     private void Awake()
@@ -20,28 +25,43 @@ public class FacilityIconDatabase : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
-    // ¦¡¦¡ ÆùÆ® ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    [Header("·¹ÀÌºí ÆùÆ®")]
-    [Tooltip("BuildingLabelUI¿¡ »ç¿ëÇÒ ÇÑ±Û TMP ÆùÆ®¸¦ ¿©±â¿¡ µå·¡±×ÇÏ¼¼¿ä.")]
+    // â”€â”€ í°íŠ¸ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    [Header("ë¼ë²¨ í°íŠ¸")]
+    [Tooltip("BuildingLabelUI ì— ì“°ëŠ” í•œê¸€ TMP í°íŠ¸ë¥¼ ì—¬ê¸°ì— ë“œë˜ê·¸í•˜ì„¸ìš”.")]
     public TMP_FontAsset labelFont;
 
-    // ¦¡¦¡ ¾ÆÀÌÄÜ µî·Ï ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
+    // â”€â”€ ì•„ì´ì½˜ ìˆ˜ë™ ë§¤í•‘(í´ë°±) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [Serializable]
     public class IconEntry
     {
-        [Tooltip("DataStore FacilityRow.facilityId¿Í µ¿ÀÏÇÑ °ª")]
+        [Tooltip("FacilityData ì˜ facilityId ì™€ ë™ì¼í•œ ê°’")]
         public int facilityId;
-        [Tooltip("ÇØ´ç °Ç¹° ¾ÆÀÌÄÜ (Import Settings¿¡¼­ Sprite·Î ¼³Á¤)")]
+        [Tooltip("í•´ë‹¹ ì„¤ë¹„ ì•„ì´ì½˜ (Import Settings ì—ì„œ Sprite ë¡œ ì„¤ì •)")]
         public Sprite icon;
     }
 
+    [Tooltip("ì‹œíŠ¸ iconKey ê°€ ë¹„ì–´ ìˆì„ ë•Œ ì“°ëŠ” í´ë°± ë§¤í•‘. ì‹œíŠ¸ë¡œ ì™„ì „ ì´ì „í•˜ë©´ ë¹„ì›Œë„ ë¨.")]
     [SerializeField] private IconEntry[] entries;
 
-    // ¦¡¦¡ ·±Å¸ÀÓ µñ¼Å³Ê¸® ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-    private Dictionary<int, Sprite> _iconById;
+    // â”€â”€ ëŸ°íƒ€ì„ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    private Dictionary<int, Sprite> _iconById;                                   // í´ë°±(ìˆ˜ë™) ë§¤í•‘ ìºì‹œ
+    private static readonly Dictionary<string, Sprite> _iconKeyCache = new();     // iconKey -> Resources ìŠ¤í”„ë¼ì´íŠ¸(ì„±ê³µë¶„ë§Œ)
 
     public Sprite GetIcon(int facilityId)
     {
+        // 1ìˆœìœ„: ì‹œíŠ¸ iconKey -> Resources/Facilities/{key}
+        var fd = GameDataUtility.GetFacility(facilityId);
+        if (fd != null && !string.IsNullOrEmpty(fd.iconKey))
+        {
+            if (!_iconKeyCache.TryGetValue(fd.iconKey, out var byKey))
+            {
+                byKey = Resources.Load<Sprite>("Facilities/" + fd.iconKey);
+                if (byKey != null) _iconKeyCache[fd.iconKey] = byKey;   // ì‹¤íŒ¨ëŠ” ìºì‹œ ì•ˆ í•¨(ì¶”í›„ ë°°ì¹˜ ì‹œ ì¬ì‹œë„)
+            }
+            if (byKey != null) return byKey;
+        }
+
+        // 2ìˆœìœ„(í´ë°±): ì¸ìŠ¤í™í„° ìˆ˜ë™ ë§¤í•‘
         if (_iconById == null) BuildDictionary();
         _iconById.TryGetValue(facilityId, out var sprite);
         return sprite;
@@ -57,7 +77,7 @@ public class FacilityIconDatabase : MonoBehaviour
             if (e == null || e.icon == null) continue;
             if (_iconById.ContainsKey(e.facilityId))
             {
-                Debug.LogWarning($"[FacilityIconDatabase] Áßº¹ facilityId={e.facilityId}");
+                Debug.LogWarning($"[FacilityIconDatabase] ì¤‘ë³µ facilityId={e.facilityId}");
                 continue;
             }
             _iconById[e.facilityId] = e.icon;

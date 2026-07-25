@@ -21,11 +21,18 @@ public static class TableValidator
         errors = new List<string>();
         string prefix = $"[{schema.TableName}]";
 
-        // 1. 컬럼 존재 확인
+        // 1. 컬럼 존재 확인 — 필수 컬럼만 에러. 선택(required:false) 컬럼은 시트에 없어도 통과(경고만).
+        //    새 선택 컬럼을 시트에 넣기 전에도 데이터 로드가 안 깨지게 하는 점진 마이그레이션용.
+        //    (없는 선택 컬럼은 파서에서 Get(-1)=빈문자로 처리되고, 소비 측이 폴백/기본값을 쓴다.)
         foreach (var col in schema.Columns)
         {
             if (table.GetColumnIndex(col.Name) < 0)
-                errors.Add($"{prefix} 컬럼 없음: {col.Name}");
+            {
+                if (col.Required)
+                    errors.Add($"{prefix} 필수 컬럼 없음: {col.Name}");
+                else
+                    Debug.LogWarning($"{prefix} 선택 컬럼 없음(스킵): {col.Name}");
+            }
         }
         if (errors.Count > 0) return false;
 
