@@ -282,8 +282,10 @@ public class FuelDropSlot : MonoBehaviour,
         if (_machine == null) return;
 
         float t    = _machine.FuelTimeRemaining;
-        var   cfg  = FuelConfig.Instance;
-        float secs = cfg != null ? cfg.secondsPerFuel : 40f;
+        // secs 는 static(FuelConfig.SecondsPerFuel) - 우주선 수리 연료효율 오버라이드까지 반영해
+        //   AddFuel/소모와 같은 기준으로 개수를 역산한다. instance(cfg.secondsPerFuel)는 오버라이드를
+        //   무시해서, 효율 보상 활성 시 표시 개수가 실제보다 뻥튀기됐다(37 투입 -> 46 표시 버그).
+        float secs = FuelConfig.SecondsPerFuel;
 
         // 현재 연소 중인 1개를 제외한 대기 중 아이템 수
         // CeilToInt(t/secs) = 전체 아이템 수 → -1 = 대기 중인 것만
@@ -364,7 +366,7 @@ public class FuelDropSlot : MonoBehaviour,
 
         // 현재 연소 중인 1개를 제외한 대기 아이템 수
         float t      = _machine.FuelTimeRemaining;
-        float secs   = cfg.secondsPerFuel;
+        float secs   = FuelConfig.SecondsPerFuel;   // static (오버라이드 반영) - instance 는 표시 개수 어긋남
         int   queued = Mathf.Max(0, Mathf.CeilToInt(t / secs) - 1);
 
         if (queued <= 0)
