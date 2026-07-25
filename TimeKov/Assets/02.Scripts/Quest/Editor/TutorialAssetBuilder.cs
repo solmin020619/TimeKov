@@ -169,11 +169,12 @@ public static class TutorialAssetBuilder
             quests.Add(BuildFactoryVideoQuest());
 
         // (설비 '열기' 별도 게이트는 두지 않음 - 연료/재료 슬롯이 설비 UI 안에 있어 여는 게 자연 강제됨)
-        quests.Add(BuildQuest("quest_tut_08_fuel_add", "연료 투입",
-            CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId)));
-
-        // R1201: 거미독액 + 부식액 -> 앰플 젤
-        quests.Add(BuildQuest("quest_tut_09_input_materials", "재료 투입",
+        // R1201: 거미독액 + 부식액 -> 앰플 젤. 연료+재료를 한 퀘(병렬 3목표)로 묶는다.
+        //   이유: 연료/재료를 별개 순차 퀘로 나누면 그 사이에 통째 퀘가 끼어 lookback(3.5s)을 넘기고,
+        //   플레이어가 자연스럽게 재료를 먼저 넣으면 재료 투입 목표가 활성될 땐 이미 만료돼 미인정 ->
+        //   재료회수 후 재투입해야 깨지던 문제. 셋을 한 퀘로 두면 동시에 활성이라 어느 순서로 넣어도 다 잡힘.
+        quests.Add(BuildQuest("quest_tut_08_operate", "연료와 재료 투입",
+            CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId),
             CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemSpiderVenom, 1),
             CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemCorrosive, 1)));
 
@@ -397,11 +398,11 @@ public static class TutorialAssetBuilder
                 VPage("설비 열기와 연료",
                     $"설비는 {Y}F{E}로 열 수 있고, 가동하려면 {Y}연료{E}가 필요합니다. 가방의 {Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 드래그해 넣으세요. (나뭇가지는 {Y}오크 트리{E}에서 나옵니다)"),
                 VPage("재료 투입과 가공",
-                    $"{Y}가방이나 창고{E}의 재료를 {Y}재료 슬롯{E}으로 드래그하면, 맞는 {Y}조합 공식{E}이 있을 때 {Y}가공{E}이 시작됩니다. 설비당 한 번에 {Y}하나의 공식{E}만 가능합니다."),
+                    $"{Y}가방이나 창고{E}의 재료를 {Y}재료 슬롯{E}으로 드래그하면, 맞는 {Y}레시피{E}가 있을 때 {Y}가공{E}이 시작됩니다. 설비당 한 번에 {Y}하나의 레시피{E}만 가능합니다."),
                 VPage("생산품 수령",
                     $"{Y}가공이 완료{E}되면 {Y}모두 받기{E}로 생산품을 가방이나 창고로 {Y}수령{E}할 수 있습니다."),
                 VPage("레시피 변경",
-                    $"한 설비가 여러 {Y}조합 공식{E}을 만들 수 있을 때, {Y}화살표 버튼{E}으로 원하는 공식으로 {Y}바꿀 수 있습니다{E}. (한 번에 하나의 공식만 가동)")));
+                    $"한 설비가 여러 {Y}레시피{E}를 만들 수 있을 때, 만들고 싶은 {Y}레시피{E}를 {Y}클릭{E}해 {Y}바꿀 수 있습니다{E}. (한 번에 하나의 레시피만 가동)")));
 
     static QuestSO BuildRailVideoQuest()
         => BuildQuest("quest_tut_15v_rail_video", "레일 자동화",

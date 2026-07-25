@@ -16,6 +16,14 @@ public class FacilityPlaceObjective : ObjectiveSO
     {
         GameEvents.OnFacilityPlaced += OnPlaced;
         _count += GameEvents.RecentCount(GameEvents.KeyPlaced(facilityId));   // 갭에서 미리 설치한 분 인정
+        // 이미 배치된 설비도 인정. 배치물은 (소비되는 재료/연료와 달리) 월드에 계속 남으므로 현재 배치
+        // 수를 직접 조회한다. lookback 윈도우(3.5s)를 넘겨 미리 설치했거나 씬에 선배치된 경우도 상태로 인정.
+        var bm = FindAnyObjectByType<BuildManager>();
+        if (bm != null)
+        {
+            int placed = bm.CountPlacedFacilities(facilityId);
+            if (placed > _count) _count = placed;
+        }
     }
     public override void Deactivate() => GameEvents.OnFacilityPlaced -= OnPlaced;
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
