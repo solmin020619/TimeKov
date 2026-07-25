@@ -156,6 +156,9 @@ public class RecipeDropSlot : MonoBehaviour,
             ItemTooltipUI.Instance?.Show(RequiredItemId, _canvas);
         }
 
+        // 활성 아닌 레시피 미리보기 슬롯이면 "재료 넣기" 유도 안 함(투입 막혀있어 착오 방지). 툴팁은 위에서 표시함.
+        if (IsSuppressed()) return;
+
         // 인벤토리 → 재료 슬롯 드래그일 때만 "재료 넣기" 표시
         bool isDragging = InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging;
         if (!isDragging) return;
@@ -177,6 +180,7 @@ public class RecipeDropSlot : MonoBehaviour,
     /// <summary>인벤토리에서 해당 재료를 집어든 순간 드랍 대상임을 미리 강조한다.</summary>
     public void SetDragHighlight(bool on)
     {
+        if (on && IsSuppressed()) on = false;   // 활성 아닌 레시피 슬롯은 드롭 대상 강조 안 함(투입 막힘)
         _dragHighlighted = on;
         if (on)
         {
@@ -196,6 +200,9 @@ public class RecipeDropSlot : MonoBehaviour,
     public void OnBeginDrag(PointerEventData e)
     {
         if (_machine == null) return;
+
+        // 활성 아닌 레시피 미리보기에선 버퍼 조작 불가(그 재료는 활성 레시피 것 - 착오로 빼가는 것 방지)
+        if (IsSuppressed()) { e.pointerDrag = null; return; }
 
         int buffered = _machine.InputBuffer.GetAmount(RequiredItemId);
         if (buffered <= 0)
@@ -263,6 +270,7 @@ public class RecipeDropSlot : MonoBehaviour,
     public void OnPointerClick(PointerEventData e)
     {
         if (_machine == null) return;
+        if (IsSuppressed()) return;   // 활성 아닌 레시피 = 더블클릭 회수 불가(활성 레시피 재료라 착오 방지)
 
         float now = Time.unscaledTime;
         if (now - _lastClickTime < DoubleClickThreshold)
@@ -310,6 +318,14 @@ public class RecipeDropSlot : MonoBehaviour,
         var sourceInv = handler.SrcManager;
         int have      = sourceInv.GetSlot(srcIndex).amount;
         int dragAmt   = handler.IsSplitDrag ? Mathf.Min(handler.DragAmount, have) : have;   // ALT 분할 드래그 = 든 수량만
+
+        // 이미 다른 레시피에 재료가 들어있거나 가공 중이면 그 레시피만 재료를 받는다(설비당 한 레시피).
+        //   공통재료 섞임/"B가 준비된 듯" 착시로 인한 오작동 방지 - 바꾸려면 재료 회수 먼저.
+        if (IsSuppressed())
+        {
+            ToastManager.Warning("이미 다른 레시피에 재료가 들어있습니다. 재료를 회수한 뒤 바꿔주세요.");
+            return;
+        }
 
         if (itemId != RequiredItemId) { ToastManager.Warning("요구하는 재료와 다릅니다"); return; }
         if (dragAmt <= 0) return;
@@ -364,11 +380,16 @@ public class RecipeDropSlot : MonoBehaviour,
         borderImage.color = c;
     }
 
+    // 다른 레시피에 커밋된 상태(재료 있음/가공중)에서 이 슬롯이 그 레시피가 아니면 = 미리보기(비활성).
+    //   공유 InputBuffer 수량을 표시/조작하지 않아 "A 재료로 B가 준비된 듯" 착시와 오작동을 막는다.
+    private bool IsSuppressed()
+        => _machine != null && _recipeIndex >= 0 && _machine.IsCommitted && _recipeIndex != _machine.EffectiveRecipeIndex;
+
     public void PublicRefresh()
     {
         if (_machine == null) return;
 
-        int current = _machine.InputBuffer.GetAmount(RequiredItemId);
+        int current = IsSuppressed() ? 0 : _machine.InputBuffer.GetAmount(RequiredItemId);
         CurrentAmount = current;
         if (amountText != null)
             amountText.text = $"{current}/{RequiredAmount}";
@@ -377,9 +398,8 @@ public class RecipeDropSlot : MonoBehaviour,
 
     private void RefreshAmount()
     {
-        int current = _machine != null
-            ? _machine.InputBuffer.GetAmount(RequiredItemId)
-            : CurrentAmount;
+        int current = IsSuppressed() ? 0
+            : (_machine != null ? _machine.InputBuffer.GetAmount(RequiredItemId) : CurrentAmount);
 
         if (amountText != null)
             amountText.text = $"{current}/{RequiredAmount}";

@@ -28,6 +28,14 @@ namespace TIMEKOV.Factory
         public FactoryRecipe ActiveRecipe { get; private set; }
         public List<FactoryRecipe> Recipes => recipes;
 
+        /// <summary>재료가 들어있거나 가공 중 = 한 레시피에 "커밋"된 상태. 이때는 다른 레시피로 못 바꾼다(재료 회수 필요).
+        /// 상태를 저장하지 않고 버퍼/가공 상태에서 그때그때 유도한다(설비 껐다 켜도 동일하게 판정).</summary>
+        public bool IsCommitted => _processing || (InputBuffer != null && InputBuffer.Stock.Count > 0);
+
+        /// <summary>지금 고정/가동 중인 레시피 인덱스(GetLockedRecipe 와 동일 기준). 커밋 판정·표시용.</summary>
+        public int EffectiveRecipeIndex =>
+            (recipes != null && LockedRecipeIndex >= 0 && LockedRecipeIndex < recipes.Count) ? LockedRecipeIndex : 0;
+
         /// <summary>실제 제작시간(초) = 레시피 craftTime(없으면 processingTime 폴백) x 레벨배율 x 공장속도.
         /// 가공 코루틴과 UI 표시가 이 한 메서드를 공유한다(표시-실제 어긋남 방지).</summary>
         public float ResolveProcessTime(FactoryRecipe recipe)

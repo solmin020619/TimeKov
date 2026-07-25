@@ -2189,8 +2189,13 @@ public class MachineUI : MonoBehaviour
         {
             Color c;
             bool producing = isSelectedRecipeActive && _machine.IsProcessing;
+            // 다른 레시피가 커밋(재료 있음/가공중)됐는데 그 아닌 레시피를 보고 있으면 = 이 설비는 다른 레시피 사용 중.
+            //   (안 그러면 A 가공 중에 B를 볼 때 "대기 중"으로 떠서 "왜 안 돌지" 오해 - 착시 방지 마무리)
+            bool otherCommitted = _machine.IsCommitted && _selectedRecipeIndex != _machine.EffectiveRecipeIndex;
             if (producing)
             { _bottomStatusText.text = ">>>  생산 중"; c = new Color(0.90f, 0.76f, 0.29f, 1f); }
+            else if (otherCommitted)
+            { _bottomStatusText.text = "다른 레시피 사용 중"; c = new Color(0.55f, 0.72f, 0.85f, 0.95f); }
             else if (_machine.Status == MachineStatus.NoFuel)
             { _bottomStatusText.text = "연료 부족"; c = new Color(0.88f, 0.45f, 0.40f, 1f); }
             else
@@ -2240,30 +2245,26 @@ public class MachineUI : MonoBehaviour
 
     // ── 재료 회수 버튼 (InputBuffer → 인벤토리) ─────────────────
 
-    /// <summary>현재 선택된 레시피의 재료(InputBuffer)만 인벤토리로 반환한다.</summary>
+    /// <summary>InputBuffer 의 모든 재료를 인벤토리로 회수한다(어느 레시피 것이든).
+    /// 공유버퍼라 '보는 레시피 것'만 회수하면 다른 재료가 남아 설비가 커밋 상태로 묶이므로 전량 회수한다.</summary>
     public void TakeAllInputs()
     {
         if (_machine == null) return;
 
-        var recipes = _machine.Recipes;
-        if (recipes == null || recipes.Count == 0) return;
-
-        int recipeIdx = Mathf.Clamp(_selectedRecipeIndex, 0, recipes.Count - 1);
-        var inputs    = recipes[recipeIdx]?.inputs;
-        if (inputs == null) return;
-
         // 회수 대상 = 현재 보고 있는 인벤(가방 뷰=가방 / 창고 뷰=창고). 옛 가방 고정은 창고 뷰에서 혼란.
         var inv = ActiveInv();
 
+        // 버퍼 키를 복사해두고 순회한다(회수하며 Stock 이 바뀌므로).
+        var itemIds = new List<int>(_machine.InputBuffer.Stock.Keys);
         bool someLeft = false;
-        foreach (var input in inputs)
+        foreach (var itemId in itemIds)
         {
-            int buffered = _machine.InputBuffer.GetAmount(input.itemId);
+            int buffered = _machine.InputBuffer.GetAmount(itemId);
             if (buffered <= 0) continue;
             // 먼저 넣어보고 들어간 만큼만 버퍼에서 차감 - 가방 가득 시 초과분이 증발하던 버그 방지(남는 건 설비 유지).
-            int leftover = inv != null ? inv.AddItem(input.itemId, buffered) : buffered;
+            int leftover = inv != null ? inv.AddItem(itemId, buffered) : buffered;
             int taken = buffered - leftover;
-            if (taken > 0) _machine.InputBuffer.Consume(input.itemId, taken);
+            if (taken > 0) _machine.InputBuffer.Consume(itemId, taken);
             if (leftover > 0) someLeft = true;
         }
         if (someLeft) ToastManager.Warning("가방이 가득 찼습니다");
