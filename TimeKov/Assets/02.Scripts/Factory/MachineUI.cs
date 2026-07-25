@@ -2038,6 +2038,13 @@ public class MachineUI : MonoBehaviour
                     // 레일도 빨갛게(월드 벨트의 잼 표시와 동일 언어 - 종욱)
                     if (fx.rail != null) fx.rail.color = new Color(1f, 0.40f, 0.36f, 1f);
                 }
+                // 연결 즉시 예측(월드 레일과 동일 연동): 아이템이 없어도 이 포트 연결이 잘못됐으면(산출물 못 받음) 레일 빨강.
+                else if (BeltSegment.IsPortConnectionIncompatible(fx.port))
+                {
+                    fx.jamId = -1;
+                    if (fx.icon.enabled) fx.icon.enabled = false;
+                    if (fx.rail != null) fx.rail.color = new Color(1f, 0.40f, 0.36f, 1f);
+                }
                 else if (fx.icon.enabled || fx.jamId != -1)
                 {
                     fx.jamId = -1;

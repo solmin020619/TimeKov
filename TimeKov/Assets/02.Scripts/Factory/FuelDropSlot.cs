@@ -108,11 +108,12 @@ public class FuelDropSlot : MonoBehaviour,
         if (borderImage != null) borderImage.color = normalBorderColor;
         if (labelText   != null) labelText.text    = "";
 
-        // 연료 오로라 = 연료 전용색(브론즈). 등급과 별개라 항상 같은 색.
-        if (gradeAurora != null)
+        // fuelGauge = 재료 슬롯의 GradeBar 와 '동일한' 플레인 솔리드 선으로 교정(빌더 RoundedSprite+Filled 라 좌우 공백 -> sprite 제거 + Simple).
+        //   색/표시(주황 굵은선 + 위로 은은한 주황 오로라)는 RefreshTime 이 담당.
+        if (fuelGauge != null)
         {
-            Color fc = GradeVisual.FuelColor;
-            gradeAurora.color = new Color(fc.r, fc.g, fc.b, fc.a * 0.6f);
+            fuelGauge.sprite = null;
+            fuelGauge.type   = Image.Type.Simple;
         }
 
         EnsureBurnerPanel();
@@ -314,19 +315,15 @@ public class FuelDropSlot : MonoBehaviour,
             }
         }
 
-        // 슬롯 바닥 = 인벤 등급선처럼 연료색 솔리드 선. 투입구 모델이라 "대기 연료가 있을 때"만 켠다.
+        // 재료 슬롯과 동일 2겹: (1) 바닥 솔리드 '굵은 선'(fuelGauge - Setup 서 플레인 솔리드로 교정=좌우 공백 없음) + (2) 위로 은은한 오로라.
         if (fuelGauge != null)
         {
-            fuelGauge.fillAmount = 1f;
-            fuelGauge.color = GradeVisual.FuelColor;
+            fuelGauge.color   = new Color(1f, 0.5f, 0.12f, 1f);   // 주황 굵은선 (재료 GradeBar 와 동일 위치=바닥 h6)
             fuelGauge.enabled = queued > 0;
         }
-        // 오로라도 인벤 문법과 통일: 대기 연료 있을 때만(빈 투입구 = 선/오로라 없음).
+        // 오로라(선 위로 은은하게) = 재료와 동일 alpha 0.6, 연료는 주황.
         if (gradeAurora != null)
-        {
-            Color fca = GradeVisual.FuelColor;
-            gradeAurora.color = queued > 0 ? new Color(fca.r, fca.g, fca.b, fca.a * 0.6f) : new Color(0f, 0f, 0f, 0f);
-        }
+            gradeAurora.color = queued > 0 ? new Color(1f, 0.5f, 0.12f, 0.6f) : new Color(0f, 0f, 0f, 0f);
 
         // 화로 패널(불꽃/와이드 게이지/상태 라인) 동기.
         UpdateBurnerPanel(t, secs, currentTime, queued);

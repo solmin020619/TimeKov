@@ -24,6 +24,7 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
 
         SaveSlotManager.Instance?.Register(this);
         RestoreFromSave();
+        SeedDefaultUnlocks();   // 기본 해금 설비(추출기1/배양기2) 보장 - 조용히(이벤트/토스트/도감알림 없음)
     }
 
     private void OnDestroy()
@@ -48,6 +49,17 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
         _unlockedIds.Clear();
         foreach (int id in SaveSlotManager.Instance.Data.unlockedFacilityIds)
             if (!_unlockedIds.Contains(id))
+                _unlockedIds.Add(id);
+    }
+
+    // 시작부터 해금돼 있는 기본 설비. 튜토에서 추출기1/배양기2 '이동/해금' 단계를 제거했으므로
+    // 새 슬롯이든 기존 슬롯이든 이 둘은 항상 퀵슬롯에 있게 조용히 보장한다(이벤트/토스트/도감알림 없음).
+    private static readonly int[] DefaultUnlockedIds = { 1, 2 };
+
+    private void SeedDefaultUnlocks()
+    {
+        foreach (int id in DefaultUnlockedIds)
+            if (id >= 1 && id <= MaxSlots && !_unlockedIds.Contains(id))
                 _unlockedIds.Add(id);
     }
 

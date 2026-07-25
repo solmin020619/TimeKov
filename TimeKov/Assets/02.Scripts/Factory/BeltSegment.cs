@@ -127,9 +127,9 @@ namespace TIMEKOV.Factory
             }
             else if (IsReady)
             {
-                // 연결됨 → 즉시 파랑
+                // 연결됨 → 파랑. 단 산출물을 도착 설비가 못 받는 '잘못된 연결'이면 즉시 빨강(금지 표시와 함께 경고).
                 _disconnectTimer = 0f;
-                ApplyColorState(ColorState.Connected);
+                ApplyColorState(IsIncompatibleConnection() ? ColorState.Disconnected : ColorState.Connected);
             }
             else if (SuppressConnectionColor)
             {
@@ -145,6 +145,23 @@ namespace TIMEKOV.Factory
                 if (_disconnectTimer >= disconnectColorGrace)
                     ApplyColorState(ColorState.Disconnected);
             }
+        }
+
+        // 연결은 됐으나(IsReady) 출발 설비 산출물을 도착 설비가 하나도 못 받는 '잘못된 연결'인지.
+        // 잼 표시(🚫, FacilityWorldDisplay)와 같은 기준(CanReceive). 아이템이 흐르기 전에도 빨간 레일로 즉시 경고한다.
+        // 출발이 ProcessingMachine 이 아니면(창고 추출기 등 산출물 예측 불가) 판정 보류(파랑).
+        private bool IsIncompatibleConnection()
+        {
+            var src = sourceM as ProcessingMachine;
+            if (src == null || targetM == null) return false;
+            var recipes = src.Recipes;
+            if (recipes == null || recipes.Count == 0) return false;
+            int idx = src.LockedRecipeIndex;
+            var recipe = (idx >= 0 && idx < recipes.Count) ? recipes[idx] : recipes[0];
+            if (recipe?.outputs == null) return false;
+            foreach (var o in recipe.outputs)
+                if (!targetM.CanReceive(o.itemId)) return true;
+            return false;
         }
 
         // ── 연결 상태 색상 표시 ─────────────────────────────────────────
@@ -491,6 +508,23 @@ namespace TIMEKOV.Factory
                 if (seg._beltCell != front) continue;
                 if (!seg.RailConnectsToward(dir)) continue;
                 return true;
+            }
+            return false;
+        }
+
+        /// <summary>이 포트에 물린 벨트가 '잘못된 연결'(출발 설비 산출물을 도착 설비가 못 받음)인지.
+        /// 설비 UI 레일이 월드 레일과 똑같이 아이템 흐름 전에도 즉시 빨갛게 뜨도록(연결 즉시 예측).</summary>
+        public static bool IsPortConnectionIncompatible(BuildPort port)
+        {
+            if (port == null || port.OwnerBuilding == null) return false;
+            Vector2Int front = port.GetFrontCell();
+            Vector2Int dir   = port.GetWorldDirection();
+            foreach (var seg in All)
+            {
+                if (seg == null || !seg._cellsInitialized) continue;
+                if (seg._beltCell != front) continue;
+                if (!seg.RailConnectsToward(dir)) continue;
+                return seg.IsIncompatibleConnection();
             }
             return false;
         }

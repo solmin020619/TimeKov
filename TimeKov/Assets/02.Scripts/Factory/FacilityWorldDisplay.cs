@@ -3,8 +3,8 @@
 // 엔드필드 스타일 설비 월드 표시 (플레이어 3인칭 카메라 뷰 기준).
 //  1) 제작 중 아이템 아이콘 — 설비 가운데에 BG와 함께, 항상 카메라를 향함(빌보드).
 //  2) 설비 이름 — 플레이어 근접 시에만, 사각형 4면 중 카메라가 보는 면에 납작하게 고정 표시(빌보드 아님).
-//  3) 금지 표시 — 아이템이 벨트를 타고 타깃 입구까지 도착했는데 못 받아 실제로 정체(잼)된 순간,
-//     그 아이템이 멈춘 꼬리 칸(레일이 설비에 물리는 지점) 위에 표시.
+//  3) 금지 표시 — (a) 아이템이 도착했으나 타깃이 못 받아 실제로 정체(잼)된 순간, 또는
+//     (b) 타깃이 이 설비 산출물을 못 받는 '잘못된 연결'(연결 즉시 예측). 위치는 레일이 설비에 물리는 지점.
 // ProcessingMachine 이 런타임에 자동 부착한다(프리팹 편집 불필요).
 // =====================================================================
 
@@ -97,6 +97,8 @@ namespace TIMEKOV.Factory
 
         // 금지 표시 요소
         private GameObject _blockRoot;
+        private System.Collections.Generic.List<int> _outIds;   // 이 설비 산출물 id 캐시(연결 즉시 예측 경고용)
+        private int _cachedLockedIdx = int.MinValue;
 
         private void Awake()
         {
@@ -316,10 +318,11 @@ namespace TIMEKOV.Factory
 
         private void UpdateBlockIcon()
         {
-            // 막힘 = 실제로 아이템이 벨트를 타고 타깃 입구까지 도착했는데 타깃이 못 받아
-            // 그 칸에 물리적으로 정체(잼)된 순간에만 표시. (단순 연결/미연결·레시피 거부 예측만으로는 안 뜬다.)
-            // 표시 위치 = 그 아이템이 멈춰 있는 꼬리 칸 = 레일이 설비에 실제로 물리는 지점.
-            BeltSegment tail = FindJammedTail();
+            // 막힘 표시 = 두 경우. 위치는 둘 다 레일이 설비에 물리는 꼬리 칸(실제 지점).
+            //  (a) 실제 잼: 아이템이 타깃 입구까지 도착했는데 못 받아 물리적으로 정체.
+            //  (b) 연결 즉시 예측: 타깃이 이 설비 산출물을 못 받는 '잘못된 연결' — 아이템이 흐르기 전에 미리 경고.
+            //      (플레이어가 안 맞는 연결을 헷갈리지 않게. 재원의 '실제 위치 표시'는 유지하고 예측 경고만 복원.)
+            BeltSegment tail = FindBlockedTail();
             if (tail == null) { if (_blockRoot.activeSelf) _blockRoot.SetActive(false); return; }
             if (!_blockRoot.activeSelf) _blockRoot.SetActive(true);
 
@@ -330,14 +333,17 @@ namespace TIMEKOV.Factory
             _blockRoot.transform.forward = _cam.transform.forward;
         }
 
-        // ── 실제 잼(정체) 판정 ───────────────────────────────────────────
-        // 이 설비의 출력 벨트 체인들 중, 꼬리 칸에 아이템이 도착했는데 타깃이 못 받아
-        // 물리적으로 멈춰 있는(IsJammedAtTarget) 첫 꼬리 세그먼트를 반환한다(없으면 null).
-        // outputBelts 에 담긴 건 체인 머리(chain[0])라 nextSegment 로 꼬리까지 따라간다.
-        private BeltSegment FindJammedTail()
+        // ── 막힘 판정 (실제 잼 + 연결 즉시 예측) ───────────────────────────
+        // 이 설비의 출력 벨트 체인들 중, 꼬리 칸이 아래 둘 중 하나면 그 꼬리를 반환(없으면 null):
+        //  (a) IsJammedAtTarget = 아이템이 도착했으나 타깃이 못 받아 물리적으로 정체.
+        //  (b) 타깃이 이 설비의 현재 산출물을 하나라도 못 받음 = 잘못된 연결(예측, 아이템 안 흘러도).
+        // outputBelts 에 담긴 건 체인 머리라 nextSegment 로 꼬리까지 따라간다.
+        private BeltSegment FindBlockedTail()
         {
             if (_machine.outputBelts == null || _machine.outputBelts.Count == 0)
                 return null;
+
+            var outIds = _pm != null ? GetOutputItemIds() : null;   // 예측용 산출물 id(현재 레시피)
 
             foreach (var belt in _machine.outputBelts)
             {
@@ -346,10 +352,36 @@ namespace TIMEKOV.Factory
                 BeltSegment tail = belt;
                 int guard = 256;
                 while (tail.nextSegment != null && guard-- > 0) tail = tail.nextSegment;
+                if (tail == null) continue;
 
-                if (tail != null && tail.IsJammedAtTarget) return tail;
+                // (a) 실제 물리 잼
+                if (tail.IsJammedAtTarget) return tail;
+
+                // (b) 연결 즉시 예측: 타깃이 산출물을 하나라도 못 받으면 잘못된 연결
+                var tgt = tail.targetM;
+                if (tgt != null && tgt != _machine && outIds != null)
+                    foreach (var id in outIds)
+                        if (!tgt.CanReceive(id)) return tail;
             }
             return null;
+        }
+
+        // 현재 선택된(잠긴) 레시피, 없으면 첫 레시피의 산출물 id 목록 (변경 시에만 재계산).
+        private System.Collections.Generic.List<int> GetOutputItemIds()
+        {
+            if (_pm.Recipes == null || _pm.Recipes.Count == 0) return null;
+
+            int idx = _pm.LockedRecipeIndex;
+            if (idx == _cachedLockedIdx && _outIds != null) return _outIds;
+            _cachedLockedIdx = idx;
+
+            var recipe = (idx >= 0 && idx < _pm.Recipes.Count) ? _pm.Recipes[idx] : _pm.Recipes[0];
+            if (recipe == null || recipe.outputs == null) { _outIds = null; return null; }
+
+            _outIds ??= new System.Collections.Generic.List<int>();
+            _outIds.Clear();
+            foreach (var o in recipe.outputs) _outIds.Add(o.itemId);
+            return _outIds;
         }
 
         // ── 헬퍼 ────────────────────────────────────────────────────────
