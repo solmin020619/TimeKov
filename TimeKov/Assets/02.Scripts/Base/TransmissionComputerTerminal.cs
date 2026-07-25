@@ -57,8 +57,7 @@ public class TransmissionComputerTerminal : MonoBehaviour, IInteractable, IInter
         // 전송 컴퓨터 UI 오픈 (없으면 런타임 생성)
         GameUIController.Instance?.OpenTransmissionUI();
         TransmissionComputerUI.GetOrCreate().Open();
-
-        // 발견 팝업(시간에너지 전송 소개) 트리거 - 처음 열 때 1회. 기지 안이라 안전.
-        GameEvents.RaiseInteracted("transmit");
+        // 소개 영상은 엔드게임 퀘(quest_end_02)의 영상 objective 가 전송기 도착 시점에 재생한다(코어와 동일).
+        //   예전엔 여기서 RaiseInteracted("transmit") 로 발견 큐를 띄웠는데 UI 를 연 뒤라 타이밍이 어긋나 제거했다.
     }
 }

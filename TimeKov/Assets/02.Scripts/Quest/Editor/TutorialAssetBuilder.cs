@@ -275,9 +275,16 @@ public static class TutorialAssetBuilder
                 $"기지의 {Y}시간에너지 전송기{E}로 {Y}이동{E}하세요.", "transmit")));
 
         // 첫 전송 - 스타터 키트를 넣어 5% 달성. 5% 보상으로 시간에너지 합성기(3) 자동 해금 -> 이후 키트 자급.
-        endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "첫 시간에너지 전송",
-            CreateTransmissionRate("obj_first_transmit",
-                $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 전송률 {Y}5%{E}를 달성하세요.", 5)));
+        //   영상(설명)을 전송 '앞'에 둬 '전송기 도착 -> 설명 보고 -> 전송' 순(코어 강화와 동일 패턴).
+        //   전에는 interact:transmit 발견 큐라 F로 UI 연 뒤 영상이 떠 타이밍이 어긋났다 -> 도착 퀘 다음 영상 objective 로 이동.
+        var transmitObjs = new List<ObjectiveSO>();
+        if (EnableVideoTutorials)
+            transmitObjs.Add(CreateVideoTutorial("obj_transmit_video", "시간에너지 전송 안내를 확인하세요.",
+                VPage("시간에너지 전송",
+                    $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 지역별로 25%씩 채우고, 각 구간 마지막은 {Y}보스 재료{E} 특수 키트가 필요합니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}합니다.")));
+        transmitObjs.Add(CreateTransmissionRate("obj_first_transmit",
+            $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 전송률 {Y}5%{E}를 달성하세요.", 5));
+        endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "첫 시간에너지 전송", transmitObjs.ToArray()));
 
         // 장기 목표(상시) - 100% 전송 + 우주선 수리로 탈출. 튜토가 끝나도 방향을 남긴다.
         endgameQuests.Add(BuildQuest("quest_end_03_escape_goal", "탈출 준비",
@@ -661,9 +668,8 @@ public static class TutorialAssetBuilder
             Cue("returnstone", true, VPage("귀환석",
                 $"결계 밖 어디서든 {Y}기지로 긴급 복귀{E}하는 수단입니다. {Y}H{E}로 사용하면 잠시 채널링 후 기지로 텔레포트합니다. 레벨이 오를수록 {Y}쿨타임{E}이 짧아집니다.")),
 
-            // 전송기 첫 상호작용 - 시스템 소개. 기지 안.
-            Cue("interact:transmit", true, VPage("시간에너지 전송",
-                $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 지역별로 25%씩 채우고, 각 구간 마지막은 {Y}보스 재료{E} 특수 키트가 필요합니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}합니다.")),
+            // (전송기 소개는 DiscoveryCue 가 아니라 엔드게임 퀘 quest_end_02 의 영상 objective 로 재생 - 전송기 도착 순간.
+            //  코어 강화와 동일 패턴. 예전 interact:transmit 큐는 F로 UI 연 뒤 떠서 타이밍이 어긋나 제거.)
 
             // 첫 워프 지점 활성화 - 워프 시스템 소개. F로 활성화하는 순간 즉시(safe=true). WarpManager.ActivateRegionPoint 안에서 TryFire("warp").
             Cue("warp", true, VPage("워프 지점",
