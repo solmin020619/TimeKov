@@ -39,7 +39,7 @@ public class VattalusUnitySingleton<T> : MonoBehaviour where T : Component
             /*
                         if (_instance == null)
                         {
-                            _instance = FindObjectOfType<T>();
+                            _instance = FindFirstObjectByType<T>();
                             if (_instance == null)
                             {
                                 GameObject obj = new GameObject();
@@ -90,7 +90,7 @@ public class VattalusUnitySingletonPersistent<T> : MonoBehaviour where T : Compo
         {
             if (_instance == null)
             {
-                _instance = FindObjectOfType<T>();
+                _instance = FindFirstObjectByType<T>();
                 if (_instance == null)
                 {
                     GameObject obj = new GameObject { hideFlags = HideFlags.HideAndDontSave };

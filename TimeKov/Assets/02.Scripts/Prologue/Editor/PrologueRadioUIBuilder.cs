@@ -214,7 +214,7 @@ public static class PrologueRadioUIBuilder
         msgTmp.text               = "";
         msgTmp.fontSize           = 18f;
         msgTmp.color              = White;
-        msgTmp.enableWordWrapping = true;
+        msgTmp.textWrappingMode = TextWrappingModes.Normal;
         msgTmp.lineSpacing        = 2f;
         msgTmp.overflowMode       = TextOverflowModes.Truncate;
 

@@ -7,7 +7,7 @@ using UnityEngine.UI;
 public class Hyperspace_DemoUI : MonoBehaviour
 {
 
-    public Camera camera;
+    public new Camera camera;
     // horizontal and vertical rotation speeds
     public float cameraSensitivity = 90;
     public Vector2 camFovRange = new Vector2(50f, 100f);

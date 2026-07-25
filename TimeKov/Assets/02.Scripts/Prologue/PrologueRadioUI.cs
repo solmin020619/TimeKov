@@ -36,7 +36,6 @@ public class PrologueRadioUI : MonoBehaviour
 
     [Header("애니메이션")]
     [SerializeField] float _slideInDuration  = 0.30f;
-    [SerializeField] float _slideOffsetX     = -80f;
     [SerializeField] float _fadeOutDuration  = 0.35f;
 
     // 퀘스트 완료 후 다음 대사 없을 때 닫히기까지 대기
