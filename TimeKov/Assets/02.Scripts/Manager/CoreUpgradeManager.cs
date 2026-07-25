@@ -194,11 +194,13 @@ public class CoreUpgradeManager : MonoBehaviour, ISaveable
 
             OnLevelChanged?.Invoke(CurrentCoreLevel);
             GameEvents.RaiseCoreUpgraded(CurrentCoreLevel);   // 튜토리얼 등 전역 구독자 통지
+            GameSfx.Play(SfxId.CoreUpgradeSuccess);
             ToastManager.Success("코어 강화 성공!");
         }
         else
         {
             // ⑥ 실패 처리 — 레벨 유지, 스탯 변경 없음
+            GameSfx.Play(SfxId.CoreUpgradeFail);
             // ▼ 나중에 단계 하락 추가 시 이 블록만 수정
             // CurrentCoreLevel = Mathf.Max(0, CurrentCoreLevel - 1);
             // ApplyStatsForLevel(CurrentCoreLevel);

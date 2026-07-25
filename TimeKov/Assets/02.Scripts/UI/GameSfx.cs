@@ -90,6 +90,33 @@ public enum SfxId
 
     // ── 전투 브금 (BattleBgm · 클립만 여기서 관리, 재생은 BattleBgm 전용 소스) ──
     WyvernBattleBgm,          // 와이번 보스전 전용 BGM(교전 시 재생 → 처치/이탈 시 정지)
+
+    // ── 귀환석 (ReturnStoneManager · 재생은 로컬 소스, 클립만 여기서 관리) ──
+    ReturnStoneChannelLoop,   // 귀환 준비(채널링) 루프음 — 준비 시작~완료/취소까지
+    ReturnStoneArrive,        // 기지 복귀 도착음
+
+    // ── 워프 (WarpManager · 귀환석과 동일 구성) ──
+    WarpChargeLoop,           // 충전(원통 안 대기) 루프음 — 진입~완료/취소까지
+    WarpArrive,               // 워프 도착음(지역 워프 최초 활성화에도 사용)
+
+    // ── 코어 강화 (CoreUpgradeManager) ──
+    CoreUpgradeTry,           // 강화 시도(재료 소모·판정 직전)
+    CoreUpgradeSuccess,       // 강화 성공(레벨업)
+    CoreUpgradeFail,          // 강화 실패
+
+    // ── 시간에너지 전송 (TransmissionManager) ──
+    TransmissionSend,         // 전송 실행(키트 전송 확정)
+    TransmissionRewardClaim,  // 보상 수령(10% 등 마일스톤 통과)
+    TransmissionRateUp,       // 전송률 상승(게이지 증가)
+
+    // ── 퀵슬롯 (PlayerQuickSlotComponent) ──
+    QuickSlotUse,             // 퀵슬롯 소모품 사용 성공
+
+    // ── 탑뷰 설비 해금 (QuickSlotIconUI) ──
+    FacilityUnlockPop,        // 달달달(Reveal) 이후 팡 터지는 순간
+
+    // ── 코어 강화 미니게임 (CoreUpgradeUI) ──
+    CoreUpgradeTick,          // 바늘 회전(타임캐치) 중 째깍째깍 루프
 }
 
 // 런타임 UI/이벤트 효과음 재생기 (지연 싱글톤, 씬 세팅 불필요).

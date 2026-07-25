@@ -44,8 +44,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     [SerializeField] private float channelVfxYOffset = 0f;
     [Tooltip("기지 도착 시 도착 지점에 재생할 이펙트. 예) Spawn_06")]
     [SerializeField] private GameObject arriveVfx;
-    [SerializeField] private AudioClip channelSound;
-    [SerializeField] private AudioClip arriveSound;
+    // 사운드는 GameSfxConfig 로 통합 관리 — 채널 루프(SfxId.ReturnStoneChannelLoop) / 도착(SfxId.ReturnStoneArrive).
 
     [Header("입력")]
     [Tooltip("이 키로도 귀환석 사용(HUD 버튼과 별개, 선택). G는 즉시완료로 이미 쓰이므로 다른 키 권장.")]
@@ -186,7 +185,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
         if (stat != null) { stat.OnHurt += onHurt; stat.OnDead += onDead; }
 
         GameObject vfx = SpawnChannelVfx(player);
-        PlaySound(channelSound, player.transform.position);
+        StartChannelLoop();   // 준비 중 도는 루프음(SfxId.ReturnStoneChannelLoop)
         ToastManager.Info("귀환 준비 중...");
 
         float t = 0f;
@@ -200,6 +199,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
         if (stat != null) { stat.OnHurt -= onHurt; stat.OnDead -= onDead; }
         if (vfx != null) Destroy(vfx);
+        StopChannelLoop();   // 준비 종료(취소/완료 공통) — 루프음 정지
         // 사망 시엔 사망 모션에 맡기고, 그 외에만 채널 모션 해제(취소/완료 공통).
         if (stat == null || !stat.IsDead) player.Anim?.StopChannel();
 
@@ -243,7 +243,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
         Vector3 dest = ReturnDest();
         TeleportPlayer(player.transform, dest);
         SpawnAt(arriveVfx, dest);
-        PlaySound(arriveSound, dest);
+        GameSfx.Play(SfxId.ReturnStoneArrive);   // 기지 도착음(플레이어 개인 이벤트 → 2D)
 
         yield return Fade(1f, 0f);
         PlayerInputComponent.IsBlocked = false;
@@ -316,9 +316,29 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
         Destroy(go, 5f);
     }
 
-    private void PlaySound(AudioClip clip, Vector3 pos)
+    // 채널 루프음 — 클립은 GameSfxConfig(SfxId.ReturnStoneChannelLoop)에서, 재생은 이 로컬 2D 소스에서.
+    private AudioSource _channelLoop;
+
+    private void StartChannelLoop()
     {
-        if (clip != null) AudioSource.PlayClipAtPoint(clip, pos);
+        if (!GameSfx.TryGet(SfxId.ReturnStoneChannelLoop, out var clip, out var vol) || clip == null) return;
+        if (_channelLoop == null)
+        {
+            var go = new GameObject("[ReturnChannelLoop]");
+            go.transform.SetParent(transform, false);
+            _channelLoop = go.AddComponent<AudioSource>();
+            _channelLoop.spatialBlend = 0f;   // 2D (플레이어 개인 연출)
+            _channelLoop.loop = true;
+            _channelLoop.playOnAwake = false;
+        }
+        _channelLoop.clip = clip;
+        _channelLoop.volume = vol * GlobalSettingsManager.CurrentSFXVolume;
+        _channelLoop.Play();
+    }
+
+    private void StopChannelLoop()
+    {
+        if (_channelLoop != null && _channelLoop.isPlaying) _channelLoop.Stop();
     }
 
     private IEnumerator Fade(float from, float to)

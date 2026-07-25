@@ -13,7 +13,7 @@ public class GameSfxConfig : ScriptableObject
         public AudioClip clip;
         [Tooltip("여러 개 지정하면 재생마다 이 중 하나를 랜덤 선택(발소리 등). 비어있으면 위 clip 사용.")]
         public List<AudioClip> clips = new List<AudioClip>();
-        [Range(0f, 1f)] public float volume = 1f;
+        [Range(0f, 3f)] public float volume = 1f;   // 라우드니스 정규화로 1 초과(부스트) 가능
     }
 
     public List<Entry> sounds = new List<Entry>();

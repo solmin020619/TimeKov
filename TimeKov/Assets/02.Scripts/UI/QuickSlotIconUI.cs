@@ -361,6 +361,7 @@ public class QuickSlotIconUI : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.4f);
 
         _rim.color = CyanHi;
+        GameSfx.Play(SfxId.FacilityUnlockPop);   // 달달달 이후 '팡' 터지는 순간
         _skin.DOPunchScale(Vector3.one * 0.18f, 0.5f, 6, 0.6f).SetUpdate(true);
         PlayUnlockFx();
         if (_lock != null)
