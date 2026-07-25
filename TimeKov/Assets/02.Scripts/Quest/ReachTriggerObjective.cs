@@ -34,7 +34,7 @@ public class ReachTriggerObjective : ObjectiveSO
         return t != null && t.IsPlayerInside;
     }
 
-    void OnTrigger(string id) { if (id == targetTriggerId) Complete(); }
+    void OnTrigger(string id) { if (id == (targetTriggerId ?? "").Trim()) Complete(); }
     void OnUnlocked(int facilityId) { if (facilityId == satisfiedIfFacilityUnlocked) Complete(); }
 
 #if UNITY_EDITOR
