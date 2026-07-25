@@ -37,12 +37,12 @@ public static class TutorialAssetBuilder
     // -- 최종 ItemData 시트 기준 --
     const int ItemSpiderVenom = 1102;  // 거미 독액 (드롭, 원료)
     const int ItemCorrosive   = 3101;  // 부식액 (드롭, 원료)
-    const int ItemHealGel     = 1201;  // 회복 젤 (R1201 @추출기1: 1102+3101)
+    const int ItemHealGel     = 1201;  // 앰플 젤 (R1201 @추출기1: 1102+3101). 시트 rename: 회복 젤 -> 앰플 젤
     const int ItemHealAmpoule = 5101;  // 초급 회복 앰플 (R5101 @배양기2: 1201)
     const int CoreKitId       = 6101;  // 코어 키트 I (코어 1단계 강화 재료)
     const int CoreKitAmount   = 3;     // CoreLevelData lv1 requiredAmount
     const int ItemTwig        = 4101;  // 나뭇가지 = 설비 연료 (FuelConfig.fuelItemId). OakTreeEnt 단독 드롭.
-    const int StarterKitId    = 8301;  // 자연 일반 키트 (엔드게임 부트스트랩: 첫 전송 5% -> 시간에너지 합성기(3) 해금).
+    const int StarterKitId    = 8301;  // 자연 충전 키트 (엔드게임 부트스트랩: 첫 전송 5% -> 시간에너지 합성기(3) 해금).
                                        //   TransmissionManager.EnsureKitDefs 규약(83xx=지역 일반 키트, 자연=끝자리1)과 일치.
 
     // -- 스포트라이트 타깃 id (씬 UI 요소의 TutorialHighlightTarget 와 매칭) --
@@ -133,25 +133,19 @@ public static class TutorialAssetBuilder
 
         quests.Add(BuildQuest("quest_tut_02_combat", "전투",
             CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
-            CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "tutorial_enemy", 1)));
+            CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "", 1)));   // enemyId 빈값 = 아무 몹이나 1마리(거미/언데드/오크 다 인정)
 
         quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
             CreateItemAcquire("obj_loot_venom", $"{Y}거미 독액{E}을 {Y}획득{E}하세요.", ItemSpiderVenom, 1),
-            CreateItemAcquire("obj_loot_corrosive", $"{Y}부식액{E}을 {Y}획득{E}하세요.", ItemCorrosive, 1),
+            CreateItemAcquire("obj_loot_corrosive", $"{Y}언데드{E}를 잡아 {Y}부식액{E}을 {Y}획득{E}하세요.", ItemCorrosive, 1),
             CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 연료 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
         // ============================================================
-        // 설비 해금 + 건설 (★건설구역 도착은 별 퀘로 유지 - 합치면 소프트락)
+        // 건설 (★건설구역 도착은 별 퀘로 유지 - 합치면 소프트락)
         // ============================================================
-        // 추출기 '도착' 퀘 (해금과 분리 - 도착 직후에 해금 영상이 뜨게 하려고).
-        //   satisfiedIfFacilityUnlocked=추출기: 이미 해금돼 있으면 트리거 무관 즉시완료(헛걸음 방지).
-        quests.Add(BuildQuest("quest_tut_05a_reach_extractor", "생체 추출기로 이동",
-            CreateReachTrigger("obj_reach_extractor", $"{Y}생체 추출기{E}가 있는 곳으로 {Y}이동{E}하세요.", "1", BioExtractorId)));
-
-        // (설비 해금 영상 제거 - F로 해금하면 자물쇠 풀리는 연출로 자명. 텍스트 지시만 둠.)
-        quests.Add(BuildQuest("quest_tut_05_unlock_extractor", "생체 추출기 해금",
-            CreateFacilityUnlock("obj_unlock_extractor", $"{Y}F{E}를 눌러 바닥의 {Y}생체 추출기{E}를 {Y}해금{E}하세요.", BioExtractorId)));
+        // (생체 추출기1/배양기2 는 시작부터 해금 상태 = FacilityUnlockManager 기본해금.
+        //  튜토에서 '추출기 이동/해금' 단계 제거 - 바로 건설로 넘어간다. 퀵슬롯에 이미 들어있음.)
 
         // ★건설구역 도착 - 별 퀘. EnterBuildMode/투어 앞에서 '존 안' 진입을 선행 보장.
         quests.Add(BuildQuest("quest_tut_05b_reach_build", "건설 구역으로 이동",
@@ -178,28 +172,27 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_08_fuel_add", "연료 투입",
             CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId)));
 
-        // R1201: 거미독액 + 부식액 -> 회복젤
+        // R1201: 거미독액 + 부식액 -> 앰플 젤
         quests.Add(BuildQuest("quest_tut_09_input_materials", "재료 투입",
             CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemSpiderVenom, 1),
             CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemCorrosive, 1)));
 
-        // 회복젤 회수 (+ 다음 배양기/레일 가동 연료 나뭇가지 보상)
+        // 앰플 젤 회수 (+ 다음 배양기/레일 가동 연료 나뭇가지 보상)
         quests.Add(BuildQuestRewarded("quest_tut_10_collect_gel", "결과물 회수",
             new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 5 } },
-            CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}회복 젤{E}을 {Y}모두 받기{E}로 {Y}회수{E}하세요.", ItemHealGel, 1)));
+            CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}앰플 젤{E}을 {Y}모두 받기{E}로 {Y}회수{E}하세요.", ItemHealGel, 1)));
 
         // ============================================================
         // 배양 - 두 번째 설비(반복 학습=정착, 안내 없이 텍스트만)
         // ============================================================
+        // (배양기2 도 기본해금 - 이동/해금 objective 제거, 설치만. 이미 건설구역 안이라 도착 불필요)
         quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
-            CreateReachTrigger("obj_reach_cultivator", $"{Y}생체 배양기{E}가 있는 곳으로 {Y}이동{E}하세요.", "2", BioCultivatorId),
-            CreateFacilityUnlock("obj_unlock_cultivator", $"{Y}F{E}를 눌러 {Y}생체 배양기{E}를 {Y}해금{E}하세요.", BioCultivatorId),
             CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 {Y}설치{E}하세요.", BioCultivatorId, 1)));
 
-        quests.Add(BuildQuestRewarded("quest_tut_12_cultivate", "회복 젤 가공",
+        quests.Add(BuildQuestRewarded("quest_tut_12_cultivate", "앰플 젤 가공",
             new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 1 } },
             CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 {Y}생체 배양기{E}를 여세요.", BioCultivatorId, 1),
-            CreateFacilityInput("obj_in_gel", $"{Y}회복 젤{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
+            CreateFacilityInput("obj_in_gel", $"{Y}앰플 젤{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
 
         // ★앰플 회수 / 사용 분리 (한 퀘에 ItemAcquire+ItemUse 두면 1개짜리 소비형 비대칭 갭락)
         quests.Add(BuildQuest("quest_tut_13_collect_ampoule", "회복 앰플 완성",
