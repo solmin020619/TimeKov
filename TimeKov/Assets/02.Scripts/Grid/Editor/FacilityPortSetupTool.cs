@@ -112,7 +112,8 @@ public static class FacilityPortSetupTool
             "1. 바디 BoxCollider 는 footprint(XZ)만 템플릿 기준 - 높이/Center 는 새 모델에 맞게 인스펙터 조정\n" +
             "2. 포트는 템플릿 레이아웃 그대로 복제됨 - 설비별 입출력 수(시트 input/outputSlotCount)에 맞게 불필요 포트 삭제 / portType 조정\n" +
             "3. 머신 스크립트(ProcessingMachine 등)는 재원 담당 - 이 툴은 안 건드림\n" +
-            "4. 완료 후 FacilityPrefabDatabase / BuildManager.buildSlots / FacilityIconDatabase 에 등록");
+            "4. 완료 후 FacilityPrefabDatabase 에 프리팹 등록 + FacilityData 시트에 행 추가(facilityName/gridW/gridH/iconKey/buildSlot)\n" +
+            "   (이름/아이콘/슬롯순서 전부 시트 기준. BuildManager.buildSlots 는 폐지됨, FacilityIconDatabase 는 폴백)");
     }
 
     // 이전 실행에서 넣은 포트(BuildPort)와 바디("[Build] BodyCollider")만 제거

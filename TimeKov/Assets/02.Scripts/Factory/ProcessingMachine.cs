@@ -6,8 +6,9 @@ namespace TIMEKOV.Factory
 {
     public class ProcessingMachine : MachineBase
     {
-        [Header("설비 이름 (UI 표시용)")]
-        public string machineName = "설비";
+        // 설비 이름(UI 표시용) — Start의 LoadRecipesFromSheet에서 시트 facilityName으로 세팅된다.
+        // 시트가 원본이라 인스펙터 노출/직렬화 안 함(옛 프리팹 값은 어차피 덮어써지던 죽은 값).
+        private string machineName;
         public override string MachineName => !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
 
         [Header("제작 시간 (폴백)")]

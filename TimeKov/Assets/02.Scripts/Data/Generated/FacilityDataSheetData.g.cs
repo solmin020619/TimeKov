@@ -14,4 +14,5 @@ public class FacilityDataSheetData
     public bool canRotate;
     public int maxLevel;
     public string iconKey;
+    public string buildSlot;
 }

@@ -231,7 +231,8 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         }
 
         // ③ 전송률 상승 + 보상 지급 (상태 변경은 SaveSlotManager 자동 저장이 캡처)
-        ApplyRate(projected);
+        GameSfx.Play(SfxId.TransmissionSend);   // 전송 실행음(키트 전송 확정)
+        ApplyRate(projected);                   // 내부에서 전송률 상승음/보상 수령음 발생
         ToastManager.Success("시간에너지 전송이 완료되었습니다.");
         return true;
     }
@@ -251,14 +252,16 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         int prev = TransmissionRate;
         TransmissionRate = newRate;
         OnRateChanged?.Invoke(TransmissionRate);
+        GameSfx.Play(SfxId.TransmissionRateUp);   // 전송률 상승음(게이지 증가)
 
         // 보상 마일스톤 — prev 초과 ~ 현재 이하 구간을 순서대로 실제 지급.
         foreach (int m in RewardMilestones)
         {
             if (m > prev && m <= TransmissionRate && _claimedMilestones.Add(m))
             {
-                GrantMilestoneRewards(m);      // 설비 해금·우주선 부품·아이템 등 실제 지급
-                OnRewardMilestone?.Invoke(m);  // UI 리빌 카드 연출
+                GrantMilestoneRewards(m);           // 설비 해금·우주선 부품·아이템 등 실제 지급
+                GameSfx.Play(SfxId.TransmissionRewardClaim);   // 보상 수령음(마일스톤 통과)
+                OnRewardMilestone?.Invoke(m);       // UI 리빌 카드 연출
             }
         }
 

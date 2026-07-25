@@ -3,11 +3,10 @@ using UnityEngine;
 
 // 맵에 배치하는 우주선 수리 부품(단일 종류). 플레이어가 가까이 가면 자동 회수(퍼즐 없음).
 // 회수 시 ShipRepairManager 에 수량으로 쌓인다(인벤토리로 들어가지 않음).
-// pickupIndex 는 씬 안에서 픽업마다 유니크하게(0~31) - 세이브 복원 후 중복 회수 방지 키.
+// 회수 중복 방지 키는 픽업 월드 위치로 자동 생성(PickupKey) - 수동 번호 불필요, 개수 무제한.
 public class ShipPartPickup : MonoBehaviour
 {
-    [Tooltip("이 픽업의 고유 번호(0~31). 씬 안에서 겹치면 안 됨 - 하나 먹으면 같은 번호는 다음 로드 때 같이 사라진다.")]
-    [SerializeField] private int pickupIndex = 0;
+    // 회수 중복 방지 키는 픽업 위치로 자동 생성한다(수동 번호 불필요, 개수 무제한). PickupKey() 참고.
     [Tooltip("회수 시 지급할 복구 에너지 개수. (extraForLevel 이 0 일 때만 쓰인다)")]
     [SerializeField] private int amount = 1;
 
@@ -38,7 +37,7 @@ public class ShipPartPickup : MonoBehaviour
     {
         // 이미 회수한 픽업이면 씬에서 조용히 제거(세이브 복원 대응).
         var mgr = ShipRepairManager.Instance;
-        if (mgr != null && mgr.IsPickupTaken(pickupIndex))
+        if (mgr != null && mgr.IsPickupTaken(PickupKey()))
         {
             Destroy(gameObject);
             return;
@@ -64,19 +63,20 @@ public class ShipPartPickup : MonoBehaviour
         var mgr = ShipRepairManager.Instance;
         if (mgr != null)
         {
-            // 회수 기록(중복 방지)은 두 종류가 공통으로 pickupIndex 를 쓴다.
+            // 회수 기록(중복 방지)은 두 종류가 공통으로 위치 키를 쓴다.
             // 지급 내용만 갈린다: 복구 에너지 N개 / 레벨 전용 추가 재료 1개.
             if (extraForLevel > 0)
             {
-                if (!mgr.IsPickupTaken(pickupIndex))
+                string key = PickupKey();
+                if (!mgr.IsPickupTaken(key))
                 {
-                    mgr.MarkPickupTaken(pickupIndex);
+                    mgr.MarkPickupTaken(key);
                     mgr.CollectExtraPart(extraForLevel);
                 }
             }
             else
             {
-                mgr.CollectPickup(pickupIndex, amount);
+                mgr.CollectPickup(PickupKey(), amount);
             }
         }
 
@@ -104,6 +104,14 @@ public class ShipPartPickup : MonoBehaviour
         return col != null ? col.bounds.center.y - _player.position.y : 0.9f;
     }
 
+    // 회수 중복 방지용 안정적 키 — 씬 이름 + 픽업 월드 위치(0.1m 반올림).
+    // 픽업은 씬에 고정 배치라 매 세션 같은 키가 나온다. 수동 번호도, 개수 제한(32)도 없다.
+    private string PickupKey()
+    {
+        var p = transform.position;
+        return $"{gameObject.scene.name}:{Mathf.RoundToInt(p.x * 10f)}_{Mathf.RoundToInt(p.y * 10f)}_{Mathf.RoundToInt(p.z * 10f)}";
+    }
+
     private IEnumerator Vanish()
     {
         Vector3 s0 = transform.localScale;
@@ -122,7 +130,7 @@ public class ShipPartPickup : MonoBehaviour
     {
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, pickupRadius);
-        UnityEditor.Handles.Label(transform.position + Vector3.up * 1.2f, $"Ship Part #{pickupIndex} x{amount}");
+        UnityEditor.Handles.Label(transform.position + Vector3.up * 1.2f, $"Ship Part x{amount}");
     }
 #endif
 }

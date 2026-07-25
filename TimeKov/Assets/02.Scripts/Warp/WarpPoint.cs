@@ -34,11 +34,7 @@ public class WarpPoint : MonoBehaviour
     [Tooltip("도착(등장) 연출 프리팹.")]
     public GameObject arrivalVfx;
 
-    [Header("사운드 (비우면 없음)")]
-    [Tooltip("출발(진행) 사운드.")]
-    public AudioClip departureSound;
-    [Tooltip("도착 사운드.")]
-    public AudioClip arrivalSound;
+    // 사운드는 GameSfxConfig 로 통합 관리 — 충전 루프(SfxId.WarpChargeLoop) / 도착(SfxId.WarpArrive).
 
     // 워프로 이 지점에 방금 도착 → 트리거에서 나갔다 다시 들어오기 전까지 재발동 무시(즉시 재텔레포트 방지).
     private bool _ignoreUntilExit;

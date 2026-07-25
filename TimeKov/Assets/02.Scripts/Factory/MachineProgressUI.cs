@@ -15,9 +15,6 @@ namespace TIMEKOV.Factory
         [Header("이 컴포넌트가 붙은 설비")]
         public ProcessingMachine machine;
 
-        [Header("설비 이름 (UI 표시용)")]
-        public string machineName = "설비";
-
         [Header("월드 스페이스 Canvas 요소")]
         public TextMeshProUGUI statusText;
         public Slider progressBar;
@@ -61,7 +58,7 @@ namespace TIMEKOV.Factory
                     var itemData = GameDataUtility.GetItem(id);
                     outName = itemData?.itemName ?? id.ToString();
                 }
-                statusText.text = $"[{machineName}] 제작 중\n→ {outName} {(machine.Progress * 100f):F0}%";
+                statusText.text = $"[{machine.MachineName}] 제작 중\n→ {outName} {(machine.Progress * 100f):F0}%";
             }
             else if (machine.Status == MachineStatus.OutputReady)
             {
@@ -77,8 +74,8 @@ namespace TIMEKOV.Factory
                     break;
                 }
                 statusText.text = string.IsNullOrEmpty(outName)
-                    ? $"[{machineName}] 완료!\nF키로 회수"
-                    : $"[{machineName}] 완료!\n{outName} x{outAmt}  F키로 회수";
+                    ? $"[{machine.MachineName}] 완료!\nF키로 회수"
+                    : $"[{machine.MachineName}] 완료!\n{outName} x{outAmt}  F키로 회수";
             }
         }
     }

@@ -131,6 +131,7 @@ public class CoreUpgradeUI : MonoBehaviour
     private Coroutine _spinCo;
     private Coroutine _seqCo;
     private Coroutine _fadeCo;
+    private AudioSource _tickLoop;   // 바늘 회전(Spin) 중 째깍째깍 루프. 클립은 GameSfxConfig(SfxId.CoreUpgradeTick).
     private Coroutine _feedbackRoutine;
     private Coroutine _introCo;   // 패널 열릴 때 별자리 순차 등장 연출
     private CanvasGroup _starsGroup;   // 배경 별 페이드용 (런타임에 Stars에 부착)
@@ -866,6 +867,31 @@ public class CoreUpgradeUI : MonoBehaviour
         _spinElapsed = 0f;
         if (_spinCo != null) StopCoroutine(_spinCo);
         _spinCo = StartCoroutine(SpinRoutine());
+
+        StartTickLoop();   // 바늘 도는 동안 째깍째깍
+    }
+
+    // 째깍 루프 — 클립은 GameSfxConfig(SfxId.CoreUpgradeTick)에서, 재생은 이 로컬 2D 소스에서.
+    private void StartTickLoop()
+    {
+        if (!GameSfx.TryGet(SfxId.CoreUpgradeTick, out var clip, out var vol) || clip == null) return;
+        if (_tickLoop == null)
+        {
+            var go = new GameObject("[CoreUpgradeTick]");
+            go.transform.SetParent(transform, false);
+            _tickLoop = go.AddComponent<AudioSource>();
+            _tickLoop.spatialBlend = 0f;
+            _tickLoop.loop = true;
+            _tickLoop.playOnAwake = false;
+        }
+        _tickLoop.clip = clip;
+        _tickLoop.volume = vol * GlobalSettingsManager.CurrentSFXVolume;
+        _tickLoop.Play();
+    }
+
+    private void StopTickLoop()
+    {
+        if (_tickLoop != null && _tickLoop.isPlaying) _tickLoop.Stop();
     }
 
     private IEnumerator SpinRoutine()
@@ -884,6 +910,7 @@ public class CoreUpgradeUI : MonoBehaviour
     {
         if (_phase != CatchPhase.Spin) return;
         if (_spinCo != null) { StopCoroutine(_spinCo); _spinCo = null; }
+        StopTickLoop();   // 바늘 멈춤 → 째깍 정지
         _phase = CatchPhase.Judge;
         if (spinHint != null) spinHint.SetActive(false);
 
@@ -1007,6 +1034,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (_spinCo != null) { StopCoroutine(_spinCo); _spinCo = null; }
         if (_seqCo  != null) { StopCoroutine(_seqCo);  _seqCo  = null; }
         if (_fadeCo != null) { StopCoroutine(_fadeCo); _fadeCo = null; }
+        StopTickLoop();   // 창 닫힘/리셋 중이면 째깍도 정지
 
         if (clockGroup != null) { clockGroup.alpha = 0f; clockGroup.gameObject.SetActive(false); }
         SetCoreVisualAlpha(1f);

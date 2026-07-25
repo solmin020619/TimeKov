@@ -32,5 +32,9 @@ public class FacilityDataSchema : SheetSchema
         // 설비 아이콘 키 — Resources/Facilities/{iconKey} 에서 스프라이트 로드.
         // 선택 컬럼: 비어 있으면 FacilityIconDatabase 의 인스펙터 수동매핑으로 폴백한다.
         Add("iconKey", ColumnType.String, required: false);
+
+        // 빌드 퀵슬롯 위치(키 번호 1~9). 시트만 고치면 건축바 순서가 바뀐다(아이콘/도면과 같은 방식).
+        // 선택 컬럼(문자열로 받아 코드에서 파싱): 비어 있으면 facilityId 순(facilityId N번 = 키 N번)으로 폴백.
+        Add("buildSlot", ColumnType.String, required: false);
     }
 }
