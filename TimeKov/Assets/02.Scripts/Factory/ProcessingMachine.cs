@@ -28,6 +28,16 @@ namespace TIMEKOV.Factory
         public FactoryRecipe ActiveRecipe { get; private set; }
         public List<FactoryRecipe> Recipes => recipes;
 
+        /// <summary>실제 제작시간(초) = 레시피 craftTime(없으면 processingTime 폴백) x 레벨배율 x 공장속도.
+        /// 가공 코루틴과 UI 표시가 이 한 메서드를 공유한다(표시-실제 어긋남 방지).</summary>
+        public float ResolveProcessTime(FactoryRecipe recipe)
+        {
+            if (recipe == null) return 0f;
+            float baseTime = recipe.craftTime > 0f ? recipe.craftTime : processingTime;
+            var inst = GetComponent<FacilityInstance>();
+            return inst != null ? inst.GetFinalProcessTime(baseTime) : baseTime;
+        }
+
         /// <summary>
         /// 고정된 레시피 인덱스. -1이면 미선택(첫 번째 레시피 자동 사용).
         /// MachineUI에서 SetLockedRecipe()로 변경한다.
@@ -251,12 +261,8 @@ namespace TIMEKOV.Factory
             InputBuffer.ConsumeAll(recipe.inputs);
             NotifyBufferChanged();
 
-            // 레시피별 시트 제작시간(craftTime) 우선, 없으면 processingTime 폴백. 레벨 배율 적용.
-            float baseTime = recipe.craftTime > 0f ? recipe.craftTime : processingTime;
-            var facilityInst = GetComponent<FacilityInstance>();
-            float actualTime = facilityInst != null
-                ? facilityInst.GetFinalProcessTime(baseTime)
-                : baseTime;
+            // 실제 제작시간 = 레시피 craftTime(없으면 폴백) x 레벨배율 x 공장속도. UI 표시와 동일 계산.
+            float actualTime = ResolveProcessTime(recipe);
 
             float elapsed = 0f;
             while (elapsed < actualTime)

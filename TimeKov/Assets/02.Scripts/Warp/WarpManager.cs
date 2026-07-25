@@ -156,6 +156,7 @@ public class WarpManager : MonoBehaviour, ISaveable
                 ToastManager.Success($"워프 지점 활성화 — {RegionName(wp.region)}");
                 SaveSlotManager.Instance?.SaveActive();
                 wp.SuppressUntilExit();   // 활성화만 하고 즉시 복귀되지 않게(나갔다 다시 밟아야 복귀)
+                DiscoveryCueManager.TryFire("warp");   // 첫 워프 지점 활성화 시 소개 팝업(1회, 이후 지점은 중복 무시)
             }
             else
             {

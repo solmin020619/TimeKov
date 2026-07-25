@@ -82,6 +82,9 @@ public class DiscoveryCueManager : MonoBehaviour
     }
 
     // ── 발화 ───────────────────────────────────────────────────────────
+    /// <summary>이벤트가 없는 트리거(워프 등)에서 큐 키를 직접 발화. 매니저 없으면(큐셋 비어있음) 무해하게 무시.</summary>
+    public static void TryFire(string key) => _i?.Fire(key);
+
     private void Fire(string key)
     {
         if (!_byKey.TryGetValue(key, out var cue) || cue == null) return;
