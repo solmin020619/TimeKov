@@ -14,8 +14,8 @@ public static class ShipEscape
     public const string MainMenuScene = "MainMenu";
 
     // 탈출(게임 클리어) 가능 조건 = 우주선 완전 수리(Lv.최대) + 시간에너지 전송률 100%.
-    //   ★기획: 탈출조건은 우주선 최대레벨. 단 최종 전용부품(엔진)이 전송률 80% 보상이라
-    //     그것만으론 80% 에서 끝나버려서, 마지막 20% 까지 밀어야 진짜 끝 = 100% 를 AND 로 요구한다.
+    //   ★기획: 탈출조건은 우주선 최대레벨. 단 최종 전용부품(엔진)이 전송률 75% 보상이라
+    //     그것만으론 75% 에서 끝나버려서, 마지막 25% 까지 밀어야 진짜 끝 = 100% 를 AND 로 요구한다.
     //     (ShipRepairManager.cs 주석의 "Lv5 AND 시간에너지 100%" 를 여기서 구현.)
     //   전송기(TransmissionManager)가 씬에 없으면(우주선 단독 테스트 씬) 전송률 조건은 생략한다.
     public static bool CanEscape()

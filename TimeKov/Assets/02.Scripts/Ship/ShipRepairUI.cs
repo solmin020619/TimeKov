@@ -624,9 +624,9 @@ public class ShipRepairUI : MonoBehaviour
         if (_chipTip != null) _chipTip.SetActive(false);
     }
 
-    // 각 특수부품(레벨)이 나오는 시간에너지 전송률(%). ★출처=TransmissionManager.GrantMilestoneRewards
-    //   (20%->Lv3 선체 보강재 / 50%->Lv4 동력 안정기 / 80%->Lv5 엔진). 그쪽 매핑 바뀌면 여기도 맞춰라.
-    private static int ShipPartMilestone(int level) => level switch { 3 => 20, 4 => 50, 5 => 80, _ => 0 };
+    // 각 특수부품(레벨)이 나오는 시간에너지 전송률(%). 단일 소스 = TransmissionManager.ShipPartMilestones.
+    //   (하드코딩 중복이 % 재조정 때 어긋나서, 매니저 표를 직접 참조하도록 통일 - 이제 여기 숫자 없음)
+    private static int ShipPartMilestone(int level) => TransmissionManager.ShipPartMilestonePct(level);
 
     private class ChipHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {

@@ -285,18 +285,20 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         foreach (int fid in MilestoneFacilityIds(pct))
             FacilityUnlockManager.Instance?.TryUnlock(fid);
 
+        // 우주선 특수부품(선체 보강재/동력 안정기/엔진) — ShipPartMilestones 단일 소스에서 지급.
+        //   % 재조정 시 이 표만 고치면 지급/전송단말 툴팁/우주선UI 라벨이 다 따라온다.
+        foreach (var m in ShipPartMilestones)
+            if (m.pct == pct) ShipRepairManager.Instance?.CollectExtraPart(m.shipLevel);
+
         // 설비 외 보상
         switch (pct)
         {
             case 20: ReturnStoneManager.Instance?.SetLevel(1); break;                            // 귀환석 Lv.1(쿨 15분) - 자연 탐험 안전망
-            case 25: ShipRepairManager.Instance?.CollectExtraPart(3); break;                     // 선체 보강재(수리 Lv.3)
             case 40: ReturnStoneManager.Instance?.SetLevel(2); break;                            // 귀환석 Lv.2(쿨 10분)
-            case 50: ShipRepairManager.Instance?.CollectExtraPart(4); break;                     // 동력 안정기(Lv.4)
             case 70:                                                                             // 창고포트 상한 +1(총2) + 귀환석 Lv.3(쿨 5분)
                 FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 1);
                 ReturnStoneManager.Instance?.SetLevel(3);
                 break;
-            case 75: ShipRepairManager.Instance?.CollectExtraPart(5); break;                     // 엔진(Lv.5)
             case 80: FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 3); break; // 창고포트 상한 +3(총5) - 극후반 파격
             case 90:                                                                             // 창고포트 상한 +2(총7) + 앰플 꾸러미 + 코어 키트 V x5
                 FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 2);
@@ -326,6 +328,19 @@ public class TransmissionManager : MonoBehaviour, ISaveable
 
     /// <summary>UI 리빌 카드용: 이 마일스톤이 해금하는 설비 id 목록. 없으면 빈 리스트.</summary>
     public List<int> GetRewardFacilityIds(int pct) => new List<int>(MilestoneFacilityIds(pct));
+
+    // 우주선 특수부품이 나오는 전송 마일스톤 (전송률% -> 수리 레벨). 지급(GrantMilestoneRewards)과
+    //   UI 라벨(ShipRepairUI)이 공유하는 단일 소스 — 퍼센트 재조정 때 한쪽만 고쳐 어긋나던 것 방지.
+    private static readonly (int pct, int shipLevel)[] ShipPartMilestones =
+        { (25, 3), (50, 4), (75, 5) };
+
+    /// <summary>우주선 특수부품(수리 레벨 3~5)이 나오는 전송률 %. 없으면 0. (ShipRepairUI 라벨용)</summary>
+    public static int ShipPartMilestonePct(int shipLevel)
+    {
+        foreach (var m in ShipPartMilestones)
+            if (m.shipLevel == shipLevel) return m.pct;
+        return 0;
+    }
 
     // 90% 앰플 꾸러미(증량) — 최종 보스 앞 대량 보급. 이름은 아이템 시트(itemName) 기준.
     private void GrantSupplyPackage()
