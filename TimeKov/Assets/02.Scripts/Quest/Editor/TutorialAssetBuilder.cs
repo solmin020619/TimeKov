@@ -66,7 +66,7 @@ public static class TutorialAssetBuilder
     // false 로 두고 재생성하면 영상 단계가 빠진다(설명만 사라지고 행동 퀘는 그대로라 흐름은 완주 가능). 안전 복원용.
     const bool EnableVideoTutorials = true;
     // 영상 클립은 이 폴더에서 "페이지 제목 == 파일명"으로 자동 로드. 종욱이 제목 그대로 mp4 를 여기 넣으면 됨.
-    const string VideoFolder = "Assets/12.Video/Tutorial";
+    const string VideoFolder = "Assets/17.Video/Tutorial";
 
     [MenuItem("Tools/Quest/Generate Tutorial Assets")]
     public static void Generate()
@@ -95,8 +95,8 @@ public static class TutorialAssetBuilder
         // 영상 클립을 떨궈둘 폴더 보장 + 런타임 스프라이트 복사
         if (EnableVideoTutorials)
         {
-            EnsureFolder("Assets", "12.Video");
-            EnsureFolder("Assets/12.Video", "Tutorial");
+            EnsureFolder("Assets", "17.Video");
+            EnsureFolder("Assets/17.Video", "Tutorial");
             EnsureVideoUiSprites();   // 인벤 강조 프레임을 Resources로 복사(런타임 로드용, 9-slice 보존)
         }
 
@@ -341,7 +341,7 @@ public static class TutorialAssetBuilder
             $"4. 드롭/스폰: tutorial_enemy 무한리스폰 + 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive} 드롭, OakTreeEnt 가 나뭇가지{ItemTwig} 떨굼(스폰풀에 OakTreeEnt 포함, NavMesh 베이크)\n" +
             $"5. 스포트라이트(코드 자동등록 외 수동 부착): time_bar/status_panel/stat_button(C_Icon)/tab_icon + 건설투어 타깃. 코어는 영상이라 코어 스포트 불필요\n" +
             $"6. PlayerMovementWatcher: 이동/점프/달리기(Shift)/대시/Tab/B 등 필수 키는 코드에서 자동 감지. 프롤로그가 이동/점프/달리기 선행 교육(여기선 재교육 안 함)\n" +
-            $"7. 영상 클립: Assets/12.Video/Tutorial/ 에 '페이지 제목'과 같은 파일명 mp4(발견 큐 포함). 없으면 '영상 준비 중' 폴백\n" +
+            $"7. 영상 클립: Assets/17.Video/Tutorial/ 에 '페이지 제목'과 같은 파일명 mp4(발견 큐 포함). 없으면 '영상 준비 중' 폴백\n" +
             $"8. 레일 자동화: 추출기 출구->배양기 입구 포트정렬 + 다른 연결가능 포트 차단 사전 플레이테스트\n" +
             $"9. 코어: 단말이 BaseZone 콜라이더 안 + 코어키트 보상 증발 방지(가방/창고 여유). 시트 코어레벨1 키트={CoreKitId}/필요수<={CoreKitAmount}\n" +
             $"10. [엔드게임] 'transmit' 트리거 = TransmissionComputerTerminal 위치. 스타터 키트 itemId={StarterKitId}(자연 일반 키트)가 ItemData 시트에 있고 전송 가능해야 부트스트랩 성립\n" +
@@ -554,7 +554,7 @@ public static class TutorialAssetBuilder
         return o;
     }
 
-    // 한 페이지 = 영상 + 제목 + 본문. 제목이 곧 파일명 -> Assets/12.Video/Tutorial/{제목}.mp4 자동연결.
+    // 한 페이지 = 영상 + 제목 + 본문. 제목이 곧 파일명 -> Assets/17.Video/Tutorial/{제목}.mp4 자동연결.
     static VideoTutorialPage VPage(string title, string body)
         => new VideoTutorialPage { clip = LoadVideoClip(title), title = title, body = body };
 
