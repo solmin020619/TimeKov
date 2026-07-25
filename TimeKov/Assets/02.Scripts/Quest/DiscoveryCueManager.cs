@@ -2,15 +2,16 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 상황별 발견 팝업 디스패처.
-//   이벤트(설비 해금 / 귀환석 / 전송기 상호작용 / 아이템 획득)를 구독해, 대응하는 DiscoveryCue 를
+//   이벤트(설비 해금 / 전송기 상호작용 / 아이템 획득)를 구독해, 대응하는 DiscoveryCue 를
 //   '처음 만나는 순간' 1회 팝업(TutorialVideoUI)으로 띄운다. 퀘스트 순서와 분리 = 튜토 순서 부담 감소.
+//   (귀환석 소개는 ReturnStoneManager 가 해금 연출[팡/토스트] 뒤 TryFire 로 직접 띄운다 - 전송 UI 에 묻히지 않게.)
 //
 //   안전 처리: 기지 안(safe=true) 이벤트는 즉시. 필드(safe=false)는 거점 복귀(OnBaseEntered)까지 미룸.
 //   중복 방지: 기존 도감 시청 기록(CodexDiscovery, 첫 페이지 title 기준)으로 이미 본 큐는 건너뜀 = 세이브 재사용.
 //   동시 처리: 한 번에 한 팝업만(TutorialVideoUI.IsShowing) - 마일스톤이 설비 2개를 동시에 풀어도 순차로.
 //
 //   씬 세팅 불필요: 런타임 자동 부트스트랩(DontDestroyOnLoad). 데이터는 Resources/DiscoveryCues/DiscoveryCueSet.
-//   설비해금/귀환석 이벤트는 실제 획득 순간에만 발화(세이브 복원은 조용히 처리) -> 로드마다 재팝업 없음.
+//   설비해금 이벤트는 실제 획득 순간에만 발화(세이브 복원은 조용히 처리) -> 로드마다 재팝업 없음.
 public class DiscoveryCueManager : MonoBehaviour
 {
     private static DiscoveryCueManager _i;
@@ -37,7 +38,7 @@ public class DiscoveryCueManager : MonoBehaviour
 
     private void Init(DiscoveryCueSet set)
     {
-        bool needItem = false, needFacility = false, needReturn = false, needInteract = false, needBase = false;
+        bool needItem = false, needFacility = false, needInteract = false, needBase = false;
         foreach (var c in set.cues)
         {
             if (c == null || string.IsNullOrEmpty(c.cueKey) || !c.HasContent) continue;
@@ -46,7 +47,7 @@ public class DiscoveryCueManager : MonoBehaviour
             if (c.cueKey.StartsWith("item:")) needItem = true;
             else if (c.cueKey.StartsWith("facility:")) needFacility = true;
             else if (c.cueKey.StartsWith("interact:")) needInteract = true;
-            else if (c.cueKey == "returnstone") needReturn = true;
+            // "returnstone" 은 구독 안 함 - ReturnStoneManager 가 해금 연출 뒤 TryFire (전송 UI 닫힌 순서 보장).
             if (!c.safe) needBase = true;   // 필드 큐가 하나라도 있으면 거점 진입 감지 필요
         }
 
@@ -56,7 +57,6 @@ public class DiscoveryCueManager : MonoBehaviour
             GameEvents.OnFacilityUnlocked += HandleFacilityUnlocked;      // 해금 순간 = 큐 적재
             GameEvents.OnBuildModeEntered += HandleBuildModeEntered;      // 건축모드 진입 = 표시
         }
-        if (needReturn)   GameEvents.OnReturnStoneChanged += HandleReturnStone;
         if (needInteract) GameEvents.OnInteracted += HandleInteracted;
         if (needItem)     GameEvents.OnItemAcquired += HandleItemAcquired;
         if (needBase)     GameEvents.OnBaseEntered += HandleBaseEntered;
@@ -66,7 +66,6 @@ public class DiscoveryCueManager : MonoBehaviour
     {
         GameEvents.OnFacilityUnlocked -= HandleFacilityUnlocked;
         GameEvents.OnBuildModeEntered -= HandleBuildModeEntered;
-        GameEvents.OnReturnStoneChanged -= HandleReturnStone;
         GameEvents.OnInteracted -= HandleInteracted;
         GameEvents.OnItemAcquired -= HandleItemAcquired;
         GameEvents.OnBaseEntered -= HandleBaseEntered;
@@ -75,7 +74,6 @@ public class DiscoveryCueManager : MonoBehaviour
 
     // ── 이벤트 -> 큐 키 ────────────────────────────────────────────────
     private void HandleFacilityUnlocked(int facilityId) => Fire("facility:" + facilityId);
-    private void HandleReturnStone(int level) => Fire("returnstone");
     private void HandleInteracted(string interactId) => Fire("interact:" + interactId);
     private void HandleItemAcquired(int itemId, int count) => Fire("item:" + itemId);
 

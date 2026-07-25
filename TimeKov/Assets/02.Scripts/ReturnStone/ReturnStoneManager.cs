@@ -64,6 +64,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     private Player _player;
     private RespawnManager _respawn;
     private ReturnStoneHudUI _hud;   // 스킬바 슬롯(잠금 오버레이 흔들기용)
+    private bool _revealPending;      // 첫 해금 연출 대기 — 전송 UI(풀스크린) 닫히면 발동
 
     // ── 공개 API (보상/HUD 연동용) ────────────────────────────────────
     public int Level => level;
@@ -80,7 +81,11 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     {
         int prev = level;
         level = Mathf.Clamp(lv, 0, 3);
-        if (level > prev) GameEvents.RaiseReturnStoneChanged(level);   // 첫 획득/상승 순간만(복원은 level 직접 세팅이라 무발화)
+        if (level > prev)
+        {
+            GameEvents.RaiseReturnStoneChanged(level);   // 첫 획득/상승 순간만(복원은 level 직접 세팅이라 무발화)
+            if (prev == 0) _revealPending = true;        // 첫 해금 = 팡 연출 + 토스트 + 소개 영상(전송 UI 닫는 순간)
+        }
     }
     public void Upgrade() => SetLevel(level + 1);
 
@@ -123,8 +128,30 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
         if (_cooldownRemaining > 0f && PlayerOutsideBarrier())
             _cooldownRemaining = Mathf.Max(0f, _cooldownRemaining - Time.deltaTime);
 
+        // 첫 해금 연출 — 보상은 전송 단말(풀스크린 UI) 안에서 지급되므로, 그 UI가 닫혀
+        //   스킬바가 보이는 순간에 팡 -> 토스트 -> 영상을 순서대로 낸다(전송 UI에 묻히지 않게).
+        if (_revealPending)
+        {
+            var gui = GameUIController.Instance;
+            bool uiOpen = gui != null && gui.GetCurrentState() != GameUIController.UIState.None;
+            if (!uiOpen)
+            {
+                _revealPending = false;
+                StartCoroutine(UnlockRevealRoutine());
+            }
+        }
+
         if (useKey != KeyCode.None && Input.GetKeyDown(useKey) && !PlayerInputComponent.IsBlocked)
             TryUse();
+    }
+
+    // 해금 연출 순서: 자물쇠 팡(HUD) + 토스트 -> 잠깐 뒤 소개 영상. 영상이 팡/토스트를 덮지 않게 간격을 둔다.
+    private IEnumerator UnlockRevealRoutine()
+    {
+        _hud?.PlayUnlockCelebration();
+        ToastManager.Success("귀환석을 획득했습니다! H로 기지에 귀환할 수 있습니다.");
+        yield return new WaitForSecondsRealtime(1.2f);
+        DiscoveryCueManager.TryFire("returnstone");   // 소개 영상(이미 봤으면 무해하게 스킵)
     }
 
     // ── 사용 ──────────────────────────────────────────────────────────

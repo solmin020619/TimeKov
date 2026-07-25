@@ -16,6 +16,7 @@ public class ReturnStoneHudUI : MonoBehaviour
     private Image _icon;
     private TextMeshProUGUI _cdText;
     private RectTransform _lockOverlay;   // 미보유 시 자물쇠+쇠사슬 오버레이(대쉬 슬롯과 동일 PNG)
+    private bool _revealing;              // 해금 팡 연출 진행 중(Refresh 가 자물쇠를 끄지 않게)
 
     private static readonly Color SkillRing = new Color32(80, 200, 235, 255);   // 스킬바와 동일한 시안
     private static readonly Color RingDim   = new Color(0.45f, 0.5f, 0.55f, 1f);
@@ -103,7 +104,8 @@ public class ReturnStoneHudUI : MonoBehaviour
         if (_mgr == null) return;
 
         bool owned = _mgr.IsOwned;
-        if (_lockOverlay != null) _lockOverlay.gameObject.SetActive(!owned);   // 미보유 = 자물쇠 오버레이로 표시(대쉬와 통일)
+        // 연출 중이 아닐 때만 자물쇠 표시 갱신 — 해금 팡 연출이 오버레이를 직접 켜고 끈다.
+        if (_lockOverlay != null && !_revealing) _lockOverlay.gameObject.SetActive(!owned);
         _cg.alpha = 1f;   // 자체 dim 안 함 - 잠김 신호는 오버레이가 담당(부모 스킬바 페이드만 곱해짐)
 
         if (!owned)
@@ -205,6 +207,108 @@ public class ReturnStoneHudUI : MonoBehaviour
             yield return null;
         }
         if (ov != null) ov.anchoredPosition = basePos;
+    }
+
+    // ── 해금 순간 연출(팡) — 대쉬 슬롯과 동일한 임팩트. ReturnStoneManager 가 전송 UI 닫힌 순간 호출. ──
+    //   전송 UI 가 열려있는 동안엔 스킬바가 숨겨져 있으므로, 닫혀서 바가 보이는 순간에 자물쇠를 되살려 터뜨린다.
+    public void PlayUnlockCelebration()
+    {
+        if (_revealing) return;
+        StartCoroutine(UnlockCelebrationRoutine());
+    }
+
+    private IEnumerator UnlockCelebrationRoutine()
+    {
+        _revealing = true;
+
+        var ov = _lockOverlay;
+        var circle = ov != null ? ov.parent as RectTransform : null;
+
+        if (ov != null)
+        {
+            ov.gameObject.SetActive(true);   // 전송 UI 동안 Refresh 가 꺼놨어도 연출 위해 되살림
+            ov.localScale = Vector3.one;
+
+            // 1) 쇠사슬 덜컹
+            Vector2 basePos = ov.anchoredPosition;
+            float t = 0f; const float shakeDur = 0.34f;
+            while (t < shakeDur && ov != null)
+            {
+                t += Time.unscaledDeltaTime;
+                float dx = Mathf.Sin(t * 72f) * 5f * (1f - t / shakeDur);
+                ov.anchoredPosition = basePos + new Vector2(dx, 0f);
+                yield return null;
+            }
+            if (ov != null) ov.anchoredPosition = basePos;
+
+            // 2) 팡 — 버스트 링 + 오버레이 스케일업/페이드아웃
+            if (circle != null) SpawnBurstRing(circle);
+            var cg = ov.GetComponent<CanvasGroup>();
+            if (cg == null) cg = ov.gameObject.AddComponent<CanvasGroup>();
+            float u = 0f; const float popDur = 0.36f;
+            while (u < popDur && ov != null)
+            {
+                u += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(u / popDur);
+                float sc = 1f + 0.5f * k;
+                ov.localScale = new Vector3(sc, sc, 1f);
+                cg.alpha = 1f - k;
+                yield return null;
+            }
+            if (ov != null)
+            {
+                ov.gameObject.SetActive(false);
+                ov.localScale = Vector3.one;
+                cg.alpha = 1f;
+            }
+        }
+
+        // 3) 아이콘 팝(강조)
+        if (_icon != null) StartCoroutine(IconPop(_icon.rectTransform));
+
+        _revealing = false;
+    }
+
+    // 슬롯 둘레로 퍼지는 버스트 링(해금 임팩트). 한 번 커지며 사라지고 제거.
+    private void SpawnBurstRing(RectTransform circle)
+    {
+        var rt = NewChild("UnlockBurst", circle, new Vector2(0.5f, 0.5f), Vector2.zero, circle.sizeDelta);
+        rt.SetAsLastSibling();
+        var img = rt.gameObject.AddComponent<Image>();
+        img.sprite = UISpriteFactory.Ring(96, 5f);
+        img.color = SkillRing;
+        img.raycastTarget = false;
+        StartCoroutine(BurstRoutine(img));
+    }
+
+    private IEnumerator BurstRoutine(Image img)
+    {
+        var rt = img.rectTransform;
+        float t = 0f; const float dur = 0.5f;
+        while (t < dur && img != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            float sc = 0.6f + 1.8f * k;
+            rt.localScale = new Vector3(sc, sc, 1f);
+            var c = img.color; c.a = 1f - k; img.color = c;
+            yield return null;
+        }
+        if (img != null) Destroy(img.gameObject);
+    }
+
+    private IEnumerator IconPop(RectTransform rt)
+    {
+        float t = 0f; const float dur = 0.55f;
+        while (t < dur && rt != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            float scale = 1f + 0.4f * Mathf.Sin(k * Mathf.PI);   // 1 -> 1.4 -> 1 한 번 팝
+            rt.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+        if (rt != null) rt.localScale = Vector3.one;
     }
 
     // ── 헬퍼 ──────────────────────────────────────────────────────────
