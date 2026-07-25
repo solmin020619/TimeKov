@@ -25,6 +25,26 @@ public static class InteractHintPanel
         hintUI.SetActive(false);
     }
 
+    /// <summary>
+    /// 씬의 공용 F 알약 패널(FacilityUnlockSelectPanel)을 런타임에 찾는다. 비활성 상태여도 찾는다.
+    /// hintUI 를 인스펙터에서 안 넣은 상호작용물이 이걸로 자동 연결할 수 있다(수동 드래그 생략).
+    /// ★공장이 쓰는 FacilitySelectPanel(런타임에 행을 만드는 패널)을 잘못 잡지 않도록,
+    ///   이름이 정확히 "FacilityUnlockSelectPanel" 인 조상만 인정한다.
+    /// </summary>
+    public static GameObject FindSharedPanel()
+    {
+        // FindObjectsOfTypeAll: 비활성 GameObject 안의 컴포넌트도 찾는다(공용 패널은 Prime 후 꺼져 있음).
+        var rows = Resources.FindObjectsOfTypeAll<FacilitySelectRow>();
+        foreach (var row in rows)
+        {
+            if (row == null) continue;
+            if (!row.gameObject.scene.IsValid()) continue;   // 프리팹 에셋 제외(씬 인스턴스만)
+            for (var t = row.transform; t != null; t = t.parent)
+                if (t.name == "FacilityUnlockSelectPanel") return t.gameObject;
+        }
+        return null;
+    }
+
     /// <summary>힌트 패널을 켜고 끈다. 켤 때 이름/아이콘을 갈아끼운다.</summary>
     public static void Show(GameObject hintUI, bool show, string label, Sprite icon = null)
     {

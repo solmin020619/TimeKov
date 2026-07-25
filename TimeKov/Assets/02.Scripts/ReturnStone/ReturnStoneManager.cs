@@ -214,7 +214,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
         GameObject vfx = SpawnChannelVfx(player);
         StartChannelLoop();   // 준비 중 도는 루프음(SfxId.ReturnStoneChannelLoop)
-        ToastManager.Info("귀환 준비 중...");
+        CastGaugeUI.Ensure().Begin("귀환 중", HudIcon);   // 워프와 같은 상단 게이지("귀환 중" 표시 = 별도 토스트 불필요)
 
         float t = 0f;
         yield return null;   // 발동 입력이 같은 프레임에 '행동 취소'로 잡히지 않게 한 프레임 건너뜀
@@ -222,12 +222,14 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
         {
             if (cancelOnAction && HasActionInput(player.Input)) { cancelled = true; break; }
             t += Time.deltaTime;
+            CastGaugeUI.Instance?.Report(t / channelDuration, channelDuration - t);
             yield return null;
         }
 
         if (stat != null) { stat.OnHurt -= onHurt; stat.OnDead -= onDead; }
         if (vfx != null) Destroy(vfx);
         StopChannelLoop();   // 준비 종료(취소/완료 공통) — 루프음 정지
+        CastGaugeUI.Instance?.Hide();   // 게이지 숨김(취소/완료 공통)
         // 사망 시엔 사망 모션에 맡기고, 그 외에만 채널 모션 해제(취소/완료 공통).
         if (stat == null || !stat.IsDead) player.Anim?.StopChannel();
 

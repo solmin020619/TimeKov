@@ -147,31 +147,25 @@ public class WarpManager : MonoBehaviour, ISaveable
 
         if (wp.kind == WarpPoint.WarpKind.RegionPoint)
         {
+            // 최초 활성화는 F 상호작용(ActivateRegionPoint)으로만 한다 - 밟아서 자동활성화하지 않는다.
+            //   (소개 영상이 "F로 활성화한 순간"에 딱 뜨도록. 지나가다 밟혀서 뜨는 어색함 제거)
             if (!IsActivated(wp.warpId))
             {
-                // 최초 도착 = 활성화(등록·저장). 텔레포트 없음.
-                if (!string.IsNullOrEmpty(wp.warpId)) _activated.Add(wp.warpId);
-                SpawnVfx(ResolveArrival(wp), wp.Center, TintFor(wp.region));
-                GameSfx.Play(SfxId.WarpArrive, wp.Center);   // 지역 워프 최초 활성화음(도착음 공용)
-                ToastManager.Success($"워프 지점 활성화 — {RegionName(wp.region)}");
-                SaveSlotManager.Instance?.SaveActive();
-                wp.SuppressUntilExit();   // 활성화만 하고 즉시 복귀되지 않게(나갔다 다시 밟아야 복귀)
-                DiscoveryCueManager.TryFire("warp");   // 첫 워프 지점 활성화 시 소개 팝업(1회, 이후 지점은 중복 무시)
+                ToastManager.Info("먼저 F로 워프를 활성화하세요.");   // 활성화 전엔 밟아도 이동 안 됨
+                return;
             }
-            else
+
+            // 활성화된 지역 워프 재진입 = 해당 지역의 기지 복귀 지점으로 복귀
+            Transform ret = ReturnPointFor(wp.region);
+            if (ret == null)
             {
-                // 활성화된 지역 워프 재진입 = 해당 지역의 기지 복귀 지점으로 복귀
-                Transform ret = ReturnPointFor(wp.region);
-                if (ret == null)
-                {
-                    // 복귀 지점 미할당 → 원점으로 텔레포트하면 물/허공에 박히므로 취소.
-                    Debug.LogWarning($"[Warp] {RegionName(wp.region)} 기지 복귀 지점(baseReturn*)이 할당되지 않았습니다.", this);
-                    ToastManager.Warning("기지 복귀 지점이 설정되지 않았습니다.");
-                    wp.SuppressUntilExit();
-                    return;
-                }
-                BeginCharge(wp, player, ret.position, wp, wp.region);
+                // 복귀 지점 미할당 → 원점으로 텔레포트하면 물/허공에 박히므로 취소.
+                Debug.LogWarning($"[Warp] {RegionName(wp.region)} 기지 복귀 지점(baseReturn*)이 할당되지 않았습니다.", this);
+                ToastManager.Warning("기지 복귀 지점이 설정되지 않았습니다.");
+                wp.SuppressUntilExit();
+                return;
             }
+            BeginCharge(wp, player, ret.position, wp, wp.region);
         }
         else // BaseOutbound
         {
@@ -185,6 +179,35 @@ public class WarpManager : MonoBehaviour, ISaveable
             var target = dests[Random.Range(0, dests.Count)];
             BeginCharge(wp, player, target.ArrivalPosition, target, wp.region);
         }
+    }
+
+    // F 상호작용으로 지역 워프 지점을 최초 활성화(등록·저장·연출·소개영상). 텔레포트는 없다.
+    //   WarpPoint.Interact 에서 호출. 이미 활성화됐거나 지역 지점이 아니면 무시.
+    //   활성화 이후부터 이 지점을 밟으면 기지로 복귀(OnWarpStepped 가 처리).
+    public void ActivateRegionPoint(WarpPoint wp, Transform player)
+    {
+        if (wp == null || !wp.IsRegionPoint || string.IsNullOrEmpty(wp.warpId)) return;
+        if (IsActivated(wp.warpId)) return;
+
+        _activated.Add(wp.warpId);
+        SpawnVfx(ResolveArrival(wp), wp.Center, TintFor(wp.region));
+        GameSfx.Play(SfxId.WarpArrive, wp.Center);   // 활성화음(도착음 공용)
+        ToastManager.Success($"워프 지점 활성화 - {RegionName(wp.region)}");
+        SaveSlotManager.Instance?.SaveActive();
+        DiscoveryCueManager.TryFire("warp");   // 소개 영상(1회, 이후 지점은 중복 무시)
+
+        // 활성화 직후 바로 워프하지 않고, 소개 영상이 닫힌 뒤(그때도 통 안이면) 워프를 시작한다.
+        //   활성화 순간 워프가 시작됐다가 영상이 떠서 끊기는 느낌을 없앤다.
+        StartCoroutine(WarpAfterCueRoutine(wp, player));
+    }
+
+    private IEnumerator WarpAfterCueRoutine(WarpPoint wp, Transform player)
+    {
+        yield return null;   // safe 큐는 이 프레임에 열리므로 한 프레임 양보(영상 뜰 시간)
+        while (TutorialVideoUI.IsShowing) yield return null;   // 소개 영상 닫힐 때까지 대기
+        // 영상 보는 동안 통 밖으로 나갔으면 워프 안 함(다시 밟아야). 여전히 안이면 기지 복귀 워프 시작.
+        if (wp != null && wp.PlayerInside && player != null)
+            OnWarpStepped(wp, player);
     }
 
     // 원통에서 나가면 충전 취소.
@@ -206,12 +229,20 @@ public class WarpManager : MonoBehaviour, ISaveable
         _chargingPoint = from;
         _chargeVfx = SpawnVfxTracked(ResolveDeparture(from), from.Center, TintFor(theme));
         StartChargeLoop(from.Center);   // 충전 중 도는 루프음(SfxId.WarpChargeLoop)
+        CastGaugeUI.Ensure().Begin("워프 중");   // 상단 게이지(얼마나 워프됐는지 표시)
         _chargeCo = StartCoroutine(ChargeRoutine(player, dest, arriveAt, theme));
     }
 
     private IEnumerator ChargeRoutine(Transform player, Vector3 dest, WarpPoint arriveAt, TransmissionRegion theme)
     {
-        yield return new WaitForSeconds(chargeDuration);   // 원통 안에서 대기(나가면 OnWarpExited 가 취소)
+        // 원통 안에서 대기(나가면 OnWarpExited 가 취소). 매 프레임 게이지를 채운다.
+        float t = 0f;
+        while (t < chargeDuration)
+        {
+            t += Time.deltaTime;
+            CastGaugeUI.Instance?.Report(t / chargeDuration, chargeDuration - t);
+            yield return null;
+        }
 
         _chargeCo = null;
         _chargingPoint = null;
@@ -225,6 +256,7 @@ public class WarpManager : MonoBehaviour, ISaveable
         if (_chargeVfx != null) Destroy(_chargeVfx);
         _chargeVfx = null;
         StopChargeLoop();   // 충전 종료(취소/완료 공통) — 루프음 정지
+        CastGaugeUI.Instance?.Hide();   // 게이지 숨김(취소/완료 공통)
     }
 
     private List<WarpPoint> ActivatedPointsIn(TransmissionRegion region)

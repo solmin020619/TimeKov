@@ -665,9 +665,9 @@ public static class TutorialAssetBuilder
             Cue("interact:transmit", true, VPage("시간에너지 전송",
                 $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 지역별로 25%씩 채우고, 각 구간 마지막은 {Y}보스 재료{E} 특수 키트가 필요합니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}합니다.")),
 
-            // 첫 워프 지점 활성화 - 워프 시스템 소개. 필드에서 밟는 순간 즉시(safe=true). WarpManager.TryFire("warp") 가 발화.
+            // 첫 워프 지점 활성화 - 워프 시스템 소개. F로 활성화하는 순간 즉시(safe=true). WarpManager.ActivateRegionPoint 안에서 TryFire("warp").
             Cue("warp", true, VPage("워프 지점",
-                $"필드의 {Y}워프 지점{E}을 처음 밟으면 활성화됩니다. 활성화된 지점을 다시 밟으면 {Y}기지로 복귀{E}, 기지의 워프대에서 그 지역으로 {Y}다시 이동{E}할 수 있습니다. 먼 지역을 빠르게 오가는 지름길입니다.")),
+                $"필드의 {Y}워프 지점{E}에 다가가 {Y}F로 활성화{E}하세요. 활성화한 지점을 밟으면 {Y}기지로 복귀{E}, 기지 워프대에서 그 지역으로 {Y}다시 이동{E}할 수 있습니다. 먼 지역을 빠르게 오가는 지름길입니다.")),
 
             // 우주선 부품 첫 획득 - 수리 시스템 소개. 부품은 필드(결계 밖)에 있으므로 safe:false
             //   = 팝업을 기지 복귀 때로 미룬다(전투 중 방해 방지 + 기지의 우주선 위치와 자연스럽게 연결). ShipPartPickup.TryFire("shiprepair").
