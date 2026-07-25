@@ -229,7 +229,7 @@ public static class TutorialAssetBuilder
                 new QuestSO.QuestReward { itemId = ItemSpiderVenom, amount = 1 },
                 new QuestSO.QuestReward { itemId = ItemCorrosive,   amount = 1 },
             },
-            CreateRailConnect("obj_rail_connect", $"{Y}생체 추출기{E}를 {Y}생체 배양기{E}에 {Y}레일{E}로 이어보세요.", 1)));
+            CreateRailConnect("obj_rail_connect", $"{Y}생체 추출기{E}를 {Y}생체 배양기{E}에 {Y}레일{E}로 이어보세요.", BioExtractorId, BioCultivatorId, 1)));
 
         quests.Add(BuildQuest("quest_tut_16b_rail_move", "레일 자동화 확인",
             CreateRailItemMove("obj_rail_move",
@@ -583,10 +583,10 @@ public static class TutorialAssetBuilder
         return o;
     }
 
-    static RailConnectObjective CreateRailConnect(string name, string label, int count = 1)
+    static RailConnectObjective CreateRailConnect(string name, string label, int sourceFacilityId, int targetFacilityId, int count = 1)
     {
         var o = ScriptableObject.CreateInstance<RailConnectObjective>();
-        o.label = label; o.requiredCount = count;
+        o.label = label; o.sourceFacilityId = sourceFacilityId; o.targetFacilityId = targetFacilityId; o.requiredCount = count;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }

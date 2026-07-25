@@ -1336,7 +1336,12 @@ public class RailBuildManager : MonoBehaviour
         // 새 경로가 기존 레일과 합쳐진 경우 기존 칸들은 예전 flow 가 남아 합류부 화살표가
         // 뒤집힌다. 체인 전체를 다시 일관되게 흐르도록 정규화.
         ReflowConnectedChain(currentEndCell);
-        GameEvents.RaiseRailConnected();   // 튜토리얼 등 통지 (포트-포트 연결 완료)
+        // source = 출력 포트(startPort) 소속 설비, target = 입력 포트(endPort) 소속 설비.
+        // (CanStartConnection=Output만 / CanEndConnection=Input만 이라 방향이 구조적으로 보장됨.)
+        // 튜토리얼 레일연결 objective가 방향을 판정해 '반대로 이으면 미완료' 하도록 실어 보낸다.
+        int railSrc = (startPort != null && startPort.OwnerBuilding != null) ? startPort.OwnerBuilding.facilityId : 0;
+        int railTgt = (port != null && port.OwnerBuilding != null) ? port.OwnerBuilding.facilityId : 0;
+        GameEvents.RaiseRailConnected(railSrc, railTgt);   // 튜토리얼 등 통지 (포트-포트 연결 완료, 방향 포함)
 
         // 포트 connectionCount 가 올라갔으니 벨트들이 다시 감지해 연결(파랑)로 갱신되게 한다.
         // (BeltSegment 는 connectionCount>0 인 포트만 실제 연결로 인정함)

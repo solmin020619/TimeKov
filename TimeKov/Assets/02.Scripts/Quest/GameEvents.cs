@@ -18,7 +18,7 @@ public static class GameEvents
     public static event Action<int> OnItemUsed;                       // itemId
     public static event Action<int> OnFacilityUnlocked;               // facilityId — F로 설비 해금
     public static event Action<int> OnCoreUpgraded;                   // 강화 성공 후의 새 코어 레벨
-    public static event Action OnRailConnected;                       // 레일 포트-포트 연결 완료
+    public static event Action<int, int> OnRailConnected;             // sourceFacilityId, targetFacilityId — 레일 연결 완료(출력->입력)
     public static event Action<int> OnFuelAdded;                      // facilityId — 설비 연료 슬롯에 연료 투입
     public static event Action OnBuildModeEntered;                    // 건설 모드 실제 진입 성공 (존 게이트 통과 후)
     public static event Action OnCoreUIOpened;                        // 코어 강화 단말(UI) 열림
@@ -42,7 +42,12 @@ public static class GameEvents
     public static void RaiseItemUsed(int itemId) { Record(KeyUsed(itemId), 1); OnItemUsed?.Invoke(itemId); }
     public static void RaiseFacilityUnlocked(int facilityId) => OnFacilityUnlocked?.Invoke(facilityId);
     public static void RaiseCoreUpgraded(int newLevel) => OnCoreUpgraded?.Invoke(newLevel);
-    public static void RaiseRailConnected() { Record(KeyRail, 1); OnRailConnected?.Invoke(); }
+    public static void RaiseRailConnected(int sourceFacilityId, int targetFacilityId)
+    {
+        Record(KeyRail, 1);                                          // 방향 무관 objective 갭-인정
+        Record(KeyRailDir(sourceFacilityId, targetFacilityId), 1);  // 방향 지정 objective 갭-인정
+        OnRailConnected?.Invoke(sourceFacilityId, targetFacilityId);
+    }
     public static void RaiseFuelAdded(int facilityId) { Record(KeyFuel(facilityId), 1); OnFuelAdded?.Invoke(facilityId); }
     public static void RaiseBuildModeEntered() => OnBuildModeEntered?.Invoke();
     public static void RaiseCoreUIOpened() { Record(KeyCoreOpen, 1); OnCoreUIOpened?.Invoke(); }
@@ -90,6 +95,7 @@ public static class GameEvents
     public static string KeyUsed(int itemId) => "used:" + itemId;
     public static string KeyFuel(int facilityId) => "fuel:" + facilityId;
     public const string KeyRail = "rail";
+    public static string KeyRailDir(int src, int tgt) => "rail:" + src + ">" + tgt;   // 방향(출력설비>입력설비)별 갭-인정 키
     public const string KeyCoreOpen = "core_open";
     public const string KeyCoreUpgrade = "core_upgrade";   // 강화 시도 (성공/실패 무관)
     public const string KeyRailMove = "rail_move";         // 레일로 아이템 1회 전달
