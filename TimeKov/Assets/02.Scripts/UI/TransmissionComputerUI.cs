@@ -48,6 +48,8 @@ public class TransmissionComputerUI : MonoBehaviour
     private GameObject _root;
     private CanvasGroup _cg;
     private RectTransform _content;
+    private RectTransform _fitWrap;        // 해상도 무관 레터박스 스케일 래퍼(_content.localScale 은 열기/닫기 애니 전용이라 분리)
+    private int _lastFitW, _lastFitH;      // 마지막 fit 계산 시 화면 크기(변경 감지용)
     private float _trackW;
     private int _openedFrame = -1;
 
@@ -128,6 +130,7 @@ public class TransmissionComputerUI : MonoBehaviour
     private void Update()
     {
         if (!IsOpen) return;
+        if (Screen.width != _lastFitW || Screen.height != _lastFitH) FitContentToRoot();   // 창 크기/해상도 바뀌면 재맞춤
         float dt = Time.unscaledDeltaTime;
         for (int i = 0; i < _spinRings.Count; i++)
             if (_spinRings[i] != null) _spinRings[i].Rotate(0, 0, (i % 2 == 0 ? -1f : 1f) * 9f * dt);
@@ -143,6 +146,7 @@ public class TransmissionComputerUI : MonoBehaviour
         EnsureManager();                      // 다른 씬 등에서 매니저가 없으면 보장
         _root.SetActive(true);
         _root.transform.SetAsLastSibling();   // 메인 캔버스 내 형제들 위(맨 앞)로
+        FitContentToRoot();                   // 현재 화면 크기에 맞춰 레이아웃 스케일(해상도 무관 안 잘림)
         _openedFrame = Time.frameCount;
         _m.selectedId = null;
         _shownRate = Mathf.RoundToInt(_m.progress);
@@ -174,10 +178,19 @@ public class TransmissionComputerUI : MonoBehaviour
         // 절대좌표는 1920×1080 기준 — 메인 캔버스도 동일 기준이라 그대로 맞는다.
         Transform uiParent = ResolveUIParent();
         _root = NewGO("TransmissionComputerUI_Root", uiParent); Stretch(_root);
-        _root.AddComponent<Image>().color = new Color(0, 0, 0, 0); // raycast blocker (invisible; bg drawn below)
+        // 불투명 백드롭. raycast 차단 + 화면비가 16:9가 아닐 때 생기는 레터박스 여백을
+        // 뒤 게임화면 대신 어둡게 가린다(모달이라 어차피 게임은 정지).
+        _root.AddComponent<Image>().color = C("040810", 1f);
         _cg = _root.AddComponent<CanvasGroup>();
 
-        _content = TL(NewGO("Content", _root.transform), 0, 0, 1920, 1080);
+        // 해상도/호스트 캔버스 스케일러와 무관하게 1920x1080 레이아웃 전체가 항상 화면 안에 들어오도록,
+        // 루트 실제 크기에 맞춰 통째로 축소(레터박스)하는 래퍼. _content.localScale 은 열기/닫기 애니가
+        // 쓰므로 건드리지 않고 이 래퍼 스케일만 조절한다. FitContentToRoot() 가 Open/해상도변경 시 갱신.
+        _fitWrap = NewRT("FitWrap", _root);
+        _fitWrap.anchorMin = _fitWrap.anchorMax = _fitWrap.pivot = new Vector2(0.5f, 0.5f);
+        _fitWrap.anchoredPosition = Vector2.zero; _fitWrap.sizeDelta = new Vector2(1920, 1080);
+
+        _content = TL(NewGO("Content", _fitWrap), 0, 0, 1920, 1080);
 
         BuildBackground();
         BuildHeader();
@@ -1469,6 +1482,22 @@ public class TransmissionComputerUI : MonoBehaviour
     // =====================================================================
     // 기존 메인 Canvas(스크린 오버레이 루트, 최상위 sortingOrder)를 찾아 그 아래에 넣는다.
     // 못 찾으면(부팅 순서 등) 자체 캔버스로 폴백.
+    // 1920x1080 설계 레이아웃을 루트(=호스트 캔버스) 실제 크기에 맞춰 통째로 축소한다.
+    // 호스트 캔버스의 CanvasScaler 설정이 우리 가정(ScaleWithScreenSize 1920x1080)과 달라도
+    // UI가 화면 밖으로 잘리지 않게 하는 안전장치. min 비율 + 1 클램프라, 스케일러가 정상이면
+    // (root==1920x1080) s=1 로 기존과 완전히 동일하고, 화면이 좁을 때만 축소한다(레터박스, 여백은 백드롭이 가림).
+    private void FitContentToRoot()
+    {
+        if (_fitWrap == null || _root == null) return;
+        var rootRT = _root.transform as RectTransform;
+        if (rootRT == null) return;
+        Vector2 sz = rootRT.rect.size;
+        if (sz.x <= 1f || sz.y <= 1f) return;   // 레이아웃이 아직 안 잡힘(0 크기) - 다음 기회에
+        float s = Mathf.Min(Mathf.Min(sz.x / 1920f, sz.y / 1080f), 1f);
+        _fitWrap.localScale = new Vector3(s, s, 1f);
+        _lastFitW = Screen.width; _lastFitH = Screen.height;
+    }
+
     private Transform ResolveUIParent()
     {
         var main = FindMainCanvas();
