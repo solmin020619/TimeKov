@@ -91,7 +91,17 @@ public class CategoryWidget : MonoBehaviour
 
     public void FadeOutCategory()
     {
-        // hold, fade alpha 0, SetActive(false). 부모 VLG가 자동 reflow.
+        // 카테고리 제목을 안 쓰는(단일 트래커) 스타일이면 완료 시 위젯이 비어 있다(퀘 엔트리는 이미
+        //   자체 완료연출로 제거됨). 그런데도 1.5초 hold + fade 로 빈 자리를 붙잡으면, 다음 카테고리
+        //   (엔드게임) 첫 퀘가 그 아래에 떴다가 이 위젯이 사라질 때 위로 점프한다(토스트와 높낮이 어긋남).
+        //   -> 보여줄 게 없으니 즉시 레이아웃에서 빼서, 다음 카테고리가 곧장 윗자리에 뜨게 한다.
+        if (!showCategoryTitle)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
+        // (제목 표시형) hold, fade alpha 0, SetActive(false). 부모 VLG가 자동 reflow.
         var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
         seq.AppendInterval(fadeOutHoldTime);
         if (categoryGroup) seq.Append(categoryGroup.DOFade(0f, fadeOutDuration));
