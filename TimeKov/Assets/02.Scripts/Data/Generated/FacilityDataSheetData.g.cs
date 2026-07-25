@@ -13,4 +13,5 @@ public class FacilityDataSheetData
     public int gridH;
     public bool canRotate;
     public int maxLevel;
+    public string iconKey;
 }

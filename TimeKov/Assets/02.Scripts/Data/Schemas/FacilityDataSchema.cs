@@ -28,5 +28,9 @@ public class FacilityDataSchema : SheetSchema
         // 최대 업그레이드 레벨
         // FacilityLevelDataTable 에 해당 레벨까지 행이 있어야 한다
         Add("maxLevel", ColumnType.Int, required: true);
+
+        // 설비 아이콘 키 — Resources/Facilities/{iconKey} 에서 스프라이트 로드.
+        // 선택 컬럼: 비어 있으면 FacilityIconDatabase 의 인스펙터 수동매핑으로 폴백한다.
+        Add("iconKey", ColumnType.String, required: false);
     }
 }
