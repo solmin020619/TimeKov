@@ -175,12 +175,19 @@ namespace TIMEKOV.Factory
             LayoutNameLabel();
         }
 
-        // 표시 이름: 하이어라키(gameObject.name) 기준 + "(Clone)" 제거.
-        //  MachineName 은 ProcessingMachine 이 LoadRecipesFromSheet 에서 GameDataUtility.GetFacility(FacilityId)
-        //  로 덮어쓰는데, 그 FacilityId↔데이터 매핑이 일부(예: 4~7번) 어긋나 이름이 밀려 나온다.
-        //  프리팹 루트 이름(용해로 등)은 항상 정확하므로 그걸 쓴다.
+        // 표시 이름: FacilityData 시트(facilityName)를 우선 사용 - 시트에서 개명하면 자동 반영된다.
+        //  (프리팹 루트 이름은 개명해도 안 바뀌어 스테일. 예: 프리팹 "화학 정제기" -> 시트 "시간에너지 합성기".)
+        //  시트 조회 실패(데이터 미로드/미매핑/facilityId 0)면 프리팹 루트 이름으로 폴백.
+        //  (F-프롬프트/도감도 같은 GameDataUtility.GetFacility 경로라 이제 표시가 일관된다.)
         private string GetDisplayName()
         {
+            if (_machine != null)
+            {
+                var fd = GameDataUtility.GetFacility(_machine.FacilityId);
+                if (fd != null && !string.IsNullOrEmpty(fd.facilityName))
+                    return fd.facilityName;
+            }
+
             string n = gameObject.name ?? "";
             int idx = n.IndexOf("(Clone)", System.StringComparison.Ordinal);
             if (idx >= 0) n = n.Substring(0, idx);

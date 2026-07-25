@@ -110,7 +110,8 @@ public class QuestEntry : MonoBehaviour
             return;
         }
 
-        rewardText.text = rewardPrefix + sb.ToString();
+        // 목표 줄들과 너무 붙지 않게 한 줄 띄워서 표시(위에 빈 줄 한 칸).
+        rewardText.text = "\n" + rewardPrefix + sb.ToString();
         rewardText.gameObject.SetActive(true);
 
         // 목표 줄들 다음(맨 아래)에 오도록 강제 — rewardText 가 objectiveList 자식일 때만
