@@ -98,6 +98,10 @@ public class PlayerQuickSlotComponent : MonoBehaviour
 
         _lastUseTime = Time.unscaledTime;
         OnChanged?.Invoke();
-        if (applied) OnUsed?.Invoke();   // 사용 성공 -> HUD 슬롯 플래시
+        if (applied)
+        {
+            GameSfx.Play(SfxId.QuickSlotUse);   // 소모품 사용음
+            OnUsed?.Invoke();   // 사용 성공 -> HUD 슬롯 플래시
+        }
     }
 }

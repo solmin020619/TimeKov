@@ -152,7 +152,7 @@ public class WarpManager : MonoBehaviour, ISaveable
                 // 최초 도착 = 활성화(등록·저장). 텔레포트 없음.
                 if (!string.IsNullOrEmpty(wp.warpId)) _activated.Add(wp.warpId);
                 SpawnVfx(ResolveArrival(wp), wp.Center, TintFor(wp.region));
-                PlaySound(wp.arrivalSound, wp.Center);
+                GameSfx.Play(SfxId.WarpArrive, wp.Center);   // 지역 워프 최초 활성화음(도착음 공용)
                 ToastManager.Success($"워프 지점 활성화 — {RegionName(wp.region)}");
                 SaveSlotManager.Instance?.SaveActive();
                 wp.SuppressUntilExit();   // 활성화만 하고 즉시 복귀되지 않게(나갔다 다시 밟아야 복귀)
@@ -205,7 +205,7 @@ public class WarpManager : MonoBehaviour, ISaveable
     {
         _chargingPoint = from;
         _chargeVfx = SpawnVfxTracked(ResolveDeparture(from), from.Center, TintFor(theme));
-        PlaySound(from.departureSound, from.Center);
+        StartChargeLoop(from.Center);   // 충전 중 도는 루프음(SfxId.WarpChargeLoop)
         _chargeCo = StartCoroutine(ChargeRoutine(player, dest, arriveAt, theme));
     }
 
@@ -224,6 +224,7 @@ public class WarpManager : MonoBehaviour, ISaveable
     {
         if (_chargeVfx != null) Destroy(_chargeVfx);
         _chargeVfx = null;
+        StopChargeLoop();   // 충전 종료(취소/완료 공통) — 루프음 정지
     }
 
     private List<WarpPoint> ActivatedPointsIn(TransmissionRegion region)
@@ -246,7 +247,7 @@ public class WarpManager : MonoBehaviour, ISaveable
 
         TeleportPlayer(player, dest);             // 순간이동(검은 화면 중)
         SpawnVfx(ResolveArrival(arriveAt), dest, TintFor(theme));   // 도착 VFX
-        PlaySound(arriveAt != null ? arriveAt.arrivalSound : null, dest);
+        GameSfx.Play(SfxId.WarpArrive, dest);     // 워프 도착음
         if (arriveAt != null) arriveAt.SuppressUntilExit();   // 도착 지점 즉시 재발동 방지
 
         yield return Fade(1f, 0f);                // 밝게
@@ -264,9 +265,33 @@ public class WarpManager : MonoBehaviour, ISaveable
         _ => snowTint,
     };
 
-    private void PlaySound(AudioClip clip, Vector3 pos)
+    // 충전 루프음 — 클립은 GameSfxConfig(SfxId.WarpChargeLoop)에서, 재생은 이 로컬 3D 소스에서(통 위치).
+    private AudioSource _chargeLoop;
+
+    private void StartChargeLoop(Vector3 pos)
     {
-        if (clip != null) AudioSource.PlayClipAtPoint(clip, pos);
+        if (!GameSfx.TryGet(SfxId.WarpChargeLoop, out var clip, out var vol) || clip == null) return;
+        if (_chargeLoop == null)
+        {
+            var go = new GameObject("[WarpChargeLoop]");
+            go.transform.SetParent(transform, false);
+            _chargeLoop = go.AddComponent<AudioSource>();
+            _chargeLoop.loop = true;
+            _chargeLoop.playOnAwake = false;
+            _chargeLoop.spatialBlend = 1f;                       // 3D — 통에서 거리감
+            _chargeLoop.minDistance = 3f;
+            _chargeLoop.maxDistance = 20f;
+            _chargeLoop.rolloffMode = AudioRolloffMode.Logarithmic;
+        }
+        _chargeLoop.transform.position = pos;
+        _chargeLoop.clip = clip;
+        _chargeLoop.volume = vol * GlobalSettingsManager.CurrentSFXVolume;
+        _chargeLoop.Play();
+    }
+
+    private void StopChargeLoop()
+    {
+        if (_chargeLoop != null && _chargeLoop.isPlaying) _chargeLoop.Stop();
     }
 
     private void TeleportPlayer(Transform player, Vector3 dest)
