@@ -60,6 +60,10 @@ public class TutorialMarker : MonoBehaviour
         if (cam == null || player == null) { Hide(); return; }
         if (QuestManager.Instance == null) { Hide(); return; }
 
+        // 전체화면 차단 UI(설정/인벤/도감/설비/코어/전송/상자/건축/사망/튜토영상)가 떠 있으면 마커 숨김.
+        // 마커 캔버스가 이 패널들보다 위로 정렬돼서, 안 숨기면 패널 위에 마커가 비쳐 보인다.
+        if (IsBlockingUIOpen()) { Hide(); return; }
+
         // 활성 ReachTriggerObjective 첫 번째 찾기 (튜토리얼은 한 번에 1개)
         // IsCompleted 체크 — 완료된 obj는 무시
         Vector3 targetWorld = Vector3.zero;
@@ -183,6 +187,18 @@ public class TutorialMarker : MonoBehaviour
         if (_markerCg != null) _markerCg.alpha = 0f;
         _wasVisible = false; // 다시 보일 때 보간 없이 스냅 (옛 위치에서 미끄러져 오는 것 방지)
         if (_circle != null) { _circle.localPosition = _circleHome; _circle.localScale = Vector3.one; }
+    }
+
+    // 전체화면 차단 UI가 하나라도 열려 있으면 true. 그동안 마커를 숨겨 패널 위 비침을 막는다.
+    // IsUIBlocking()은 설정/인벤/도감/코어/전송/건축/상자/퀘스트 등 currentState 기반 UI를 전부 커버.
+    // 설비/사망/튜토영상은 currentState와 별개 채널이라 따로 검사.
+    static bool IsBlockingUIOpen()
+    {
+        if (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking()) return true;
+        if (MachineUI.IsAnyOpen) return true;
+        if (DeathOverlayUI.IsOpen) return true;
+        if (TutorialVideoUI.IsShowing) return true;
+        return false;
     }
 
     Transform GetPlayer()
