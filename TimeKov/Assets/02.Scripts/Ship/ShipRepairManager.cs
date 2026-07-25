@@ -53,7 +53,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
 
     private int _level = 1;
     private int _partCount = 0;        // 보유 복구 에너지 수량 (수리 시 소모)
-    private int _pickupTakenMask = 0;  // bit i = 맵 픽업 i번을 이미 회수함 (재입장 중복 회수 방지)
+    private readonly HashSet<string> _takenPickupKeys = new();  // 회수한 픽업 위치키 (재입장 중복 회수 방지, 개수 무제한)
     private int _extraMask = 0;        // bit L = 레벨 L 전용 추가 재료를 보유함
 
     // 공장 제작속도 전역 배수 — FacilityInstance.GetFinalProcessTime 이 곱한다. 기본 1.
@@ -173,21 +173,21 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         OnChanged?.Invoke();
     }
 
-    /// <summary>맵 픽업 i번을 이미 회수했는지 (세이브 복원 후 중복 회수 방지용).</summary>
-    public bool IsPickupTaken(int index)
-        => index >= 0 && index < 32 && (_pickupTakenMask & (1 << index)) != 0;
+    /// <summary>이 픽업(위치키)을 이미 회수했는지 (세이브 복원 후 중복 회수 방지용).</summary>
+    public bool IsPickupTaken(string key)
+        => !string.IsNullOrEmpty(key) && _takenPickupKeys.Contains(key);
 
-    /// <summary>맵 픽업 i번을 회수 처리만 한다(지급 없음). 추가 재료 픽업처럼 지급 내용이 다른 경우에 쓴다.</summary>
-    public void MarkPickupTaken(int index)
+    /// <summary>이 픽업(위치키)을 회수 처리만 한다(지급 없음). 추가 재료 픽업처럼 지급 내용이 다른 경우에 쓴다.</summary>
+    public void MarkPickupTaken(string key)
     {
-        if (index >= 0 && index < 32) _pickupTakenMask |= (1 << index);
+        if (!string.IsNullOrEmpty(key)) _takenPickupKeys.Add(key);
     }
 
-    /// <summary>맵 픽업 회수: 회수 기록 + 부품 지급. index = 씬에서 픽업마다 유니크하게(0~31).</summary>
-    public void CollectPickup(int index, int amount)
+    /// <summary>맵 픽업 회수: 회수 기록 + 부품 지급. key = 픽업 위치로 자동 생성(수동 번호 불필요).</summary>
+    public void CollectPickup(string key, int amount)
     {
-        if (IsPickupTaken(index)) return;
-        MarkPickupTaken(index);
+        if (IsPickupTaken(key)) return;
+        MarkPickupTaken(key);
         AddParts(amount);
     }
 
@@ -258,7 +258,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         if (data == null) return;
         data.shipRepairLevel     = _level;
         data.shipRepairPartCount = _partCount;
-        data.shipRepairPartsMask = _pickupTakenMask;
+        data.shipRepairTakenKeys = new List<string>(_takenPickupKeys);
         data.shipRepairExtraMask = _extraMask;
     }
 
@@ -269,7 +269,9 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
 
         _level           = Mathf.Clamp(mgr.Data.shipRepairLevel, 1, MaxLevel);
         _partCount       = Mathf.Max(0, mgr.Data.shipRepairPartCount);
-        _pickupTakenMask = mgr.Data.shipRepairPartsMask;
+        _takenPickupKeys.Clear();
+        if (mgr.Data.shipRepairTakenKeys != null)
+            foreach (var k in mgr.Data.shipRepairTakenKeys) _takenPickupKeys.Add(k);
         _extraMask       = mgr.Data.shipRepairExtraMask;
     }
 

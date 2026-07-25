@@ -74,12 +74,12 @@ public class GameSaveData
 
     // ── 우주선 수리 (ShipRepairManager) ──────────────────────────────────
     // shipRepairLevel=현재 수리 레벨(1=시작), shipRepairPartCount=보유 부품 수량(단일 종류),
-    // shipRepairPartsMask=회수한 맵 픽업 비트(bit i = 픽업 i번 회수됨, 재입장 중복 회수 방지).
+    // shipRepairTakenKeys=회수한 맵 픽업 위치키 목록(재입장 중복 회수 방지, 개수 무제한).
     // shipRepairExtraMask=레벨 전용 추가 재료 보유 비트(bit L = 레벨 L 재료 보유. 수리 시 소모).
     // 새 슬롯 기본값(1/0/0)이 곧 게임 시작 상태라 그대로 복원해도 무해.
     public int shipRepairLevel = 1;
     public int shipRepairPartCount = 0;
-    public int shipRepairPartsMask = 0;
+    public List<string> shipRepairTakenKeys = new List<string>();
     public int shipRepairExtraMask = 0;
 
     // ── 시간에너지 전송 (TransmissionManager) ────────────────────────────────
