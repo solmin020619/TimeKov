@@ -1891,6 +1891,7 @@ GameObject:
   - component: {fileID: 64719035897695044}
   - component: {fileID: 4844468211516912766}
   - component: {fileID: 2918100586290480212}
+  - component: {fileID: 8974774476161461909}
   m_Layer: 6
   m_Name: Enemy_SpiderQueen_Nature
   m_TagString: Untagged
@@ -2079,7 +2080,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 6
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -2525,3 +2526,15 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6069774037359162351, guid: 45fe27830f197cd4eac705c746de3735, type: 3}
   m_PrefabInstance: {fileID: 423659395734227042}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8974774476161461909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7613583530754348782}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

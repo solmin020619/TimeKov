@@ -2783,6 +2783,7 @@ GameObject:
   - component: {fileID: 4446870651639361165}
   - component: {fileID: 1431024510302509191}
   - component: {fileID: 6049040437554312287}
+  - component: {fileID: 6366359949737516839}
   m_Layer: 6
   m_Name: Enemy_BoneDragon
   m_TagString: Untagged
@@ -2971,7 +2972,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 6
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -5880,3 +5881,15 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6069774037359162351, guid: 45fe27830f197cd4eac705c746de3735, type: 3}
   m_PrefabInstance: {fileID: 778135332135009845}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &6366359949737516839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4854407282722017889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

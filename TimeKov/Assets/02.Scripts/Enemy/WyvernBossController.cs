@@ -17,6 +17,26 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     public MeleeEnemyData Data => data;   // 도감 등 외부서 보스 스탯 조회용(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "시간을 빨아먹는 포식자";   // 상단 보스바 부제
 
+    [Header("사운드 (신규 커스텀 SFX. 패턴별로 다른 소리 - data.attackSound(기존 wyvern attack (1))는 물기(Bite)에 그대로 남겨둠)")]
+    [Tooltip("근접 물기(Bite) 전용. 비우면 기존 data.attackSound 로 폴백.")]
+    [SerializeField] private AudioClip biteSound;
+    [Tooltip("근접 꼬리치기(Stinger) 전용.")]
+    [SerializeField] private AudioClip stingerSound;
+    [Tooltip("원거리 파이어볼(SpitFireball) 발사음.")]
+    [SerializeField] private AudioClip fireballSound;
+    [Tooltip("분출(EruptionBarrage) 시전 시작 시 1회(불타는 장판 앰비언스). 개별 발마다가 아니라 바라지 시작에만.")]
+    [SerializeField] private AudioClip eruptionChargeSound;
+    [Tooltip("분출 개별 발(SingleEruption)이 터지는 순간마다.")]
+    [SerializeField] private AudioClip eruptionBurstSound;
+    [Tooltip("공중 다이브 강타(DiveSlam) 이륙 시 날갯짓.")]
+    [SerializeField] private AudioClip diveWindupSound;
+    [Tooltip("공중 다이브 강타 착지 충격음.")]
+    [SerializeField] private AudioClip diveImpactSound;
+    [Tooltip("페이즈 전환 포효(RoarPhase, HP 66% 도달 시 1회).")]
+    [SerializeField] private AudioClip phaseRoarSound;
+    [Tooltip("페이즈3 진입 회복 비행(HealPhase) 시 포효.")]
+    [SerializeField] private AudioClip healRoarSound;
+
     [Header("원거리 파이어볼")]
     [SerializeField] private GameObject fireballPrefab;
     [SerializeField] private Vector3 fireOffset = new Vector3(0f, 2.5f, 2.5f); // 발사 위치(로컬: 위+앞=입 근처)
@@ -337,7 +357,9 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         StopMove();
         if (_player != null) FaceInstant(_player.position);   // 시작 시 방향 커밋(이후 추적 정지 = 회피 가능)
         PlayState(a.state);
-        _feedback?.PlayAttack();
+        if (idx == 1) _feedback?.PlaySound(stingerSound);
+        else if (biteSound != null) _feedback?.PlaySound(biteSound);
+        else _feedback?.PlayAttack();   // 폴백: 기존 data.attackSound
 
         yield return new WaitForSeconds(a.windup);
 
@@ -360,7 +382,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         StopMove();
         if (_player != null) FaceInstant(_player.position);
         PlayState(fireballState);
-        _feedback?.PlayAttack();
+        _feedback?.PlaySound(fireballSound);
 
         yield return new WaitForSeconds(fireballWindup);
 
@@ -389,7 +411,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         StopMove();
         if (_player != null) FaceInstant(_player.position);
         PlayState(eruptionState);
-        _feedback?.PlayAttack();
+        _feedback?.PlaySound(eruptionChargeSound);
 
         yield return new WaitForSeconds(eruptionWindup);
 
@@ -414,6 +436,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         SpawnTelegraph(spot, eruptionRadius, eruptionTelegraph);
         yield return new WaitForSeconds(eruptionTelegraph);
         if (_dead) yield break;
+        _feedback?.PlaySound(eruptionBurstSound);
         if (eruptionVfx != null) Instantiate(eruptionVfx, spot, Quaternion.identity);
         if (_playerStat != null && !_playerStat.IsDead && _player != null)
         {
@@ -448,7 +471,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         StopMove();
         if (_player != null) FaceInstant(_player.position);
         PlayState(diveTakeoffState);   // 이륙
-        _feedback?.PlayAttack();
+        _feedback?.PlaySound(diveWindupSound);
 
         Vector3 start = transform.position;
         if (_agent != null && _agent.enabled) { _agent.isStopped = true; _agent.ResetPath(); _agent.enabled = false; }
@@ -477,6 +500,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
 
         // 4) 착지 임팩트 + 범위 데미지
         PlayState(diveLandState);   // 착지
+        _feedback?.PlaySound(diveImpactSound);
         if (slamVfx != null) Instantiate(slamVfx, land, Quaternion.identity);
         if (!_dead && _playerStat != null && !_playerStat.IsDead && _player != null)
         {
@@ -573,7 +597,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         if (_agent != null && _agent.enabled) { _agent.isStopped = true; _agent.ResetPath(); _agent.enabled = false; }
 
         PlayState(roarState);
-        _feedback?.PlayAttack();
+        _feedback?.PlaySound(phaseRoarSound);
         yield return MoveBetween(ground, ground + Vector3.up * roarLiftHeight, roarLiftTime);   // 살짝 떠오름
 
         yield return new WaitForSeconds(roarBuildup);
@@ -598,7 +622,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         _attacking = true;
         StopMove();
         if (_player != null) FaceInstant(_player.position);
-        _feedback?.PlayAttack();
+        _feedback?.PlaySound(healRoarSound);
         if (_health != null) _health.Invulnerable = true;
 
         Vector3 ground = transform.position;

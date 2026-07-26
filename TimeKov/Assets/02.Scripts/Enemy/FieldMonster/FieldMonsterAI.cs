@@ -1205,6 +1205,9 @@ public class FieldMonsterAI : MonoBehaviour
                 imp.transform.localScale *= data.projectileScale;   // 낙하 VFX 와 동일 배율로 축소
             StripNamedChildren(imp, data.impactStripObjects);
         }
+        // 얼음 장판 폭발음 — 착지 지점(플레이어 주변)에서 3D 재생(SFX 볼륨 반영).
+        if (data.impactSound != null)
+            AudioSource.PlayClipAtPoint(data.impactSound, ground, GlobalSettingsManager.CurrentSFXVolume);
         if (playerStat != null && playerTf != null && !playerStat.IsDead && !playerStat.IsInBase)
         {
             Vector3 d = playerTf.position - ground; d.y = 0f;

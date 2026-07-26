@@ -872,6 +872,7 @@ GameObject:
   - component: {fileID: 2230970199713088069}
   - component: {fileID: 4273652520599598132}
   - component: {fileID: 3383005111899849992}
+  - component: {fileID: 1886554481819792906}
   m_Layer: 6
   m_Name: Enemy_Sand_Elemental_Boss
   m_TagString: Untagged
@@ -1013,7 +1014,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 10
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -1133,6 +1134,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: 4b3e992c1c3edba47be3baac976d9c14, type: 2}
   bossSubtitle: "\uC2DC\uAC04\uC744 \uC0BC\uD0A4\uB294 \uC0AC\uB9C9\uC758 \uC9C0\uBC30\uC790"
+  meleeAttack1Sound: {fileID: 8300000, guid: bbf622400ec84a2d8ee7cb0c5ec7a8a2, type: 3}
+  meleeAttack2Sound: {fileID: 8300000, guid: 39e06bf6a8344fd8b05187d288780d84, type: 3}
+  waveSound: {fileID: 8300000, guid: 3359247ae46d49fe857239849b4f082f, type: 3}
+  tornadoSound: {fileID: 8300000, guid: a46ab9a924cf4ea9a13c92909dd8288e, type: 3}
+  quicksandSound: {fileID: 8300000, guid: ce5049b2c1574651ac0ea7b5fd44bc84, type: 3}
+  coffinCastSound: {fileID: 8300000, guid: ac34dc24f2f14b1e864b711c67ce5178, type: 3}
+  coffinBurstSound: {fileID: 8300000, guid: 711f5c26e82b47be8c52189fe84f8468, type: 3}
+  guardSound: {fileID: 8300000, guid: faba3acabfd14acd8454e37de1cc2aa2, type: 3}
+  diveDropSound: {fileID: 8300000, guid: c972eeaf72cc4fdcb4835e1fab1453c3, type: 3}
+  diveLandSound: {fileID: 8300000, guid: 8ec0e1c3b2044285afabc9142ed0c263, type: 3}
+  ultimateSound: {fileID: 8300000, guid: b30eeb5aa0e04baf86b76aa009d33f61, type: 3}
+  roarSound: {fileID: 8300000, guid: ca918a2f146f4c39929ff14e837a9fe5, type: 3}
+  roar2Sound: {fileID: 8300000, guid: 90c3330f8dd04cf9bbb142f32cb47b97, type: 3}
   waveVfx: {fileID: 1079058219112809582, guid: c2b9e314b88a73941b00faa2e1e881ae, type: 3}
   waveRange: 9
   waveCooldown: 4.5
@@ -1673,3 +1687,15 @@ Transform:
   - {fileID: 5950538755033136800}
   m_Father: {fileID: 4416498583411736314}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1886554481819792906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5848259222620243664}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

@@ -668,6 +668,7 @@ GameObject:
   - component: {fileID: 3957856130880365909}
   - component: {fileID: 6808398680370000527}
   - component: {fileID: 6884464403931447823}
+  - component: {fileID: 1074574401622251030}
   m_Layer: 6
   m_Name: Enemy_SpiderBot
   m_TagString: Untagged
@@ -938,7 +939,7 @@ MonoBehaviour:
   armGlowStart: 1.5
   armScalePulse: 0.14
   armPulseHz: 5
-  armSound: {fileID: 8300000, guid: 10db580745c04c64baa2ced8f0dff96d, type: 3}
+  armSound: {fileID: 8300000, guid: c55ac1b70cb34af9b58767c6114b1cec, type: 3}
   beepIntervalStart: 0.42
   beepIntervalEnd: 0.13
   speedParam: Speed
@@ -1154,3 +1155,15 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6069774037359162351, guid: 45fe27830f197cd4eac705c746de3735, type: 3}
   m_PrefabInstance: {fileID: 4761806553379242857}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1074574401622251030
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8421498448361454014}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

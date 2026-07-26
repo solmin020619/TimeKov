@@ -96469,6 +96469,7 @@ GameObject:
   - component: {fileID: 3756178967434193856}
   - component: {fileID: 331624889179424445}
   - component: {fileID: 6314254441621628586}
+  - component: {fileID: 2176673584565979352}
   m_Layer: 6
   m_Name: Enemy_Fire_Boss
   m_TagString: Untagged
@@ -96612,7 +96613,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 10
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -96732,6 +96733,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: 7705a42a42d376d43a0e1c51ff59805a, type: 2}
   bossSubtitle: "\uAEBC\uC9C0\uC9C0 \uC54A\uB294 \uC2DC\uAC04\uC758 \uC7BF\uBD88"
+  meleeSwingSound: {fileID: 8300000, guid: ba256c53d5e04530acd2b330c151d5c5, type: 3}
+  meleeImpactSound: {fileID: 8300000, guid: dd7023a8966b4c7d82f22587c9d76f62, type: 3}
+  fireballSound: {fileID: 8300000, guid: 9f7889aa5d844acfb7651d700ccbf8c3, type: 3}
+  fireballBurstSound: {fileID: 8300000, guid: 091121b0d69245acb707eaa0cf80c428, type: 3}
+  eruptionSound: {fileID: 8300000, guid: 6c97ad6fafcb46b6b62cdb634d1d8579, type: 3}
+  meteorFallSound: {fileID: 8300000, guid: b932166384c445988fc19feccd4f3d28, type: 3}
+  meteorImpactSound: {fileID: 8300000, guid: f3c08e68c03e4036a2b855a63479a0ef, type: 3}
+  meteorRainCastSound: {fileID: 8300000, guid: 64660c659da345cb9993b1fbc5520b7c, type: 3}
+  forwardEruptionSound: {fileID: 8300000, guid: fe251c0ec312433aae9fa7cdae50da17, type: 3}
+  breathChargeSound: {fileID: 8300000, guid: 5f4a6c39d96043488f3ebdd7b4c6298f, type: 3}
+  breathStreamSound: {fileID: 8300000, guid: 7850fdc5a86343419ce02c005cb3ab02, type: 3}
+  lavaPoolSound: {fileID: 8300000, guid: a9c4c71dc9184c71b83f37724713b8b9, type: 3}
+  phaseRoarSound: {fileID: 8300000, guid: 48c2e597fe744781abd587949842c2fe, type: 3}
   appearTime: 6.3
   fireballPrefab: {fileID: 164960621318258672, guid: ad12f51a9c9e3d84ea0ffd8cba97bd83, type: 3}
   fireballRange: 35
@@ -188550,3 +188564,15 @@ Transform:
   m_Children: []
   m_Father: {fileID: 6681282194364682270}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2176673584565979352
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5171199579339234610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

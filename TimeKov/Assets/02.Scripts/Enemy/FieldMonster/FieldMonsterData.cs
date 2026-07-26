@@ -249,6 +249,9 @@ public class FieldMonsterData : MeleeEnemyData
     [Tooltip("발사체가 맞았을 때 터지는 임팩트 VFX. 선택.")]
     public GameObject impactVFX;
 
+    [Tooltip("착지/명중 임팩트(impactVFX)가 터질 때 재생할 사운드(하늘낙하 얼음 장판 폭발음 등). 선택.")]
+    public AudioClip impactSound;
+
     [Tooltip("발사체 속도(m/s). 느릴수록 피하기 쉬움.")]
     public float projectileSpeed = 14f;
 

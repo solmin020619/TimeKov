@@ -965,6 +965,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         if (_dead) yield break;
 
         Play(data.leapEndState);
+        _motor.Feedback?.PlayAttack();   // 착지 강타 — 기존엔 VFX만 있고 소리가 없었음
         if (data.leapImpactVfx != null)
         {
             // ★도약은 착지 원이 빨강이므로 폭발도 빨강으로 묶는다.
@@ -1047,6 +1048,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
         // 솟구치는 모션. 이 모션 안에서 타격이 들어간다.
         Play(data.burrowOutState);
+        _motor.Feedback?.PlayAttack();   // 솟구침 = 공격 순간 — 기존엔 소리 없었음
         float hit = Mathf.Clamp(data.burrowHitTime, 0.05f, Mathf.Max(0.1f, data.burrowOutTime));
         yield return new WaitForSeconds(hit);
         if (_dead) yield break;
