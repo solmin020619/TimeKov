@@ -135,6 +135,30 @@ public class QuestManager : MonoBehaviour
         // BeginAll 호출 안 함. UI Setup이 자기 흐름에서 호출
     }
 
+    // 씬 언로드/파괴 시 정리. ★핵심: Instantiate 한 objective 는 ScriptableObject 라 '씬 오브젝트'가 아니다
+    //   -> 씬 언로드로 자동 파괴되지 않는다. 정리 안 하면 static GameEvents 구독이 살아남아, 다음 세션
+    //   (메인메뉴->재입장)에서 적을 죽이면 '죽은 이 매니저'로 발화 = MissingReferenceException + 그 직전
+    //   SetCategoryIndex/Flush 로 저장 인덱스까지 오염(첫 퀘 스킵). 여기서 objective 구독해제+파괴로 끊는다.
+    //   (진행도 인덱스는 건드리지 않는다 - ResetAll 과 달리 저장은 그대로 둔다.)
+    void OnDestroy()
+    {
+        foreach (var rt in _runtimes)
+        {
+            if (rt?.activeObjectives == null) continue;
+            foreach (var o in rt.activeObjectives)
+            {
+                if (o == null) continue;
+                o.OnCompleted -= OnObjectiveCompleted;
+                o.Deactivate();     // GameEvents 구독 해제(핵심 - 좀비 발화 차단)
+                Destroy(o);         // SO 클론 파괴(세션 누적 메모리 누수 방지)
+            }
+            rt.activeObjectives = null;
+        }
+        _objectiveOwner.Clear();
+
+        if (Instance == this) Instance = null;
+    }
+
     void Initialize()
     {
         foreach (var cat in tutorial.categories)
