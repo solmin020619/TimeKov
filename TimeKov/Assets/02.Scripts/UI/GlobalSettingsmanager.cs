@@ -312,8 +312,7 @@ public class GlobalSettingsManager : MonoBehaviour
     public void QuitToMainMenu()
     {
         GameSfx.Play(SfxId.SettingsClick);   // 하단 '메인메뉴' 버튼음
-        Time.timeScale = 1f;
-        CoreUtilities.LoadDirect(mainMenuSceneName);
+        CoreUtilities.SaveAndLoadMainMenu(mainMenuSceneName);   // 나가기 전 저장(진행 유실 방지) + timeScale 정상화 포함
     }
 
     // ── 설정값 적용 ───────────────────────────────────────────────────

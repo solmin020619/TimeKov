@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // 우주선 완전 수리(Lv.최대) 후 "탈출" = 게임 클리어 처리.
@@ -63,8 +62,8 @@ public static class ShipEscape
         {
             yield return Fade(0f, 1f, 1.2f);   // 검게(페이드 아웃)
 
-            Time.timeScale = 1f;               // UI 가 timeScale 을 멈춰뒀을 수 있으니 로드 전 정상화
-            SceneManager.LoadScene(MainMenuScene);
+            // 엔딩 = ESC '메인메뉴로'와 동일한 나가기 = 나가기 전 저장 후 로드(공통 경로, timeScale 정상화 포함).
+            CoreUtilities.SaveAndLoadMainMenu(MainMenuScene);
             yield return null;                 // 새 씬 한 프레임 렌더 대기
 
             yield return Fade(1f, 0f, 0.5f);   // 메인 메뉴에서 밝게(페이드 인)
