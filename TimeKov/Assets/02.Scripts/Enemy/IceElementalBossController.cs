@@ -28,6 +28,27 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     public MeleeEnemyData Data => data;   // 도감 등 외부서 보스 스탯 조회용(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "얼어붙은 시간의 파수꾼";
 
+    [Header("사운드 (패턴별 전용 SFX. data 의 attackSound 는 슬롯이 하나뿐이라 여기서 패턴별로 관리)")]
+    [Tooltip("근접(MeleeAttack 양쪽 다/GuardCounter 반격 스윙) 공용 공격음. 근접 테이크가 하나뿐이라 공유.")]
+    [SerializeField] private AudioClip meleeSound;
+    [Tooltip("근접/돌진/반격이 맞는 순간의 얼음 파편 임팩트음. meleeSound 와 같이 겹쳐 재생.")]
+    [SerializeField] private AudioClip meleeImpactSound;
+    [Tooltip("표적 빔(BeamAttack) 전용. 이 패턴만 신규 음원이 없어 기존 것을 그대로 씀.")]
+    [SerializeField] private AudioClip castAttackSound;
+    [SerializeField] private AudioClip rainSound;
+    [SerializeField] private AudioClip novaSound;
+    [SerializeField] private AudioClip dashSound;
+    [Tooltip("궁극기 시전(차징) 시작 시점.")]
+    [SerializeField] private AudioClip ultimateChargeSound;
+    [Tooltip("궁극기 폭발 시점.")]
+    [SerializeField] private AudioClip ultimateBurstSound;
+    [Tooltip("가드(무적) 돌입 시점.")]
+    [SerializeField] private AudioClip guardSound;
+    [Tooltip("페이즈 전환 포효 1회차(66%). data.detectSound(최초 발견)와는 별도.")]
+    [SerializeField] private AudioClip roarSound;
+    [Tooltip("페이즈 전환 포효 2회차(33%).")]
+    [SerializeField] private AudioClip roar2Sound;
+
     [Header("표적 빔 (손에서 지속 레이저 - 플레이어 조준 추적)")]
     [SerializeField] private GameObject beamVfx;
     [SerializeField] private float beamRange = 20f;
@@ -227,6 +248,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
+        BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
         if (_health != null) _health.Invulnerable = false;   // 가드 중 사망 시 무적 잔존 방지
         StopAllCoroutines();
         _motor.StopMove();
@@ -251,6 +273,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             _engaged = true;
             BossHealthBarUI.Show(_health, data != null ? data.enemyName : "얼음정령", bossSubtitle);
             _feedback?.PlayDetect();
+            BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지). 보스 공통 브금 재사용.
         }
         if (target == null) { _motor.StopMove(); return; }
         if (data == null) return;
@@ -385,9 +408,11 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
 
         SpawnCharge(chargeVfxHand, ChargePos(), a.windup);   // 손에 서리 응축(전조)
         yield return new WaitForSeconds(a.windup);
+        _feedback?.PlaySound(meleeSound);
         if (!_dead && _motor.PlayerInArc(data.attackRange * a.reachMul, a.halfAngle))
         {
             DealDamage(data.attackDamage * a.dmgMul);
+            _feedback?.PlaySound(meleeImpactSound);
             SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);   // 얼음 파편(임팩트)
         }
 
@@ -409,6 +434,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
 
         if (_dead) { _attacking = false; yield break; }
         _motor.PlayState(beamState);
+        _feedback?.PlaySound(castAttackSound);
 
         GameObject vfx = null;
         if (beamVfx != null)
@@ -463,6 +489,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
 
         if (_dead || _player == null) { _attacking = false; yield break; }
         _motor.PlayState(rainState);
+        _feedback?.PlaySound(rainSound);
 
         // 페이즈별 강화: 발 수↑ / 간격↓(빠르게) / 낙하 시간↓
         int phase = RoarsDone();
@@ -509,6 +536,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         // 발동 시 AOE_Explosion_Frost 가 바닥 원으로 확 퍼지며 밀어낸다.
         SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1f, novaWindup);
         yield return new WaitForSeconds(novaWindup);
+        _feedback?.PlaySound(novaSound);
 
         if (!_dead)
         {
@@ -528,6 +556,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _motor.StopMove();
         if (_player != null) _motor.FaceInstant(_player.position);
         _motor.PlayState(blockState);
+        _feedback?.PlaySound(guardSound);
         if (_health != null) _health.Invulnerable = true;
 
         yield return new WaitForSeconds(guardDuration);
@@ -539,9 +568,11 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             if (_player != null) _motor.FaceInstant(_player.position);
             SpawnCharge(chargeVfxHand, ChargePos(), guardCounterWindup);   // 반격 전 응축
             yield return new WaitForSeconds(guardCounterWindup);
+            _feedback?.PlaySound(meleeSound);
             if (!_dead && _motor.PlayerInArc(data.attackRange * 1.2f, 90f))
             {
                 DealDamage(data.attackDamage * guardCounterDmgMul);
+                _feedback?.PlaySound(meleeImpactSound);
                 SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);
             }
             yield return new WaitForSeconds(0.5f);
@@ -563,6 +594,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1f, dashWindup);   // 몸에 냉기 두르기(전조)
         yield return new WaitForSeconds(dashWindup);
         if (_dead) { _attacking = false; yield break; }
+        _feedback?.PlaySound(dashSound);
 
         GameObject vfx = dashVfx != null ? Instantiate(dashVfx, transform.position, transform.rotation, transform) : null;
         if (vfx != null) Destroy(vfx, dashDuration + dashRecover + 0.5f);   // 포효 중단에도 정리
@@ -583,6 +615,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             {
                 hitOnce = true;   // 관통 1회만
                 DealDamage(data.attackDamage * dashDmgMul);
+                _feedback?.PlaySound(meleeImpactSound);
                 SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);   // 스치는 얼음 파편
 
             }
@@ -620,6 +653,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _motor.PlayState(ultState);
         SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1.5f, ultWindup);   // 대형 응축(긴 예고)
         yield return new WaitForSeconds(ultWindup);
+        _feedback?.PlaySound(ultimateChargeSound);
 
         if (_dead || _player == null) { _attacking = false; yield break; }
 
@@ -630,6 +664,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         yield return new WaitForSeconds(ultTelegraph);
         if (!_dead)
         {
+            _feedback?.PlaySound(ultimateBurstSound);
             DealAreaDamage(spot, ultRadius, data.attackDamage * ultDmgMul);
             SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);   // 대형 착탄
         }
@@ -650,12 +685,12 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             _roared[i] = true;
             StopAllCoroutines();
             _attacking = false;
-            StartCoroutine(RoarPhase());
+            StartCoroutine(RoarPhase(i));
             return;
         }
     }
 
-    private IEnumerator RoarPhase()
+    private IEnumerator RoarPhase(int idx)
     {
         _attacking = true;
         // 포효는 StopAllCoroutines 뒤에 시작된다. 활강 돌진 중이었다면 에이전트가 꺼진 채
@@ -668,6 +703,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         }
         _motor.StopMove();
         _motor.PlayState(roarState);
+        _feedback?.PlaySound(idx == 0 ? roarSound : roar2Sound);
         yield return new WaitForSeconds(roarBuildup);
 
         if (!_dead)
@@ -752,6 +788,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     {
         _leash.Clear();
         _engaged = false;
+        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
 
         StopAllCoroutines();
         _attacking = false;

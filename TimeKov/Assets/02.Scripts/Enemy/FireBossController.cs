@@ -26,6 +26,30 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     public MeleeEnemyData Data => data;   // 도감/드롭/퀘스트가 킬 인식(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "꺼지지 않는 시간의 잿불";
 
+    [Header("사운드 (패턴별 전용 SFX. data 의 attackSound 는 슬롯이 하나뿐이라 여기서 패턴별로 관리)")]
+    [Tooltip("근접 강타(MeleeSmash) 윈드업 - 망치 휘두르기.")]
+    [SerializeField] private AudioClip meleeSwingSound;
+    [Tooltip("근접 강타가 실제로 맞는 순간.")]
+    [SerializeField] private AudioClip meleeImpactSound;
+    [SerializeField] private AudioClip fireballSound;
+    [Tooltip("파이어볼 연사(P2+, 페이즈당 2~3발) 전용. 단발(P1)과 구분.")]
+    [SerializeField] private AudioClip fireballBurstSound;
+    [Tooltip("지면 배러지(Eruption) 개별 발이 터지는 순간마다.")]
+    [SerializeField] private AudioClip eruptionSound;
+    [Tooltip("유성 하나가 낙하하는 동안(스폰 시점).")]
+    [SerializeField] private AudioClip meteorFallSound;
+    [Tooltip("유성 착탄 순간마다.")]
+    [SerializeField] private AudioClip meteorImpactSound;
+    [Tooltip("유성비(MeteorRain) 바라지 시전 시작 시 1회(\"불 떨구기 여러 개\" 예고).")]
+    [SerializeField] private AudioClip meteorRainCastSound;
+    [SerializeField] private AudioClip forwardEruptionSound;
+    [SerializeField] private AudioClip breathChargeSound;
+    [SerializeField] private AudioClip breathStreamSound;
+    [Tooltip("잔불 장판(LavaPool, P3 잔불) 생성 시 1회.")]
+    [SerializeField] private AudioClip lavaPoolSound;
+    [Tooltip("페이즈 전환 포효(RoarPhase) 공용. data.detectSound(최초 발견)와는 별도.")]
+    [SerializeField] private AudioClip phaseRoarSound;
+
     [Header("등장 (body_appear 재생 동안 공격 잠금)")]
     [SerializeField] private float appearTime = 6.3f;
 
@@ -223,6 +247,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
+        BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
         StopAllCoroutines();
         _attacking = false;
         // 사망이 브레스/유성/포효 도중이면 입/눈이 열린 채 굳는다 -> 중립 복구(사망 애니는 EnemyFeedback.PlayDeath 가 "Die").
@@ -248,6 +273,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
             _engaged = true;
             BossHealthBarUI.Show(_health, data != null ? data.enemyName : "화염정령", bossSubtitle);
             _feedback?.PlayDetect();
+            BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지). 보스 공통 브금 재사용.
         }
         if (target == null) return;   // 고정형 = 추격 없음. 애니는 exitTime 으로 알아서 Idle 복귀(매프레임 crossfade 금지)
         if (data == null) return;
@@ -343,6 +369,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         yield return new WaitForSeconds(fireballWindup);
 
         int shots = fireballBurstBase + RoarsDone() * fireballBurstPerPhase;   // P1=1 / P2=2 / P3=3
+        _feedback?.PlaySound(shots > 1 ? fireballBurstSound : fireballSound);
         for (int i = 0; i < shots && !_dead; i++)
         {
             if (i > 0 && _player != null) _motor.FaceInstant(_player.position);
@@ -415,6 +442,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         SpawnTelegraph(spot, eruptionRadius, eruptionTelegraph);
         yield return new WaitForSeconds(eruptionTelegraph);
         if (_dead) yield break;
+        _feedback?.PlaySound(eruptionSound);
         if (eruptionVfx != null) { var v = Instantiate(eruptionVfx, spot, Quaternion.identity); Destroy(v, 3f); }
         DealAreaDamage(spot, eruptionRadius, data.attackDamage * eruptionDmgMul);
         if (RoarsDone() >= 2) SpawnLavaPool(spot);
@@ -436,6 +464,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         PlayLayer(faceMouthOpen, mouthLayer);
         PlayLayer(faceEyesAwake, eyesLayer);
         yield return new WaitForSeconds(meteorWindup);
+        _feedback?.PlaySound(meteorRainCastSound);
 
         // P2(phase1)=base / P3(phase2)=base+per
         int count = meteorCountBase + Mathf.Max(0, RoarsDone() - 1) * meteorCountPerPhase;
@@ -459,6 +488,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     private IEnumerator MeteorDrop(Vector3 spot)
     {
         SpawnTelegraph(spot, meteorRadius, meteorFallTime);
+        _feedback?.PlaySound(meteorFallSound);
         Vector3 top = spot + Vector3.up * meteorFallHeight;
         GameObject m = null;
         if (meteorVfx != null)
@@ -477,6 +507,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         if (m != null) Destroy(m);
         if (_dead) yield break;
 
+        _feedback?.PlaySound(meteorImpactSound);
         if (meteorImpactVfx != null) { var v = Instantiate(meteorImpactVfx, spot, Quaternion.identity); Destroy(v, 3f); }
         DealAreaDamage(spot, meteorRadius, data.attackDamage * meteorDmgMul);
         if (RoarsDone() >= 2) SpawnLavaPool(spot);
@@ -488,11 +519,13 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         _attacking = true;
         if (_player != null) _motor.FaceInstant(_player.position);
         _motor.PlayState(meleeState);
+        _feedback?.PlaySound(meleeSwingSound);
         yield return new WaitForSeconds(meleeWindup);
 
         if (!_dead && _motor.PlayerInArc(data.attackRange * meleeReachMul, meleeHalfAngle))
         {
             DealDamage(data.attackDamage * meleeDmgMul);
+            _feedback?.PlaySound(meleeImpactSound);
             SpawnImpact(meleeImpactVfx, PlayerHitPos());
         }
 
@@ -508,6 +541,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         if (_player != null) _motor.FaceInstant(_player.position);
         _motor.PlayState(forwardState);
         yield return new WaitForSeconds(forwardWindup);
+        _feedback?.PlaySound(forwardEruptionSound);
 
         if (!_dead)
         {
@@ -537,7 +571,9 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         _motor.PlayState(breathState);
         PlayLayer(faceMouthOpen, mouthLayer);
         PlayLayer(faceEyesAwake, eyesLayer);
+        _feedback?.PlaySound(breathChargeSound);
         yield return new WaitForSeconds(breathWindup);
+        _feedback?.PlaySound(breathStreamSound);
 
         GameObject cone = null;
         if (breathVfx != null)
@@ -576,6 +612,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     // 잔불 장판(P3): 착탄 지점에 용암 존. 독립 티커로 지속 동안 반경 안 틱(보스와 분리).
     private void SpawnLavaPool(Vector3 spot)
     {
+        _feedback?.PlaySound(lavaPoolSound);
         GameObject v = lavaVfx != null ? Instantiate(lavaVfx, spot, Quaternion.identity) : null;
         if (v != null) Destroy(v, lavaDuration + 0.5f);
         StartCoroutine(LavaPool(spot, v));
@@ -621,6 +658,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         _motor.PlayState(roarState);
         PlayLayer(faceMouthOpen, mouthLayer);
         PlayLayer(faceEyesAwake, eyesLayer);
+        _feedback?.PlaySound(phaseRoarSound);
         yield return new WaitForSeconds(roarBuildup);
 
         if (!_dead)
@@ -703,6 +741,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     {
         _leash.Clear();
         _engaged = false;
+        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
         StopAllCoroutines();
         _attacking = false;
 

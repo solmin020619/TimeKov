@@ -1943,6 +1943,7 @@ GameObject:
   - component: {fileID: 9175553321838896112}
   - component: {fileID: 3815243077134679219}
   - component: {fileID: 3936268408131616068}
+  - component: {fileID: 9000873417378979886}
   m_Layer: 6
   m_Name: Enemy_Wyvern_Boss
   m_TagString: Untagged
@@ -2202,6 +2203,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: ea89ed684a10a084b80519ea1152d4ed, type: 2}
   bossSubtitle: "\uC2DC\uAC04\uC744 \uBE68\uC544\uBA39\uB294 \uD3EC\uC2DD\uC790"
+  biteSound: {fileID: 8300000, guid: dede091b121b480f83377d25527db103, type: 3}
+  stingerSound: {fileID: 8300000, guid: dede091b121b480f83377d25527db103, type: 3}
+  fireballSound: {fileID: 8300000, guid: ffffab491a494d7e953b0ae465ae1e6b, type: 3}
+  eruptionChargeSound: {fileID: 8300000, guid: 539b225962ae4be2856d2cc7c8433b1d, type: 3}
+  eruptionBurstSound: {fileID: 8300000, guid: d0bbb0224d8842718070c1005f8a2ac7, type: 3}
+  diveWindupSound: {fileID: 8300000, guid: b8bbf724f189481aa5485518c0259f62, type: 3}
+  diveImpactSound: {fileID: 8300000, guid: fd3bb008ff9c4c3e87bc84e190986ae7, type: 3}
+  phaseRoarSound: {fileID: 8300000, guid: ded7627f53844a67b536c1698337cde5, type: 3}
+  healRoarSound: {fileID: 8300000, guid: e9bfaaf266464685a8bf77ba3a11d2fd, type: 3}
   fireballPrefab: {fileID: 2810929602637157982, guid: 282d21460e0b45f42a44928379ef4105, type: 3}
   fireOffset: {x: 0, y: 2.5, z: 2.5}
   rangedRange: 22
@@ -2898,3 +2908,15 @@ Transform:
   m_Children: []
   m_Father: {fileID: 706737509640569444}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9000873417378979886
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6818248523769167523}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

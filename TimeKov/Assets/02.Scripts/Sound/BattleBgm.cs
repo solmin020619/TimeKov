@@ -38,6 +38,7 @@ public class BattleBgm : MonoBehaviour
         _src.loop = true;
         _src.playOnAwake = false;
         _src.spatialBlend = 0f;   // 2D
+        gameObject.AddComponent<BgmVolumeSource>();   // VolumeSync(SFX 일괄 동기화)가 이 BGM 소스를 덮지 않게 제외 표시
         GlobalSettingsManager.OnBGMVolumeChanged += OnBgmVolumeChanged;
     }
 

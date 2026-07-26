@@ -308,6 +308,7 @@ GameObject:
   - component: {fileID: 478816800731428886}
   - component: {fileID: 4175666197687865734}
   - component: {fileID: 5983965356603594742}
+  - component: {fileID: 3838200249100946782}
   m_Layer: 6
   m_Name: Enemy_IceElemental_Boss
   m_TagString: Untagged
@@ -449,7 +450,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 10
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -569,6 +570,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: 6a7ccd8c35af4904fbac550966f31523, type: 2}
   bossSubtitle: "\uC5BC\uC5B4\uBD99\uC740 \uC2DC\uAC04\uC758 \uD30C\uC218\uAFBC"
+  meleeSound: {fileID: 8300000, guid: 6fe67b75eb944d40afdd9bc887fd26a9, type: 3}
+  meleeImpactSound: {fileID: 8300000, guid: 0bf9dfc54b1442ff992198038b00539a, type: 3}
+  castAttackSound: {fileID: 8300000, guid: 500291d905d344869750f4cc54d60731, type: 3}
+  rainSound: {fileID: 8300000, guid: a31c726f00704d8d9c159c3c5a66d0c3, type: 3}
+  novaSound: {fileID: 8300000, guid: c0645a15fc70468e80309555550f2a83, type: 3}
+  dashSound: {fileID: 8300000, guid: 8006addc1b0a4b3f8aa375963723ede2, type: 3}
+  ultimateChargeSound: {fileID: 8300000, guid: 5a270ea1055c41e69a9175a60c82ebd2, type: 3}
+  ultimateBurstSound: {fileID: 8300000, guid: e9f0afe14555423b91827d415eed9d96, type: 3}
+  guardSound: {fileID: 8300000, guid: f3fc7f7f76eb484d980bc7e03b34e87d, type: 3}
+  roarSound: {fileID: 8300000, guid: 3ce6eaeb72bd417c8206e2db437909df, type: 3}
+  roar2Sound: {fileID: 8300000, guid: 8d81cdee36a14e048aea92f4a5946bd7, type: 3}
   beamVfx: {fileID: 7663338732539269153, guid: 461eb4dc945999b43a0ecc3fce6a27e8, type: 3}
   beamRange: 20
   beamCooldown: 3.5
@@ -1851,3 +1863,15 @@ Transform:
   - {fileID: 1297220611848277341}
   m_Father: {fileID: 7403171031600573669}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3838200249100946782
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2499783565034211209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

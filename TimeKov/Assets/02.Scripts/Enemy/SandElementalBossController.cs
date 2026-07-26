@@ -28,6 +28,27 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     public MeleeEnemyData Data => data;   // 도감 등 외부서 보스 스탯 조회용(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "시간을 삼키는 사막의 지배자";
 
+    [Header("사운드 (패턴별 전용 SFX. data 의 attackSound 는 슬롯이 하나뿐이라 여기서 패턴별로 관리)")]
+    [SerializeField] private AudioClip meleeAttack1Sound;   // Attack1
+    [SerializeField] private AudioClip meleeAttack2Sound;   // Attack2 (가드 반격 스윙도 재사용)
+    [SerializeField] private AudioClip waveSound;
+    [Tooltip("회오리 바라지 시전 시작 시 1회(지속 앰비언스). 개별 기둥마다가 아니라 바라지 시작에만 — 여러 개가 동시에 겹치면 너무 시끄러워진다.")]
+    [SerializeField] private AudioClip tornadoSound;
+    [SerializeField] private AudioClip quicksandSound;
+    [Tooltip("모래관 생성(시전 완료) 시점.")]
+    [SerializeField] private AudioClip coffinCastSound;
+    [Tooltip("모래관 붕괴(폭발) 시점.")]
+    [SerializeField] private AudioClip coffinBurstSound;
+    [Tooltip("가드(무적) 돌입 시점.")]
+    [SerializeField] private AudioClip guardSound;
+    [SerializeField] private AudioClip diveDropSound;
+    [SerializeField] private AudioClip diveLandSound;
+    [SerializeField] private AudioClip ultimateSound;
+    [Tooltip("페이즈 전환 포효 1회차(66%). data.detectSound(최초 발견)와는 별도.")]
+    [SerializeField] private AudioClip roarSound;
+    [Tooltip("페이즈 전환 포효 2회차(33%).")]
+    [SerializeField] private AudioClip roar2Sound;
+
     [Header("모래 파도 (SandWave - 전방 부채꼴 스윕. 중거리 견제)")]
     [SerializeField] private GameObject waveVfx;
     [Tooltip("지면 VFX(모래 파도 등)를 지면에서 살짝 띄우는 높이(m). 0이면 지면과 딱 붙어 울퉁불퉁한 사막 지형을 뚫었다 안 뚫었다 하며 치지직거린다(z-fighting/클리핑). 여전하면 이 값을 키워라.")]
@@ -255,6 +276,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
+        BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
         if (_health != null) _health.Invulnerable = false;   // 가드 중 사망 시 무적 잔존 방지
         StopAllCoroutines();
         ReleaseCoffinLock();   // ★사망이 코루틴을 끊어도 감금 락은 반드시 푼다
@@ -281,6 +303,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
             _engaged = true;
             BossHealthBarUI.Show(_health, data != null ? data.enemyName : "모래정령", bossSubtitle);
             _feedback?.PlayDetect();
+            BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지). 보스 공통 브금 재사용.
         }
         if (target == null) { _motor.StopMove(); return; }
         if (data == null) return;
@@ -418,6 +441,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
         SpawnCharge(chargeVfxHand, ChargePos(), a.windup);
         yield return new WaitForSeconds(a.windup);
+        _feedback?.PlaySound(idx == 1 ? meleeAttack2Sound : meleeAttack1Sound);
         if (!_dead && _motor.PlayerInArc(data.attackRange * a.reachMul, a.halfAngle))
         {
             DealDamage(data.attackDamage * a.dmgMul);
@@ -440,6 +464,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
         SpawnCharge(chargeVfxHand, ChargePos(), waveWindup);
         yield return new WaitForSeconds(waveWindup);
+        _feedback?.PlaySound(waveSound);
 
         if (!_dead)
         {
@@ -472,6 +497,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         _motor.PlayState(tornadoState);
         SpawnCharge(chargeVfxBody, ChargePos(), tornadoWindup);
         yield return new WaitForSeconds(tornadoWindup);
+        _feedback?.PlaySound(tornadoSound);
 
         if (!_dead)
         {
@@ -522,6 +548,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         _motor.PlayState(quicksandState);
         SpawnCharge(chargeVfxBody, ChargePos(), quicksandWindup);
         yield return new WaitForSeconds(quicksandWindup);
+        _feedback?.PlaySound(quicksandSound);
 
         // 늪을 깔고 보스는 곧 풀려난다(장판 데미지는 독립 티커가 유지). = "깔고 이동한다".
         // 보스가 채널에 묶여 서 있지 않으므로 반경 밖 회피가 '보스 무료 딜'로 이어지지 않는다.
@@ -567,6 +594,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         _motor.PlayState(coffinState);
         SpawnCharge(chargeVfxHand, ChargePos(), coffinWindup);
         yield return new WaitForSeconds(coffinWindup);
+        _feedback?.PlaySound(coffinCastSound);
 
         if (_dead || _player == null) { _attacking = false; yield break; }
 
@@ -588,6 +616,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
         if (!_dead)
         {
+            _feedback?.PlaySound(coffinBurstSound);
             DealAreaDamage(coffinSpot, coffinRadius, data.attackDamage * coffinDmgMul);
             SpawnImpact(impactVfxHeavy, coffinSpot + Vector3.up * 0.3f);
         }
@@ -605,6 +634,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_player != null) _motor.FaceInstant(_player.position);
         _motor.PlayState(guardState);
         GameObject shield = SpawnCharge(guardVfx, transform.position + Vector3.up * 1f, guardDuration + 0.2f);
+        _feedback?.PlaySound(guardSound);
         if (_health != null) _health.Invulnerable = true;
 
         yield return new WaitForSeconds(guardDuration);
@@ -617,6 +647,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
             if (_player != null) _motor.FaceInstant(_player.position);
             SpawnCharge(chargeVfxHand, ChargePos(), guardCounterWindup);
             yield return new WaitForSeconds(guardCounterWindup);
+            _feedback?.PlaySound(meleeAttack2Sound);
             if (!_dead && _motor.PlayerInArc(data.attackRange * 1.2f, 90f))
             {
                 DealDamage(data.attackDamage * guardCounterDmgMul);
@@ -657,10 +688,12 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         yield return MoveBetween(apexUp, over, diveHoverTime);
 
         // 3) 수직 급강하 -> hover+drop = 약 1.6s = Sand_Smash 예고 길이에 맞물림
+        _feedback?.PlaySound(diveDropSound);
         yield return MoveBetween(over, land, diveDropTime);
         transform.position = land;
 
         // 4) 착지 판정
+        _feedback?.PlaySound(diveLandSound);
         if (!_dead) DealAreaDamage(land, diveRadius, data.attackDamage * diveDmgMul);
         SpawnImpact(impactVfxMelee, land + Vector3.up * 0.2f);
 
@@ -729,6 +762,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         yield return new WaitForSeconds(ultTelegraph);
         if (!_dead)
         {
+            _feedback?.PlaySound(ultimateSound);
             DealAreaDamage(spot, ultRadius, data.attackDamage * ultDmgMul);
             SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);
         }
@@ -752,12 +786,12 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
             if (_health != null) _health.Invulnerable = false;   // 가드 무적 중 포효가 끼어도 무적 잔존 방지
             EndDiveCleanup();      // 다이브 중 포효 시 공중 보스 지면 복구
             _attacking = false;
-            StartCoroutine(RoarPhase());
+            StartCoroutine(RoarPhase(i));
             return;
         }
     }
 
-    private IEnumerator RoarPhase()
+    private IEnumerator RoarPhase(int idx)
     {
         _attacking = true;
         // 포효는 StopAllCoroutines 뒤에 시작된다. 다이브 중이었다면 에이전트가 꺼진 채
@@ -770,6 +804,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         }
         _motor.StopMove();
         _motor.PlayState(roarState);
+        _feedback?.PlaySound(idx == 0 ? roarSound : roar2Sound);
         yield return new WaitForSeconds(roarBuildup);
 
         if (!_dead)
@@ -874,6 +909,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     {
         _leash.Clear();
         _engaged = false;
+        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
 
         StopAllCoroutines();
         ReleaseCoffinLock();   // ★리쉬 리셋이 코루틴을 끊어도 플레이어 락은 반드시 푼다

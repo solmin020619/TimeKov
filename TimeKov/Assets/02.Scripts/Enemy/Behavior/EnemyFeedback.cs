@@ -103,6 +103,15 @@ public class EnemyFeedback : MonoBehaviour
         // Attack trigger는 MeleeAttackAction에서 별도 호출 (기존 흐름 유지)
     }
 
+    /// <summary>
+    /// 보스처럼 attackSound 한 슬롯으로 부족한 컨트롤러가 자체 AudioClip 필드를 재생할 때 쓰는 범용 재생.
+    /// VFX/트리거 없이 소리만 낸다.
+    /// </summary>
+    public void PlaySound(AudioClip clip)
+    {
+        if (audioSource != null && clip != null) audioSource.PlayOneShot(clip);
+    }
+
     public void PlayDeath()
     {
         if (data == null) return;

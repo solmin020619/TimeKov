@@ -69,7 +69,8 @@ public class VolumeSync : MonoBehaviour
         foreach (var audio in sources)
         {
             if (audio == null) continue;
-            if (_excludeSet != null && _excludeSet.Contains(audio)) continue; // BGM 등 제외
+            if (_excludeSet != null && _excludeSet.Contains(audio)) continue; // BGM 등 제외(인스펙터 지정)
+            if (audio.GetComponent<BgmVolumeSource>() != null) continue;       // 런타임 BGM 소스(BattleBgm 등) 제외 — SFX 볼륨에 안 덮이게
             audio.volume = vol;
         }
     }

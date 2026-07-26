@@ -1272,6 +1272,7 @@ GameObject:
   - component: {fileID: 3165658066385001121}
   - component: {fileID: 8344430930313590691}
   - component: {fileID: 5550735042809983851}
+  - component: {fileID: 7891921736700624243}
   m_Layer: 6
   m_Name: Enemy_SpiderQueen_Desert
   m_TagString: Untagged
@@ -1460,7 +1461,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 6
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -2525,3 +2526,15 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6069774037359162351, guid: 45fe27830f197cd4eac705c746de3735, type: 3}
   m_PrefabInstance: {fileID: 5940067648935295259}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &7891921736700624243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6087327436936190874}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

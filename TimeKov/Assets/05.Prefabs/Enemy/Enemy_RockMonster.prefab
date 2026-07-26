@@ -1554,6 +1554,7 @@ GameObject:
   - component: {fileID: 8815718139926124550}
   - component: {fileID: 7637725026940800705}
   - component: {fileID: 5224634253474591605}
+  - component: {fileID: 8539334894599060075}
   m_Layer: 6
   m_Name: Enemy_RockMonster
   m_TagString: Untagged
@@ -1742,7 +1743,7 @@ AudioSource:
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
-  MinDistance: 1
+  MinDistance: 6
   MaxDistance: 500
   Pan2D: 0
   rolloffMode: 0
@@ -2566,3 +2567,15 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6069774037359162351, guid: 45fe27830f197cd4eac705c746de3735, type: 3}
   m_PrefabInstance: {fileID: 4988436224107962241}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8539334894599060075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7227662685256539022}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
