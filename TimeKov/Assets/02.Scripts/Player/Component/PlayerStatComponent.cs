@@ -23,8 +23,9 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     public float StaminaRegenDelay = 1.5f;
 
     [Header("Hurt")]
-    public float HurtDuration = 0.3f;  // 피격 경직 시간
-    public float InvincibleDuration = 0.5f;  // 피격 후 무적 시간
+    public float HurtDuration = 0.3f;  // 피격 경직(움직임 잠금) 시간. 무적과 분리 - 경직은 첫 히트만.
+    [Tooltip("피격 후 무적 시간(초). '같은 순간 중복 히트'만 막는 최소값이라 짧게 둔다. 이 값보다 간격이 긴 다단/볼리/틱 공격(보스 3연발 등)은 전부 들어간다. 0.5처럼 크게 두면 3연발이 1발로 씹힌다.")]
+    public float InvincibleDuration = 0.1f;  // 피격 후 무적 시간(짧게 - 다단 히트 씹힘 방지)
     [Tooltip("피격 시 Hit 애니메이션 재생 여부. 일반 몹=false, 보스=true로 설정")]
     public bool EnableHitAnimation = false;
 
@@ -42,11 +43,12 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     public bool IsExhausted { get; private set; }
     public bool IsInBase { get; private set; }
     public bool IsHurt { get; private set; }
-    public bool IsInvincible { get; private set; }
+    public bool IsInvincible => _iframeTimer > 0f;
 
     private Player _player;
     private Coroutine _hurtRoutine;
     private float _regenLockTimer;   // >0 동안 스태미나 회복 정지(대쉬 소모 직후만. 달리기는 안 검)
+    private float _iframeTimer;       // >0 동안 피격 무적. '같은 순간 중복 히트'만 차단(다단/볼리/틱은 간격이 있어 통과).
 
     // 로드 직후 ApplyCoreStats가 MaxHp를 확정하기 전까지 대기 중인 복원 비율(없으면 null).
     // CoreUpgradeManager.Start()가 ApplyCoreStats를 호출하는 시점에 1회만 소비된다.
@@ -110,6 +112,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     {
         HandleHpDrain();
         if (_regenLockTimer > 0f) _regenLockTimer -= Time.deltaTime;
+        if (_iframeTimer > 0f) _iframeTimer -= Time.deltaTime;
         HandleStaminaRegen();
         UpdateExhaustedState();
     }
@@ -131,7 +134,10 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     public void TakeDamage(float amount, Vector3 attackerPos = default)
     {
         if (IsDead) return;
-        if (IsInvincible) return;
+        // 무적은 '같은 순간 중복 히트'만 막는 짧은 창(InvincibleDuration, 기본 0.1s).
+        // 보스 3연발/배러지/유성/틱처럼 간격(0.15~0.25s)이 있는 다단 공격은 이 창을 지나 전부 들어간다.
+        if (_iframeTimer > 0f) return;
+        _iframeTimer = InvincibleDuration;
 
         float finalDamage = Mathf.Max(1f, amount - DEF);
         CurrentHp = Mathf.Max(0, CurrentHp - finalDamage);
@@ -141,18 +147,17 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
 
         _player?.Audio?.PlayHurt();   // 피격음(비치명타). 클립 2종 랜덤(번갈아) = GameSfxConfig PlayerHurt clips.
 
-        // [학살 플레이] 공격/스킬/대시 등 행동 중 피격은 데미지만 받고 행동을 끊지 않는다.
-        // 잡몹에 둘러싸여도 콤보가 뚝뚝 끊기지 않도록 — 가만히/이동 중일 때만 경직.
-        if (IsInAction())
-        {
-            // 피드백(셰이크/VFX)만 주고 경직·인터럽트 없음
-            ThirdPersonCamera.Shake(HurtShakeDuration, HurtShakeMagnitude);
-            VfxUtils.SpawnAtCaster(HurtVfxPrefab, gameObject, HurtVfxOffset, HurtVfxLifeTime, false);
-            OnHurt?.Invoke();
-            return;
-        }
+        // 피드백(셰이크/VFX/이벤트)은 들어간 모든 히트에 준다 -> 다단이면 연타 피드백.
+        ThirdPersonCamera.Shake(HurtShakeDuration, HurtShakeMagnitude);
+        VfxUtils.SpawnAtCaster(HurtVfxPrefab, gameObject, HurtVfxOffset, HurtVfxLifeTime, false);
+        OnHurt?.Invoke();
 
-        if (_hurtRoutine != null) StopCoroutine(_hurtRoutine);
+        // [학살 플레이] 공격/스킬/대시 등 행동 중 피격은 경직 없이 데미지만(콤보 유지).
+        if (IsInAction()) return;
+
+        // 경직(움직임 잠금)은 첫 히트만 — 이미 경직 중이면 다시 걸지 않는다(배러지 스턴락 방지).
+        if (IsHurt) return;
+        if (_hurtRoutine != null) StopCoroutine(_hurtRoutine);   // 캔슬로 IsHurt만 내려간 잔존 루틴 정리
         _hurtRoutine = StartCoroutine(HurtRoutine(attackerPos));
     }
 
@@ -171,20 +176,15 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     {
         if (!IsHurt) return;
         IsHurt = false;
-        // 무적(IsInvincible)은 그대로 둬서 같은 타격 도배만 막고, 경직만 푼다.
-        // _hurtRoutine 은 무적 해제까지 계속 돌게 두되 IsHurt 만 내려 행동 가능 상태로.
+        // 무적(_iframeTimer)은 짧은 중복차단 창이라 건드리지 않는다 - 경직만 즉시 푼다.
+        // 잔존 _hurtRoutine 은 다음 TakeDamage 가 StopCoroutine 으로 정리한다.
     }
 
+    // 경직(움직임 잠금)만 담당. 무적은 TakeDamage의 _iframeTimer로 분리됐고(다단 히트 씹힘 방지),
+    // 피드백(셰이크/VFX/OnHurt)도 TakeDamage에서 히트마다 직접 준다 -> 여기선 피격 애니메이션만.
     IEnumerator HurtRoutine(Vector3 attackerPos)
     {
         IsHurt = true;
-        IsInvincible = true;
-
-        // 피격 카메라 셰이크
-        ThirdPersonCamera.Shake(HurtShakeDuration, HurtShakeMagnitude);
-
-        // 행동 중 피격은 위 TakeDamage 에서 이미 분기 처리(끊지 않음) → 여기 도달 시점은
-        // 가만히/이동 중. 인터럽트는 더 이상 강제하지 않는다. (학살 플레이 — 콤보 유지)
 
         // 피격 애니메이션 — EnableHitAnimation이 true이고 정지 상태일 때만 재생
         // 이동 중 피격 시엔 경직만 주고 애니메이션은 생략 (어색한 끌림 방지)
@@ -194,24 +194,9 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
             _player.Anim.PlayHit(isLeft);
         }
 
-        VfxUtils.SpawnAtCaster(
-            HurtVfxPrefab,
-            gameObject,
-            HurtVfxOffset,
-            HurtVfxLifeTime,
-            false
-            );
-
-        OnHurt?.Invoke();
-
-        // 피격 경직 시간
+        // 피격 경직 시간(첫 히트만 — 재진입은 TakeDamage의 IsHurt 가드가 막아 배러지 스턴락 방지)
         yield return new WaitForSeconds(HurtDuration);
         IsHurt = false;
-
-        // 무적 잔여 시간 (InvincibleDuration이 HurtDuration보다 작게 설정되면 0으로 보정)
-        float remainingInvincible = Mathf.Max(0f, InvincibleDuration - HurtDuration);
-        yield return new WaitForSeconds(remainingInvincible);
-        IsInvincible = false;
         _hurtRoutine = null;
     }
 
@@ -291,7 +276,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         IsExhausted = false;
         IsInBase = true;
         IsHurt = false;
-        IsInvincible = false;
+        _iframeTimer = 0f;
 
         if (_hurtRoutine != null)
         {
