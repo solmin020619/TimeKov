@@ -20,6 +20,9 @@ public static class CoreUtilities
     {
         SaveSlotManager.Instance?.SaveActive();
         Time.timeScale = 1f;   // UI가 timeScale을 멈춰뒀을 수 있으니 로드 전 정상화
+        // 재입장 대비: 인게임 UI(설정창 등)가 꺼둔 입력 게이팅 static 복구.
+        //   안 하면 다음 프롤로그엔 GameUIController가 없어 stale하게 남아 마우스룩/입력이 잠긴다.
+        GameUIController.ResetInputGatingForSceneExit();
         LoadDirect(mainMenuScene);
     }
 

@@ -672,6 +672,18 @@ public class GameUIController : MonoBehaviour
         Cursor.lockState = enabled ? CursorLockMode.Locked : CursorLockMode.None;
     }
 
+    // 메인메뉴로 나갈 때 호출(CoreUtilities.SaveAndLoadMainMenu). 인게임 UI(설정창/인벤 등)가 꺼둔
+    //   '입력 게이팅' static 을 gameplay 기본값으로 복구한다. 안 하면 다음 씬(프롤로그 등)엔 GameUIController 가
+    //   없어 stale 한 채로 남아, ThirdPersonCamera 의 (IsUIOpen || !GameplayInputEnabled) 게이트가 마우스룩을
+    //   통째로 막은 채로 시작한다(설정창 열고 메인메뉴로 나갔다 재입장하면 마우스 잠김 = 이 버그).
+    public static void ResetInputGatingForSceneExit()
+    {
+        GameplayInputEnabled = true;
+        ThirdPersonCamera.IsUIOpen = false;
+        ThirdPersonCamera.BlockZoom = false;
+        PlayerInputComponent.IsBlocked = false;
+    }
+
     /// <summary>튜토리얼 영상 팝업이 떠 있는 동안 true — 마우스로 닫으므로 커서 강제 표시. TutorialVideoUI가 세팅.</summary>
     public bool TutorialVideoCursor { get; set; }
 

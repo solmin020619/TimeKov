@@ -21,6 +21,12 @@ public class PrologueManager : MonoBehaviour
 
     void Start()
     {
+        // 프롤로그는 결계 안(안전 구역)으로 취급 - 시간(HP) 드레인 방지.
+        //   프롤로그 씬엔 BaseZone(결계)이 없어 IsInBase가 false로 남아, 결계 밖 취급이라 시간이 계속 깎이던 것 방지.
+        //   (World 진입 시 새 Player + BaseZone이 IsInBase를 정상 구동하므로 여기서 켜도 World엔 영향 없음.)
+        var stat = FindFirstObjectByType<PlayerStatComponent>();
+        if (stat != null) stat.SetInBase(true);
+
         if (QuestManager.Instance != null)
             QuestManager.Instance.OnAllCompleted += OnPrologueComplete;
         else
