@@ -59,6 +59,11 @@ public class EnemySpawnPoint : MonoBehaviour
              "재방문하면 몹은 새로 스폰된다(엘리트 해금 진행도는 유지).")]
     [Min(0f)] [SerializeField] private float activateDistance = 100f;
 
+    [Tooltip("존이 잠들 때, 플레이어가 이 거리(m) 안에 있는 몹은 despawn 하지 않는다.\n" +
+             "아그로 걸어 끌고 온 몹이 눈앞에서 사라지는 것 방지 - 그 몹은 플레이어가 멀어지면(시야 밖) 그때 조용히 정리된다.\n" +
+             "시야보다 넉넉히(단, activateDistance 보다는 작게). 0 = 존이 잠들면 거리 무관 전부 despawn(옛 동작).")]
+    [Min(0f)] [SerializeField] private float despawnKeepAliveRadius = 50f;
+
     [Header("초기 스폰")]
     [Tooltip("시작 시 항목별 maxCount까지 자동 스폰(해금형 엘리트 제외 = 일반몹 처치 후 등장)")]
     [SerializeField] private bool spawnOnStart = true;
@@ -105,10 +110,6 @@ public class EnemySpawnPoint : MonoBehaviour
     private int _normalKills;
     private bool _zoneAsleep;   // activateDistance 슬립 상태(몹 despawn 됨). 플레이어 접근 시 깨어나 재스폰.
     private readonly Dictionary<GameObject, int> _entryOf = new();
-
-    // TryGetRandomNavPos 마지막 호출에서 raycast로 찾은 ground 정보 (SpawnPrefab에서 baseOffset 보정용)
-    private Vector3 _lastGroundPos;
-    private bool _lastHasGround;
 
     private void Awake()
     {
@@ -234,18 +235,21 @@ public class EnemySpawnPoint : MonoBehaviour
         if (src != null && src.Data != null && !string.IsNullOrEmpty(src.Data.enemyName))
             enemy.name = src.Data.enemyName;
 
-        // Ground 정렬 보정: 적 발이 ground에 닿도록 NavMeshAgent.baseOffset 강제 보정
-        // 원인 1: prefab의 baseOffset이 양수 (예: 0.86) -> transform이 NavMesh 위로 그만큼 들림
-        // 원인 2: NavMesh 자체가 ground보다 위에 깔림 -> baseOffset 음수로 보정 필요
-        if (snapToGround && _lastHasGround)
+        // Ground 정렬 보정: navmesh 점 '바로 아래' 지면을 재서, navmesh가 지면 위로 뜬 만큼만 내린다.
+        // ★핵심(Option A): 랜덤 XZ 레이(옛 방식)가 아니라 '적이 실제 설 navmesh 점' 아래로 쏜다.
+        //   돌/건물이 Ground 레이어라도 그 위엔 navmesh 가 없으므로(Remove Object) navmesh 점은
+        //   항상 그 옆의 진짜 지면이다 -> 레이가 지면을 맞아 baseOffset 이 정상값이 된다. 공중 스폰(뜸) 근절.
+        //   prefab baseOffset(지상=0 / 비행몹=hover)을 존중해 그 위에 보정만 더한다(-= 로 hover 유지).
+        if (snapToGround)
         {
             var agent = enemy.GetComponent<NavMeshAgent>();
-            if (agent != null)
+            if (agent != null &&
+                Physics.Raycast(pos + Vector3.up * 2f, Vector3.down, out RaycastHit gh, 30f, groundMask, QueryTriggerInteraction.Ignore))
             {
-                float navMeshLiftFromGround = pos.y - _lastGroundPos.y;
-                agent.baseOffset = -navMeshLiftFromGround;
-                agent.Warp(_lastGroundPos);
+                float navMeshLift = pos.y - gh.point.y;   // navmesh 가 지면 위로 뜬 양(수직 정렬 측정)
+                agent.baseOffset -= navMeshLift;          // prefab 값 - 뜬 양 = 발이 지면에 닿음(hover 는 그대로)
             }
+            // 발밑에 지면 콜라이더가 없으면(물/공중) navmesh 높이를 신뢰 = prefab baseOffset 유지.
         }
 
         // 웨이포인트 생성 + 주입
@@ -387,8 +391,13 @@ public class EnemySpawnPoint : MonoBehaviour
             {
                 // 구역 박스까지의 거리(안에 있으면 0) - 큰 박스도 안전하게 판정.
                 float d = (p.position - area.bounds.ClosestPoint(p.position)).sqrMagnitude;
-                if (_zoneAsleep) { if (d < onSqr) yield return WakeZone(); }
-                else             { if (d > offSqr) SleepZone(); }
+                if (_zoneAsleep)
+                {
+                    // 잠든 중: 슬립 때 살려둔(끌고 온) 몹이 플레이어에게서 멀어지면(시야 밖) 그때 조용히 정리.
+                    if (aliveEnemies.Count > 0) DespawnFarEnemies();
+                    if (d < onSqr) yield return WakeZone();
+                }
+                else if (d > offSqr) SleepZone();
             }
             yield return wait;
         }
@@ -400,26 +409,50 @@ public class EnemySpawnPoint : MonoBehaviour
         yield return InitialSpawnAll();   // 항목별 maxCount 까지 새로 스폰
     }
 
-    // 구역의 살아있는 몹 전부 제거(처치 아님 - OnDeath 를 안 거쳐 킬 집계/퀘스트에 안 잡힌다) + 카운트/웨이포인트 정리.
+    // 존 슬립: 몹 despawn(처치 아님 - OnDeath 를 안 거쳐 킬 집계/퀘스트에 안 잡힌다).
+    //   ★단 플레이어 근처(despawnKeepAliveRadius) 몹은 남긴다 - 아그로 걸어 끌고 온 몹이 눈앞에서 사라지는 것 방지.
+    //     남긴 몹은 ActivationLoop(잠든 중 폴링)에서 플레이어가 멀어지면(시야 밖) 그때 조용히 정리된다.
+    //   _pendingByEntry: 진행 중 리스폰 코루틴은 _zoneAsleep 게이트로 스폰 안 함(자연 정리).
+    //   _normalKills: 엘리트 해금 진행도라 유지(재방문 시 이어짐).
     private void SleepZone()
     {
         _zoneAsleep = true;
+        DespawnFarEnemies();
+    }
+
+    // 플레이어에게서 despawnKeepAliveRadius 밖(안 보이는) 몹만 despawn. 근처(끌고 온) 몹은 살려둔다.
+    //   keepAlive=0 이면 거리 무관 전부(옛 동작). 잠든 상태에서 주기적으로 호출돼 남은 몹을 늦게 정리한다.
+    private void DespawnFarEnemies()
+    {
+        Transform p = GetPlayerTransform();
+        float keepSqr = despawnKeepAliveRadius * despawnKeepAliveRadius;
         for (int i = aliveEnemies.Count - 1; i >= 0; i--)
         {
             var e = aliveEnemies[i];
-            if (e == null) continue;
-            if (enemyWaypoints.TryGetValue(e, out var pts))
-            {
-                foreach (var wp in pts) if (wp != null) Destroy(wp);
-                enemyWaypoints.Remove(e);
-            }
-            _entryOf.Remove(e);
-            Destroy(e);
+            if (e == null) { aliveEnemies.RemoveAt(i); continue; }
+            if (despawnKeepAliveRadius > 0f && p != null
+                && (e.transform.position - p.position).sqrMagnitude <= keepSqr)
+                continue;   // 플레이어 근처 = 시야 안 = 살려둔다
+            DespawnOne(e);
+            aliveEnemies.RemoveAt(i);
         }
-        aliveEnemies.Clear();
-        for (int i = 0; i < _aliveByEntry.Length; i++) _aliveByEntry[i] = 0;
-        // _pendingByEntry: 진행 중 리스폰 코루틴은 _zoneAsleep 게이트로 스폰 안 함(자연 정리).
-        // _normalKills: 엘리트 해금 진행도라 유지(재방문 시 이어짐).
+    }
+
+    // 한 마리 despawn: 웨이포인트/카운트/맵 정리 후 파괴. (aliveEnemies 리스트 제거는 호출자 책임 = 역순 루프 인덱스 안전)
+    private void DespawnOne(GameObject e)
+    {
+        if (enemyWaypoints.TryGetValue(e, out var pts))
+        {
+            foreach (var wp in pts) if (wp != null) Destroy(wp);
+            enemyWaypoints.Remove(e);
+        }
+        if (_entryOf.TryGetValue(e, out int idx))
+        {
+            if (idx >= 0 && idx < _aliveByEntry.Length)
+                _aliveByEntry[idx] = Mathf.Max(0, _aliveByEntry[idx] - 1);
+            _entryOf.Remove(e);
+        }
+        Destroy(e);
     }
 
     // 해금되는 순간(일반몹 N킬 달성) 엘리트가 곧장 나오게 하는 첫 등장 지연(초).
@@ -487,22 +520,16 @@ public class EnemySpawnPoint : MonoBehaviour
             Vector3 world = transform.TransformPoint(area.center + local);
 
             Vector3 candidate = world;
-            _lastHasGround = false;
             if (snapToGround)
             {
-                // 지면 탐색 레이: 박스 top 위에서 시작해 아주 길게 아래로 쏜다.
-                //   옛 범위(2*size.y+50)는 박스가 지형보다 한참 위이거나 영역 안 고저차가 크면 낮은 지대까지
-                //   안 닿아, ground 를 못 찾은 낮은 곳은 스폰이 밀리고 높은 곳만 뽑히던 문제가 있었다.
-                //   이제 XZ 영역 아래 지면을 고도차와 무관하게 잡는다(모든 스포너 공통 적용).
+                // 지면 탐색 레이: 박스 top 위에서 시작해 아주 길게 아래로 쏜다(후보를 지면 근처로 내려 NavMesh sample 성공률↑).
+                //   박스가 지형보다 한참 위이거나 영역 안 고저차가 커도 낮은 지대까지 닿게 길게.
+                //   baseOffset 보정은 여기가 아니라 SpawnPrefab 에서 navmesh 점 바로 아래로 다시 잰다(Option A).
                 float rayUp = 50f;
                 Vector3 rayOrigin = world + Vector3.up * rayUp;
                 float rayLength = rayUp + area.size.y * 2f + 1000f;
                 if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit groundHit, rayLength, groundMask, QueryTriggerInteraction.Ignore))
-                {
                     candidate = groundHit.point;
-                    _lastGroundPos = groundHit.point;
-                    _lastHasGround = true;
-                }
                 // ground 못 찾으면 world 그대로 사용 (NavMesh sample이 대신 보정)
             }
 
