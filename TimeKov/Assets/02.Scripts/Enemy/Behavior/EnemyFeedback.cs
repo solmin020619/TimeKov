@@ -16,6 +16,17 @@ public class EnemyFeedback : MonoBehaviour
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
+        // ★AudioSource가 아예 없는 옛 몬스터(오크트리/언데드/웨어울프/스켈레톤 등) 대비:
+        //   신규 몹(hell/rock 등)과 동일한 3D 설정으로 자동 추가한다. 없으면 소리가 안 나서 "너무 작게" 들리던 문제.
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.minDistance = 6f;      // 신규 몹과 동일(6m 안에서 최대)
+            audioSource.maxDistance = 500f;
+            audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+        }
+
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
 
