@@ -286,10 +286,51 @@ public static class TutorialAssetBuilder
             $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 전송률 {Y}5%{E}를 달성하세요.", 5));
         endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "첫 시간에너지 전송", transmitObjs.ToArray()));
 
-        // 장기 목표(상시) - 100% 전송 + 우주선 수리로 탈출. 튜토가 끝나도 방향을 남긴다.
-        endgameQuests.Add(BuildQuest("quest_end_03_escape_goal", "탈출 준비",
-            CreateTransmissionRate("obj_escape_goal",
-                $"시간에너지 {Y}100%{E} 달성 + 우주선 수리를 마쳐 {Y}탈출{E}하세요.", 100)));
+        // ── 구역 캠페인 (5% -> 100%) : 4구역 x (보스 처치 + 전송률) + 우주선 수리 3회 -> 탈출 ──
+        //   전송은 25%씩 4구역(자연/설원/사막/용암). 구역 경계는 보스 재료 특수 키트가 필요 = 보스 처치가 핵심 서브.
+        //   보상은 전송 마일스톤(TransmissionManager)이 자동 지급하므로 여기 퀘엔 보상 없음(방향 제시 전용).
+        //   ★보스 enemyId: 자연=wyvern_boss / 설원=ice_elemental_boss / 사막=sand_elemental_boss / 용암=fire_boss.
+        //     (와이번=자연맵 가정 - 씬 배치 확인 필요. 나머지 3원소는 테마==맵 자명)
+        //   ★소프트락 후보(종욱 플레이검증): 보스가 죽으면 Destroy(리스폰 안 하는 직접배치면 일회성). 해당 구역 퀘가
+        //     활성화되기 '전에' 보스를 미리 잡으면(RecentCount 3.5초 창 지나) EnemyKill 이 영구 미완료.
+        //     보스가 리스폰하거나 조기 도달 불가면 문제 없음. 리스폰 안 하면 % 단일 objective 로 바꾸면 됨(라벨에 보스 명시).
+
+        // 자연 구역 (5 -> 25%). 25% 마일스톤이 우주선 Lv.3 재료(선체 보강재)를 지급.
+        endgameQuests.Add(BuildQuest("quest_end_03_region_nature", "자연 구역 돌파",
+            CreateEnemyKill("obj_boss_nature", $"자연의 지배자 {Y}와이번{E}을 {Y}처치{E}하세요.", "wyvern_boss", 1),
+            CreateTransmissionRate("obj_rate_25", $"충전 키트를 전송해 전송률 {Y}25%{E}를 달성하세요.", 25)));
+
+        endgameQuests.Add(BuildQuest("quest_end_04_ship_lv3", "1차 우주선 수리",
+            CreateShipRepairLevel("obj_ship_lv3",
+                $"모은 {Y}복구 에너지{E}와 {Y}선체 보강재{E}로 우주선을 {Y}Lv.3{E}까지 수리하세요.", 3)));
+
+        // 설원 구역 (25 -> 50%). 30% 코어 합성기, 40% 귀환석 Lv.2.
+        endgameQuests.Add(BuildQuest("quest_end_05_region_snow", "설원 구역 돌파",
+            CreateEnemyKill("obj_boss_snow", $"설원의 {Y}얼음정령{E}을 {Y}처치{E}하세요.", "ice_elemental_boss", 1),
+            CreateTransmissionRate("obj_rate_50", $"전송률 {Y}50%{E}를 달성하세요.", 50)));
+
+        endgameQuests.Add(BuildQuest("quest_end_06_ship_lv4", "2차 우주선 수리",
+            CreateShipRepairLevel("obj_ship_lv4",
+                $"{Y}동력 안정기{E}로 우주선을 {Y}Lv.4{E}까지 수리하세요.", 4)));
+
+        // 사막 구역 (50 -> 75%). 60% 생체 분리기+에너지 변환기, 70% 창고 상한+귀환석 Lv.3.
+        endgameQuests.Add(BuildQuest("quest_end_07_region_desert", "사막 구역 돌파",
+            CreateEnemyKill("obj_boss_desert", $"사막의 {Y}모래정령{E}을 {Y}처치{E}하세요.", "sand_elemental_boss", 1),
+            CreateTransmissionRate("obj_rate_75", $"전송률 {Y}75%{E}를 달성하세요.", 75)));
+
+        endgameQuests.Add(BuildQuest("quest_end_08_ship_lv5", "최종 우주선 수리",
+            CreateShipRepairLevel("obj_ship_lv5",
+                $"{Y}우주선 엔진{E}으로 우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5)));
+
+        // 용암 구역 (75 -> 100%). 80/90% 창고 상한·앰플 꾸러미·코어 키트. 100% 도달 = 엔딩 조건.
+        endgameQuests.Add(BuildQuest("quest_end_09_region_lava", "용암 구역 돌파",
+            CreateEnemyKill("obj_boss_lava", $"용암의 {Y}화염정령{E}을 {Y}처치{E}하세요.", "fire_boss", 1),
+            CreateTransmissionRate("obj_rate_100", $"전송률 {Y}100%{E}를 달성하세요.", 100)));
+
+        // 탈출 - 우주선 완전 수리 + 전송 100% 둘 다 충족 시 탈출. (앞 퀘로 이미 달성돼 있으면 즉시 완료 = 승리 확인)
+        endgameQuests.Add(BuildQuest("quest_end_10_escape", "탈출",
+            CreateShipRepairLevel("obj_escape_ship", $"우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5),
+            CreateTransmissionRate("obj_escape_rate", $"시간에너지 {Y}100%{E}를 달성해 {Y}탈출{E}하세요.", 100)));
 
         // [2층] 상황별 발견 팝업 데이터셋 생성 (이벤트 처음 발생 시 1회 설명 팝업. Resources 런타임 로드).
         BuildDiscoveryCueSet();
@@ -618,6 +659,14 @@ public static class TutorialAssetBuilder
     {
         var o = ScriptableObject.CreateInstance<TransmissionRateObjective>();
         o.label = label; o.targetRate = targetRate;
+        AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
+        return o;
+    }
+
+    static ShipRepairLevelObjective CreateShipRepairLevel(string name, string label, int targetLevel)
+    {
+        var o = ScriptableObject.CreateInstance<ShipRepairLevelObjective>();
+        o.label = label; o.targetLevel = targetLevel;
         AssetDatabase.CreateAsset(o, $"{ObjectivesFolder}/{name}.asset");
         return o;
     }

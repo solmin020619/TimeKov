@@ -45,8 +45,9 @@ public class BuildZoneProgression : MonoBehaviour, ISaveable
 
     [Header("시작 크기")]
     [Tooltip("게임 시작 시 적용할 한 변의 칸 수. 우주선이 Lv.1 값으로 곧 덮어쓰므로 안전망 역할이다.\n" +
-             "우주선이 없는 씬에서도 영역이 0 이 되지 않게 한다.")]
-    [SerializeField] private int startCells = 30;
+             "우주선이 없는 씬에서도 영역이 0 이 되지 않게 한다.\n" +
+             "★씬에 저장된 값이 이긴다 - 인스펙터의 Start Cells 도 같이 바꿔야 실제 반영된다.")]
+    [SerializeField] private int startCells = 18;
 
     [Header("참조")]
     [Tooltip("cellSize 참조용. 비워두면 씬에서 자동 탐색.")]

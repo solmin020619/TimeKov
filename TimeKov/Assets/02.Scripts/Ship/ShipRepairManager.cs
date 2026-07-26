@@ -283,15 +283,16 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
 
         levels = new List<LevelDef>
         {
-            // ★기획자 확정표(2026-07) 그대로. 표의 "적용 후 누적 효과" 열이 각 행의 값이다.
-            //   Lv.2 -> Lv.3 은 건축 변화가 없어서 zoneCells 를 40 으로 유지(같은 값이면 무시된다).
-            new LevelDef { title = "파손 상태",           requiredParts = 0,  factorySpeed = 1.0f, fuelSeconds = 40f, zoneCells = 30 },
-            new LevelDef { title = "시설 제어 계통 수리",    requiredParts = 3,  factorySpeed = 0.9f, fuelSeconds = 40f, zoneCells = 40 },
-            new LevelDef { title = "동력 변환 계통 수리",    requiredParts = 5,  factorySpeed = 0.8f, fuelSeconds = 50f, zoneCells = 40,
+            // ★건축 범위(zoneCells)는 매 레벨 성장 = 레벨업마다 확장 체감(2026-07-26 재설계).
+            //   시작(Lv.1) 18 로 좁게 -> 매 수리 +8~10. Lv.1 은 튜토(추출기·배양기)만 딱 들어갈 크기.
+            //   ★씬에 저장된 값이 이긴다 - 인스펙터의 Levels/Zone Cells 도 같이 바꿔야 실제 반영된다.
+            new LevelDef { title = "파손 상태",           requiredParts = 0,  factorySpeed = 1.0f, fuelSeconds = 40f, zoneCells = 18 },
+            new LevelDef { title = "시설 제어 계통 수리",    requiredParts = 3,  factorySpeed = 0.9f, fuelSeconds = 40f, zoneCells = 28 },
+            new LevelDef { title = "동력 변환 계통 수리",    requiredParts = 5,  factorySpeed = 0.8f, fuelSeconds = 50f, zoneCells = 36,
                            extraPartName = "우주선 선체 보강재" },
-            new LevelDef { title = "공간 안정화 계통 수리",  requiredParts = 7,  factorySpeed = 0.8f, fuelSeconds = 60f, zoneCells = 50,
+            new LevelDef { title = "공간 안정화 계통 수리",  requiredParts = 7,  factorySpeed = 0.8f, fuelSeconds = 60f, zoneCells = 44,
                            extraPartName = "우주선 동력 안정기" },
-            new LevelDef { title = "주 동력 계통 최종 수리",  requiredParts = 10, factorySpeed = 0.7f, fuelSeconds = 70f, zoneCells = 60,
+            new LevelDef { title = "주 동력 계통 최종 수리",  requiredParts = 10, factorySpeed = 0.7f, fuelSeconds = 70f, zoneCells = 54,
                            extraPartName = "우주선 엔진" },
         };
     }
