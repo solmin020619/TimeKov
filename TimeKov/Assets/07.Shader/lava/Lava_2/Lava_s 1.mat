@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Lava_s 3
+  m_Name: Lava_s 1
   m_Shader: {fileID: -6465566751694194690, guid: f54a8fb609c86634ebb06646fc4c1629, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -46,28 +46,28 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Fresnel_Power: 0.02
-    - _Metallic: 0
+    - _Fresnel_Power: 0.41
+    - _Metallic: 51.82
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Smoothness: 0
-    - _V_angle_offset: 1.23
-    - _noise_Amount: 2.24
-    - _noise_Power: -2.7
-    - _side_Power: 0.65
-    - _simpleNoiseScale: 345.3
-    - _v_Amount: 104.7
-    - _v_S: 98.24
+    - _Smoothness: 1
+    - _V_angle_offset: 10
+    - _noise_Amount: -70.74
+    - _noise_Power: 1
+    - _side_Power: 15.45
+    - _simpleNoiseScale: 1000
+    - _v_Amount: 0.01
+    - _v_S: 88.77
     m_Colors:
-    - _Fresnel_Color: {r: 7.3772106, g: 0.99316525, b: 0, a: 0}
-    - _Lava_Normal_speed: {r: 0, g: 0.05, b: 0, a: 0}
-    - _Lava_Remap: {r: -0.11, g: -0, b: 0, a: 0}
-    - _Lava_Scale: {r: 10, g: 10, b: 0, a: 0}
-    - _Lava_Speed: {r: 0, g: -0.08, b: 0, a: 0}
+    - _Fresnel_Color: {r: 0.41898456, g: 0.05237307, b: 0, a: 0}
+    - _Lava_Normal_speed: {r: 0.03, g: 0.001, b: 0, a: 0}
+    - _Lava_Remap: {r: -0.05, g: 1.36, b: 0, a: 0}
+    - _Lava_Scale: {r: 5, g: 5, b: 0, a: 0}
+    - _Lava_Speed: {r: 0, g: -0.003, b: 0, a: 0}
     - _Lava_color: {r: 0, g: 0, b: 0, a: 0}
-    - _V_speed: {r: 1.89, g: 0, b: 0, a: 0}
-    - _noise_speed: {r: 0, g: -0.01, b: 0, a: 0}
-    - _side_remap: {r: -0.1, g: 2.13, b: 0, a: 0}
+    - _V_speed: {r: 0, g: 0.01, b: 0, a: 0}
+    - _noise_speed: {r: -0.001, g: 0.0005, b: 0, a: 0}
+    - _side_remap: {r: 1, g: 8.11, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &684955692784566879
