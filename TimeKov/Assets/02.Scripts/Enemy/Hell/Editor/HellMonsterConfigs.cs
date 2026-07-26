@@ -127,11 +127,12 @@ public static class HellMonsterConfigs
             new HellAttackConfig { label = "연타", state = "Attack2", clipName = "Attack2",
                 weight = 1f, maxRange = 2.7f, hitTime = 0.45f, totalTime = 1.4f, cooldown = 3.2f,
                 damageMul = 1.25f, impactVfxPath = Hit(3), impactScale = 0.7f },
-            // ★원거리: 빠른 단발 음파탄. 얘는 견제형이라 자주 쏘되 아프지 않게.
+            // ★원거리: 빠른 2연발 음파탄. 견제형이라 아프지 않게였는데, damageMul 0.7(13x0.7=9.1)이
+            //   플레이어 DEF(10)보다 낮아 항상 최소 1 로 바닥쳤다. 체감되게 1.2 로(15.6 -> DEF 빼면 ~5/발).
             new HellAttackConfig { label = "음파탄", state = "Screech", clipName = "BattleRoar2",
                 kind = HellAttackKind.Ranged, telegraph = HellTelegraphKind.Charge,
                 weight = 1.2f, minRange = 4f, maxRange = 16f,
-                hitTime = 0.4f, totalTime = 1.4f, cooldown = 4.5f, damageMul = 0.7f,
+                hitTime = 0.4f, totalTime = 1.4f, cooldown = 4.5f, damageMul = 1.2f,
                 telegraphTime = 0.8f, telegraphScaleMul = 0.55f,
                 shots = 2, shotGap = 0.18f, spreadAngle = 8f },
         },

@@ -9768,9 +9768,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 721028227820224681}
-  - component: {fileID: 928185470314365194}
-  - component: {fileID: 9050509445472570673}
-  - component: {fileID: 1534060545875889218}
   - component: {fileID: 9189148072140210168}
   m_Layer: 0
   m_Name: Enemy_hell_hound_Projectile
@@ -9795,70 +9792,6 @@ Transform:
   - {fileID: 596801476241826513}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &928185470314365194
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7444841293288048963}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.20459643, y: 0.23754215, z: 0.84381807}
-  m_Center: {x: 0.004313633, y: -0.00051403046, z: 0.68448657}
---- !u!54 &9050509445472570673
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7444841293288048963}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 2
---- !u!114 &1534060545875889218
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7444841293288048963}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d4b0541b5febad42a247fd38f4d2278, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  speed: 25
-  muzzle: {fileID: 2388748477145312460, guid: 61cca1be64e2e3c449afae5106f3f0b1, type: 3}
-  hit: {fileID: 4317017026994793354, guid: 5f40ba704303a7a4c8deb6b37ab886ef, type: 3}
-  leftOver: []
 --- !u!114 &9189148072140210168
 MonoBehaviour:
   m_ObjectHideFlags: 0

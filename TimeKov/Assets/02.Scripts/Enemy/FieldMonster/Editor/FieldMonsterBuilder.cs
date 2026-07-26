@@ -431,6 +431,27 @@ public static class FieldMonsterBuilder
                 navA.obstacleAvoidanceType = (ObstacleAvoidanceType)c.navAvoidanceType;   // 큰 몹 RVO 지터 방지(None)
         }
 
+        // ★HP 바 높이 override: 자이언트웜처럼 콜라이더가 지하로 길게 뻗어 자동 높이(콜라이더 top)가
+        //   지면에 박히는 몹은 절대 높이로 고정한다(0=자동/기존). bodyHeightMul(콜라이더 배율)로는
+        //   콜라이더 top 이 원래 지면이라 못 올린다.
+        if (c.hpBarHeightOverride > 0f || !string.IsNullOrEmpty(c.hpBarFollowBone))
+        {
+            EnemyBuildUtil.AttachWorldHpBar(root, c.enemyName);   // 없으면 붙임(멱등)
+            var wui = root.GetComponentInChildren<EnemyWorldUI>(true);
+            if (wui != null)
+            {
+                var wuiSo = new SerializedObject(wui);
+                var hpProp = wuiSo.FindProperty("headOffsetOverride");
+                if (hpProp != null) hpProp.floatValue = c.hpBarHeightOverride;
+                var boneProp = wuiSo.FindProperty("followBoneName");
+                if (boneProp != null) boneProp.stringValue = c.hpBarFollowBone;
+                var gapProp = wuiSo.FindProperty("followBoneGap");
+                if (gapProp != null) gapProp.floatValue = c.hpBarFollowBoneGap;
+                wuiSo.ApplyModifiedProperties();
+            }
+            else Debug.LogWarning($"[{c.enemyName}] HP바(EnemyWorldUI) 를 못 찾아 높이 보정 적용 실패.");
+        }
+
         EnsureFolder(System.IO.Path.GetDirectoryName(c.prefabPath).Replace("\\", "/"));
         PrefabUtility.SaveAsPrefabAsset(root, c.prefabPath);
         PrefabUtility.UnloadPrefabContents(root);
@@ -609,6 +630,9 @@ public class FieldMonsterBuildConfig
     public float scale = 1f;
     public float navRadius = 0f;   // NavMeshAgent 반경 오버라이드(0=모델 bounds 자동). 큰 몹은 작게 줘 경계 끼임/텔레포트 방지.
     public float bodyHeightMul = 1f;   // 콜라이더/체력바 높이 배율(1=바운드 그대로). 머리 위에 날개/뿔이 솟아 바가 뜨는 몹만 <1 로.
+    public float hpBarHeightOverride = 0f;   // >0 이면 HP바를 원점 기준 이 높이(월드)로 고정. 자이언트웜처럼 콜라이더가 지하로 뻗어 자동높이가 지면에 박히는 몹용(bodyHeightMul 로는 못 올림).
+    public string hpBarFollowBone = "";      // 설정 시 HP바가 이 본(머리 등)을 따라감. 웜처럼 몸을 휘두르는 공격에 바가 머리에 붙어 있게. 우선순위: 본 > hpBarHeightOverride > 자동.
+    public float hpBarFollowBoneGap = 1.5f;  // 따라갈 본 위로 띄우는 높이(월드).
     public int navAvoidanceType = -1;   // NavMeshAgent 장애물 회피(-1=유지, 0=None/1=Low/…/4=High). 큰 몹은 0으로 RVO 지터 방지.
 
     // ── 전조/패턴(기본 = 거미S3형) ──

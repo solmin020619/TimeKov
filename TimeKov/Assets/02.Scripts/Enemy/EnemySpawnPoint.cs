@@ -490,8 +490,14 @@ public class EnemySpawnPoint : MonoBehaviour
             _lastHasGround = false;
             if (snapToGround)
             {
-                float rayLength = area.size.y * 2f + 50f;
-                if (Physics.Raycast(world, Vector3.down, out RaycastHit groundHit, rayLength, groundMask, QueryTriggerInteraction.Ignore))
+                // 지면 탐색 레이: 박스 top 위에서 시작해 아주 길게 아래로 쏜다.
+                //   옛 범위(2*size.y+50)는 박스가 지형보다 한참 위이거나 영역 안 고저차가 크면 낮은 지대까지
+                //   안 닿아, ground 를 못 찾은 낮은 곳은 스폰이 밀리고 높은 곳만 뽑히던 문제가 있었다.
+                //   이제 XZ 영역 아래 지면을 고도차와 무관하게 잡는다(모든 스포너 공통 적용).
+                float rayUp = 50f;
+                Vector3 rayOrigin = world + Vector3.up * rayUp;
+                float rayLength = rayUp + area.size.y * 2f + 1000f;
+                if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit groundHit, rayLength, groundMask, QueryTriggerInteraction.Ignore))
                 {
                     candidate = groundHit.point;
                     _lastGroundPos = groundHit.point;

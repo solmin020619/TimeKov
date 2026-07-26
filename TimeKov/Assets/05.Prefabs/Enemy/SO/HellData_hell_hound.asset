@@ -59,6 +59,7 @@ MonoBehaviour:
   groundTelegraphUnitRadius: 2
   telegraphTime: 0.85
   telegraphColor: {r: 0.72, g: 0.16, b: 1, a: 1}
+  tintVfx: 1
   telegraphScale: 1.4
   telegraphHeight: 1.65
   projectilePrefab: {fileID: 7444841293288048963, guid: 5efcacba971b30547903034d73ae84f2, type: 3}
@@ -66,6 +67,7 @@ MonoBehaviour:
   attacks:
   - label: "\uD654\uC5FC\uD1A0\uD574\uB0B4\uAE30"
     state: Spit
+    windupState: 
     weight: 1
     kind: 1
     telegraph: 1
@@ -89,6 +91,7 @@ MonoBehaviour:
     impactLift: 0.5
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   repeatPenalty: 0.35
   actionGapMin: 1.2
   actionGapMax: 2
@@ -113,13 +116,15 @@ MonoBehaviour:
   burrowWeight: 1
   burrowCooldown: 14
   burrowUnderTime: 1.4
-  burrowEmergeDistance: 2.5
+  burrowCommitTime: 0.5
+  burrowEmergeDistance: 0
   burrowDamageMul: 1.3
   burrowRadius: 3
   burrowInState: Submerge
   burrowOutState: Emerge
   burrowInTime: 0.6
   burrowOutTime: 0.5
+  burrowHitTime: 0.35
   burrowImpactVfx: {fileID: 0}
   useHitReaction: 1
   hitStates:

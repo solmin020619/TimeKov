@@ -23,6 +23,16 @@ public class EnemyWorldUI : MonoBehaviour
     [Tooltip("몬스터 실제 메쉬 윗부분에서 이만큼(월드 단위) 위에 띄운다. 모든 몬스터 동일 간격.")]
     [SerializeField] private float headGap = 0.4f;
 
+    [Tooltip("0=자동(콜라이더/메시 top 기준). >0 이면 이 높이(원점 기준 월드 단위)로 고정한다.\n" +
+             "자이언트웜처럼 콜라이더가 지하로 길게 뻗어 자동 계산 top 이 지면에 박히는 몹용 수동 보정.")]
+    [SerializeField] private float headOffsetOverride = 0f;
+
+    [Tooltip("설정하면 이 이름의 본(머리 등)을 따라 HP바가 움직인다 — 원점 고정 대신. 애니메이션으로 머리가 크게\n" +
+             "흔들리는 몹(웜처럼 몸을 휘두르는 공격)용. 비우면 기존 방식(원점 + 자동/override 높이).")]
+    [SerializeField] private string followBoneName = "";
+    [Tooltip("따라갈 본 위로 이만큼(월드 단위) 띄운다.")]
+    [SerializeField] private float followBoneGap = 1.5f;
+
     [Header("이름 가독성 (밝은 배경 대비)")]
     [Tooltip("이름 글자가 흰색이라 눈밭/밝은 배경에서 안 보임. 검은 외곽선으로 어디서나 읽히게. 폭 0 = 끔.")]
     [SerializeField] private Color nameOutlineColor = Color.black;
@@ -35,6 +45,7 @@ public class EnemyWorldUI : MonoBehaviour
 
     private float _headWorldOffset;   // 몬스터 pivot -> 메쉬 top 까지 높이 + headGap (스폰 시 1회 계산)
     private bool _headOffsetReady;
+    private Transform _followBone;    // followBoneName 설정 시 이 본을 따라감(원점 고정 대신)
     private bool _scaleReady;          // 부모 스케일 상쇄값 1회 계산 여부 (스폰 후 부모 스케일 불변 가정)
 
     private void Awake()
@@ -76,6 +87,10 @@ public class EnemyWorldUI : MonoBehaviour
         cam = Camera.main;
 
         CacheHeadOffset();   // 몬스터 실제 높이 기준으로 머리 위 위치 1회 계산
+
+        // 따라갈 본 지정 시 1회 탐색(웜 머리 등). 못 찾으면 null -> 기존 원점 방식으로 폴백.
+        if (!string.IsNullOrEmpty(followBoneName))
+            _followBone = FindBone(targetTransform, followBoneName);
 
         if (nameText != null)
             nameText.text = enemyName;
@@ -124,8 +139,17 @@ public class EnemyWorldUI : MonoBehaviour
 
         // 머리 위 통일 배치: 몬스터 실제 메쉬 윗부분 + headGap. 스케일/기본키 달라도 항상 머리 바로 위.
         if (!_headOffsetReady) CacheHeadOffset();
-        Vector3 p = targetTransform.position;
-        transform.position = new Vector3(p.x + worldOffset.x, p.y + _headWorldOffset, p.z + worldOffset.z);
+        if (_followBone != null)
+        {
+            // 따라갈 본(움직이는 머리)을 따라간다. 몸을 휘두르는 공격에도 바가 머리에 붙어 있게.
+            Vector3 b = _followBone.position;
+            transform.position = new Vector3(b.x + worldOffset.x, b.y + followBoneGap, b.z + worldOffset.z);
+        }
+        else
+        {
+            Vector3 p = targetTransform.position;
+            transform.position = new Vector3(p.x + worldOffset.x, p.y + _headWorldOffset, p.z + worldOffset.z);
+        }
 
         transform.forward = cam.transform.forward;
     }
@@ -162,6 +186,9 @@ public class EnemyWorldUI : MonoBehaviour
         _headOffsetReady = true;
         _headWorldOffset = worldOffset.y;   // 아무것도 못 찾을 때 폴백
 
+        // 수동 보정: 콜라이더가 지하로 뻗어 자동 top 이 지면에 박히는 몹(웜 등)은 이 값으로 고정.
+        if (headOffsetOverride > 0f) { _headWorldOffset = headOffsetOverride; return; }
+
         if (targetTransform == null) return;
 
         // 1순위: 몸통 콜라이더(트리거 제외 - 감지용 트리거는 몸집과 무관하게 크다)
@@ -187,6 +214,16 @@ public class EnemyWorldUI : MonoBehaviour
 
         if (has)
             _headWorldOffset = (b.max.y - targetTransform.position.y) + headGap;
+    }
+
+    // 이름으로 본 Transform 찾기. 정확 매칭 우선, 실패 시 부분 매칭(네임스페이스 접두 "rig:Head" 등 대비).
+    private static Transform FindBone(Transform root, string boneName)
+    {
+        if (root == null || string.IsNullOrEmpty(boneName)) return null;
+        var all = root.GetComponentsInChildren<Transform>(true);
+        foreach (var t in all) if (t.name == boneName) return t;
+        foreach (var t in all) if (t.name.Contains(boneName)) return t;
+        return null;
     }
 
     // ── 강제 숨김 ──

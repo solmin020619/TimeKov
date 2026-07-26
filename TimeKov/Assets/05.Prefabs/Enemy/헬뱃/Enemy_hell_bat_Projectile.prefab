@@ -9817,9 +9817,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4426301816195892116}
-  - component: {fileID: 7388293485005396078}
-  - component: {fileID: 5241966364781397826}
-  - component: {fileID: 2059398379019931454}
   - component: {fileID: 1284851593752780184}
   m_Layer: 0
   m_Name: Enemy_hell_bat_Projectile
@@ -9844,70 +9841,6 @@ Transform:
   - {fileID: 5015234713905373712}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &7388293485005396078
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8194582793201251749}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.10556653, y: 0.06988239, z: 0.89852834}
-  m_Center: {x: 0.0038246065, y: 0.0005002022, z: 1.1599216}
---- !u!54 &5241966364781397826
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8194582793201251749}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 2
---- !u!114 &2059398379019931454
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8194582793201251749}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d4b0541b5febad42a247fd38f4d2278, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  speed: 20
-  muzzle: {fileID: 8780016040394390935, guid: a40e821b9c9659b4c84fbee49cea66eb, type: 3}
-  hit: {fileID: 2066703683929491185, guid: 7bbc775da9091cf48a2d611ace68e898, type: 3}
-  leftOver: []
 --- !u!114 &1284851593752780184
 MonoBehaviour:
   m_ObjectHideFlags: 0

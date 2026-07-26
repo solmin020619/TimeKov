@@ -45,6 +45,13 @@ public static class WormBuilder
             attackRange = 6f, attackApproachRatio = 1.0f,     // 접근 안 함(그 자리서 스윕). reach(6)≥시야(5.5) → Chase 무이동
             visionRange = 5.5f, visionAngle = 360f,           // 사방 감지(사거리 안일 때만)
 
+            // ★HP바가 머리 본("Head Control", sweepHitBone 과 동일)을 따라가게 한다.
+            //   -> 몸을 휘두르는 공격(사진1)에도 바가 머리에 붙어 X/Y/Z 다 따라온다. 본 위 2m.
+            //   콜라이더가 지하로 -9까지 뻗어 자동높이가 지면에 박히던 문제도 이걸로 해결.
+            //   본을 못 찾을 때만 hpBarHeightOverride(6m 고정)로 폴백.
+            hpBarFollowBone = "Head Control", hpBarFollowBoneGap = 2f,
+            hpBarHeightOverride = 6f,
+
             // ★스윕 판정 — 단발 X. 스윕 활성 구간(20~80%) 동안 '머리 본(Head Control)'이 훑고 지나며
             //   플레이어에 반경(2.5) 안으로 접근하는 순간 히트 → 타이밍이 플레이어 위치에 따라 달라짐.
             sweepAttack = true, sweepStartRatio = 0.2f, sweepEndRatio = 0.6f,   // 0.6 이후는 회복 모션 → 판정 종료

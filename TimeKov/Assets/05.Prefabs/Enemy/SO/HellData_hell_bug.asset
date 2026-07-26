@@ -67,6 +67,7 @@ MonoBehaviour:
   attacks:
   - label: "\uBB3C\uC5B4\uB72F\uAE30"
     state: Attack1
+    windupState: 
     weight: 1.2
     kind: 0
     telegraph: 0
@@ -90,8 +91,10 @@ MonoBehaviour:
     impactLift: 0.5
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   - label: "\uD729\uC4F8\uAE30"
     state: Attack2
+    windupState: 
     weight: 0.9
     kind: 0
     telegraph: 0
@@ -115,8 +118,10 @@ MonoBehaviour:
     impactLift: 0.5
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   - label: "\uC0B0\uC131\uCE68"
     state: Spit
+    windupState: 
     weight: 1
     kind: 1
     telegraph: 1
@@ -140,6 +145,7 @@ MonoBehaviour:
     impactLift: 0.5
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   repeatPenalty: 0.35
   actionGapMin: 1.2
   actionGapMax: 2

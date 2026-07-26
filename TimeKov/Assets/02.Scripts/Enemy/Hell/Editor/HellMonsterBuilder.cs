@@ -373,6 +373,15 @@ public static class HellMonsterBuilder
         root.name = $"{c.PrefabName}_Projectile";
         root.transform.localScale = Vector3.one * c.projectileScale;
 
+        // ★VFX 프리팹에 딸려온 자체 무버/충돌 스크립트를 떼어낸다.
+        //   ToMoveProjectile 은 자기 speed 로 전진 + 충돌 시 '데미지 없이' Destroy 라, 아래 WyvernFireball 과
+        //   싸워서 "맞아도 피가 안 닳는다"(플레이어/지형에 닿으면 데미지 없이 사라짐). 발사·명중·데미지는
+        //   WyvernFireball 하나로 통일한다. Rigidbody/Collider 도 함께 제거(WyvernFireball 은 거리판정이라 불필요,
+        //   남겨두면 물리 충돌로 조기 소멸/밀림).
+        foreach (var m in root.GetComponentsInChildren<ToMoveProjectile>(true)) Object.DestroyImmediate(m);
+        foreach (var rb in root.GetComponentsInChildren<Rigidbody>(true)) Object.DestroyImmediate(rb);
+        foreach (var col in root.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(col);
+
         var fb = root.AddComponent<WyvernFireball>();
         var so = new SerializedObject(fb);
         SetFloat(so, "speed", c.projectileSpeed);

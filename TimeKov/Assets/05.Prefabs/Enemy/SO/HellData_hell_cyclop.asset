@@ -67,6 +67,7 @@ MonoBehaviour:
   attacks:
   - label: "\uB0B4\uB824\uCC0D\uAE30"
     state: Attack1
+    windupState: 
     weight: 1.2
     kind: 0
     telegraph: 4
@@ -90,8 +91,10 @@ MonoBehaviour:
     impactLift: 0.6
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   - label: "\uD718\uB450\uB974\uAE30"
     state: Attack2
+    windupState: 
     weight: 1
     kind: 0
     telegraph: 0
@@ -115,8 +118,10 @@ MonoBehaviour:
     impactLift: 0.9
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   - label: "\uC591\uC190\uB0B4\uB824\uCE58\uAE30"
     state: Attack4
+    windupState: 
     weight: 0.7
     kind: 0
     telegraph: 4
@@ -140,8 +145,10 @@ MonoBehaviour:
     impactLift: 0.6
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   - label: "\uD654\uC5FC\uAD6C"
     state: Cast
+    windupState: 
     weight: 1.1
     kind: 1
     telegraph: 1
@@ -165,6 +172,7 @@ MonoBehaviour:
     impactLift: 0.5
     telegraphColorOverride: {r: 0, g: 0, b: 0, a: 0}
     lockFacing: 0
+    groundTargetsPlayer: 0
   repeatPenalty: 0.35
   actionGapMin: 1.2
   actionGapMax: 2
