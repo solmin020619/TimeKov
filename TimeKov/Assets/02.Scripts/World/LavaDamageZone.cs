@@ -14,23 +14,32 @@ public class LavaDamageZone : MonoBehaviour
     [SerializeField] float _tickInterval  = 1f;
     [SerializeField] float _burnDuration  = 3f;
 
+    [Header("화염 VFX")]
+    [SerializeField] GameObject _fireVfxPrefab;
+    [SerializeField] Vector3    _fireVfxOffset = new Vector3(0f, 0.5f, 0f);
+
     bool                _inLava;
     PlayerStatComponent _stat;
+    GameObject          _playerGO;
     Coroutine           _burnCoroutine;
+    GameObject          _fireVfxInstance;
 
     void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
 
         if (_stat == null)
+        {
             _stat = other.GetComponentInParent<PlayerStatComponent>()
                  ?? other.GetComponent<PlayerStatComponent>();
+            _playerGO = _stat != null ? _stat.gameObject : null;
+        }
         if (_stat == null) return;
 
         _inLava = true;
 
-        if (_burnCoroutine == null)
-            _burnCoroutine = StartCoroutine(BurnRoutine());
+        if (_burnCoroutine != null) StopCoroutine(_burnCoroutine);
+        _burnCoroutine = StartCoroutine(BurnRoutine());
     }
 
     void OnTriggerExit(Collider other)
@@ -41,6 +50,26 @@ public class LavaDamageZone : MonoBehaviour
 
     IEnumerator BurnRoutine()
     {
+        if (_fireVfxInstance != null) Destroy(_fireVfxInstance);
+        if (_fireVfxPrefab != null && _playerGO != null)
+        {
+            _fireVfxInstance = VfxUtils.SpawnAtCaster(
+                _fireVfxPrefab, _playerGO, _fireVfxOffset, 9999f, true);
+            if (_fireVfxInstance != null)
+            {
+                foreach (var ps in _fireVfxInstance.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    var main = ps.main;
+                    main.loop = true;
+
+                    var em = ps.emission;
+                    em.enabled = true;
+                    if (em.rateOverTime.constantMax < 1f)
+                        em.rateOverTime = 12f;
+                }
+            }
+        }
+
         float tickAccum  = 0f;
         float leaveTimer = _burnDuration;
 
@@ -66,6 +95,12 @@ public class LavaDamageZone : MonoBehaviour
             }
 
             yield return null;
+        }
+
+        if (_fireVfxInstance != null)
+        {
+            Destroy(_fireVfxInstance);
+            _fireVfxInstance = null;
         }
 
         _burnCoroutine = null;

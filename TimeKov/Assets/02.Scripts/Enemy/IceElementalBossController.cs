@@ -652,8 +652,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_player != null) _motor.FaceInstant(_player.position);
         _motor.PlayState(ultState);
         SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1.5f, ultWindup);   // 대형 응축(긴 예고)
+        _feedback?.PlaySound(ultimateChargeSound);   // 응축~낙하 내내 차징음(길이 ≈ ultWindup+ultTelegraph)
         yield return new WaitForSeconds(ultWindup);
-        _feedback?.PlaySound(ultimateChargeSound);
 
         if (_dead || _player == null) { _attacking = false; yield break; }
 
