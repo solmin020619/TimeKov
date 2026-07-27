@@ -28,7 +28,8 @@ public static class SpiderQueenBuilder
         // ★[07-22] 접미사 없던 기본형을 _Frost 로 개명. 3테마가 전부 접미사를 갖게 해서 헷갈릴 여지를 없앴다.
         soPath: OutSO + "/FieldData_SpiderQueen_Frost.asset",
         prefabPath: OutPre + "/Enemy_SpiderQueen_Frost.prefab",
-        name: "서리 거미여왕", id: "spider_queen_frost", sid: "MeleeBot_SpiderQueen_Frost");
+        name: "서리 거미여왕", id: "spider_queen_frost", sid: "MeleeBot_SpiderQueen_Frost",
+        hp: 435f, atk: 36f);
 
     public static void BuildDesert() => Make( // 사막 = 불꽃(Anime 파이어볼, 주황). 2연발(팡팡).
         skin: "3", teleScale: 0.5f, projScale: 1.6f,   // 투사체 조금 키움
@@ -39,7 +40,7 @@ public static class SpiderQueenBuilder
         soPath: OutSO + "/FieldData_SpiderQueen_Desert.asset",
         prefabPath: OutPre + "/Enemy_SpiderQueen_Desert.prefab",
         name: "모래 거미여왕", id: "spider_queen_desert", sid: "MeleeBot_SpiderQueen_Desert",
-        projCount: 2, projInterval: 0.4f);                       // ★2발 연달아(팡...팡)
+        hp: 493f, atk: 41f, projCount: 2, projInterval: 0.4f);                       // ★2발 연달아(팡...팡)
 
     public static void BuildNature() => Make( // 자연 = 근접(거미S3 방식). 근접 공격.
         skin: "5", teleScale: 1f, projScale: 1f,
@@ -48,7 +49,7 @@ public static class SpiderQueenBuilder
         soPath: OutSO + "/FieldData_SpiderQueen_Nature.asset",
         prefabPath: OutPre + "/Enemy_SpiderQueen_Nature.prefab",
         name: "숲 거미여왕", id: "spider_queen_nature", sid: "MeleeBot_SpiderQueen_Nature",
-        hp: 240f, atk: 20f,                                      // 자연 중간보스 = 3 거미여왕 중 최약(설산 본드래곤 320보다 아래)
+        hp: 312f, atk: 26f,                                      // 자연 중간보스 = 3 거미여왕 중 최약(설산 본드래곤 320보다 아래)
         ranged: false,                                           // ★근접
         attackClip: "Anim@Spider_S_Queen_attack5",               // 근접 공격 모션
         atkRange: 3.2f,

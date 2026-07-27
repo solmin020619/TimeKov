@@ -48,10 +48,10 @@ public static class WyvernBossBuilder
             EnsureFolder(SoFolder);
             so = ScriptableObject.CreateInstance<MeleeEnemyData>();
             so.enemyName = "와이번"; so.enemyId = "wyvern_boss";
-            so.maxHP = 450f;   // 자연 보스 = 입문 보스. 설산 중간보스(본드래곤)보다 살짝 위 수준(종욱 지시).
+            so.maxHP = 585f;   // 자연 보스 = 입문 보스. 설산 중간보스(본드래곤)보다 살짝 위 수준(종욱 지시).
             so.moveSpeed = 3.5f; so.acceleration = 14f; so.angularSpeed = 220f; so.stoppingDistance = 0f;
             so.visionRange = 30f; so.visionAngle = 360f;
-            so.attackDamage = 22f; so.attackRange = 4f; so.attackApproachRatio = 0.9f; so.attackCooldown = 2.5f;
+            so.attackDamage = 29f; so.attackRange = 4f; so.attackApproachRatio = 0.9f; so.attackCooldown = 2.5f;
             so.hitDelay = 0.6f; so.animLength = 1.6f;
             so.hitTrigger = "Hit"; so.detectTrigger = "Detect"; so.dieTrigger = "Die";
             so.targetLostMemory = 3f; so.deathAnimDuration = 3.5f; so.detectStunDuration = 0f;

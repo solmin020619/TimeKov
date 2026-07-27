@@ -55,10 +55,10 @@ public static class IceElementalBossBuilder
             EnsureFolder(SoFolder);
             so = ScriptableObject.CreateInstance<MeleeEnemyData>();
             so.enemyName = "얼음정령"; so.enemyId = "ice_elemental_boss";
-            so.maxHP = 700f;   // 설산 보스. 자연 와이번(입문보스)보다 확실히 위, 화염정령(최종)보다 아래.
+            so.maxHP = 1050f;   // 설산 보스. 자연 와이번(입문보스)보다 확실히 위, 화염정령(최종)보다 아래.
             so.moveSpeed = 3.2f; so.acceleration = 12f; so.angularSpeed = 240f; so.stoppingDistance = 0f;
             so.visionRange = 30f; so.visionAngle = 360f;
-            so.attackDamage = 26f; so.attackRange = 3.5f; so.attackApproachRatio = 0.9f; so.attackCooldown = 2.5f;
+            so.attackDamage = 39f; so.attackRange = 3.5f; so.attackApproachRatio = 0.9f; so.attackCooldown = 2.5f;
             so.hitDelay = 0.4f; so.animLength = 1.2f;   // Attack1 = 1.133s
             so.attackTrigger = "Attack"; so.hitTrigger = "Hit"; so.detectTrigger = "Detect"; so.dieTrigger = "Die";
             so.targetLostMemory = 3f;

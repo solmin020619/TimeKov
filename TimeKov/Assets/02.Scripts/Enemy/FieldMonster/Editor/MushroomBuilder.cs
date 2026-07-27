@@ -21,19 +21,22 @@ public static class MushroomBuilder
     public static void BuildNature() => Make("머쉬룸몬스터기본",                        // 자연(Red). 기존 이름 유지(씬 인스턴스 보존)
         OutSO + "/FieldData_Mushroom.asset",        OutPre + "/Enemy_Mushroom.prefab",
         "머쉬룸",      "mushroom",        "MeleeBot_Mushroom",
-        hp: 60f, atk: 12f);   // 자연맵 입문 = 서리/용암/모래 머쉬룸(95/16)보다 약하게
+        hp: 78f, atk: 16f);   // 자연맵 입문 = 서리/용암/모래 머쉬룸(95/16)보다 약하게
 
     public static void BuildSnow()   => Make("머쉬룸몬스터3",                           // 설산(Cold)
         OutSO + "/FieldData_Mushroom_Snow.asset",   OutPre + "/Enemy_Mushroom_Snow.prefab",
-        "서리 머쉬룸", "mushroom_snow",   "MeleeBot_Mushroom_Snow");
+        "서리 머쉬룸", "mushroom_snow",   "MeleeBot_Mushroom_Snow",
+        hp: 143f, atk: 24f);
 
     public static void BuildDesert() => Make("머쉬룸몬스터6",                           // 사막(Orange)
         OutSO + "/FieldData_Mushroom_Desert.asset", OutPre + "/Enemy_Mushroom_Desert.prefab",
-        "모래 머쉬룸", "mushroom_desert", "MeleeBot_Mushroom_Desert");
+        "모래 머쉬룸", "mushroom_desert", "MeleeBot_Mushroom_Desert",
+        hp: 162f, atk: 27f);
 
     public static void BuildLava()   => Make("머쉬룸몬스터1",                           // 용암(Black)
         OutSO + "/FieldData_Mushroom_Lava.asset",   OutPre + "/Enemy_Mushroom_Lava.prefab",
-        "용암 머쉬룸", "mushroom_lava",   "MeleeBot_Mushroom_Lava");
+        "용암 머쉬룸", "mushroom_lava",   "MeleeBot_Mushroom_Lava",
+        hp: 190f, atk: 32f);
 
     // ── 공통 설정(패턴/스탯/클립) — 모델 프리팹 + 출력 경로 + 정체만 갈아끼움 ──
     static void Make(string modelName, string soPath, string prefabPath,

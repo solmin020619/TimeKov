@@ -65,10 +65,10 @@ public static class FireBossBuilder
             EnsureFolder(SoFolder);
             so = ScriptableObject.CreateInstance<MeleeEnemyData>();
             so.enemyName = "화염정령"; so.enemyId = "fire_boss";
-            so.maxHP = 1000f;   // 찐최종보스 = 최강(종욱 지시). 이동 못하니 카이팅 안티어트리션(리쉬 리셋)과 광역으로 압박
+            so.maxHP = 2000f;   // 찐최종보스 = 최강(종욱 지시). 이동 못하니 카이팅 안티어트리션(리쉬 리셋)과 광역으로 압박
             so.moveSpeed = 0f; so.acceleration = 0f; so.angularSpeed = 240f; so.stoppingDistance = 0f;
             so.visionRange = 35f; so.visionAngle = 360f;
-            so.attackDamage = 30f; so.attackRange = 4f; so.attackApproachRatio = 0.9f; so.attackCooldown = 3f;
+            so.attackDamage = 60f; so.attackRange = 4f; so.attackApproachRatio = 0.9f; so.attackCooldown = 3f;
             so.hitDelay = 0.5f; so.animLength = 1.5f;
             so.attackTrigger = "Attack"; so.hitTrigger = "Hit"; so.detectTrigger = "Detect"; so.dieTrigger = "Die";
             so.targetLostMemory = 3f;

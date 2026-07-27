@@ -126,7 +126,7 @@ public static class SpiderBotBuilder
             so.maxHP = 30f;   // 유리대포: arming 중 처치 가능해야 카운터플레이 성립
             so.moveSpeed = 5.5f; so.acceleration = 20f; so.angularSpeed = 720f; so.stoppingDistance = 0f;
             so.visionRange = 16f; so.visionAngle = 360f;
-            so.attackDamage = 25f; so.attackRange = 2.5f; so.attackApproachRatio = 0.9f; so.attackCooldown = 1f;
+            so.attackDamage = 250f; so.attackRange = 2.5f; so.attackApproachRatio = 0.9f; so.attackCooldown = 1f;
             so.hitDelay = 0.5f; so.animLength = 1f;
             so.attackTrigger = "Attack"; so.hitTrigger = "Hit"; so.detectTrigger = "Detect"; so.dieTrigger = "Die";
             so.targetLostMemory = 2f;

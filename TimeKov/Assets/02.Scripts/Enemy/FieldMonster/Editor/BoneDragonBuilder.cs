@@ -40,7 +40,7 @@ public static class BoneDragonBuilder
             enemyName = "본드래곤", enemyId = "bone_dragon", sourceId = "MeleeBot_BoneDragon",
 
             // 스탯 — 단단한 엘리트
-            maxHP = 320f, moveSpeed = 3f, attackDamage = 24f,   // 설산 중간보스: 자연 중간보스(거미여왕 240)보다 위
+            maxHP = 480f, moveSpeed = 3f, attackDamage = 36f,   // 설산 중간보스: 자연 중간보스(거미여왕 240)보다 위
             attackRange = 12f, attackApproachRatio = 0.85f,   // ~10m 에서 브레스 사거리
             visionRange = 24f, visionAngle = 300f,
             navRadius = 1.2f,   // 큰 몸집이라 nav 반경 작게(경계 끼임 방지). 콜라이더는 크게 유지.

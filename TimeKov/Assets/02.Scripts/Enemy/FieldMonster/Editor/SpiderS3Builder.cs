@@ -37,7 +37,7 @@ public static class SpiderS3Builder
             telegraphVfx = "",
 
             // 스탯(기민·저체력) — 대부분 기본값과 동일
-            maxHP = 45f, moveSpeed = 5f, attackDamage = 10f, attackRange = 2.5f,   // 기지 최근접 첫 몹 = 최약 전투몹
+            maxHP = 59f, moveSpeed = 5f, attackDamage = 13f, attackRange = 2.5f,   // 기지 최근접 첫 몹 = 최약 전투몹
             visionRange = 14f, visionAngle = 300f,
             staggerChance = 0.45f,   // 가벼운 몹 — 자주(그래도 매번은 아님) 경직
 
