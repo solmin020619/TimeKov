@@ -290,23 +290,44 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         foreach (var m in ShipPartMilestones)
             if (m.pct == pct) ShipRepairManager.Instance?.CollectExtraPart(m.shipLevel);
 
-        // 설비 외 보상
+        // 창고 출력 포트(9) 설치 상한 - 15% 해금 후 전송률 램프로 계속 증설(우주선 Lv5 건축범위엔 20~30개 필요, QA).
+        //   절대값 SetMax(WarehousePortLimitAt) - 매 마일스톤 갱신해도 누적 안 되고 복원 경로와도 항상 동기.
+        if (pct >= 15)
+            FacilityBuildLimit.SetMax(FacilityBuildLimit.WarehousePortId, WarehousePortLimitAt(pct));
+
+        // 설비 외 보상 (창고포트 상한은 위 램프가 전담 - 여기선 귀환석/앰플/키트만)
         switch (pct)
         {
             case 20: ReturnStoneManager.Instance?.SetLevel(1); break;                            // 귀환석 Lv.1(쿨 15분) - 자연 탐험 안전망
             case 40: ReturnStoneManager.Instance?.SetLevel(2); break;                            // 귀환석 Lv.2(쿨 10분)
-            case 70:                                                                             // 창고포트 상한 +1(총2) + 귀환석 Lv.3(쿨 5분)
-                FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 1);
+            case 70:                                                                             // 귀환석 Lv.3(쿨 5분) - 창고포트 상한은 위 램프가 전담
                 ReturnStoneManager.Instance?.SetLevel(3);
                 break;
-            case 80: FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 3); break; // 창고포트 상한 +3(총5) - 극후반 파격
-            case 90:                                                                             // 창고포트 상한 +2(총7) + 앰플 꾸러미 + 코어 키트 V x5
-                FacilityBuildLimit.IncreaseMax(FacilityBuildLimit.WarehousePortId, 2);
+            case 90:                                                                             // 앰플 꾸러미 + 코어 키트 V x5 - 창고포트 상한은 위 램프가 전담
                 GrantSupplyPackage();
                 GrantItemById(CoreKitVId, 5);
                 break;
             // 100%: 엔딩(_endingFired 처리)
         }
+    }
+
+    // 창고 출력 포트(9) 설치 상한(절대값) - 전송률 램프. 15% 해금 후 계속 증설해 80%+ 에 30개.
+    //   우주선 Lv5(75%) 건축범위 기준 20~30개 필요(QA) -> 초반 적게, 후반(존 확장 Lv3/4/5=25/50/75%)에 맞춰 증설.
+    //   지급(GrantMilestoneRewards)과 재진입 복원이 둘 다 이 함수로 SetMax = 단일 소스, 항상 동기.
+    //   수치는 placeholder(밸런싱 미확정) - 이 표만 고치면 지급/복원 다 따라온다.
+    public static int WarehousePortLimitAt(int rate)
+    {
+        if (rate >= 80) return 30;
+        if (rate >= 75) return 27;
+        if (rate >= 70) return 24;
+        if (rate >= 60) return 21;
+        if (rate >= 50) return 18;
+        if (rate >= 40) return 15;
+        if (rate >= 30) return 12;
+        if (rate >= 25) return 9;
+        if (rate >= 20) return 6;
+        if (rate >= 15) return 3;
+        return FacilityBuildLimit.DefaultMax(FacilityBuildLimit.WarehousePortId);   // 15% 전 = 기본(1)
     }
 
     private const int CoreKitVId = 6105;   // 코어 키트 V (코어 레벨 9/10 강화 재료, 1회 시도당 1개 소모)
@@ -420,13 +441,7 @@ public class TransmissionManager : MonoBehaviour, ISaveable
             if (m <= TransmissionRate) _claimedMilestones.Add(m);
 
         // 런타임 정적(FacilityBuildLimit)은 static 이라 앱 재시작엔 리셋되지만 같은 앱 재진입엔 안 된다.
-        // 그래서 창고포트 상한 보상(70:+1 / 80:+3 / 90:+2)은 가산이 아니라 "기본값+누적보너스" 절대값으로 재적용.
-        int portBonus = 0;
-        if (TransmissionRate >= 70) portBonus += 1;
-        if (TransmissionRate >= 80) portBonus += 3;
-        if (TransmissionRate >= 90) portBonus += 2;
-        if (portBonus > 0)
-            FacilityBuildLimit.SetMax(FacilityBuildLimit.WarehousePortId,
-                                      FacilityBuildLimit.DefaultMax(FacilityBuildLimit.WarehousePortId) + portBonus);
+        //   창고포트 상한은 전송률 램프(WarehousePortLimitAt) 절대값으로 재적용 - 지급과 동일 소스라 누적/어긋남 없음.
+        FacilityBuildLimit.SetMax(FacilityBuildLimit.WarehousePortId, WarehousePortLimitAt(TransmissionRate));
     }
 }
