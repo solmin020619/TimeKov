@@ -121,6 +121,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
             _health.OnDeath -= HandleDeath;
             _health.OnDamage -= HandleDamage;
         }
+        BattleMusicTracker.Disengage(GetInstanceID());   // 파괴 시 BGM 카운트 누수 방지
     }
 
     // 맞으면 흠칫 + 살짝 밀림.
@@ -216,6 +217,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
+        BattleMusicTracker.Disengage(GetInstanceID());   // 처치 → 교전 종료(Update 가 더는 안 도므로 여기서)
         StopAllCoroutines();   // ★코루틴 핸들이 남아 있으면 죽은 뒤에도 살아있는 걸로 오해한다
         _actionCo = null;
         _wanderCo = null;
@@ -236,6 +238,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         _hitReacting = false;
         RestoreBodyState();
         ClearLeapCircle();
+        BattleMusicTracker.Disengage(GetInstanceID());   // 비활성/풀링 시 교전 종료
     }
 
     // 잠복/도약이 중간에 끊겨도 몸이 사라지거나 공중에 뜬 채 남지 않게 한다.
@@ -272,6 +275,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
         if (_target == null)
         {
             _roared = false;
+            BattleMusicTracker.Disengage(GetInstanceID());   // 타깃 상실 → 교전 종료
             if (!_busy && !_hitReacting)
             {
                 // ★가만히 서 있으면 죽어 있는 것처럼 보인다.
@@ -285,6 +289,7 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
 
         // 플레이어를 봤다. 어슬렁은 즉시 중단하고 전투 속도로 되돌린다.
         StopWander();
+        if (data != null) BattleMusicTracker.Engage(GetInstanceID(), data.region);   // 교전 시작 → 맵 테마 BGM
 
         if (_busy || _hitReacting) { _motor.TickSpeedParam(); return; }
 

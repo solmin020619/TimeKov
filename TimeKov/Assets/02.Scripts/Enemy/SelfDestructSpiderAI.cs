@@ -171,6 +171,7 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
     // 나중에 적 풀링이 들어오면 arming 중 비활성화가 생긴다. 그때 발광맵이 떼인 채로 재사용되지 않게 막아둔다.
     private void OnDisable()
     {
+        BattleMusicTracker.Disengage(GetInstanceID());   // 비활성/풀링 시 교전 종료
         _wanderCo = null;   // 코루틴은 비활성화 시 죽는다. 핸들이 남으면 재사용 때 순찰이 안 돈다
         if (!_arming) return;
         _arming = false;
@@ -181,6 +182,7 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
     private void OnDestroy()
     {
         if (_health != null) _health.OnDeath -= HandleDeath;
+        BattleMusicTracker.Disengage(GetInstanceID());   // 파괴 시 BGM 카운트 누수 방지
 
         // Renderer.materials 는 인스턴스를 뜬다. 리스폰이 잦아서 안 지우면 계속 쌓인다.
         for (int i = 0; i < _bodyMats.Count; i++)
@@ -200,6 +202,7 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
+        BattleMusicTracker.Disengage(GetInstanceID());   // 처치/자폭 → 교전 종료
         StopAllCoroutines();
         _wanderCo = null;   // 핸들이 남으면 죽은 뒤에도 순찰이 도는 걸로 오해한다
         _arming = false;
@@ -220,6 +223,7 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
         if (!valid || dist > data.visionRange)
         {
             // ★가만히 서 있으면 죽어 있는 것처럼 보인다. 구역을 훑고 다닌다.
+            BattleMusicTracker.Disengage(GetInstanceID());   // 타깃 상실 → 교전 종료
             if (wander) StartWander();
             else StopMove();
             TickSpeed();
@@ -228,6 +232,7 @@ public class SelfDestructSpiderAI : MonoBehaviour, IEnemyDataSource
 
         // 플레이어를 봤다. 순찰 중단하고 전투 속도로 되돌린다.
         StopWander();
+        BattleMusicTracker.Engage(GetInstanceID(), data.region);   // 교전 시작 → 맵 테마 BGM
 
         if (dist <= armRange)
         {

@@ -217,6 +217,7 @@ public class FieldMonsterAI : MonoBehaviour
             health.OnDamage -= OnTookDamage;
             health.OnDeath  -= OnDied;
         }
+        BattleMusicTracker.Disengage(GetInstanceID());   // 파괴 시 BGM 카운트 누수 방지
     }
 
     // 뒤에서 맞아도 즉시 인지
@@ -240,6 +241,7 @@ public class FieldMonsterAI : MonoBehaviour
     private void OnDied()
     {
         dead = true;
+        BattleMusicTracker.Disengage(GetInstanceID());   // 처치 → 교전 종료(StopAllCoroutines 로 Brain 이 죽으므로 여기서)
         RemoveDormantGround();        // 잠복 지면 VFX 정리(죽으면 남지 않게)
         DestroyTelegraph();           // 시전 중 죽으면 전조가 남지 않게
         StopAllCoroutines();          // 스텝 중이었다면 DoStep 의 정리 코드가 안 돌므로
@@ -367,6 +369,9 @@ public class FieldMonsterAI : MonoBehaviour
             SetAwake(true);
             yield return DoStep(data.openingStep, data.openingStepDuration);
 
+            // 교전 시작 → 맵 테마 전투 BGM (보스는 별도 경로)
+            if (data != null) BattleMusicTracker.Engage(GetInstanceID(), data.region);
+
             // 3) 전투 루프 — 접근 → 전조+공격 → 스텝 → 반복
             while (Target != null && !dead)
             {
@@ -387,6 +392,9 @@ public class FieldMonsterAI : MonoBehaviour
                 yield return DoStep(data.afterAttackStep, stepDur, freezeFace: true);
                 if (data.attackCooldown > 0f) yield return new WaitForSeconds(data.attackCooldown);
             }
+
+            // 전투 루프 이탈(타깃 상실 등) → 교전 종료. 다시 발견하면 위에서 재시작.
+            BattleMusicTracker.Disengage(GetInstanceID());
         }
     }
 

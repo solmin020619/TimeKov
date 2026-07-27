@@ -43,8 +43,9 @@ public class EnemyFeedback : MonoBehaviour
     public void PlaySpawn()
     {
         if (data == null) return;
-        // Spawn VFX는 적 자식으로 부착 → 적 따라다님. 3초 후 자동 destroy.
-        Play(data.spawnVFX, data.spawnSound, followCaster: true, vfxLifeTime: 3f);
+        // ★스폰 사운드는 재생하지 않는다. 등장 연출은 감지(포효) 사운드가 대신하므로 스폰음은 제거.
+        //   VFX 는 그대로 유지(적 자식으로 부착 → 적 따라다님, 3초 후 자동 destroy).
+        Play(data.spawnVFX, null, followCaster: true, vfxLifeTime: 3f);
     }
 
     public void PlayDetect()

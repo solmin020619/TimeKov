@@ -112,6 +112,9 @@ public class EnemyBrain : MonoBehaviour, IEnemyDataSource
     {
         if (healthRef != null)
             healthRef.OnDamage -= OnTookDamage;
+
+        // 교전 중 죽거나 파괴돼도 BGM 카운트가 새지 않게 반드시 해제.
+        BattleMusicTracker.Disengage(GetInstanceID());
     }
 
     private void OnTookDamage()
@@ -148,6 +151,13 @@ public class EnemyBrain : MonoBehaviour, IEnemyDataSource
         {
             feedback?.PlayDetect();
             StartCoroutine(DetectStun());
+            // 교전 시작 → 맵 테마 전투 BGM (보스는 별도 경로)
+            if (data != null) BattleMusicTracker.Engage(GetInstanceID(), data.region);
+        }
+        else if (lastTarget != null && targetObj == null)
+        {
+            // 타깃 상실(플레이어 사망·결계 진입·시야 이탈) → 교전 종료
+            BattleMusicTracker.Disengage(GetInstanceID());
         }
 
         lastTarget = targetObj;
