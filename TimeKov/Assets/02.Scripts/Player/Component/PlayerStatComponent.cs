@@ -16,6 +16,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     [Header("Stamina")]
     public float MaxStamina = 100f;
     public float StaminaDrain = 10f;
+    [Tooltip("기본 최대치 기준 초당 회복량. 앰플로 최대치가 커지면 회복량도 같은 비율로 커져 0->풀 완충 시간이 일정하게 유지된다. 예) 기본 100을 10초에 채우면(=10/s) 500으로 늘어도 10초에 채워진다.")]
     public float StaminaRegen = 5f;
     [Tooltip("탈진 후 달리기 재허용 기준 비율 (0~1). 스테미나가 0이 되면 탈진, 이 비율 이상 회복되면 재허용")]
     public float ExhaustedThreshold = 0.3f;
@@ -49,6 +50,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     private Coroutine _hurtRoutine;
     private float _regenLockTimer;   // >0 동안 스태미나 회복 정지(대쉬 소모 직후만. 달리기는 안 검)
     private float _iframeTimer;       // >0 동안 피격 무적. '같은 순간 중복 히트'만 차단(다단/볼리/틱은 간격이 있어 통과).
+    private float _baseMaxStamina = 100f;   // 앰플 누적 전 기본 최대 스태미나(씬 직렬화값). 회복량을 이 값 대비 현재 MaxStamina 비율로 스케일 -> 최대치를 늘려도 완충 시간 일정.
 
     // 로드 직후 ApplyCoreStats가 MaxHp를 확정하기 전까지 대기 중인 복원 비율(없으면 null).
     // CoreUpgradeManager.Start()가 ApplyCoreStats를 호출하는 시점에 1회만 소비된다.
@@ -62,6 +64,10 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     void Awake()
     {
         _player = GetComponent<Player>();
+
+        // 앰플 누적 전 기본 최대치를 잡아둔다(아래 저장 복원이 MaxStamina를 덮어쓰기 전).
+        // 회복량을 이 값 대비 비율로 스케일해서, 최대치를 늘려도 0->풀 완충 시간이 일정하게 유지된다.
+        _baseMaxStamina = MaxStamina;
 
         SaveSlotManager.Instance?.Register(this);
         if (SaveSlotManager.Instance != null && SaveSlotManager.Instance.HasActiveSlot)
@@ -313,7 +319,10 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
                      && !_player.Movement.IsSprinting;
         if (!canRegen) return;
 
-        CurrentStamina = Mathf.Min(MaxStamina, CurrentStamina + StaminaRegen * Time.deltaTime);
+        // 회복량 = 기본 최대치 대비 현재 최대치 비율로 스케일. 앰플로 MaxStamina가 커지면
+        // 초당 회복량도 같은 배율로 커져서 0->풀 채우는 시간이 항상 일정하다(최대치 비례 X).
+        float regen = _baseMaxStamina > 0f ? StaminaRegen * (MaxStamina / _baseMaxStamina) : StaminaRegen;
+        CurrentStamina = Mathf.Min(MaxStamina, CurrentStamina + regen * Time.deltaTime);
     }
 
     void UpdateExhaustedState()
