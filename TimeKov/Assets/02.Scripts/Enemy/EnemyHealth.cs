@@ -12,6 +12,10 @@ public class EnemyHealth : MonoBehaviour
     public event Action OnDeath;
     public event Action OnDamage;
 
+    // [07-29] 사망 직전 가로채기(보스 페이즈 전환 등). null이 아니고 true 반환 시 사망 대신 HP를 1로 유지.
+    // opt-in: 안 걸면(null) 기존대로 즉사. 다른 적 영향 0.
+    public System.Func<bool> LethalGuard;
+
     // 무적(보스 회복 페이즈 등에서 켬). 시그니처 변경 없이 본문서 가드.
     public bool Invulnerable { get; set; }
 
@@ -68,7 +72,11 @@ public class EnemyHealth : MonoBehaviour
         feedback?.PlayHit(hitPoint);
 
         if (currentHP <= 0f)
+        {
+            // [07-29] 사망 가드가 막으면(보스 페이즈 전환) 죽지 않고 HP 1로 보류.
+            if (LethalGuard != null && LethalGuard()) { currentHP = 1f; return; }
             Die();
+        }
     }
 
     // 리쉬(이탈) 리셋 등에서 풀피로 되돌릴 때. 사망 상태면 무시.

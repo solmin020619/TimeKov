@@ -57,7 +57,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float beamDuration = 1.5f;     // 빔 지속(이 동안 틱 데미지)
     [SerializeField] private float beamTickInterval = 0.2f;
     [SerializeField] private float beamRecover = 0.6f;
-    [SerializeField] private float beamDmgMul = 0.22f;      // x attackDamage (틱당). 지속 추적빔이라 낮게
+    [SerializeField] private float beamDmgMul = 0.30f;      // x attackDamage (틱당). 지속 추적빔이라 낮게. [07-29] 압박 주력다운 무게로 0.22 -> 0.30
     [SerializeField] private Vector3 beamOffset = new Vector3(0f, 2f, 1f);   // 발사 위치(로컬: 손 근처)
 
     [Header("낙하 (사방에서 고드름 다발 - 페이즈별 강화)")]
@@ -79,6 +79,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float rainShardFall = 0.5f;
     [Tooltip("발당 데미지 반경")]
     [SerializeField] private float rainShardRadius = 2.5f;
+    [Tooltip("[07-29] 고드름 크기 배율(비주얼 + 판정 반경 동시). 1.5 = 50% 큼 -> 자연히 위협적.")]
+    [SerializeField] private float rainShardScale = 1.5f;
 
     [Header("자기중심 노바 (AOE_Explosion_Frost - 바닥 원 퍼지며 밀어내기)")]
     [SerializeField] private GameObject novaVfx;
@@ -100,6 +102,12 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float dashRecover = 0.7f;
     [SerializeField] private float dashRadius = 2.5f;       // 관통 판정 반경
     [SerializeField] private float dashDmgMul = 1.4f;
+    [Tooltip("[07-29] 돌진 관통 반경 배율(다단 돌진 재조준 빗맞음 보정).")]
+    [SerializeField] private float dashRadiusMul = 1.3f;
+    [Tooltip("[07-29] 다단 돌진 사이 재조준 텀(초).")]
+    [SerializeField] private float dashRepassGap = 0.3f;
+    [Tooltip("[07-29] 돌진 횟수(확확확). 매 회 재조준하며 관통. 4~5면 대쉬로 여러 번 피하는 맛.")]
+    [SerializeField] private int dashPasses = 4;
 
     [Header("궁극 (Cast3 + NuclearBomb_Frost - 페이즈3 전용)")]
     [SerializeField] private GameObject ultVfx;
@@ -110,6 +118,13 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float ultRecover = 1.2f;
     [SerializeField] private float ultRadius = 9f;
     [SerializeField] private float ultDmgMul = 2.6f;
+    [Header("[07-29] 궁극 배러지 (용성군 - 플레이어 주변 추적 낙하 후 중앙 대폭발)")]
+    [SerializeField] private int ultMeteorCount = 8;
+    [SerializeField] private float ultMeteorSpread = 6f;
+    [SerializeField] private float ultMeteorGap = 0.12f;
+    [SerializeField] private float ultMeteorRadius = 2.6f;
+    [SerializeField] private float ultMeteorDmgMul = 0.7f;
+    [SerializeField] private float ultMeteorFall = 0.45f;
 
     [Header("가드 반격 (Block - 근접 압박 시 무적 후 광역 반격)")]
     [SerializeField] private float guardRange = 4f;         // 이 안에 플레이어가 있고
@@ -118,6 +133,56 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private string guardCounterState = "Attack2";   // 가드 후 반격(광역 스윙)
     [SerializeField] private float guardCounterWindup = 0.5f;
     [SerializeField] private float guardCounterDmgMul = 1.5f;
+    [Tooltip("[07-29] 가드 무적 동안 두르는 얼음 방패 VFX. 비우면 chargeVfxBody(냉기 오라)로 폴백 = 별도 에셋 없이도 읽힘.")]
+    [SerializeField] private GameObject guardVfx;
+
+    [Header("[07-29] 혹한 Whiteout (P3 진입 시그니처. 판을 얼려 배러지+노바 폭풍 -> 대폭발)")]
+    [SerializeField] private float whiteoutDuration = 4f;
+    [SerializeField] private float whiteoutMeteorGap = 0.2f;
+    [SerializeField] private float whiteoutSpread = 6f;
+    [SerializeField] private float whiteoutMeteorRadius = 2.6f;
+    [SerializeField] private float whiteoutMeteorDmgMul = 0.6f;
+    [SerializeField] private float whiteoutMeteorFall = 0.4f;
+    [SerializeField] private float whiteoutNovaGap = 1.3f;
+    [SerializeField] private float whiteoutFinaleRadius = 10f;
+    [SerializeField] private float whiteoutFinaleDmgMul = 2f;
+
+    [Header("[07-29] 빙경 분신 Mirror (P2+ - 반투명 유령 분신 + 가짜 예고. 진짜만 실체=피해/피격)")]
+    [Tooltip("진짜 포함 총 개수(진짜 1 + 가짜 나머지). 2~4.")]
+    [SerializeField] private int mirrorCount = 3;
+    [SerializeField] private float mirrorRange = 22f;       // 이 사거리 안이면 사용
+    [SerializeField] private float mirrorCooldown = 13f;
+    [SerializeField] private float mirrorWindup = 0.9f;     // 분열 전 시전
+    [SerializeField] private float mirrorRadius = 5.5f;     // 플레이어 중심 배치 반경
+    [SerializeField] private float mirrorTelegraph = 0.9f;  // 예고 -> 발동
+    [SerializeField] private float mirrorHoldTime = 2.2f;   // 발동 후 분신 유지(진짜 찾아 딜 넣는 시간)
+    [SerializeField] private float mirrorRecover = 0.7f;
+    [SerializeField] private float mirrorBurstRadius = 6.5f;
+    [SerializeField] private float mirrorDmgMul = 1.6f;     // 진짜 버스트 데미지
+    [Tooltip("분신 색조(가짜 tell). 진짜는 원본색, 가짜는 이 서리색으로 물들어 유령처럼 보인다.")]
+    [SerializeField] private Color mirrorPhantomTint = new Color(0.45f, 0.75f, 1f, 1f);
+    [Tooltip("분신/재조립 붕괴(산산조각) VFX. 비우면 impactVfxMelee(얼음조각) 폴백.")]
+    [SerializeField] private GameObject shatterVfx;
+
+    [Header("[07-29] 산산조각 & 재조립 (P1 체력 0 -> 죽는 대신 부서졌다 풀피로 재조립하며 P2 진입)")]
+    [SerializeField] private float shatterHang = 2f;         // 몸이 부서진 채 비산하는 시간 ([07-29] 테스트용 느리게. 나중에 0.5 권장)
+    [SerializeField] private float shatterBurstRadius = 7f;  // 부서질 때 그 자리 AOE
+    [SerializeField] private float shatterDmgMul = 1.4f;
+    [SerializeField] private float reformDistance = 7f;      // 플레이어에서 이만큼 떨어진 곳에 재조립
+    [SerializeField] private float reformTelegraph = 3f;     // 재조립 예고(서리 수렴 + HP 차오름) ([07-29] 테스트용 느리게. 나중에 1.1 권장)
+    [SerializeField] private float reformSlamRadius = 7f;    // 재조립 강타 반경
+    [SerializeField] private float reformSlamDmgMul = 2f;
+    [SerializeField] private float reformRecover = 0.7f;
+    [Tooltip("[07-29] P1 최대 체력 = SO 최대치 x 이 값. 테스트용 0.1(10%)로 전환 빨리 확인. P2 는 항상 풀 최대치.")]
+    [SerializeField] private float p1HpMul = 0.1f;
+    [Tooltip("[07-29] P2(재조립 후) 몸 크기 배율. 1.25 = 25% 큼. 강화형 차별화.")]
+    [SerializeField] private float p2ScaleMul = 1.25f;
+    [Tooltip("[07-29] P2 몸 색조(발열되듯 빨갛게). 원본 색에 곱해진다. 설산 눈밭이라 빨강이 확 티남.")]
+    [SerializeField] private Color p2Tint = new Color(1f, 0.3f, 0.2f);
+    [Tooltip("[07-29] P2 발열 글로우 색. 보스에 빨간 점광원을 켜서 몸+주변 눈을 빨갛게 물들임(재질 발광 무관하게 확실히 빛남).")]
+    [SerializeField] private Color p2GlowColor = new Color(1f, 0.25f, 0.1f);
+    [SerializeField] private float p2GlowRange = 14f;
+    [SerializeField] private float p2GlowIntensity = 5f;
 
     [Header("범위 텔레그래프 (낙하/궁극 발동 전 지면 표시)")]
     [SerializeField] private GameObject telegraphVfx;       // Wyvern_Telegraph 복제 + 하늘색
@@ -141,8 +206,10 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private GameObject chargeVfxHand;
     [Tooltip("몸 응축(낙하/노바/궁극/돌진 전조). 큰 시전 예고.")]
     [SerializeField] private GameObject chargeVfxBody;
-    [Tooltip("근접 타격 임팩트(얼음 파편). 맞는 순간 1회.")]
+    [Tooltip("근접 타격 임팩트(얼음 파편). ★[07-29] 이제 산산조각 전용. 근접 타격에는 안 씀(안 어울림).")]
     [SerializeField] private GameObject impactVfxMelee;
+    [Tooltip("[07-29] 근접/가드/돌진 '타격' VFX(슬래시감). 얼음블록(impactVfxMelee)은 산산조각에만. 비우면 impactVfxRanged(서리 스플래시) 폴백. 여기에 슬래시 VFX 넣으면 그걸로.")]
+    [SerializeField] private GameObject meleeHitVfx;
     [Tooltip("빔 틱 임팩트(초당 여러 번). 반드시 경량 프리팹.")]
     [SerializeField] private GameObject impactVfxRanged;
     [Tooltip("대형 착탄 임팩트(낙하/궁극). 1회성이라 무거워도 됨.")]
@@ -174,6 +241,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float wGuard = 0.8f;
     [SerializeField] private float wDash = 1.0f;
     [SerializeField] private float wUlt = 1.2f;
+    [SerializeField] private float wMirror = 1.1f;   // [07-29] 빙경 분신
     [Tooltip("직전에 쓴 패턴의 가중치 배율(연속 방지). 0=절대 연속 안 함, 1=페널티 없음.")]
     [Range(0f, 1f)] [SerializeField] private float repeatPenalty = 0.35f;
 
@@ -198,7 +266,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
 
     // 패턴 종류(가중 랜덤 선택용). 우선순위 사다리 대신 조건 맞는 후보를 모아 확률로 뽑는다.
-    private enum AtkType { None, Melee, Beam, Rain, Nova, Guard, Dash, Ult }
+    private enum AtkType { None, Melee, Beam, Rain, Nova, Guard, Dash, Ult, Mirror }
     private AtkType _lastAttack = AtkType.None;
     private readonly List<(AtkType type, float weight)> _cand = new List<(AtkType, float)>();
 
@@ -217,18 +285,28 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private bool _dead;
     private bool _attacking;
     private bool _engaged;
-    private float _beamCd, _rainCd, _novaCd, _dashCd, _ultCd, _guardCd, _meleeGapCd;
+    private float _beamCd, _rainCd, _novaCd, _dashCd, _ultCd, _guardCd, _meleeGapCd, _mirrorCd;
     private float[] _atkCd;
-    private bool[] _roared;
+    private int _phase;            // [07-29] 0=P1 / 1=P2 (2페이즈. 포효 임계값 폐지)
+    private bool _transitioning;   // 산산조각 재조립 전환 중
+    private Renderer[] _bodyRenderers;   // 산산조각 때 껐다 켤 보스 몸 렌더러
+    private float _baseMaxHp = 1f;       // [07-29] SO 원래 최대치(P2용). P1 은 이 값 x p1HpMul.
+    private Vector3 _baseScale = Vector3.one;   // [07-29] P2 확대 전 기준 크기
+    private Light _p2Light;                      // [07-29] P2 발열 글로우 점광원
     private float _enrageCd = 1f;
     private float _enrageSpeed = 1f;
+
+    // [07-29] 빙경 분신: 유령 GameObject 목록 + 복제용 모델 자식 캐시. 코루틴이 끊겨도 유령이 안 남게 목록으로 관리.
+    private readonly List<GameObject> _phantoms = new List<GameObject>();
+    private Transform _modelRoot;
+    private Vector3 _modelLossyScale = Vector3.one;
+    private Quaternion _modelLocalRot = Quaternion.identity;
 
     private void Awake()
     {
         _motor = new BossMotor(this, speedParam);
         _leash = new BossLeash(leashDistance, leashResetTime);
         _atkCd = new float[MeleeAttacks.Length];
-        _roared = new bool[RoarThresholds.Length];
         _motor.ApplyData(data);
     }
 
@@ -236,8 +314,24 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     {
         _leash.Capture(transform);
         _motor.AcquirePlayer();
-        if (_health != null) _health.OnDeath += HandleDeath;
+        if (_health != null)
+        {
+            _health.OnDeath += HandleDeath;
+            _health.LethalGuard = OnLethalDamage;   // [07-29] P1 체력 0 = 죽는 대신 산산조각->재조립->P2
+            _baseMaxHp = _health.maxHP;             // SO 최대치 = P2 용
+            ApplyP1Health();                        // P1 = 축소 체력바(테스트 10%)
+        }
         _feedback?.PlaySpawn();
+        _bodyRenderers = GetComponentsInChildren<Renderer>(true);   // 산산조각 때 껐다 켤 몸 렌더러
+        _baseScale = transform.localScale;                          // [07-29] P2 확대 기준 크기
+    }
+
+    // P1 체력바 축소(SO 최대치 x p1HpMul). Start + 리쉬 리셋 시 호출.
+    private void ApplyP1Health()
+    {
+        if (_health == null) return;
+        _health.maxHP = _baseMaxHp * Mathf.Max(0.01f, p1HpMul);
+        _health.currentHP = _health.maxHP;
     }
 
     private void OnDestroy()
@@ -251,6 +345,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
         if (_health != null) _health.Invulnerable = false;   // 가드 중 사망 시 무적 잔존 방지
         StopAllCoroutines();
+        SetBodyVisible(true);   // [07-29] 혹시 전환 중 사망 시 몸 복구(사망 애니용)
         _motor.StopMove();
     }
 
@@ -264,7 +359,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
 
         _motor.TickSpeedParam();
         TickCooldowns();
-        CheckRoarPhase();
         if (_attacking) return;
 
         Transform target = ResolveTarget();
@@ -279,13 +373,13 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (data == null) return;
 
         float dist = _motor.PlanarDistance(target.position);
-        int phase = RoarsDone();   // 0=P1 / 1=P2 / 2=P3
+        int phase = RoarsDone();   // 0=P1 / 1=P2 (2페이즈)
         float meleeMax = data.attackRange * MeleeMaxReachMul;
 
         // 조건(페이즈/쿨/거리) 맞는 공격을 전부 후보로 모은다. 거리 조건이 근접/원거리를
         // 자연스럽게 갈라주므로, 현재 위치에서 쓸 수 있는 것들 중에서만 뽑힌다.
         _cand.Clear();
-        if (phase >= 2 && _ultCd <= 0f && ultVfx != null && dist <= ultRange)
+        if (phase >= 1 && _ultCd <= 0f && ultVfx != null && dist <= ultRange)
             _cand.Add((AtkType.Ult, wUlt));
         if (phase >= 1 && _novaCd <= 0f && dist <= novaRange)
             _cand.Add((AtkType.Nova, wNova));
@@ -352,6 +446,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_dashCd > 0f) _dashCd -= dt;
         if (_ultCd > 0f) _ultCd -= dt;
         if (_guardCd > 0f) _guardCd -= dt;
+        if (_mirrorCd > 0f) _mirrorCd -= dt;
         if (_meleeGapCd > 0f) _meleeGapCd -= dt;
         for (int i = 0; i < _atkCd.Length; i++)
             if (_atkCd[i] > 0f) _atkCd[i] -= dt;
@@ -366,12 +461,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         return _player;
     }
 
-    private int RoarsDone()
-    {
-        int n = 0;
-        for (int i = 0; i < _roared.Length; i++) if (_roared[i]) n++;
-        return n;
-    }
+    // [07-29] 2페이즈. 0=P1 / 1=P2. 기존 escalation 호출부(고드름 발수/노바 반경 등)가 이 값을 그대로 쓴다.
+    private int RoarsDone() => _phase;
 
     // 사거리/각도/쿨 충족하는 근접 공격을 가중 랜덤으로 선택
     private bool TrySelectMelee(float dist, out int chosen)
@@ -413,7 +504,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         {
             DealDamage(data.attackDamage * a.dmgMul);
             _feedback?.PlaySound(meleeImpactSound);
-            SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);   // 얼음 파편(임팩트)
+            SpawnImpact(meleeHitVfx != null ? meleeHitVfx : impactVfxRanged, PlayerHitPos());   // 얼음 파편(임팩트)
         }
 
         yield return new WaitForSeconds(a.recover);
@@ -504,8 +595,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             Vector3 center = _player != null ? _player.position : transform.position;
             Vector2 r = Random.insideUnitCircle * rainSpreadRadius;
             Vector3 spot = GroundSpot(center + new Vector3(r.x, 0f, r.y));
-            if (rainVfx != null) Instantiate(rainVfx, spot, Quaternion.identity);
-            StartCoroutine(RainShardDamage(spot, fall));   // 고드름 떨어진 뒤 그 지점 판정
+            StartCoroutine(DropIceShard(spot, fall, rainShardRadius * rainShardScale, rainDmgMul, rainShardScale));   // 스폰+낙하 후 판정(크기 배율 반영)
             yield return new WaitForSeconds(gap);
         }
 
@@ -515,12 +605,18 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _attacking = false;
     }
 
-    // 고드름 한 발: 낙하 시간 뒤 착탄점에 데미지. 착탄 연출은 SkySingle 자체에 포함(중복 스폰 안 함).
-    private IEnumerator RainShardDamage(Vector3 spot, float fall)
+    // 고드름 한 발: 낙하 VFX 스폰(크기 배율) -> 낙하 시간 뒤 그 지점 반경 판정.
+    // [07-29] 낙하/궁극 배러지/혹한 공용. vScale 로 비주얼 크기를 키운다.
+    private IEnumerator DropIceShard(Vector3 spot, float fall, float radius, float dmgMul, float vScale)
     {
+        if (rainVfx != null)
+        {
+            var g = Instantiate(rainVfx, spot, Quaternion.identity);
+            if (vScale != 1f) g.transform.localScale *= vScale;
+        }
         yield return new WaitForSeconds(fall);
         if (_dead) yield break;
-        DealAreaDamage(spot, rainShardRadius, data.attackDamage * rainDmgMul);
+        DealAreaDamage(spot, radius, data.attackDamage * dmgMul);
     }
 
     // 자기중심 노바: 붙은 플레이어를 밀어내는 용도
@@ -559,8 +655,20 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _feedback?.PlaySound(guardSound);
         if (_health != null) _health.Invulnerable = true;
 
+        // [07-29] 가드 가독성: 무적 동안 얼음 방패를 크게 둘러 "지금 붙으면 손해"를 보이게 한다(폴백 = 냉기 오라).
+        GameObject shieldFx = null;
+        {
+            var sv = guardVfx != null ? guardVfx : chargeVfxBody;
+            if (sv != null)
+            {
+                shieldFx = Instantiate(sv, transform.position + Vector3.up * 1f, transform.rotation, transform);
+                shieldFx.transform.localScale *= 1.7f;
+            }
+        }
+
         yield return new WaitForSeconds(guardDuration);
         if (_health != null) _health.Invulnerable = false;
+        if (shieldFx != null) Destroy(shieldFx);
 
         if (!_dead)
         {
@@ -573,7 +681,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             {
                 DealDamage(data.attackDamage * guardCounterDmgMul);
                 _feedback?.PlaySound(meleeImpactSound);
-                SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);
+                SpawnImpact(meleeHitVfx != null ? meleeHitVfx : impactVfxRanged, PlayerHitPos());
             }
             yield return new WaitForSeconds(0.5f);
         }
@@ -582,7 +690,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _attacking = false;
     }
 
-    // 활강 돌진: 몸 65도 눕힌 Fly 포즈로 플레이어 방향으로 관통. 시그니처.
+    // 활강 돌진(시그니처): 몸 65도 눕힌 Fly 포즈로 플레이어 방향 관통.
+    // [07-29] 다단 돌진 = P2 2회 / P3 3회(매 회 재조준). 한 번 옆스텝으로 못 흘린다.
     private IEnumerator DashCharge()
     {
         _attacking = true;
@@ -594,32 +703,46 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1f, dashWindup);   // 몸에 냉기 두르기(전조)
         yield return new WaitForSeconds(dashWindup);
         if (_dead) { _attacking = false; yield break; }
-        _feedback?.PlaySound(dashSound);
 
-        GameObject vfx = dashVfx != null ? Instantiate(dashVfx, transform.position, transform.rotation, transform) : null;
-        if (vfx != null) Destroy(vfx, dashDuration + dashRecover + 0.5f);   // 포효 중단에도 정리
+        int passes = Mathf.Max(1, dashPasses);   // [07-29] 여러 번 돌진(확확확), 매 회 재조준
+        float hitR = dashRadius * dashRadiusMul;
 
         // 에이전트를 끄고 직접 이동(관통). 끝나면 반드시 되살린다.
-        Vector3 dir = transform.forward;
         bool agentWasOn = _agent != null && _agent.enabled;
         if (agentWasOn) _agent.enabled = false;
 
-        float t = 0f;
-        bool hitOnce = false;
-        while (t < dashDuration && !_dead)
+        for (int p = 0; p < passes && !_dead; p++)
         {
-            t += Time.deltaTime;
-            transform.position += dir * dashSpeed * Time.deltaTime;
-            if (!hitOnce && _player != null
-                && Vector3.Distance(transform.position, _player.position) <= dashRadius)
-            {
-                hitOnce = true;   // 관통 1회만
-                DealDamage(data.attackDamage * dashDmgMul);
-                _feedback?.PlaySound(meleeImpactSound);
-                SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);   // 스치는 얼음 파편
+            if (_player != null) _motor.FaceInstant(_player.position);   // 매 회 재조준
+            _motor.PlayState(dashState);
+            _feedback?.PlaySound(dashSound);
+            GameObject vfx = dashVfx != null ? Instantiate(dashVfx, transform.position, transform.rotation, transform) : null;
+            if (vfx != null) Destroy(vfx, dashDuration + 0.5f);
 
+            Vector3 dir = transform.forward;
+            float t = 0f;
+            bool hitOnce = false;
+            while (t < dashDuration && !_dead)
+            {
+                t += Time.deltaTime;
+                transform.position += dir * dashSpeed * Time.deltaTime;
+                if (!hitOnce && _player != null
+                    && Vector3.Distance(transform.position, _player.position) <= hitR)
+                {
+                    hitOnce = true;   // 한 돌진당 1회
+                    DealDamage(data.attackDamage * dashDmgMul);
+                    _feedback?.PlaySound(meleeImpactSound);
+                    SpawnImpact(meleeHitVfx != null ? meleeHitVfx : impactVfxRanged, PlayerHitPos());   // 스치는 얼음 파편
+                }
+                yield return null;
             }
-            yield return null;
+            if (vfx != null) Destroy(vfx);
+
+            if (p < passes - 1)   // 다음 돌진 전 짧게 재조준 텀
+            {
+                float g = 0f;
+                while (g < dashRepassGap && !_dead) { g += Time.deltaTime; yield return null; }
+            }
         }
 
         // 에이전트 복구 + 네비메시 스냅(안 하면 공중/벽 밖에 남는다)
@@ -629,7 +752,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             if (NavMesh.SamplePosition(transform.position, out var hit, 8f, NavMesh.AllAreas))
                 _agent.Warp(hit.position);
         }
-        if (vfx != null) Destroy(vfx);
 
         ReturnToLocomotion();   // Fly 상태에서 복귀
         yield return new WaitForSeconds(dashRecover);
@@ -644,7 +766,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (!_dead) _motor.PlayState("Idle");
     }
 
-    // 궁극(P3): 긴 예고 후 대형 폭발
+    // 궁극(P3): 긴 예고 후 [07-29] 플레이어 주변으로 고드름 배러지(용성군, 매 발 현재위치 추적) -> 마무리 중앙 대폭발.
     private IEnumerator Ultimate()
     {
         _attacking = true;
@@ -652,21 +774,34 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_player != null) _motor.FaceInstant(_player.position);
         _motor.PlayState(ultState);
         SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1.5f, ultWindup);   // 대형 응축(긴 예고)
-        _feedback?.PlaySound(ultimateChargeSound);   // 응축~낙하 내내 차징음(길이 ≈ ultWindup+ultTelegraph)
+        _feedback?.PlaySound(ultimateChargeSound);
         yield return new WaitForSeconds(ultWindup);
 
         if (_dead || _player == null) { _attacking = false; yield break; }
 
-        Vector3 spot = GroundSpot(_player.position);   // 지면으로 스냅
-        SpawnTelegraph(spot, ultRadius);
-        if (ultVfx != null) Instantiate(ultVfx, spot, Quaternion.identity);
-
-        yield return new WaitForSeconds(ultTelegraph);
-        if (!_dead)
+        // 1) 용성군 배러지: 플레이어 주변에 고드름이 연달아 쏟아진다(매 발 현재 위치 = 도망쳐도 따라옴).
+        for (int i = 0; i < ultMeteorCount && !_dead; i++)
         {
-            _feedback?.PlaySound(ultimateBurstSound);
-            DealAreaDamage(spot, ultRadius, data.attackDamage * ultDmgMul);
-            SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);   // 대형 착탄
+            Vector3 center = _player != null ? _player.position : transform.position;
+            Vector2 rr = Random.insideUnitCircle * ultMeteorSpread;
+            Vector3 mspot = GroundSpot(center + new Vector3(rr.x, 0f, rr.y));
+            StartCoroutine(DropIceShard(mspot, ultMeteorFall, ultMeteorRadius, ultMeteorDmgMul, 1.2f));
+            yield return new WaitForSeconds(ultMeteorGap);
+        }
+
+        // 2) 마무리: 플레이어 자리 중앙 대폭발.
+        if (!_dead && _player != null)
+        {
+            Vector3 spot = GroundSpot(_player.position);   // 지면으로 스냅
+            SpawnTelegraph(spot, ultRadius);
+            yield return new WaitForSeconds(ultTelegraph);
+            if (!_dead)
+            {
+                _feedback?.PlaySound(ultimateBurstSound);
+                if (ultVfx != null) Instantiate(ultVfx, spot, Quaternion.identity);
+                DealAreaDamage(spot, ultRadius, data.attackDamage * ultDmgMul);
+                SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);   // 대형 착탄
+            }
         }
 
         yield return new WaitForSeconds(ultRecover);
@@ -674,47 +809,356 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _attacking = false;
     }
 
-    // HP 임계값(66%/33%) 통과 시 포효 1회
-    private void CheckRoarPhase()
+    // ================= [07-29] 빙경 분신 (Mirror) =================
+
+    // 분신 복제용 모델 자식 캐시(스킨드 메시를 담은, 루트 하위 서브트리). Start 에서 1회.
+    private void CachePhantomModel()
     {
-        if (_health == null || _health.maxHP <= 0f) return;
-        float ratio = _health.currentHP / _health.maxHP;
-        for (int i = 0; i < RoarThresholds.Length; i++)
+        var smr = GetComponentInChildren<SkinnedMeshRenderer>(true);
+        if (smr == null) { _modelRoot = null; return; }
+        Transform t = smr.transform;
+        while (t.parent != null && t.parent != transform) t = t.parent;   // 루트의 직속 자식(모델 서브트리)까지 올라감
+        if (t == null || t == transform) { _modelRoot = null; return; }
+        _modelRoot = t;
+        _modelLossyScale = t.lossyScale;                                       // 보스 scale(2.2) 반영
+        _modelLocalRot = Quaternion.Inverse(transform.rotation) * t.rotation;  // 모델 로컬 회전 오프셋 보존
+    }
+
+    // 반투명 서리 유령 1기: 모델 복제 -> 콜라이더 제거(진짜만 피격) -> 애니메이터 보장 -> 서리 틴트 + 오라.
+    private GameObject SpawnPhantom(Vector3 pos, Quaternion faceRot)
+    {
+        if (_modelRoot == null) return null;
+        var g = Instantiate(_modelRoot.gameObject, pos, faceRot * _modelLocalRot);
+        g.transform.localScale = _modelLossyScale;
+
+        foreach (var c in g.GetComponentsInChildren<Collider>(true)) Destroy(c);   // 순수 시각 인형
+
+        var anim = g.GetComponentInChildren<Animator>();
+        if (anim == null) anim = g.AddComponent<Animator>();
+        if (_motor.Animator != null)
         {
-            if (_roared[i] || ratio > RoarThresholds[i]) continue;
-            _roared[i] = true;
-            StopAllCoroutines();
+            anim.runtimeAnimatorController = _motor.Animator.runtimeAnimatorController;
+            anim.avatar = _motor.Animator.avatar;
+        }
+        anim.applyRootMotion = false;
+
+        // 가짜 tell: 서리색 틴트(MaterialPropertyBlock = 공유 재질 안 건드림) + 냉기 오라.
+        var mpb = new MaterialPropertyBlock();
+        foreach (var r in g.GetComponentsInChildren<Renderer>(true))
+        {
+            r.GetPropertyBlock(mpb);
+            mpb.SetColor("_BaseColor", mirrorPhantomTint);
+            mpb.SetColor("_Color", mirrorPhantomTint);   // 셰이더별 프로퍼티명 대비
+            r.SetPropertyBlock(mpb);
+        }
+        if (chargeVfxBody != null)
+        {
+            var aura = Instantiate(chargeVfxBody, g.transform.position + Vector3.up, g.transform.rotation, g.transform);
+            aura.transform.localScale *= 1.4f;
+        }
+
+        Destroy(g, mirrorWindup + mirrorTelegraph + mirrorHoldTime + 4f);   // 안전 자폭(정리 누락 대비)
+        _phantoms.Add(g);
+        return g;
+    }
+
+    private void PlayPhantomState(GameObject g, string state)
+    {
+        if (g == null || string.IsNullOrEmpty(state)) return;
+        var anim = g.GetComponentInChildren<Animator>();
+        if (anim != null) anim.CrossFadeInFixedTime(state, 0.1f, 0);
+    }
+
+    // 유령 전부 즉시 제거(코루틴 끊김/사망/포효/리셋 안전 정리).
+    private void ClearPhantoms()
+    {
+        for (int i = 0; i < _phantoms.Count; i++)
+            if (_phantoms[i] != null) Destroy(_phantoms[i]);
+        _phantoms.Clear();
+    }
+
+    // 유령 붕괴(산산조각 VFX + 제거).
+    private void ShatterPhantoms()
+    {
+        var vfx = shatterVfx != null ? shatterVfx : impactVfxHeavy;
+        for (int i = 0; i < _phantoms.Count; i++)
+        {
+            var ph = _phantoms[i];
+            if (ph == null) continue;
+            if (vfx != null) { var v = Instantiate(vfx, ph.transform.position + Vector3.up * 0.5f, Quaternion.identity); Destroy(v, 3f); }
+            Destroy(ph);
+        }
+        _phantoms.Clear();
+        _feedback?.PlaySound(novaSound);
+    }
+
+    // 빙경 분신(P2+): 흩어져 반투명 유령 + 진짜(순간이동)를 플레이어 주변 원형으로 세운다.
+    // 전원 같은 공격 예고를 흘리지만 [진짜 하나만] 실제 발동 + [진짜만] 피격된다.
+    // tell = 진짜는 원본 외형(가짜는 서리색 유령). 진짜 공격을 읽어 피하고, 진짜를 찾아 딜.
+    private IEnumerator MirrorSplit()
+    {
+        _attacking = true;
+        _motor.StopMove();
+        if (_player != null) _motor.FaceInstant(_player.position);
+        _motor.PlayState(ultState);
+        SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1.5f, mirrorWindup);
+        _feedback?.PlaySound(ultimateChargeSound);
+        yield return new WaitForSeconds(mirrorWindup);
+        if (_dead) { _attacking = false; yield break; }
+
+        ClearPhantoms();   // 혹시 남은 이전 분신
+        Vector3 pc = _player != null ? GroundSpot(_player.position) : transform.position;
+        int total = Mathf.Clamp(mirrorCount, 2, 4);
+        int realSlot = Random.Range(0, total);
+        float baseAng = Random.value * 360f;
+
+        Vector3 realPos = transform.position;
+        for (int i = 0; i < total; i++)
+        {
+            float ang = baseAng + 360f / total * i;
+            Vector3 slot = GroundSpot(pc + Quaternion.Euler(0f, ang, 0f) * Vector3.forward * mirrorRadius);
+            Vector3 face = pc - slot; face.y = 0f;
+            Quaternion rot = face.sqrMagnitude > 0.01f ? Quaternion.LookRotation(face) : transform.rotation;
+            if (i == realSlot) realPos = slot;
+            else SpawnPhantom(slot, rot);
+        }
+
+        // 진짜 순간이동("안 움직인 게 진짜"라는 tell 방지)
+        if (_motor.AgentReady()) _agent.Warp(realPos);
+        else transform.position = realPos;
+        if (_player != null) _motor.FaceInstant(_player.position);
+
+        yield return new WaitForSeconds(0.3f);   // 등장 텀
+
+        // 가짜 예고: 전원(진짜 포함) 자리에 예고 링 + 공격 모션
+        _motor.PlayState(novaState);
+        SpawnTelegraph(GroundSpot(transform.position), mirrorBurstRadius);
+        foreach (var ph in _phantoms)
+        {
+            if (ph == null) continue;
+            SpawnTelegraph(GroundSpot(ph.transform.position), mirrorBurstRadius);
+            PlayPhantomState(ph, novaState);
+        }
+
+        yield return new WaitForSeconds(mirrorTelegraph);
+
+        // 진짜만 실제 발동(가짜는 시각 폭발만 = 무해)
+        if (!_dead)
+        {
+            Vector3 nc = GroundSpot(transform.position);
+            if (novaVfx != null) Instantiate(novaVfx, nc, Quaternion.identity);
+            DealAreaDamage(nc, mirrorBurstRadius, data.attackDamage * mirrorDmgMul);
+            _feedback?.PlaySound(novaSound);
+            foreach (var ph in _phantoms)
+                if (ph != null && novaVfx != null) Instantiate(novaVfx, GroundSpot(ph.transform.position), Quaternion.identity);
+        }
+
+        // 분신 유지(진짜 찾아 딜 넣는 시간) 후 붕괴
+        float held = 0f;
+        while (held < mirrorHoldTime && !_dead) { held += Time.deltaTime; yield return null; }
+        ShatterPhantoms();
+
+        ReturnToLocomotion();
+        yield return new WaitForSeconds(mirrorRecover);
+        _mirrorCd = mirrorCooldown * _enrageCd;
+        _attacking = false;
+    }
+
+    // [07-29] P1 에서 HP가 0에 닿으면 EnemyHealth 가 이걸 물어본다.
+    // true = 죽지 마라(HP 1 보류) -> 산산조각 재조립으로 P2 진입. P2 에선 false = 진짜 사망.
+    private bool OnLethalDamage()
+    {
+        if (_phase != 0 || _dead) return false;   // P2(또는 이미 사망) = 진짜 죽음
+        if (!_transitioning)
+        {
+            _transitioning = true;
+            if (_health != null) _health.Invulnerable = true;   // 즉시 무적(추가 피해 차단)
+            StopAllCoroutines();      // 진행 중 공격 중단
             _attacking = false;
-            StartCoroutine(RoarPhase(i));
-            return;
+            StartCoroutine(ShatterReformTransition());
+        }
+        return true;   // 전환 중엔 계속 사망 보류
+    }
+
+    // 산산조각 -> 비산 -> 플레이어 근처서 재조립(풀피) -> P2. 얼음정령의 시그니처 순간.
+    // (와이번=자가회복 타이밍에, 얼음정령은 몸을 부쉈다 다시 뭉치며 두 번째 체력바로 넘어간다)
+    private IEnumerator ShatterReformTransition()
+    {
+        _attacking = true;
+        _motor.StopMove();
+        bool agentWasOn = _agent != null && _agent.enabled;
+
+        // 1) 산산조각: 몸 렌더러 OFF + 얼음 조각 폭발 + 그 자리 AOE(붙어있던 플레이어 타격)
+        Vector3 p0 = GroundSpot(transform.position);
+        var shatter = shatterVfx != null ? shatterVfx : impactVfxMelee;
+        if (shatter != null) { var s = Instantiate(shatter, transform.position + Vector3.up, Quaternion.identity); s.transform.localScale *= 2.2f; Destroy(s, 3f); }
+        if (novaVfx != null) Instantiate(novaVfx, p0, Quaternion.identity);
+        SetBodyVisible(false);
+        _feedback?.PlaySound(novaSound);
+        DealAreaDamage(p0, shatterBurstRadius, data.attackDamage * shatterDmgMul);
+
+        if (agentWasOn && _agent != null) _agent.enabled = false;   // 텔레포트 위해 끔
+
+        yield return new WaitForSeconds(shatterHang);   // 비산
+
+        // 2) 재조립 위치 = 플레이어 근처(압박)
+        Vector3 dest = p0;
+        if (_player != null)
+        {
+            Vector3 dir = transform.position - _player.position; dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f) dir = Vector3.forward;
+            dest = _player.position + dir.normalized * reformDistance;
+        }
+        dest = GroundSpot(dest);
+
+        // 재조립 예고: 서리 수렴(FrostAura) + 지면 텔레그래프
+        GameObject converge = chargeVfxBody != null ? Instantiate(chargeVfxBody, dest + Vector3.up, Quaternion.identity) : null;
+        if (converge != null) { converge.transform.localScale *= 1.8f; Destroy(converge, reformTelegraph + 0.5f); }
+        SpawnTelegraph(dest, reformSlamRadius);
+        _feedback?.PlaySound(ultimateChargeSound);
+
+        // 재조립하면서 체력바가 서서히 100%까지 차오른다(P2 최대치 복원 + 램프. 바가 매프레임 읽어 눈에 보인다).
+        if (_health != null) _health.maxHP = _baseMaxHp;
+        float ft = 0f, startHp = _health != null ? _health.currentHP : 0f;
+        while (ft < reformTelegraph && !_dead)
+        {
+            ft += Time.deltaTime;
+            if (_health != null) _health.currentHP = Mathf.Lerp(startHp, _health.maxHP, ft / reformTelegraph);
+            yield return null;
+        }
+
+        // 3) 재조립: 위치 이동 + 렌더러 ON + 풀피 + P2 + 강타
+        transform.position = dest;
+        if (agentWasOn && _agent != null)
+        {
+            _agent.enabled = true;
+            if (NavMesh.SamplePosition(dest, out var hit, 8f, NavMesh.AllAreas)) _agent.Warp(hit.position);
+        }
+        if (_player != null) _motor.FaceInstant(_player.position);
+        SetBodyVisible(true);
+        transform.localScale = _baseScale * Mathf.Max(0.1f, p2ScaleMul);   // [07-29] P2 = 더 큰 몸
+        SetBodyTint(p2Tint);                                                // [07-29] P2 = 빨간 몸
+        EnableP2Glow(true);                                                 // [07-29] P2 = 발열 글로우
+        _motor.PlayState(roarState);
+
+        _phase = 1;                                          // P2 진입
+        if (_health != null) _health.ResetToFull();          // 바 즉시 100% 회복
+        Enrage();                                            // P2 = 광폭화
+        BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult, debuffDarkness, debuffVignetteStrength, debuffVignetteFalloff);   // 극적 전환(화면 서리)
+
+        if (impactVfxHeavy != null) Instantiate(impactVfxHeavy, dest + Vector3.up * 0.3f, Quaternion.identity);
+        _feedback?.PlaySound(roarSound);
+        DealAreaDamage(dest, reformSlamRadius, data.attackDamage * reformSlamDmgMul);   // 재조립 강타
+
+        if (_health != null) _health.Invulnerable = false;   // 무적 해제 = P2 전투 시작
+
+        yield return new WaitForSeconds(reformRecover);
+        _transitioning = false;
+        _attacking = false;
+    }
+
+    // 산산조각/재조립 시 보스 몸(모델+파티클 렌더러) 껐다 켜기.
+    private void SetBodyVisible(bool visible)
+    {
+        if (_bodyRenderers == null) return;
+        for (int i = 0; i < _bodyRenderers.Length; i++)
+            if (_bodyRenderers[i] != null) _bodyRenderers[i].enabled = visible;
+    }
+
+    // [07-29] P2 몸 색조(MaterialPropertyBlock = 공유 재질 안 건드림. 셰이더별 프로퍼티명 둘 다 세팅).
+    private void SetBodyTint(Color c)
+    {
+        if (_bodyRenderers == null) return;
+        var mpb = new MaterialPropertyBlock();
+        for (int i = 0; i < _bodyRenderers.Length; i++)
+        {
+            var r = _bodyRenderers[i];
+            if (r == null) continue;
+            r.GetPropertyBlock(mpb);
+            mpb.SetColor("_BaseColor", c);
+            mpb.SetColor("_Color", c);
+            mpb.SetColor("_EmissionColor", c);   // 발광 키워드 켜진 재질이면 글로우(아니면 무해)
+            r.SetPropertyBlock(mpb);
         }
     }
 
-    private IEnumerator RoarPhase(int idx)
+    // 색조 원복(P1 = 원본색). 프로퍼티 블록 비워서 재질 원래 값으로.
+    private void ClearBodyTint()
     {
-        _attacking = true;
-        // 포효는 StopAllCoroutines 뒤에 시작된다. 활강 돌진 중이었다면 에이전트가 꺼진 채
-        // 남아 보스가 영영 못 움직인다 -> 여기서 복구를 보장한다.
-        if (_agent != null && !_agent.enabled)
+        if (_bodyRenderers == null) return;
+        for (int i = 0; i < _bodyRenderers.Length; i++)
+            if (_bodyRenderers[i] != null) _bodyRenderers[i].SetPropertyBlock(null);
+    }
+
+    // [07-29] P2 발열 글로우: 보스에 빨간 점광원(설산 눈밭에 확 티남). 재질 발광 무관하게 확실히 빛난다.
+    private void EnableP2Glow(bool on)
+    {
+        if (on)
         {
-            _agent.enabled = true;
-            if (NavMesh.SamplePosition(transform.position, out var hit, 8f, NavMesh.AllAreas))
-                _agent.Warp(hit.position);
+            if (_p2Light == null)
+            {
+                var go = new GameObject("P2_HeatGlow");
+                go.transform.SetParent(transform, false);
+                go.transform.localPosition = Vector3.up * 0.6f;
+                _p2Light = go.AddComponent<Light>();
+                _p2Light.type = LightType.Point;
+                _p2Light.shadows = LightShadows.None;
+            }
+            _p2Light.color = p2GlowColor;
+            _p2Light.range = p2GlowRange;
+            _p2Light.intensity = p2GlowIntensity;
+            _p2Light.enabled = true;
         }
+        else if (_p2Light != null) _p2Light.enabled = false;
+    }
+
+    // [07-29] 혹한(Whiteout): P3 진입 1회. 판을 얼려 플레이어 주변으로 고드름을 퍼붓고(추적)
+    // 노바 충격파를 주기적으로 터뜨리며 몇 초간 생존을 강요, 마지막에 대폭발로 마무리.
+    // 얼음정령의 시그니처 순간(와이번=자가회복 / 모래=감금 / 얼음=판 장악).
+    private IEnumerator Whiteout()
+    {
         _motor.StopMove();
-        _motor.PlayState(roarState);
-        _feedback?.PlaySound(idx == 0 ? roarSound : roar2Sound);
-        yield return new WaitForSeconds(roarBuildup);
+        _motor.PlayState(ultState);
+        SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1.5f, whiteoutDuration);
+        _feedback?.PlaySound(ultimateChargeSound);
 
-        if (!_dead)
+        float t = 0f, novaT = 0f;
+        while (t < whiteoutDuration && !_dead)
         {
-            BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult, debuffDarkness,
-                                   debuffVignetteStrength, debuffVignetteFalloff);
-            Enrage();
+            Vector3 center = _player != null ? _player.position : transform.position;
+            Vector2 rr = Random.insideUnitCircle * whiteoutSpread;
+            Vector3 mspot = GroundSpot(center + new Vector3(rr.x, 0f, rr.y));
+            StartCoroutine(DropIceShard(mspot, whiteoutMeteorFall, whiteoutMeteorRadius, whiteoutMeteorDmgMul, 1.2f));
+
+            novaT += whiteoutMeteorGap;
+            if (novaT >= whiteoutNovaGap)
+            {
+                novaT = 0f;
+                Vector3 nc = GroundSpot(transform.position);
+                if (novaVfx != null) Instantiate(novaVfx, nc, Quaternion.identity);
+                DealAreaDamage(nc, novaRadius * 1.25f, data.attackDamage * novaDmgMul * 0.6f);
+                _feedback?.PlaySound(novaSound);
+            }
+
+            float g = 0f;
+            while (g < whiteoutMeteorGap && !_dead) { g += Time.deltaTime; yield return null; }
+            t += whiteoutMeteorGap;
         }
 
-        yield return new WaitForSeconds(roarRecover);
-        _attacking = false;
+        // 마무리 대폭발(플레이어 자리)
+        if (!_dead && _player != null)
+        {
+            Vector3 spot = GroundSpot(_player.position);
+            SpawnTelegraph(spot, whiteoutFinaleRadius);
+            yield return new WaitForSeconds(0.7f);
+            if (!_dead)
+            {
+                _feedback?.PlaySound(ultimateBurstSound);
+                if (ultVfx != null) Instantiate(ultVfx, spot, Quaternion.identity);
+                DealAreaDamage(spot, whiteoutFinaleRadius, data.attackDamage * whiteoutFinaleDmgMul);
+                SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);
+            }
+        }
     }
 
     // 포효마다 누적: 공격 쿨 감소 + 이속 증가
@@ -793,16 +1237,23 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         StopAllCoroutines();
         _attacking = false;
 
-        for (int i = 0; i < _roared.Length; i++) _roared[i] = false;
+        _phase = 0; _transitioning = false;   // [07-29] P1 로 리셋
+        SetBodyVisible(true);                 // 산산조각 중 리셋 대비 몸 복구
+        transform.localScale = _baseScale;    // [07-29] P1 크기 복원
+        ClearBodyTint();                      // [07-29] P1 색 복원
+        EnableP2Glow(false);                  // [07-29] 발열 글로우 끔
+        if (_health != null) _health.Invulnerable = false;
         _enrageCd = 1f;
         _enrageSpeed = 1f;
         for (int i = 0; i < _atkCd.Length; i++) _atkCd[i] = 0f;
-        _beamCd = 0f; _rainCd = 0f; _novaCd = 0f; _dashCd = 0f; _ultCd = 0f; _guardCd = 0f; _meleeGapCd = 0f;
+        _beamCd = 0f; _rainCd = 0f; _novaCd = 0f; _dashCd = 0f; _ultCd = 0f; _guardCd = 0f; _meleeGapCd = 0f; _mirrorCd = 0f;
+        ClearPhantoms();   // [07-29] 리쉬 리셋 시 분신 정리
 
         // 돌진 중 리셋되면 에이전트가 꺼진 채 남는다 -> 되살린다
         if (_agent != null && !_agent.enabled) _agent.enabled = true;
 
         _motor.ResetToSpawn(_leash.SpawnPos, _leash.SpawnRot, data);
+        ApplyP1Health();   // [07-29] 리셋 = P1 축소 체력으로
         BossHealthBarUI.Hide();
     }
 
