@@ -602,6 +602,7 @@ MonoBehaviour:
   rainSpreadRadius: 5
   rainShardFall: 0.5
   rainShardRadius: 2.5
+  rainShardScale: 1.5
   novaVfx: {fileID: 224993903656217306, guid: 764ee38cd0dd9814e996a1604c18df09, type: 3}
   novaRange: 5
   novaCooldown: 6
@@ -619,6 +620,9 @@ MonoBehaviour:
   dashRecover: 0.7
   dashRadius: 2.5
   dashDmgMul: 1.4
+  dashRadiusMul: 1.3
+  dashRepassGap: 0.3
+  dashPasses: 4
   ultVfx: {fileID: 7032375839666866217, guid: 995bdb7bbc56f2f43b80718c059f61b0, type: 3}
   ultRange: 16
   ultCooldown: 11
@@ -627,12 +631,62 @@ MonoBehaviour:
   ultRecover: 1.2
   ultRadius: 9
   ultDmgMul: 2.6
+  ultMeteorCount: 8
+  ultMeteorSpread: 6
+  ultMeteorGap: 0.12
+  ultMeteorRadius: 2.6
+  ultMeteorDmgMul: 0.7
+  ultMeteorFall: 0.45
   guardRange: 4
   guardCooldown: 6
   guardDuration: 1
   guardCounterState: Attack2
   guardCounterWindup: 0.5
   guardCounterDmgMul: 1.5
+  guardVfx: {fileID: 0}
+  whiteoutDuration: 4
+  whiteoutMeteorGap: 0.2
+  whiteoutSpread: 6
+  whiteoutMeteorRadius: 2.6
+  whiteoutMeteorDmgMul: 0.6
+  whiteoutMeteorFall: 0.4
+  whiteoutNovaGap: 1.3
+  whiteoutFinaleRadius: 10
+  whiteoutFinaleDmgMul: 2
+  mirrorCount: 3
+  mirrorRange: 22
+  mirrorCooldown: 13
+  mirrorWindup: 0.9
+  mirrorRadius: 5.5
+  mirrorTelegraph: 0.9
+  mirrorHoldTime: 2.2
+  mirrorRecover: 0.7
+  mirrorBurstRadius: 6.5
+  mirrorDmgMul: 1.6
+  mirrorPhantomTint: {r: 0.45, g: 0.75, b: 1, a: 1}
+  shatterVfx: {fileID: 0}
+  shatterHang: 2
+  shatterBurstRadius: 7
+  shatterDmgMul: 1.4
+  reformDistance: 7
+  reformTelegraph: 3
+  reformSlamRadius: 7
+  reformSlamDmgMul: 2
+  reformRecover: 0.7
+  p1HpMul: 0.1
+  p2ScaleMul: 1.25
+  p2Tint: {r: 1, g: 0.3, b: 0.2, a: 1}
+  p2GlowColor: {r: 1, g: 0.25, b: 0.1, a: 1}
+  p2GlowRange: 14
+  p2GlowIntensity: 5
+  frostFieldVfx: {fileID: 5630578436652499990, guid: dea820c9980572d40a762d83b7d1f0f0, type: 3}
+  frostStormVfx: {fileID: 2370906687226184872, guid: 6973488490833174b9699e9d73424fb5, type: 3}
+  frostStormScale: 0
+  frostFieldRadius: 24
+  frostFieldVfxScale: 100
+  frostFieldExpandTime: 1.5
+  frostFieldDrainPerSec: 3
+  frostFieldYOffset: 0.2
   telegraphVfx: {fileID: 8925826001229388022, guid: 410857c0f394094469028dd32f14563f, type: 3}
   telegraphScaleMul: 2.5
   roarState: Roar
@@ -648,6 +702,7 @@ MonoBehaviour:
   chargeVfxHand: {fileID: 2080067106486110468, guid: 65b84ebac59522e4ab8812f08139547c, type: 3}
   chargeVfxBody: {fileID: 914125107827245812, guid: 0ebec90f7e0be184685b1d412c4aec53, type: 3}
   impactVfxMelee: {fileID: 1497850087004499017, guid: 1f60f8de557a12f4f8550a1c2742b4bd, type: 3}
+  meleeHitVfx: {fileID: 0}
   impactVfxRanged: {fileID: 6648929964555825526, guid: 6139c2f64223ade40b2794fbe61065c3, type: 3}
   impactVfxHeavy: {fileID: 224993903656217306, guid: 764ee38cd0dd9814e996a1604c18df09, type: 3}
   chargeAnchor: {fileID: 1723602884488205545}
@@ -662,8 +717,15 @@ MonoBehaviour:
   ultState: CastBig
   dashState: Fly
   blockState: Block
-  leashDistance: 45
-  leashResetTime: 4
+  wMelee: 1.5
+  wBeam: 1.5
+  wRain: 1.2
+  wNova: 1
+  wGuard: 0.8
+  wDash: 1
+  wUlt: 1.2
+  wMirror: 1.1
+  repeatPenalty: 0.35
 --- !u!114 &4175666197687865734
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -698,6 +760,18 @@ MonoBehaviour:
   spawnHeight: 1
   fallbackLifestealPercent: 0.03
   bonusHealPercent: 0.5
+--- !u!114 &3838200249100946782
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2499783565034211209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &2516734357971909679
 GameObject:
   m_ObjectHideFlags: 0
@@ -1863,15 +1937,3 @@ Transform:
   - {fileID: 1297220611848277341}
   m_Father: {fileID: 7403171031600573669}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3838200249100946782
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2499783565034211209}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
