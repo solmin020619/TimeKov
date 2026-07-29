@@ -125,7 +125,10 @@ public static class IceElementalBossBuilder
         var sobj = new SerializedObject(ctrl);
         SetRef(sobj, "data", so);
         SetRef(sobj, "beamVfx",   Frost("FrostRay"));
-        SetRef(sobj, "rainVfx",   Frost("SkySingle_Frost"));   // 고드름 한 발(코드로 사방 다발)
+        SetRef(sobj, "rainVfx",   Frost("Skyshot Snowcrystal Arrow"));   // [07-30] 단발 고드름(바닥 텔레그래프 데칼 진함). 판정=rainShardRadius를 그 데칼에 맞춤
+        // [07-30] 궁극 포격 변주용 다발성 고드름(1발=원형 존에 고드름 다발). PickBurst()가 랜덤으로 하나씩 뽑는다.
+        SetRefArray(sobj, "burstVfx", Frost("SkyFlurry_Frost"), Frost("SkySpiral_Frost"),
+                                      Frost("SkySpiral_MultipleLoops_Frost"), Frost("SkyTwinSpirals_Frost"));
         SetRef(sobj, "novaVfx",   Frost("AOE_Explosion_Frost"));   // 바닥 원이 퍼지며 밀어내는 폭발(예쁜 원)
         SetRef(sobj, "ultVfx",    Frost("NuclearBomb_Frost"));
         SetRef(sobj, "dashVfx",   Frost("Wing_Frost"));
@@ -242,6 +245,15 @@ public static class IceElementalBossBuilder
         var p = sobj.FindProperty(prop);
         if (p != null) p.objectReferenceValue = value;
         else Debug.LogWarning($"[IceBoss] 직렬화 필드 없음: {prop}");
+    }
+
+    private static void SetRefArray(SerializedObject sobj, string prop, params Object[] values)
+    {
+        var p = sobj.FindProperty(prop);
+        if (p == null) { Debug.LogWarning($"[IceBoss] 직렬화 필드 없음: {prop}"); return; }
+        p.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++)
+            p.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
     }
 
     // 언팩된 계층에서 본 Transform 을 이름으로 찾는다.

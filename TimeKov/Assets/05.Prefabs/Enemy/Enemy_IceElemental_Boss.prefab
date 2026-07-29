@@ -590,7 +590,7 @@ MonoBehaviour:
   beamRecover: 0.6
   beamDmgMul: 0.3
   beamOffset: {x: 0, y: 2, z: 1}
-  rainVfx: {fileID: 5817103525142749046, guid: 76e980e5ffdab204db5b9d3b6c2b8056, type: 3}
+  rainVfx: {fileID: 7096645133160374786, guid: ea683fce9acbb9f47ae7442cdef9b427, type: 3}
   rainRange: 18
   rainCooldown: 5.5
   rainWindup: 0.77
@@ -603,6 +603,11 @@ MonoBehaviour:
   rainShardFall: 0.5
   rainShardRadius: 2.5
   rainShardScale: 1.5
+  burstVfx:
+  - {fileID: 7819478120651437238, guid: 88c71970b5d1c2d439cae673593a1d72, type: 3}
+  - {fileID: 5526789242651575624, guid: 4ea0f5b638420f64e8bb43fd97659e1a, type: 3}
+  - {fileID: 2345377423684518905, guid: c222133a7ba3e724f84e43a0c0f4eef4, type: 3}
+  - {fileID: 2442141491503524501, guid: 533836ca19a828e45917919e81f7e818, type: 3}
   novaVfx: {fileID: 224993903656217306, guid: 764ee38cd0dd9814e996a1604c18df09, type: 3}
   novaRange: 5
   novaCooldown: 6
@@ -673,7 +678,7 @@ MonoBehaviour:
   reformSlamRadius: 7
   reformSlamDmgMul: 2
   reformRecover: 0.7
-  p1HpMul: 0.1
+  p1HpMul: 1
   p2ScaleMul: 1.25
   p2Tint: {r: 1, g: 0.3, b: 0.2, a: 1}
   p2GlowColor: {r: 1, g: 0.25, b: 0.1, a: 1}
@@ -684,7 +689,7 @@ MonoBehaviour:
   frostStormScale: 0
   frostFieldRadius: 24
   frostFieldVfxScale: 100
-  frostFieldExpandTime: 1.5
+  frostFieldExpandTime: 3
   frostFieldDrainPerSec: 3
   frostFieldYOffset: 0.2
   telegraphVfx: {fileID: 8925826001229388022, guid: 410857c0f394094469028dd32f14563f, type: 3}

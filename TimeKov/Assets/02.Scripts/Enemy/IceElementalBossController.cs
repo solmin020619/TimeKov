@@ -76,12 +76,20 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float rainShardGap = 0.22f;
     [Tooltip("플레이어 주변 흩뿌리는 반경. 작을수록 발밑에 몰림(회피 어려움).")]
     [SerializeField] private float rainSpreadRadius = 5f;
-    [Tooltip("고드름 낙하 시간(스폰~착탄 판정 지연). 페이즈마다 빨라짐")]
-    [SerializeField] private float rainShardFall = 0.5f;
-    [Tooltip("발당 데미지 반경")]
-    [SerializeField] private float rainShardRadius = 2.5f;
-    [Tooltip("[07-29] 고드름 크기 배율(비주얼 + 판정 반경 동시). 1.5 = 50% 큼 -> 자연히 위협적.")]
+    [Tooltip("고드름 낙하 시간(스폰~판정 지연). ★VFX가 시각적으로 착탄하는 순간과 맞춰라 - 짧으면 '바닥 닿기 전에 맞는' 조기피격. 페이즈마다 빨라짐.")]
+    [SerializeField] private float rainShardFall = 0.7f;
+    [Tooltip("[07-29] 고드름 원/판정 반경(코드로 그리는 원 == 이 값 그대로). 고드름 비주얼 크기와 독립 = 원 크기는 이것만 조절. 너무 크면 내려라(2, 1.5...).")]
+    [SerializeField] private float rainShardRadius = 1.25f;
+    [Tooltip("[07-29] 고드름 '비주얼'만 키우는 배율(원/판정 무관). 프리팹 크게 보이게 하려면 이것만 올려라.")]
     [SerializeField] private float rainShardScale = 1.5f;
+    [Tooltip("[07-30] 고드름 VFX를 지면에서 살짝 띄운다(떨어질 때 바닥에 박히는 것 방지, 모래정령 교훈). 약간만.")]
+    [SerializeField] private float rainVfxYLift = 0.4f;
+    [Tooltip("[07-30] 착탄 이 시간 전에 고드름 VFX가 등장(= 떨어지는 구간). 그 앞 구간은 범위 텔레그래프 원만 뜬다 -> '범위 먼저 보여주고 그 안으로 떨어짐'. fall보다 작아야 함(크면 fall로 클램프).")]
+    [SerializeField] private float dropLead = 0.35f;
+
+    [Header("[07-30] 다발성 고드름 VFX (궁극 포격 변주용)")]
+    [Tooltip("1발=원형 존에 고드름 다발(SkyFlurry/SkySpiral/SkyTwinSpirals/SkySpiral_MultipleLoops). 궁극 포격이 매 낙하마다 이 중 하나를 랜덤으로 쓴다. 비면 rainVfx(단발)로 폴백. 단발보다 넓으니 판정 반경(ultBombardRadius)을 크게 잡아라.")]
+    [SerializeField] private GameObject[] burstVfx;
 
     [Header("자기중심 노바 (AOE_Explosion_Frost - 바닥 원 퍼지며 밀어내기)")]
     [SerializeField] private GameObject novaVfx;
@@ -115,17 +123,25 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float ultRange = 16f;
     [SerializeField] private float ultCooldown = 11f;
     [SerializeField] private float ultWindup = 1.4f;        // Cast3 = 양팔 대시전(긴 예고)
-    [SerializeField] private float ultTelegraph = 1.0f;
     [SerializeField] private float ultRecover = 1.2f;
-    [SerializeField] private float ultRadius = 9f;
     [SerializeField] private float ultDmgMul = 2.6f;
-    [Header("[07-29] 궁극 배러지 (용성군 - 플레이어 주변 추적 낙하 후 중앙 대폭발)")]
-    [SerializeField] private int ultMeteorCount = 8;
-    [SerializeField] private float ultMeteorSpread = 6f;
-    [SerializeField] private float ultMeteorGap = 0.12f;
-    [SerializeField] private float ultMeteorRadius = 2.6f;
-    [SerializeField] private float ultMeteorDmgMul = 0.7f;
-    [SerializeField] private float ultMeteorFall = 0.45f;
+    [Header("[07-29] 궁극 = 한 번 멀리 순간이동 -> 거기서 플레이어 쪽으로 포격")]
+    [Tooltip("순간이동으로 플레이어에게서 벌리는 거리(자폭처럼 안 보이게 거리부터 만듦).")]
+    [SerializeField] private float ultBlinkDistance = 15f;
+    [Tooltip("재등장 후 포격 시작까지 텀(초).")]
+    [SerializeField] private float ultBlinkPause = 0.5f;
+    [Tooltip("포격 낙하 수.")]
+    [SerializeField] private int ultBombardCount = 6;
+    [Tooltip("포격 흩뿌림 반경. ★radius보다 너무 크면 사이사이 '안 맞는 구멍'이 생긴다(radius와 비슷하게 잡아라). 첫 발은 항상 플레이어 정조준.")]
+    [SerializeField] private float ultBombardSpread = 6f;
+    [Tooltip("포격 1발 판정 반경 = 코드의 유일한 히트박스. ★보이는 다발 VFX 존 크기에 맞춰라 - 작으면 '고드름 맞았는데 안 아픔' 발생. spread와 비슷/크게.")]
+    [SerializeField] private float ultBombardRadius = 5f;
+    [Tooltip("포격 1발 예고 시간(원 뜨고 착탄까지).")]
+    [SerializeField] private float ultBombardWarn = 0.6f;
+    [Tooltip("포격 사이 텀(초).")]
+    [SerializeField] private float ultBombardGap = 0.25f;
+    [Tooltip("포격 1발 데미지 x attackDamage(여러 발이라 낮게).")]
+    [SerializeField] private float ultBombardDmgMul = 0.8f;
 
     [Header("가드 반격 (Block - 근접 압박 시 무적 후 광역 반격)")]
     [SerializeField] private float guardRange = 4f;         // 이 안에 플레이어가 있고
@@ -166,16 +182,20 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private GameObject shatterVfx;
 
     [Header("[07-29] 산산조각 & 재조립 (P1 체력 0 -> 죽는 대신 부서졌다 풀피로 재조립하며 P2 진입)")]
-    [SerializeField] private float shatterHang = 2f;         // 몸이 부서진 채 비산하는 시간 ([07-29] 테스트용 느리게. 나중에 0.5 권장)
+    [Tooltip("[07-30] 부서질 때 몸이 오그라들며 무너지는 시간(초). 그냥 '띡' 꺼지지 않게 조각 폭발과 겹친다. 0=즉시(구버전). 0.4~0.6 권장.")]
+    [SerializeField] private float shatterCollapse = 0.45f;
+    [Tooltip("[07-30] 재조립 시 몸이 작게서 원래 크기로 뭉치며 커지는 시간(초). '부서졌다 다시 뭉친다' 마무리. 0=즉시.")]
+    [SerializeField] private float reformGrow = 0.4f;
+    [SerializeField] private float shatterHang = 2f;         // [07-30] 몸이 부서진 채 비산하는 시간(전환 확정 값, 종욱 승인 - 짧게 줄이지 말 것)
     [SerializeField] private float shatterBurstRadius = 7f;  // 부서질 때 그 자리 AOE
     [SerializeField] private float shatterDmgMul = 1.4f;
     [SerializeField] private float reformDistance = 7f;      // 플레이어에서 이만큼 떨어진 곳에 재조립
-    [SerializeField] private float reformTelegraph = 3f;     // 재조립 예고(서리 수렴 + HP 차오름) ([07-29] 테스트용 느리게. 나중에 1.1 권장)
+    [SerializeField] private float reformTelegraph = 3f;     // [07-30] 재조립 예고(서리 수렴 + HP 차오름) = 확정 값(종욱 승인, 짧게 줄이지 말 것)
     [SerializeField] private float reformSlamRadius = 7f;    // 재조립 강타 반경
     [SerializeField] private float reformSlamDmgMul = 2f;
     [SerializeField] private float reformRecover = 0.7f;
-    [Tooltip("[07-29] P1 최대 체력 = SO 최대치 x 이 값. 테스트용 0.1(10%)로 전환 빨리 확인. P2 는 항상 풀 최대치.")]
-    [SerializeField] private float p1HpMul = 0.1f;
+    [Tooltip("[07-30] P1 최대 체력 = SO 최대치 x 이 값. 1 = 원래 체력(정상). P1 체력 0 되면 죽지 않고 산산조각->재조립으로 P2 진입. P2 는 항상 풀 최대치.")]
+    [SerializeField] private float p1HpMul = 1f;
     [Tooltip("[07-29] P2(재조립 후) 몸 크기 배율. 1.25 = 25% 큼. 강화형 차별화.")]
     [SerializeField] private float p2ScaleMul = 1.25f;
     [Tooltip("[07-29] P2 몸 색조(발열되듯 빨갛게). 원본 색에 곱해진다. 설산 눈밭이라 빨강이 확 티남.")]
@@ -407,7 +427,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             _cand.Add((AtkType.Nova, wNova));
         if (phase >= 1 && _guardCd <= 0f && dist <= guardRange)
             _cand.Add((AtkType.Guard, wGuard));
-        if (phase >= 1 && _dashCd <= 0f && dist >= dashMinRange && dist <= dashMaxRange)
+        // [07-30] 돌진은 P1부터 허용(P1=1번 단순 돌진 / P2=dashPasses 연속). 붙는 갭클로저.
+        if (_dashCd <= 0f && dist >= dashMinRange && dist <= dashMaxRange)
             _cand.Add((AtkType.Dash, wDash));
         if (_rainCd <= 0f && rainVfx != null && dist <= rainRange)
             _cand.Add((AtkType.Rain, wRain));
@@ -617,7 +638,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             Vector3 center = _player != null ? _player.position : transform.position;
             Vector2 r = Random.insideUnitCircle * rainSpreadRadius;
             Vector3 spot = GroundSpot(center + new Vector3(r.x, 0f, r.y));
-            StartCoroutine(DropIceShard(spot, fall, rainShardRadius * rainShardScale, rainDmgMul, rainShardScale));   // 스폰+낙하 후 판정(크기 배율 반영)
+            StartCoroutine(DropIceShard(rainVfx, spot, fall, rainShardRadius, rainDmgMul, rainShardScale));   // 단발(Snowcrystal Arrow). 판정=rainShardRadius(독립), 비주얼=rainShardScale
             yield return new WaitForSeconds(gap);
         }
 
@@ -629,16 +650,33 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
 
     // 고드름 한 발: 낙하 VFX 스폰(크기 배율) -> 낙하 시간 뒤 그 지점 반경 판정.
     // [07-29] 낙하/궁극 배러지/혹한 공용. vScale 로 비주얼 크기를 키운다.
-    private IEnumerator DropIceShard(Vector3 spot, float fall, float radius, float dmgMul, float vScale)
+    private IEnumerator DropIceShard(GameObject vfx, Vector3 spot, float fall, float radius, float dmgMul, float vScale)
     {
-        if (rainVfx != null)
+        // [07-30] 범위(텔레그래프 원)를 먼저 띄우고 -> lead초 전에 고드름 VFX가 그 안으로 떨어진다 -> 착탄에 판정.
+        //   "떨어진 곳에 원이 생긴다"가 아니라 "원 먼저 뜨고 그 안으로 떨어진다"로. 판정 반경(radius)=텔레그래프 원 크기.
+        SpawnTelegraph(spot, radius, fall + 0.3f);
+        float lead = Mathf.Clamp(dropLead, 0f, fall);
+        if (fall - lead > 0f) yield return new WaitForSeconds(fall - lead);
+        if (_dead) yield break;
+        if (vfx != null)
         {
-            var g = Instantiate(rainVfx, spot, Quaternion.identity);
+            var g = Instantiate(vfx, spot + Vector3.up * rainVfxYLift, Quaternion.identity);   // 살짝 띄움(바닥 박힘 방지)
             if (vScale != 1f) g.transform.localScale *= vScale;
         }
-        yield return new WaitForSeconds(fall);
+        if (lead > 0f) yield return new WaitForSeconds(lead);
         if (_dead) yield break;
         DealAreaDamage(spot, radius, data.attackDamage * dmgMul);
+    }
+
+    // [07-30] 다발성 고드름 VFX 하나를 랜덤으로 고른다(궁극 포격 변주). 비면 단발 rainVfx로 폴백.
+    private GameObject PickBurst()
+    {
+        if (burstVfx != null && burstVfx.Length > 0)
+        {
+            var pick = burstVfx[Random.Range(0, burstVfx.Length)];
+            if (pick != null) return pick;
+        }
+        return rainVfx;
     }
 
     // 자기중심 노바: 붙은 플레이어를 밀어내는 용도
@@ -726,7 +764,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         yield return new WaitForSeconds(dashWindup);
         if (_dead) { _attacking = false; yield break; }
 
-        int passes = Mathf.Max(1, dashPasses);   // [07-29] 여러 번 돌진(확확확), 매 회 재조준
+        int passes = RoarsDone() >= 1 ? Mathf.Max(1, dashPasses) : 1;   // [07-30] P1=1번(단순) / P2=dashPasses(확확확), 매 회 재조준
         float hitR = dashRadius * dashRadiusMul;
 
         // 에이전트를 끄고 직접 이동(관통). 끝나면 반드시 되살린다.
@@ -788,7 +826,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (!_dead) _motor.PlayState("Idle");
     }
 
-    // 궁극(P3): 긴 예고 후 [07-29] 플레이어 주변으로 고드름 배러지(용성군, 매 발 현재위치 추적) -> 마무리 중앙 대폭발.
+    // 궁극(P3): [07-29] 한 번 멀리 순간이동으로 플레이어에게서 거리를 벌린 뒤, 거기서 플레이어 쪽으로 포격.
+    //   예전(제자리/근처 블링크)은 플레이어가 근접해 있으니 "자폭"처럼 보였다. 멀리 빠진 뒤 원거리 포격 = 확실히 다른 느낌.
     private IEnumerator Ultimate()
     {
         _attacking = true;
@@ -798,32 +837,38 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         SpawnCharge(chargeVfxBody, transform.position + Vector3.up * 1.5f, ultWindup);   // 대형 응축(긴 예고)
         _feedback?.PlaySound(ultimateChargeSound);
         yield return new WaitForSeconds(ultWindup);
-
         if (_dead || _player == null) { _attacking = false; yield break; }
 
-        // 1) 용성군 배러지: 플레이어 주변에 고드름이 연달아 쏟아진다(매 발 현재 위치 = 도망쳐도 따라옴).
-        for (int i = 0; i < ultMeteorCount && !_dead; i++)
+        bool agentWasOn = _agent != null && _agent.enabled;
+        if (agentWasOn) _agent.enabled = false;   // 텔레포트 위해 끔
+
+        // 1) 한 번 멀리 순간이동(플레이어에게서 벗어나 포격 위치로).
+        if (novaVfx != null) { var v = Instantiate(novaVfx, GroundSpot(transform.position), Quaternion.identity); Destroy(v, 2f); }   // 떠난 자리 냉기 잔상
+        Vector2 bd = Random.insideUnitCircle.normalized;
+        Vector3 far = GroundSpot(_player.position + new Vector3(bd.x, 0f, bd.y) * ultBlinkDistance);
+        transform.position = far;
+        _motor.FaceInstant(_player.position);
+        _feedback?.PlaySound(ultimateChargeSound);
+        yield return new WaitForSeconds(ultBlinkPause);   // 재등장 후 잠깐(포격 예고감)
+
+        // 2) 멀리서 플레이어 쪽으로 포격: 플레이어 주변에 예고->낙하 연달아(도망쳐도 현재 위치 추적).
+        for (int i = 0; i < Mathf.Max(1, ultBombardCount) && !_dead; i++)
         {
-            Vector3 center = _player != null ? _player.position : transform.position;
-            Vector2 rr = Random.insideUnitCircle * ultMeteorSpread;
-            Vector3 mspot = GroundSpot(center + new Vector3(rr.x, 0f, rr.y));
-            StartCoroutine(DropIceShard(mspot, ultMeteorFall, ultMeteorRadius, ultMeteorDmgMul, 1.2f));
-            yield return new WaitForSeconds(ultMeteorGap);
+            Vector3 center = _player != null ? _player.position : _spawnPos;
+            // [07-30] 첫 발은 플레이어 정조준(offset 0) = 안 움직이면 반드시 맞음(예고 중 이동으로만 회피).
+            //   나머지는 흩뿌려 연출. spread를 radius에 가깝게 둬야 사이사이 안 맞는 구멍이 안 생긴다.
+            Vector2 rr = (i == 0) ? Vector2.zero : Random.insideUnitCircle * ultBombardSpread;
+            Vector3 spot = GroundSpot(center + new Vector3(rr.x, 0f, rr.y));
+            StartCoroutine(DropIceShard(PickBurst(), spot, ultBombardWarn, ultBombardRadius, ultBombardDmgMul, 1f));   // [07-30] 다발성 존 VFX 랜덤(변주). 배율 1(이미 넓음)
+            if (_player != null) _motor.FaceInstant(_player.position);
+            yield return new WaitForSeconds(ultBombardGap);
         }
 
-        // 2) 마무리: 플레이어 자리 중앙 대폭발.
-        if (!_dead && _player != null)
+        // 에이전트 복구 + navmesh 스냅(안 하면 공중/벽 밖 잔존)
+        if (agentWasOn && _agent != null)
         {
-            Vector3 spot = GroundSpot(_player.position);   // 지면으로 스냅
-            SpawnTelegraph(spot, ultRadius);
-            yield return new WaitForSeconds(ultTelegraph);
-            if (!_dead)
-            {
-                _feedback?.PlaySound(ultimateBurstSound);
-                if (ultVfx != null) Instantiate(ultVfx, spot + Vector3.up * 0.3f, Quaternion.identity);   // [07-29] 바닥에 안 파묻히게 살짝 띄움(모래정령 교훈)
-                DealAreaDamage(spot, ultRadius, data.attackDamage * ultDmgMul);
-                SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);   // 대형 착탄
-            }
+            _agent.enabled = true;
+            if (NavMesh.SamplePosition(transform.position, out var hit, 8f, NavMesh.AllAreas)) _agent.Warp(hit.position);
         }
 
         yield return new WaitForSeconds(ultRecover);
@@ -1010,16 +1055,28 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _motor.StopMove();
         bool agentWasOn = _agent != null && _agent.enabled;
 
-        // 1) 산산조각: 몸 렌더러 OFF + 얼음 조각 폭발 + 그 자리 AOE(붙어있던 플레이어 타격)
+        // 1) 산산조각: 얼음 조각 폭발 + 그 자리 AOE(붙어있던 플레이어 타격) + 몸이 오그라들며 부서진다.
         Vector3 p0 = GroundSpot(transform.position);
         var shatter = shatterVfx != null ? shatterVfx : impactVfxMelee;
         if (shatter != null) { var s = Instantiate(shatter, transform.position + Vector3.up, Quaternion.identity); s.transform.localScale *= 2.2f; Destroy(s, 3f); }
         if (novaVfx != null) Instantiate(novaVfx, p0, Quaternion.identity);
-        SetBodyVisible(false);
         _feedback?.PlaySound(novaSound);
         DealAreaDamage(p0, shatterBurstRadius, data.attackDamage * shatterDmgMul);
 
         if (agentWasOn && _agent != null) _agent.enabled = false;   // 텔레포트 위해 끔
+
+        // [07-30] 그냥 '띡' 꺼지지 않게: shatterCollapse 초 동안 몸을 안으로 오그라뜨렸다(조각 폭발과 겹침) 숨긴다.
+        Vector3 baseScaleNow = transform.localScale;
+        float ct = 0f;
+        while (ct < shatterCollapse && !_dead)
+        {
+            ct += Time.deltaTime;
+            float k = Mathf.Max(0.02f, 1f - ct / shatterCollapse);
+            transform.localScale = baseScaleNow * (k * k);   // 가속 붕괴(ease-in) = 안으로 무너지는 느낌
+            yield return null;
+        }
+        SetBodyVisible(false);
+        transform.localScale = baseScaleNow;   // 숨긴 상태에서 스케일 원복(재조립 때 p2ScaleMul 로 다시 세팅)
 
         yield return new WaitForSeconds(shatterHang);   // 비산
 
@@ -1058,7 +1115,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         }
         if (_player != null) _motor.FaceInstant(_player.position);
         SetBodyVisible(true);
-        transform.localScale = _baseScale * Mathf.Max(0.1f, p2ScaleMul);   // [07-29] P2 = 더 큰 몸
+        Vector3 p2Scale = _baseScale * Mathf.Max(0.1f, p2ScaleMul);         // [07-29] P2 = 더 큰 몸
         SetBodyTint(p2Tint);                                                // [07-29] P2 = 빨간 몸
         EnableP2Glow(true);                                                 // [07-29] P2 = 발열 글로우
         _motor.PlayState(roarState);
@@ -1067,6 +1124,18 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_health != null) _health.ResetToFull();          // 바 즉시 100% 회복
         Enrage();                                            // P2 = 광폭화
         BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult, debuffDarkness, debuffVignetteStrength, debuffVignetteFalloff);   // 극적 전환(화면 서리)
+
+        // [07-30] 작게서 원래 크기로 뭉치며 커진다(재조립 마무리). 다 뭉친 뒤 강타가 터진다.
+        float gt = 0f;
+        while (gt < reformGrow && !_dead)
+        {
+            gt += Time.deltaTime;
+            float ke = Mathf.Clamp01(gt / reformGrow);
+            float easeG = 1f - (1f - ke) * (1f - ke);   // ease-out: 빠르게 뭉쳤다 끝에서 감속
+            transform.localScale = p2Scale * Mathf.Lerp(0.15f, 1f, easeG);
+            yield return null;
+        }
+        transform.localScale = p2Scale;
 
         if (impactVfxHeavy != null) Instantiate(impactVfxHeavy, dest + Vector3.up * 0.3f, Quaternion.identity);
         _feedback?.PlaySound(roarSound);
@@ -1215,7 +1284,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             Vector3 center = _player != null ? _player.position : transform.position;
             Vector2 rr = Random.insideUnitCircle * whiteoutSpread;
             Vector3 mspot = GroundSpot(center + new Vector3(rr.x, 0f, rr.y));
-            StartCoroutine(DropIceShard(mspot, whiteoutMeteorFall, whiteoutMeteorRadius, whiteoutMeteorDmgMul, 1.2f));
+            StartCoroutine(DropIceShard(rainVfx, mspot, whiteoutMeteorFall, whiteoutMeteorRadius, whiteoutMeteorDmgMul, 1.2f));
 
             novaT += whiteoutMeteorGap;
             if (novaT >= whiteoutNovaGap)
@@ -1266,12 +1335,12 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         return pos;
     }
 
-    private void SpawnTelegraph(Vector3 pos, float radius)
+    private void SpawnTelegraph(Vector3 pos, float radius, float life = 3f)
     {
         if (telegraphVfx == null) return;
         var t = Instantiate(telegraphVfx, pos + Vector3.up * 0.05f, Quaternion.identity);
         t.transform.localScale = Vector3.one * radius * telegraphScaleMul;
-        Destroy(t, 3f);
+        Destroy(t, life);
     }
 
     // 전조가 붙을 위치(손 본이 지정됐으면 거기, 아니면 beamOffset 로컬 위치)
