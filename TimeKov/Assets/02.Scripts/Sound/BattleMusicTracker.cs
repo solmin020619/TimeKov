@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// 일반 몹 교전 상태를 집계해 "맵 테마 전투 BGM" 을 켜고 끈다.
-//   각 적 AI(EnemyBrain / FieldMonsterAI / HellMonsterAI)가 교전 시작·종료를 알려주면
-//   교전 중인 적 수를 세어(ref-count) 0→1 에 Begin, 1→0 에 End 한다.
+// 일반 몹 교전 상태를 집계해 "공용 전투 BGM(NormalBattleBgm)" 을 켜고 끈다.
+//   각 적 AI(EnemyBrain / FieldMonsterAI / HellMonsterAI / SelfDestructSpiderAI)가 교전 시작·종료를 알려주면
+//   교전 중인 적 수를 세어(ref-count) 0→1 에 Begin, 1→0 에 End 한다. (맵 구분 없이 1곡)
 //   ★보스는 자기 전용 BGM(WyvernBattleBgm)을 BattleBgm 으로 직접 켜므로 이 트래커를 타지 않는다.
 //     (보스가 먼저 교전 중이면 BattleBgm 의 ref-count 때문에 일반 몹 Begin 은 클립을 바꾸지 않아
 //      보스 BGM 이 그대로 유지된다 — 의도된 우선순위.)
@@ -21,13 +21,14 @@ public static class BattleMusicTracker
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics() { _engaged.Clear(); _musicOn = false; }
 
-    // 적이 플레이어와 교전을 시작. 첫 교전이면 해당 테마 BGM 시작(클립이 있을 때만).
-    public static void Engage(int enemyId, TransmissionRegion region)
+    // 적이 플레이어와 교전을 시작. 첫 교전이면 공용 전투 BGM 시작(클립이 있을 때만).
+    //   region 인자는 하위호환용으로 남겨두되 사용하지 않는다(맵 구분 없이 공용 1곡).
+    public static void Engage(int enemyId, TransmissionRegion region = TransmissionRegion.Nature)
     {
         if (!_engaged.Add(enemyId)) return;    // 이미 교전 중이던 적 → 무시
         if (_engaged.Count != 1) return;       // 0 → 1 일 때만 시작
 
-        var id = BgmFor(region);
+        const SfxId id = SfxId.NormalBattleBgm;
         if (GameSfx.TryGet(id, out var clip, out _) && clip != null)
         {
             BattleBgm.Begin(id);
@@ -47,12 +48,4 @@ public static class BattleMusicTracker
             _musicOn = false;
         }
     }
-
-    private static SfxId BgmFor(TransmissionRegion r) => r switch
-    {
-        TransmissionRegion.Snow   => SfxId.SnowBattleBgm,
-        TransmissionRegion.Desert => SfxId.DesertBattleBgm,
-        TransmissionRegion.Lava   => SfxId.LavaBattleBgm,
-        _                         => SfxId.NatureBattleBgm,   // Nature 및 기본값
-    };
 }
