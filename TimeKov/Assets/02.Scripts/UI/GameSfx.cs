@@ -118,12 +118,14 @@ public enum SfxId
     // ── 코어 강화 미니게임 (CoreUpgradeUI) ──
     CoreUpgradeTick,          // 바늘 회전(타임캐치) 중 째깍째깍 루프
 
-    // ── 맵 테마 전투 BGM (BattleMusicTracker → BattleBgm · 일반 몹 교전 시 재생) ──
+    // ── 일반 몹 전투 BGM (BattleMusicTracker → BattleBgm · 보스 제외 몹 교전 시 재생) ──
     //   ★enum 끝에 append 유지(중간 삽입 금지 — GameSfxConfig id 매핑 보존).
-    NatureBattleBgm,          // 자연맵 전투 BGM
-    SnowBattleBgm,            // 설산맵 전투 BGM
-    DesertBattleBgm,          // 사막맵 전투 BGM
-    LavaBattleBgm,            // 용암맵 전투 BGM
+    //   맵 구분 없이 공용 1곡. 볼륨은 GameSfxConfig 의 이 id 볼륨 × BGM 슬라이더.
+    NormalBattleBgm,          // 일반 몹 공용 전투 BGM
+
+    // 전투 종료 임팩트 (BattleBgm · 교전 종료 시 필드 BGM 페이드인 직전 샤악- 1회) ──
+    //   클립 없으면 무음(안전). SFX 볼륨을 따른다. Resources/Sfx/BattleEndAccent 폴백 가능.
+    BattleEndAccent,          // 전투 종료 전환 강조음(엔드필드식 샤악)
 }
 
 // 런타임 UI/이벤트 효과음 재생기 (지연 싱글톤, 씬 세팅 불필요).

@@ -4,7 +4,8 @@ using UnityEngine;
 using UnityEngine.AI;
 
 // 모래정령(사막 보스) - 전용 상태머신.
-// 와이번/얼음정령과 같은 방식(BT/EnemyBrain 미사용)이며 글루는 BossMotor/BossLeash 가 대신한다.
+// 와이번/얼음정령과 같은 방식(BT/EnemyBrain 미사용)이며 글루는 BossMotor 가 대신한다.
+// [07-29] 리쉬 폐지 - 원거리 디스폰은 EnemySpawnPoint 원거리슬립(activateDistance)이 전담(보스 4종 통일).
 //
 // [정체성] 와이번 = 근접형 / 얼음정령 = 원거리 캐스터형.
 //   모래정령 = "가둔다 -> 받아친다 -> 짓이긴다" = 근접 위치지배/카운터형.
@@ -195,9 +196,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [Tooltip("직전에 쓴 패턴의 가중치 배율(연속 방지). 0=절대 연속 안 함, 1=페널티 없음.")]
     [Range(0f, 1f)] [SerializeField] private float repeatPenalty = 0.35f;
 
-    [Header("리쉬 (이탈 리셋)")]
-    [SerializeField] private float leashDistance = 45f;
-    [SerializeField] private float leashResetTime = 4f;
+    // [07-29] 리쉬 폐지 - 원거리 처리는 EnemySpawnPoint 원거리슬립(activateDistance)이 전담(보스 4종 통일).
 
     // 근접 공격 정의
     private struct AtkDef
@@ -220,9 +219,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private AtkType _lastAttack = AtkType.None;
     private readonly List<(AtkType type, float weight)> _cand = new List<(AtkType, float)>();
 
-    // 공용 모터/리쉬 (보스 3종 공유)
+    // 공용 모터 (보스 3종 공유)
     private BossMotor _motor;
-    private BossLeash _leash;
 
     // 모터 위임(본문 가독성용 얇은 프로퍼티)
     private NavMeshAgent _agent => _motor.Agent;
@@ -248,7 +246,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private void Awake()
     {
         _motor = new BossMotor(this, speedParam);
-        _leash = new BossLeash(leashDistance, leashResetTime);
         _atkCd = new float[MeleeAttacks.Length];
         _roared = new bool[RoarThresholds.Length];
         _motor.ApplyData(data);
@@ -256,7 +253,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
     private void Start()
     {
-        _leash.Capture(transform);
         _motor.AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
@@ -266,6 +262,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     {
         if (_health != null) _health.OnDeath -= HandleDeath;
         ReleaseCoffinLock();   // 파괴 시 플레이어 락 잔존 방지
+        if (_engaged) BattleBgm.End();   // [07-29] 원거리슬립 despawn 시 전투 브금 원복(리쉬 폐지)
     }
 
     private void OnDisable()
@@ -288,9 +285,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     {
         if (_dead) return;
         if (_player == null) _motor.AcquirePlayer();
-
-        if (_engaged && _player != null && _leash.Tick(_motor.PlanarDistance(_player.position)))
-            ResetBoss();
 
         _motor.TickSpeedParam();
         TickCooldowns();
@@ -903,30 +897,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private void ReleaseCoffinLock()
     {
         if (_coffinLockActive) SetCoffinLock(false);
-    }
-
-    private void ResetBoss()
-    {
-        _leash.Clear();
-        _engaged = false;
-        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
-
-        StopAllCoroutines();
-        ReleaseCoffinLock();   // ★리쉬 리셋이 코루틴을 끊어도 플레이어 락은 반드시 푼다
-        EndDiveCleanup();
-        _attacking = false;
-
-        for (int i = 0; i < _roared.Length; i++) _roared[i] = false;
-        _enrageCd = 1f;
-        _enrageSpeed = 1f;
-        for (int i = 0; i < _atkCd.Length; i++) _atkCd[i] = 0f;
-        _waveCd = 0f; _tornadoCd = 0f; _quicksandCd = 0f; _coffinCd = 0f;
-        _diveCd = 0f; _ultCd = 0f; _guardCd = 0f; _meleeGapCd = 0f;
-
-        if (_agent != null && !_agent.enabled) _agent.enabled = true;
-
-        _motor.ResetToSpawn(_leash.SpawnPos, _leash.SpawnRot, data);
-        BossHealthBarUI.Hide();
     }
 
     private void LateUpdate()

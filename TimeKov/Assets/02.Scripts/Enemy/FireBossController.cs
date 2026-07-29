@@ -4,7 +4,8 @@ using UnityEngine;
 using UnityEngine.AI;
 
 // 화염보스(용암/화염 고정형 보스) - 전용 상태머신.
-// 와이번/얼음/모래와 같은 방식(BT/EnemyBrain 미사용, BossMotor/BossLeash 글루)이지만 ★고정형(이동 없음)이다.
+// 와이번/얼음/모래와 같은 방식(BT/EnemyBrain 미사용, BossMotor 글루)이지만 ★고정형(이동 없음)이다.
+// [07-29] 리쉬 폐지 - 원거리 디스폰은 EnemySpawnPoint 원거리슬립(activateDistance)이 전담(보스 4종 통일).
 //
 // [정체성] 와이번=근접 / 얼음=원거리캐스터 / 모래=근접위치지배 / 화염보스=★제자리 아틸러리(포격형).
 //   이동을 안 하므로 원거리 투사체 + 지면 폭발 + 유성비로 사방을 때려 플레이어를 옆으로 굴린다.
@@ -188,9 +189,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float wBreath = 1.4f;      // 궁극(P3+)
     [Range(0f, 1f)] [SerializeField] private float repeatPenalty = 0.35f;
 
-    [Header("리쉬 (이탈 리셋 - 고정형이라 이동복귀는 no-op, HP/페이즈 리셋만)")]
-    [SerializeField] private float leashDistance = 45f;
-    [SerializeField] private float leashResetTime = 4f;
+    // [07-29] 리쉬 폐지 - 원거리 처리는 EnemySpawnPoint 원거리슬립(activateDistance)이 전담(보스 4종 통일).
 
     private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
 
@@ -199,7 +198,6 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     private readonly List<(AtkType type, float weight)> _cand = new List<(AtkType, float)>();
 
     private BossMotor _motor;
-    private BossLeash _leash;
 
     private EnemyHealth _health => _motor.Health;
     private EnemyFeedback _feedback => _motor.Feedback;
@@ -217,14 +215,12 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     private void Awake()
     {
         _motor = new BossMotor(this, speedParam);
-        _leash = new BossLeash(leashDistance, leashResetTime);
         _roared = new bool[RoarThresholds.Length];
         _motor.ApplyData(data);
     }
 
     private void Start()
     {
-        _leash.Capture(transform);
         _motor.AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
@@ -235,6 +231,7 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     private void OnDestroy()
     {
         if (_health != null) _health.OnDeath -= HandleDeath;
+        if (_engaged) BattleBgm.End();   // [07-29] 원거리슬립 despawn 시 전투 브금 원복(리쉬 폐지)
     }
 
     // 등장(body_appear) 재생 동안 공격 잠금. 애니는 컨트롤러 default 상태로 자동 재생됨.
@@ -259,9 +256,6 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
     {
         if (_dead || _appearing) return;
         if (_player == null) _motor.AcquirePlayer();
-
-        if (_engaged && _player != null && _leash.Tick(_motor.PlanarDistance(_player.position)))
-            ResetBoss();
 
         TickCooldowns();
         CheckRoarPhase();
@@ -735,23 +729,6 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
         Vector3 a = center; a.y = 0f;
         Vector3 b = _player.position; b.y = 0f;
         if (Vector3.Distance(a, b) <= radius) DealDamage(amount);
-    }
-
-    private void ResetBoss()
-    {
-        _leash.Clear();
-        _engaged = false;
-        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
-        StopAllCoroutines();
-        _attacking = false;
-
-        for (int i = 0; i < _roared.Length; i++) _roared[i] = false;
-        _enrageCd = 1f;
-        _fireballCd = 0f; _eruptCd = 0f; _meleeCd = 0f; _forwardCd = 0f; _meteorCd = 0f; _breathCd = 0f;
-
-        _motor.ResetToSpawn(_leash.SpawnPos, _leash.SpawnRot, data);   // 고정형이라 사실상 HP/회전 리셋
-        _motor.PlayState(idleState);
-        BossHealthBarUI.Hide();
     }
 
     private void LateUpdate()

@@ -5,7 +5,8 @@ using UnityEngine.AI;
 using PilotoStudio;   // BeamEmitter (FrostRay 빔 조준)
 
 // 얼음정령(설산 보스) - 전용 상태머신.
-// 와이번과 같은 방식(BT/EnemyBrain 미사용)이지만 글루는 BossMotor/BossLeash 가 대신한다.
+// 와이번과 같은 방식(BT/EnemyBrain 미사용)이지만 글루는 BossMotor 가 대신한다.
+// [07-29] 리쉬(이탈 스폰리셋)는 폐지 - 원거리 처리는 EnemySpawnPoint 의 원거리슬립(activateDistance)이 전담(겹침 방지).
 //
 // [정체성] 와이번 = 근접형(다가와서 물기). 얼음정령 = 캐스터형(거리 두고 압박).
 //   같은 리듬이면 보스 둘이 겹치므로 축을 다르게 잡았다:
@@ -184,6 +185,24 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float p2GlowRange = 14f;
     [SerializeField] private float p2GlowIntensity = 5f;
 
+    [Header("[07-29] P2 서리장판 (재조립 후 아레나 전역 동상 - 서있으면 계속 도트딜)")]
+    [Tooltip("바닥 서리장판 VFX(루프 필수). EnchantedGround_Frost 추천. 아레나 중심(스폰존)에 1개 깔림.")]
+    [SerializeField] private GameObject frostFieldVfx;
+    [Tooltip("눈보라 분위기 VFX(루프, 선택). Blizzard Weather FX 추천.")]
+    [SerializeField] private GameObject frostStormVfx;
+    [Tooltip("[07-29] 눈보라 크기 배율(제작 원본 대비). 눈보라는 원래 크고(weather) frostFieldVfxScale 영향 안 받아서, 안 줄이면 바닥서리를 덮어버린다. 0=눈보라 아예 끔 / 0.3~0.5=작게.")]
+    [SerializeField] private float frostStormScale = 1f;
+    [Tooltip("동상 판정 반경(=보스 스폰존 크기, 확산 완료 시). 이 안 = 시간 감소. 리쉬(45)의 절반쯤 = 사실상 전장 커버.")]
+    [SerializeField] private float frostFieldRadius = 24f;
+    [Tooltip("바닥 장판 VFX 최종 크기 배율. 판정 반경과 별개로 눈으로 맞춤. 작으면 키워라(스폰존 꽉 채우게).")]
+    [SerializeField] private float frostFieldVfxScale = 200f;
+    [Tooltip("확산 시간(초, 크기 100 기준). 실제 시간 = 이 값 x (크기/100). 크기 키우면 자동으로 더 오래 퍼져서 확산 '속도'는 크기 무관 일정. 예) 크기200 = 이 값 x2.")]
+    [SerializeField] private float frostFieldExpandTime = 1.5f;
+    [Tooltip("장판 안에서 초당 감소하는 시간(HP). 공격 아님=경직/셰이크/피격VFX 전혀 없음. 결계밖 자연감소(1/s)에 더해져 총 ~4/s 느낌. 연출 위주라 세게 안 해도 됨.")]
+    [SerializeField] private float frostFieldDrainPerSec = 3f;
+    [Tooltip("장판을 지면에서 이만큼 띄운다. 바닥에 딱 붙으면 눈밭에 파묻혀 안 보임(모래정령 교훈). 살짝 올려 잘 보이게.")]
+    [SerializeField] private float frostFieldYOffset = 0.7f;
+
     [Header("범위 텔레그래프 (낙하/궁극 발동 전 지면 표시)")]
     [SerializeField] private GameObject telegraphVfx;       // Wyvern_Telegraph 복제 + 하늘색
     [Tooltip("텔레그래프 원의 보이는 크기 배율. 파티클 링이라 transform 스케일 대비 작게 보여서 보정용.")]
@@ -245,9 +264,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [Tooltip("직전에 쓴 패턴의 가중치 배율(연속 방지). 0=절대 연속 안 함, 1=페널티 없음.")]
     [Range(0f, 1f)] [SerializeField] private float repeatPenalty = 0.35f;
 
-    [Header("리쉬 (이탈 리셋)")]
-    [SerializeField] private float leashDistance = 45f;
-    [SerializeField] private float leashResetTime = 4f;
+    // [07-29] 리쉬(이탈 스폰리셋) 폐지 -> 원거리 처리는 EnemySpawnPoint 의 원거리슬립(activateDistance)이 전담.
+    //   보스를 스폰존에 넣으면 리쉬(스폰 텔레포트)+슬립(despawn/respawn)이 겹쳐 스폰이 꼬여서 리쉬를 뺐다.
 
     // 근접 공격 정의 (와이번과 동일 패턴)
     private struct AtkDef
@@ -270,9 +288,9 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private AtkType _lastAttack = AtkType.None;
     private readonly List<(AtkType type, float weight)> _cand = new List<(AtkType, float)>();
 
-    // 공용 모터/리쉬 (보스 3종 공유)
+    // 공용 모터 (보스 3종 공유)
     private BossMotor _motor;
-    private BossLeash _leash;
+    private Vector3 _spawnPos;   // [07-29] 스폰 자리(서리장판 아레나 중심용). 리쉬 폐지로 직접 보관.
 
     // 모터 위임(본문 가독성용 얇은 프로퍼티)
     private NavMeshAgent _agent => _motor.Agent;
@@ -293,6 +311,9 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private float _baseMaxHp = 1f;       // [07-29] SO 원래 최대치(P2용). P1 은 이 값 x p1HpMul.
     private Vector3 _baseScale = Vector3.one;   // [07-29] P2 확대 전 기준 크기
     private Light _p2Light;                      // [07-29] P2 발열 글로우 점광원
+    private GameObject _frostField;              // [07-29] P2 바닥 서리장판(동상존)
+    private GameObject _frostStorm;             // [07-29] P2 눈보라 분위기
+    private Vector3 _frostFieldBaseScale = Vector3.one;   // 확산 계산용 프리팹 원본 스케일
     private float _enrageCd = 1f;
     private float _enrageSpeed = 1f;
 
@@ -305,14 +326,13 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private void Awake()
     {
         _motor = new BossMotor(this, speedParam);
-        _leash = new BossLeash(leashDistance, leashResetTime);
         _atkCd = new float[MeleeAttacks.Length];
         _motor.ApplyData(data);
     }
 
     private void Start()
     {
-        _leash.Capture(transform);
+        _spawnPos = transform.position;   // 아레나 중심(서리장판 기준). 스폰존이 랜덤 배치해도 이 자리가 중심.
         _motor.AcquirePlayer();
         if (_health != null)
         {
@@ -337,6 +357,10 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private void OnDestroy()
     {
         if (_health != null) _health.OnDeath -= HandleDeath;
+        // [07-29] 원거리슬립이 이 보스를 despawn(Destroy)할 때 대비: 서리장판(별도 오브젝트)이 씬에 안 남게 정리.
+        //   전투 중 despawn 되면 전투 브금도 원복(체력바는 _target null 로 스스로 페이드아웃한다).
+        StopFrostField();
+        if (_engaged) BattleBgm.End();
     }
 
     private void HandleDeath()
@@ -345,6 +369,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
         if (_health != null) _health.Invulnerable = false;   // 가드 중 사망 시 무적 잔존 방지
         StopAllCoroutines();
+        StopFrostField();       // [07-29] 사망 시 서리장판 제거
         SetBodyVisible(true);   // [07-29] 혹시 전환 중 사망 시 몸 복구(사망 애니용)
         _motor.StopMove();
     }
@@ -353,9 +378,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     {
         if (_dead) return;
         if (_player == null) _motor.AcquirePlayer();
-
-        if (_engaged && _player != null && _leash.Tick(_motor.PlanarDistance(_player.position)))
-            ResetBoss();
 
         _motor.TickSpeedParam();
         TickCooldowns();
@@ -798,7 +820,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             if (!_dead)
             {
                 _feedback?.PlaySound(ultimateBurstSound);
-                if (ultVfx != null) Instantiate(ultVfx, spot, Quaternion.identity);
+                if (ultVfx != null) Instantiate(ultVfx, spot + Vector3.up * 0.3f, Quaternion.identity);   // [07-29] 바닥에 안 파묻히게 살짝 띄움(모래정령 교훈)
                 DealAreaDamage(spot, ultRadius, data.attackDamage * ultDmgMul);
                 SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);   // 대형 착탄
             }
@@ -1050,6 +1072,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         _feedback?.PlaySound(roarSound);
         DealAreaDamage(dest, reformSlamRadius, data.attackDamage * reformSlamDmgMul);   // 재조립 강타
 
+        StartFrostField();   // [07-29] P2 = 아레나 전역 서리장판(동상 도트딜) 깔림
+
         if (_health != null) _health.Invulnerable = false;   // 무적 해제 = P2 전투 시작
 
         yield return new WaitForSeconds(reformRecover);
@@ -1110,6 +1134,69 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             _p2Light.enabled = true;
         }
         else if (_p2Light != null) _p2Light.enabled = false;
+    }
+
+    // [07-29] P2 서리장판: 아레나 중심(스폰존)에 서리 바닥 + 눈보라를 깔고, 반경 안 플레이어에 지속 틱딜.
+    // "판을 얼려 시간이 계속 녹아내린다" = 얼음정령 P2 정체성. 판 전체라 사실상 회피 불가(가장자리만 살짝 벗어남).
+    private void StartFrostField()
+    {
+        Vector3 center = GroundSpot(_spawnPos);   // 스폰 위치 = 아레나 중심(보스가 붙어와도 판은 고정)
+        if (frostFieldVfx != null)
+        {
+            _frostField = Instantiate(frostFieldVfx, center + Vector3.up * frostFieldYOffset, Quaternion.identity);
+            _frostFieldBaseScale = _frostField.transform.localScale;   // 프리팹 원본 스케일(확산 기준)
+        }
+        if (frostStormVfx != null && frostStormScale > 0f)
+        {
+            _frostStorm = Instantiate(frostStormVfx, center + Vector3.up * frostFieldYOffset, Quaternion.identity);
+            _frostStorm.transform.localScale *= frostStormScale;   // 눈보라는 원본이 커서 별도 축소(안 하면 바닥서리를 덮음)
+        }
+
+        StartCoroutine(FrostFieldRoutine(center));
+    }
+
+    // 자기장처럼 확산: 작은 씨앗에서 시작 -> expandTime 동안 최종 크기/반경까지 쫙 퍼진다.
+    // 반경 안에서는 '시간 감소'(경직/피격피드백 전혀 없는 순수 HP 드레인 = 결계밖 자연감소와 같은 채널).
+    // _phase==1(P2) 동안만 돈다 -> 사망/리쉬 리셋 시 StopAllCoroutines 로 자동 종료.
+    private IEnumerator FrostFieldRoutine(Vector3 center)
+    {
+        Vector3 c = center; c.y = 0f;
+        // [07-29] 확산 '속도'를 크기 무관 일정하게: 최종 크기가 클수록 확산 시간도 비례해 길어진다.
+        //   (고정 시간이면 큰 장판일수록 가장자리가 더 빨리 퍼져 보임 -> 크기/기준으로 나눠 상쇄.)
+        const float expandRefScale = 100f;
+        float expand = Mathf.Max(0.01f, frostFieldExpandTime * Mathf.Max(1f, frostFieldVfxScale) / expandRefScale);
+        float t = 0f;
+        const float startScale = 0.12f;   // 최종 대비 시작 크기(작은 씨앗)
+
+        while (!_dead && _phase == 1)
+        {
+            if (t < expand) t += Time.deltaTime;
+            float k = Mathf.Clamp01(t / expand);
+            float ease = 1f - (1f - k) * (1f - k);   // ease-out: 빠르게 퍼졌다 끝에서 감속
+
+            if (_frostField != null)
+            {
+                float s = frostFieldVfxScale * Mathf.Lerp(startScale, 1f, ease);
+                _frostField.transform.localScale = _frostFieldBaseScale * s;
+            }
+
+            // 확산 중인 현재 반경 안이면 시간 감소(퍼지는 만큼 판정도 같이 커짐). 초당 rate * dt = 프레임당 감소.
+            float curRadius = frostFieldRadius * ease;
+            if (_player != null && _playerStat != null && !_playerStat.IsDead && !_playerStat.IsInBase)
+            {
+                Vector3 p = _player.position; p.y = 0f;
+                if (Vector3.Distance(c, p) <= curRadius)
+                    _playerStat.DrainTime(frostFieldDrainPerSec * Time.deltaTime);
+            }
+            yield return null;
+        }
+    }
+
+    // 서리장판/눈보라 제거(사망/리쉬 리셋). 틱 코루틴은 StopAllCoroutines 로 이미 끊긴다.
+    private void StopFrostField()
+    {
+        if (_frostField != null) { Destroy(_frostField); _frostField = null; }
+        if (_frostStorm != null) { Destroy(_frostStorm); _frostStorm = null; }
     }
 
     // [07-29] 혹한(Whiteout): P3 진입 1회. 판을 얼려 플레이어 주변으로 고드름을 퍼붓고(추적)
@@ -1226,35 +1313,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         Vector3 a = center; a.y = 0f;
         Vector3 b = _player.position; b.y = 0f;
         if (Vector3.Distance(a, b) <= radius) DealDamage(amount);
-    }
-
-    private void ResetBoss()
-    {
-        _leash.Clear();
-        _engaged = false;
-        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
-
-        StopAllCoroutines();
-        _attacking = false;
-
-        _phase = 0; _transitioning = false;   // [07-29] P1 로 리셋
-        SetBodyVisible(true);                 // 산산조각 중 리셋 대비 몸 복구
-        transform.localScale = _baseScale;    // [07-29] P1 크기 복원
-        ClearBodyTint();                      // [07-29] P1 색 복원
-        EnableP2Glow(false);                  // [07-29] 발열 글로우 끔
-        if (_health != null) _health.Invulnerable = false;
-        _enrageCd = 1f;
-        _enrageSpeed = 1f;
-        for (int i = 0; i < _atkCd.Length; i++) _atkCd[i] = 0f;
-        _beamCd = 0f; _rainCd = 0f; _novaCd = 0f; _dashCd = 0f; _ultCd = 0f; _guardCd = 0f; _meleeGapCd = 0f; _mirrorCd = 0f;
-        ClearPhantoms();   // [07-29] 리쉬 리셋 시 분신 정리
-
-        // 돌진 중 리셋되면 에이전트가 꺼진 채 남는다 -> 되살린다
-        if (_agent != null && !_agent.enabled) _agent.enabled = true;
-
-        _motor.ResetToSpawn(_leash.SpawnPos, _leash.SpawnRot, data);
-        ApplyP1Health();   // [07-29] 리셋 = P1 축소 체력으로
-        BossHealthBarUI.Hide();
     }
 
     private void LateUpdate()

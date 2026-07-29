@@ -58,7 +58,7 @@ public class ShipPartPickup : MonoBehaviour
     {
         _taken = true;
 
-        GameSfx.Play(SfxId.ShipPartPickup, transform.position);   // 우주선 부품 전용 획득음(3D)
+        GameSfx.Play(SfxId.ShipPartPickup);   // 복구 에너지 회수음 — 2D(풀볼륨). 3D 면 리스너(카메라) 거리로 감쇠돼 작게 들림
 
         var mgr = ShipRepairManager.Instance;
         if (mgr != null)

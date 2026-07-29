@@ -109,11 +109,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private string speedParam = "Speed";
     [SerializeField] private string fireballState = "Fireball";
 
-    [Header("리쉬 (이탈 리셋 - 팰월드/마크식: 멀리 가면 풀피로 초기화)")]
-    [Tooltip("교전 시작 후 플레이어가 이 거리(평면) 넘게 멀어지면 리셋 타이머 시작. 어그로보다 넓게.")]
-    [SerializeField] private float leashDistance = 45f;
-    [Tooltip("이 시간(초) 동안 leashDistance 밖에 있으면 보스를 스폰 자리로 되돌리고 풀피/페이즈 초기화.")]
-    [SerializeField] private float leashResetTime = 4f;
+    // [07-29] 리쉬 폐지 - 원거리 처리는 EnemySpawnPoint 원거리슬립(activateDistance)이 전담(보스 4종 통일).
 
     // 근접 공격 정의 (state=컨트롤러 상태명 / reachMul=사거리배수 x attackRange / halfAngle=정면 호 반각
     //  / windup=발사프레임 / recover=후딜 / dmgMul=데미지배수 x attackDamage / cd=개별쿨 / weight=선택가중)
@@ -131,7 +127,6 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
 
     // 공용 모터(컴포넌트 캐싱 / SO동기화 / 이동 / 회전 / Speed 파라미터). 보스 3종 공유.
     private BossMotor _motor;
-    private BossLeash _leash;
 
     // 아래는 전부 모터 위임(기존 본문 코드를 그대로 쓰기 위한 얇은 프로퍼티)
     private NavMeshAgent _agent => _motor.Agent;
@@ -163,7 +158,6 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     {
         // 컴포넌트 캐싱 / applyRootMotion=false / updateRotation=false / Speed 해시 = 전부 모터가 처리
         _motor = new BossMotor(this, speedParam);
-        _leash = new BossLeash(leashDistance, leashResetTime);
 
         _atkCd = new float[MeleeAttacks.Length];
         _roared = new bool[RoarThresholds.Length];
@@ -174,7 +168,6 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     private void Start()
     {
         _healLockScale = transform.localScale;   // 평상(rest) 스케일 캡처 = 회복 비행 중 고정 기준(애니 첫 평가 전이라 순수 값)
-        _leash.Capture(transform);               // 리쉬 리셋 시 되돌아올 자리
         AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
@@ -183,6 +176,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     private void OnDestroy()
     {
         if (_health != null) _health.OnDeath -= HandleDeath;
+        if (_engaged) BattleBgm.End();   // [07-29] 원거리슬립 despawn 시 전투 브금 원복(리쉬 폐지)
     }
 
     private void HandleDeath()
@@ -198,47 +192,10 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
 
     private void AcquirePlayer() => _motor.AcquirePlayer();
 
-    // 리쉬: 교전 후 플레이어가 leashDistance 밖에 leashResetTime 만큼 머물면 보스 리셋.
-    // (보스 피 깎고 도망 -> 재접근 무한반복 익스플로잇 차단. 팰월드/마크식 풀피 복귀.)
-    private void HandleLeash()
-    {
-        if (_player == null) { _leash.Clear(); return; }
-        if (_leash.Tick(PlanarDistance(_player.position))) ResetBoss();
-    }
-
-    // 보스를 스폰 자리로 되돌리고 풀피/페이즈/광폭화/쿨/무적/스케일을 초기 상태로.
-    private void ResetBoss()
-    {
-        _leash.Clear();
-        _engaged = false;
-        BattleBgm.End();   // 이탈(리셋) → 전투 브금 종료, 기존 BGM 재개
-
-        StopAllCoroutines();
-        _attacking = false;
-        EndDiveCleanup();   // 공중에 떠 있었으면 지면/에이전트 복구
-        _lockScale = false;
-        transform.localScale = _healLockScale;
-
-        // 페이즈/광폭화/쿨 초기화
-        for (int i = 0; i < _roared.Length; i++) _roared[i] = false;
-        _healed = false;
-        _enrageCd = 1f;
-        _enrageSpeed = 1f;
-        for (int i = 0; i < _atkCd.Length; i++) _atkCd[i] = 0f;
-        _rangedCd = 0f; _meleeGapCd = 0f; _eruptCd = 3f; _diveCd = 6f;
-
-        // HP 복구 + 스폰 자리 복귀 + 정지 (보스 공통분)
-        _motor.ResetToSpawn(_leash.SpawnPos, _leash.SpawnRot, data);
-
-        BossHealthBarUI.Hide();   // 상단 보스바 숨김(다시 접근하면 재교전 시 다시 뜸)
-    }
-
     private void Update()
     {
         if (_dead) return;
         if (_player == null) AcquirePlayer();
-
-        if (_engaged) HandleLeash();   // 멀리 가면 풀피 리셋(리셋되면 _engaged=false라 이하 로직은 idle처럼 흐름)
 
         _motor.TickSpeedParam();   // 다이브 중 에이전트 비활성이면 조용히 스킵
 

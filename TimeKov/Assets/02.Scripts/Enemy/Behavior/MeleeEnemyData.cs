@@ -10,7 +10,7 @@ public class MeleeEnemyData : ScriptableObject
     [Tooltip("퀘스트/드롭 매칭 ID (영어 snake_case). 비우면 enemyName 사용")]
     public string enemyId = "";
 
-    [Tooltip("이 적이 속한 맵 테마. 교전 시작 시 해당 테마의 전투 BGM 이 재생된다(BattleMusicTracker).")]
+    [Tooltip("이 적이 속한 맵 테마(분류용). ※전투 BGM 은 맵 구분 없이 공용 1곡(NormalBattleBgm)이라 재생에는 영향 없음.")]
     public TransmissionRegion region = TransmissionRegion.Nature;
 
     [Header("Health")]

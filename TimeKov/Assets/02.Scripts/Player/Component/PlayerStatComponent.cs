@@ -243,6 +243,16 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         if (CurrentHp <= 0f) OnDead?.Invoke();
     }
 
+    // [07-29] 환경 시간 감소(서리장판 등 지속 장판). 결계 밖 자연 감소(HandleHpDrain)와 "같은 채널" =
+    // 경직/카메라셰이크/피격VFX/플로팅텍스트 전부 없이 HP(시간)만 스르륵 깎인다. TakeDamage(공격)와 구분하는 게 핵심.
+    // 매 프레임 amount(= 초당rate * deltaTime) 호출을 전제로 한다. 결계 안/사망 시엔 자연 감소처럼 무시.
+    public void DrainTime(float amount)
+    {
+        if (IsDead || IsInBase || amount <= 0f) return;
+        CurrentHp = Mathf.Max(0f, CurrentHp - amount);
+        if (CurrentHp <= 0f) OnDead?.Invoke();
+    }
+
     // 즉사 (물 빠짐 등). 무적/DEF/경직 전부 무시하고 바로 사망 흐름(OnDead) 발동.
     public void Kill()
     {
