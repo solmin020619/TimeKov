@@ -26,6 +26,10 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 {
     [Header("데이터 (HP/속도/근접공격 기본 수치는 SO에서 튜닝)")]
     [SerializeField] private MeleeEnemyData data;
+
+    [Header("[07-30] 테스트 (배포 전 반드시 끄기)")]
+    [Tooltip("테스트 기간용: 켜면 모든 공격 데미지를 1로 강제(패턴 관찰용). 배포 전 반드시 끈다.")]
+    [SerializeField] private bool testDamageOne = false;
     public MeleeEnemyData Data => data;   // 도감 등 외부서 보스 스탯 조회용(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "시간을 삼키는 사막의 지배자";
 
@@ -126,7 +130,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float ultWindup = 1.4f;        // Cast3 = 긴 채널(예고)
     [SerializeField] private float ultTelegraph = 1.0f;
     [SerializeField] private float ultRecover = 1.2f;
-    [SerializeField] private float ultRadius = 9f;
+    [Tooltip("[07-30] 궁극 판정 = 정사각형 반쪽 크기(m). Pyramid_Explosion의 Square_Decal(네모)에 맞춰라. 씬서 네모 한 변 재서 그 절반값.")]
+    [SerializeField] private float ultHalfExtent = 9f;
     [SerializeField] private float ultDmgMul = 2.6f;
 
     [Header("가드 반격 (Parry + Sand_shield - 근접 압박 시 무적 후 광역 반격)")]
@@ -152,8 +157,51 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [Range(0f, 0.8f)] [SerializeField] private float debuffDarkness = 0.45f;
     [Range(0f, 1f)] [SerializeField] private float debuffVignetteStrength = 0.9f;
     [Range(0.05f, 0.8f)] [SerializeField] private float debuffVignetteFalloff = 0.55f;
-    [SerializeField] private float enrageCdMul = 0.82f;     // 포효마다 공격 쿨 x (누적)
-    [SerializeField] private float enrageSpeedMul = 1.15f;  // 포효마다 이속 x (누적)
+    [SerializeField] private float enrageCdMul = 0.82f;     // [07-30] 회복(흡수)마다 공격 쿨 x (누적)
+    [SerializeField] private float enrageSpeedMul = 1.15f;  // [07-30] 회복(흡수)마다 이속 x (누적)
+
+    [Header("[07-30] 시그니처: 모래 흡수 재생 + 침식 (단일 페이즈)")]
+    [Tooltip("몸이 곧 체력바. HP 100% = 원래 크기 -> HP 0%면 이 비율까지 야윈다(침식). 흡수 회복하면 다시 커짐.")]
+    [SerializeField] private float erodeMinScale = 0.6f;
+    [Tooltip("침식/재생 스케일 추종 속도(부드럽게 따라감).")]
+    [SerializeField] private float erodeLerp = 3f;
+    [Tooltip("자가 회복(모래 흡수) 시도 간격(초). 싸움 중간중간 이 주기로 채널 발동.")]
+    [SerializeField] private float healInterval = 14f;
+    [Tooltip("흡수 채널 길이(초). 이 동안 계속 피격 가능 = 딜로 상쇄(파해법).")]
+    [SerializeField] private float healChannelTime = 4f;
+    [Tooltip("흡수 채널 중 초당 회복량(최대HP 비율). 플레이어 초당 딜(비율)이 이보다 낮으면 순증 = 못 깬다(스펙게이트).")]
+    [SerializeField] private float healPctPerSec = 0.06f;
+    [Tooltip("흡수 채널 VFX(바닥 모래가 몸으로 빨려 올라감). 비우면 chargeVfxBody 폴백.")]
+    [SerializeField] private GameObject absorbVfx;
+    [Tooltip("[07-30] 흡수 채널 모션 = SandAbsorb(Cower 웅크려 끌어모음). 빌더 재실행해야 상태 생김.")]
+    [SerializeField] private string absorbState = "SandAbsorb";
+    [Tooltip("[07-30] 흡수 중 주변에서 몸으로 빨려드는 모래 알갱이 VFX. 비우면 impactVfxMelee(모래 튐) 재사용.")]
+    [SerializeField] private GameObject inflowPuffVfx;
+    [Tooltip("빨려드는 모래가 시작되는 반경(보스 주변).")]
+    [SerializeField] private float inflowRadius = 6f;
+    [Tooltip("모래 알갱이 생성 간격(초). 작을수록 촘촘히 빨려듦.")]
+    [SerializeField] private float inflowInterval = 0.1f;
+    [Tooltip("모래 알갱이가 몸까지 빨려드는 시간(초).")]
+    [SerializeField] private float inflowTravelTime = 0.45f;
+    [Header("[07-30] 흡수 = 잠수 -> 이동 -> 솟구쳐 재등장 후 회복")]
+    [Tooltip("잠수/솟구침 시 몸이 지면 아래로 내려가는 깊이(m).")]
+    [SerializeField] private float sinkDepth = 4f;
+    [Tooltip("가라앉는 시간(초).")]
+    [SerializeField] private float sinkTime = 0.5f;
+    [Tooltip("솟구치는 시간(초).")]
+    [SerializeField] private float riseTime = 0.4f;
+    [Tooltip("재등장 위치 = 플레이어에서 이만큼 떨어진 곳(회복하러 쫓아가게).")]
+    [SerializeField] private float relocateDist = 13f;
+    [Tooltip("재등장 지점이 벽(navmesh 경계)에서 최소 이만큼 떨어지게(넓은 보스가 벽에 안 끼게). 못 찾으면 원위치서 회복.")]
+    [SerializeField] private float relocateClearance = 2.5f;
+    [Tooltip("잠수 순간 터지는 모래 폭발 VFX. 비우면 impactVfxHeavy 재사용.")]
+    [SerializeField] private GameObject sinkVfx;
+    [Tooltip("솟구칠 때 터지는 대형 모래 분출 VFX. 비우면 ultVfx(피라미드)->slamVfx 재사용.")]
+    [SerializeField] private GameObject emergeVfx;
+    [Tooltip("회복 중 감싸는 모래 돔(Sand_shield) 크기. 불parented 고정 스케일(침식/HP와 무관해 안 흔들림). 1=기준(보스)크기, 널널하게 1.6~2.")]
+    [SerializeField] private float healWrapScale = 1.7f;
+    [Tooltip("돔을 지면에서 띄우는 높이(바닥부터 감싸는 느낌 조절).")]
+    [SerializeField] private float healWrapYOffset = 0.5f;
 
     [Header("전조/임팩트 VFX (공격 3박자: 응축 -> 발동 -> 타격)")]
     [Tooltip("손 응축(근접/파도/감금 전조). 비우면 안 나옴.")]
@@ -212,8 +260,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private const float MeleeMaxReachMul = 1.2f;
     private const float MeleeGap = 0.3f;
 
-    private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
-
     // 패턴 종류(가중 랜덤 선택용). 조건 맞는 후보를 모아 확률로 뽑는다(우선순위 사다리 대신).
     private enum AtkType { None, Melee, Wave, Tornado, Coffin, Quicksand, Guard, Dive, Ult }
     private AtkType _lastAttack = AtkType.None;
@@ -235,9 +281,14 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private bool _engaged;
     private float _waveCd, _tornadoCd, _quicksandCd, _coffinCd, _diveCd, _ultCd, _guardCd, _meleeGapCd;
     private float[] _atkCd;
-    private bool[] _roared;
     private float _enrageCd = 1f;
     private float _enrageSpeed = 1f;
+    private Vector3 _baseScale = Vector3.one;   // [07-30] 침식 스케일 기준(Start서 캡처)
+    private float _erodeK = 1f;                 // [07-30] 침식 배율(영속). 부드럽게 이동 후 매 프레임 하드셋(애니 스케일커브 위에서 이김)
+    private Renderer[] _bodyRenderers;          // [07-30] 잠수 시 껐다 켤 몸 렌더러
+    private float _healTimer;                   // [07-30] 흡수 회복 주기 타이머
+    private bool _healing;                      // [07-30] 흡수 채널 진행 중
+    private int _nHeals;                        // [07-30] 회복 횟수 = 에스컬레이션(옛 RoarsDone 대체)
 
     // 감금 락(플레이어 이동 잠금) - StopAllCoroutines 로 코루틴이 끊겨도 반드시 풀어야 한다.
     private bool _coffinLockActive;
@@ -247,7 +298,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     {
         _motor = new BossMotor(this, speedParam);
         _atkCd = new float[MeleeAttacks.Length];
-        _roared = new bool[RoarThresholds.Length];
         _motor.ApplyData(data);
     }
 
@@ -256,6 +306,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         _motor.AcquirePlayer();
         if (_health != null) _health.OnDeath += HandleDeath;
         _feedback?.PlaySpawn();
+        _baseScale = transform.localScale;   // [07-30] 침식 기준 크기(빌더 스케일 적용 후)
+        _bodyRenderers = GetComponentsInChildren<Renderer>(true);   // [07-30] 잠수 껐다 켜기용
     }
 
     private void OnDestroy()
@@ -277,7 +329,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_health != null) _health.Invulnerable = false;   // 가드 중 사망 시 무적 잔존 방지
         StopAllCoroutines();
         ReleaseCoffinLock();   // ★사망이 코루틴을 끊어도 감금 락은 반드시 푼다
-        EndDiveCleanup();      // 다이브 중 사망 시 공중에 멈추지 않게 지면 복구
+        EndDiveCleanup();      // 다이브/잠수 중 사망 시 공중/지하에 멈추지 않게 지면 복구
+        SetBodyVisible(true);  // [07-30] 잠수 중 사망해도 몸이 안 보이는 채로 남지 않게
         _motor.StopMove();
     }
 
@@ -288,7 +341,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
         _motor.TickSpeedParam();
         TickCooldowns();
-        CheckRoarPhase();
+        TickHeal();   // [07-30] 주기적 모래 흡수 회복(옛 포효 페이즈 대체)
         if (_attacking) return;
 
         Transform target = ResolveTarget();
@@ -303,21 +356,20 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         if (data == null) return;
 
         float dist = _motor.PlanarDistance(target.position);
-        int phase = RoarsDone();   // 0=P1 / 1=P2 / 2=P3
         float meleeMax = data.attackRange * MeleeMaxReachMul;
 
-        // 조건(페이즈/쿨/거리) 맞는 공격을 전부 후보로 모은다.
+        // [07-30] 단일 페이즈: 페이즈 게이트 제거. 쿨/거리만으로 후보를 모은다(쿨이 리듬을 자연스레 잡음).
         _cand.Clear();
-        if (phase >= 2 && _ultCd <= 0f && ultVfx != null && dist <= ultRange)
+        if (_ultCd <= 0f && ultVfx != null && dist <= ultRange)
             _cand.Add((AtkType.Ult, wUlt));
-        if (phase >= 1 && _diveCd <= 0f && slamVfx != null && dist <= diveRange)
+        if (_diveCd <= 0f && slamVfx != null && dist <= diveRange)
             _cand.Add((AtkType.Dive, wDive));
-        if (phase >= 1 && _quicksandCd <= 0f && dist <= quicksandRange)
+        if (_quicksandCd <= 0f && dist <= quicksandRange)
             _cand.Add((AtkType.Quicksand, wQuicksand));
-        if (phase >= 1 && _guardCd <= 0f && dist <= guardRange)
+        if (_guardCd <= 0f && dist <= guardRange)
             _cand.Add((AtkType.Guard, wGuard));
         if (_coffinCd <= 0f && dist <= coffinRange && dist > meleeMax * 0.5f)
-            _cand.Add((AtkType.Coffin, wCoffin));   // 감금은 전 페이즈(시그니처 조기 등장)
+            _cand.Add((AtkType.Coffin, wCoffin));   // 감금 = 시그니처 CC
         if (_tornadoCd <= 0f && dist <= tornadoRange)
             _cand.Add((AtkType.Tornado, wTornado));
         if (_waveCd <= 0f && dist <= waveRange && dist > meleeMax)
@@ -393,12 +445,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         return _player;
     }
 
-    private int RoarsDone()
-    {
-        int n = 0;
-        for (int i = 0; i < _roared.Length; i++) if (_roared[i]) n++;
-        return n;
-    }
+    // [07-30] 단일 페이즈: 옛 포효 카운트 대신 '회복 횟수'로 에스컬레이션(회복할수록 강해짐). 이름 유지(호출부 재사용).
+    private int RoarsDone() => Mathf.Min(_nHeals, 2);
 
     // 사거리/각도/쿨 충족하는 근접 공격을 가중 랜덤으로 선택
     private bool TrySelectMelee(float dist, out int chosen)
@@ -549,7 +597,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         if (!_dead && _player != null)
         {
             Vector3 spot = GroundSpot(_player.position);
-            SpawnTelegraph(spot, quicksandRadius, quicksandDuration);
+            // [07-30] 텔레그래프 원 제거 - QuickSand VFX 자체에 원 인디케이터가 있다. 판정(quicksandRadius)을 그 원에 맞춰라.
             GameObject field = quicksandVfx != null ? Instantiate(quicksandVfx, spot + Vector3.up * groundVfxLift, Quaternion.identity) : null;
             if (field != null) Destroy(field, quicksandDuration + 1f);   // 자체 예약(티커가 끊겨도 정리됨)
             StartCoroutine(QuicksandField(spot, field));
@@ -750,14 +798,15 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_dead || _player == null) { _attacking = false; yield break; }
 
         Vector3 spot = GroundSpot(_player.position);
-        SpawnTelegraph(spot, ultRadius, ultTelegraph + 0.5f);
+        // [07-30] 텔레그래프 원 제거 - Pyramid_Explosion 자체에 Square_Decal(네모) 범위가 있다.
+        //   ★판정은 네모(DealBoxDamage) = ultHalfExtent를 그 Square_Decal 크기에 맞춰라.
         if (ultVfx != null) { var uv = Instantiate(ultVfx, spot, Quaternion.identity); Destroy(uv, 5.5f); }   // 루프 서브이미터 -> 예약 삭제
 
         yield return new WaitForSeconds(ultTelegraph);
         if (!_dead)
         {
             _feedback?.PlaySound(ultimateSound);
-            DealAreaDamage(spot, ultRadius, data.attackDamage * ultDmgMul);
+            DealBoxDamage(spot, ultHalfExtent, data.attackDamage * ultDmgMul);   // 네모 판정(Square_Decal에 맞춤)
             SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);
         }
 
@@ -766,50 +815,129 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         _attacking = false;
     }
 
-    // HP 임계값(66%/33%) 통과 시 포효 1회
-    private void CheckRoarPhase()
+    // [07-30] 시그니처: 주기적으로 바닥 모래를 흡수해 자가 회복(단일 페이즈의 리듬 = 옛 포효 페이즈 대체).
+    private void TickHeal()
     {
-        if (_health == null || _health.maxHP <= 0f) return;
-        float ratio = _health.currentHP / _health.maxHP;
-        for (int i = 0; i < RoarThresholds.Length; i++)
-        {
-            if (_roared[i] || ratio > RoarThresholds[i]) continue;
-            _roared[i] = true;
-            StopAllCoroutines();
-            ReleaseCoffinLock();   // ★포효가 감금 코루틴을 끊어도 플레이어 락은 반드시 푼다
-            if (_health != null) _health.Invulnerable = false;   // 가드 무적 중 포효가 끼어도 무적 잔존 방지
-            EndDiveCleanup();      // 다이브 중 포효 시 공중 보스 지면 복구
-            _attacking = false;
-            StartCoroutine(RoarPhase(i));
-            return;
-        }
+        if (_dead || !_engaged || _health == null) return;
+        _healTimer += Time.deltaTime;
+        if (_healing || _attacking) return;   // 공격/채널 중엔 시작 안 함(공격 사이 빈틈에 발동)
+        if (_healTimer >= healInterval && _health.currentHP < _health.maxHP)
+            StartCoroutine(SandAbsorbHeal());
     }
 
-    private IEnumerator RoarPhase(int idx)
+    // 모래 흡수 재생 = 잠수 -> 멀리 이동 -> 솟구쳐 재등장 -> 그 자리서 회복 채널.
+    //   잠수/이동으로 플레이어에게서 벗어나므로(쫓아가야 함) 회복 저지가 자연스러움. ★재등장 후 채널은 피격 가능 = 딜로 상쇄(파해법).
+    //   플레이어 초당 딜 > healPctPerSec 면 순감(이김), 낮으면 순증(스펙게이트). 회복 완료 후 포효로 강해짐(Enrage).
+    private IEnumerator SandAbsorbHeal()
     {
+        _healing = true;
         _attacking = true;
-        // 포효는 StopAllCoroutines 뒤에 시작된다. 다이브 중이었다면 에이전트가 꺼진 채
-        // 남을 수 있으니(EndDiveCleanup 이 복구) 여기서도 한번 더 보장한다.
-        if (_agent != null && !_agent.enabled)
+        _healTimer = 0f;
+        _motor.StopMove();
+        if (_player != null) _motor.FaceInstant(_player.position);
+        _motor.PlayState(absorbState);   // Cower = 웅크려 파고들 준비
+
+        bool agentWasOn = _agent != null && _agent.enabled;
+        if (agentWasOn) { _agent.isStopped = true; _agent.ResetPath(); _agent.enabled = false; }
+
+        // 1) 잠수: 제자리 모래 폭발 + 소용돌이 + 아래로 가라앉아 사라짐
+        Vector3 sinkPos = GroundSpot(transform.position);
+        var burst = sinkVfx != null ? sinkVfx : impactVfxHeavy;
+        if (burst != null) { var b = Instantiate(burst, sinkPos + Vector3.up * 0.2f, Quaternion.identity); Destroy(b, 3f); }
+        var swirl = quicksandVfx != null ? Instantiate(quicksandVfx, sinkPos + Vector3.up * groundVfxLift, Quaternion.identity) : null;
+        if (swirl != null) Destroy(swirl, sinkTime + 1.5f);
+        _feedback?.PlaySound(quicksandSound);
+        yield return MoveBetween(transform.position, sinkPos - Vector3.up * sinkDepth, sinkTime);
+        SetBodyVisible(false);   // 완전히 잠수(안 보임)
+
+        // 2) 재등장 위치 = 플레이어에서 relocateDist 떨어진 곳(쫓아가게). ★navmesh 위 + 벽에서 relocateClearance 이상 떨어진 곳만.
+        Vector3 dest = sinkPos;   // 폴백 = 잠수한 자리(보스가 서 있던 곳 = 항상 유효+여유)
+        if (_player != null)
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                Vector2 rd = Random.insideUnitCircle.normalized;
+                Vector3 cand = _player.position + new Vector3(rd.x, 0f, rd.y) * relocateDist;
+                if (!NavMesh.SamplePosition(cand, out var nh, 3f, NavMesh.AllAreas)) continue;   // navmesh 밖 = 벽 속
+                if (NavMesh.FindClosestEdge(nh.position, out var edge, NavMesh.AllAreas) && edge.distance < relocateClearance) continue;   // 벽에 너무 붙음
+                dest = nh.position; break;
+            }
+        }
+        transform.position = dest - Vector3.up * sinkDepth;   // 지하 대기
+        yield return new WaitForSeconds(0.3f);                 // "어디서 나오지" 긴장
+        if (_dead) { SetBodyVisible(true); yield break; }
+
+        // 3) 솟구침: 대형 모래 분출 + 몸 재등장
+        _motor.FaceInstant(_player != null ? _player.position : dest);
+        var erupt = emergeVfx != null ? emergeVfx : (ultVfx != null ? ultVfx : slamVfx);
+        if (erupt != null) { var e = Instantiate(erupt, dest + Vector3.up * 0.2f, Quaternion.identity); Destroy(e, 3.5f); }
+        SetBodyVisible(true);
+        _feedback?.PlaySound(diveLandSound);
+        yield return MoveBetween(dest - Vector3.up * sinkDepth, dest, riseTime);
+        transform.position = dest;
+
+        // 4) 회복 채널: 몸을 모래바람이 감싸고 + 주변 모래 빨려듦 + 초당 회복(피격 가능=상쇄, 플레이어가 쫓아와 때려야)
+        _motor.PlayState(absorbState);
+        // 돔은 불parented + 고정 스케일 = 침식(HP)으로 보스가 커졌다 작아졌다 해도 안 흔들리고 바닥에서 넉넉히 감싼다.
+        GameObject wrap = null;
+        var wrapSrc = absorbVfx != null ? absorbVfx : chargeVfxBody;
+        if (wrapSrc != null)
+        {
+            wrap = Instantiate(wrapSrc, GroundSpot(transform.position) + Vector3.up * healWrapYOffset, Quaternion.identity);
+            wrap.transform.localScale = _baseScale * Mathf.Max(0.1f, healWrapScale);
+            Destroy(wrap, healChannelTime + 0.5f);
+        }
+        _feedback?.PlaySound(ultimateSound);
+        float t = 0f, inflowTick = 0f;
+        while (t < healChannelTime && !_dead)
+        {
+            t += Time.deltaTime;
+            inflowTick += Time.deltaTime;
+            if (inflowTick >= inflowInterval) { inflowTick = 0f; StartCoroutine(SandInflowPuff()); }
+            if (_health != null && _health.maxHP > 0f)
+            {
+                _health.currentHP = Mathf.Min(_health.maxHP,
+                    _health.currentHP + _health.maxHP * healPctPerSec * Time.deltaTime);
+                if (_health.currentHP >= _health.maxHP) break;
+            }
+            yield return null;
+        }
+        if (wrap != null) Destroy(wrap);
+
+        // 5) 회복 후 조용히 강해진다(쿨↓/이속↑). 포효 비트는 뺌 - 솟구침+재응집이 이미 "돌아옴"을 충분히 보여줌.
+        _nHeals++;
+        if (!_dead) Enrage();
+
+        // 6) 에이전트 복구 + navmesh 스냅(안 하면 공중/벽 밖 잔존)
+        if (agentWasOn && _agent != null)
         {
             _agent.enabled = true;
-            if (NavMesh.SamplePosition(transform.position, out var hit, 8f, NavMesh.AllAreas))
-                _agent.Warp(hit.position);
+            if (NavMesh.SamplePosition(transform.position, out var hit, 8f, NavMesh.AllAreas)) _agent.Warp(hit.position);
         }
-        _motor.StopMove();
-        _motor.PlayState(roarState);
-        _feedback?.PlaySound(idx == 0 ? roarSound : roar2Sound);
-        yield return new WaitForSeconds(roarBuildup);
-
-        if (!_dead)
-        {
-            BossRoarDebuff.Trigger(debuffDuration, debuffDrainMult, debuffDarkness,
-                                   debuffVignetteStrength, debuffVignetteFalloff);
-            Enrage();
-        }
-
-        yield return new WaitForSeconds(roarRecover);
+        ReturnToLocomotion();
+        yield return new WaitForSeconds(0.3f);
         _attacking = false;
+        _healing = false;
+    }
+
+    // [07-30] 흡수 채널 연출: 주변 모래 한 알갱이가 몸으로 쫙 빨려든다(여러 개 겹쳐 = 진공 흡입감).
+    private IEnumerator SandInflowPuff()
+    {
+        GameObject vfx = inflowPuffVfx != null ? inflowPuffVfx : impactVfxMelee;
+        if (vfx == null) yield break;
+        float dur = Mathf.Max(0.05f, inflowTravelTime);
+        Vector2 d = Random.insideUnitCircle.normalized;
+        Vector3 ring = GroundSpot(transform.position + new Vector3(d.x, 0f, d.y) * inflowRadius) + Vector3.up * 0.4f;
+        var g = Instantiate(vfx, ring, Quaternion.identity);
+        Destroy(g, dur + 0.5f);   // 코루틴이 끊겨도(사망) 자체 정리
+        if (inflowPuffVfx == null) g.transform.localScale *= 0.5f;   // 폴백(모래 튐)은 크니 줄임
+        float t = 0f;
+        while (t < dur && g != null && !_dead)
+        {
+            t += Time.deltaTime;
+            g.transform.position = Vector3.Lerp(ring, transform.position + Vector3.up * 1f, t / dur);   // 몸통으로 수렴
+            yield return null;
+        }
     }
 
     // 포효마다 누적: 공격 쿨 감소 + 이속 증가
@@ -866,6 +994,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
     private void DealDamage(float amount)
     {
+        if (testDamageOne) amount = 1f;   // [07-30] 테스트: 모든 공격 1뎀(배포 전 testDamageOne 끄기)
         if (_playerStat != null) _playerStat.TakeDamage(amount);
     }
 
@@ -875,6 +1004,14 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         Vector3 a = center; a.y = 0f;
         Vector3 b = _player.position; b.y = 0f;
         if (Vector3.Distance(a, b) <= radius) DealDamage(amount);
+    }
+
+    // [07-30] 정사각형(축정렬) 판정. 궁극(Pyramid_Explosion)처럼 VFX 범위가 네모인 것용. 원과 달리 모서리까지 커버.
+    private void DealBoxDamage(Vector3 center, float halfExtent, float amount)
+    {
+        if (_player == null) return;
+        Vector3 d = _player.position - center;
+        if (Mathf.Abs(d.x) <= halfExtent && Mathf.Abs(d.z) <= halfExtent) DealDamage(amount);
     }
 
     // 감금 락 제어. 켤 때 잠근 컴포넌트를 기억해 두고, 끌 때(또는 강제 해제 시) 그걸 풀어 준다.
@@ -899,8 +1036,26 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_coffinLockActive) SetCoffinLock(false);
     }
 
+    // [07-30] 잠수/솟구침 시 몸(모델+파티클 렌더러) 껐다 켜기.
+    private void SetBodyVisible(bool visible)
+    {
+        if (_bodyRenderers == null) return;
+        for (int i = 0; i < _bodyRenderers.Length; i++)
+            if (_bodyRenderers[i] != null) _bodyRenderers[i].enabled = visible;
+    }
+
     private void LateUpdate()
     {
         _motor.TickFacing(_dead || _attacking, ResolveTarget(), data);
+
+        // [07-30] 침식: 몸 스케일이 HP 비율을 따라간다(맞으면 야위고, 흡수 회복하면 다시 큰다) = 몸이 곧 체력.
+        //   ★영속 _erodeK를 부드럽게 움직이고 매 프레임 하드셋 = 클립에 스케일 커브가 있어도 LateUpdate가 이긴다(와이번 교훈).
+        if (!_dead && _health != null && _health.maxHP > 0f)
+        {
+            float hpR = Mathf.Clamp01(_health.currentHP / _health.maxHP);
+            float targetK = Mathf.Lerp(erodeMinScale, 1f, hpR);
+            _erodeK = Mathf.Lerp(_erodeK, targetK, Time.deltaTime * erodeLerp);
+            transform.localScale = _baseScale * _erodeK;
+        }
     }
 }

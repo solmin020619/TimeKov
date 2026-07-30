@@ -1133,6 +1133,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: 4b3e992c1c3edba47be3baac976d9c14, type: 2}
+  testDamageOne: 1
   bossSubtitle: "\uC2DC\uAC04\uC744 \uC0BC\uD0A4\uB294 \uC0AC\uB9C9\uC758 \uC9C0\uBC30\uC790"
   meleeAttack1Sound: {fileID: 8300000, guid: bbf622400ec84a2d8ee7cb0c5ec7a8a2, type: 3}
   meleeAttack2Sound: {fileID: 8300000, guid: 39e06bf6a8344fd8b05187d288780d84, type: 3}
@@ -1148,6 +1149,7 @@ MonoBehaviour:
   roarSound: {fileID: 8300000, guid: ca918a2f146f4c39929ff14e837a9fe5, type: 3}
   roar2Sound: {fileID: 8300000, guid: 90c3330f8dd04cf9bbb142f32cb47b97, type: 3}
   waveVfx: {fileID: 1079058219112809582, guid: c2b9e314b88a73941b00faa2e1e881ae, type: 3}
+  groundVfxLift: 0.1
   waveRange: 9
   waveCooldown: 4.5
   waveWindup: 0.7
@@ -1222,6 +1224,13 @@ MonoBehaviour:
   debuffVignetteFalloff: 0.55
   enrageCdMul: 0.82
   enrageSpeedMul: 1.15
+  erodeMinScale: 0.6
+  erodeLerp: 3
+  healInterval: 14
+  healChannelTime: 4
+  healPctPerSec: 0.06
+  absorbVfx: {fileID: 7060892741446695623, guid: 8a0582786861e7e43a7d6537308d32c1, type: 3}
+  absorbState: SandAbsorb
   chargeVfxHand: {fileID: 1618020983075412, guid: 984505ee1340f5344b8a220626d7fb79, type: 3}
   chargeVfxBody: {fileID: 1403849239388012, guid: be6ce7e7e48421b49b47db89df3c0851, type: 3}
   impactVfxMelee: {fileID: 7584156909027386899, guid: 640034c31a3335644bae0ffc6352343f, type: 3}
@@ -1247,8 +1256,6 @@ MonoBehaviour:
   wDive: 1.1
   wUlt: 1.2
   repeatPenalty: 0.35
-  leashDistance: 45
-  leashResetTime: 4
 --- !u!114 &4273652520599598132
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1283,6 +1290,18 @@ MonoBehaviour:
   spawnHeight: 1
   fallbackLifestealPercent: 0.03
   bonusHealPercent: 0.5
+--- !u!114 &1886554481819792906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5848259222620243664}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &6172962053076998110
 GameObject:
   m_ObjectHideFlags: 0
@@ -1687,15 +1706,3 @@ Transform:
   - {fileID: 5950538755033136800}
   m_Father: {fileID: 4416498583411736314}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1886554481819792906
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5848259222620243664}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 707a5892f3574384099c3f9b50745d2b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
