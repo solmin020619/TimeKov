@@ -48,6 +48,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 24437e69c78925f46b10f620d447de5f, type: 3}
+      propertyPath: m_CastShadows
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 24437e69c78925f46b10f620d447de5f, type: 3}
       propertyPath: m_Name
       value: spaceship_Leg
@@ -55,5 +59,35 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 24437e69c78925f46b10f620d447de5f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8695430669980315652}
   m_SourcePrefab: {fileID: 100100000, guid: 24437e69c78925f46b10f620d447de5f, type: 3}
+--- !u!1 &2065900376263480735 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 24437e69c78925f46b10f620d447de5f, type: 3}
+  m_PrefabInstance: {fileID: 1183009243830872270}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &8695430669980315652
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2065900376263480735}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -4374817042232270558, guid: 24437e69c78925f46b10f620d447de5f, type: 3}
