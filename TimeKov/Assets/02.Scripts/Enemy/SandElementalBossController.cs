@@ -30,6 +30,20 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [Header("[07-30] 테스트 (배포 전 반드시 끄기)")]
     [Tooltip("테스트 기간용: 켜면 모든 공격 데미지를 1로 강제(패턴 관찰용). 배포 전 반드시 끈다.")]
     [SerializeField] private bool testDamageOne = false;
+    [Tooltip("[07-30] testDamageOne 켜졌을 때 파도만 이 값으로(1뎀들과 구분해 착탄 확인용). off면 무시.")]
+    [SerializeField] private float waveTestDmg = 10f;
+    [Tooltip("[07-30] testDamageOne 켜졌을 때 궁극만 이 값으로(1뎀들과 구분). off면 무시.")]
+    [SerializeField] private float ultTestDmg = 15f;
+    [Tooltip("[07-30] 켜면 파도만 발동(다른 패턴+궁극+흡수회복 잠시 끔). 테스트 격리용. 배포 전 끄기.")]
+    [SerializeField] private bool testOnlyWave = false;
+    [Tooltip("[07-30] 파도 판정 박스 '중심'까지 거리 = 보스 정면 이만큼 앞(m). 빨간 웨이브 직사각 중앙에 맞춰라.")]
+    [SerializeField] private float waveBoxFwd = 5f;
+    [Tooltip("[07-30] 파도 판정 유지 시간(초). 이 동안 박스 안에 들어오면 딜. 웨이브 수명(~1s) 살짝 넘게.")]
+    [SerializeField] private float waveSweepDuration = 1.5f;
+    [Tooltip("[07-30] 파도 박스 전방 반쪽 길이(m). ★빨간 웨이브 직사각 '길이'의 절반에 맞춰라(주황 파티클 bounds 아님).")]
+    [SerializeField] private float waveHalfLength = 5f;
+    [Tooltip("[07-30] 파도 박스 좌우 반쪽 폭(m). ★빨간 웨이브 직사각 '폭'의 절반에 맞춰라.")]
+    [SerializeField] private float waveWidth = 2f;
     public MeleeEnemyData Data => data;   // 도감 등 외부서 보스 스탯 조회용(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "시간을 삼키는 사막의 지배자";
 
@@ -128,7 +142,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float ultRange = 16f;
     [SerializeField] private float ultCooldown = 13f;
     [SerializeField] private float ultWindup = 1.4f;        // Cast3 = 긴 채널(예고)
-    [SerializeField] private float ultTelegraph = 1.0f;
+    [Tooltip("[07-30] 생성 후 VFX가 팡 터지는 시점(초). 종욱 측정 ~2.3s. 이때 Square_Decal 재서 판정. 팡 순간에 맞춰라.")]
+    [SerializeField] private float ultTelegraph = 2.3f;
     [SerializeField] private float ultRecover = 1.2f;
     [Tooltip("[07-30] 궁극 판정 = 정사각형 반쪽 크기(m). Pyramid_Explosion의 Square_Decal(네모)에 맞춰라. 씬서 네모 한 변 재서 그 절반값.")]
     [SerializeField] private float ultHalfExtent = 9f;
@@ -360,25 +375,27 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
         // [07-30] 단일 페이즈: 페이즈 게이트 제거. 쿨/거리만으로 후보를 모은다(쿨이 리듬을 자연스레 잡음).
         _cand.Clear();
-        if (_ultCd <= 0f && ultVfx != null && dist <= ultRange)
-            _cand.Add((AtkType.Ult, wUlt));
-        if (_diveCd <= 0f && slamVfx != null && dist <= diveRange)
-            _cand.Add((AtkType.Dive, wDive));
-        if (_quicksandCd <= 0f && dist <= quicksandRange)
-            _cand.Add((AtkType.Quicksand, wQuicksand));
-        if (_guardCd <= 0f && dist <= guardRange)
-            _cand.Add((AtkType.Guard, wGuard));
-        if (_coffinCd <= 0f && dist <= coffinRange && dist > meleeMax * 0.5f)
-            _cand.Add((AtkType.Coffin, wCoffin));   // 감금 = 시그니처 CC
-        if (_tornadoCd <= 0f && dist <= tornadoRange)
-            _cand.Add((AtkType.Tornado, wTornado));
         if (_waveCd <= 0f && dist <= waveRange && dist > meleeMax)
             _cand.Add((AtkType.Wave, wWave));   // 파도는 근접 사거리 밖에서만(붙으면 근접이 낫다)
 
         int meleeIdx = -1;
-        bool canMelee = dist <= meleeMax && _meleeGapCd <= 0f && TrySelectMelee(dist, out meleeIdx);
-        if (canMelee)
-            _cand.Add((AtkType.Melee, wMelee));
+        if (!testOnlyWave)   // [07-30] 테스트 격리: 켜지면 파도만
+        {
+            if (_ultCd <= 0f && ultVfx != null && dist <= ultRange)
+                _cand.Add((AtkType.Ult, wUlt));
+            if (_diveCd <= 0f && slamVfx != null && dist <= diveRange)
+                _cand.Add((AtkType.Dive, wDive));
+            if (_quicksandCd <= 0f && dist <= quicksandRange)
+                _cand.Add((AtkType.Quicksand, wQuicksand));
+            if (_guardCd <= 0f && dist <= guardRange)
+                _cand.Add((AtkType.Guard, wGuard));
+            if (_coffinCd <= 0f && dist <= coffinRange && dist > meleeMax * 0.5f)
+                _cand.Add((AtkType.Coffin, wCoffin));   // 감금 = 시그니처 CC
+            if (_tornadoCd <= 0f && dist <= tornadoRange)
+                _cand.Add((AtkType.Tornado, wTornado));
+            if (dist <= meleeMax && _meleeGapCd <= 0f && TrySelectMelee(dist, out meleeIdx))
+                _cand.Add((AtkType.Melee, wMelee));
+        }
 
         // 후보가 있으면 가중 랜덤(직전 패턴은 확률 낮춤)으로 하나 뽑아 발동.
         if (_cand.Count > 0)
@@ -508,20 +525,13 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         yield return new WaitForSeconds(waveWindup);
         _feedback?.PlaySound(waveSound);
 
-        if (!_dead)
+        if (!_dead && waveVfx != null)
         {
-            // 파도 VFX 를 보스 정면 지면에 스폰(부채꼴 콘이 앞을 향하도록 보스 회전 사용).
-            if (waveVfx != null)
-            {
-                Vector3 front = GroundSpot(transform.position + transform.forward * (waveRange * 0.4f));
-                var wv = Instantiate(waveVfx, front + Vector3.up * groundVfxLift, transform.rotation);
-                Destroy(wv, 2.5f);   // 루프 서브이미터라 자동 소멸 안 됨 -> 예약 삭제
-            }
-            if (_motor.PlayerInArc(waveRange, waveHalfAngle))
-            {
-                DealDamage(data.attackDamage * waveDmgMul);
-                SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);
-            }
+            // 파도 = 보스 정면 직사각 범위(정적). 판정 = 정면 오리엔티드 박스(center=박스 중심, waveHalfLength x waveWidth). 파티클 bounds 안 씀.
+            Vector3 center = GroundSpot(transform.position + transform.forward * waveBoxFwd);
+            var wv = Instantiate(waveVfx, center + Vector3.up * groundVfxLift, transform.rotation);
+            Destroy(wv, 2.5f);   // 루프 서브이미터라 자동 소멸 안 됨 -> 예약 삭제
+            StartCoroutine(WaveSweepDamage(center, transform.forward, data.attackDamage * waveDmgMul, waveTestDmg));
         }
 
         yield return new WaitForSeconds(waveRecover);
@@ -798,15 +808,16 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_dead || _player == null) { _attacking = false; yield break; }
 
         Vector3 spot = GroundSpot(_player.position);
-        // [07-30] 텔레그래프 원 제거 - Pyramid_Explosion 자체에 Square_Decal(네모) 범위가 있다.
-        //   ★판정은 네모(DealBoxDamage) = ultHalfExtent를 그 Square_Decal 크기에 맞춰라.
-        if (ultVfx != null) { var uv = Instantiate(ultVfx, spot, Quaternion.identity); Destroy(uv, 5.5f); }   // 루프 서브이미터 -> 예약 삭제
+        // [07-30] Pyramid_Explosion 자체 Square_Decal(네모)이 범위. 판정 = 그 데칼 실제 바운드 자동 매칭(TryDecalHit).
+        GameObject uv = ultVfx != null ? Instantiate(ultVfx, spot, Quaternion.identity) : null;
+        if (uv != null) Destroy(uv, 5.5f);   // 루프 서브이미터 -> 예약 삭제
 
-        yield return new WaitForSeconds(ultTelegraph);
+        yield return new WaitForSeconds(ultTelegraph);   // ★생성 후 VFX가 실제로 팡 터지는 시점(측정값 ~2.3s). 이때 Square_Decal 재서 판정
         if (!_dead)
         {
             _feedback?.PlaySound(ultimateSound);
-            DealBoxDamage(spot, ultHalfExtent, data.attackDamage * ultDmgMul);   // 네모 판정(Square_Decal에 맞춤)
+            if (TryDecalHit(uv, "Square_Decal", out bool inSq)) { if (inSq) DealDamage(data.attackDamage * ultDmgMul, ultTestDmg); }
+            else DealBoxDamage(spot, ultHalfExtent, data.attackDamage * ultDmgMul, ultTestDmg);   // 측정 실패 폴백(네모)
             SpawnImpact(impactVfxHeavy, spot + Vector3.up * 0.3f);
         }
 
@@ -818,7 +829,7 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     // [07-30] 시그니처: 주기적으로 바닥 모래를 흡수해 자가 회복(단일 페이즈의 리듬 = 옛 포효 페이즈 대체).
     private void TickHeal()
     {
-        if (_dead || !_engaged || _health == null) return;
+        if (_dead || !_engaged || _health == null || testOnlyWave) return;   // [07-30] 테스트 격리 시 회복(잠수) 끔
         _healTimer += Time.deltaTime;
         if (_healing || _attacking) return;   // 공격/채널 중엔 시작 안 함(공격 사이 빈틈에 발동)
         if (_healTimer >= healInterval && _health.currentHP < _health.maxHP)
@@ -992,26 +1003,76 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private Vector3 PlayerHitPos()
         => _player != null ? _player.position + Vector3.up * impactHeight : transform.position;
 
-    private void DealDamage(float amount)
+    private void DealDamage(float amount) => DealDamage(amount, 1f);   // 기본 테스트값 1
+    // [07-30] testDamageOne 켜지면 amount 대신 testAmount(기본1, 파도/궁극만 다르게 넘김). off면 amount 그대로.
+    private void DealDamage(float amount, float testAmount)
     {
-        if (testDamageOne) amount = 1f;   // [07-30] 테스트: 모든 공격 1뎀(배포 전 testDamageOne 끄기)
+        if (testDamageOne) amount = testAmount;
         if (_playerStat != null) _playerStat.TakeDamage(amount);
     }
 
-    private void DealAreaDamage(Vector3 center, float radius, float amount)
+    private void DealAreaDamage(Vector3 center, float radius, float amount, float testAmount = 1f)
     {
         if (_player == null) return;
         Vector3 a = center; a.y = 0f;
         Vector3 b = _player.position; b.y = 0f;
-        if (Vector3.Distance(a, b) <= radius) DealDamage(amount);
+        if (Vector3.Distance(a, b) <= radius) DealDamage(amount, testAmount);
     }
 
     // [07-30] 정사각형(축정렬) 판정. 궁극(Pyramid_Explosion)처럼 VFX 범위가 네모인 것용. 원과 달리 모서리까지 커버.
-    private void DealBoxDamage(Vector3 center, float halfExtent, float amount)
+    private void DealBoxDamage(Vector3 center, float halfExtent, float amount, float testAmount = 1f)
     {
         if (_player == null) return;
         Vector3 d = _player.position - center;
-        if (Mathf.Abs(d.x) <= halfExtent && Mathf.Abs(d.z) <= halfExtent) DealDamage(amount);
+        if (Mathf.Abs(d.x) <= halfExtent && Mathf.Abs(d.z) <= halfExtent) DealDamage(amount, testAmount);
+    }
+
+    // [07-30] VFX 경계 데칼의 실제 렌더 바운드(월드 AABB, XZ)로 판정 = 보이는 범위 == 딜(수동 측정 불필요, 위치/크기 자동).
+    //   root 밑에서 decalName 인 첫 오브젝트(계층상 부모 우선)의 Renderer.bounds 사용. 못 찾거나 바운드 무효(파티클 미방출)면
+    //   false 반환 -> 호출부가 기하 폴백(원/네모/콘). ★측정하려면 그 순간 데칼이 살아있어야 함(타이밍=데칼 표시 구간).
+    private bool TryDecalHit(GameObject root, string decalName, out bool inside)
+    {
+        inside = false;
+        if (root == null || _player == null) return false;
+        var trs = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < trs.Length; i++)
+        {
+            if (trs[i].name != decalName) continue;
+            var r = trs[i].GetComponent<Renderer>();
+            if (r == null) continue;
+            Bounds b = r.bounds;
+            if (b.size.x < 0.05f && b.size.z < 0.05f) return false;   // 바운드 무효 -> 폴백
+            Vector3 p = _player.position;
+            inside = p.x >= b.min.x && p.x <= b.max.x && p.z >= b.min.z && p.z <= b.max.z;
+            return true;
+        }
+        return false;
+    }
+
+    // [07-30] 파도 = 보스 정면 직사각 범위. ★분석: 루트 SandWave PS는 startSpeed 0 + ShapeModule 비활성 = 속도로 나아가는 스윕 아님(정적 직사각).
+    //   그래서 전진-전선 모델은 헛방이었음. -> center 기준 정면 오리엔티드 박스(waveHalfLength x waveWidth)를 유지시간 폴링, 들어오면 1회 딜.
+    //   파티클 bounds(주황 큰 네모)/요소 의존 0 = 확실히 인식됨. 크기는 빨간 웨이브에 맞춰 인스펙터 조절.
+    private IEnumerator WaveSweepDamage(Vector3 center, Vector3 forward, float amount, float testAmount)
+    {
+        Vector3 fwd = forward; fwd.y = 0f;
+        if (fwd.sqrMagnitude < 0.001f) yield break;
+        fwd.Normalize();
+        Vector3 rightv = new Vector3(fwd.z, 0f, -fwd.x);
+        Vector3 c = center; c.y = 0f;
+        float dur = Mathf.Max(0.05f, waveSweepDuration);
+        float t = 0f;
+        while (t < dur && !_dead && _player != null)
+        {
+            t += Time.deltaTime;
+            Vector3 rel = _player.position - c; rel.y = 0f;
+            if (Mathf.Abs(Vector3.Dot(rel, fwd)) <= waveHalfLength && Mathf.Abs(Vector3.Dot(rel, rightv)) <= waveWidth)
+            {
+                DealDamage(amount, testAmount);
+                SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);
+                yield break;   // 한 번만
+            }
+            yield return null;
+        }
     }
 
     // 감금 락 제어. 켤 때 잠근 컴포넌트를 기억해 두고, 끌 때(또는 강제 해제 시) 그걸 풀어 준다.

@@ -1134,6 +1134,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: 4b3e992c1c3edba47be3baac976d9c14, type: 2}
   testDamageOne: 1
+  testOnlyWave: 1
   bossSubtitle: "\uC2DC\uAC04\uC744 \uC0BC\uD0A4\uB294 \uC0AC\uB9C9\uC758 \uC9C0\uBC30\uC790"
   meleeAttack1Sound: {fileID: 8300000, guid: bbf622400ec84a2d8ee7cb0c5ec7a8a2, type: 3}
   meleeAttack2Sound: {fileID: 8300000, guid: 39e06bf6a8344fd8b05187d288780d84, type: 3}
@@ -1201,7 +1202,7 @@ MonoBehaviour:
   ultRange: 16
   ultCooldown: 13
   ultWindup: 1.4
-  ultTelegraph: 1
+  ultTelegraph: 2.3
   ultRecover: 1.2
   ultRadius: 9
   ultDmgMul: 2.6
