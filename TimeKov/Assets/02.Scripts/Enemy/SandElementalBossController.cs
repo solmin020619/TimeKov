@@ -36,14 +36,17 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float ultTestDmg = 15f;
     [Tooltip("[07-30] 켜면 파도만 발동(다른 패턴+궁극+흡수회복 잠시 끔). 테스트 격리용. 배포 전 끄기.")]
     [SerializeField] private bool testOnlyWave = false;
-    [Tooltip("[07-30] 파도 판정 박스 '중심'까지 거리 = 보스 정면 이만큼 앞(m). 빨간 웨이브 직사각 중앙에 맞춰라.")]
-    [SerializeField] private float waveBoxFwd = 5f;
-    [Tooltip("[07-30] 파도 판정 유지 시간(초). 이 동안 박스 안에 들어오면 딜. 웨이브 수명(~1s) 살짝 넘게.")]
-    [SerializeField] private float waveSweepDuration = 1.5f;
-    [Tooltip("[07-30] 파도 박스 전방 반쪽 길이(m). ★빨간 웨이브 직사각 '길이'의 절반에 맞춰라(주황 파티클 bounds 아님).")]
-    [SerializeField] private float waveHalfLength = 5f;
-    [Tooltip("[07-30] 파도 박스 좌우 반쪽 폭(m). ★빨간 웨이브 직사각 '폭'의 절반에 맞춰라.")]
-    [SerializeField] private float waveWidth = 2f;
+    [Tooltip("[07-31] 켜면 자가회복(잠수->이동->솟구쳐 회복=모래 돔/구체)만 반복 발동, 공격 전부 끔 + HP조건 무시. 구체 조정 테스트용. 배포 전 끄기.")]
+    [SerializeField] private bool testOnlyHeal = false;
+    // [07-31] 파도 판정/VFX 위치 = 코드 고정값(인스펙터 직렬화 제거). 조절은 여기 숫자만 고치면 즉시 반영.
+    //   (프리팹/씬에 직렬화값 없음 확인 - 원래도 코드값이 권위. SerializeField 빼서 앞으로 자동직렬화도 차단.)
+    private float waveVfxFwd = 2f;          // 파도 VFX 생성 = 보스 정면 이만큼 앞(m). 줄이면 보스 쪽으로 당김.
+    private float waveNearDist = 3f;        // 판정 레인 시작(근단, 뒤/보스쪽 끝) = 보스 정면 이만큼 앞(m). 뒤쪽 조절은 이 값.
+    private float waveFarDist = 36f;        // 판정 레인 끝(원단, 앞쪽 끝) = 보스 정면 이만큼 앞(m). 앞으로 늘리려면 이 값만 키워라.
+    private float waveTravelTime = 1.8f;    // 전선이 근단->원단 가는 시간(초) = 거리비례 '기울기'. 멀리서만 늦으면 이걸 줄여라(전선 속도 up), 멀리서만 이르면 키워라.
+    private float waveFrontDelay = 0.3f;    // 전선 출발 전 대기(초) = 가까이/멀리 똑같이 미는 '상수 오프셋'. 전체적으로 늦으면 줄이고, 전체적으로 이르면 키워라.
+    private float waveTrailTime = 0.5f;     // 전선이 원단 도달 후 판정 추가 유지(초). 원단 플레이어 놓침 방지.
+    private float waveWidth = 3.5f;         // 판정 레인 좌우 반쪽 폭(m) = 노란 띠 폭의 절반.
     public MeleeEnemyData Data => data;   // 도감 등 외부서 보스 스탯 조회용(보스는 EnemyBrain 미사용)
     [SerializeField] private string bossSubtitle = "시간을 삼키는 사막의 지배자";
 
@@ -527,11 +530,11 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
         if (!_dead && waveVfx != null)
         {
-            // 파도 = 보스 정면 직사각 범위(정적). 판정 = 정면 오리엔티드 박스(center=박스 중심, waveHalfLength x waveWidth). 파티클 bounds 안 씀.
-            Vector3 center = GroundSpot(transform.position + transform.forward * waveBoxFwd);
-            var wv = Instantiate(waveVfx, center + Vector3.up * groundVfxLift, transform.rotation);
+            // 파도 = 보스 정면 직사각 레인(정적 파티클). VFX 생성 위치(waveVfxFwd)와 판정(waveNearDist~waveFarDist) 분리.
+            Vector3 vfxPos = GroundSpot(transform.position + transform.forward * waveVfxFwd);
+            var wv = Instantiate(waveVfx, vfxPos + Vector3.up * groundVfxLift, transform.rotation);
             Destroy(wv, 2.5f);   // 루프 서브이미터라 자동 소멸 안 됨 -> 예약 삭제
-            StartCoroutine(WaveSweepDamage(center, transform.forward, data.attackDamage * waveDmgMul, waveTestDmg));
+            StartCoroutine(WaveSweepDamage(transform.position, transform.forward, data.attackDamage * waveDmgMul, waveTestDmg));
         }
 
         yield return new WaitForSeconds(waveRecover);
@@ -1005,10 +1008,17 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
 
     private void DealDamage(float amount) => DealDamage(amount, 1f);   // 기본 테스트값 1
     // [07-30] testDamageOne 켜지면 amount 대신 testAmount(기본1, 파도/궁극만 다르게 넘김). off면 amount 그대로.
+    // [07-31] TakeDamage 는 finalDamage = Max(1, amount - DEF). 누적 DEF가 testAmount(10 등)를 다 먹어 -1로만
+    //   보이던 문제 -> 테스트 중엔 DEF만큼 얹어 넘겨 화면에 testAmount 그대로 뜨게 한다(파도=지정값, 근접=1로 구분).
     private void DealDamage(float amount, float testAmount)
     {
-        if (testDamageOne) amount = testAmount;
-        if (_playerStat != null) _playerStat.TakeDamage(amount);
+        if (_playerStat == null) return;
+        if (testDamageOne)
+        {
+            _playerStat.TakeDamage(testAmount + _playerStat.DEF);   // -> finalDamage = Max(1, testAmount)
+            return;
+        }
+        _playerStat.TakeDamage(amount);
     }
 
     private void DealAreaDamage(Vector3 center, float radius, float amount, float testAmount = 1f)
@@ -1049,27 +1059,37 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
         return false;
     }
 
-    // [07-30] 파도 = 보스 정면 직사각 범위. ★분석: 루트 SandWave PS는 startSpeed 0 + ShapeModule 비활성 = 속도로 나아가는 스윕 아님(정적 직사각).
-    //   그래서 전진-전선 모델은 헛방이었음. -> center 기준 정면 오리엔티드 박스(waveHalfLength x waveWidth)를 유지시간 폴링, 들어오면 1회 딜.
-    //   파티클 bounds(주황 큰 네모)/요소 의존 0 = 확실히 인식됨. 크기는 빨간 웨이브에 맞춰 인스펙터 조절.
-    private IEnumerator WaveSweepDamage(Vector3 center, Vector3 forward, float amount, float testAmount)
+    // [07-31] 파도 판정 = 근단(waveNearDist)에서 원단(waveFarDist)으로 나아가는 '전선(front)' 모델. 모래바람이
+    //   실제로 날아가 닿는 순간에만 딜(선 생기자마자 딜 들어가던 문제 해결). front가 플레이어 전방거리를 넘으면 1회.
+    //   waveTravelTime = 전선 속도(맞기 전에 딜 들어가면 이 값을 키워 느리게).
+    private IEnumerator WaveSweepDamage(Vector3 origin, Vector3 forward, float amount, float testAmount)
     {
         Vector3 fwd = forward; fwd.y = 0f;
         if (fwd.sqrMagnitude < 0.001f) yield break;
         fwd.Normalize();
         Vector3 rightv = new Vector3(fwd.z, 0f, -fwd.x);
-        Vector3 c = center; c.y = 0f;
-        float dur = Mathf.Max(0.05f, waveSweepDuration);
+        Vector3 o = origin; o.y = 0f;
+        Vector3 nearEnd = o + fwd * waveNearDist;                    // 판정 시작(보스에서 waveNearDist 앞)
+        float total = Mathf.Max(0.1f, waveFarDist - waveNearDist);   // 레인 길이(근단~원단)
+        float travel = Mathf.Max(0.05f, waveTravelTime);
+        float dur = waveFrontDelay + travel + Mathf.Max(0f, waveTrailTime);   // 초기 대기 + 이동 + 끝자락
         float t = 0f;
-        while (t < dur && !_dead && _player != null)
+        while (t < dur && !_dead)
         {
             t += Time.deltaTime;
-            Vector3 rel = _player.position - c; rel.y = 0f;
-            if (Mathf.Abs(Vector3.Dot(rel, fwd)) <= waveHalfLength && Mathf.Abs(Vector3.Dot(rel, rightv)) <= waveWidth)
+            float frontDist = (Mathf.Max(0f, t - waveFrontDelay) / travel) * total;   // 대기 후 근단에서 나아간 거리(m)
+            if (_player != null)
             {
-                DealDamage(amount, testAmount);
-                SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);
-                yield break;   // 한 번만
+                Vector3 rel = _player.position - nearEnd; rel.y = 0f;
+                float dFwd = Vector3.Dot(rel, fwd);                  // 근단 기준 전방거리
+                float dLat = Vector3.Dot(rel, rightv);               // 좌우거리
+                // 전선이 플레이어를 지났고(닿음) + 좌우폭 안 + 레인 길이 안 -> 그 순간 1회
+                if (dFwd >= 0f && dFwd <= total && Mathf.Abs(dLat) <= waveWidth && frontDist >= dFwd)
+                {
+                    DealDamage(amount, testAmount);
+                    SpawnImpact(impactVfxMelee, PlayerHitPos(), meleeImpactScale);
+                    yield break;   // 한 번만
+                }
             }
             yield return null;
         }
