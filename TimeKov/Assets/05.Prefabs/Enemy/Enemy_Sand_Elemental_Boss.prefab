@@ -1133,8 +1133,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   data: {fileID: 11400000, guid: 4b3e992c1c3edba47be3baac976d9c14, type: 2}
-  testDamageOne: 1
-  testOnlyWave: 1
+  testDamageOne: 0
+  testOnlyWave: 0
+  testOnlyHeal: 0
   bossSubtitle: "\uC2DC\uAC04\uC744 \uC0BC\uD0A4\uB294 \uC0AC\uB9C9\uC758 \uC9C0\uBC30\uC790"
   meleeAttack1Sound: {fileID: 8300000, guid: bbf622400ec84a2d8ee7cb0c5ec7a8a2, type: 3}
   meleeAttack2Sound: {fileID: 8300000, guid: 39e06bf6a8344fd8b05187d288780d84, type: 3}
@@ -1196,7 +1197,7 @@ MonoBehaviour:
   diveDropTime: 0.6
   diveHeight: 11
   diveRecover: 0.7
-  diveRadius: 8
+  diveRadius: 6.3
   diveDmgMul: 1.5
   ultVfx: {fileID: 7261619771887740729, guid: c408ff6dd0cd1fd40a9927b3ef656d92, type: 3}
   ultRange: 16
