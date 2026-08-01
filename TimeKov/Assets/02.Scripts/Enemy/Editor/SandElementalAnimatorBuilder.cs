@@ -84,6 +84,7 @@ public static class SandElementalAnimatorBuilder
             ("SpikeStart", "Cast4"),        // 가시 다발 예비동작
             ("Spike",      "Cast5"),        // 가시 다발 발사
             ("Fly",        "Fly"),          // 활공(다이브 상승/체공/낙하 공용) - 시그니처 포즈
+            ("SandAbsorb", "Cower"),        // [07-30] 모래 흡수 회복 채널(웅크려 끌어모으는 포즈)
         };
         foreach (var (stateName, clipName) in sequences)
             sm.AddState(stateName).motion = Clip(clipName);
@@ -99,7 +100,7 @@ public static class SandElementalAnimatorBuilder
         RelinkBossPrefab(ctrl);   // 재생성으로 guid 가 바뀌므로 프리팹 Animator 재연결
 
         Debug.Log($"[SandElementalAnimator] 생성 완료: {CtrlPath}\n" +
-                  "  states: Idle/Locomotion(Walk+Run 블렌드)/Attack1/Attack2/CastWave/CastCoffin/CastBig/Roar/Guard/Stun/SpikeStart/Spike/Fly/Die");
+                  "  states: Idle/Locomotion(Walk+Run 블렌드)/Attack1/Attack2/CastWave/CastCoffin/CastBig/Roar/Guard/Stun/SpikeStart/Spike/Fly/SandAbsorb/Die");
     }
 
     // 컨트롤러를 지우고 새로 만들면 guid 가 바뀌어 프리팹의 Animator 참조가 끊긴다.
