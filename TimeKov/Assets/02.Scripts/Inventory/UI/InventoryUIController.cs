@@ -84,6 +84,9 @@ public class InventoryUIController : MonoBehaviour
     // 상자 열기 여부 (ChestInteractable에서 설정, 닫을 때 자동 초기화)
     public static bool IsChestOpen { get; set; } = false;
 
+    // 상자 패널이 열린 프레임 — 같은 프레임에 F(여는 입력)로 바로 닫히는 것 방지용.
+    private int _chestOpenFrame = -1;
+
     // 플레이어가 결계존(BaseZone) 안인지 조회 — TAB로 인벤 열 때 창고 자동 연동 판정용
     private static Player _player;
     private static bool IsPlayerInBase()
@@ -227,6 +230,14 @@ public class InventoryUIController : MonoBehaviour
             Toggle();
             return;
         }
+
+        // 상자 파밍 패널은 F(인터랙트)로도 닫힌다 — 연 프레임엔 무시(여는 F 와 겹침 방지).
+        if (_isOpen && IsChestOpen && Time.frameCount > _chestOpenFrame
+            && Input.GetKeyDown(KeyBindings.Interact))
+        {
+            Close();
+            return;
+        }
         // ESC는 GameUIController.HandleEscape()가 TryCloseTopPopup() → Close() 순으로 처리
 
         // ContextMenu 외부 클릭 감지
@@ -298,6 +309,7 @@ public class InventoryUIController : MonoBehaviour
             // 인벤토리가 이미 열려있는 상태에서 상자 열기 요청이면 패널만 재구성
             if (_isOpen && IsChestOpen)
             {
+                _chestOpenFrame = Time.frameCount;   // 여는 F 와 닫는 F 가 같은 프레임에 겹치지 않게
                 IsInBase = false;
                 if (warehousePanel != null) warehousePanel.SetActive(false);
                 if (chestPanel != null) chestPanel.SetActive(true);
@@ -312,6 +324,7 @@ public class InventoryUIController : MonoBehaviour
         gui?.SetState(GameUIController.UIState.Inventory);
 
         _isOpen = true;
+        if (IsChestOpen) _chestOpenFrame = Time.frameCount;   // 여는 F 와 닫는 F 가 같은 프레임에 겹치지 않게
         inventoryRoot.SetActive(true);
         if (!TimeKov.UI.WindowManager.SuppressPanelSfx) GameSfx.Play(SfxId.PanelWarehouseOpen);   // 창고(인벤토리) 열기음(코드 직결 — 씬 WindowManager 미사용)
 

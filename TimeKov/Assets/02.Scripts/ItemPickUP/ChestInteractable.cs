@@ -6,6 +6,7 @@
 // 다 비우면 다시 걸어둬야(쿨) 채워진다.
 // =====================================================================
 
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -23,6 +24,11 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     [Tooltip("기지 결계 밖에서도 열 수 있는지")]
     [SerializeField] private bool requireBase = false;
 
+    [Tooltip("★기믹(레이저 결계 등)으로 여는 상자용. 체크하면 처음부터 '잠금 해제' 상태로 시작 —\n" +
+             "걸어두기(F 대기)/즉시완료(G, HP 소모) 없이, 다가가 F 한 번으로 바로 전리품을 연다.\n" +
+             "결계/기믹이 실질적 잠금 역할을 하므로 상자 자체는 즉시 열리게 둔다.")]
+    [SerializeField] private bool startUnlocked = false;
+
     [Header("열기 / 즉시완료")]
     [Tooltip("F로 걸어두면 이 시간(초) 뒤 '수령 가능'이 된다. 자리를 비워도 카운트됨.")]
     [SerializeField] private float openTimeSeconds = 20f;
@@ -32,6 +38,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     [Header("리젠 (파밍 후 사라졌다 재등장)")]
     [Tooltip("다 비운 상자가 사라진 뒤 이 시간(초) 후 새 상자로 재등장(Idle 복귀 - 처음부터 다시 까야 함).")]
     [SerializeField] private float respawnSeconds = 300f;
+    [Tooltip("다 비운 상자가 사라질 때 스케일이 0으로 줄며 서서히 사라지는 시간(초). 0이면 즉시 소멸.")]
+    [SerializeField] private float vanishDuration = 0.5f;
 
     [Header("프롬프트")]
     [SerializeField] private float promptRange = 2.6f;
@@ -70,6 +78,21 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     private Color[]    _glowOrigEmission;
     private bool       _glowOn;
 
+    // 소멸 페이드(투명도) — 머티리얼 인스턴스를 투명 모드로 바꿔 알파를 0까지 낮췄다가 리젠 때 복원.
+    private static readonly int ID_BaseColor = Shader.PropertyToID("_BaseColor");
+    private static readonly int ID_Color     = Shader.PropertyToID("_Color");
+    private static readonly int ID_Surface   = Shader.PropertyToID("_Surface");
+    private static readonly int ID_SrcBlend  = Shader.PropertyToID("_SrcBlend");
+    private static readonly int ID_DstBlend  = Shader.PropertyToID("_DstBlend");
+    private static readonly int ID_ZWrite    = Shader.PropertyToID("_ZWrite");
+
+    // 페이드할 색 프로퍼티 1개(머티리얼+프로퍼티id+원본색). rgb=true 면 rgb·a 모두 낮춤(발광/커스텀), false 면 알파만(불투명 몸체).
+    private struct FadeCol { public Material mat; public int id; public Color orig; public bool rgb; }
+    private readonly List<FadeCol> _fadeCols = new();
+    private readonly List<Material> _fadeTransparented = new();   // 투명 전환한 몸체 머티리얼(리젠 때 불투명 복구)
+    private Light[]    _fadeLights;       // 상자에 붙은 Light 컴포넌트(있으면 밝기도 같이 페이드)
+    private float[]    _fadeLightBase;
+
     private void Awake()
     {
         _colliders = GetComponentsInChildren<Collider>(true);
@@ -80,6 +103,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     {
         _player = FindAnyObjectByType<Player>();
         SetupGlow();
+        // 기믹으로 여는 상자: 잠금/대기 없이 '수령 가능'으로 시작 → 첫 F 에 바로 전리품을 굴려 연다.
+        if (startUnlocked) _state = State.Ready;
     }
 
     // 인벤토리 UI가 열려있거나 promptRange 밖이면 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
@@ -242,22 +267,154 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         _timer = respawnSeconds;
         _contents = null;
         if (_activeChest == this) _activeChest = null;
-        if (closedVisual != null) closedVisual.SetActive(false);
-        if (openedVisual != null) openedVisual.SetActive(false);
+        // 콜라이더는 즉시 꺼서 사라지는 동안 통과 가능하게. 비주얼은 스케일이 줄며 서서히 사라진다.
         if (_colliders != null)
             foreach (var c in _colliders) if (c != null) c.enabled = false;
-        if (_renderers != null)
-            foreach (var r in _renderers) if (r != null) r.enabled = false;   // 메시 숨김(비주얼 미할당이어도 확실히 사라지게)
         UpdateGlow(false);
         ChestPromptUI.Instance?.HideIfOwner(this);
+        StartCoroutine(VanishRoutine());
+    }
+
+    // 투명도를 낮추며 형체가 서서히 흐려져 소멸 → 끝나면 메시 숨김(리젠 때 Respawn 이 복원).
+    private IEnumerator VanishRoutine()
+    {
+        CollectFadeMaterials();   // 머티리얼 인스턴스 수집 + 투명 모드 전환 + 원본 색 기억
+
+        for (float t = 0f; t < vanishDuration; t += Time.deltaTime)
+        {
+            float a = 1f - t / vanishDuration;   // 1 → 0
+            ApplyFadeAlpha(a);
+            yield return null;
+        }
+        ApplyFadeAlpha(0f);
+
+        if (closedVisual != null) closedVisual.SetActive(false);
+        if (openedVisual != null) openedVisual.SetActive(false);
+        if (_renderers != null)
+            foreach (var r in _renderers) if (r != null) r.enabled = false;   // 확실히 숨김(비주얼 미할당 대비)
+    }
+
+    // 렌더러 머티리얼 인스턴스를 모아 페이드할 색 프로퍼티를 등록한다.
+    //   • URP Lit 몸체(_Surface 보유): 투명 전환 후 base 색은 '알파만' 낮춤(자연스러운 페이드).
+    //   • 그 외(커스텀 셰이더그래프/발광/파티클): 노출된 '모든 Color 프로퍼티'를 rgb·a 로 낮춤 →
+    //     Box_Light 같은 Emisson 셰이더도 프로퍼티 이름 몰라도 무조건 흐려진다.
+    private void CollectFadeMaterials()
+    {
+        _fadeCols.Clear();
+        _fadeTransparented.Clear();
+        if (_renderers != null)
+        {
+            foreach (var r in _renderers)
+            {
+                if (r == null) continue;
+                foreach (var m in r.materials)   // 인스턴스(공유 재질/다른 상자에 영향 없음)
+                {
+                    if (m == null) continue;
+
+                    if (m.HasProperty(ID_Surface))
+                    {
+                        // URP Lit 몸체: 투명 전환 + base 알파만 페이드 + 발광 있으면 rgb 페이드.
+                        SetTransparent(m);
+                        _fadeTransparented.Add(m);
+                        if (m.HasProperty(ID_BaseColor))
+                            _fadeCols.Add(new FadeCol { mat = m, id = ID_BaseColor, orig = m.GetColor(ID_BaseColor), rgb = false });
+                        else if (m.HasProperty(ID_Color))
+                            _fadeCols.Add(new FadeCol { mat = m, id = ID_Color, orig = m.GetColor(ID_Color), rgb = false });
+                    }
+                    else
+                    {
+                        // 커스텀/발광/파티클 셰이더: 노출된 모든 Color 프로퍼티를 rgb·a 로 낮춘다(이름 몰라도 됨).
+                        var sh = m.shader;
+                        int count = sh != null ? sh.GetPropertyCount() : 0;
+                        for (int i = 0; i < count; i++)
+                        {
+                            if (sh.GetPropertyType(i) != UnityEngine.Rendering.ShaderPropertyType.Color) continue;
+                            int id = sh.GetPropertyNameId(i);
+                            if (!m.HasProperty(id)) continue;
+                            _fadeCols.Add(new FadeCol { mat = m, id = id, orig = m.GetColor(id), rgb = true });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 상자에 붙은 실제 Light 컴포넌트(있으면 밝기도 같이 페이드)
+        _fadeLights = GetComponentsInChildren<Light>(true);
+        _fadeLightBase = new float[_fadeLights.Length];
+        for (int i = 0; i < _fadeLights.Length; i++)
+            _fadeLightBase[i] = _fadeLights[i] != null ? _fadeLights[i].intensity : 0f;
+    }
+
+    private void ApplyFadeAlpha(float mul)
+    {
+        // 발광은 HDR(밝기>1, 블룸용)이라 선형으로 낮추면 끝까지 밝게 보인다 → 세제곱 곡선으로 초반에 빨리 어두워지게.
+        float glow = mul * mul * mul;
+        for (int i = 0; i < _fadeCols.Count; i++)
+        {
+            var f = _fadeCols[i];
+            if (f.mat == null) continue;
+            Color c = f.orig;
+            if (f.rgb) { c.r *= glow; c.g *= glow; c.b *= glow; c.a *= mul; }   // 발광/커스텀: 밝기(rgb)는 급격히
+            else       { c.a = f.orig.a * mul; }                               // 불투명 몸체: 알파만(선형)
+            f.mat.SetColor(f.id, c);
+        }
+        if (_fadeLights != null)
+            for (int i = 0; i < _fadeLights.Length; i++)
+                if (_fadeLights[i] != null) _fadeLights[i].intensity = _fadeLightBase[i] * glow;   // 라이트 밝기도 급격히
+    }
+
+    // URP Lit 를 런타임에 투명(Alpha) 표면으로 전환. 없는 프로퍼티는 건너뜀(다른 셰이더 안전).
+    private static void SetTransparent(Material m)
+    {
+        if (m.HasProperty(ID_Surface))  m.SetFloat(ID_Surface, 1f);      // 0=Opaque, 1=Transparent
+        if (m.HasProperty(ID_SrcBlend)) m.SetFloat(ID_SrcBlend, (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (m.HasProperty(ID_DstBlend)) m.SetFloat(ID_DstBlend, (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        if (m.HasProperty(ID_ZWrite))   m.SetFloat(ID_ZWrite, 0f);
+        m.DisableKeyword("_SURFACE_TYPE_OPAQUE");
+        m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        // ★반사/스페큘러 OFF — 투명해질수록 하늘(스카이박스)이 표면에 반사돼 파랗게 비치는 것 방지.
+        m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+        m.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+        m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+    }
+
+    // 리젠 시 원래 색/불투명으로 되돌린다.
+    private void RestoreOpaqueMaterials()
+    {
+        for (int i = 0; i < _fadeCols.Count; i++)
+        {
+            var f = _fadeCols[i];
+            if (f.mat != null) f.mat.SetColor(f.id, f.orig);   // 색·알파 원복
+        }
+        foreach (var m in _fadeTransparented)
+        {
+            if (m == null) continue;
+            if (m.HasProperty(ID_Surface))  m.SetFloat(ID_Surface, 0f);
+            if (m.HasProperty(ID_SrcBlend)) m.SetFloat(ID_SrcBlend, (float)UnityEngine.Rendering.BlendMode.One);
+            if (m.HasProperty(ID_DstBlend)) m.SetFloat(ID_DstBlend, (float)UnityEngine.Rendering.BlendMode.Zero);
+            if (m.HasProperty(ID_ZWrite))   m.SetFloat(ID_ZWrite, 1f);
+            m.EnableKeyword("_SURFACE_TYPE_OPAQUE");
+            m.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.DisableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+            m.DisableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            m.renderQueue = -1;   // 셰이더 기본 큐로 복귀
+        }
+        if (_fadeLights != null)
+            for (int i = 0; i < _fadeLights.Length; i++)
+                if (_fadeLights[i] != null) _fadeLights[i].intensity = _fadeLightBase[i];   // 밝기 원복
+
+        _fadeCols.Clear();
+        _fadeTransparented.Clear();
+        _fadeLights = null; _fadeLightBase = null;
     }
 
     // 리젠: 새 상자로 다시 등장(Idle = 잠김). 처음부터 다시 까야 함 = 새로운 상자 개념.
     private void Respawn()
     {
-        _state = State.Idle;
+        _state = startUnlocked ? State.Ready : State.Idle;   // startUnlocked 면 리젠도 잠금 없이 바로 열림
         _timer = 0f;
         _contents = null;
+        RestoreOpaqueMaterials();   // 소멸 페이드로 투명해졌던 머티리얼을 원래 불투명/색으로 복원
         if (_colliders != null)
             foreach (var c in _colliders) if (c != null) c.enabled = true;
         if (_renderers != null)
