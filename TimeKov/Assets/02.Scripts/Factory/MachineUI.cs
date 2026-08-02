@@ -389,7 +389,7 @@ public class MachineUI : MonoBehaviour
         tmp.fontSize = 22;   // 엔필 비례(박스 높이 대비 글자 크기)로 확대. 15는 박스만 커지고 글자가 못 따라갔음
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = new Color(0.20f, 0.23f, 0.28f, 0.85f);   // 밝은 박스 표면 = 어두운 글자(엔필과 동일 원리)
-        tmp.text = "아이템을 여기로 드래그하여 " + containerName + "에 보관 가능";
+        tmp.text = Loc.Get("아이템을 여기로 드래그하여") + " " + Loc.Get(containerName) + Loc.Get("에 보관 가능");
         tmp.raycastTarget = false;
         return rt;
     }
@@ -400,20 +400,20 @@ public class MachineUI : MonoBehaviour
         if (storageTabBtn == null || _storageFilterUI == null) return;
         var tmp = storageTabBtn.GetComponentInChildren<TextMeshProUGUI>(true);   // 비활성 중 호출 대비(SetTabActive 와 동일 이유)
         if (tmp == null) return;
-        string f = "전체";
+        string f = Loc.Get("전체");
         if (_storageFilter != null)
         {
             switch (_storageFilter.Value)
             {
-                case ItemCategory.RawMaterial:        f = "원재료"; break;
-                case ItemCategory.ProcessedTier1:     f = "1차 가공품"; break;
-                case ItemCategory.ProcessedTier2:     f = "2차 가공품"; break;
-                case ItemCategory.TacticalConsumable: f = "전술 소모품"; break;
-                case ItemCategory.CoreUpgrade:        f = "핵심 강화"; break;
-                case ItemCategory.Special:            f = "특수"; break;
+                case ItemCategory.RawMaterial:        f = Loc.Get("원재료"); break;
+                case ItemCategory.ProcessedTier1:     f = Loc.Get("1차 가공품"); break;
+                case ItemCategory.ProcessedTier2:     f = Loc.Get("2차 가공품"); break;
+                case ItemCategory.TacticalConsumable: f = Loc.Get("전술 소모품"); break;
+                case ItemCategory.CoreUpgrade:        f = Loc.Get("핵심 강화"); break;
+                case ItemCategory.Special:            f = Loc.Get("특수"); break;
             }
         }
-        tmp.text = "창고 | " + f;
+        tmp.text = Loc.Get("창고 |") + " " + f;
     }
 
     // 섹션 배치(가방 위/창고 아래 고정, 펼친 쪽만 그리드):
@@ -800,7 +800,7 @@ public class MachineUI : MonoBehaviour
         var inv = ActiveInv();
         int used = inv != null ? inv.GetUsedSlotCount() : 0;
         if (bagCapacityText != null && inv != null)
-            bagCapacityText.text = $"용량 {used} / {inv.GetMaxSlots()}";
+            bagCapacityText.text = $"{Loc.Get("용량")} {used} / {inv.GetMaxSlots()}";
         if (bagEmptyText != null) bagEmptyText.gameObject.SetActive(used == 0);
         if (inv == null)
         {
@@ -1639,7 +1639,7 @@ public class MachineUI : MonoBehaviour
             var storage = InventoryManager.StorageInstance;
             StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
             if (storage != null) storage.AddItem(itemId, leftover);
-            ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+            ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
         }
 
         GameEvents.RaiseItemAcquired(itemId, amount);
@@ -1900,7 +1900,7 @@ public class MachineUI : MonoBehaviour
             // 연료 슬롯에 "연료 넣기" 프롬프트가 떠 있으면(연료 드래그/호버) 같은 자리에 겹치므로 그땐 경고를 숨긴다.
             // (옛 경고기호는 Static 한글 폰트에 없어 깨진 네모로 떠서 텍스트만 남김 - 강조는 statusText 색으로.)
             bool inserting = fuelDropSlot != null && fuelDropSlot.IsInsertPromptVisible;
-            statusText.text = inserting ? "" : "연료 부족";              // 연료 칸 위
+            statusText.text = inserting ? "" : Loc.Get("연료 부족");              // 연료 칸 위
             if (_processTimeText != null) _processTimeText.text = "";
         }
         else if (isSelectedRecipeActive)
@@ -1949,7 +1949,7 @@ public class MachineUI : MonoBehaviour
             if (taken > 0) _machine.InputBuffer.Consume(itemId, taken);
             if (leftover > 0) someLeft = true;
         }
-        if (someLeft) ToastManager.Warning("가방이 가득 찼습니다");
+        if (someLeft) ToastManager.Warning(Loc.Get("가방이 가득 찼습니다"));
         inv?.ForceRefreshUI();
 
         _machine.PublicNotifyBufferChanged();
@@ -1992,7 +1992,7 @@ public class MachineUI : MonoBehaviour
                         GameEvents.RaiseItemAcquired(output.itemId, buffered);
                     }
                 }
-                if (movedToStorage) ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+                if (movedToStorage) ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
             }
         }
 
