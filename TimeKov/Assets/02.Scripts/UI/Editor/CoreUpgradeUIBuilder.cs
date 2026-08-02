@@ -139,7 +139,7 @@ public static class CoreUpgradeUIBuilder
 
         // 레벨 뱃지 = 좌상단
         GameObject badge = MakeImage("LevelBadge", panel.transform, new Vector2(140, 60), new Vector2(-640, 416), Hex("0C1322", 230));
-        SetSpr(badge, LoadSprAt("Assets/11.UI/New/pill_dark.png", 24), Image.Type.Sliced);
+        SetSpr(badge, LoadSprAt("Assets/15.UI/New/pill_dark.png", 24), Image.Type.Sliced);
         var levelTxt = MakeTMP("LevelText", badge.transform, Vector2.zero, Vector2.zero, "Lv.0 / 10", 22, Hex("EAF3FB"), TextAlignmentOptions.Center, stretch: true);
         levelTxt.fontStyle = FontStyles.Bold;
         SetRef(so, "levelText", levelTxt);
@@ -186,7 +186,7 @@ public static class CoreUpgradeUIBuilder
         SetRef(so, "upgradeInfoGroup", infoGroup);
 
         GameObject bottomBar = MakeImage("BottomBar", infoGroup.transform, new Vector2(660, 104), new Vector2(0, -340), Hex("0C1322", 200));
-        SetSpr(bottomBar, LoadSprAt("Assets/11.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
+        SetSpr(bottomBar, LoadSprAt("Assets/15.UI/New/panel_ash_a78.png", 32), Image.Type.Sliced);
         AddHighlight(bottomBar, "core_upgrade_materials");   // 튜토 코치마크 대상 (재료/성공확률)
         GameObject kitIconGo = MakeImage("KitIcon", bottomBar.transform, new Vector2(56, 56), new Vector2(-300, 22), Hex("1A202C", 220));
         SetSpr(kitIconGo, LoadSpr("KitSlot"), Image.Type.Simple);
@@ -219,7 +219,7 @@ public static class CoreUpgradeUIBuilder
 
         // 강화 시작 버튼
         GameObject upgradeBtn = MakeButton("UpgradeButton", infoGroup.transform, new Vector2(360, 64), new Vector2(0, -432), "강화", 22, Hex("2F8FD8"));
-        SetSpr(upgradeBtn, LoadSprAt("Assets/11.UI/New/panel_steel_a78.png", 24), Image.Type.Sliced);
+        SetSpr(upgradeBtn, LoadSprAt("Assets/15.UI/New/panel_steel_a78.png", 24), Image.Type.Sliced);
         upgradeBtn.GetComponent<Image>().color = Hex("2F8FD8");
         SetRef(so, "upgradeButton",     upgradeBtn.GetComponent<Button>());
         SetRef(so, "upgradeButtonText", upgradeBtn.GetComponentInChildren<TextMeshProUGUI>());
