@@ -133,7 +133,7 @@ public class DiscoveryCueManager : MonoBehaviour
         if (IsAlreadyWatched(cue)) { Pump(); return; }   // 큐잉~표시 사이에 도감 등에서 봤으면 스킵
 
         var ui = TutorialVideoUI.I;
-        if (ui == null) { _ready.Enqueue(cue); return; }  // 아직 생성 불가 - 다음 Update 재시도
+        if (ui == null) { _ready.Enqueue(cue); return; }  // 씬에 팝업이 없음(에러 로그 참고) - 큐는 유지, 다음 Update 재시도
         _showing = true;
         ui.Show(cue.pages, OnClosed);
     }

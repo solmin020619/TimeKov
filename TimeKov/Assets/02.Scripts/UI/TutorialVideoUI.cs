@@ -12,8 +12,21 @@ using JeffGrawAssets.FlexibleUI;
 /// Q/E 또는 좌우 화살표로 페이지를 넘기고, 모두 읽으면 닫을 수 있다.
 /// 팝업 동안 게임은 정지(timeScale=0)된다.
 ///
-/// UI/영상을 코드로 런타임 생성하므로 씬 세팅/프리팹 불필요 (lazy 싱글톤, TutorialOverlay 패턴).
-/// TutorialVideoObjective 가 Show/Hide 를 호출한다.
+/// [08-02] 런타임 자체생성 -> 씬 실물 오브젝트로 전환.
+///   이전에는 Awake 에서 계층 전체(영상 프레임/제목/본문/화살표/키캡)를 코드로 만들었다. 그러면
+///   (1) 에디터에 없으니 로컬라이징 컴포넌트를 못 붙이고 (2) 레이아웃 숫자를 코드에서만 만질 수 있었다.
+///   지금은 Canvas/Overlays 아래 실물로 존재하고, 이 스크립트는 '참조를 쓰기만' 한다.
+///   계층 생성은 TutorialVideoUIBuilder(에디터) 담당.
+///
+///   런타임에 남는 것은 저장이 불가능한 것뿐이다:
+///     - RenderTexture (영상 출력 버퍼) - 매 실행 새로 만든다
+///     - 블러가 볼 카메라 - Camera.main 은 실행 중에만 잡힌다
+///     - 링/셰브론 스프라이트 - RuntimeGeneratedSprite 부품이 스스로 채운다
+///
+/// 표시/숨김은 오브젝트 비활성이 아니라 Canvas/Raycaster 토글로 한다(항상 활성 = LateUpdate 가 계속 돌아
+/// 설정창 열고닫힘을 감지할 수 있고, I 로 항상 찾을 수 있음 - TutorialOverlay 와 동일).
+///
+/// TutorialVideoObjective / DiscoveryCueManager 가 Show/Hide 를 호출한다.
 ///
 /// 입력 차단: TutorialOverlay 와 동일하게 GameUIController.SetTutorialCoachActive(true) 로
 /// 플레이어 이동/공격/스킬/J/C 를 막는다. 페이지 넘김(Q/E/화살표)은 이 컴포넌트가 raw Input 으로
@@ -21,8 +34,9 @@ using JeffGrawAssets.FlexibleUI;
 /// </summary>
 public class TutorialVideoUI : MonoBehaviour
 {
-    // ── 싱글턴 (lazy, 런타임 자동 생성) ───────────────────────────────
+    // ── 싱글턴 (씬에 있는 실물을 찾는다) ─────────────────────────────
     private static TutorialVideoUI _i;
+    private static bool _warnedMissing;
     public static bool HasInstance => _i != null;
     /// <summary>현재 팝업이 떠 있는지(발견 큐 등 다른 팝업이 겹쳐 뜨지 않게 게이트용).</summary>
     public static bool IsShowing => _i != null && _i._open;
@@ -31,68 +45,75 @@ public class TutorialVideoUI : MonoBehaviour
     {
         get
         {
-            if (_i == null && Application.isPlaying)
+            // 평소엔 실물의 Awake 가 _i 를 채운다. 여기 탐색은 순서가 꼬였을 때의 보험이라 1회만 돈다
+            // (매 프레임 호출되는 자리가 있어서, 없을 때 계속 씬을 뒤지지 않게 막는다).
+            if (_i == null && !_warnedMissing)
             {
-                var go = new GameObject("[TutorialVideoUI]");
-                _i = go.AddComponent<TutorialVideoUI>();
+                _i = FindAnyObjectByType<TutorialVideoUI>(FindObjectsInactive.Include);
+                if (_i == null)
+                {
+                    _warnedMissing = true;
+                    Debug.LogError("[TutorialVideoUI] 씬 Canvas 에 영상 팝업이 없다. 메뉴 Tools/TIMEKOV/튜토리얼 영상 팝업 생성 을 실행해라.");
+                }
             }
             return _i;
         }
     }
 
-    // ── UI 요소 ───────────────────────────────────────────────────────
-    private Canvas _canvas;
-    private GraphicRaycaster _raycaster;
-    private BlurredImage _blur;
-    private RawImage _videoImage;
-    private GameObject _placeholder;
-    private TMP_Text _pageCount;   // "1 / 2"
-    private TMP_Text _title;       // "설비 가공"
-    private TMP_Text _body;
-    private GameObject _hintRow;      // [Q][E] 키캡 + 설명 (키캡은 화살표 옆과 동일 디자인)
-    private GameObject _confirmBar;   // 마지막/단일 페이지에서 뜨는 "확인" 바
-    private GameObject _chevronL, _chevronR;   // 화살표 아이콘(코드 생성) 컨테이너
+    // ── UI 요소 (빌더가 자동 연결) ────────────────────────────────────
+    [Header("루트")]
+    [Tooltip("표시/숨김 대상. 이걸 끄면 화면에서 사라진다(오브젝트는 계속 활성).")]
+    [SerializeField] private Canvas canvasComp;
+    [SerializeField] private GraphicRaycaster raycaster;
+    [Tooltip("페이드 인/아웃용. 블러+틴트+콘텐츠를 통째로 알파 보간한다.")]
+    [SerializeField] private CanvasGroup group;
+    [Tooltip("배경 블러. 강도/반복은 이 컴포넌트의 Blur Instance Settings 에서 조절한다.")]
+    [SerializeField] private BlurredImage blur;
 
-    // ── 영상 ──────────────────────────────────────────────────────────
-    private VideoPlayer _vp;
+    [Header("영상")]
+    [SerializeField] private VideoPlayer videoPlayer;
+    [SerializeField] private RawImage videoImage;
+    [Tooltip("클립이 비어 있는 페이지에서 대신 보여주는 '영상 준비 중' 판.")]
+    [SerializeField] private GameObject placeholder;
+
+    [Header("글")]
+    [SerializeField] private TMP_Text pageCount;   // "1 / 2"
+    [SerializeField] private TMP_Text titleText;   // "설비 가공"
+    [SerializeField] private TMP_Text bodyText;
+
+    [Header("하단 / 좌우")]
+    [Tooltip("[Q][E] 키캡 + 안내 문구. 아직 다 안 읽었을 때 표시.")]
+    [SerializeField] private GameObject hintRow;
+    [Tooltip("마지막(또는 단일) 페이지에서 뜨는 '확인' 바.")]
+    [SerializeField] private GameObject confirmBar;
+    [SerializeField] private CanvasGroup chevronLeft;
+    [SerializeField] private CanvasGroup chevronRight;
+
+    [Header("연출 값")]
+    [Tooltip("표시 직후 이 시간 동안은 닫히지 않는다(직전 입력이 묻어 즉시 닫히는 것 방지).")]
+    [SerializeField] private float closeCooldown = 0.35f;
+    [Tooltip("팝업이 떠오르는 시간(초). 게임 정지는 즉시, 화면만 부드럽게.")]
+    [SerializeField] private float fadeInTime = 0.16f;
+    [Tooltip("닫힐 때 화면 페이드 시간(초). 게임플레이는 이미 재개된 상태.")]
+    [SerializeField] private float fadeOutTime = 0.13f;
+    [Tooltip("더 이상 갈 수 없는 방향의 화살표 흐리기 정도.")]
+    [SerializeField] private float chevronDisabledAlpha = 0.25f;
+    [Tooltip("영상 출력 버퍼 해상도. 클립보다 크게 잡을 필요 없다.")]
+    [SerializeField] private int videoWidth = 1280;
+    [SerializeField] private int videoHeight = 720;
+
+    // ── 런타임 ────────────────────────────────────────────────────────
     private RenderTexture _rt;
 
-    // ── 상태 ──────────────────────────────────────────────────────────
     private VideoTutorialPage[] _pages;
     private int _page;
     private int _maxSeen;          // 도달한 최대 페이지 (이 값이 마지막이면 닫기 허용)
     private Action _onClosed;
     private bool _open;
-    private bool _suppressed;      // 설정창(ESC)이 위에 떠서 잠시 숨김 — 닫히면 복귀
+    private bool _suppressed;      // 설정창(ESC)이 위에 떠서 잠시 숨김 - 닫히면 복귀
     private float _shownTime;
     private float _resumeTimeScale = 1f;   // 팝업 닫을 때 복원할 timeScale
-
-    private const float CloseCooldown = 0.35f;     // 표시 직후 잔여 입력으로 즉시 닫히는 것 방지
-    private const int   VideoW = 1280, VideoH = 720;
-
-    // 페이드(하드컷 완화). 정지(timeScale=0)는 즉시, 시각(블러+틴트+콘텐츠)만 unscaled 로 ease.
-    private const float FadeInTime  = 0.16f;       // 팝업 떠오름
-    private const float FadeOutTime = 0.13f;       // 닫힐 때(게임플레이는 즉시 재개, 화면만 페이드)
-    private CanvasGroup _group;                    // 루트 전체 알파 보간용
-    private Coroutine   _fadeCo;
-
-    // ── 배경 연출 조절값 (여기 숫자만 바꾸면 됨) ─────────────────────
-    // "기존 화면 위에 살짝 떠오르는" 느낌 목표 = 약한 블러 + 옅은 어둡기.
-    // 더 약하게: BlurStrength/DimAlpha 낮추기. 더 세게: 올리기. (인벤 패널 블러는 6)
-    private const float BlurStrength       = 1.5f;  // 블러 강도(낮을수록 배경 또렷). 화면 전환 느낌 나면 더 낮춰라.
-    private const int   BlurIterations     = 3;     // 반복(낮을수록 덜 뭉갬)
-    private const float BlurSampleDistance = 1.1f;  // 샘플 간격
-    private const float DimAlpha           = 0.28f; // 블러 위 어둡기(낮을수록 기존 화면 느낌)
-
-    private static readonly Color DimColor    = new Color(0f, 0f, 0f, DimAlpha);   // 블러 위 살짝 어둡게(시선 집중)
-    private static readonly Color AccentColor = new Color(1f, 0.85f, 0.2f, 1f);    // 금색 액센트(페이지표시/확인바/키캡). 흰색은 영상 테두리에만.
-    private static readonly Color ArrowColor  = new Color(0.93f, 0.96f, 1f, 0.92f);// 화살표(사진2식 밝은 톤)
-    private static readonly Color LineColor   = new Color(1f, 1f, 1f, 0.18f);   // divider 선
-    private static Sprite _ringSprite;     // 코드 생성 원형 링(화살표 테두리)
-    private static Sprite _keycapSprite;   // 기존 게임 키캡 스프라이트(Resources/Image/UI_Icon/HUD/Keycap)
-    private static bool   _keycapTried;
-
-    private static Sprite _chevronSprite;   // 코드 생성 셰브론(공유)
+    private Coroutine _fadeCo;
 
     private bool AllRead => _pages != null && _maxSeen >= _pages.Length - 1;
 
@@ -100,7 +121,7 @@ public class TutorialVideoUI : MonoBehaviour
     {
         if (_i != null && _i != this) { Destroy(gameObject); return; }
         _i = this;
-        BuildUI();
+        _warnedMissing = false;   // 실물이 등록됐으니 '없음' 판정 해제(씬 재입장 대비)
         SetupVideo();
         SetVisible(false);
     }
@@ -132,23 +153,23 @@ public class TutorialVideoUI : MonoBehaviour
         _resumeTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
         Time.timeScale = 0f;
 
-        // 블러가 현재 화면 카메라를 보도록 재연결
-        if (_blur != null)
+        // 블러가 현재 화면 카메라를 보도록 재연결(Camera.main 은 실행 중에만 잡힌다).
+        if (blur != null)
         {
-            _blur.Common.cameraReference = PickScreenCamera();
-            _blur.Common.ValidateBlur();
+            blur.Common.cameraReference = PickScreenCamera();
+            blur.Common.ValidateBlur();
         }
 
         GameUIController.Instance?.SetTutorialCoachActive(true);   // 이동/공격/J·C 등 차단(키보드)
-        // ★영상 팝업은 마우스로 닫는다(확인/아무곳 클릭). GameUIController.RefreshCursorState가 매 프레임
+        // 영상 팝업은 마우스로 닫는다(확인/아무곳 클릭). GameUIController.RefreshCursorState가 매 프레임
         //   커서를 숨기므로(영상은 UIState가 아님) 플래그로 알려 강제 표시하게 함(LateUpdate 순서 경합 제거).
         if (GameUIController.Instance != null) GameUIController.Instance.TutorialVideoCursor = true;
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
-        if (_group != null) _group.alpha = 0f;   // 페이드 인 시작점(스냅 인 방지)
+        if (group != null) group.alpha = 0f;   // 페이드 인 시작점(스냅 인 방지)
         SetVisible(true);
         RenderPage();
-        StartFade(1f, FadeInTime);               // 정지는 이미 즉시, 시각만 부드럽게 떠오름
+        StartFade(1f, fadeInTime);             // 정지는 이미 즉시, 시각만 부드럽게 떠오름
     }
 
     // 즉시 숨김(씬 전환/Deactivate 등 teardown 경로). 게임 재개 + 캔버스 즉시 off.
@@ -159,16 +180,16 @@ public class TutorialVideoUI : MonoBehaviour
         bool wasOpen = _open;
         _open = false;
         _suppressed = false;
-        if (_vp != null) _vp.Stop();
+        if (videoPlayer != null) videoPlayer.Stop();
         if (wasOpen) Time.timeScale = _resumeTimeScale;   // 게임 즉시 재개(완료 콜백/입력 지연 없음)
         if (GameUIController.Instance != null) GameUIController.Instance.TutorialVideoCursor = false;
         GameUIController.Instance?.SetTutorialCoachActive(false);
 
         // fade=true(유저가 닫음): 게임은 즉시 재개하고 화면만 페이드 아웃. 그 외(teardown)엔 즉시 off.
-        if (fade && wasOpen && isActiveAndEnabled && _group != null)
+        if (fade && wasOpen && isActiveAndEnabled && group != null)
         {
-            if (_raycaster != null) _raycaster.enabled = false;   // 입력 즉시 게임으로 통과, 화면만 페이드
-            StartFade(0f, FadeOutTime, hideAtEnd: true);
+            if (raycaster != null) raycaster.enabled = false;   // 입력 즉시 게임으로 통과, 화면만 페이드
+            StartFade(0f, fadeOutTime, hideAtEnd: true);
         }
         else
         {
@@ -180,20 +201,20 @@ public class TutorialVideoUI : MonoBehaviour
     // ── 내부 ──────────────────────────────────────────────────────────
 
     // GameObject 는 항상 활성으로 두고 Canvas/Raycaster 토글로 표시/숨김 처리한다.
-    // (LateUpdate 가 계속 돌아 설정창 열고닫힘을 self-poll 로 감지해 복귀 — TutorialOverlay 와 동일)
+    // (LateUpdate 가 계속 돌아 설정창 열고닫힘을 self-poll 로 감지해 복귀 - TutorialOverlay 와 동일)
     private void SetVisible(bool v)
     {
-        if (_canvas != null) _canvas.enabled = v;
-        if (_raycaster != null) _raycaster.enabled = v;
+        if (canvasComp != null) canvasComp.enabled = v;
+        if (raycaster != null) raycaster.enabled = v;
     }
 
     // 알파 페이드 시작(중첩 방지). 비활성/그룹 없으면 즉시 적용.
     private void StartFade(float target, float duration, bool hideAtEnd = false)
     {
         if (_fadeCo != null) { StopCoroutine(_fadeCo); _fadeCo = null; }
-        if (!isActiveAndEnabled || _group == null)
+        if (!isActiveAndEnabled || group == null)
         {
-            if (_group != null) _group.alpha = target;
+            if (group != null) group.alpha = target;
             if (hideAtEnd) SetVisible(false);
             return;
         }
@@ -203,15 +224,15 @@ public class TutorialVideoUI : MonoBehaviour
     // 정지(timeScale=0) 중에도 도는 unscaled 알파 보간. 게임 정지/재개와 무관하게 시각만 ease.
     private System.Collections.IEnumerator FadeRoutine(float target, float duration, bool hideAtEnd)
     {
-        float start = _group.alpha;
+        float start = group.alpha;
         float t = 0f;
         while (t < duration)
         {
             t += Time.unscaledDeltaTime;
-            _group.alpha = Mathf.Lerp(start, target, duration > 0f ? Mathf.Clamp01(t / duration) : 1f);
+            group.alpha = Mathf.Lerp(start, target, duration > 0f ? Mathf.Clamp01(t / duration) : 1f);
             yield return null;
         }
-        _group.alpha = target;
+        group.alpha = target;
         if (hideAtEnd) SetVisible(false);
         _fadeCo = null;
     }
@@ -229,10 +250,10 @@ public class TutorialVideoUI : MonoBehaviour
         {
             _suppressed = settingsOpen;
             SetVisible(!_suppressed);
-            if (_vp != null)
+            if (videoPlayer != null)
             {
-                if (_suppressed) _vp.Pause();
-                else if (CurrentClip() != null) _vp.Play();
+                if (_suppressed) videoPlayer.Pause();
+                else if (CurrentClip() != null) videoPlayer.Play();
             }
         }
         if (_suppressed) return;
@@ -244,7 +265,7 @@ public class TutorialVideoUI : MonoBehaviour
         // 설정창이 닫히며 timeScale 을 1 로 되돌릴 수 있어, 팝업이 떠 있는 동안엔 0 으로 고정.
         if (Time.timeScale != 0f) Time.timeScale = 0f;
 
-        // 페이지 넘김: Q/E + 좌우 화살표 (raw Input — 코치 키보드 차단과 무관)
+        // 페이지 넘김: Q/E + 좌우 화살표 (raw Input - 코치 키보드 차단과 무관)
         if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.RightArrow)) GoNext();
         else if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.LeftArrow)) GoPrev();
         // 다 읽었으면 Space/Enter/좌클릭으로 닫기 ("확인")
@@ -252,7 +273,7 @@ public class TutorialVideoUI : MonoBehaviour
             Close();
     }
 
-    private bool CanClose() => Time.unscaledTime - _shownTime > CloseCooldown;
+    private bool CanClose() => Time.unscaledTime - _shownTime > closeCooldown;
 
     private void GoNext()
     {
@@ -291,405 +312,63 @@ public class TutorialVideoUI : MonoBehaviour
         CodexDiscovery.WatchTutorial(p.title);   // 도감: 이 영상 페이지를 봤다고 기록(제목 기준)
         int n = _pages.Length;
 
-        if (_pageCount != null)
+        if (pageCount != null)
         {
-            _pageCount.text = n > 1 ? $"{_page + 1} / {n}" : string.Empty;
-            _pageCount.gameObject.SetActive(n > 1);
+            pageCount.text = n > 1 ? $"{_page + 1} / {n}" : string.Empty;
+            pageCount.gameObject.SetActive(n > 1);
         }
-        if (_title != null) _title.text = p.title ?? string.Empty;
-        if (_body != null) _body.text = p.body ?? string.Empty;
+        if (titleText != null) titleText.text = p.title ?? string.Empty;
+        if (bodyText != null) bodyText.text = p.body ?? string.Empty;
 
         // 영상 / 플레이스홀더
         if (p.clip != null)
         {
-            if (_placeholder != null) _placeholder.SetActive(false);
-            if (_videoImage != null) _videoImage.enabled = true;
-            if (_vp != null)
+            if (placeholder != null) placeholder.SetActive(false);
+            if (videoImage != null) videoImage.enabled = true;
+            if (videoPlayer != null)
             {
-                if (_vp.clip != p.clip) _vp.clip = p.clip;
-                _vp.Play();
+                if (videoPlayer.clip != p.clip) videoPlayer.clip = p.clip;
+                videoPlayer.Play();
             }
         }
         else
         {
-            if (_vp != null) _vp.Stop();
-            if (_videoImage != null) _videoImage.enabled = false;
-            if (_placeholder != null) _placeholder.SetActive(true);
+            if (videoPlayer != null) videoPlayer.Stop();
+            if (videoImage != null) videoImage.enabled = false;
+            if (placeholder != null) placeholder.SetActive(true);
         }
 
         // 셰브론(양끝, 갈 수 있는 방향만 진하게). 페이지 1개면 숨김.
         //  1/2 = Q(이전) 못 쓰니 왼쪽 흐리게 / 오른쪽(E,다음) 진하게. 마지막은 반대.
-        SetChevron(_chevronL, n > 1, _page > 0);
-        SetChevron(_chevronR, n > 1, _page < n - 1);
+        SetChevron(chevronLeft, n > 1, _page > 0);
+        SetChevron(chevronRight, n > 1, _page < n - 1);
 
         // 하단: 닫을 수 있는 마지막(또는 단일) 페이지면 "확인" 바, 아니면 페이지 넘김 안내.
         bool showConfirm = AllRead && _page == n - 1;
-        if (_confirmBar != null) _confirmBar.SetActive(showConfirm);
-        if (_hintRow != null) _hintRow.SetActive(!showConfirm);
+        if (confirmBar != null) confirmBar.SetActive(showConfirm);
+        if (hintRow != null) hintRow.SetActive(!showConfirm);
     }
 
-    private static void SetChevron(GameObject chevron, bool visible, bool enabledDir)
+    private void SetChevron(CanvasGroup chevron, bool visible, bool enabledDir)
     {
         if (chevron == null) return;
-        chevron.SetActive(visible);
-        var cg = chevron.GetComponent<CanvasGroup>();
-        if (cg != null) cg.alpha = enabledDir ? 1f : 0.25f;
+        chevron.gameObject.SetActive(visible);
+        chevron.alpha = enabledDir ? 1f : chevronDisabledAlpha;
     }
 
-    // ── 영상 세팅 ──────────────────────────────────────────────────────
+    // ── 영상 세팅 (RenderTexture 는 에셋이 아니라 매 실행 새로 만든다) ──
 
     private void SetupVideo()
     {
-        _rt = new RenderTexture(VideoW, VideoH, 0, RenderTextureFormat.ARGB32) { name = "TutorialVideoRT" };
+        _rt = new RenderTexture(videoWidth, videoHeight, 0, RenderTextureFormat.ARGB32) { name = "TutorialVideoRT" };
         _rt.filterMode = FilterMode.Bilinear;
         _rt.Create();
 
-        _vp = gameObject.AddComponent<VideoPlayer>();
-        _vp.playOnAwake       = false;
-        _vp.source            = VideoSource.VideoClip;
-        _vp.renderMode        = VideoRenderMode.RenderTexture;
-        _vp.targetTexture     = _rt;
-        _vp.isLooping         = true;
-        _vp.waitForFirstFrame = true;
-        _vp.skipOnDrop        = true;
-        _vp.audioOutputMode   = VideoAudioOutputMode.None;   // 무음 데모
-
-        if (_videoImage != null) _videoImage.texture = _rt;
+        if (videoPlayer != null) videoPlayer.targetTexture = _rt;
+        if (videoImage != null) videoImage.texture = _rt;
     }
 
-    // ── UI 생성 ───────────────────────────────────────────────────────
-
-    private void BuildUI()
-    {
-        _canvas = gameObject.AddComponent<Canvas>();
-        _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 5000;
-
-        var scaler = gameObject.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
-
-        _raycaster = gameObject.AddComponent<GraphicRaycaster>();
-        _group = gameObject.AddComponent<CanvasGroup>();   // 페이드 인/아웃용(블러+틴트+콘텐츠 통째 알파)
-
-        var root = (RectTransform)transform;
-
-        // 1) 전체화면 블러 (게임 화면을 통째로 뭉갬 — 시선을 영상으로). 별도 GameObject(Graphic 1개 제한).
-        var blurGo = new GameObject("Blur", typeof(RectTransform));
-        blurGo.transform.SetParent(root, false);
-        Stretch((RectTransform)blurGo.transform);
-        _blur = blurGo.AddComponent<BlurredImage>();
-        ConfigureBlur(_blur);
-
-        // 2) 블러 위 어두운 틴트(시선 집중 + 텍스트 가독). 뒤 클릭 차단도 담당.
-        var dim = NewImage("Dim", root, DimColor);
-        Stretch(dim.rectTransform);
-        dim.raycastTarget = true;
-
-        // 3) 콘텐츠 (투명 — 패널 박스 없음, 블러 위에 요소만)
-        var content = new GameObject("Content", typeof(RectTransform));
-        content.transform.SetParent(root, false);
-        var cr = (RectTransform)content.transform;
-        cr.anchorMin = cr.anchorMax = new Vector2(0.5f, 0.5f);
-        cr.pivot = new Vector2(0.5f, 0.5f);
-        cr.sizeDelta = new Vector2(960f, 820f);
-        cr.anchoredPosition = Vector2.zero;
-
-        var frameSprite = Resources.Load<Sprite>("tutorial/1");
-
-        // 영상 프레임 (상단 16:9)
-        var videoFrame = NewImage("VideoFrame", cr, new Color(0f, 0f, 0f, 1f));
-        var vf = videoFrame.rectTransform;
-        vf.anchorMin = vf.anchorMax = new Vector2(0.5f, 1f);
-        vf.pivot = new Vector2(0.5f, 1f);
-        vf.sizeDelta = new Vector2(872f, 491f);
-        vf.anchoredPosition = new Vector2(0f, -6f);
-
-        _videoImage = NewRawImage("VideoImage", vf);
-        SetInset(_videoImage.rectTransform, 5f);
-        _videoImage.texture = _rt;
-
-        // 영상 테두리 = 인벤 영역 강조 프레임(흰색 9-slice, 빌더가 Resources/TutorialVideo/vid_frame 로 복사).
-        // 없으면 sci-fi tutorial/1 로 폴백. 영상보다 살짝 바깥으로 빼서 프레임이 감싸게.
-        // 액자처럼 영상 가장자리에 딱 붙게: @2x 슬롯프레임 -> ppu 2(코너 22px) + 7px 바깥 outset (인벤 방식).
-        var invFrame = Resources.Load<Sprite>("TutorialVideo/vid_frame");
-        var vborder = NewImage("VideoBorder", vf, Color.white);
-        SetInset(vborder.rectTransform, -7f);   // 영상보다 7px 바깥
-        if (invFrame != null)
-        {
-            vborder.sprite = invFrame;
-            vborder.type = Image.Type.Sliced;
-            vborder.pixelsPerUnitMultiplier = 2f;
-        }
-        else if (frameSprite != null)
-        {
-            vborder.sprite = frameSprite;
-            vborder.type = Image.Type.Sliced;
-            vborder.pixelsPerUnitMultiplier = 4f;
-        }
-
-        // 플레이스홀더 (clip 없을 때)
-        _placeholder = NewImage("Placeholder", vf, new Color(0.08f, 0.1f, 0.14f, 1f)).gameObject;
-        SetInset((RectTransform)_placeholder.transform, 5f);
-        var ph = NewText("PlaceholderText", _placeholder.transform);
-        Stretch(ph.rectTransform);
-        ph.alignment = TextAlignmentOptions.Center;
-        ph.fontSize = 26f;
-        ph.color = new Color(1f, 1f, 1f, 0.5f);
-        ph.text = "영상 준비 중";
-        _placeholder.SetActive(false);
-
-        // 페이지 표시 "1 / 2"
-        _pageCount = NewText("PageCount", cr);
-        TopCentered(_pageCount.rectTransform, 380f, 28f, -515f);
-        _pageCount.alignment = TextAlignmentOptions.Center;
-        _pageCount.fontSize = 20f;
-        _pageCount.color = AccentColor;
-
-        // 제목 "설비 가공"
-        _title = NewText("Title", cr);
-        TopCentered(_title.rectTransform, 872f, 46f, -543f);
-        _title.alignment = TextAlignmentOptions.Center;
-        _title.fontSize = 32f;
-        _title.fontStyle = FontStyles.Bold;
-        _title.color = Color.white;
-
-        // divider (제목 / 본문 구분)
-        var div1 = NewImage("Divider", cr, LineColor);
-        TopCentered(div1.rectTransform, 760f, 2f, -594f);
-
-        // 본문
-        _body = NewText("Body", cr);
-        TopCentered(_body.rectTransform, 820f, 150f, -610f);
-        _body.alignment = TextAlignmentOptions.TopLeft;
-        _body.fontSize = 22f;
-        _body.textWrappingMode = TextWrappingModes.Normal;
-        _body.color = new Color(0.92f, 0.94f, 0.98f, 1f);
-
-        // 하단 힌트 (콘텐츠 맨 아래) = [Q][E] 키캡 + 설명. 키캡은 화살표 옆과 동일 디자인.
-        _hintRow = BuildHintRow(cr);
-
-        // "확인" 바 (마지막/단일 페이지 = 닫기 가능할 때만 표시). 사진2 처럼, 단 흰색 톤.
-        _confirmBar = BuildConfirmBar(cr, frameSprite);
-        _confirmBar.SetActive(false);
-
-        // 화살표(셰브론) — 화면 좌우 가장자리, 영상 높이쯤. 키캡 Q/E 함께.
-        _chevronL = BuildChevron(root, false, "Q");
-        _chevronR = BuildChevron(root, true, "E");
-    }
-
-    // "확인" 바 (사진2 스타일, 흰색 톤). 마우스 커서는 코치 중 숨김이라 키(E/Space)로 닫고, 이건 시각 표시.
-    private GameObject BuildConfirmBar(RectTransform parent, Sprite frameSprite)
-    {
-        var go = new GameObject("ConfirmBar", typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
-        rt.pivot = new Vector2(0.5f, 0f);
-        rt.sizeDelta = new Vector2(320f, 56f);
-        rt.anchoredPosition = new Vector2(0f, 6f);
-
-        var bg = go.AddComponent<Image>();
-        bg.color = new Color(1f, 1f, 1f, 0.10f);   // 옅은 흰 바
-        bg.raycastTarget = false;
-
-        if (frameSprite != null)
-        {
-            var border = NewImage("ConfirmFrame", rt, AccentColor);
-            Stretch(border.rectTransform);
-            border.sprite = frameSprite;
-            border.type = Image.Type.Sliced;
-            border.pixelsPerUnitMultiplier = 4f;
-        }
-
-        var label = NewText("ConfirmLabel", rt);
-        Stretch(label.rectTransform);
-        label.alignment = TextAlignmentOptions.Center;
-        label.fontSize = 22f;
-        label.fontStyle = FontStyles.Bold;
-        label.color = Color.white;
-        label.text = "확인";
-
-        return go;
-    }
-
-    // 화살표 = 사진2 식: 원형 링 안에 셰브론, 그 바깥 옆에 키 알파벳(Q/E).
-    // right=true 면 오른쪽(>, 다음/E), false 면 왼쪽(<, 이전/Q).
-    private GameObject BuildChevron(RectTransform parent, bool right, string keyLabel)
-    {
-        float s = right ? 1f : -1f;
-        var go = new GameObject(right ? "ChevronR" : "ChevronL", typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
-        // 화면 가장자리가 아니라 영상 가장자리 바로 옆(중앙 기준). 영상 반폭 ~436 -> 495에 두면 링이 영상에 붙음.
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(150f, 120f);
-        rt.anchoredPosition = new Vector2(s * 558f, 155f);   // 영상(반폭~436)에서 충분히 띄움
-        go.AddComponent<CanvasGroup>();
-
-        float ringX = -s * 22f;   // 링 = 영상쪽(안쪽)
-        float keyX  =  s * 54f;   // 키캡 = 바깥쪽 (링과 살짝 띄움)
-
-        // 원형 링
-        var ring = NewImage("Ring", rt, ArrowColor);
-        ring.sprite = GetRingSprite();
-        ring.type = Image.Type.Simple;
-        CenterAt(ring.rectTransform, new Vector2(76f, 76f), new Vector2(ringX, 0f));
-
-        // 셰브론 (링 안)
-        var icon = NewImage("Icon", rt, ArrowColor);
-        icon.sprite = GetChevronSprite();
-        icon.type = Image.Type.Simple;
-        icon.preserveAspect = true;
-        CenterAt(icon.rectTransform, new Vector2(28f, 40f), new Vector2(ringX, 0f));
-        icon.rectTransform.localScale = new Vector3(s, 1f, 1f);   // 왼쪽이면 좌우반전
-
-        // 키캡 (링 바깥쪽, 살짝 띄워서) — 화살표 옆/힌트 동일 디자인
-        var kc = BuildKeycapGO(rt, keyLabel, 46f);
-        CenterAt((RectTransform)kc.transform, new Vector2(46f, 46f), new Vector2(keyX, 0f));
-
-        return go;
-    }
-
-    // 하단 힌트 행: [Q 키캡][E 키캡] 를 누르거나 ... (키캡은 화살표 옆과 동일 디자인). 가운데 정렬.
-    private GameObject BuildHintRow(RectTransform parent)
-    {
-        var go = new GameObject("HintRow", typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
-        rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 6f);
-
-        var hlg = go.AddComponent<HorizontalLayoutGroup>();
-        hlg.childAlignment = TextAnchor.MiddleCenter;
-        hlg.spacing = 7f;
-        hlg.childControlWidth = true;
-        hlg.childControlHeight = true;
-        hlg.childForceExpandWidth = false;
-        hlg.childForceExpandHeight = false;
-
-        var fitter = go.AddComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        BuildKeycapGO(rt, "Q", 28f);
-        BuildKeycapGO(rt, "E", 28f);
-
-        var txt = NewText("HintText", rt);
-        txt.alignment = TextAlignmentOptions.MidlineLeft;
-        txt.fontSize = 17f;
-        txt.textWrappingMode = TextWrappingModes.NoWrap;
-        txt.color = new Color(0.72f, 0.76f, 0.82f, 1f);
-        txt.text = "를 누르거나 좌우 화살표를 눌러 페이지를 넘길 수 있으며, 모두 읽은 후에는 창을 닫을 수 있습니다.";
-
-        return go;
-    }
-
-    // 키캡 GO = 기존 게임 키캡 스프라이트(sci-fi 키캡) + 글자. 없으면 코드 박스 폴백.
-    // 화살표 옆(CenterAt 으로 배치) / 힌트(HorizontalLayoutGroup) 양쪽에서 동일하게 사용.
-    private GameObject BuildKeycapGO(Transform parent, string letter, float size)
-    {
-        var go = new GameObject("Keycap", typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
-        rt.sizeDelta = new Vector2(size, size);
-
-        var box = go.AddComponent<Image>();
-        box.raycastTarget = false;
-        var kc = GetKeycapSprite();
-        if (kc != null)
-        {
-            box.sprite = kc;                 // 엔드필드식 키캡 (기존 게임 에셋)
-            box.type = Image.Type.Simple;
-            box.preserveAspect = true;
-            box.color = Color.white;
-        }
-        else
-        {
-            box.color = new Color(0.85f, 0.9f, 1f, 0.9f);   // 폴백: 밝은 테두리
-            var inner = NewImage("Inner", rt, new Color(0.10f, 0.12f, 0.16f, 0.95f));
-            SetInset(inner.rectTransform, size * 0.06f);
-        }
-
-        var le = go.AddComponent<LayoutElement>();   // 힌트 HorizontalLayoutGroup 에서 크기 고정
-        le.preferredWidth = size; le.preferredHeight = size;
-
-        var t = NewText("Letter", rt);
-        SetInset(t.rectTransform, size * 0.15f);     // 테두리 피해 가운데
-        t.alignment = TextAlignmentOptions.Center;
-        t.fontSize = size * 0.46f;
-        t.fontStyle = FontStyles.Bold;
-        t.color = Color.white;
-        t.text = letter;
-        return go;
-    }
-
-    private static Sprite GetKeycapSprite()
-    {
-        if (!_keycapTried) { _keycapSprite = Resources.Load<Sprite>("Image/UI_Icon/HUD/Keycap"); _keycapTried = true; }
-        return _keycapSprite;
-    }
-
-    // 중앙(0.5,0.5) 앵커로 크기+오프셋 배치
-    private static void CenterAt(RectTransform rt, Vector2 size, Vector2 pos)
-    {
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = size;
-        rt.anchoredPosition = pos;
-    }
-
-    // 원형 링 스프라이트 코드 생성 (속 빈 동그라미)
-    private static Sprite GetRingSprite()
-    {
-        if (_ringSprite != null) return _ringSprite;
-
-        const int S = 96;
-        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { name = "TutorialRing" };
-        var px = new Color32[S * S];
-        float c = (S - 1) * 0.5f;
-        float rOuter = S * 0.46f;
-        float rInner = rOuter - 5f;   // 링 두께 5px
-
-        for (int y = 0; y < S; y++)
-        for (int x = 0; x < S; x++)
-        {
-            float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
-            float a = Mathf.Clamp01(Mathf.Min(d - (rInner - 0.5f), (rOuter + 0.5f) - d));
-            px[y * S + x] = new Color32(255, 255, 255, (byte)(a * 255));
-        }
-
-        tex.SetPixels32(px);
-        tex.filterMode = FilterMode.Bilinear;
-        tex.Apply();
-        _ringSprite = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f));
-        return _ringSprite;
-    }
-
-    // ── 블러 설정 (인벤 InventoryUIBuilder 의 검증된 셋업 복제) ────────
-    private static void ConfigureBlur(BlurredImage blur)
-    {
-        blur.color = Color.white;
-        blur.raycastTarget = false;
-        blur.Common.blurReferencesFrom = UIBlurCommon.BlurReferencesFrom.Self;
-        blur.Common.cameraReference = PickScreenCamera();
-        blur.Common.featureNumber = 0;
-        blur.Common.unrankedLayer = 1;
-        var bs = blur.Common.blurInstanceSettings;
-        if (bs != null)
-        {
-            bs.blurAdditionalDistancePerIteration = BlurStrength;   // 약하게 = 배경 알아볼 정도(화면 전환 느낌 방지)
-            if (bs.blurSections != null)
-                foreach (var sec in bs.blurSections) { sec.iterations = BlurIterations; sec.sampleDistance = BlurSampleDistance; }
-            bs.vibrancy = 0f; bs.brightness = 0f; bs.contrast = 0f; bs.referenceResolution = 1080;
-        }
-        blur.Common.ValidateBlur();
-    }
-
-    // 화면에 렌더하는 카메라 (RenderTexture 대상 제외) — 블러 소스
+    // 화면에 렌더하는 카메라 (RenderTexture 대상 제외) - 블러 소스
     private static Camera PickScreenCamera()
     {
         var main = Camera.main;
@@ -701,97 +380,5 @@ public class TutorialVideoUI : MonoBehaviour
             if (best == null || c.depth > best.depth) best = c;
         }
         return best != null ? best : main;
-    }
-
-    // ── 셰브론 스프라이트 코드 생성 ( ">" 모양, 왼쪽은 반전해서 사용 ) ──
-    private static Sprite GetChevronSprite()
-    {
-        if (_chevronSprite != null) return _chevronSprite;
-
-        const int W = 48, H = 64;
-        var tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { name = "TutorialChevron" };
-        var px = new Color32[W * H];
-
-        float thick = 7f;                                   // 선 두께(px)
-        var vtx    = new Vector2(W * 0.72f, H * 0.5f);      // 오른쪽 꼭짓점
-        var topEnd = new Vector2(W * 0.20f, H * 0.92f);
-        var botEnd = new Vector2(W * 0.20f, H * 0.08f);
-
-        for (int y = 0; y < H; y++)
-        for (int x = 0; x < W; x++)
-        {
-            var pt = new Vector2(x + 0.5f, y + 0.5f);
-            float d = Mathf.Min(DistToSegment(pt, vtx, topEnd), DistToSegment(pt, vtx, botEnd));
-            float a = Mathf.Clamp01((thick * 0.5f - d) + 0.5f);   // 0.5px 정도 부드러운 경계
-            px[y * W + x] = new Color32(255, 255, 255, (byte)(a * 255));
-        }
-
-        tex.SetPixels32(px);
-        tex.filterMode = FilterMode.Bilinear;
-        tex.Apply();
-        _chevronSprite = Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f));
-        return _chevronSprite;
-    }
-
-    private static float DistToSegment(Vector2 p, Vector2 a, Vector2 b)
-    {
-        Vector2 ab = b - a;
-        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(1e-4f, ab.sqrMagnitude));
-        return Vector2.Distance(p, a + ab * t);
-    }
-
-    // ── UI 헬퍼 ───────────────────────────────────────────────────────
-
-    private static Image NewImage(string name, Transform parent, Color col)
-    {
-        var go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var img = go.AddComponent<Image>();
-        img.color = col;
-        img.raycastTarget = false;
-        return img;
-    }
-
-    private static RawImage NewRawImage(string name, Transform parent)
-    {
-        var go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var img = go.AddComponent<RawImage>();
-        img.raycastTarget = false;
-        return img;
-    }
-
-    private static TMP_Text NewText(string name, Transform parent)
-    {
-        var go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var t = go.AddComponent<TextMeshProUGUI>();
-        t.raycastTarget = false;
-        return t;
-    }
-
-    private static void Stretch(RectTransform rt)
-    {
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-    }
-
-    private static void SetInset(RectTransform rt, float inset)
-    {
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = new Vector2(inset, inset);
-        rt.offsetMax = new Vector2(-inset, -inset);
-    }
-
-    // 콘텐츠(중앙) 기준 상단정렬 배치: 폭/높이 + 상단에서의 y오프셋(음수)
-    private static void TopCentered(RectTransform rt, float w, float h, float yFromTop)
-    {
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
-        rt.pivot = new Vector2(0.5f, 1f);
-        rt.sizeDelta = new Vector2(w, h);
-        rt.anchoredPosition = new Vector2(0f, yFromTop);
     }
 }

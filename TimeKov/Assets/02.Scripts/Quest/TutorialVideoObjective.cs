@@ -7,7 +7,7 @@ using UnityEngine.Video;
 /// 여러 페이지(영상 + 제목 + 본문)를 멀티페이지 팝업으로 보여주고,
 /// 다 읽고 닫으면 완료된다. 순수 설명용(IsExplanation) - 완료 배너/토스트 없음.
 ///
-/// 실제 팝업 UI/입력/영상 재생은 TutorialVideoUI(런타임 lazy 싱글톤)가 담당한다.
+/// 실제 팝업 UI/입력/영상 재생은 TutorialVideoUI(씬 Canvas/Overlays 아래 실물)가 담당한다.
 /// objective 는 "팝업 열기 -> 닫히면 완료"만 책임진다(ContinueObjective 와 동일 구조).
 /// 이렇게 자기 UI 생명주기로만 구동돼 EVENT-IN-GAP 소프트락 위험이 없다.
 /// </summary>
@@ -28,7 +28,7 @@ public class TutorialVideoObjective : ObjectiveSO
 
         var ui = TutorialVideoUI.I;
         if (ui != null) ui.Show(pages, OnClosed);
-        else Complete();   // 팝업 생성 불가(에디터 등) 시 막히지 않게 즉시 완료
+        else Complete();   // 씬에 팝업이 없으면(빌더 미실행) 튜토리얼이 막히지 않게 즉시 완료
     }
 
     public override void Deactivate()
