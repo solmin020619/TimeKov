@@ -131,6 +131,42 @@ public static class UISpriteFactory
         _cache[key] = s; return s;
     }
 
+    // 셰브론 ( ">" 화살표 ). 왼쪽 화살표는 Image 의 localScale.x 를 -1 로 뒤집어 쓴다.
+    // thickness = 선 두께(px). preserveAspect 와 함께 쓰면 w:h 비율이 유지된다.
+    public static Sprite Chevron(int w = 48, int h = 64, float thickness = 7f)
+    {
+        string key = $"chev_{w}_{h}_{thickness}";
+        if (_cache.TryGetValue(key, out var c)) return c;
+
+        var tex = NewTex(w, h);
+        var px = new Color32[w * h];
+
+        var vtx = new Vector2(w * 0.72f, h * 0.5f);      // 오른쪽 꼭짓점
+        var topEnd = new Vector2(w * 0.20f, h * 0.92f);
+        var botEnd = new Vector2(w * 0.20f, h * 0.08f);
+
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                var pt = new Vector2(x + 0.5f, y + 0.5f);
+                float d = Mathf.Min(DistToSegment(pt, vtx, topEnd), DistToSegment(pt, vtx, botEnd));
+                float a = Mathf.Clamp01((thickness * 0.5f - d) + 0.5f);   // 0.5px 정도 부드러운 경계
+                px[y * w + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+
+        tex.SetPixels32(px); tex.Apply();
+        var s = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
+        _cache[key] = s; return s;
+    }
+
+    // 점 p 에서 선분 ab 까지의 거리.
+    private static float DistToSegment(Vector2 p, Vector2 a, Vector2 b)
+    {
+        Vector2 ab = b - a;
+        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(1e-4f, ab.sqrMagnitude));
+        return Vector2.Distance(p, a + ab * t);
+    }
+
     // 자물쇠 실루엣 (닫힘). 흰색 → Image.color 틴트. 열쇠구멍은 투명.
     public static Sprite Lock(int N = 96)
     {

@@ -8,7 +8,7 @@ using UnityEngine.UI;
 //   예전엔 런타임 스크립트가 250줄짜리 레이아웃을 실행 중에 만들어서 에디터엔 아무것도 없었다.
 //   지금은 여기서 씬에 실물로 만들고, 런타임 스크립트는 참조만 쓴다.
 //
-//   스프라이트는 RuntimeRoundedSprite 가 실행 시 채운다(UISpriteFactory 생성물은 저장이 안 되므로).
+//   스프라이트는 RuntimeGeneratedSprite 가 실행 시 채운다(UISpriteFactory 생성물은 저장이 안 되므로).
 public static class PromptPanelBuilder
 {
     // 팔레트(런타임 스크립트에서 옮겨옴. 색은 직렬화되므로 여기서 넣고 끝)
@@ -339,9 +339,9 @@ public static class PromptPanelBuilder
     // UISpriteFactory 스프라이트는 저장이 안 되므로 실행 시 채우도록 표시만 해둔다.
     private static void Rounded(GameObject go, int texSize, int radius)
     {
-        var rs = go.GetComponent<RuntimeRoundedSprite>();
-        if (rs == null) rs = go.AddComponent<RuntimeRoundedSprite>();
-        rs.shape = RuntimeRoundedSprite.Shape.RoundedRect;
+        var rs = go.GetComponent<RuntimeGeneratedSprite>();
+        if (rs == null) rs = go.AddComponent<RuntimeGeneratedSprite>();
+        rs.shape = RuntimeGeneratedSprite.Shape.RoundedRect;
         rs.texSize = texSize;
         rs.radius = radius;
     }

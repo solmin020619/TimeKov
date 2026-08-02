@@ -11,25 +11,33 @@ using UnityEngine.UI;
 //   Image.type(Sliced/Filled 등)은 직렬화되므로 빌더가 그대로 저장하면 된다.
 [RequireComponent(typeof(Image))]
 [DisallowMultipleComponent]
-public class RuntimeRoundedSprite : MonoBehaviour
+public class RuntimeGeneratedSprite : MonoBehaviour
 {
-    public enum Shape { RoundedRect, Ring }
+    public enum Shape { RoundedRect, Ring, Chevron }
 
-    [Tooltip("RoundedRect = 둥근 사각형 / Ring = 링(아이콘용)")]
+    [Tooltip("RoundedRect = 둥근 사각형 / Ring = 링(아이콘용) / Chevron = 화살표 '>' (왼쪽은 localScale.x 를 -1 로 뒤집어 쓴다)")]
     public Shape shape = Shape.RoundedRect;
-    [Tooltip("생성할 텍스처 한 변 크기(px). 모서리가 뭉개지면 키운다.")]
+    [Tooltip("생성할 텍스처 세로 크기(px). 모서리가 뭉개지면 키운다. RoundedRect/Ring 은 정사각.")]
     public int texSize = 64;
     [Tooltip("RoundedRect 의 모서리 반경(px).")]
     public int radius = 4;
     [Tooltip("Ring 의 두께(px).")]
     public float ringThickness = 6f;
+    [Tooltip("Chevron 의 선 두께(px).")]
+    public float chevronThickness = 7f;
+    [Tooltip("Chevron 의 가로/세로 비율. 0.75 면 texSize 64 -> 48x64 텍스처.")]
+    public float chevronAspect = 0.75f;
 
     private void Awake()
     {
         var img = GetComponent<Image>();
         if (img == null) return;
-        img.sprite = shape == Shape.Ring
-            ? UISpriteFactory.Ring(texSize, ringThickness)
-            : UISpriteFactory.RoundedRect(texSize, radius);
+        img.sprite = shape switch
+        {
+            Shape.Ring => UISpriteFactory.Ring(texSize, ringThickness),
+            Shape.Chevron => UISpriteFactory.Chevron(
+                Mathf.Max(1, Mathf.RoundToInt(texSize * chevronAspect)), texSize, chevronThickness),
+            _ => UISpriteFactory.RoundedRect(texSize, radius),
+        };
     }
 }
