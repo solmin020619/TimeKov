@@ -214,7 +214,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
         GameObject vfx = SpawnChannelVfx(player);
         StartChannelLoop();   // 준비 중 도는 루프음(SfxId.ReturnStoneChannelLoop)
-        CastGaugeUI.Ensure().Begin("귀환 중", HudIcon);   // 워프와 같은 상단 게이지("귀환 중" 표시 = 별도 토스트 불필요)
+        CastGaugeUI.Ensure()?.Begin("귀환 중", HudIcon);   // 워프와 같은 상단 게이지("귀환 중" 표시 = 별도 토스트 불필요)
 
         float t = 0f;
         yield return null;   // 발동 입력이 같은 프레임에 '행동 취소'로 잡히지 않게 한 프레임 건너뜀
