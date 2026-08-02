@@ -6,11 +6,67 @@
 // =====================================================================
 
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 
 public static class UISpriteFactory
 {
     private static readonly Dictionary<string, Sprite> _cache = new();
+    // 스프라이트 -> 캐시 키 역방향. 빌더가 "이 Image 에 붙은 스프라이트는 어떤 키로 다시 만들 수 있나"를
+    // 이름 문자열 추측 없이 정확히 알아내는 용도(FromKey 와 짝).
+    private static readonly Dictionary<Sprite, string> _keyOf = new();
+
+    // 캐시 등록 + 이름에 키를 심는다(인스펙터에서 무슨 모양인지 보이라고).
+    private static Sprite Cache(string key, Sprite s)
+    {
+        s.name = key;
+        _cache[key] = s;
+        _keyOf[s] = key;
+        return s;
+    }
+
+    /// <summary>이 스프라이트가 팩토리 생성물이면 재생성용 키를 돌려준다.</summary>
+    public static bool TryGetKey(Sprite s, out string key)
+    {
+        key = null;
+        return s != null && _keyOf.TryGetValue(s, out key);
+    }
+
+    /// <summary>키로 스프라이트를 다시 만든다(RuntimeGeneratedSprite 가 실행 시 호출).
+    /// 팩토리 스프라이트는 에셋이 아니라 메모리 생성물이라 씬에 저장되지 않는다.</summary>
+    public static Sprite FromKey(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return null;
+        if (_cache.TryGetValue(key, out var hit)) return hit;
+
+        var p = key.Split('_');
+        try
+        {
+            switch (p[0])
+            {
+                case "rr":      return RoundedRect(PI(p[1]), PI(p[2]));
+                case "rrg":     return RoundedRectVGrad(
+                                    new Color32(B(p[3]), B(p[4]), B(p[5]), 255),
+                                    new Color32(B(p[6]), B(p[7]), B(p[8]), 255), PI(p[1]), PI(p[2]));
+                case "vfade":   return VFade(B(p[2]), B(p[3]), PI(p[1]));
+                case "disc":    return Disc(PI(p[1]));
+                case "ring":    return Ring(PI(p[1]), PF(p[2]));
+                case "chev":    return Chevron(PI(p[1]), PI(p[2]), PF(p[3]));
+                case "lock":    return Lock(PI(p[1]));
+                case "noentry": return NoEntry(PI(p[1]), PF(p[2]));
+                case "circle":  return Circle(PI(p[1]));
+            }
+        }
+        catch { }
+        Debug.LogWarning($"[UISpriteFactory] 해석할 수 없는 스프라이트 키: {key}");
+        return null;
+    }
+
+    // 키는 문화권과 무관해야 한다(소수점이 쉼표인 환경에서 만든 키가 깨지지 않게).
+    private static string F(float v) => v.ToString("R", CultureInfo.InvariantCulture);
+    private static int PI(string s) => int.Parse(s, CultureInfo.InvariantCulture);
+    private static float PF(string s) => float.Parse(s, CultureInfo.InvariantCulture);
+    private static byte B(string s) => (byte)Mathf.Clamp(PI(s), 0, 255);
 
     // 흰색 둥근 사각 (9-slice). Image.color로 틴트.
     public static Sprite RoundedRect(int size = 64, int radius = 16)
@@ -33,7 +89,7 @@ public static class UISpriteFactory
         tex.SetPixels32(px); tex.Apply();
         var border = new Vector4(radius, radius, radius, radius);
         var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 수직 그라디언트 둥근 사각 (top→bottom 색 고정). 슬롯 안쪽 입체용.
@@ -63,7 +119,7 @@ public static class UISpriteFactory
         tex.SetPixels32(px); tex.Apply();
         var border = new Vector4(radius, radius, radius, radius);
         var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 수직 알파 페이드 (흰색, 알파만 위/아래로 변화). Image.color 로 틴트.
@@ -85,7 +141,7 @@ public static class UISpriteFactory
         }
         tex.SetPixels32(px); tex.Apply();
         var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 소프트 디스크 (가운데 흰색 → 가장자리 투명). 빛폭발/글로우용.
@@ -107,13 +163,13 @@ public static class UISpriteFactory
             }
         tex.SetPixels32(px); tex.Apply();
         var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 링 (테두리 원). 해금 폭발 링용.
     public static Sprite Ring(int size = 64, float thickness = 4f)
     {
-        string key = $"ring_{size}_{thickness}";
+        string key = $"ring_{size}_{F(thickness)}";
         if (_cache.TryGetValue(key, out var c)) return c;
 
         var tex = NewTex(size, size);
@@ -128,14 +184,14 @@ public static class UISpriteFactory
             }
         tex.SetPixels32(px); tex.Apply();
         var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 셰브론 ( ">" 화살표 ). 왼쪽 화살표는 Image 의 localScale.x 를 -1 로 뒤집어 쓴다.
     // thickness = 선 두께(px). preserveAspect 와 함께 쓰면 w:h 비율이 유지된다.
     public static Sprite Chevron(int w = 48, int h = 64, float thickness = 7f)
     {
-        string key = $"chev_{w}_{h}_{thickness}";
+        string key = $"chev_{w}_{h}_{F(thickness)}";
         if (_cache.TryGetValue(key, out var c)) return c;
 
         var tex = NewTex(w, h);
@@ -156,7 +212,7 @@ public static class UISpriteFactory
 
         tex.SetPixels32(px); tex.Apply();
         var s = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 점 p 에서 선분 ab 까지의 거리.
@@ -207,7 +263,7 @@ public static class UISpriteFactory
             }
         tex.SetPixels32(px); tex.Apply();
         var s = Sprite.Create(tex, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 100f);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 둥근 사각 coverage (svg 좌표)
@@ -227,7 +283,7 @@ public static class UISpriteFactory
     public static Sprite NoEntry(int size = 96, float thickness = -1f)
     {
         if (thickness < 0f) thickness = size * 0.11f;
-        string key = $"noentry_{size}_{thickness}";
+        string key = $"noentry_{size}_{F(thickness)}";
         if (_cache.TryGetValue(key, out var c)) return c;
 
         var tex = NewTex(size, size);
@@ -266,7 +322,7 @@ public static class UISpriteFactory
             }
         tex.SetPixels32(px); tex.Apply();
         var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     // 꽉 찬 원 (쿨다운 라디얼 등). 가장자리 AA.
@@ -286,7 +342,7 @@ public static class UISpriteFactory
             }
         tex.SetPixels32(px); tex.Apply();
         var s = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
-        _cache[key] = s; return s;
+        return Cache(key, s);
     }
 
     private static Texture2D NewTex(int w, int h) => new Texture2D(w, h, TextureFormat.RGBA32, false)
