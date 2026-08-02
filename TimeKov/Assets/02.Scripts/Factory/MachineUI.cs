@@ -41,18 +41,11 @@ public class MachineUI : MonoBehaviour
     [Tooltip("현재 레시피 이름 표시 텍스트 (선택 사항)")]
     public TextMeshProUGUI recipeNameText;
 
-    [Header("진행 바 / 상태 텍스트")]
-    public Slider progressBar;
+    [Header("상태 텍스트 (연료 부족 전용)")]
     public TextMeshProUGUI statusText;
 
     [Header("출력 슬롯")]
     public MachineSlotWidget outputSlot;
-
-    // [Gauge] 가공 진행 게이지 — 기존 가운데 ">>" 화살표 대체용
-    // 비워두면 게이지 동작 안 함 (안전 가드, 기존 동작 유지)
-    [Header("진행 게이지")]
-    [Tooltip("가운데 화살표 자리의 ProcessingGauge. 비워두면 게이지 동작 안 함.")]
-    [SerializeField] private ProcessingGauge processingGauge;
 
     [Header("설비 도면 이미지")]
     [Tooltip("중앙 설비 모델 렌더. OpenFor에서 facilityId로 자동 세팅(FacilityIconDatabase).")]
@@ -79,13 +72,9 @@ public class MachineUI : MonoBehaviour
     [Tooltip("헤더 좌측 설비 아이콘. OpenFor 가 facilityImage 와 같은 sprite 로 세팅.")]
     [SerializeField] private Image headerIconImage;
 
-    [Header("진행바 노브 / 빈가방 / 가동글로우")]
-    [Tooltip("푸터 진행바 fill 끝 노브. value 로 x 이동, 가공 중만 표시.")]
-    [SerializeField] private RectTransform progressKnob;
+    [Header("빈 가방 안내")]
     [Tooltip("가방이 비었을 때 표시하는 '비어있음' 텍스트.")]
     [SerializeField] private TextMeshProUGUI bagEmptyText;
-    [Tooltip("가공 중 기계 뒤 노란 글로우. 알파 펄스(unscaled).")]
-    [SerializeField] private Image machineGlow;
 
     [Header("공정 흐름 레일")]
     [Tooltip("흐름 레일(기계->출력). 입력 레일은 슬롯 자식이라 별도 ref 불필요.")]
@@ -115,14 +104,15 @@ public class MachineUI : MonoBehaviour
     private ProcessingMachine _machine;
     private int _selectedRecipeIndex = 0;
 
-    // statusText(연료 부족 — 연료 칸 위)와 분리된 제작 시간 표시용.
-    // statusText를 복제해 원래 중앙(진행바 위) 위치에 배치한다.
-    private TextMeshProUGUI _processTimeText;
-
-    // 깔끔 게이지(엔필식): 얇은 선 + 양끝 점 + 좌->우 채움 + 선 위 "N초".
-    // 옛 하단 슬라이더(progressBar+Knob)/트레이 노란 게이지(ProcessingGauge)를 화면에서 대체한다.
-    private RectTransform _gaugeRoot;
-    private Image _gaugeFill;
+    // 깔끔 게이지(엔필식): 얇은 선 + 양끝 점 + 좌->우 채움 + 선 위 "N초"(제작 시간).
+    // statusText 는 연료 칸 위 "연료 부족" 전용이라 제작 시간은 여기 따로 뜬다.
+    [Header("깔끔 게이지 (도면 아래)")]
+    [Tooltip("게이지 루트. 빌더가 만든다.")]
+    [SerializeField] private RectTransform _gaugeRoot;
+    [Tooltip("좌->우로 자라는 채움 선(pivot 좌측).")]
+    [SerializeField] private Image _gaugeFill;
+    [Tooltip("게이지 위 제작 시간 텍스트.")]
+    [SerializeField] private TextMeshProUGUI _processTimeText;
     private const float GA_W = 300f;   // 게이지 선 길이
     private const float GA_H = 3f;     // 게이지 선 두께
 
@@ -175,104 +165,7 @@ public class MachineUI : MonoBehaviour
         if (storageTabBtn != null)  storageTabBtn.onClick.AddListener(ShowStorage);
 
         SetupDropZone();
-        SetupProcessTimeText();
-        SetupCleanGauge();
         SetupDualSections();
-        SetupActionButtons();
-    }
-
-    // ── 하단 액션 버튼(재료 회수 / 모두 받기) 정돈 ─────────────────────
-    // 같은 높이(64) 한 줄, 우측 정렬, 바닥선 = 연료 슬롯과 동일(28). 위가 밝은 그라데이션으로 입체감.
-    // 모두 받기 = 밝은 옐로 주버튼 / 재료 회수 = 밝은 간유리 보조버튼(접힘 박스와 같은 문법).
-    private void SetupActionButtons()
-    {
-        StyleActionButton(takeInputsBtn, new Vector2(170f, 64f), new Vector2(-(26f + 280f + 12f), 28f),
-            new Color(0.92f, 0.95f, 0.98f, 0.16f), new Color(0.92f, 0.95f, 0.98f, 0.92f), 18f);
-        // 주버튼 = 노란색 금지(종욱) -> 우리 정체성 색(벨트 시안 계열) + 어두운 텍스트.
-        StyleActionButton(takeOutputBtn, new Vector2(280f, 64f), new Vector2(-26f, 28f),
-            new Color(0.30f, 0.72f, 0.95f, 1f), new Color(0.03f, 0.10f, 0.16f, 1f), 22f);
-    }
-
-    private static void StyleActionButton(Button b, Vector2 size, Vector2 pos, Color bg, Color txt, float fontSize)
-    {
-        if (b == null) return;
-        var rt = (RectTransform)b.transform;
-        rt.anchorMin = rt.anchorMax = new Vector2(1f, 0f);
-        rt.pivot = new Vector2(1f, 0f);
-        rt.sizeDelta = size;
-        rt.anchoredPosition = pos;
-        if (b.image != null)
-        {
-            b.image.color = bg;
-            if (b.image.GetComponent<UIFrostGradient>() == null)
-            {
-                var g = b.image.gameObject.AddComponent<UIFrostGradient>();
-                g.topColor = new Color(1f, 1f, 1f, 1f);
-                g.bottomColor = new Color(0.58f, 0.58f, 0.58f, 1f);   // 아래로 가라앉는 셰이딩 = 입체감
-            }
-        }
-        var tmp = b.GetComponentInChildren<TextMeshProUGUI>();
-        if (tmp != null) { tmp.color = txt; tmp.fontSize = fontSize; }
-    }
-
-    // ── 제작 시간 텍스트 분리 ───────────────────────────────────────────
-    // statusText는 연료 칸 위로 옮겨져 "연료 부족" 전용이 됐으므로,
-    // 제작 시간("N초")은 statusText를 복제해 원래 위치(진행바 위, 중앙)에 따로 띄운다.
-    private void SetupProcessTimeText()
-    {
-        if (_processTimeText != null) return;       // 이미 생성됨
-        if (statusText == null) return;
-
-        var clone = Instantiate(statusText.gameObject, statusText.transform.parent);
-        clone.name = "ProcessTimeText";
-        _processTimeText = clone.GetComponent<TextMeshProUGUI>();
-
-        // statusText가 원래 있던 중앙(진행바 위) 위치로 복귀.
-        _processTimeText.rectTransform.anchoredPosition = new Vector2(-14.001f, 98f);
-        _processTimeText.text = "";
-    }
-
-    // ── 깔끔 게이지 (엔필식 정리) ─────────────────────────────────────
-    // 정리: 하단 슬라이더/노브 끔, 트레이 노란 게이지 끔, 공식 스트립 상태라벨 끔, 하단 드롭힌트 끔.
-    // 생성: 도면 아래 얇은 선 게이지(양끝 점 + 좌->우 채움) + 그 위 "N초"(기존 텍스트 이사).
-    private void SetupCleanGauge()
-    {
-        if (_gaugeRoot != null || uiPanel == null) return;
-
-        // 게이지 위치 = 옛 트레이 게이지 자리 재사용(도면과 정렬 유지).
-        Transform gaugeParent = uiPanel.transform;
-        Vector2 gaugePos = new Vector2(0f, -260f);
-        if (processingGauge != null)
-        {
-            var gRt = (RectTransform)processingGauge.transform;
-            gaugeParent = gRt.parent; gaugePos = gRt.anchoredPosition;
-            processingGauge.gameObject.SetActive(false);
-        }
-        if (progressBar != null) progressBar.gameObject.SetActive(false);
-        if (progressKnob != null) progressKnob.gameObject.SetActive(false);
-        var hint = FindDeep(uiPanel.transform, "DropHint");
-        if (hint != null) hint.gameObject.SetActive(false);
-
-        // (1) 게이지: 트랙(흐린 선) + 채움(밝은 선) + 양끝 점.
-        _gaugeRoot = MakeRect("CleanGauge", gaugeParent, new Vector2(GA_W, 22f), gaugePos);
-        MakeChildImage("Track", _gaugeRoot, new Vector2(GA_W, GA_H), Vector2.zero, new Color(1f, 1f, 1f, 0.28f), null);
-        _gaugeFill = MakeChildImage("Fill", _gaugeRoot, new Vector2(0f, GA_H), new Vector2(-GA_W * 0.5f, 0f),
-                                    new Color(1f, 1f, 1f, 0.95f), null);
-        _gaugeFill.rectTransform.pivot = new Vector2(0f, 0.5f);
-        MakeChildImage("DotL", _gaugeRoot, new Vector2(8f, 8f), new Vector2(-GA_W * 0.5f, 0f), new Color(1f, 1f, 1f, 0.9f), CircleSprite());
-        MakeChildImage("DotR", _gaugeRoot, new Vector2(8f, 8f), new Vector2(GA_W * 0.5f, 0f), new Color(1f, 1f, 1f, 0.9f), CircleSprite());
-
-        // "N초" 텍스트를 게이지 바로 위 중앙으로 이사(도면 한가운데 떠 있던 것).
-        if (_processTimeText != null)
-        {
-            var tr = _processTimeText.rectTransform;
-            tr.SetParent(_gaugeRoot, false);
-            tr.anchorMin = tr.anchorMax = tr.pivot = new Vector2(0.5f, 0.5f);
-            tr.sizeDelta = new Vector2(220f, 26f);
-            tr.anchoredPosition = new Vector2(0f, 20f);
-            _processTimeText.alignment = TextAlignmentOptions.Center;
-        }
-
     }
 
     private static RectTransform MakeRect(string name, Transform parent, Vector2 size, Vector2 pos)
@@ -737,9 +630,6 @@ public class MachineUI : MonoBehaviour
 
         ShowFirstMachineHintIfNeeded();
 
-        // [Gauge] 게이지 초기화 — 가공 시작 전 0%로 비우고 숨김
-        if (processingGauge != null) processingGauge.StopAndHide();
-
         // 인벤토리에서 아이템을 집어든 순간 연료/재료 슬롯을 강조 (드랍 위치 안내)
         InventorySlotUI.OnAnySlotDragBegin -= OnInventoryDragBegin;
         InventorySlotUI.OnAnySlotDragBegin += OnInventoryDragBegin;
@@ -844,9 +734,6 @@ public class MachineUI : MonoBehaviour
             hintMgr.Hide("first_machine_hint");
         }
         _noFuelTimer = 0f; _fuelHintOn = false;   // 연료 힌트 상태 초기화(강조 자체는 위 ClearDropHighlights가 끔)
-
-        // [Gauge] 게이지 정리 — 패널 닫을 때 0%로 비우고 숨김
-        if (processingGauge != null) processingGauge.StopAndHide();
 
         // 연료 슬롯 정리
         fuelDropSlot?.Cleanup();
@@ -1997,13 +1884,8 @@ public class MachineUI : MonoBehaviour
             outputSlot.transform.localScale = new Vector3(s, s, 1f);
         }
 
-        // 가동 글로우(가공 중 노란빛 오버레이) 제거 - 패널을 노랗게 덮어 거슬려서 항상 끔.
-        if (machineGlow != null && machineGlow.color.a != 0f)
-        {
-            var gc = machineGlow.color; gc.a = 0f; machineGlow.color = gc;
-        }
 
-        // (옛 ProcessingGauge/공식 스트립 상태라벨은 깔끔 게이지로 대체 - SetupCleanGauge 에서 비활성.)
+        // (옛 트레이 노란 게이지/하단 슬라이더는 깔끔 게이지로 대체 - 빌더가 더 이상 안 만든다.)
 
         // 흐름 레일: 아이템 통과 순간 연출은 항상 감지(가동 여부 무관), 중앙 화살표 펄스만 가동 시.
         UpdateFlowRails(isSelectedRecipeActive && _machine.IsProcessing);

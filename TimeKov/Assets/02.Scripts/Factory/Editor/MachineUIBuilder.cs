@@ -206,6 +206,10 @@ public static class MachineUIBuilder
         // ── uiPanel 배선 (재활용이면 자기 자신, 신규면 자식 패널) ──
         SetRef(so, "uiPanel", panel);
 
+        // 절차 생성 스프라이트(게이지 점 등)는 에셋이 아니라 메모리 생성물이라 유니티 재시작 때 사라진다.
+        // 재생성 키를 심어두면 실행 시 스스로 되살아난다.
+        UIBuilderUtil.AttachGeneratedSpriteKeys(panel);
+
         so.ApplyModifiedProperties();
         EditorSceneManager.MarkSceneDirty(ui.gameObject.scene);
         Selection.activeGameObject = panel;
@@ -518,12 +522,8 @@ public static class MachineUIBuilder
         empty.gameObject.SetActive(false);
         SetRef(so, "bagEmptyText", empty);
 
-        // 하단 드롭 힌트(상시 흐리게) = 결과물 슬롯을 여기로 끌어 회수.
-        var hint = MakeTMP("DropHint", ct, "결과물을 여기로 드래그해 회수", 13, TxtSub, TextAlignmentOptions.Center);
-        var hRt = hint.rectTransform;
-        hRt.anchorMin = new Vector2(0, 0); hRt.anchorMax = new Vector2(1, 0); hRt.pivot = new Vector2(0.5f, 0);
-        hRt.offsetMin = new Vector2(8, 6); hRt.offsetMax = new Vector2(-8, 28);
-        var hcol = hint.color; hcol.a = 0.5f; hint.color = hcol;
+        // (하단 "결과물을 여기로 드래그해 회수" 힌트 = 이중 섹션으로 바뀌며 자리가 접힘 박스로 넘어갔다.
+        //  런타임이 계속 끄고 있던 것을 제거함.)
 
         SetRef(so, "inventorySlotParent", content);
         var slotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SlotPrefabPath);
@@ -547,10 +547,7 @@ public static class MachineUIBuilder
         plRt.anchorMin = Vector2.zero; plRt.anchorMax = Vector2.one; plRt.offsetMin = new Vector2(6, 6); plRt.offsetMax = new Vector2(-6, -6);
         plate.GetComponent<Image>().raycastTarget = false;
 
-        // 가동 글로우 = 가공 중 기계 뒤 노란빛(런타임 알파 펄스). 기본 알파 0. 기계보다 먼저 생성 = 뒤.
-        var glow = MakeImage("MachineGlow", pt, new Vector2(820, 820), new Vector2(0, 0f), new Color(Yellow.r, Yellow.g, Yellow.b, 0f));
-        var glowImg = glow.GetComponent<Image>(); glowImg.sprite = RoundedSprite(); glowImg.type = Image.Type.Sliced; glowImg.raycastTarget = false;
-        SetRef(so, "machineGlow", glowImg);
+        // (가동 글로우 = 패널을 노랗게 덮어 거슬린다는 판정으로 런타임이 알파 0 고정이었다. 제거함.)
 
         // 설비 도면 = 퀵슬롯 설비 모델 렌더(500x500 투명, facilityId 1~7) 재사용.
         // 런타임 OpenFor 가 FacilityIconDatabase 로 sprite 세팅 -> enabled.
@@ -619,13 +616,11 @@ public static class MachineUIBuilder
 
         // (연료 슬롯은 BuildFooter 로 이동 = 옛 "현재 생산 공식 스트립" 자리.)
 
-        // ── 진행 게이지 (중앙 가로 바) ──
-        var gauge = MakeGauge(pt, new Vector2(380, 28), Vector2.zero);
-        var gRt = gauge.GetComponent<RectTransform>();
-        gRt.anchorMin = gRt.anchorMax = new Vector2(0.5f, 0.5f); gRt.pivot = new Vector2(0.5f, 0.5f); gRt.anchoredPosition = new Vector2(0, -205);
-        SetRef(so, "processingGauge", gauge);
+        // ── 깔끔 게이지 (도면 아래 얇은 선 + 양끝 점 + 좌->우 채움 + 그 위 "N초") ──
+        // 옛 노란 트레이 게이지(ProcessingGauge)/하단 슬라이더를 대체한 최종안. 자리는 그대로 물려받는다.
+        BuildCleanGauge(pt, so, new Vector2(0, -205));
 
-        // ── 상태 텍스트 (연료 부족/제작시간 클론 부모). 런타임이 (-14,98) 에 클론 띄움. ──
+        // ── 상태 텍스트 (연료 부족 전용. 제작 시간은 게이지 위 ProcessTimeText 가 담당). ──
         var status = MakeTMP("StatusText", pt, "", 18, Color.white, TextAlignmentOptions.Center);
         status.fontStyle = FontStyles.Bold;
         var stRt = status.rectTransform; stRt.anchorMin = stRt.anchorMax = new Vector2(0.5f, 0.5f); stRt.pivot = new Vector2(0.5f, 0.5f);
@@ -656,13 +651,7 @@ public static class MachineUIBuilder
         // 푸터 밴드 = 생산영역(우측) 하단에만. 가방칼럼 아래엔 안 깔림(가방이 풀높이 = 빈칸 없음).
         float prodLeft = SidePad + BagWidth + Gap;   // 생산영역 좌측 시작 x(패널 좌측 기준)
 
-        // 진행 바 = 맨 아래 얇은 선(생산영역 폭만큼). 노란 fill + 노브.
-        var bar = MakeProgressBar(prt, Vector2.zero, new Vector2(480, 10));
-        var brRt = bar.GetComponent<RectTransform>();
-        brRt.anchorMin = new Vector2(0, 0); brRt.anchorMax = new Vector2(1, 0); brRt.pivot = new Vector2(0.5f, 0);
-        brRt.offsetMin = new Vector2(prodLeft, 12); brRt.offsetMax = new Vector2(-SidePad, 22);
-        SetRef(so, "progressBar", bar);
-        SetRef(so, "progressKnob", bar.transform.Find("Knob") as RectTransform);
+        // (맨 아래 얇은 진행 슬라이더 + 노브 = 깔끔 게이지로 대체돼 런타임이 항상 껐다. 제거함.)
 
         // 연료 슬롯 (하단 좌 = 생산영역 시작점). 재료칸과 동일 140 크기/모양 = 복붙, 로직만 연료.
         var fuelFrame = LoadSlotFrame();
@@ -677,17 +666,84 @@ public static class MachineUIBuilder
         var cfRt = capFuel.rectTransform; cfRt.anchorMin = cfRt.anchorMax = new Vector2(0, 0); cfRt.pivot = new Vector2(0, 0);
         cfRt.sizeDelta = new Vector2(140, 20); cfRt.anchoredPosition = new Vector2(prodLeft + 6f, 170f);
 
-        // 액션 버튼 = 우측(밴드 세로 중앙). 모두받기(노랑 크게) + 그 왼쪽 재료회수.
-        float rowY = 86f;
-        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(270, 64), Yellow, YellowBd, YellowTx, 22);
-        var toRt = takeOut.GetComponent<RectTransform>();
-        toRt.anchorMin = toRt.anchorMax = new Vector2(1, 0); toRt.pivot = new Vector2(1, 0.5f); toRt.anchoredPosition = new Vector2(-SidePad, rowY);
+        // 액션 버튼 = 우측 한 줄, 바닥선은 연료 슬롯과 동일(28). 위가 밝은 그라데이션으로 입체감.
+        // 주버튼(모두 받기) = 노란색 금지(종욱) -> 벨트 시안 계열 + 어두운 글자. 보조(재료 회수) = 밝은 간유리.
+        var takeOut = MakeTextButton("TakeOutputBtn", prt, "모두 받기", Vector2.zero, new Vector2(280, 64), Yellow, YellowBd, YellowTx, 22);
+        StyleActionButton(takeOut, new Vector2(280, 64), new Vector2(-26f, 28f),
+            new Color(0.30f, 0.72f, 0.95f, 1f), new Color(0.03f, 0.10f, 0.16f, 1f), 22);
         SetRef(so, "takeOutputBtn", takeOut);
 
-        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(160, 54), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 16);
-        var tiRt = takeIn.GetComponent<RectTransform>();
-        tiRt.anchorMin = tiRt.anchorMax = new Vector2(1, 0); tiRt.pivot = new Vector2(1, 0.5f); tiRt.anchoredPosition = new Vector2(-(SidePad + 270 + 16), rowY);
+        var takeIn = MakeTextButton("TakeInputsBtn", prt, "재료 회수", Vector2.zero, new Vector2(170, 64), RGBA(44, 56, 72, 0.55f), Chrome, Hex("dfe7f0"), 18);
+        StyleActionButton(takeIn, new Vector2(170, 64), new Vector2(-(26f + 280f + 12f), 28f),
+            new Color(0.92f, 0.95f, 0.98f, 0.16f), new Color(0.92f, 0.95f, 0.98f, 0.92f), 18);
         SetRef(so, "takeInputsBtn", takeIn);
+    }
+
+    // 하단 액션 버튼 최종 스타일. 예전엔 런타임 Awake 가 이걸 덮어써서 인스펙터 값이 실제 값이 아니었다.
+    static void StyleActionButton(Button b, Vector2 size, Vector2 pos, Color bg, Color txt, float fontSize)
+    {
+        if (b == null) return;
+        var rt = (RectTransform)b.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(1f, 0f);
+        rt.pivot = new Vector2(1f, 0f);
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+        if (b.image != null)
+        {
+            b.image.color = bg;
+            var g = b.image.GetComponent<UIFrostGradient>();
+            if (g == null) g = b.image.gameObject.AddComponent<UIFrostGradient>();
+            g.topColor = new Color(1f, 1f, 1f, 1f);
+            g.bottomColor = new Color(0.58f, 0.58f, 0.58f, 1f);   // 아래로 가라앉는 셰이딩 = 입체감
+        }
+        var tmp = b.GetComponentInChildren<TextMeshProUGUI>();
+        if (tmp != null) { tmp.color = txt; tmp.fontSize = fontSize; }
+    }
+
+    // 깔끔 게이지: 트랙(흐린 선) + 채움(밝은 선) + 양끝 점 + 그 위 "N초" 텍스트.
+    static void BuildCleanGauge(Transform parent, SerializedObject so, Vector2 pos)
+    {
+        const float GA_W = 300f, GA_H = 3f;
+        var root = MakeEmpty("CleanGauge", parent, new Vector2(GA_W, 22f), pos);
+        var rrt = root.GetComponent<RectTransform>();
+        rrt.anchorMin = rrt.anchorMax = rrt.pivot = new Vector2(0.5f, 0.5f);
+        rrt.sizeDelta = new Vector2(GA_W, 22f); rrt.anchoredPosition = pos;
+        SetRef(so, "_gaugeRoot", rrt);
+
+        GaugePart("Track", rrt, new Vector2(GA_W, GA_H), Vector2.zero, new Color(1f, 1f, 1f, 0.28f), null);
+        var fill = GaugePart("Fill", rrt, new Vector2(0f, GA_H), new Vector2(-GA_W * 0.5f, 0f), new Color(1f, 1f, 1f, 0.95f), null);
+        fill.rectTransform.pivot = new Vector2(0f, 0.5f);   // 좌->우로 자람
+        SetRef(so, "_gaugeFill", fill);
+        GaugePart("DotL", rrt, new Vector2(8f, 8f), new Vector2(-GA_W * 0.5f, 0f), new Color(1f, 1f, 1f, 0.9f), CircleSprite());
+        GaugePart("DotR", rrt, new Vector2(8f, 8f), new Vector2(GA_W * 0.5f, 0f), new Color(1f, 1f, 1f, 0.9f), CircleSprite());
+
+        // 제작 시간 "N초" = 게이지 바로 위 중앙. 예전엔 StatusText 를 런타임 복제해 썼다.
+        var t = MakeTMP("ProcessTimeText", rrt, "", 18, Color.white, TextAlignmentOptions.Center);
+        t.fontStyle = FontStyles.Bold;
+        var trt = t.rectTransform;
+        trt.anchorMin = trt.anchorMax = trt.pivot = new Vector2(0.5f, 0.5f);
+        trt.sizeDelta = new Vector2(220f, 26f); trt.anchoredPosition = new Vector2(0f, 20f);
+        SetRef(so, "_processTimeText", t);
+    }
+
+    static Image GaugePart(string name, Transform parent, Vector2 size, Vector2 pos, Color color, Sprite sprite)
+    {
+        var go = MakeEmpty(name, parent, size, pos);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size; rt.anchoredPosition = pos;
+        var img = go.AddComponent<Image>();
+        img.color = color; img.raycastTarget = false;
+        if (sprite != null) img.sprite = sprite;
+        return img;
+    }
+
+    // 게이지 양끝 점(원). 런타임 MachineUI.CircleSprite 와 같은 모양.
+    static Sprite _circle;
+    static Sprite CircleSprite()
+    {
+        if (_circle == null) _circle = UISpriteFactory.Circle(64);
+        return _circle;
     }
 
     // (옛 "현재 생산 공식 스트립" 패널 = 어느 시점부터 호출이 끊겨 씬에 아예 안 만들어졌고,
@@ -796,21 +852,6 @@ public static class MachineUIBuilder
         return msw;
     }
 
-    static ProcessingGauge MakeGauge(Transform parent, Vector2 size, Vector2 pos)
-    {
-        var go = MakeEmpty("ProcessingGauge", parent, size, pos);
-        var gauge = go.AddComponent<ProcessingGauge>();
-        FillImage("ArrowTrack", go.transform, RoundedSprite(), Image.Type.Sliced, RGBA(16, 22, 32, 0.6f));   // index 0
-        var fill = FillImage("ArrowFill", go.transform, RoundedSprite(), Image.Type.Sliced, Hex("e6c24a"), 2f); // index 1
-        fill.type = Image.Type.Filled; fill.fillMethod = Image.FillMethod.Horizontal;
-        fill.fillOrigin = (int)Image.OriginHorizontal.Left; fill.fillAmount = 0f;
-
-        var wso = new SerializedObject(gauge);
-        SetRef(wso, "arrowFill", fill);
-        wso.ApplyModifiedProperties();
-        return gauge;
-    }
-
     static Button MakeMiniButton(string name, Transform parent, string label, Vector2 pos, float size)
     {
         var go = MakeRounded(name, parent, new Vector2(size, size), pos, RGBA(44, 56, 72, 0.55f));
@@ -867,40 +908,6 @@ public static class MachineUIBuilder
         c.disabledColor    = new Color(0.6f, 0.6f, 0.6f, 0.5f);
         c.colorMultiplier  = 1f; c.fadeDuration = 0.08f;
         btn.colors = c;
-    }
-
-    static Slider MakeProgressBar(Transform parent, Vector2 pos, Vector2 size)
-    {
-        var go = new GameObject("ProgressBar", typeof(RectTransform), typeof(Slider));
-        go.transform.SetParent(parent, false);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = size; rt.anchoredPosition = pos;
-
-        var bg = FillImage("Background", go.transform, RoundedSprite(), Image.Type.Sliced, RGBA(16, 22, 32, 0.62f));
-        var fillArea = MakeEmpty("Fill Area", go.transform, Vector2.zero, Vector2.zero);
-        FillRect(fillArea.GetComponent<RectTransform>(), 2f);
-        var fill = FillImage("Fill", fillArea.transform, RoundedSprite(), Image.Type.Sliced, Hex("e6c24a"));
-        fill.type = Image.Type.Filled; fill.fillMethod = Image.FillMethod.Horizontal;
-        fill.fillOrigin = (int)Image.OriginHorizontal.Left; fill.fillAmount = 0f;
-
-        // 진행 노브 = fill 끝점 도트(런타임이 value 로 x 이동). 좌측 앵커 기준, 기본 off.
-        var knob = MakeImage("Knob", go.transform, new Vector2(20, 20), Vector2.zero, Yellow);
-        var kImg = knob.GetComponent<Image>(); kImg.sprite = RoundedSprite(); kImg.type = Image.Type.Sliced; kImg.raycastTarget = false;
-        var kRt = knob.GetComponent<RectTransform>();
-        kRt.anchorMin = kRt.anchorMax = new Vector2(0, 0.5f); kRt.pivot = new Vector2(0.5f, 0.5f);
-        kRt.anchoredPosition = Vector2.zero;
-        AddOutline(knob, YellowBd, new Vector2(1f, -1f));
-        knob.SetActive(false);
-
-        var slider = go.GetComponent<Slider>();
-        slider.transition = Selectable.Transition.None;
-        slider.fillRect = fill.rectTransform;
-        slider.handleRect = null; slider.targetGraphic = bg;
-        slider.direction = Slider.Direction.LeftToRight;
-        slider.minValue = 0f; slider.maxValue = 1f; slider.value = 0f;
-        slider.interactable = false;
-        return slider;
     }
 
     // ── 위젯 공통 소품 ──
