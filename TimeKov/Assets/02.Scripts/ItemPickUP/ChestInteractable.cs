@@ -436,6 +436,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         bool anyUIOpen = (GameUIController.Instance != null && GameUIController.Instance.IsUIBlocking())
                       || (InventoryUIController.Instance != null && InventoryUIController.Instance.IsOpen);
         var ui = ChestPromptUI.GetOrCreate();
+        if (ui == null) return;   // 씬에 프롬프트가 없으면 조용히 스킵(매 프레임 NRE 방지)
 
         if (anyUIOpen) { ui.HideIfOwner(this); return; }
 
