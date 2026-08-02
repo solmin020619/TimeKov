@@ -690,33 +690,8 @@ public static class MachineUIBuilder
         SetRef(so, "takeInputsBtn", takeIn);
     }
 
-    // 현재 생산 공식 = 작은 개별 패널. [상태 라벨][재료아이콘 > 결과아이콘] 을 런타임이 채운다.
-    static void BuildRecipeFormula(RectTransform prt, SerializedObject so, Vector2 pos)
-    {
-        var panel = MakeRounded("RecipeFormula", prt, new Vector2(560, 52), Vector2.zero, RGBA(20, 28, 40, 0.34f));
-        var pr = panel.GetComponent<RectTransform>();
-        pr.anchorMin = pr.anchorMax = new Vector2(0, 0); pr.pivot = new Vector2(0, 0.5f); pr.anchoredPosition = pos;
-        AddOutline(panel, Chrome, new Vector2(1f, -1f));
-        panel.GetComponent<Image>().raycastTarget = false;
-
-        // 상태 라벨(좌) = 런타임이 생산중/대기중 토글.
-        var st = MakeTMP("FormulaStatus", panel.transform, "대기 중", 13, TxtSub, TextAlignmentOptions.Left);
-        var stRt = st.rectTransform; stRt.anchorMin = stRt.anchorMax = new Vector2(0, 0.5f); stRt.pivot = new Vector2(0, 0.5f);
-        stRt.sizeDelta = new Vector2(58, 40); stRt.anchoredPosition = new Vector2(14, 0);
-        st.fontStyle = FontStyles.Bold;
-        SetRef(so, "formulaStatusText", st);
-
-        // 공식 내용 컨테이너(상태 라벨 우측) = 런타임이 아이콘 엔트리 채움(HLG 좌측정렬).
-        var content = MakeEmpty("FormulaContent", panel.transform, Vector2.zero, Vector2.zero);
-        var cr = content.GetComponent<RectTransform>();
-        cr.anchorMin = new Vector2(0, 0); cr.anchorMax = new Vector2(1, 1); cr.pivot = new Vector2(0, 0.5f);
-        cr.offsetMin = new Vector2(78, 4); cr.offsetMax = new Vector2(-12, -4);
-        var hlg = content.AddComponent<HorizontalLayoutGroup>();
-        hlg.childControlWidth = true; hlg.childControlHeight = true;
-        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
-        hlg.spacing = 6; hlg.childAlignment = TextAnchor.MiddleLeft;
-        SetRef(so, "formulaContent", content.transform);
-    }
+    // (옛 "현재 생산 공식 스트립" 패널 = 어느 시점부터 호출이 끊겨 씬에 아예 안 만들어졌고,
+    //  런타임 BuildFormula 도 참조가 null 이라 항상 no-op 이었다. 그 자리는 연료 슬롯이 가져갔다. 제거함.)
 
     // ─────────────────────────────────────────────────────────────────
     // 위젯 팩토리 (프리팹 없음 -> 코드 생성 + SerializedObject 내부 배선)

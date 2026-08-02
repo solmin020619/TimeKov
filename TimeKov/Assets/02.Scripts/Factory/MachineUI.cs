@@ -87,11 +87,7 @@ public class MachineUI : MonoBehaviour
     [Tooltip("가공 중 기계 뒤 노란 글로우. 알파 펄스(unscaled).")]
     [SerializeField] private Image machineGlow;
 
-    [Header("현재 생산 공식 스트립(하단)")]
-    [Tooltip("공식 아이콘 엔트리 부모(HLG). 런타임이 재료->결과 아이콘을 채움.")]
-    [SerializeField] private Transform formulaContent;
-    [Tooltip("공식 스트립 좌측 상태 라벨(생산 중 / 대기 중).")]
-    [SerializeField] private TextMeshProUGUI formulaStatusText;
+    [Header("공정 흐름 레일")]
     [Tooltip("흐름 레일(기계->출력). 입력 레일은 슬롯 자식이라 별도 ref 불필요.")]
     [SerializeField] private Image outputRail;
     [Tooltip("입력 수직 버스(합류선). 길이/위치는 런타임이 입력 칸수로 세팅.")]
@@ -254,7 +250,6 @@ public class MachineUI : MonoBehaviour
         }
         if (progressBar != null) progressBar.gameObject.SetActive(false);
         if (progressKnob != null) progressKnob.gameObject.SetActive(false);
-        if (formulaStatusText != null) formulaStatusText.gameObject.SetActive(false);
         var hint = FindDeep(uiPanel.transform, "DropHint");
         if (hint != null) hint.gameObject.SetActive(false);
 
@@ -1129,7 +1124,6 @@ public class MachineUI : MonoBehaviour
         // 공정 흐름 레일(포트 -> 세로 버스 -> 슬롯) 재생성.
         BuildFlowRails();
 
-        BuildFormula();
         ShowRecipeHintIfQuestActive();
     }
 
@@ -1498,71 +1492,6 @@ public class MachineUI : MonoBehaviour
             foreach (var p in _machine.GetComponentsInChildren<BuildPort>())
                 if (p != null && p.portType == type) list.Add(p);
         return list.ToArray();
-    }
-
-    // ── 현재 생산 공식 스트립 ─────────────────────────────────────
-    // 하단 작은 패널에 [재료 아이콘 > 결과 아이콘] 을 채운다(엔필식 요약).
-    // 중앙 슬롯은 상호작용용, 이건 "지금 뭘 만드는지" 요약 표시.
-
-    private void BuildFormula()
-    {
-        if (formulaContent == null || _machine == null) return;
-
-        for (int i = formulaContent.childCount - 1; i >= 0; i--)
-            Destroy(formulaContent.GetChild(i).gameObject);
-
-        var recipes = _machine.Recipes;
-        if (recipes == null || recipes.Count == 0) return;
-        int ri = Mathf.Clamp(_selectedRecipeIndex, 0, recipes.Count - 1);
-        var recipe = recipes[ri];
-        if (recipe == null) return;
-
-        if (recipe.inputs != null)
-            foreach (var inp in recipe.inputs)
-                MakeFormulaEntry(inp.itemId, inp.amount, false);
-
-        MakeFormulaArrow();
-
-        if (recipe.outputs != null)
-            foreach (var outp in recipe.outputs)
-                MakeFormulaEntry(outp.itemId, outp.amount, true);
-    }
-
-    private void MakeFormulaEntry(int itemId, int amount, bool isOutput)
-    {
-        var go = new GameObject(isOutput ? "FxOut" : "FxIn", typeof(RectTransform), typeof(LayoutElement));
-        go.transform.SetParent(formulaContent, false);
-        var le = go.GetComponent<LayoutElement>();
-        le.preferredWidth = 40; le.preferredHeight = 40;
-
-        var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image));
-        iconGo.transform.SetParent(go.transform, false);
-        var irt = iconGo.GetComponent<RectTransform>();
-        irt.anchorMin = Vector2.zero; irt.anchorMax = Vector2.one; irt.offsetMin = Vector2.zero; irt.offsetMax = Vector2.zero;
-        var img = iconGo.GetComponent<Image>(); img.preserveAspect = true; img.raycastTarget = false;
-        var itemData = GameDataUtility.GetItem(itemId);
-        img.sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
-        img.enabled = img.sprite != null;
-
-        var amtGo = new GameObject("Amt", typeof(RectTransform));
-        amtGo.transform.SetParent(go.transform, false);
-        var amt = amtGo.AddComponent<TextMeshProUGUI>();
-        amt.text = "x" + amount; amt.fontSize = 13; amt.color = Color.white;
-        amt.alignment = TextAlignmentOptions.BottomRight; amt.fontStyle = FontStyles.Bold;
-        amt.raycastTarget = false; amt.textWrappingMode = TextWrappingModes.NoWrap;
-        var art = amt.rectTransform;
-        art.anchorMin = Vector2.zero; art.anchorMax = Vector2.one; art.offsetMin = Vector2.zero; art.offsetMax = new Vector2(2, 0);
-    }
-
-    private void MakeFormulaArrow()
-    {
-        var go = new GameObject("Arrow", typeof(RectTransform), typeof(LayoutElement));
-        go.transform.SetParent(formulaContent, false);
-        var le = go.GetComponent<LayoutElement>(); le.preferredWidth = 22; le.preferredHeight = 40;
-        var tmp = go.AddComponent<TextMeshProUGUI>();
-        tmp.text = ">"; tmp.fontSize = 22; tmp.color = new Color(0.90f, 0.76f, 0.29f, 1f);
-        tmp.alignment = TextAlignmentOptions.Center; tmp.fontStyle = FontStyles.Bold;
-        tmp.raycastTarget = false; tmp.textWrappingMode = TextWrappingModes.NoWrap;
     }
 
     private void RefreshRecipeSelectionUI(int totalCount)
