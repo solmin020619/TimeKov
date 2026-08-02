@@ -1360,7 +1360,7 @@ public class BuildManager : MonoBehaviour, ISaveable
 
     // =====================================================================
     // 동적 해금 슬롯 시스템
-    // FacilityUnlockPickup 획득 시 FacilityUnlockManager가 이벤트를 발생시키고
+    // 해금되면(현재 경로: 시간에너지 전송률 보상 -> FacilityUnlockManager.TryUnlock) 이벤트가 발생하고
     // 해당 슬롯에 facilityId를 등록 + 아이콘 UI를 갱신한다.
     // =====================================================================
 
