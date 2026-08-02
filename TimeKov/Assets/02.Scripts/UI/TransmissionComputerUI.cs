@@ -1,14 +1,17 @@
 // =====================================================================
-// TransmissionComputerUI.cs  ─ 시안 2a 완전 구현 (TimeKov 시간에너지 전송 컴퓨터)
-// 클로드 디자인 스펙(시안 2a)을 Unity 런타임 코드로 구현. 프리팹 없음.
-// 기준 캔버스 1920×1080, Scale With Screen Size, Match 0.5.
+// TransmissionComputerUI.cs  - 시간에너지 전송 컴퓨터
+// 기준 캔버스 1920x1080 절대좌표. 자체 레터박스 래퍼(FitWrap)로 어떤 해상도에서도 안 잘린다.
 // 공개 API(Instance/GetOrCreate/Open/HidePanel/Close/LastCloseFrame/IsOpen)는
-// 기존 GameUIController·TransmissionComputerTerminal 연동을 위해 유지.
+// 기존 GameUIController / TransmissionComputerTerminal 연동을 위해 유지.
 //
-// 주의(스펙 F-3): 특수 글리프(✓ ? ▤ ◆ ★ ▶ ●)는 폰트 아틀라스에 없어 □로 깨지므로
-//   전부 도형/스프라이트로 그린다(텍스트로 안 씀). "?"만 예외로 폰트 텍스트 사용.
-// 근사 처리: 점선 링→저알파 실선, 4색 게이지→절차 생성 가로 그라데이션 텍스처.
-// 데이터는 전부 TransmissionManager 실연동(전송률·구역·보상·저장) + 인벤토리 보유 키트. Model 어댑터가 감싼다.
+// [08-02] 화면 구조를 씬 실물로 전환. 로컬라이징 준비(에디터에 없는 UI엔 컴포넌트를 못 붙인다).
+//   - 레이아웃 생성 코드는 #if UNITY_EDITOR 로 남겨 '메뉴에서 그 자리서 실행' 한다.
+//     절대좌표가 수백 개라 손으로 옮겨 적으면 오타 하나가 조용한 레이아웃 붕괴가 된다.
+//   - 실행 시 남는 생성물: 배경 장식(격자/링/브래킷 69개, 글자가 없어 씬에 두면 하이어라키만 더러워짐),
+//     키트 행/마커(개수가 데이터라 템플릿 복제), 물결 텍스처, 무한 트윈.
+//
+// 주의: 특수 글리프(체크/다이아/삼각 등)는 폰트 아틀라스에 없어 네모로 깨지므로 전부 도형으로 그린다.
+//   "?" 만 예외로 폰트 텍스트를 쓴다.
 // =====================================================================
 
 using System;
@@ -21,6 +24,7 @@ using UnityEngine.UI;
 
 public class TransmissionComputerUI : MonoBehaviour
 {
+    [Header("폰트 (빌더 입력용 - 실행 시에는 각 글자에 이미 박혀 있다)")]
     [SerializeField] private TMP_FontAsset krFont;    // 선택: 비우면 Pretendard 자동
     [SerializeField] private TMP_FontAsset monoFont;  // 선택: 비우면 Rajdhani/폴백
 
@@ -42,56 +46,131 @@ public class TransmissionComputerUI : MonoBehaviour
     public static TransmissionComputerUI Instance { get; private set; }
     public static int LastCloseFrame { get; private set; } = -10;
     public bool IsOpen => _root != null && _root.activeSelf;
+    private static bool _warnedMissing;
 
-    // ── 런타임 참조 ───────────────────────────────────────────────────
-    private TMP_FontAsset _kr, _mono;
-    private GameObject _root;
-    private CanvasGroup _cg;
-    private RectTransform _content;
-    private RectTransform _fitWrap;        // 해상도 무관 레터박스 스케일 래퍼(_content.localScale 은 열기/닫기 애니 전용이라 분리)
+    // =====================================================================
+    // 씬 참조 (빌더가 채운다)
+    // =====================================================================
+    [Header("구조")]
+    [SerializeField] private GameObject _root;          // 열고 닫는 패널(백드롭 + CanvasGroup)
+    [SerializeField] private CanvasGroup _cg;
+    [SerializeField] private RectTransform _fitWrap;    // 해상도 무관 레터박스 스케일 래퍼
+    [SerializeField] private RectTransform _content;    // 1920x1080 레이아웃 루트
+    [SerializeField] private RectTransform _decorRoot;  // 격자/크로노링/코너브래킷이 실행 시 담기는 빈 컨테이너
+    [SerializeField] private Image _bgRadial;
+
+    [Header("헤더 / 전송률 탱크")]
+    [SerializeField] private TMP_Text _subLabel;
+    [SerializeField] private TMP_Text _rateBig;
+    [SerializeField] private RawImage _rateWave;
+    [SerializeField] private TMP_Text _rateRegionLabel;
+
+    [Header("진행 바")]
+    [SerializeField] private RectTransform _trackRT;
+    [SerializeField] private Image _fill;
+    [SerializeField] private RectTransform _sweep;
+    [SerializeField] private Image _sweepImg;
+    [SerializeField] private Image _ghostFill;
+    [SerializeField] private RectTransform _node;
+    [SerializeField] private Image _nodePulse;
+    [SerializeField] private TMP_Text _nodeLabel;
+    [SerializeField] private TransmissionMarker _markerTemplate;
+    [SerializeField] private TMP_Text[] _legendLabels = new TMP_Text[4];
+    [SerializeField] private Image[] _legendDots = new Image[4];
+    [SerializeField] private Image[] _legendConns = new Image[4];
+    [SerializeField] private RectTransform _legendCurHl;
+    [SerializeField] private Image _legendCurHlImg;
+
+    [Header("본문 - 키트 목록")]
+    [SerializeField] private RectTransform _kitListRoot;
+    [SerializeField] private TransmissionKitRow _kitRowTemplate;
+    [SerializeField] private GameObject _kitEmptyLabel;
+
+    [Header("본문 - 전송 제어")]
+    [SerializeField] private TMP_Text _selName;
+    [SerializeField] private TMP_Text _selMeta;
+    [SerializeField] private TMP_Text _previewVal;
+    [SerializeField] private Button _sendBtn;
+    [SerializeField] private Image _sendBtnImg;
+    [SerializeField] private CanvasGroup _sendBtnCg;
+    [SerializeField] private Image _sendTri;
+    [SerializeField] private Button _closeBtn;
+    [SerializeField] private TMP_Text _logText;
+    [SerializeField] private Image _logDot;
+
+    [Header("푸터")]
+    [SerializeField] private TMP_Text _statusLine;
+    [SerializeField] private RectTransform _cursor;
+    [SerializeField] private Image _cursorImg;
+
+    [Header("툴팁")]
+    [SerializeField] private GameObject _tooltip;
+    [SerializeField] private Image _ttBox;
+    [SerializeField] private UnityEngine.UI.Outline _ttOutline;   // 풀네임 필수(전역 3D Outline 이 가림)
+    [SerializeField] private TMP_Text _ttTitle;
+    [SerializeField] private TMP_Text _ttName;
+    [SerializeField] private TMP_Text _ttState;
+    [SerializeField] private CanvasGroup _ttCg;
+
+    [Header("오버레이")]
+    [SerializeField] private Image _scanImg;
+    [SerializeField] private Image _vignetteImg;
+
+    [Header("보상 리빌")]
+    [SerializeField] private GameObject _reward;
+    [SerializeField] private CanvasGroup _rewardCg;
+    [SerializeField] private Button _rewardScrimBtn;
+    [SerializeField] private RectTransform _rewardCard;
+    [SerializeField] private RectTransform _rewardIconTile;
+    [SerializeField] private Image _rewardIconBg;
+    [SerializeField] private UnityEngine.UI.Outline _rewardIconFrame;
+    [SerializeField] private RectTransform _rewardIconHolder;
+    [SerializeField] private RectTransform _rewardSweep;
+    [SerializeField] private TMP_Text _rewardTitle;
+    [SerializeField] private TMP_Text _rewardName;
+    [SerializeField] private TMP_Text _rewardDesc;
+    [SerializeField] private TMP_Text _rewardHint;
+    [SerializeField] private Image[] _rewardTint;     // 리빌 색으로 물들일 장식
+
+    [Header("보상 아이콘 3종 - 보상 종류에 따라 하나만 켠다")]
+    [SerializeField] private GameObject _riSingleGo;  // 설비 1개
+    [SerializeField] private Image _riSingle;
+    [SerializeField] private GameObject _riHalfTL;    // 설비 2개(좌상 반쪽)
+    [SerializeField] private Image _riHalfTLMask;
+    [SerializeField] private Image _riHalfTLIcon;
+    [SerializeField] private GameObject _riHalfBR;    // 설비 2개(우하 반쪽)
+    [SerializeField] private Image _riHalfBRMask;
+    [SerializeField] private Image _riHalfBRIcon;
+    [SerializeField] private GameObject _riGem;       // 비설비 보상 = 보석 엠블럼
+    [SerializeField] private Image _riGemCoin;
+
+    [Header("열기 애니 - 순차로 펼쳐질 패널들(순서 = 펼침 순서)")]
+    [SerializeField] private CanvasGroup[] _bootPanels;
+
+    // =====================================================================
+    // 런타임 상태
+    // =====================================================================
     private int _lastFitW, _lastFitH;      // 마지막 fit 계산 시 화면 크기(변경 감지용)
     private float _trackW;
     private int _openedFrame = -1;
 
-    private TMP_Text _rateBig, _subLabel, _statusLine, _previewVal, _selName, _selMeta;
-    // 전송률 카드 = 액체 탱크(차오름 + 물결 표면)
-    private UnityEngine.UI.RawImage _rateWave; private Texture2D _rateWaveTex; private Color[] _rateWavePx;
-    private TMP_Text _rateRegionLabel; private float _rateLevelShown;
+    private Texture2D _rateWaveTex; private Color[] _rateWavePx;
+    private float _rateLevelShown;
     private const int RWW = 96, RWH = 72;   // 물 텍스처 해상도
-    private Image _fill; private RectTransform _node, _nodeLabelRT; private TMP_Text _nodeLabel;
-    private RectTransform _sweep, _sweepMaskRT;
-    private Button _sendBtn; private Image _sendBtnImg; private CanvasGroup _sendBtnCg;
+
     private readonly List<RectTransform> _spinRings = new();
-    private readonly List<GameObject> _markers = new();
-    private readonly TMP_Text[] _legendLabels = new TMP_Text[4];   // 구간 레전드 라벨(도달 시 공개)
-    private readonly Image[] _legendDots = new Image[4];
-    private readonly Image[] _legendConns = new Image[4];          // 바 경계 → 레전드로 이어지는 연결선
+    private readonly List<TransmissionMarker> _markers = new();
     private readonly List<KitRow> _kitRows = new();
-    private GameObject _kitListRoot;      // 키트 행이 들어가는 컨테이너(동적 재구성 대상)
-    private GameObject _kitEmptyLabel;    // 보유 키트 0개일 때 안내 라벨
     private int _shownRate;               // 현재 게이지에 표시 중인 전송률(애니 from 기준)
     private bool _mgrSubscribed;          // TransmissionManager 이벤트 구독 여부
-    private GameObject _tooltip; private TMP_Text _ttTitle, _ttName, _ttState; private Image _ttBox; private CanvasGroup _ttCg;
-    private TMP_Text _logText;
-    private RectTransform _cursor;   // 상태 텍스트 끝을 따라가는 깜빡이 커서
-    private readonly List<CanvasGroup> _bootPanels = new();   // 열릴 때 순차로 펼쳐질 패널들
-    private readonly List<Vector2> _bootHome = new();         // 부팅 패널 원위치(슬라이드 인 기준)
+    private readonly List<Vector2> _bootHome = new();   // 부팅 패널 원위치(슬라이드 인 기준)
 
-    // ── 신규 폴리시(전송 연출/미리보기/강조) ──────────────────────────
-    private Image _ghostFill;                          // 선택 키트의 예상 상승 구간을 바 위에 고스트로 표시
-    private float _ghostToPct = -1f;                   // 고스트 목표 %(활성 시 ≥0). Update 가 좌변을 실채움에 맞춰 추적
-    private float _splashT;                            // 전송 직후 탱크 스플래시 진폭 감쇠(1→0)
+    private float _ghostToPct = -1f;      // 고스트 목표 %(활성 시 >=0). Update 가 좌변을 실채움에 맞춰 추적
+    private float _splashT;               // 전송 직후 탱크 스플래시 진폭 감쇠(1->0)
     private readonly float[] _legendBx = new float[4]; // 각 구간 경계 x(현재 구간 강조 배치용)
     private float _legendLy;                           // 레전드 도트 y
-    private RectTransform _legendCurHl;                // 현재 구간 강조 하이라이트 바
 
-    // ── 리워드 리빌(지점 도달 연출) — 가로형 언락 매니페스트 ──────────
-    private GameObject _reward; private CanvasGroup _rewardCg;
-    private RectTransform _rewardCard, _rewardIconTile, _rewardIconHolder, _rewardSweep;
-    private Image _rewardIconBg; private UnityEngine.UI.Outline _rewardIconFrame;
-    private TMP_Text _rewardTitle, _rewardName, _rewardDesc, _rewardHint;
-    private readonly List<Image> _rewardTint = new();            // 리빌 색으로 물들일 장식(악센트/프레임/구분선 등)
-    private Vector2 _cardHome;                                   // 카드 슬라이드 기준 위치
+    private Vector2 _cardHome;            // 리빌 카드 슬라이드 기준 위치
     private Sequence _rewardSeq;
     private struct Reveal { public string title, name, desc; public Color color; public int markerPct; public int order; public bool milestone; }
     private readonly Queue<Reveal> _revealQ = new();
@@ -105,26 +184,47 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        _kr = ResolveFont(krFont, "Pretendard-SemiBold", "Pretendard", "남양주", "GabiaMaeumgyeol");
-        _mono = ResolveFont(monoFont, "JetBrains", "Rajdhani-SemiBold", "Rajdhani", null) ?? _kr;
-        Debug.Log($"[TransmissionUI] 폰트 → 한글: {(_kr != null ? _kr.name : "null")} / 영숫자: {(_mono != null ? _mono.name : "null")}  (krFont지정={(krFont != null ? krFont.name : "none")}, monoFont지정={(monoFont != null ? monoFont.name : "none")})");
+        _warnedMissing = false;
+
+        if (_root == null || _content == null || _trackRT == null)
+        {
+            Debug.LogError("[TransmissionUI] 씬 참조가 비어 있다. 메뉴 Tools/TIMEKOV/전송 컴퓨터 UI 생성 을 실행해라.");
+            return;
+        }
+
         _m = new Model();
         EnsureManager();          // 씬에 매니저 없으면 런타임 생성
         SubscribeManager();       // 전송률/보상/해금 이벤트 구독(닫혀있어도 _shownRate 동기화)
         _shownRate = Mathf.RoundToInt(_m.progress);
-        Build();
+
+        ApplyProceduralTextures();
+        CaptureLayoutConstants();
+        BuildDecor();
+        BuildMarkers();
+        WireButtons();
+
         _root.SetActive(false);
     }
 
+    /// <summary>씬에 있는 전송 컴퓨터 UI 를 돌려준다(없으면 에러 1회). 호출부는 null 을 가드할 것.</summary>
     public static TransmissionComputerUI GetOrCreate()
-        => Instance != null ? Instance : new GameObject("TransmissionComputerUI").AddComponent<TransmissionComputerUI>();
+    {
+        if (Instance == null && !_warnedMissing)
+        {
+            Instance = FindAnyObjectByType<TransmissionComputerUI>(FindObjectsInactive.Include);
+            if (Instance == null)
+            {
+                _warnedMissing = true;
+                Debug.LogError("[TransmissionUI] 씬 Canvas 에 전송 컴퓨터 UI 가 없다. 메뉴 Tools/TIMEKOV/전송 컴퓨터 UI 생성 을 실행해라.");
+            }
+        }
+        return Instance;
+    }
 
     private void OnDestroy()
     {
         UnsubscribeManager();
         if (Instance == this) Instance = null;
-        // _root 는 메인 캔버스 아래에 붙어 있어 이 컴포넌트와 수명이 분리될 수 있으므로 함께 정리(고아 방지).
-        if (_root != null) Destroy(_root);
     }
 
     private void Update()
@@ -134,9 +234,9 @@ public class TransmissionComputerUI : MonoBehaviour
         float dt = Time.unscaledDeltaTime;
         for (int i = 0; i < _spinRings.Count; i++)
             if (_spinRings[i] != null) _spinRings[i].Rotate(0, 0, (i % 2 == 0 ? -1f : 1f) * 9f * dt);
-        if (_splashT > 0f) _splashT = Mathf.Max(0f, _splashT - dt * 0.8f);   // 전송 스플래시 감쇠(≈1.25s)
+        if (_splashT > 0f) _splashT = Mathf.Max(0f, _splashT - dt * 0.8f);   // 전송 스플래시 감쇠(약 1.25s)
         LayoutGhost();   // 고스트 좌변을 실채움에 매 프레임 맞춰 끊김 없이 이어지게
-        // 물 표면 — 매 프레임 텍스처 재생성(진짜 물결 애니메이션).
+        // 물 표면 - 매 프레임 텍스처 재생성(진짜 물결 애니메이션).
         if (_rateWave != null) RegenWater(Time.unscaledTime);
         if (Time.frameCount != _openedFrame && Input.GetKeyDown(KeyCode.F)) Close();
     }
@@ -145,7 +245,7 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         EnsureManager();                      // 다른 씬 등에서 매니저가 없으면 보장
         _root.SetActive(true);
-        _root.transform.SetAsLastSibling();   // 메인 캔버스 내 형제들 위(맨 앞)로
+        transform.SetAsLastSibling();         // 같은 그룹 내 형제들 위(맨 앞)로
         FitContentToRoot();                   // 현재 화면 크기에 맞춰 레이아웃 스케일(해상도 무관 안 잘림)
         _openedFrame = Time.frameCount;
         _m.selectedId = null;
@@ -153,6 +253,7 @@ public class TransmissionComputerUI : MonoBehaviour
         RefreshAll();
         SetGauge(_m.progress, false);
         PlayOpenAnim();
+        StartAmbientTweens();
         GameSfx.Play(SfxId.PanelTransmissionToggle);   // 시간에너지 전송기 열기음
     }
 
@@ -161,56 +262,69 @@ public class TransmissionComputerUI : MonoBehaviour
     public void Close()
     {
         LastCloseFrame = Time.frameCount;
-        GameSfx.Play(SfxId.PanelTransmissionToggle);   // 시간에너지 전송기 닫기음(열/닫 공용 클립)
+        GameSfx.Play(SfxId.PanelTransmissionToggle);   // 닫기음(열/닫 공용 클립)
         GameUIController.Instance?.CloseTransmissionUI();
-        if (_cg == null) { _root.SetActive(false); return; }
+        if (_cg == null) { if (_root != null) _root.SetActive(false); return; }
         KillAll();
         _cg.DOFade(0f, 0.15f).SetUpdate(true);
         _content.DOScale(0.98f, 0.15f).SetUpdate(true).OnComplete(() => { if (_root != null) _root.SetActive(false); });
     }
 
     // =====================================================================
-    // 빌드
+    // 실행 시 준비 (씬에 저장할 수 없는 것들)
     // =====================================================================
-    private void Build()
+    // 절차 텍스처는 에셋이 아니라 메모리 생성물이라 씬에 저장되지 않는다.
+    // 팩토리(UISpriteFactory) 스프라이트는 RuntimeGeneratedSprite 가 알아서 되살리고,
+    // 여기 있는 이 화면 전용 텍스처들만 직접 다시 물린다.
+    private void ApplyProceduralTextures()
     {
-        // 기존 메인 Canvas 안에 들어가도록 그 아래에 붙인다(코어강화 UI 등과 동일 관례).
-        // 절대좌표는 1920×1080 기준 — 메인 캔버스도 동일 기준이라 그대로 맞는다.
-        Transform uiParent = ResolveUIParent();
-        _root = NewGO("TransmissionComputerUI_Root", uiParent); Stretch(_root);
-        // 불투명 백드롭. raycast 차단 + 화면비가 16:9가 아닐 때 생기는 레터박스 여백을
-        // 뒤 게임화면 대신 어둡게 가린다(모달이라 어차피 게임은 정지).
-        _root.AddComponent<Image>().color = C("040810", 1f);
-        _cg = _root.AddComponent<CanvasGroup>();
+        if (_bgRadial != null) _bgRadial.sprite = RadialTex();
+        if (_fill != null) _fill.sprite = HGrad();
+        if (_sweepImg != null) _sweepImg.sprite = SweepTex();
+        if (_scanImg != null) _scanImg.sprite = ScanTile();
+        if (_vignetteImg != null) _vignetteImg.sprite = VignetteTex();
+        if (_sendTri != null) _sendTri.sprite = TriTex();
+        if (_riHalfTLMask != null) _riHalfTLMask.sprite = TriangleSprite(true);
+        if (_riHalfBRMask != null) _riHalfBRMask.sprite = TriangleSprite(false);
 
-        // 해상도/호스트 캔버스 스케일러와 무관하게 1920x1080 레이아웃 전체가 항상 화면 안에 들어오도록,
-        // 루트 실제 크기에 맞춰 통째로 축소(레터박스)하는 래퍼. _content.localScale 은 열기/닫기 애니가
-        // 쓰므로 건드리지 않고 이 래퍼 스케일만 조절한다. FitContentToRoot() 가 Open/해상도변경 시 갱신.
-        _fitWrap = NewRT("FitWrap", _root);
-        _fitWrap.anchorMin = _fitWrap.anchorMax = _fitWrap.pivot = new Vector2(0.5f, 0.5f);
-        _fitWrap.anchoredPosition = Vector2.zero; _fitWrap.sizeDelta = new Vector2(1920, 1080);
-
-        _content = TL(NewGO("Content", _fitWrap), 0, 0, 1920, 1080);
-
-        BuildBackground();
-        BuildHeader();
-        BuildProgress();
-        BuildBody();
-        BuildFooter();
-        BuildTooltip();
-        BuildOverlay();
-        BuildRewardOverlay();
+        if (_rateWave != null)
+        {
+            _rateWaveTex = new Texture2D(RWW, RWH, TextureFormat.RGBA32, false)
+            { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            _rateWavePx = new Color[RWW * RWH];
+            _rateWave.texture = _rateWaveTex;
+        }
     }
 
-    // ── C-0 배경 ──────────────────────────────────────────────────────
-    private void BuildBackground()
+    // 빌드 시점에 계산해두던 상수들을 실물 배치에서 다시 읽는다.
+    private void CaptureLayoutConstants()
     {
-        var bg = Img("BG", _content, 0, 0, 1920, 1080, Color.white, RadialTex());
-        bg.raycastTarget = false;
+        _trackW = _trackRT.rect.width;
+        for (int i = 0; i < 4 && _legendDots != null && i < _legendDots.Length; i++)
+        {
+            if (_legendDots[i] == null) continue;
+            var p = _legendDots[i].rectTransform.anchoredPosition;   // 빌드 때 (bx-5, -ly) 로 배치했다
+            _legendBx[i] = p.x + 5f;
+            _legendLy = -p.y;
+        }
+        _bootHome.Clear();
+        if (_bootPanels != null)
+            foreach (var cg in _bootPanels)
+                _bootHome.Add(cg != null ? ((RectTransform)cg.transform).anchoredPosition : Vector2.zero);
+        if (_rewardCard != null) _cardHome = _rewardCard.anchoredPosition;   // 리빌 카드 슬라이드 기준
+    }
 
-        BuildGrid();
+    // 배경 장식(격자 56 + 크로노링 5 + 코너브래킷 8). 글자가 없어 씬에 두면 하이어라키만 더러워지므로 코드에 남긴다.
+    private void BuildDecor()
+    {
+        if (_decorRoot == null) return;
 
-        // 크로노 링(우상단/좌하단). 점선은 저알파 실선으로 근사, 일부 회전(E-3).
+        var col = C("4CC9F7", 0.03f);
+        const int cell = 56;
+        for (int x = 0; x <= 1920; x += cell) Img("gv", _decorRoot, x, 0, 1, 1080, col).raycastTarget = false;
+        for (int y = 0; y <= 1080; y += cell) Img("gh", _decorRoot, 0, y, 1920, 1, col).raycastTarget = false;
+
+        // 크로노 링(우상단/좌하단). 점선은 저알파 실선으로 근사, 일부 회전.
         AddRing(-140 + 1920 - 620, -180, 620, 0.12f, 3f, false);
         AddRing(-60 + 1920 - 460, -100, 460, 0.16f, 2f, true);
         AddRing(20 + 1920 - 300, -20, 300, 0.08f, 2f, false);
@@ -222,18 +336,9 @@ public class TransmissionComputerUI : MonoBehaviour
         Bracket(26, 1080 - 26 - 34, true, false); Bracket(1920 - 26 - 34, 1080 - 26 - 34, false, false);
     }
 
-    // 규칙적 정사각형 그리드 — 정확히 cell 간격으로 실제 라인을 그린다(타일 텍스처의 스케일 왜곡 방지).
-    private void BuildGrid()
-    {
-        var col = C("4CC9F7", 0.03f);
-        const int cell = 56;
-        for (int x = 0; x <= 1920; x += cell) Img("gv", _content, x, 0, 1, 1080, col).raycastTarget = false;
-        for (int y = 0; y <= 1080; y += cell) Img("gh", _content, 0, y, 1920, 1, col).raycastTarget = false;
-    }
-
     private void AddRing(float x, float y, float d, float a, float th, bool spin)
     {
-        var im = Img("ChronoRing", _content, x, y, d, d, C("4CC9F7", a), UISpriteFactory.Ring((int)Mathf.Min(256, d), th));
+        var im = Img("ChronoRing", _decorRoot, x, y, d, d, C("4CC9F7", a), UISpriteFactory.Ring((int)Mathf.Min(256, d), th));
         im.raycastTarget = false;
         if (spin) _spinRings.Add((RectTransform)im.transform);
     }
@@ -241,160 +346,172 @@ public class TransmissionComputerUI : MonoBehaviour
     private void Bracket(float x, float y, bool left, bool top)
     {
         var col = C("4CC9F7", 0.55f);
-        // 수평 팔
-        Img("brkH", _content, x, top ? y : y + 32, 34, 2, col).raycastTarget = false;
-        // 수직 팔
-        Img("brkV", _content, left ? x : x + 32, y, 2, 34, col).raycastTarget = false;
+        Img("brkH", _decorRoot, x, top ? y : y + 32, 34, 2, col).raycastTarget = false;   // 수평 팔
+        Img("brkV", _decorRoot, left ? x : x + 32, y, 2, 34, col).raycastTarget = false;  // 수직 팔
     }
 
-    // ── C-1 헤더 ──────────────────────────────────────────────────────
-    private void BuildHeader()
+    // 마커 - 보상 걸린 마일스톤마다(불균등: 5/15/25/75 등). TransmissionManager 와 공유.
+    private void BuildMarkers()
     {
-        // 좌측 그룹
-        Img("sysDot", _content, 88, 62, 8, 8, Accent, UISpriteFactory.RoundedRect(16, 4)).raycastTarget = false;
-        Txt("sys", _content, 108, 58, 600, 18, "TIMEKOV // TRANSFER TERMINAL", _mono, 14, C("4CC9F7", 0.75f), TextAlignmentOptions.Left, 3);
-        Txt("title", _content, 86, 84, 900, 62, "시간에너지 전송", _kr, 48, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        _subLabel = Txt("sub", _content, 88, 156, 900, 26, "기지 전송 컴퓨터     현재 구간 설원", _kr, 19, C("E8F2FB", 0.55f), TextAlignmentOptions.Left);
-
-        // 우측 전송률 카드 = 액체 탱크(전송률만큼 구간 색이 차오르고 표면이 물결친다)
-        float cw = 250, cx = 1832 - cw, cy = 40, ch = 182;
-        var card = Img("rateCard", _content, cx, cy, cw, ch, C("0E1728", 0.94f), UISpriteFactory.RoundedRect(48, 16));
-        Outline(card.gameObject, C("4CC9F7", 0.25f));
-        RegisterBootPanel(card.rectTransform);   // 순차 오픈 애니 첫 번째 대상
-        // 라운드 마스크 — 탱크가 카드 모서리 안쪽에서만 차오르게 클리핑
-        var mask = card.gameObject.AddComponent<Mask>(); mask.showMaskGraphic = true;
-
-        // 물 — RawImage + 매 프레임 재생성 텍스처. 표면을 여러 진행파의 합으로 실제 계산(진짜 물결/찰랑임).
-        var waveGo = NewGO("rateWave", card.transform); Stretch(waveGo);
-        _rateWave = waveGo.AddComponent<UnityEngine.UI.RawImage>();
-        _rateWaveTex = new Texture2D(RWW, RWH, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-        _rateWavePx = new Color[RWW * RWH];
-        _rateWave.texture = _rateWaveTex; _rateWave.color = C("5BC7E8", 1f); _rateWave.raycastTarget = false;
-
-        Txt("rateLbl", card.transform, 18, 16, cw - 36, 16, "현재 전송률", _mono, 12, C("E8F2FB", 0.5f), TextAlignmentOptions.Left, 3);
-        _rateBig = Txt("rateBig", card.transform, 0, 50, cw, 92, "42%", _mono, 74, TextBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
-        // 하단 행: 구간 이름(좌) / 목표 칩(우)
-        _rateRegionLabel = Txt("rcBottom", card.transform, 18, ch - 30, cw - 36 - 74, 20, "설원 구간", _mono, 12, C("E8F2FB", 0.6f), TextAlignmentOptions.Left);
-        var goalChip = Img("goalChip", card.transform, cw - 18 - 66, ch - 32, 66, 22, C("5BC7E8", 0f), UISpriteFactory.RoundedRect(40, 11));
-        Outline(goalChip.gameObject, C("5BC7E8", 0.4f));
-        Txt("goalTxt", goalChip.transform, 0, 0, 66, 22, "목표 50%", _mono, 12, AccentSoft2, TextAlignmentOptions.Center);
+        if (_markerTemplate == null) return;
+        float th = _trackRT.rect.height;
+        foreach (int p in TransmissionManager.RewardMilestones)
+        {
+            var mk = Instantiate(_markerTemplate, _trackRT);
+            mk.name = $"MK{p}";
+            mk.gameObject.SetActive(true);
+            var rt = (RectTransform)mk.transform;
+            rt.anchoredPosition = new Vector2(_trackW * p / 100f, th / 2f);
+            mk.Bind(this, p);
+            _markers.Add(mk);
+        }
+        // 진행 노드를 마커보다 위로 - 같은 지점(예: 80%)에서 겹쳐도 노드가 가려지지 않게.
+        if (_node != null) _node.SetAsLastSibling();
     }
 
-    // ── C-2 진행 바 패널 ──────────────────────────────────────────────
-    private void BuildProgress()
+    // 클릭/호버 리스너는 실행 시에 건다(에디터 영속 리스너를 안 만들어야 씬 diff 가 깔끔하다).
+    private void WireButtons()
     {
-        var panel = Panel("progressPanel", 88, 264, 1744, 240);
-        // 헤더 행
-        Txt("pHdr", panel.transform, 44, 20, 300, 18, "TRANSFER PROGRESS", _mono, 13, Accent, TextAlignmentOptions.Left, 3);
-        Img("pLine", panel.transform, 240, 28, 1744 - 44 - 240 - 120, 1, C("4CC9F7", 0.25f)).raycastTarget = false;
-        Txt("p100", panel.transform, 1744 - 44 - 110, 20, 110, 18, "0 - 100%", _mono, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Right);
-
-        // 바 트랙
-        float tx = 44, ty = 66, tw = 1744 - 88, th = 54; _trackW = tw;
-        var track = TL(NewGO("track", panel.transform), tx, ty, tw, th);
-        // 바 본체 — 바깥 4모서리만 라운드(마스크). 안쪽 구간/눈금/채움은 전부 각지게.
-        // (구간마다 RoundedRect 를 쓰면 용암 세그먼트 안쪽 모서리까지 둥글어져 부자연스러웠음 → 마스크로 통일)
-        var body = TL(NewGO("barBody", track), 0, 0, tw, th);
-        var bodyImg = body.gameObject.AddComponent<Image>();
-        bodyImg.sprite = UISpriteFactory.RoundedRect(48, 12); bodyImg.type = Image.Type.Sliced; bodyImg.raycastTarget = false;
-        var bodyMask = body.gameObject.AddComponent<Mask>(); bodyMask.showMaskGraphic = false;
-
-        // 구간 배경 4등분 (전부 각진 사각 — 바깥 라운드는 body 마스크가 처리)
-        for (int i = 0; i < 4; i++)
-        {
-            var seg = Img($"seg{i}", body.gameObject, i * tw / 4f, 0, tw / 4f, th,
-                new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.15f));
-            seg.raycastTarget = false;
-        }
-        // 채움 (마스크 + 그라데이션 이미지, fillAmount 로 클리핑). body 마스크 안이라 왼쪽 끝도 라운드로 잘림.
-        var fillGo = TL(NewGO("fill", body), 0, 0, tw, th);
-        fillGo.gameObject.AddComponent<RectMask2D>();
-        _fill = Img2(NewGO("fillImg", fillGo), HGrad());
-        Stretch(_fill.gameObject); _fill.type = Image.Type.Filled; _fill.fillMethod = Image.FillMethod.Horizontal;
-        _fill.fillOrigin = (int)Image.OriginHorizontal.Left; _fill.fillAmount = 0f; _fill.raycastTarget = false;   // Open 시 SetGauge(실제 전송률)로 채움
-        // 스윕 하이라이트(E-1) — fill 마스크 내부에서 이동
-        _sweepMaskRT = fillGo;
-        _sweep = TL(NewGO("sweep", fillGo), 0, 0, 70, th);
-        var sImg = _sweep.gameObject.AddComponent<Image>(); sImg.sprite = SweepTex(); sImg.color = Color.white; sImg.raycastTarget = false;
-
-        // 고스트 미리보기 — 선택한 키트로 "이만큼 오른다"를 현재 채움 오른쪽에 반투명 구간으로 겹쳐 보여준다.
-        // body 마스크 안이라 바 밖으로 새지 않는다. 위치/폭/색은 RefreshSelection 에서 갱신, 평소 비활성.
-        _ghostFill = Img("ghostFill", body.gameObject, 0, 0, 0, th, new Color(1, 1, 1, 0));
-        _ghostFill.raycastTarget = false; _ghostFill.gameObject.SetActive(false);
-
-        // 세로 눈금선 — 채움 '위'에 그려 채워진(밝은) 구간에서도 경계가 확실히 보이게 한다.
-        // 밝은 채움엔 어두운 심(0.42)으로, 어두운 미채움엔 밝은 하이라이트(0.28)로 — 양쪽 대비를 겹쳐 어디서나 보이게.
-        for (int p = 10; p <= 90; p += 10)
-        {
-            float lx = tw * p / 100f;
-            Img($"tickD{p}", body.gameObject, lx - 1f, 0, 2, th, C("05101C", 0.42f)).raycastTarget = false;
-            Img($"tickL{p}", body.gameObject, lx, 0, 1, th, C("EAF7FF", 0.28f)).raycastTarget = false;
-        }
-
-        // 진행 노드 — 바 한가운데에 들어가는 원형 노브(슬라이더 손잡이) 스타일.
-        _node = NewRT("node", track.gameObject);
-        _node.anchorMin = _node.anchorMax = new Vector2(0, 0.5f); _node.pivot = new Vector2(0.5f, 0.5f);
-        _node.sizeDelta = new Vector2(34, th); _node.anchoredPosition = new Vector2(0f, 0);   // Open 시 SetGauge 로 실제 위치 이동
-        // 노브: 글로우 → 어두운 원판 → 밝은 링 → 코어 (바 중앙). 연결선 없이 노브만으로 위치 표시.
-        var glow = Img("nGlow", _node.gameObject, 0, 0, 30, 30, C("4CC9F7", 0.22f), UISpriteFactory.Disc(48)); CenterIn(glow, _node); glow.raycastTarget = false;
-        var knob = Img("nKnob", _node.gameObject, 0, 0, 20, 20, C("0A1420", 0.98f), UISpriteFactory.Disc(48)); CenterIn(knob, _node); knob.raycastTarget = false;
-        var ring = Img("nRing", _node.gameObject, 0, 0, 20, 20, AccentBright, UISpriteFactory.Ring(48, 3f)); CenterIn(ring, _node); ring.raycastTarget = false;
-        var core = Img("nCore", _node.gameObject, 0, 0, 8, 8, Accent, UISpriteFactory.Disc(24)); CenterIn(core, _node); core.raycastTarget = false;
-        // 펄스(노브 주위 확장 링)
-        var pulse = Img("nPulse", _node.gameObject, 0, 0, 20, 20, C("4CC9F7", 0.5f), UISpriteFactory.Ring(48, 3f)); CenterIn(pulse, _node); pulse.raycastTarget = false;
-        pulse.rectTransform.DOScale(2.3f, 1.2f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
-        pulse.DOFade(0f, 1.2f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
-        // 라벨(바 아래 작은 태그)
-        _nodeLabelRT = TL(NewGO("nLabelWrap", _node), 0, 0, 60, 24);
-        _nodeLabelRT.anchorMin = _nodeLabelRT.anchorMax = new Vector2(0.5f, 0); _nodeLabelRT.pivot = new Vector2(0.5f, 1f);
-        _nodeLabelRT.anchoredPosition = new Vector2(0, -10);
-        var lblBg = _nodeLabelRT.gameObject.AddComponent<Image>(); lblBg.sprite = UISpriteFactory.RoundedRect(16, 8); lblBg.type = Image.Type.Sliced; lblBg.color = C("4CC9F7", 0.16f);
-        Outline(_nodeLabelRT.gameObject, C("4CC9F7", 0.5f));
-        _nodeLabel = Txt("nLbl", _nodeLabelRT.gameObject, 0, 0, 60, 24, "42%", _mono, 14, AccentBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
-        Stretch(_nodeLabel.gameObject);
-
-        // 마커 — 보상 걸린 마일스톤마다(불균등: 5/15/25/75 등). TransmissionManager 와 공유.
-        foreach (int p in TransmissionManager.RewardMilestones) BuildMarker(track.gameObject, p, tw, th);
-        // 진행 노드를 마커보다 위로 — 같은 지점(예: 80%)에서 겹쳐도 노드가 가려지지 않게.
-        _node.SetAsLastSibling();
-
-        // 레전드 — 각 구간이 열리는 % 지점에서 바 하단으로부터 세로 연결선이 내려와 도트+라벨로 이어진다.
-        // 연결선이 바의 구간 경계(=해당 구간 개방 지점)와 세로로 맞물려, 어느 시점에 열리는지 한눈에 보이게 한다.
-        // 라벨/도트/연결선은 진행 도달 여부에 따라 RefreshLegend()에서 공개/??? 처리.
-        float ly = ty + th + 40;              // 레전드 도트 y
-        _legendLy = ly;
-        // 현재 구간 강조 하이라이트 — 도트+라벨 뒤에 깔리는 둥근 바. 위치/표시는 RefreshLegend 에서.
-        _legendCurHl = Img("lgCurHl", panel.transform, 0, ly - 6, 150, 22, C("4CC9F7", 0.10f), UISpriteFactory.RoundedRect(20, 8)).rectTransform;
-        _legendCurHl.gameObject.SetActive(false);
-        for (int i = 0; i < 4; i++)
-        {
-            // 구간 i가 열리는 지점(i*25%)의 바 x. (경계 그대로 — 위치 이동 없음)
-            float bx = tx + i * tw / 4f;
-            _legendBx[i] = bx;
-            // 연결선 상단 y. 자연(0%)은 둥근 좌측 모서리라 바 하단에 붙이면 곡선 아래로 떠 보이므로
-            // 상단만 모서리 안쪽까지 더 끌어올려(길이만 늘려) 바에 닿게 한다. 나머지는 바 하단에 딱 붙임.
-            float connTop = (i == 0) ? ty + th - 14f : ty + th;
-            // 자연은 바 좌측 끝이라 bx-1로 두면 왼쪽으로 삐져나온다 → 연결선만 안쪽으로 붙임(도트·라벨은 그대로).
-            float connX = (i == 0) ? bx : bx - 1f;
-            _legendConns[i] = Img($"lgConn{i}", panel.transform, connX, connTop, 2, ly + 5 - connTop, RegionCol[i]);
-            _legendConns[i].raycastTarget = false;
-            // 연결선 끝 도트(구간 경계 x 중앙)
-            _legendDots[i] = Img($"lgDot{i}", panel.transform, bx - 5, ly, 10, 10, RegionCol[i], UISpriteFactory.Disc(20));
-            _legendDots[i].raycastTarget = false;
-            // 라벨(도트 오른쪽)
-            _legendLabels[i] = Txt($"lg{i}", panel.transform, bx + 12, ly - 2, 160, 18, "???", _mono, 13,
-                new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.88f), TextAlignmentOptions.Left);
-        }
-
-        // 바(track: 노드·노드라벨 포함)를 범례 연결선보다 위로 — 파란 % 라벨이 초록 연결선에 가리지 않게.
-        track.SetAsLastSibling();
+        if (_sendBtn != null) { _sendBtn.onClick.AddListener(OnSend); AddButtonSfx(_sendBtn); }
+        if (_closeBtn != null) { _closeBtn.onClick.AddListener(Close); AddButtonSfx(_closeBtn); }
+        if (_rewardScrimBtn != null) _rewardScrimBtn.onClick.AddListener(SkipReveal);
     }
 
-    // 각 구간 라벨은 해당 구간에 도달(전송률 ≥ 구간 시작 %)해야 공개. 그 전엔 ??? + 흐리게.
+    // 버튼 호버/클릭 사운드 - 씬 세팅 없이 코드로 부착(GameSfx 통합음).
+    //   호버: PointerEnter 시 재생하되 잠긴 버튼(interactable=false)은 무음.
+    //   클릭: onClick 은 interactable 일 때만 발화하므로 그대로 붙이면 잠금 시 자동 무음.
+    private static void AddButtonSfx(Button btn)
+    {
+        if (btn == null) return;
+        var trig = btn.gameObject.GetComponent<EventTrigger>() ?? btn.gameObject.AddComponent<EventTrigger>();
+        var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ => { if (btn.interactable) GameSfx.Play(SfxId.UIButtonHover); });
+        trig.triggers.Add(enter);
+        btn.onClick.AddListener(() => GameSfx.Play(SfxId.UIButtonClick));
+    }
+
+    // 무한 반복 연출(노드 펄스 / 로그 점 / 커서 깜빡임). 열 때 시작하고 닫을 때 죽인다
+    // (빌드 시점에 걸면 닫혀 있는 동안에도 계속 돈다).
+    private void StartAmbientTweens()
+    {
+        if (_nodePulse != null)
+        {
+            var prt = _nodePulse.rectTransform;
+            prt.DOKill(); _nodePulse.DOKill();
+            prt.localScale = Vector3.one; SetGraphicAlpha(_nodePulse, 0.5f);
+            prt.DOScale(2.3f, 1.2f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
+            _nodePulse.DOFade(0f, 1.2f).SetLoops(-1, LoopType.Restart).SetEase(Ease.OutQuad).SetUpdate(true);
+        }
+        if (_logDot != null)
+        {
+            _logDot.DOKill(); SetGraphicAlpha(_logDot, 1f);
+            _logDot.DOFade(0.1f, 0.7f).SetLoops(-1, LoopType.Yoyo).SetUpdate(true);
+        }
+        if (_cursorImg != null)
+        {
+            _cursorImg.DOKill(); SetGraphicAlpha(_cursorImg, 1f);
+            _cursorImg.DOFade(0f, 0.6f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.Linear).SetUpdate(true);
+        }
+    }
+
+    private static void SetGraphicAlpha(Graphic g, float a) { var c = g.color; c.a = a; g.color = c; }
+
+    // =====================================================================
+    // 갱신 / 인터랙션
+    // =====================================================================
+    private void RefreshAll()
+    {
+        _m.RebuildKits();     // 인벤토리 -> 키트 목록 최신화
+        RebuildKitRows();     // 목록에 맞춰 행 재생성 + 시각 상태 갱신
+        RefreshSelection();
+        RefreshStatus();
+        RefreshLog();
+        RefreshMarkers();
+    }
+
+    // 보유 키트 목록에 맞춰 행을 재생성한다(개수/종류가 바뀌므로 매 갱신 시 템플릿을 다시 복제).
+    private void RebuildKitRows()
+    {
+        foreach (var r in _kitRows) if (r.ui != null) Destroy(r.ui.gameObject);
+        _kitRows.Clear();
+        if (_kitListRoot == null || _kitRowTemplate == null) return;
+
+        bool empty = _m.kits.Count == 0;
+        if (_kitEmptyLabel != null) _kitEmptyLabel.SetActive(empty);
+        if (empty) return;
+
+        for (int i = 0; i < _m.kits.Count; i++)
+        {
+            var k = _m.kits[i];
+            var row = Instantiate(_kitRowTemplate, _kitListRoot);
+            row.name = $"kit_{k.id}";
+            row.gameObject.SetActive(true);
+            row.Bind(this, i, k.name, $"+{k.gain}%", k.isBoss, RegionCol[(int)k.region]);
+            _kitRows.Add(new KitRow { kit = k, ui = row });
+        }
+        RefreshKitRows();
+    }
+
+    private void RefreshMarkers()
+    {
+        foreach (var mk in _markers)
+        {
+            if (mk == null) continue;
+            var st = _m.MarkerState(mk.Pct);
+            // 공개된 지점(완료/다음)은 구간 색으로. 잠금은 흐린 회색.
+            Color col = st == MState.Locked ? C("E2EDF8", 0.25f) : RegionColorForPct(mk.Pct);
+            mk.SetState(ToMarkerState(st), col);
+        }
+    }
+
+    private static TransmissionMarker.State ToMarkerState(MState st) => st switch
+    {
+        MState.Done => TransmissionMarker.State.Done,
+        MState.Next => TransmissionMarker.State.Next,
+        _ => TransmissionMarker.State.Locked,
+    };
+
+    private void RefreshKitRows()
+    {
+        foreach (var r in _kitRows)
+        {
+            var ui = r.ui; if (ui == null) continue;
+            bool usable = _m.Usable(r.kit);
+            bool sel = _m.selectedId == r.kit.id;
+            // 행 BG 패널 - 지역별 색 틴트(선택 시 더 진하게 + 테두리 강조).
+            Color rc = RegionCol[(int)r.kit.region];
+            if (ui.background != null) ui.background.color = new Color(rc.r, rc.g, rc.b, sel ? 0.22f : 0.10f);
+            if (ui.rowOutline != null) ui.rowOutline.effectColor = sel ? rc : new Color(rc.r, rc.g, rc.b, 0.28f);
+            if (ui.accentBar != null) ui.accentBar.color = new Color(rc.r, rc.g, rc.b, sel ? 0.95f : 0f);
+            if (ui.nameText != null) ui.nameText.color = usable ? TextBright : C("E8F2FB", 0.35f);
+            if (ui.metaText != null) { ui.metaText.text = KitMeta(r.kit); ui.metaText.color = usable ? C("E8F2FB", 0.45f) : C("E8F2FB", 0.35f); }
+            if (ui.qtyText != null) ui.qtyText.text = $"x{r.kit.qty}";
+            // 불가 행도 호버 툴팁(사유 안내)을 받도록 blocksRaycasts 는 항상 켜두고, 클릭만 interactable 로 차단.
+            if (ui.group != null) { ui.group.alpha = usable ? 1f : 0.4f; ui.group.blocksRaycasts = true; ui.group.interactable = usable; }
+        }
+    }
+
+    private void RefreshSelection()
+    {
+        var k = _m.Selected();
+        _selName.text = k != null ? k.name : "없음";
+        _selMeta.text = k != null ? KitMeta(k) : "목록에서 키트를 클릭";
+        // 예상 전송률
+        string pv; Color pc; bool active;
+        if (k == null) { pv = "키트를 선택하세요"; pc = C("E8F2FB", 0.4f); active = false; }
+        else if (!_m.Usable(k)) { pv = "전송 불가"; pc = C("E8F2FB", 0.4f); active = false; }
+        else { int t = _m.Target(k); int d = t - Mathf.RoundToInt(_m.progress); pv = $"전송 시 {t}% (+{d})"; pc = Accent; active = d > 0; }
+        _previewVal.text = pv; _previewVal.color = pc;
+        _sendBtnImg.color = active ? C("47C4F0") : C("47C4F0", 0.4f);
+        _sendBtnCg.alpha = active ? 1f : 0.5f; _sendBtnCg.blocksRaycasts = active; _sendBtnCg.interactable = active;
+        UpdateGhostPreview(active ? k : null);
+    }
+
+    // 각 구간 라벨은 해당 구간에 도달(전송률 >= 구간 시작 %)해야 공개. 그 전엔 ??? + 흐리게.
     private void RefreshLegend()
     {
         int rate = _m != null ? Mathf.RoundToInt(_m.progress) : 0;
-        int cur = _m != null ? (int)_m.Cur : -1;   // 지금 활성 구간 — 라벨을 굵게 + 뒤에 하이라이트
+        int cur = _m != null ? (int)_m.Cur : -1;   // 지금 활성 구간 - 라벨을 굵게 + 뒤에 하이라이트
         for (int i = 0; i < 4; i++)
         {
             if (_legendLabels[i] == null) continue;
@@ -421,7 +538,7 @@ public class TransmissionComputerUI : MonoBehaviour
                 if (_legendConns[i] != null) _legendConns[i].color = C("E2EDF8", 0.15f);
             }
         }
-        // 현재 구간 하이라이트 바 — 도트~라벨을 감싸도록 배치.
+        // 현재 구간 하이라이트 바 - 도트~라벨을 감싸도록 배치.
         if (_legendCurHl != null)
         {
             bool show = cur >= 0 && rate >= cur * 25;
@@ -429,7 +546,7 @@ public class TransmissionComputerUI : MonoBehaviour
             if (show)
             {
                 var rc = RegionCol[cur];
-                _legendCurHl.GetComponent<Image>().color = new Color(rc.r, rc.g, rc.b, 0.12f);
+                if (_legendCurHlImg != null) _legendCurHlImg.color = new Color(rc.r, rc.g, rc.b, 0.12f);
                 float labW = _legendLabels[cur] != null ? _legendLabels[cur].GetPreferredValues().x : 70f;
                 _legendCurHl.anchoredPosition = new Vector2(_legendBx[cur] - 11, -(_legendLy - 6));
                 _legendCurHl.sizeDelta = new Vector2(labW + 44, 22);
@@ -437,403 +554,9 @@ public class TransmissionComputerUI : MonoBehaviour
         }
     }
 
-    private void BuildMarker(GameObject track, int pct, float tw, float th)
-    {
-        var mk = NewRT($"marker{pct}", track);
-        mk.anchorMin = mk.anchorMax = new Vector2(0, 0.5f); mk.pivot = new Vector2(0.5f, 0.5f);
-        mk.sizeDelta = new Vector2(34, 34); mk.anchoredPosition = new Vector2(tw * pct / 100f, th / 2f);
-
-        var chip = Img("chip", mk.gameObject, 0, 0, 34, 34, C("0F1A2D"), UISpriteFactory.RoundedRect(34, 17));
-        CenterIn(chip, mk);
-        Outline(chip.gameObject, Accent);
-        // 인터랙션(호버)
-        var trg = mk.gameObject.AddComponent<Image>(); trg.color = new Color(0, 0, 0, 0); trg.raycastTarget = true;
-        var hov = mk.gameObject.AddComponent<MarkerHover>(); hov.Init(this, pct, mk);
-
-        _markers.Add(mk.gameObject);
-        mk.gameObject.name = $"MK{pct}";  // 상태 갱신에서 찾기 쉽게
-    }
-
-    // ── C-4 본문 ──────────────────────────────────────────────────────
-    private void BuildBody()
-    {
-        float by = 534, bh = 466, gap = 30;
-        float leftW = (1744 - gap) * 1.5f / 2.5f, rightW = (1744 - gap) - leftW;
-
-        // 좌: 보유 충전 키트
-        var lp = Panel("kitPanel", 88, by, leftW, bh);
-        PanelHeader(lp, leftW, "보유 충전 키트");
-        // 열 헤더 — 각 행의 x9 / +5% 컬럼이 무엇인지 안내. 행 컬럼 x와 맞춰 우측 정렬.
-        // (행 우측 끝 = 스크롤 뷰 우측 끝 = leftW-16. qty: 우측에서 -96,폭60,중앙 / gain: 우측에서 -14,우측정렬)
-        float rowRight = leftW - 16f;
-        Txt("colQty", lp.gameObject, rowRight - 156f, 22, 60, 15, "수량", _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Center, 1);
-        Txt("colGain", lp.gameObject, rowRight - 14f - 130f, 22, 130, 15, "예상 상승률", _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Right, 1);
-        // 컬럼 구분선(이름|수량|상승률) — 짧고 둥근 은은한 세로 바. 행 구분선과 같은 x.
-        Img("colDivH1", lp.gameObject, rowRight - 165f, 14, 2, 28, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1)).raycastTarget = false;
-        Img("colDivH2", lp.gameObject, rowRight - 93f, 14, 2, 28, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1)).raycastTarget = false;
-        // 스크롤 뷰(표준 3단): ScrollRect 루트 → 뷰포트(마스크+레이캐스트) → 콘텐츠(세로 레이아웃+크기 자동).
-        var scrollGo = TL(NewGO("kitScroll", lp.transform), 16, 74, leftW - 32, bh - 90);
-        var scroll = scrollGo.gameObject.AddComponent<ScrollRect>();
-        scroll.horizontal = false; scroll.vertical = true;
-        scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 30f;
-
-        // 뷰포트 — 부모를 꽉 채우고 RectMask2D로 클립. 투명 Image를 둬서 빈 영역도 드래그/휠 레이캐스트가 잡히게.
-        var viewport = NewRT("kitViewport", scrollGo.gameObject); Stretch(viewport.gameObject);
-        var vpImg = viewport.gameObject.AddComponent<Image>(); vpImg.color = new Color(0, 0, 0, 0);
-        viewport.gameObject.AddComponent<RectMask2D>();
-        scroll.viewport = viewport;
-
-        // 콘텐츠 — 가로는 뷰포트 폭에 맞추고(스트레치), 세로는 ContentSizeFitter가 행 합계로 자동. 상단 정렬.
-        var content = NewRT("kitContent", viewport.gameObject);
-        content.anchorMin = new Vector2(0, 1); content.anchorMax = new Vector2(1, 1); content.pivot = new Vector2(0.5f, 1);
-        content.sizeDelta = Vector2.zero; content.anchoredPosition = Vector2.zero;
-        scroll.content = content;
-
-        var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>(); vlg.spacing = 8; vlg.childControlWidth = vlg.childControlHeight = true;
-        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false; vlg.childAlignment = TextAnchor.UpperCenter;
-        var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;   // 콘텐츠 높이를 행 합계로 자동 → 넘치면 스크롤
-        _kitListRoot = content.gameObject;   // 실제 키트 행은 Open()의 RebuildKitRows()에서 인벤토리 기준으로 채움
-
-        // 우: 전송 제어
-        var rp = Panel("ctrlPanel", 88 + leftW + gap, by, rightW, bh);
-        PanelHeader(rp, rightW, "전송 제어");
-        float ix = 24, iw = rightW - 48, iy = 74;
-        var selCard = Card(rp.transform, ix, iy, iw, 84, C("E8F2FB", 0.04f), C("E8F2FB", 0.08f));
-        Txt("selLbl", selCard.transform, 18, 14, iw - 36, 16, "선택된 키트", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
-        _selName = Txt("selName", selCard.transform, 18, 32, iw - 36, 28, "없음", _kr, 22, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        _selMeta = Txt("selMeta", selCard.transform, 18, 60, iw - 36, 20, "목록에서 키트를 클릭", _kr, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
-
-        iy += 84 + 12;   // 카드 간 세로 간격 12로 통일
-        var pvCard = Card(rp.transform, ix, iy, iw, 84, C("4CC9F7", 0.06f), C("4CC9F7", 0.2f));
-        Txt("pvLbl", pvCard.transform, 18, 14, iw - 36, 16, "예상 전송률", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
-        _previewVal = Txt("pvVal", pvCard.transform, 18, 36, iw - 36, 36, "키트를 선택하세요", _kr, 30, C("E8F2FB", 0.4f), TextAlignmentOptions.Left, 0, FontStyles.Normal);
-
-        // 버튼 행 + 로그 (패널 로컬 좌표: 아래에서부터 로그→버튼)
-        float logH = 110;
-        float logY = bh - 16 - logH;
-        float btnY = logY - 12 - 62;   // 버튼↔로그 간격도 12로 통일
-        float sendW = iw - 130 - 14;
-        var send = Img("sendBtn", rp.transform, ix, btnY, sendW, 62, C("47C4F0"), UISpriteFactory.RoundedRect(48, 12));
-        _sendBtnImg = send; _sendBtn = send.gameObject.AddComponent<Button>(); _sendBtn.targetGraphic = send;
-        _sendBtn.navigation = new Navigation { mode = Navigation.Mode.None };
-        _sendBtn.onClick.AddListener(OnSend); _sendBtnCg = send.gameObject.AddComponent<CanvasGroup>();
-        AddButtonSfx(_sendBtn);
-        Outline(send.gameObject, C("FFFFFF", 0.35f));
-        var tri = Img("sendTri", send.gameObject, 0, 0, 15, 16, C("06202E"), TriTex());
-        tri.rectTransform.anchorMin = tri.rectTransform.anchorMax = tri.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        tri.rectTransform.anchoredPosition = new Vector2(-34, 0); tri.raycastTarget = false;
-        Txt("sendTxt", send.gameObject, 0, 0, sendW, 62, "전송", _mono, 22, C("06202E"), TextAlignmentOptions.Center, 0, FontStyles.Bold)
-            .rectTransform.anchoredPosition += new Vector2(12, 0);
-
-        var close = Img("closeBtn", rp.transform, ix + sendW + 14, btnY, 130, 62, C("E8F2FB", 0.07f), UISpriteFactory.RoundedRect(48, 12));
-        var cb = close.gameObject.AddComponent<Button>(); cb.targetGraphic = close; cb.navigation = new Navigation { mode = Navigation.Mode.None };
-        cb.onClick.AddListener(Close); AddButtonSfx(cb); Outline(close.gameObject, C("E2EDF8", 0.25f));
-        Txt("closeTxt", close.gameObject, 0, 0, 130, 62, "닫기 ESC", _mono, 18, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
-
-        // 이벤트 로그 (헤더 아래 로그 라인 — 위/아래 여백 균등)
-        var logBox = Img("txLog", rp.transform, ix, logY, iw, logH, C("070C17", 0.7f), UISpriteFactory.RoundedRect(48, 12));
-        Outline(logBox.gameObject, C("4CC9F7", 0.15f));
-        var lgDot = Img("logDot", logBox.transform, 15, 13, 6, 6, Accent, UISpriteFactory.Disc(12));
-        lgDot.DOFade(0.1f, 0.7f).SetLoops(-1, LoopType.Yoyo).SetUpdate(true);
-        Txt("logHdr", logBox.transform, 28, 11, iw - 40, 14, "SYSTEM LOG", _mono, 11, C("4CC9F7", 0.6f), TextAlignmentOptions.Left, 2);
-        _logText = Txt("logLines", logBox.transform, 15, 34, iw - 30, logH - 34 - 8, "", _mono, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.TopLeft);
-    }
-
-    // 버튼 호버/클릭 사운드 — 씬 세팅 없이 코드로 부착(GameSfx 통합음).
-    //   호버: PointerEnter 시 재생하되 잠긴 버튼(interactable=false)은 무음.
-    //   클릭: onClick 은 interactable 일 때만 발화하므로 그대로 붙이면 잠금 시 자동 무음.
-    private static void AddButtonSfx(Button btn)
-    {
-        if (btn == null) return;
-        var trig = btn.gameObject.GetComponent<EventTrigger>() ?? btn.gameObject.AddComponent<EventTrigger>();
-        var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-        enter.callback.AddListener(_ => { if (btn.interactable) GameSfx.Play(SfxId.UIButtonHover); });
-        trig.triggers.Add(enter);
-        btn.onClick.AddListener(() => GameSfx.Play(SfxId.UIButtonClick));
-    }
-
-    private KitRow BuildKitRow(GameObject parent, Kit k)
-    {
-        var go = NewGO($"kit_{k.id}", parent.transform);
-        go.AddComponent<LayoutElement>().minHeight = 66;
-        var cg = go.AddComponent<CanvasGroup>();   // 생성 시 부착(런타임 GetComponent??Add 함정 회피)
-        var bg = go.AddComponent<Image>(); bg.sprite = UISpriteFactory.RoundedRect(24, 12); bg.type = Image.Type.Sliced; bg.color = new Color(0, 0, 0, 0);
-        var btn = go.AddComponent<Button>(); btn.targetGraphic = bg; btn.navigation = new Navigation { mode = Navigation.Mode.None };
-        btn.onClick.AddListener(() => OnKitClick(k));
-        AddButtonSfx(btn);   // 키트 행 호버/클릭음(잠긴 행은 클릭음 자동 무음)
-        var outline = go.AddComponent<UnityEngine.UI.Outline>(); outline.effectColor = new Color(0, 0, 0, 0); outline.effectDistance = new Vector2(1, -1);
-        // 행 호버 시 사용 여부/사유 툴팁
-        go.AddComponent<KitRowHover>().Init(this, k, (RectTransform)go.transform);
-
-        // 아이콘 웰 — 지역 색 틴트(보스는 더 진하게) + 등급 글리프(일반=사각 / 보스=마름모+링)
-        var rc = RegionCol[(int)k.region];
-        // 선택 강조용 좌측 악센트 바(지역 색). 평소 투명, 선택 시 색이 차오르며 살짝 슬라이드 인.
-        var accent = Img("kAccent", go, 6, 12, 4, 42, new Color(rc.r, rc.g, rc.b, 0f), UISpriteFactory.RoundedRect(4, 2));
-        accent.raycastTarget = false;
-        var well = Img("well", go, 20, 14, 38, 38, new Color(rc.r, rc.g, rc.b, k.isBoss ? 0.20f : 0.09f), UISpriteFactory.RoundedRect(24, 10));
-        Outline(well.gameObject, new Color(rc.r, rc.g, rc.b, k.isBoss ? 0.7f : 0.3f));
-        BuildKitGlyph(well.gameObject, rc, k.isBoss);
-        // 이름/메타
-        var name = Txt("kName", go, 74, 12, 400, 26, k.name, _kr, 20, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        var meta = Txt("kMeta", go, 74, 40, 500, 18, KitMeta(k), _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left);
-        // 수량/상승률 (우측)
-        var qty = Txt("kQty", go, 0, 0, 60, 30, $"x{k.qty}", _mono, 18, C("E8F2FB", 0.7f), TextAlignmentOptions.Center);
-        qty.rectTransform.anchorMin = qty.rectTransform.anchorMax = new Vector2(1, 0.5f); qty.rectTransform.pivot = new Vector2(1, 0.5f); qty.rectTransform.anchoredPosition = new Vector2(-96, 0);
-        var gain = Txt("kGain", go, 0, 0, 74, 30, $"+{k.gain}%", _mono, 18, Accent, TextAlignmentOptions.Right, 0, FontStyles.Bold);
-        gain.rectTransform.anchorMin = gain.rectTransform.anchorMax = new Vector2(1, 0.5f); gain.rectTransform.pivot = new Vector2(1, 0.5f); gain.rectTransform.anchoredPosition = new Vector2(-14, 0);
-        // 컬럼 구분선(이름|수량|상승률) — 헤더와 동일 x, 짧고 둥근 은은한 세로 바
-        ColDivider(go, -164f); ColDivider(go, -92f);
-
-        return new KitRow { kit = k, go = go, bg = bg, outline = outline, cg = cg, name = name, meta = meta, qty = qty, gain = gain, well = well, accent = accent };
-    }
-
-    // 행 컬럼 구분선 — 우측 끝 기준 xFromRight 위치에 세로 중앙 정렬된 짧고 둥근 바.
-    private void ColDivider(GameObject row, float xFromRight)
-    {
-        var im = Img("colDiv", row, 0, 0, 2, 34, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1));
-        var rt = im.rectTransform;
-        rt.anchorMin = rt.anchorMax = new Vector2(1, 0.5f); rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = new Vector2(xFromRight, 0); im.raycastTarget = false;
-    }
-
-    // 키트 아이콘 글리프 — 지역 색으로, 등급별 형태 구분(일반=둥근 사각 / 보스=마름모+링 '엘리트').
-    private void BuildKitGlyph(GameObject well, Color rc, bool isBoss)
-    {
-        if (isBoss)
-        {
-            MarkerIcon("kgRing", well, 22, 22, new Color(rc.r, rc.g, rc.b, 0.55f), UISpriteFactory.Ring(48, 2.5f));
-            MarkerIcon("kgGem", well, 12, 12, rc, UISpriteFactory.RoundedRect(8, 3), 45f);
-            MarkerIcon("kgHl", well, 3.5f, 3.5f, C("FFFFFF", 0.8f), UISpriteFactory.Disc(16), 0f, new Vector2(-1.5f, 1.5f));
-        }
-        else
-        {
-            MarkerIcon("kgSq", well, 13, 13, new Color(rc.r, rc.g, rc.b, 0.9f), UISpriteFactory.RoundedRect(12, 3));
-        }
-    }
-
-    private void BuildFooter()
-    {
-        _statusLine = Txt("status", _content, 88, 1010, 1200, 22, "", _mono, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
-        // 커서 높이 18, 상태 텍스트(y=1010, h=22, 세로 중앙) 중심(=1021)에 맞춰 y=1012 배치.
-        var cursor = Img("cursor", _content, 88 + 470, 1012, 9, 18, Accent, UISpriteFactory.RoundedRect(8, 2));
-        cursor.raycastTarget = false; _cursor = cursor.rectTransform;   // 상태 텍스트 끝으로 따라오도록 참조 저장
-        cursor.DOFade(0f, 0.6f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.Linear).SetUpdate(true);
-    }
-
-    // 상태 텍스트 실제 폭을 재서 커서를 그 끝 바로 옆에 배치.
-    private void PositionCursor()
-    {
-        if (_cursor == null || _statusLine == null) return;
-        float w = _statusLine.GetPreferredValues(_statusLine.text).x;
-        _cursor.anchoredPosition = new Vector2(88 + w + 10, _cursor.anchoredPosition.y);
-    }
-
-    private void KeyHint(float x, float y, float w, string t)
-    {
-        var h = Img("hint", _content, x, y, w, 26, new Color(0, 0, 0, 0), UISpriteFactory.RoundedRect(16, 7));
-        Outline(h.gameObject, C("E2EDF8", 0.2f));
-        Txt("hintTxt", h.transform, 0, 0, w, 26, t, _mono, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
-    }
-
-    private void BuildTooltip()
-    {
-        _tooltip = NewGO("tooltip", _content.transform);
-        var rt = _tooltip.GetComponent<RectTransform>() ?? _tooltip.AddComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = new Vector2(0, 1); rt.pivot = new Vector2(0.5f, 0f); rt.sizeDelta = new Vector2(264, 96);
-        _ttBox = _tooltip.AddComponent<Image>(); _ttBox.sprite = UISpriteFactory.RoundedRect(48, 12); _ttBox.type = Image.Type.Sliced; _ttBox.color = C("101A2D", 0.98f);
-        _ttBox.raycastTarget = false; Outline(_tooltip, Accent);
-        _ttTitle = Txt("ttT", _tooltip, 17, 14, 230, 16, "", _mono, 12, Accent, TextAlignmentOptions.Left, 2);
-        _ttName = Txt("ttN", _tooltip, 17, 33, 230, 24, "", _kr, 17, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        _ttState = Txt("ttS", _tooltip, 17, 62, 230, 20, "", _kr, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.Left);
-        _ttCg = _tooltip.AddComponent<CanvasGroup>(); _ttCg.blocksRaycasts = false;
-        _tooltip.SetActive(false);
-    }
-
-    private void BuildOverlay()
-    {
-        var scan = Img("scan", _content, 0, 0, 1920, 1080, C("78C8FF", 0.03f), ScanTile());
-        scan.type = Image.Type.Tiled; scan.raycastTarget = false;
-        var vig = Img("vignette", _content, 0, 0, 1920, 1080, Color.white, VignetteTex());
-        vig.raycastTarget = false;
-    }
-
-    // ── 리워드 리빌 오버레이(지점 도달 연출용, 평소 비활성) ────────────
-    private void BuildRewardOverlay()
-    {
-        _reward = TL(NewGO("RewardReveal", _content.transform), 0, 0, 1920, 1080).gameObject;
-        _rewardCg = _reward.AddComponent<CanvasGroup>();
-
-        // 스크림 — 배경을 어둡게 + 클릭 시 스킵
-        var scrim = Img("rwScrim", _reward, 0, 0, 1920, 1080, C("040810", 0.62f));
-        scrim.raycastTarget = true;
-        var sbtn = scrim.gameObject.AddComponent<Button>();
-        sbtn.transition = Selectable.Transition.None; sbtn.navigation = new Navigation { mode = Navigation.Mode.None };
-        sbtn.onClick.AddListener(SkipReveal);
-
-        // 가로형 매니페스트 카드(화면 중앙, 슬라이드 인). RectMask2D 로 스윕 하이라이트를 카드 안에 가둔다.
-        const float PW = 780, PH = 176, X0 = 190;
-        _rewardCard = NewRT("rwCard", _reward);
-        _rewardCard.anchorMin = _rewardCard.anchorMax = _rewardCard.pivot = new Vector2(0.5f, 0.5f);
-        _rewardCard.sizeDelta = new Vector2(PW, PH); _rewardCard.anchoredPosition = Vector2.zero;
-        _cardHome = Vector2.zero;
-        _rewardTint.Clear();
-
-        var bg = _rewardCard.gameObject.AddComponent<Image>();
-        bg.sprite = UISpriteFactory.RoundedRectVGrad(C("14243A"), C("0A1421"), 64, 18); bg.type = Image.Type.Sliced;
-        bg.color = new Color(1, 1, 1, 0.99f); bg.raycastTarget = false;
-        var cardOutline = _rewardCard.gameObject.AddComponent<UnityEngine.UI.Outline>();
-        cardOutline.effectColor = new Color(1, 1, 1, 0.06f); cardOutline.effectDistance = new Vector2(1.2f, -1.2f);
-        _rewardCard.gameObject.AddComponent<RectMask2D>();   // 스윕/자식 클리핑
-
-        // 좌측 악센트 바(구간 색) — 라운드 코너 안쪽으로 살짝 들여 각진 nub 방지
-        _rewardTint.Add(Img("rwAccent", _rewardCard.gameObject, 14, 22, 6, PH - 44, Success, UISpriteFactory.RoundedRect(6, 3)));
-
-        // 아이콘 타일(구간 색 배경 + 프레임 + 타입별 아이콘)
-        float tS = 116, tX = 30, tY = (PH - tS) / 2f;
-        _rewardIconTile = TL(NewGO("rwTile", _rewardCard), tX, tY, tS, tS);
-        _rewardIconBg = _rewardIconTile.gameObject.AddComponent<Image>();
-        _rewardIconBg.sprite = UISpriteFactory.RoundedRect(40, 18); _rewardIconBg.type = Image.Type.Sliced; _rewardIconBg.color = C("5FDD9D", 0.14f); _rewardIconBg.raycastTarget = false;
-        _rewardIconFrame = _rewardIconTile.gameObject.AddComponent<UnityEngine.UI.Outline>();
-        _rewardIconFrame.effectColor = Success; _rewardIconFrame.effectDistance = new Vector2(1.4f, -1.4f);
-        _rewardIconHolder = NewRT("rwIcon", _rewardIconTile.gameObject);   // 아이콘은 PlayReveal 에서 타입별로 채운다
-        _rewardIconHolder.anchorMin = _rewardIconHolder.anchorMax = _rewardIconHolder.pivot = new Vector2(0.5f, 0.5f);
-        _rewardIconHolder.sizeDelta = new Vector2(28, 28); _rewardIconHolder.anchoredPosition = Vector2.zero;
-        _rewardIconHolder.localScale = Vector3.one * 2.6f;
-
-        // 세로 구분선
-        Img("rwDiv", _rewardCard.gameObject, X0 - 24, 34, 1, PH - 68, C("E8F2FB", 0.10f)).raycastTarget = false;
-
-        // 텍스트 블록(우측)
-        _rewardTitle = Txt("rwTitle", _rewardCard.gameObject, X0, 34, PW - X0 - 40, 20, "", _mono, 13, Success, TextAlignmentOptions.Left, 3, FontStyles.Bold);
-        _rewardName  = Txt("rwName", _rewardCard.gameObject, X0, 58, PW - X0 - 40, 46, "", _kr, 32, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        _rewardDesc  = Txt("rwDesc", _rewardCard.gameObject, X0, 112, PW - X0 - 40, 42, "", _kr, 15, C("E8F2FB", 0.66f), TextAlignmentOptions.TopLeft);
-        _rewardDesc.textWrappingMode = TextWrappingModes.Normal;
-
-        // 클릭 힌트(우하단). 특수 글리프(삼각형 등)는 폰트 아틀라스에 없어 깨지므로(스펙 F-3) 순수 텍스트만.
-        _rewardHint = Txt("rwHint", _rewardCard.gameObject, PW - 210, PH - 30, 190, 18, "클릭하여 계속", _mono, 12, C("E8F2FB", 0.42f), TextAlignmentOptions.Right, 2);
-
-        // 스윕 하이라이트(등장 시 좌→우로 한 번 지나감). 카드 마스크로 양끝 클리핑.
-        _rewardSweep = TL(NewGO("rwSweep", _rewardCard), 0, 0, 90, PH);
-        var sw = _rewardSweep.gameObject.AddComponent<Image>(); sw.color = new Color(1, 1, 1, 0.06f); sw.raycastTarget = false;
-
-        _reward.SetActive(false);
-    }
-
-    // =====================================================================
-    // 갱신 / 인터랙션
-    // =====================================================================
-    private void RefreshAll()
-    {
-        _m.RebuildKits();     // 인벤토리 → 키트 목록 최신화
-        RebuildKitRows();     // 목록에 맞춰 행 재생성 + 시각 상태 갱신
-        RefreshSelection();
-        RefreshStatus();
-        RefreshLog();
-        RefreshMarkers();
-    }
-
-    // 보유 키트 목록에 맞춰 행을 재생성한다(개수/종류가 바뀌므로 매 갱신 시 다시 만든다).
-    private void RebuildKitRows()
-    {
-        foreach (var r in _kitRows) if (r != null && r.go != null) Destroy(r.go);
-        _kitRows.Clear();
-        if (_kitEmptyLabel != null) { Destroy(_kitEmptyLabel); _kitEmptyLabel = null; }
-        if (_kitListRoot == null) return;
-
-        if (_m.kits.Count == 0)
-        {
-            // 빈 상태 안내 — 작은 글리프(빈 슬롯) + 텍스트. 레이아웃 자식이라 LayoutElement 로 높이 확보,
-            // 내부 요소는 컨테이너 중앙에 절대 배치(레이아웃이 컨테이너만 제어).
-            var go = NewGO("kitEmpty", _kitListRoot.transform);
-            go.AddComponent<LayoutElement>().minHeight = 128;
-
-            // 빈 슬롯 아이콘: 은은한 둥근 사각 프레임 + 중앙 '비어있음' 바
-            var box = Img("emptyBox", go, 0, 0, 48, 48, C("4CC9F7", 0.05f), UISpriteFactory.RoundedRect(28, 10));
-            var brt = box.rectTransform; brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 1f);
-            brt.anchoredPosition = new Vector2(0, -16); box.raycastTarget = false;
-            Outline(box.gameObject, C("4CC9F7", 0.18f));
-            var bar = Img("emptyBar", box.gameObject, 0, 0, 20, 3, C("9FDCF9", 0.45f), UISpriteFactory.RoundedRect(6, 1));
-            bar.rectTransform.anchorMin = bar.rectTransform.anchorMax = bar.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            bar.rectTransform.anchoredPosition = Vector2.zero; bar.raycastTarget = false;
-
-            var tt = NewRT("emptyTxt", go); tt.anchorMin = tt.anchorMax = tt.pivot = new Vector2(0.5f, 1f);
-            tt.anchoredPosition = new Vector2(0, -80); tt.sizeDelta = new Vector2(320, 24);
-            var t = tt.gameObject.AddComponent<TextMeshProUGUI>();
-            if (_kr != null) t.font = _kr;
-            t.text = "보유한 충전키트가 없습니다.";
-            t.fontSize = 15; t.color = C("E8F2FB", 0.4f); t.alignment = TextAlignmentOptions.Center;
-            t.textWrappingMode = TextWrappingModes.NoWrap; t.raycastTarget = false;
-            _kitEmptyLabel = go;
-            return;
-        }
-        foreach (var k in _m.kits) _kitRows.Add(BuildKitRow(_kitListRoot, k));
-        RefreshKitRows();
-    }
-
-    private void RefreshMarkers()
-    {
-        foreach (var mk in _markers)
-        {
-            if (mk == null) continue;
-            int pct = int.Parse(mk.name.Substring(2));
-            var st = _m.MarkerState(pct);
-            // 공개된 지점(완료/다음)은 링·스템·아이콘 모두 구간 색으로. 잠금은 기존대로 흐린 회색 유지.
-            Color col = st == MState.Locked ? C("E2EDF8", 0.25f) : RegionColorForPct(pct);
-            var chip = mk.transform.Find("chip")?.GetComponent<Image>();
-            if (chip != null)
-            {
-                var ol = chip.GetComponent<UnityEngine.UI.Outline>(); if (ol != null) ol.effectColor = col;
-            }
-            var stem = mk.transform.Find("stem")?.GetComponent<Image>(); if (stem != null) stem.color = new Color(col.r, col.g, col.b, 0.5f);
-            // 아이콘: done=보석(젬) / next=타깃(조준) / locked="?"
-            var iconHolder = mk.transform.Find("iconHolder");
-            if (iconHolder != null) Destroy(iconHolder.gameObject);
-            var ih = NewRT("iconHolder", mk); CenterIn2(ih, (RectTransform)mk.transform); ih.sizeDelta = new Vector2(18, 18);
-            if (st == MState.Done) BuildGem(ih.gameObject, col);
-            else if (st == MState.Next) BuildTarget(ih.gameObject, col);
-            else Txt("q", ih.gameObject, 0, 0, 18, 18, "?", _mono, 14, col, TextAlignmentOptions.Center);
-        }
-    }
-
-    private void RefreshKitRows()
-    {
-        foreach (var r in _kitRows)
-        {
-            bool usable = _m.Usable(r.kit);
-            bool sel = _m.selectedId == r.kit.id;
-            // 행 BG 패널 — 지역별 색 틴트(선택 시 더 진하게 + 테두리 강조).
-            Color rc = RegionCol[(int)r.kit.region];
-            r.bg.color = new Color(rc.r, rc.g, rc.b, sel ? 0.22f : 0.10f);
-            r.outline.effectColor = sel ? rc : new Color(rc.r, rc.g, rc.b, 0.28f);
-            if (r.accent != null) r.accent.color = new Color(rc.r, rc.g, rc.b, sel ? 0.95f : 0f);
-            r.name.color = usable ? TextBright : C("E8F2FB", 0.35f);
-            r.meta.text = KitMeta(r.kit); r.meta.color = usable ? C("E8F2FB", 0.45f) : C("E8F2FB", 0.35f);
-            r.qty.text = $"x{r.kit.qty}";
-            // 불가 행도 호버 툴팁(사유 안내)을 받도록 blocksRaycasts 는 항상 켜두고, 클릭만 interactable 로 차단.
-            r.cg.alpha = usable ? 1f : 0.4f; r.cg.blocksRaycasts = true; r.cg.interactable = usable;
-        }
-    }
-
-    private void RefreshSelection()
-    {
-        var k = _m.Selected();
-        _selName.text = k != null ? k.name : "없음";
-        _selMeta.text = k != null ? KitMeta(k) : "목록에서 키트를 클릭";
-        // 예상 전송률
-        string pv; Color pc; bool active;
-        if (k == null) { pv = "키트를 선택하세요"; pc = C("E8F2FB", 0.4f); active = false; }
-        else if (!_m.Usable(k)) { pv = "전송 불가"; pc = C("E8F2FB", 0.4f); active = false; }
-        else { int t = _m.Target(k); int d = t - Mathf.RoundToInt(_m.progress); pv = $"전송 시 {t}% (+{d})"; pc = Accent; active = d > 0; }
-        _previewVal.text = pv; _previewVal.color = pc;
-        _sendBtnImg.color = active ? C("47C4F0") : C("47C4F0", 0.4f);
-        _sendBtnCg.alpha = active ? 1f : 0.5f; _sendBtnCg.blocksRaycasts = active; _sendBtnCg.interactable = active;
-        UpdateGhostPreview(active ? k : null);
-    }
-
-    // 바 위 고스트 미리보기 — 현재 채움 오른쪽에 "예상 상승 구간"을 반투명으로 겹쳐 은은하게 점멸.
+    // 바 위 고스트 미리보기 - 현재 채움 오른쪽에 "예상 상승 구간"을 반투명으로 겹쳐 은은하게 점멸.
     // 좌변은 매 프레임(Update)의 실채움 위치에 맞춰 따라가므로, 게이지가 차오르는 동안에도
-    // 실채움 → 고스트가 끊김 없이 이어진다(빈 칸 없음).
+    // 실채움 -> 고스트가 끊김 없이 이어진다(빈 칸 없음).
     private void UpdateGhostPreview(Kit k)
     {
         if (_ghostFill == null) return;
@@ -876,6 +599,7 @@ public class TransmissionComputerUI : MonoBehaviour
         PositionCursor();
         RefreshLegend();
     }
+
     private void RefreshLog()
     {
         var sb = new System.Text.StringBuilder();
@@ -884,21 +608,32 @@ public class TransmissionComputerUI : MonoBehaviour
         _logText.text = sb.ToString().TrimEnd();
     }
 
-    private void OnKitClick(Kit k)
+    // 상태 텍스트 실제 폭을 재서 커서를 그 끝 바로 옆에 배치.
+    private void PositionCursor()
     {
+        if (_cursor == null || _statusLine == null) return;
+        float w = _statusLine.GetPreferredValues(_statusLine.text).x;
+        _cursor.anchoredPosition = new Vector2(88 + w + 10, _cursor.anchoredPosition.y);
+    }
+
+    /// <summary>키트 행 클릭(TransmissionKitRow 가 부른다).</summary>
+    public void OnKitRowClicked(int index)
+    {
+        if (index < 0 || index >= _kitRows.Count) return;
+        var k = _kitRows[index].kit;
         if (!_m.Usable(k)) return;
         _m.selectedId = _m.selectedId == k.id ? null : k.id;
         RefreshKitRows(); RefreshSelection();
-        // 선택된 행에 클릭 피드백 — 살짝 팝(scale punch) + 악센트 바 슬라이드 인.
+        // 선택된 행에 클릭 피드백 - 살짝 팝(scale punch) + 악센트 바 슬라이드 인.
         foreach (var r in _kitRows)
         {
-            if (r == null || r.go == null || r.kit.id != _m.selectedId) continue;
-            var rt = (RectTransform)r.go.transform;
+            if (r.ui == null || r.kit.id != _m.selectedId) continue;
+            var rt = (RectTransform)r.ui.transform;
             rt.DOKill(); rt.localScale = Vector3.one;
             rt.DOPunchScale(new Vector3(0.015f, 0.06f, 0f), 0.28f, 8, 0.7f).SetUpdate(true);
-            if (r.accent != null)
+            if (r.ui.accentBar != null)
             {
-                var art = r.accent.rectTransform;
+                var art = r.ui.accentBar.rectTransform;
                 art.DOKill(); art.localScale = new Vector3(1f, 0.2f, 1f);
                 art.DOScaleY(1f, 0.24f).SetEase(Ease.OutBack).SetUpdate(true);
             }
@@ -911,9 +646,9 @@ public class TransmissionComputerUI : MonoBehaviour
         var k = _m.Selected(); if (k == null || !_m.Usable(k)) return;
         string kn = k.name; int from = Mathf.RoundToInt(_m.progress);
         // 매니저가 키트 소모 + 전송률 상승 + 토스트 + 이벤트 처리.
-        // 전송률 상승은 OnRateChanged → HandleRateChanged 에서 게이지/목록/마커를 갱신한다.
+        // 전송률 상승은 OnRateChanged -> HandleRateChanged 에서 게이지/목록/마커를 갱신한다.
         if (!_m.Send(k)) return;
-        // 전송 버튼 클릭 피드백 — 살짝 눌리는 팝.
+        // 전송 버튼 클릭 피드백 - 살짝 눌리는 팝.
         if (_sendBtnImg != null)
         {
             var brt = _sendBtnImg.rectTransform; brt.DOKill(); brt.localScale = Vector3.one;
@@ -924,7 +659,7 @@ public class TransmissionComputerUI : MonoBehaviour
     }
 
     // ── TransmissionManager 이벤트 ────────────────────────────────────
-    // 씬에 매니저가 없으면(다른 씬에서 열릴 때 등) 런타임 생성 — 기본 키트 정의 사용.
+    // 씬에 매니저가 없으면(다른 씬에서 열릴 때 등) 런타임 생성 - 기본 키트 정의 사용.
     private static void EnsureManager()
     {
         if (TransmissionManager.Instance != null) return;
@@ -947,7 +682,7 @@ public class TransmissionComputerUI : MonoBehaviour
         _mgrSubscribed = false;
     }
 
-    // 전송률 변화(전송 성공 / F3 등 외부 변경 공통 경로) — 게이지 애니 + 전체 갱신.
+    // 전송률 변화(전송 성공 / F3 등 외부 변경 공통 경로) - 게이지 애니 + 전체 갱신.
     private void HandleRateChanged(int newRate)
     {
         if (!IsOpen) { _shownRate = newRate; return; }   // 닫혀있으면 값만 저장(재열 때 반영)
@@ -957,7 +692,7 @@ public class TransmissionComputerUI : MonoBehaviour
         _m.RebuildKits(); RebuildKitRows(); RefreshSelection(); RefreshStatus();
         // 전송으로 상승하면 탱크에 한 번 스플래시가 튄다(Update 에서 감쇠).
         if (newRate > oldRate) _splashT = 1f;
-        // 게이지가 도착할 즈음(≈0.9s) 마커/레전드 갱신 + 이번에 새로 넘긴 지점 강조.
+        // 게이지가 도착할 즈음(약 0.9s) 마커/레전드 갱신 + 이번에 새로 넘긴 지점 강조.
         DOVirtual.DelayedCall(0.9f, () =>
         {
             RefreshMarkers();
@@ -978,6 +713,7 @@ public class TransmissionComputerUI : MonoBehaviour
         rt.DOKill();
         rt.DOPunchScale(Vector3.one * 0.9f, 0.5f, 8, 0.6f).SetUpdate(true);
     }
+
     private void HandleMilestone(int pct)
     {
         _m.logs.Add($"{pct}% 구간 보상 획득"); if (IsOpen) RefreshLog();
@@ -1025,7 +761,7 @@ public class TransmissionComputerUI : MonoBehaviour
 
     private void PlayReveal(Reveal r)
     {
-        const float PW = 780;   // 카드 폭(스윕 종료 x 계산용) — BuildRewardOverlay 와 일치
+        const float PW = 780;   // 카드 폭(스윕 종료 x 계산용) - 빌드 값과 일치
         Color col = r.color;
 
         // 내용/색 세팅
@@ -1033,11 +769,10 @@ public class TransmissionComputerUI : MonoBehaviour
         _rewardName.text = r.name; _rewardDesc.text = r.desc;
         _rewardIconBg.color = new Color(col.r, col.g, col.b, 0.14f);
         _rewardIconFrame.effectColor = col;
-        foreach (var im in _rewardTint) if (im != null) im.color = col;
+        if (_rewardTint != null) foreach (var im in _rewardTint) if (im != null) im.color = col;
 
-        // 아이콘: 설비 보상=탑뷰와 동일한 설비 이미지(2개면 대각선 반반), 그 외=보석 엠블럼(설비 사진과 다른 느낌).
-        foreach (Transform t in _rewardIconHolder) Destroy(t.gameObject);
-        BuildRewardIcon(_rewardIconHolder.gameObject, r.markerPct, col);
+        // 아이콘: 설비 보상=탑뷰와 동일한 설비 이미지(2개면 대각선 반반), 그 외=보석 엠블럼.
+        SetRewardIcon(r.markerPct, col);
 
         // 초기 상태로 리셋
         _reward.SetActive(true); _reward.transform.SetAsLastSibling();
@@ -1055,14 +790,14 @@ public class TransmissionComputerUI : MonoBehaviour
         _rewardSeq.AppendCallback(() =>
         {
             _rewardCg.blocksRaycasts = true;
-            // 퍼센트 보상(설비 획득) 카드가 뜨는 순간 획득음. 지역 개방 카드는 제외(구간 해금 연출은 삭제 예정).
+            // 퍼센트 보상(설비 획득) 카드가 뜨는 순간 획득음.
             if (r.milestone) GameSfx.Play(SfxId.FacilityUnlockReveal);
             if (r.markerPct >= 0) FlashMarker(r.markerPct, col);
-            // 카드: 아래→위 슬라이드
+            // 카드: 아래->위 슬라이드
             _rewardCard.DOAnchorPos(_cardHome, 0.42f).SetEase(Ease.OutCubic).SetUpdate(true);
             // 아이콘 타일: 팝
             _rewardIconTile.DOScale(1f, 0.5f).SetEase(Ease.OutBack).SetUpdate(true).SetDelay(0.12f);
-            // 스윕 하이라이트: 좌→우 한 번 통과(카드 마스크로 양끝 클리핑)
+            // 스윕 하이라이트: 좌->우 한 번 통과(카드 마스크로 양끝 클리핑)
             _rewardSweep.DOAnchorPos(new Vector2(PW + 20, 0), 0.7f).SetEase(Ease.OutSine).SetUpdate(true).SetDelay(0.1f);
             // 텍스트: 순차 페이드(원래 알파로 복원)
             FadeIn(_rewardTitle, 1f, 0.24f, 0.16f);
@@ -1071,18 +806,40 @@ public class TransmissionComputerUI : MonoBehaviour
             FadeIn(_rewardHint, 0.42f, 0.3f, 0.5f);
         });
         _rewardSeq.Append(_rewardCg.DOFade(1f, 0.28f));
-        // 자동 닫힘 없음 — 플레이어가 클릭(SkipReveal→CloseReveal)할 때까지 유지.
+        // 자동 닫힘 없음 - 플레이어가 클릭(SkipReveal->CloseReveal)할 때까지 유지.
     }
 
-    // 구간(지역) 마름모 글리프 — 마커 다이아와 결이 맞는 회전 사각형.
-    private void BuildRegionGlyph(GameObject parent, Color col)
+    // 리빌 카드 아이콘 - 설비 보상이면 탑뷰와 동일한 설비 이미지(2개면 대각선 반반),
+    //   비설비 보상(창고포트 증설·엔진·보급꾸러미 등)은 설비 사진과 다른 느낌으로 보석 엠블럼.
+    // 세 형태를 씬에 다 만들어두고 여기서 켜고 끈다.
+    private void SetRewardIcon(int pct, Color col)
     {
-        var d = Img("rg", parent, 0, 0, 15, 15, col, UISpriteFactory.RoundedRect(8, 2));
-        d.rectTransform.anchorMin = d.rectTransform.anchorMax = d.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        d.rectTransform.anchoredPosition = Vector2.zero; d.rectTransform.localRotation = Quaternion.Euler(0, 0, 45); d.raycastTarget = false;
-        var c = Img("rgc", parent, 0, 0, 5, 5, C("07101E"), UISpriteFactory.Disc(16));
-        c.rectTransform.anchorMin = c.rectTransform.anchorMax = c.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        c.rectTransform.anchoredPosition = Vector2.zero; c.raycastTarget = false;
+        var ids = TransmissionManager.Instance != null ? TransmissionManager.Instance.GetRewardFacilityIds(pct) : null;
+        var db  = FacilityIconDatabase.Instance;
+
+        bool tl = false, br = false, single = false;
+        if (ids != null && db != null)
+        {
+            if (ids.Count >= 2)
+            {
+                // 2개 - "/" 대각선 기준 좌상 / 우하로 반반. 마스크 사이 간격이 구분선 역할.
+                var a = db.GetIcon(ids[0]); var b = db.GetIcon(ids[1]);
+                if (a != null && _riHalfTLIcon != null) { _riHalfTLIcon.sprite = a; tl = true; }
+                if (b != null && _riHalfBRIcon != null) { _riHalfBRIcon.sprite = b; br = true; }
+            }
+            else if (ids.Count == 1)
+            {
+                var sp = db.GetIcon(ids[0]);
+                if (sp != null && _riSingle != null) { _riSingle.sprite = sp; single = true; }
+            }
+        }
+        bool gem = !tl && !br && !single;   // 설비 이미지가 없으면(예: 저장고) 보석 엠블럼으로 폴백
+
+        if (_riHalfTL != null) _riHalfTL.SetActive(tl);
+        if (_riHalfBR != null) _riHalfBR.SetActive(br);
+        if (_riSingleGo != null) _riSingleGo.SetActive(single);
+        if (_riGem != null) _riGem.SetActive(gem);
+        if (gem && _riGemCoin != null) _riGemCoin.color = col;
     }
 
     // 등장 트윈 일괄 정리(재생 시작 전·닫을 때).
@@ -1110,7 +867,7 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         foreach (var mk in _markers)
         {
-            if (mk == null || mk.name != $"MK{pct}") continue;
+            if (mk == null || mk.Pct != pct) continue;
             var rt = (RectTransform)mk.transform;
             rt.DOKill(); rt.localScale = Vector3.one;
             rt.DOScale(1.55f, 0.22f).SetLoops(2, LoopType.Yoyo).SetEase(Ease.OutQuad).SetUpdate(true);
@@ -1120,7 +877,7 @@ public class TransmissionComputerUI : MonoBehaviour
 
     private void SkipReveal()
     {
-        // 스크림 blocksRaycasts 는 등장(빛폭발) 이후에만 true 라, 그 전엔 이 콜백이 오지 않는다.
+        // 스크림 blocksRaycasts 는 등장 이후에만 true 라, 그 전엔 이 콜백이 오지 않는다.
         if (!_revealBusy) return;
         CloseReveal();
     }
@@ -1141,7 +898,7 @@ public class TransmissionComputerUI : MonoBehaviour
         });
     }
 
-    // ── E-6 게이지 이동 ───────────────────────────────────────────────
+    // ── 게이지 이동 ───────────────────────────────────────────────────
     private void SetGauge(float to, bool animated, float from = -1)
     {
         if (from < 0) from = to;
@@ -1169,12 +926,12 @@ public class TransmissionComputerUI : MonoBehaviour
     // 탱크 수위(전송률 높이) 즉시 반영(개장 시). 이후엔 Update 가 매 프레임 갱신.
     private void SetRateTankLevel(float rate) { if (_rateWave != null) RegenWater(Time.unscaledTime); }
 
-    // 탱크 색(현재 구간 색)과 구간 라벨 갱신 — 구간이 바뀔 때만 필요. (텍스처는 알파만, 색은 RawImage.color)
+    // 탱크 색(현재 구간 색)과 구간 라벨 갱신 - 구간이 바뀔 때만 필요. (텍스처는 알파만, 색은 RawImage.color)
     private void SetRateTankColor()
     {
         if (_rateWave == null) return;
         if (Mathf.RoundToInt(_rateLevelShown) >= 100)
-            _rateWave.color = C("9AA6B0", 1f);                    // 가득 참 — 회색
+            _rateWave.color = C("9AA6B0", 1f);                    // 가득 참 - 회색
         else
         {
             Color rc = RegionCol[(int)_m.Cur];
@@ -1183,10 +940,11 @@ public class TransmissionComputerUI : MonoBehaviour
         if (_rateRegionLabel != null) _rateRegionLabel.text = $"{RegionKo[(int)_m.Cur]} 구간";
     }
 
-    // 물 텍스처 재생성 — 열(x)마다 여러 진행파를 합쳐 수면 행(s)을 구하고, 그 아래를 채운다.
+    // 물 텍스처 재생성 - 열(x)마다 여러 진행파를 합쳐 수면 행(s)을 구하고, 그 아래를 채운다.
     // 텍스처는 알파만(흰색), 색은 RawImage.color(구간 색). 표면 근처는 알파를 높여 밝은 수면.
     private void RegenWater(float t)
     {
+        if (_rateWaveTex == null || _rateWavePx == null) return;
         // 100% 가득 차면 물결 없이 균일하게 꽉 채우고 색을 회색으로 (물 애니메이션 정지).
         if (Mathf.RoundToInt(_rateLevelShown) >= 100)
         {
@@ -1197,7 +955,7 @@ public class TransmissionComputerUI : MonoBehaviour
         }
         float level = Mathf.Clamp01(_rateLevelShown / 100f);
         float slosh = 1.2f * Mathf.Sin(t * 1.2f);
-        // 전송 직후엔 진폭을 키우고 빠른 파를 더해 "촤악" 튀는 느낌(_splashT: 1→0 감쇠).
+        // 전송 직후엔 진폭을 키우고 빠른 파를 더해 튀는 느낌(_splashT: 1->0 감쇠).
         float sp = _splashT;
         float ampBoost = 1f + sp * 2.2f;
         for (int x = 0; x < RWW; x++)
@@ -1235,7 +993,8 @@ public class TransmissionComputerUI : MonoBehaviour
         _content.localScale = Vector3.one;
 
         // 2) 각 패널이 순서대로 "로드되듯" 아래에서 살짝 올라오며 페이드 인.
-        for (int i = 0; i < _bootPanels.Count; i++)
+        if (_bootPanels == null) return;
+        for (int i = 0; i < _bootPanels.Length; i++)
         {
             var cg = _bootPanels[i]; if (cg == null) continue;
             var rt = (RectTransform)cg.transform;
@@ -1249,10 +1008,15 @@ public class TransmissionComputerUI : MonoBehaviour
             rt.DOAnchorPos(home, 0.42f).SetEase(Ease.OutCubic).SetUpdate(true).SetDelay(delay);
         }
     }
+
     private void KillAll()
     {
         if (_cg != null) _cg.DOKill(); if (_content != null) _content.DOKill();
         if (_fill != null) _fill.DOKill(); if (_node != null) _node.DOKill();
+        if (_sweep != null) _sweep.DOKill();
+        if (_nodePulse != null) { _nodePulse.rectTransform.DOKill(); _nodePulse.DOKill(); }
+        if (_logDot != null) _logDot.DOKill();
+        if (_cursorImg != null) _cursorImg.DOKill();
         if (_ghostFill != null) { _ghostFill.DOKill(); _ghostFill.gameObject.SetActive(false); }
         _ghostToPct = -1f;
         _splashT = 0f;
@@ -1261,7 +1025,30 @@ public class TransmissionComputerUI : MonoBehaviour
         if (_reward != null) _reward.SetActive(false);
     }
 
-    // ── 툴팁 (마커 호버 콜백) ─────────────────────────────────────────
+    // 1920x1080 설계 레이아웃을 루트 캔버스 실제 크기에 맞춰 통째로 축소한다.
+    // 호스트 캔버스의 CanvasScaler 설정이 우리 가정과 달라도 UI가 화면 밖으로 잘리지 않게 하는 안전장치.
+    // min 비율 + 1 클램프라, 스케일러가 정상이면 (캔버스==1920x1080) s=1 로 완전히 동일하고,
+    // 화면이 좁을 때만 축소한다(레터박스, 여백은 백드롭이 가림).
+    //
+    // 크기를 부모(그룹)가 아니라 루트 캔버스에서 직접 가져오는 이유:
+    //   Canvas 아래 그룹(Panels/Overlays 등)이 전체화면 stretch 가 아니라 100x100 센터인 경우가 있어서,
+    //   부모에 stretch 로 붙이면 화면 전체가 손톱만하게 줄어든다(예전에 CastGauge 가 이걸로 어긋났었다).
+    private void FitContentToRoot()
+    {
+        if (_fitWrap == null || _root == null) return;
+        var rootRT = _root.transform as RectTransform;
+        if (rootRT == null) return;
+        var cv = GetComponentInParent<Canvas>();
+        if (cv != null && cv.rootCanvas != null && cv.rootCanvas.transform is RectTransform cvRT)
+            rootRT.sizeDelta = cvRT.rect.size;
+        Vector2 sz = rootRT.rect.size;
+        if (sz.x <= 1f || sz.y <= 1f) return;   // 레이아웃이 아직 안 잡힘(0 크기) - 다음 기회에
+        float s = Mathf.Min(Mathf.Min(sz.x / 1920f, sz.y / 1080f), 1f);
+        _fitWrap.localScale = new Vector3(s, s, 1f);
+        _lastFitW = Screen.width; _lastFitH = Screen.height;
+    }
+
+    // ── 툴팁 (마커 / 키트 행 호버 콜백) ───────────────────────────────
     public void ShowTooltip(int pct, RectTransform marker)
     {
         var st = _m.MarkerState(pct);
@@ -1271,9 +1058,11 @@ public class TransmissionComputerUI : MonoBehaviour
         ShowTooltipCommon(col, $"{pct}% 지점 보상", name, _m.TooltipStatus(pct, st), marker);
     }
 
-    // 키트 행 호버 — 사용 가능하면 상승치를, 불가면 사유를 보여준다.
-    private void ShowKitTooltip(Kit k, RectTransform anchor)
+    /// <summary>키트 행 호버(TransmissionKitRow 가 부른다) - 사용 가능하면 상승치를, 불가면 사유를.</summary>
+    public void ShowKitTooltip(int index, RectTransform anchor)
     {
+        if (index < 0 || index >= _kitRows.Count) return;
+        var k = _kitRows[index].kit;
         if (k == null) return;
         bool usable = _m.Usable(k);
         Color col = usable ? Accent : Danger;
@@ -1281,10 +1070,12 @@ public class TransmissionComputerUI : MonoBehaviour
         ShowTooltipCommon(col, k.isBoss ? "보스 충전키트" : "일반 충전키트", k.name, state, anchor);
     }
 
-    // 공통 툴팁 표시 — 색/제목/이름/상태 세팅 후 앵커 위로 떠오르며 페이드 인.
+    // 공통 툴팁 표시 - 색/제목/이름/상태 세팅 후 앵커 위로 떠오르며 페이드 인.
     private void ShowTooltipCommon(Color col, string title, string name, string state, RectTransform anchor)
     {
-        _ttBox.color = C("101A2D", 0.98f); var ol = _tooltip.GetComponent<UnityEngine.UI.Outline>(); if (ol != null) ol.effectColor = col;
+        if (_tooltip == null) return;
+        if (_ttBox != null) _ttBox.color = C("101A2D", 0.98f);
+        if (_ttOutline != null) _ttOutline.effectColor = col;
         _ttTitle.color = col; _ttTitle.text = title;
         _ttName.text = name;
         _ttState.color = col; _ttState.text = state;
@@ -1299,6 +1090,7 @@ public class TransmissionComputerUI : MonoBehaviour
         rt.DOAnchorPos(target, 0.22f).SetEase(Ease.OutCubic).SetUpdate(true);
         _ttCg.DOFade(1f, 0.18f).SetUpdate(true);
     }
+
     public void HideTooltip()
     {
         if (_tooltip == null) return;
@@ -1315,10 +1107,11 @@ public class TransmissionComputerUI : MonoBehaviour
     }
 
     // =====================================================================
-    // 모델 (스펙 D)
+    // 모델
     // =====================================================================
     private enum MState { Done, Next, Locked }
-    // UI 표시용 키트 뷰모델 — 실제 정의(ChargedKitDef)와 인벤토리 보유수를 담는다.
+
+    // UI 표시용 키트 뷰모델 - 실제 정의(ChargedKitDef)와 인벤토리 보유수를 담는다.
     private class Kit
     {
         public TransmissionManager.ChargedKitDef def;  // 매니저 호출용 원본
@@ -1329,6 +1122,9 @@ public class TransmissionComputerUI : MonoBehaviour
         public int gain;         // 1개당 상승 전송률(%)
         public int qty;          // 인벤토리 실보유 수(RebuildKits 때 갱신)
     }
+
+    // 행 <-> 키트 짝. 화면 조각은 전부 TransmissionKitRow 가 들고 있다.
+    private class KitRow { public Kit kit; public TransmissionKitRow ui; }
 
     // TransmissionManager(로직·인벤토리·저장)를 감싸는 어댑터. UI는 이 Model만 본다.
     private class Model
@@ -1367,7 +1163,7 @@ public class TransmissionComputerUI : MonoBehaviour
         }
         public int Target(Kit k) => (Mgr != null && k != null) ? Mgr.GetProjectedRate(k.def) : Mathf.RoundToInt(progress);
 
-        // 사용 불가 사유(툴팁용) — Usable() 판정과 같은 순서로 첫 번째 걸리는 이유를 문장으로.
+        // 사용 불가 사유(툴팁용) - Usable() 판정과 같은 순서로 첫 번째 걸리는 이유를 문장으로.
         public string UnusableReason(Kit k)
         {
             if (Mgr == null || k == null) return "사용 불가";
@@ -1421,7 +1217,7 @@ public class TransmissionComputerUI : MonoBehaviour
             75 => "우주선 엔진을 확보했습니다.",
             80 => "창고 출력 포트 건설 수가 3 늘어났습니다.",
             90 => "창고 출력 포트 건설 수 +2 + 앰플 꾸러미(대량) + 코어 키트 V x5를 받았습니다.",
-            _ => "시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!"
+            _ => "시간에너지 전송 100% - 탈출(엔딩) 조건을 달성했습니다!"
         };
 
         public string TooltipStatus(int pct, MState st)
@@ -1440,7 +1236,7 @@ public class TransmissionComputerUI : MonoBehaviour
         {
             if (Mgr == null) return "전송 시스템 대기 중";
             int p = Mgr.TransmissionRate;
-            if (p >= TransmissionManager.MaxRate) return "전송률 100% 달성 — 엔딩 조건 충족";
+            if (p >= TransmissionManager.MaxRate) return "전송률 100% 달성 - 엔딩 조건 충족";
             return $"현재 구간 {RegionKo[(int)Cur]} / 일반 상한 {Mgr.CurrentRegionNormalCap}% / 목표 {Mgr.CurrentRegionGoal}%";
         }
     }
@@ -1456,104 +1252,19 @@ public class TransmissionComputerUI : MonoBehaviour
         return meta;
     }
 
-    private class KitRow { public Kit kit; public GameObject go; public Image bg, well, accent; public UnityEngine.UI.Outline outline; public CanvasGroup cg; public TMP_Text name, meta, qty, gain; }
-
-    // 마커 호버 이벤트 컴포넌트
-    private class MarkerHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
-    {
-        TransmissionComputerUI _ui; int _pct; RectTransform _rt;
-        public void Init(TransmissionComputerUI ui, int pct, RectTransform rt) { _ui = ui; _pct = pct; _rt = rt; }
-        public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e) => _ui.ShowTooltip(_pct, _rt);
-        public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e) => _ui.HideTooltip();
-    }
-
-    // 키트 행 호버 이벤트 컴포넌트 — 사용 가능 여부/사유 툴팁
-    private class KitRowHover : MonoBehaviour, UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
-    {
-        TransmissionComputerUI _ui; Kit _k; RectTransform _rt;
-        public void Init(TransmissionComputerUI ui, Kit k, RectTransform rt) { _ui = ui; _k = k; _rt = rt; }
-        public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e) => _ui.ShowKitTooltip(_k, _rt);
-        public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e) => _ui.HideTooltip();
-    }
-
-
     // =====================================================================
-    // 헬퍼 (레이아웃/그래픽)
+    // 공용 헬퍼 (배경 장식 생성에도 쓰이므로 런타임에 남는다)
     // =====================================================================
-    // 기존 메인 Canvas(스크린 오버레이 루트, 최상위 sortingOrder)를 찾아 그 아래에 넣는다.
-    // 못 찾으면(부팅 순서 등) 자체 캔버스로 폴백.
-    // 1920x1080 설계 레이아웃을 루트(=호스트 캔버스) 실제 크기에 맞춰 통째로 축소한다.
-    // 호스트 캔버스의 CanvasScaler 설정이 우리 가정(ScaleWithScreenSize 1920x1080)과 달라도
-    // UI가 화면 밖으로 잘리지 않게 하는 안전장치. min 비율 + 1 클램프라, 스케일러가 정상이면
-    // (root==1920x1080) s=1 로 기존과 완전히 동일하고, 화면이 좁을 때만 축소한다(레터박스, 여백은 백드롭이 가림).
-    private void FitContentToRoot()
-    {
-        if (_fitWrap == null || _root == null) return;
-        var rootRT = _root.transform as RectTransform;
-        if (rootRT == null) return;
-        Vector2 sz = rootRT.rect.size;
-        if (sz.x <= 1f || sz.y <= 1f) return;   // 레이아웃이 아직 안 잡힘(0 크기) - 다음 기회에
-        float s = Mathf.Min(Mathf.Min(sz.x / 1920f, sz.y / 1080f), 1f);
-        _fitWrap.localScale = new Vector3(s, s, 1f);
-        _lastFitW = Screen.width; _lastFitH = Screen.height;
-    }
-
-    private Transform ResolveUIParent()
-    {
-        var main = FindMainCanvas();
-        if (main != null)
-        {
-            // 레이아웃이 1920×1080 절대좌표라 스케일러가 없으면(=ScaleFactor 1) 다른 해상도에서
-            // UI가 원본 픽셀로 렌더돼 늘어남/뿌옇게(겹쳐 보임) 나온다. 스케일러가 없을 때만 추가한다.
-            // 실게임 HUD(Canvas.prefab)는 이미 ScaleWithScreenSize 1920×1080 스케일러가 있어 이 분기를 그냥 통과.
-            EnsureScaler(main.gameObject);
-            return main.transform;
-        }
-
-        var cvGo = new GameObject("TransmissionCanvas(Fallback)");
-        cvGo.transform.SetParent(transform, false);
-        var cv = cvGo.AddComponent<Canvas>(); cv.renderMode = RenderMode.ScreenSpaceOverlay; cv.sortingOrder = 100;
-        EnsureScaler(cvGo);
-        cvGo.AddComponent<GraphicRaycaster>();
-        Debug.LogWarning("[TransmissionUI] 메인 Canvas를 못 찾아 자체 캔버스로 표시합니다.");
-        return cvGo.transform;
-    }
-
-    // 캔버스에 CanvasScaler가 없으면 1920×1080 ScaleWithScreenSize 로 추가(있으면 그대로 둠 — 호스트 설정 존중).
-    private static void EnsureScaler(GameObject canvasGo)
-    {
-        if (canvasGo.GetComponent<CanvasScaler>() != null) return;
-        var cs = canvasGo.AddComponent<CanvasScaler>();
-        cs.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        cs.referenceResolution = new Vector2(1920, 1080);
-        cs.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        cs.matchWidthOrHeight = 0.5f;
-        Debug.LogWarning($"[TransmissionUI] 호스트 캔버스 '{canvasGo.name}'에 CanvasScaler가 없어 1920×1080 스케일러를 추가했습니다.");
-    }
-
-    private static Canvas FindMainCanvas()
-    {
-        Canvas best = null; int bestOrder = int.MinValue;
-        foreach (var c in FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
-        {
-            if (c == null || !c.isRootCanvas || c.renderMode == RenderMode.WorldSpace) continue;
-            if (c.sortingOrder > bestOrder) { best = c; bestOrder = c.sortingOrder; }
-        }
-        return best;
-    }
-
     private GameObject NewGO(string n, Transform p) { var g = new GameObject(n, typeof(RectTransform)); g.transform.SetParent(p, false); return g; }
     private RectTransform NewRT(string n, GameObject p) { var g = NewGO(n, p.transform); return g.GetComponent<RectTransform>(); }
 
+    // 좌상단 원점 배치(y 는 아래로 증가). 이 화면의 모든 절대좌표가 이 기준이다.
     private RectTransform TL(GameObject go, float x, float y, float w, float h)
     {
         var rt = go.GetComponent<RectTransform>() ?? go.AddComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(0, 1); rt.pivot = new Vector2(0, 1);
         rt.anchoredPosition = new Vector2(x, -y); rt.sizeDelta = new Vector2(w, h); return rt;
     }
-    private void Stretch(GameObject go) { var rt = go.GetComponent<RectTransform>() ?? go.AddComponent<RectTransform>(); rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = rt.offsetMax = Vector2.zero; }
-    private void CenterIn(Image img, RectTransform parent) { var rt = img.rectTransform; rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f); rt.anchoredPosition = Vector2.zero; }
-    private void CenterIn2(RectTransform rt, RectTransform parent) { rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f); rt.anchoredPosition = Vector2.zero; }
 
     private Image Img(string n, Transform p, float x, float y, float w, float h, Color col, Sprite spr = null)
     {
@@ -1562,6 +1273,631 @@ public class TransmissionComputerUI : MonoBehaviour
         return im;
     }
     private Image Img(string n, GameObject p, float x, float y, float w, float h, Color col, Sprite spr = null) => Img(n, p.transform, x, y, w, h, col, spr);
+
+    private static Color C(string hex, float a = 1f)
+    {
+        if (ColorUtility.TryParseHtmlString("#" + hex, out Color c)) { c.a = a; return c; }
+        return Color.white;
+    }
+
+    // ── 이 화면 전용 절차 텍스처 (UISpriteFactory 에 없는 모양) ───────
+    private static Sprite _hgrad, _radial, _scan, _tri, _sweep2, _vig;
+
+    private static Sprite HGrad()
+    {
+        if (_hgrad != null) return _hgrad;
+        int w = 256; var tex = new Texture2D(w, 4, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+        Color[] stops = { C("43B06C"), C("5BC7E8"), C("D9A44A"), C("E0593A") };
+        var px = new Color[w * 4];
+        for (int x = 0; x < w; x++)
+        {
+            float f = x / (float)(w - 1) * 3f; int i = Mathf.Clamp((int)f, 0, 2); Color c = Color.Lerp(stops[i], stops[i + 1], f - i);
+            for (int y = 0; y < 4; y++) px[y * w + x] = c;
+        }
+        tex.SetPixels(px); tex.Apply(); _hgrad = Sprite.Create(tex, new Rect(0, 0, w, 4), new Vector2(0.5f, 0.5f), 100f); return _hgrad;
+    }
+
+    private static Sprite RadialTex()
+    {
+        if (_radial != null) return _radial;
+        int s = 256; var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        Color c0 = C("101C33"), c1 = C("0A1120"), c2 = C("070C17");
+        Vector2 ctr = new Vector2(0.30f, 0.90f) * s;
+        float maxd = s * 1.2f; var px = new Color[s * s];
+        for (int y = 0; y < s; y++) for (int x = 0; x < s; x++)
+        {
+            float d = Mathf.Clamp01(Vector2.Distance(new Vector2(x, y), ctr) / maxd);
+            px[y * s + x] = d < 0.55f ? Color.Lerp(c0, c1, d / 0.55f) : Color.Lerp(c1, c2, (d - 0.55f) / 0.45f);
+        }
+        tex.SetPixels(px); tex.Apply(); _radial = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f); return _radial;
+    }
+
+    private static Sprite ScanTile()
+    {
+        if (_scan != null) return _scan;
+        int s = 4; var tex = new Texture2D(4, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Point };
+        var px = new Color[4 * s];
+        for (int y = 0; y < s; y++) for (int x = 0; x < 4; x++) px[y * 4 + x] = (y == 0) ? Color.white : new Color(1, 1, 1, 0);
+        tex.SetPixels(px); tex.Apply(); _scan = Sprite.Create(tex, new Rect(0, 0, 4, s), new Vector2(0.5f, 0.5f), 100f); return _scan;
+    }
+
+    private static Sprite TriTex()
+    {
+        if (_tri != null) return _tri; int s = 32; var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var px = new Color[s * s];
+        for (int y = 0; y < s; y++) for (int x = 0; x < s; x++)
+        { float ty = Mathf.Abs(y - s / 2f) / (s / 2f); px[y * s + x] = (x / (float)s <= 1f - ty) ? Color.white : new Color(1, 1, 1, 0); }
+        tex.SetPixels(px); tex.Apply(); _tri = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f); return _tri;
+    }
+
+    private static Sprite SweepTex()
+    {
+        if (_sweep2 != null) return _sweep2; int w = 64; var tex = new Texture2D(w, 4, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var px = new Color[w * 4];
+        for (int x = 0; x < w; x++) { float f = x / (float)(w - 1); float a = Mathf.Sin(f * Mathf.PI) * 0.35f; for (int y = 0; y < 4; y++) px[y * w + x] = new Color(1, 1, 1, a); }
+        tex.SetPixels(px); tex.Apply(); _sweep2 = Sprite.Create(tex, new Rect(0, 0, w, 4), new Vector2(0.5f, 0.5f), 100f); return _sweep2;
+    }
+
+    private static Sprite VignetteTex()
+    {
+        if (_vig != null) return _vig; int s = 128; var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var px = new Color[s * s]; Vector2 c = new Vector2(s / 2f, s / 2f);
+        for (int y = 0; y < s; y++) for (int x = 0; x < s; x++)
+        { float d = Vector2.Distance(new Vector2(x, y), c) / (s / 2f); float a = Mathf.Clamp01((d - 0.6f) / 0.4f) * 0.4f; px[y * s + x] = new Color(0, 0, 0, a); }
+        tex.SetPixels(px); tex.Apply(); _vig = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f); return _vig;
+    }
+
+    // 반반 대각 마스크("/" 대각선 기준 좌상 / 우하). 두 절반 사이 간격으로 구분선 효과. 캐시.
+    private static Sprite _triTL, _triBR;
+    private static Sprite TriangleSprite(bool topLeft)
+    {
+        if (topLeft && _triTL != null) return _triTL;
+        if (!topLeft && _triBR != null) return _triBR;
+        const int S = 64, gap = 2;
+        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[S * S];
+        var on = new Color32(255, 255, 255, 255); var off = new Color32(255, 255, 255, 0);
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                int d = y - x;   // >0 = 좌상(/ 대각 기준), <0 = 우하
+                bool onHalf = topLeft ? (d > gap) : (d < -gap);
+                px[y * S + x] = onHalf ? on : off;
+            }
+        tex.SetPixels32(px); tex.Apply();
+        var sp = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), 100f);
+        if (topLeft) _triTL = sp; else _triBR = sp;
+        return sp;
+    }
+
+#if UNITY_EDITOR
+    // =====================================================================
+    // 에디터 전용 - 화면 실물 생성
+    //
+    // 절대좌표가 수백 개라 이 코드를 빌더로 "옮겨 적으면" 오타 하나가 조용한 레이아웃 붕괴가 된다.
+    // 그래서 원래 생성 코드를 여기 그대로 두고, 에디터 메뉴가 이 오브젝트 위에서 실행시킨다.
+    // 그러면 _rateBig = Txt(...) 같은 대입이 그대로 직렬화된다(참조를 손으로 연결할 필요가 없다).
+    // 빌드에는 안 실린다.
+    // =====================================================================
+    private TMP_FontAsset _kr, _mono;
+    private readonly List<CanvasGroup> _bootBuild = new();
+
+    public void EditorBuild()
+    {
+        _kr = ResolveFont(krFont, "Pretendard-SemiBold", "Pretendard", "남양주", "GabiaMaeumgyeol");
+        _mono = ResolveFont(monoFont, "JetBrains", "Rajdhani-SemiBold", "Rajdhani", null) ?? _kr;
+        _bootBuild.Clear();
+        Build();
+        _bootPanels = _bootBuild.ToArray();
+    }
+
+    private void Build()
+    {
+        // 이 컴포넌트가 붙은 오브젝트(이미 Canvas 아래)가 부모다.
+        // 크기는 부모 그룹이 아니라 루트 캔버스를 따라간다(FitContentToRoot 가 실행 시 다시 맞춘다).
+        _root = NewGO("Panel", transform);
+        var rootRT = (RectTransform)_root.transform;
+        rootRT.anchorMin = rootRT.anchorMax = rootRT.pivot = new Vector2(0.5f, 0.5f);
+        rootRT.anchoredPosition = Vector2.zero; rootRT.sizeDelta = new Vector2(1920, 1080);
+        // 불투명 백드롭. raycast 차단 + 화면비가 16:9가 아닐 때 생기는 레터박스 여백을
+        // 뒤 게임화면 대신 어둡게 가린다(모달이라 어차피 게임은 정지).
+        _root.AddComponent<Image>().color = C("040810", 1f);
+        _cg = _root.AddComponent<CanvasGroup>();
+
+        // 해상도/호스트 캔버스 스케일러와 무관하게 1920x1080 레이아웃 전체가 항상 화면 안에 들어오도록,
+        // 루트 실제 크기에 맞춰 통째로 축소(레터박스)하는 래퍼. _content.localScale 은 열기/닫기 애니가
+        // 쓰므로 건드리지 않고 이 래퍼 스케일만 조절한다.
+        _fitWrap = NewRT("FitWrap", _root);
+        _fitWrap.anchorMin = _fitWrap.anchorMax = _fitWrap.pivot = new Vector2(0.5f, 0.5f);
+        _fitWrap.anchoredPosition = Vector2.zero; _fitWrap.sizeDelta = new Vector2(1920, 1080);
+
+        _content = TL(NewGO("Content", _fitWrap), 0, 0, 1920, 1080);
+
+        BuildBackground();
+        BuildHeader();
+        BuildProgress();
+        BuildBody();
+        BuildFooter();
+        BuildTooltip();
+        BuildOverlay();
+        BuildRewardOverlay();
+
+        // 전체화면 불투명 백드롭이라 켜둔 채로는 씬의 다른 UI 를 편집할 수 없다.
+        // 레이아웃을 눈으로 보려면 하이어라키에서 Panel 을 잠깐 켜면 된다.
+        _root.SetActive(false);
+    }
+
+    // ── 배경 ──────────────────────────────────────────────────────────
+    private void BuildBackground()
+    {
+        _bgRadial = Img("BG", _content, 0, 0, 1920, 1080, Color.white, RadialTex());
+        _bgRadial.raycastTarget = false;
+        // 격자/크로노링/코너브래킷 69개는 실행 시 여기에 담는다(글자가 없어 씬에 두면 하이어라키만 더러워짐).
+        _decorRoot = TL(NewGO("Decor", _content), 0, 0, 1920, 1080);
+    }
+
+    // ── 헤더 ──────────────────────────────────────────────────────────
+    private void BuildHeader()
+    {
+        // 좌측 그룹
+        Img("sysDot", _content, 88, 62, 8, 8, Accent, UISpriteFactory.RoundedRect(16, 4)).raycastTarget = false;
+        Txt("sys", _content, 108, 58, 600, 18, "TIMEKOV // TRANSFER TERMINAL", _mono, 14, C("4CC9F7", 0.75f), TextAlignmentOptions.Left, 3);
+        Txt("title", _content, 86, 84, 900, 62, "시간에너지 전송", _kr, 48, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        _subLabel = Txt("sub", _content, 88, 156, 900, 26, "기지 전송 컴퓨터     현재 구간 설원", _kr, 19, C("E8F2FB", 0.55f), TextAlignmentOptions.Left);
+
+        // 우측 전송률 카드 = 액체 탱크(전송률만큼 구간 색이 차오르고 표면이 물결친다)
+        float cw = 250, cx = 1832 - cw, cy = 40, ch = 182;
+        var card = Img("rateCard", _content, cx, cy, cw, ch, C("0E1728", 0.94f), UISpriteFactory.RoundedRect(48, 16));
+        Outline(card.gameObject, C("4CC9F7", 0.25f));
+        RegisterBootPanel(card.rectTransform);   // 순차 오픈 애니 첫 번째 대상
+        // 라운드 마스크 - 탱크가 카드 모서리 안쪽에서만 차오르게 클리핑
+        var mask = card.gameObject.AddComponent<Mask>(); mask.showMaskGraphic = true;
+
+        // 물 - RawImage + 매 프레임 재생성 텍스처. 표면을 여러 진행파의 합으로 실제 계산.
+        var waveGo = NewGO("rateWave", card.transform); Stretch(waveGo);
+        _rateWave = waveGo.AddComponent<RawImage>();
+        _rateWave.color = C("5BC7E8", 1f); _rateWave.raycastTarget = false;
+
+        Txt("rateLbl", card.transform, 18, 16, cw - 36, 16, "현재 전송률", _mono, 12, C("E8F2FB", 0.5f), TextAlignmentOptions.Left, 3);
+        _rateBig = Txt("rateBig", card.transform, 0, 50, cw, 92, "42%", _mono, 74, TextBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
+        // 하단 행: 구간 이름(좌) / 목표 칩(우)
+        _rateRegionLabel = Txt("rcBottom", card.transform, 18, ch - 30, cw - 36 - 74, 20, "설원 구간", _mono, 12, C("E8F2FB", 0.6f), TextAlignmentOptions.Left);
+        var goalChip = Img("goalChip", card.transform, cw - 18 - 66, ch - 32, 66, 22, C("5BC7E8", 0f), UISpriteFactory.RoundedRect(40, 11));
+        Outline(goalChip.gameObject, C("5BC7E8", 0.4f));
+        Txt("goalTxt", goalChip.transform, 0, 0, 66, 22, "목표 50%", _mono, 12, AccentSoft2, TextAlignmentOptions.Center);
+    }
+
+    // ── 진행 바 패널 ──────────────────────────────────────────────────
+    private void BuildProgress()
+    {
+        var panel = Panel("progressPanel", 88, 264, 1744, 240);
+        // 헤더 행
+        Txt("pHdr", panel.transform, 44, 20, 300, 18, "TRANSFER PROGRESS", _mono, 13, Accent, TextAlignmentOptions.Left, 3);
+        Img("pLine", panel.transform, 240, 28, 1744 - 44 - 240 - 120, 1, C("4CC9F7", 0.25f)).raycastTarget = false;
+        Txt("p100", panel.transform, 1744 - 44 - 110, 20, 110, 18, "0 - 100%", _mono, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Right);
+
+        // 바 트랙
+        float tx = 44, ty = 66, tw = 1744 - 88, th = 54;
+        var track = TL(NewGO("track", panel.transform), tx, ty, tw, th);
+        _trackRT = track;
+        // 바 본체 - 바깥 4모서리만 라운드(마스크). 안쪽 구간/눈금/채움은 전부 각지게.
+        var body = TL(NewGO("barBody", track), 0, 0, tw, th);
+        var bodyImg = body.gameObject.AddComponent<Image>();
+        bodyImg.sprite = UISpriteFactory.RoundedRect(48, 12); bodyImg.type = Image.Type.Sliced; bodyImg.raycastTarget = false;
+        var bodyMask = body.gameObject.AddComponent<Mask>(); bodyMask.showMaskGraphic = false;
+
+        // 구간 배경 4등분 (전부 각진 사각 - 바깥 라운드는 body 마스크가 처리)
+        for (int i = 0; i < 4; i++)
+        {
+            var seg = Img($"seg{i}", body.gameObject, i * tw / 4f, 0, tw / 4f, th,
+                new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.15f));
+            seg.raycastTarget = false;
+        }
+        // 채움 (마스크 + 그라데이션 이미지, fillAmount 로 클리핑). body 마스크 안이라 왼쪽 끝도 라운드로 잘림.
+        var fillGo = TL(NewGO("fill", body), 0, 0, tw, th);
+        fillGo.gameObject.AddComponent<RectMask2D>();
+        _fill = Img2(NewGO("fillImg", fillGo), HGrad());
+        Stretch(_fill.gameObject); _fill.type = Image.Type.Filled; _fill.fillMethod = Image.FillMethod.Horizontal;
+        _fill.fillOrigin = (int)Image.OriginHorizontal.Left; _fill.fillAmount = 0f; _fill.raycastTarget = false;   // Open 시 SetGauge 로 채움
+        // 스윕 하이라이트 - fill 마스크 내부에서 이동
+        _sweep = TL(NewGO("sweep", fillGo), 0, 0, 70, th);
+        _sweepImg = _sweep.gameObject.AddComponent<Image>(); _sweepImg.sprite = SweepTex(); _sweepImg.color = Color.white; _sweepImg.raycastTarget = false;
+
+        // 고스트 미리보기 - 선택한 키트로 "이만큼 오른다"를 현재 채움 오른쪽에 반투명 구간으로 겹쳐 보여준다.
+        _ghostFill = Img("ghostFill", body.gameObject, 0, 0, 0, th, new Color(1, 1, 1, 0));
+        _ghostFill.raycastTarget = false; _ghostFill.gameObject.SetActive(false);
+
+        // 세로 눈금선 - 채움 '위'에 그려 채워진(밝은) 구간에서도 경계가 확실히 보이게 한다.
+        // 밝은 채움엔 어두운 심(0.42)으로, 어두운 미채움엔 밝은 하이라이트(0.28)로 - 양쪽 대비를 겹쳐 어디서나 보이게.
+        for (int p = 10; p <= 90; p += 10)
+        {
+            float lx = tw * p / 100f;
+            Img($"tickD{p}", body.gameObject, lx - 1f, 0, 2, th, C("05101C", 0.42f)).raycastTarget = false;
+            Img($"tickL{p}", body.gameObject, lx, 0, 1, th, C("EAF7FF", 0.28f)).raycastTarget = false;
+        }
+
+        // 진행 노드 - 바 한가운데에 들어가는 원형 노브(슬라이더 손잡이) 스타일.
+        _node = NewRT("node", track.gameObject);
+        _node.anchorMin = _node.anchorMax = new Vector2(0, 0.5f); _node.pivot = new Vector2(0.5f, 0.5f);
+        _node.sizeDelta = new Vector2(34, th); _node.anchoredPosition = new Vector2(0f, 0);   // Open 시 SetGauge 로 실제 위치 이동
+        // 노브: 글로우 -> 어두운 원판 -> 밝은 링 -> 코어. 연결선 없이 노브만으로 위치 표시.
+        var glow = Img("nGlow", _node.gameObject, 0, 0, 30, 30, C("4CC9F7", 0.22f), UISpriteFactory.Disc(48)); CenterIn(glow, _node); glow.raycastTarget = false;
+        var knob = Img("nKnob", _node.gameObject, 0, 0, 20, 20, C("0A1420", 0.98f), UISpriteFactory.Disc(48)); CenterIn(knob, _node); knob.raycastTarget = false;
+        var ring = Img("nRing", _node.gameObject, 0, 0, 20, 20, AccentBright, UISpriteFactory.Ring(48, 3f)); CenterIn(ring, _node); ring.raycastTarget = false;
+        var core = Img("nCore", _node.gameObject, 0, 0, 8, 8, Accent, UISpriteFactory.Disc(24)); CenterIn(core, _node); core.raycastTarget = false;
+        // 펄스(노브 주위 확장 링) - 무한 트윈은 실행 시 StartAmbientTweens 가 건다.
+        _nodePulse = Img("nPulse", _node.gameObject, 0, 0, 20, 20, C("4CC9F7", 0.5f), UISpriteFactory.Ring(48, 3f)); CenterIn(_nodePulse, _node); _nodePulse.raycastTarget = false;
+        // 라벨(바 아래 작은 태그)
+        var lblWrap = TL(NewGO("nLabelWrap", _node), 0, 0, 60, 24);
+        lblWrap.anchorMin = lblWrap.anchorMax = new Vector2(0.5f, 0); lblWrap.pivot = new Vector2(0.5f, 1f);
+        lblWrap.anchoredPosition = new Vector2(0, -10);
+        var lblBg = lblWrap.gameObject.AddComponent<Image>(); lblBg.sprite = UISpriteFactory.RoundedRect(16, 8); lblBg.type = Image.Type.Sliced; lblBg.color = C("4CC9F7", 0.16f);
+        Outline(lblWrap.gameObject, C("4CC9F7", 0.5f));
+        _nodeLabel = Txt("nLbl", lblWrap.gameObject, 0, 0, 60, 24, "42%", _mono, 14, AccentBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
+        Stretch(_nodeLabel.gameObject);
+
+        // 마커 템플릿 - 실제 마커는 실행 시 마일스톤 수만큼 복제된다.
+        _markerTemplate = BuildMarkerTemplate(track.gameObject, th);
+        _node.SetAsLastSibling();
+
+        // 레전드 - 각 구간이 열리는 % 지점에서 바 하단으로부터 세로 연결선이 내려와 도트+라벨로 이어진다.
+        // 라벨/도트/연결선은 진행 도달 여부에 따라 RefreshLegend()에서 공개/??? 처리.
+        float ly = ty + th + 40;              // 레전드 도트 y
+        // 현재 구간 강조 하이라이트 - 도트+라벨 뒤에 깔리는 둥근 바. 위치/표시는 RefreshLegend 에서.
+        _legendCurHlImg = Img("lgCurHl", panel.transform, 0, ly - 6, 150, 22, C("4CC9F7", 0.10f), UISpriteFactory.RoundedRect(20, 8));
+        _legendCurHl = _legendCurHlImg.rectTransform;
+        _legendCurHl.gameObject.SetActive(false);
+        for (int i = 0; i < 4; i++)
+        {
+            // 구간 i가 열리는 지점(i*25%)의 바 x. (경계 그대로 - 위치 이동 없음)
+            float bx = tx + i * tw / 4f;
+            // 연결선 상단 y. 자연(0%)은 둥근 좌측 모서리라 바 하단에 붙이면 곡선 아래로 떠 보이므로
+            // 상단만 모서리 안쪽까지 더 끌어올려(길이만 늘려) 바에 닿게 한다. 나머지는 바 하단에 딱 붙임.
+            float connTop = (i == 0) ? ty + th - 14f : ty + th;
+            // 자연은 바 좌측 끝이라 bx-1로 두면 왼쪽으로 삐져나온다 -> 연결선만 안쪽으로 붙임(도트·라벨은 그대로).
+            float connX = (i == 0) ? bx : bx - 1f;
+            _legendConns[i] = Img($"lgConn{i}", panel.transform, connX, connTop, 2, ly + 5 - connTop, RegionCol[i]);
+            _legendConns[i].raycastTarget = false;
+            // 연결선 끝 도트(구간 경계 x 중앙)
+            _legendDots[i] = Img($"lgDot{i}", panel.transform, bx - 5, ly, 10, 10, RegionCol[i], UISpriteFactory.Disc(20));
+            _legendDots[i].raycastTarget = false;
+            // 라벨(도트 오른쪽)
+            _legendLabels[i] = Txt($"lg{i}", panel.transform, bx + 12, ly - 2, 160, 18, "???", _mono, 13,
+                new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, 0.88f), TextAlignmentOptions.Left);
+        }
+
+        // 바(track: 노드·노드라벨 포함)를 범례 연결선보다 위로 - 파란 % 라벨이 초록 연결선에 가리지 않게.
+        track.SetAsLastSibling();
+    }
+
+    // 마커 템플릿 - 칩 + 아이콘 3종(완료/다음/잠금). 실행 시 상태에 따라 하나만 켠다.
+    private TransmissionMarker BuildMarkerTemplate(GameObject track, float th)
+    {
+        var mk = NewRT("markerTemplate", track);
+        mk.anchorMin = mk.anchorMax = new Vector2(0, 0.5f); mk.pivot = new Vector2(0.5f, 0.5f);
+        mk.sizeDelta = new Vector2(34, 34); mk.anchoredPosition = new Vector2(0, th / 2f);
+
+        var chip = Img("chip", mk.gameObject, 0, 0, 34, 34, C("0F1A2D"), UISpriteFactory.RoundedRect(34, 17));
+        CenterIn(chip, mk);
+        var chipOl = Outline(chip.gameObject, Accent);
+        // 호버 판정용 투명 이미지(마커 자체에 붙인다)
+        var trg = mk.gameObject.AddComponent<Image>(); trg.color = new Color(0, 0, 0, 0); trg.raycastTarget = true;
+
+        var holder = NewRT("iconHolder", mk.gameObject); CenterIn2(holder); holder.sizeDelta = new Vector2(18, 18);
+
+        var done = NewRT("iconDone", holder.gameObject); CenterIn2(done); done.sizeDelta = new Vector2(18, 18);
+        var doneCoin = MarkerIcon("doneCoin", done.gameObject, 16, 16, Success, UISpriteFactory.Disc(32));         // 채운 코인
+        MarkerIcon("doneRim", done.gameObject, 16, 16, C("0A1420", 0.9f), UISpriteFactory.Ring(48, 2f));           // 어두운 테두리 림
+        MarkerIcon("doneCore", done.gameObject, 5, 5, C("0A1420", 0.9f), UISpriteFactory.Disc(16));                // 중앙 각인
+
+        var next = NewRT("iconNext", holder.gameObject); CenterIn2(next); next.sizeDelta = new Vector2(18, 18);
+        var tgtRing = MarkerIcon("tgtRing", next.gameObject, 16, 16, Accent, UISpriteFactory.Ring(48, 3f));
+        var tgtDot = MarkerIcon("tgtDot", next.gameObject, 5, 5, Accent, UISpriteFactory.Disc(16));
+
+        var locked = NewRT("iconLocked", holder.gameObject); CenterIn2(locked); locked.sizeDelta = new Vector2(18, 18);
+        var q = Txt("q", locked.gameObject, 0, 0, 18, 18, "?", _mono, 14, C("E2EDF8", 0.25f), TextAlignmentOptions.Center);
+
+        var comp = mk.gameObject.AddComponent<TransmissionMarker>();
+        comp.chipOutline = chipOl;
+        comp.iconDone = done.gameObject; comp.iconNext = next.gameObject; comp.iconLocked = locked.gameObject;
+        comp.doneCoin = doneCoin; comp.nextRing = tgtRing; comp.nextDot = tgtDot; comp.lockedMark = q;
+        mk.gameObject.SetActive(false);
+        return comp;
+    }
+
+    // ── 본문 ──────────────────────────────────────────────────────────
+    private void BuildBody()
+    {
+        float by = 534, bh = 466, gap = 30;
+        float leftW = (1744 - gap) * 1.5f / 2.5f, rightW = (1744 - gap) - leftW;
+
+        // 좌: 보유 충전 키트
+        var lp = Panel("kitPanel", 88, by, leftW, bh);
+        PanelHeader(lp, leftW, "보유 충전 키트");
+        // 열 헤더 - 각 행의 수량 / 상승률 컬럼이 무엇인지 안내. 행 컬럼 x와 맞춰 우측 정렬.
+        float rowRight = leftW - 16f;
+        Txt("colQty", lp.gameObject, rowRight - 156f, 22, 60, 15, "수량", _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Center, 1);
+        Txt("colGain", lp.gameObject, rowRight - 14f - 130f, 22, 130, 15, "예상 상승률", _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Right, 1);
+        // 컬럼 구분선(이름|수량|상승률) - 짧고 둥근 은은한 세로 바. 행 구분선과 같은 x.
+        Img("colDivH1", lp.gameObject, rowRight - 165f, 14, 2, 28, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1)).raycastTarget = false;
+        Img("colDivH2", lp.gameObject, rowRight - 93f, 14, 2, 28, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1)).raycastTarget = false;
+        // 스크롤 뷰(표준 3단): ScrollRect 루트 -> 뷰포트(마스크+레이캐스트) -> 콘텐츠(세로 레이아웃+크기 자동).
+        var scrollGo = TL(NewGO("kitScroll", lp.transform), 16, 74, leftW - 32, bh - 90);
+        var scroll = scrollGo.gameObject.AddComponent<ScrollRect>();
+        scroll.horizontal = false; scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 30f;
+
+        // 뷰포트 - 부모를 꽉 채우고 RectMask2D로 클립. 투명 Image를 둬서 빈 영역도 드래그/휠 레이캐스트가 잡히게.
+        var viewport = NewRT("kitViewport", scrollGo.gameObject); Stretch(viewport.gameObject);
+        var vpImg = viewport.gameObject.AddComponent<Image>(); vpImg.color = new Color(0, 0, 0, 0);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        scroll.viewport = viewport;
+
+        // 콘텐츠 - 가로는 뷰포트 폭에 맞추고(스트레치), 세로는 ContentSizeFitter가 행 합계로 자동. 상단 정렬.
+        var content = NewRT("kitContent", viewport.gameObject);
+        content.anchorMin = new Vector2(0, 1); content.anchorMax = new Vector2(1, 1); content.pivot = new Vector2(0.5f, 1);
+        content.sizeDelta = Vector2.zero; content.anchoredPosition = Vector2.zero;
+        scroll.content = content;
+
+        var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>(); vlg.spacing = 8; vlg.childControlWidth = vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false; vlg.childAlignment = TextAnchor.UpperCenter;
+        var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;   // 콘텐츠 높이를 행 합계로 자동 -> 넘치면 스크롤
+        _kitListRoot = content;
+        _kitRowTemplate = BuildKitRowTemplate(content);
+        _kitEmptyLabel = BuildKitEmptyLabel(content);
+
+        // 우: 전송 제어
+        var rp = Panel("ctrlPanel", 88 + leftW + gap, by, rightW, bh);
+        PanelHeader(rp, rightW, "전송 제어");
+        float ix = 24, iw = rightW - 48, iy = 74;
+        var selCard = Card(rp.transform, ix, iy, iw, 84, C("E8F2FB", 0.04f), C("E8F2FB", 0.08f));
+        Txt("selLbl", selCard.transform, 18, 14, iw - 36, 16, "선택된 키트", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
+        _selName = Txt("selName", selCard.transform, 18, 32, iw - 36, 28, "없음", _kr, 22, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        _selMeta = Txt("selMeta", selCard.transform, 18, 60, iw - 36, 20, "목록에서 키트를 클릭", _kr, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
+
+        iy += 84 + 12;   // 카드 간 세로 간격 12로 통일
+        var pvCard = Card(rp.transform, ix, iy, iw, 84, C("4CC9F7", 0.06f), C("4CC9F7", 0.2f));
+        Txt("pvLbl", pvCard.transform, 18, 14, iw - 36, 16, "예상 전송률", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
+        _previewVal = Txt("pvVal", pvCard.transform, 18, 36, iw - 36, 36, "키트를 선택하세요", _kr, 30, C("E8F2FB", 0.4f), TextAlignmentOptions.Left, 0, FontStyles.Normal);
+
+        // 버튼 행 + 로그 (패널 로컬 좌표: 아래에서부터 로그->버튼)
+        float logH = 110;
+        float logY = bh - 16 - logH;
+        float btnY = logY - 12 - 62;   // 버튼<->로그 간격도 12로 통일
+        float sendW = iw - 130 - 14;
+        var send = Img("sendBtn", rp.transform, ix, btnY, sendW, 62, C("47C4F0"), UISpriteFactory.RoundedRect(48, 12));
+        _sendBtnImg = send; _sendBtn = send.gameObject.AddComponent<Button>(); _sendBtn.targetGraphic = send;
+        _sendBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+        _sendBtnCg = send.gameObject.AddComponent<CanvasGroup>();
+        Outline(send.gameObject, C("FFFFFF", 0.35f));
+        _sendTri = Img("sendTri", send.gameObject, 0, 0, 15, 16, C("06202E"), TriTex());
+        _sendTri.rectTransform.anchorMin = _sendTri.rectTransform.anchorMax = _sendTri.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        _sendTri.rectTransform.anchoredPosition = new Vector2(-34, 0); _sendTri.raycastTarget = false;
+        Txt("sendTxt", send.gameObject, 0, 0, sendW, 62, "전송", _mono, 22, C("06202E"), TextAlignmentOptions.Center, 0, FontStyles.Bold)
+            .rectTransform.anchoredPosition += new Vector2(12, 0);
+
+        var close = Img("closeBtn", rp.transform, ix + sendW + 14, btnY, 130, 62, C("E8F2FB", 0.07f), UISpriteFactory.RoundedRect(48, 12));
+        _closeBtn = close.gameObject.AddComponent<Button>(); _closeBtn.targetGraphic = close; _closeBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+        Outline(close.gameObject, C("E2EDF8", 0.25f));
+        Txt("closeTxt", close.gameObject, 0, 0, 130, 62, "닫기 ESC", _mono, 18, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
+
+        // 이벤트 로그 (헤더 아래 로그 라인 - 위/아래 여백 균등)
+        var logBox = Img("txLog", rp.transform, ix, logY, iw, logH, C("070C17", 0.7f), UISpriteFactory.RoundedRect(48, 12));
+        Outline(logBox.gameObject, C("4CC9F7", 0.15f));
+        _logDot = Img("logDot", logBox.transform, 15, 13, 6, 6, Accent, UISpriteFactory.Disc(12));
+        Txt("logHdr", logBox.transform, 28, 11, iw - 40, 14, "SYSTEM LOG", _mono, 11, C("4CC9F7", 0.6f), TextAlignmentOptions.Left, 2);
+        _logText = Txt("logLines", logBox.transform, 15, 34, iw - 30, logH - 34 - 8, "", _mono, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.TopLeft);
+    }
+
+    // 키트 행 템플릿 - 실행 시 보유 키트 수만큼 복제된다.
+    private TransmissionKitRow BuildKitRowTemplate(RectTransform parent)
+    {
+        var go = NewGO("kitRowTemplate", parent);
+        go.AddComponent<LayoutElement>().minHeight = 66;
+        var cg = go.AddComponent<CanvasGroup>();
+        var bg = go.AddComponent<Image>(); bg.sprite = UISpriteFactory.RoundedRect(24, 12); bg.type = Image.Type.Sliced; bg.color = new Color(0, 0, 0, 0);
+        var btn = go.AddComponent<Button>(); btn.targetGraphic = bg; btn.navigation = new Navigation { mode = Navigation.Mode.None };
+        var outline = go.AddComponent<UnityEngine.UI.Outline>(); outline.effectColor = new Color(0, 0, 0, 0); outline.effectDistance = new Vector2(1, -1);
+
+        // 지역 색은 실행 시 Bind 가 넣는다(템플릿은 자연 구간 색으로 보이기만).
+        var rc = RegionCol[0];
+        // 선택 강조용 좌측 악센트 바(지역 색). 평소 투명, 선택 시 색이 차오르며 살짝 슬라이드 인.
+        var accent = Img("kAccent", go, 6, 12, 4, 42, new Color(rc.r, rc.g, rc.b, 0f), UISpriteFactory.RoundedRect(4, 2));
+        accent.raycastTarget = false;
+        // 아이콘 웰 - 지역 색 틴트(보스는 더 진하게) + 등급 글리프(일반=사각 / 보스=마름모+링)
+        var well = Img("well", go, 20, 14, 38, 38, new Color(rc.r, rc.g, rc.b, 0.09f), UISpriteFactory.RoundedRect(24, 10));
+        var wellOl = Outline(well.gameObject, new Color(rc.r, rc.g, rc.b, 0.3f));
+
+        var gNormal = NewRT("glyphNormal", well.gameObject); Stretch(gNormal.gameObject);
+        var gSq = MarkerIcon("kgSq", gNormal.gameObject, 13, 13, new Color(rc.r, rc.g, rc.b, 0.9f), UISpriteFactory.RoundedRect(12, 3));
+        var gBoss = NewRT("glyphBoss", well.gameObject); Stretch(gBoss.gameObject);
+        var gRing = MarkerIcon("kgRing", gBoss.gameObject, 22, 22, new Color(rc.r, rc.g, rc.b, 0.55f), UISpriteFactory.Ring(48, 2.5f));
+        var gGem = MarkerIcon("kgGem", gBoss.gameObject, 12, 12, rc, UISpriteFactory.RoundedRect(8, 3), 45f);
+        MarkerIcon("kgHl", gBoss.gameObject, 3.5f, 3.5f, C("FFFFFF", 0.8f), UISpriteFactory.Disc(16), 0f, new Vector2(-1.5f, 1.5f));
+        gBoss.gameObject.SetActive(false);
+
+        // 이름/메타
+        var name = Txt("kName", go, 74, 12, 400, 26, "충전 키트", _kr, 20, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        var meta = Txt("kMeta", go, 74, 40, 500, 18, "", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left);
+        // 수량/상승률 (우측)
+        var qty = Txt("kQty", go, 0, 0, 60, 30, "x0", _mono, 18, C("E8F2FB", 0.7f), TextAlignmentOptions.Center);
+        qty.rectTransform.anchorMin = qty.rectTransform.anchorMax = new Vector2(1, 0.5f); qty.rectTransform.pivot = new Vector2(1, 0.5f); qty.rectTransform.anchoredPosition = new Vector2(-96, 0);
+        var gain = Txt("kGain", go, 0, 0, 74, 30, "+0%", _mono, 18, Accent, TextAlignmentOptions.Right, 0, FontStyles.Bold);
+        gain.rectTransform.anchorMin = gain.rectTransform.anchorMax = new Vector2(1, 0.5f); gain.rectTransform.pivot = new Vector2(1, 0.5f); gain.rectTransform.anchoredPosition = new Vector2(-14, 0);
+        // 컬럼 구분선(이름|수량|상승률) - 헤더와 동일 x, 짧고 둥근 은은한 세로 바
+        ColDivider(go, -164f); ColDivider(go, -92f);
+
+        var row = go.AddComponent<TransmissionKitRow>();
+        row.background = bg; row.rowOutline = outline; row.group = cg; row.button = btn; row.accentBar = accent;
+        row.well = well; row.wellOutline = wellOl;
+        row.glyphNormal = gNormal.gameObject; row.glyphSquare = gSq;
+        row.glyphBoss = gBoss.gameObject; row.glyphRing = gRing; row.glyphGem = gGem;
+        row.nameText = name; row.metaText = meta; row.qtyText = qty; row.gainText = gain;
+        go.SetActive(false);
+        return row;
+    }
+
+    // 보유 키트 0개일 때 안내 - 빈 슬롯 글리프 + 텍스트. 레이아웃 자식이라 LayoutElement 로 높이 확보.
+    private GameObject BuildKitEmptyLabel(RectTransform parent)
+    {
+        var go = NewGO("kitEmpty", parent);
+        go.AddComponent<LayoutElement>().minHeight = 128;
+
+        var box = Img("emptyBox", go, 0, 0, 48, 48, C("4CC9F7", 0.05f), UISpriteFactory.RoundedRect(28, 10));
+        var brt = box.rectTransform; brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 1f);
+        brt.anchoredPosition = new Vector2(0, -16); box.raycastTarget = false;
+        Outline(box.gameObject, C("4CC9F7", 0.18f));
+        var bar = Img("emptyBar", box.gameObject, 0, 0, 20, 3, C("9FDCF9", 0.45f), UISpriteFactory.RoundedRect(6, 1));
+        bar.rectTransform.anchorMin = bar.rectTransform.anchorMax = bar.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        bar.rectTransform.anchoredPosition = Vector2.zero; bar.raycastTarget = false;
+
+        var t = Txt("emptyTxt", go, 0, 0, 320, 24, "보유한 충전키트가 없습니다.", _kr, 15, C("E8F2FB", 0.4f), TextAlignmentOptions.Center);
+        var tt = t.rectTransform; tt.anchorMin = tt.anchorMax = tt.pivot = new Vector2(0.5f, 1f);
+        tt.anchoredPosition = new Vector2(0, -80); tt.sizeDelta = new Vector2(320, 24);
+
+        go.SetActive(false);
+        return go;
+    }
+
+    private void BuildFooter()
+    {
+        _statusLine = Txt("status", _content, 88, 1010, 1200, 22, "", _mono, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
+        // 커서 높이 18, 상태 텍스트(y=1010, h=22, 세로 중앙) 중심(=1021)에 맞춰 y=1012 배치.
+        _cursorImg = Img("cursor", _content, 88 + 470, 1012, 9, 18, Accent, UISpriteFactory.RoundedRect(8, 2));
+        _cursorImg.raycastTarget = false; _cursor = _cursorImg.rectTransform;   // 상태 텍스트 끝으로 따라오도록 참조 저장
+    }
+
+    private void BuildTooltip()
+    {
+        _tooltip = NewGO("tooltip", _content.transform);
+        var rt = _tooltip.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0, 1); rt.pivot = new Vector2(0.5f, 0f); rt.sizeDelta = new Vector2(264, 96);
+        _ttBox = _tooltip.AddComponent<Image>(); _ttBox.sprite = UISpriteFactory.RoundedRect(48, 12); _ttBox.type = Image.Type.Sliced; _ttBox.color = C("101A2D", 0.98f);
+        _ttBox.raycastTarget = false; _ttOutline = Outline(_tooltip, Accent);
+        _ttTitle = Txt("ttT", _tooltip, 17, 14, 230, 16, "", _mono, 12, Accent, TextAlignmentOptions.Left, 2);
+        _ttName = Txt("ttN", _tooltip, 17, 33, 230, 24, "", _kr, 17, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        _ttState = Txt("ttS", _tooltip, 17, 62, 230, 20, "", _kr, 13, C("E8F2FB", 0.6f), TextAlignmentOptions.Left);
+        _ttCg = _tooltip.AddComponent<CanvasGroup>(); _ttCg.blocksRaycasts = false;
+        _tooltip.SetActive(false);
+    }
+
+    private void BuildOverlay()
+    {
+        _scanImg = Img("scan", _content, 0, 0, 1920, 1080, C("78C8FF", 0.03f), ScanTile());
+        _scanImg.type = Image.Type.Tiled; _scanImg.raycastTarget = false;
+        _vignetteImg = Img("vignette", _content, 0, 0, 1920, 1080, Color.white, VignetteTex());
+        _vignetteImg.raycastTarget = false;
+    }
+
+    // ── 리워드 리빌 오버레이(지점 도달 연출용, 평소 비활성) ────────────
+    private void BuildRewardOverlay()
+    {
+        _reward = TL(NewGO("RewardReveal", _content.transform), 0, 0, 1920, 1080).gameObject;
+        _rewardCg = _reward.AddComponent<CanvasGroup>();
+
+        // 스크림 - 배경을 어둡게 + 클릭 시 스킵
+        var scrim = Img("rwScrim", _reward, 0, 0, 1920, 1080, C("040810", 0.62f));
+        scrim.raycastTarget = true;
+        _rewardScrimBtn = scrim.gameObject.AddComponent<Button>();
+        _rewardScrimBtn.transition = Selectable.Transition.None; _rewardScrimBtn.navigation = new Navigation { mode = Navigation.Mode.None };
+
+        // 가로형 매니페스트 카드(화면 중앙, 슬라이드 인). RectMask2D 로 스윕 하이라이트를 카드 안에 가둔다.
+        const float PW = 780, PH = 176, X0 = 190;
+        _rewardCard = NewRT("rwCard", _reward);
+        _rewardCard.anchorMin = _rewardCard.anchorMax = _rewardCard.pivot = new Vector2(0.5f, 0.5f);
+        _rewardCard.sizeDelta = new Vector2(PW, PH); _rewardCard.anchoredPosition = Vector2.zero;
+
+        var bg = _rewardCard.gameObject.AddComponent<Image>();
+        bg.sprite = UISpriteFactory.RoundedRectVGrad(C("14243A"), C("0A1421"), 64, 18); bg.type = Image.Type.Sliced;
+        bg.color = new Color(1, 1, 1, 0.99f); bg.raycastTarget = false;
+        var cardOutline = _rewardCard.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        cardOutline.effectColor = new Color(1, 1, 1, 0.06f); cardOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        _rewardCard.gameObject.AddComponent<RectMask2D>();   // 스윕/자식 클리핑
+
+        // 좌측 악센트 바(구간 색) - 라운드 코너 안쪽으로 살짝 들여 각진 nub 방지
+        var accentBar = Img("rwAccent", _rewardCard.gameObject, 14, 22, 6, PH - 44, Success, UISpriteFactory.RoundedRect(6, 3));
+        _rewardTint = new[] { accentBar };
+
+        // 아이콘 타일(구간 색 배경 + 프레임 + 타입별 아이콘)
+        float tS = 116, tX = 30, tY = (PH - tS) / 2f;
+        _rewardIconTile = TL(NewGO("rwTile", _rewardCard), tX, tY, tS, tS);
+        _rewardIconBg = _rewardIconTile.gameObject.AddComponent<Image>();
+        _rewardIconBg.sprite = UISpriteFactory.RoundedRect(40, 18); _rewardIconBg.type = Image.Type.Sliced; _rewardIconBg.color = C("5FDD9D", 0.14f); _rewardIconBg.raycastTarget = false;
+        _rewardIconFrame = _rewardIconTile.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        _rewardIconFrame.effectColor = Success; _rewardIconFrame.effectDistance = new Vector2(1.4f, -1.4f);
+        _rewardIconHolder = NewRT("rwIcon", _rewardIconTile.gameObject);
+        _rewardIconHolder.anchorMin = _rewardIconHolder.anchorMax = _rewardIconHolder.pivot = new Vector2(0.5f, 0.5f);
+        _rewardIconHolder.sizeDelta = new Vector2(28, 28); _rewardIconHolder.anchoredPosition = Vector2.zero;
+        _rewardIconHolder.localScale = Vector3.one * 2.6f;
+        BuildRewardIconVariants(_rewardIconHolder);
+
+        // 세로 구분선
+        Img("rwDiv", _rewardCard.gameObject, X0 - 24, 34, 1, PH - 68, C("E8F2FB", 0.10f)).raycastTarget = false;
+
+        // 텍스트 블록(우측)
+        _rewardTitle = Txt("rwTitle", _rewardCard.gameObject, X0, 34, PW - X0 - 40, 20, "", _mono, 13, Success, TextAlignmentOptions.Left, 3, FontStyles.Bold);
+        _rewardName  = Txt("rwName", _rewardCard.gameObject, X0, 58, PW - X0 - 40, 46, "", _kr, 32, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        _rewardDesc  = Txt("rwDesc", _rewardCard.gameObject, X0, 112, PW - X0 - 40, 42, "", _kr, 15, C("E8F2FB", 0.66f), TextAlignmentOptions.TopLeft);
+        _rewardDesc.textWrappingMode = TextWrappingModes.Normal;
+
+        // 클릭 힌트(우하단). 특수 글리프는 폰트 아틀라스에 없어 깨지므로 순수 텍스트만.
+        _rewardHint = Txt("rwHint", _rewardCard.gameObject, PW - 210, PH - 30, 190, 18, "클릭하여 계속", _mono, 12, C("E8F2FB", 0.42f), TextAlignmentOptions.Right, 2);
+
+        // 스윕 하이라이트(등장 시 좌->우로 한 번 지나감). 카드 마스크로 양끝 클리핑.
+        _rewardSweep = TL(NewGO("rwSweep", _rewardCard), 0, 0, 90, PH);
+        var sw = _rewardSweep.gameObject.AddComponent<Image>(); sw.color = new Color(1, 1, 1, 0.06f); sw.raycastTarget = false;
+
+        _reward.SetActive(false);
+    }
+
+    // 보상 아이콘 3형태(설비1 / 설비2 대각반반 / 보석)를 다 만들어둔다. 실행 시 하나만 켠다.
+    private void BuildRewardIconVariants(RectTransform holder)
+    {
+        // 설비 1개 - 원본 비율 유지
+        _riSingle = Img("facSingle", holder.gameObject, 0, 0, 28, 28, Color.white);
+        CenterIn(_riSingle, holder); _riSingle.preserveAspect = true; _riSingle.raycastTarget = false;
+        _riSingle.type = Image.Type.Simple;
+        _riSingleGo = _riSingle.gameObject;
+        _riSingleGo.SetActive(false);
+
+        _riHalfTLIcon = BuildRewardHalf(holder, true, out _riHalfTL, out _riHalfTLMask);
+        _riHalfBRIcon = BuildRewardHalf(holder, false, out _riHalfBR, out _riHalfBRMask);
+
+        // 비설비 보상 - 보석 엠블럼(구간 색 코인 + 어두운 림 + 중앙 각인)
+        var gem = NewRT("gem", holder.gameObject); CenterIn2(gem); gem.sizeDelta = new Vector2(28, 28);
+        _riGemCoin = MarkerIcon("gemCoin", gem.gameObject, 16, 16, Success, UISpriteFactory.Disc(32));
+        MarkerIcon("gemRim", gem.gameObject, 16, 16, C("0A1420", 0.9f), UISpriteFactory.Ring(48, 2f));
+        MarkerIcon("gemCore", gem.gameObject, 5, 5, C("0A1420", 0.9f), UISpriteFactory.Disc(16));
+        _riGem = gem.gameObject;
+        _riGem.SetActive(false);
+    }
+
+    // 설비 2개 대각 분할: 설비 이미지를 삼각형 절반으로 마스킹하고, 내용이 그 삼각형 코너로 오도록 배치.
+    private Image BuildRewardHalf(RectTransform holder, bool topLeft, out GameObject root, out Image maskImg)
+    {
+        var maskGO = NewRT(topLeft ? "halfTL" : "halfBR", holder.gameObject);
+        maskGO.anchorMin = maskGO.anchorMax = maskGO.pivot = new Vector2(0.5f, 0.5f);
+        maskGO.sizeDelta = new Vector2(28, 28); maskGO.anchoredPosition = Vector2.zero;
+        maskImg = maskGO.gameObject.AddComponent<Image>(); maskImg.raycastTarget = false;
+        maskGO.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+
+        var icon = Img("facIcon", maskGO.gameObject, 0, 0, 17, 17, Color.white);   // 각 반쪽에 또렷이 들어갈 크기
+        var rt = icon.rectTransform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = topLeft ? new Vector2(-6f, 6f) : new Vector2(6f, -6f);   // 각 삼각형 반쪽 중앙으로
+        icon.preserveAspect = true; icon.raycastTarget = false; icon.type = Image.Type.Simple;
+
+        root = maskGO.gameObject;
+        root.SetActive(false);
+        return icon;
+    }
+
+    // ── 에디터 전용 레이아웃 헬퍼 ─────────────────────────────────────
+    private void Stretch(GameObject go) { var rt = go.GetComponent<RectTransform>() ?? go.AddComponent<RectTransform>(); rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = rt.offsetMax = Vector2.zero; }
+    private void CenterIn(Image img, RectTransform parent) { var rt = img.rectTransform; rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f); rt.anchoredPosition = Vector2.zero; }
+    private void CenterIn2(RectTransform rt) { rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f); rt.anchoredPosition = Vector2.zero; }
+
     private Image Img2(GameObject go, Sprite spr) { var im = go.AddComponent<Image>(); im.sprite = spr; im.color = Color.white; return im; }
 
     private TMP_Text Txt(string n, Transform p, float x, float y, float w, float h, string t, TMP_FontAsset f, float size, Color col, TextAlignmentOptions al, float spacing = 0, FontStyles style = FontStyles.Normal)
@@ -1589,12 +1925,9 @@ public class TransmissionComputerUI : MonoBehaviour
     // 패널에 CanvasGroup 을 붙여 순차 오픈 애니 대상으로 등록(등록 순서 = 펼쳐지는 순서).
     private void RegisterBootPanel(RectTransform rt)
     {
-        if (rt.GetComponent<CanvasGroup>() == null)
-        {
-            _bootPanels.Add(rt.gameObject.AddComponent<CanvasGroup>());
-            _bootHome.Add(rt.anchoredPosition);   // 슬라이드 인의 최종 위치(빌드 시점 원위치)
-        }
+        if (rt.GetComponent<CanvasGroup>() == null) _bootBuild.Add(rt.gameObject.AddComponent<CanvasGroup>());
     }
+
     private void PanelHeader(RectTransform panel, float w, string title)
     {
         var hb = Img("hdrBar", panel.gameObject, 0, 0, w, 54, C("4CC9F7", 0.06f), UISpriteFactory.RoundedRect(48, 16));
@@ -1602,6 +1935,7 @@ public class TransmissionComputerUI : MonoBehaviour
         Img("hdrTick", panel.gameObject, 22, 18, 4, 18, Accent, UISpriteFactory.RoundedRect(8, 2)).raycastTarget = false;
         Txt("hdrTxt", panel.gameObject, 40, 18, 300, 18, title, _mono, 15, AccentSoft, TextAlignmentOptions.Left, 2, FontStyles.Normal);
     }
+
     private RectTransform Card(Transform p, float x, float y, float w, float h, Color bg, Color border)
     {
         var rt = TL(NewGO("card", p), x, y, w, h);
@@ -1609,125 +1943,29 @@ public class TransmissionComputerUI : MonoBehaviour
         Outline(rt.gameObject, border);
         return rt;
     }
-    private void Outline(GameObject go, Color col) { var o = go.AddComponent<UnityEngine.UI.Outline>(); o.effectColor = col; o.effectDistance = new Vector2(1, -1); }
 
-    // 체크 표시 (두 막대)
-    private void BuildCheck(GameObject parent, Color col)
+    // 풀네임 필수: 18.외부에셋 의 3D Outline(전역 네임스페이스)이 UnityEngine.UI.Outline 을 가린다.
+    private UnityEngine.UI.Outline Outline(GameObject go, Color col)
     {
-        var a = Img("ck1", parent, 0, 0, 6, 2.4f, col, UISpriteFactory.RoundedRect(8, 1));
-        a.rectTransform.anchorMin = a.rectTransform.anchorMax = a.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        a.rectTransform.anchoredPosition = new Vector2(-3.5f, -2.5f); a.rectTransform.localRotation = Quaternion.Euler(0, 0, 45); a.raycastTarget = false;
-        var b = Img("ck2", parent, 0, 0, 11, 2.4f, col, UISpriteFactory.RoundedRect(8, 1));
-        b.rectTransform.anchorMin = b.rectTransform.anchorMax = b.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        b.rectTransform.anchoredPosition = new Vector2(2.5f, 1f); b.rectTransform.localRotation = Quaternion.Euler(0, 0, -45); b.raycastTarget = false;
-    }
-    // 설계도(문서) 아이콘 = 3줄 막대
-    // 리빌 카드 아이콘 — 설비 보상이면 탑뷰와 동일한 설비 이미지(2개면 대각선 반반),
-    //   비설비 보상(창고포트 증설·엔진·보급꾸러미 등)은 설비 사진과 다른 느낌으로 보석 엠블럼.
-    private void BuildRewardIcon(GameObject holder, int pct, Color col)
-    {
-        var ids = TransmissionManager.Instance != null ? TransmissionManager.Instance.GetRewardFacilityIds(pct) : null;
-        var db  = FacilityIconDatabase.Instance;
-
-        if (ids != null && ids.Count >= 2 && db != null)
-        {
-            // 2개 — "/" 대각선 기준 왼쪽위 / 오른쪽아래로 반반 분할(각 설비가 자기 삼각형 코너를 채움).
-            //   삼각형 마스크에 간격을 넣어 구분선처럼 보이게 한다(별도 선 불필요).
-            AddFacilityHalf(holder, db.GetIcon(ids[0]), true);   // 왼쪽위
-            AddFacilityHalf(holder, db.GetIcon(ids[1]), false);  // 오른쪽아래
-            return;
-        }
-        if (ids != null && ids.Count == 1 && db != null)
-        {
-            var sp = db.GetIcon(ids[0]);
-            if (sp != null) { AddFacilityImg(holder, sp, Vector2.zero, 1f); return; }
-            // 설비 이미지가 없으면(예: 저장고) 아래 엠블럼으로 폴백
-        }
-
-        // 비설비 보상 또는 이미지 없음 — 보석 엠블럼.
-        BuildGem(holder, col);
+        var o = go.AddComponent<UnityEngine.UI.Outline>(); o.effectColor = col; o.effectDistance = new Vector2(1, -1); return o;
     }
 
-    // 홀더 중앙에 설비 이미지 1장(원본 비율 유지). offset/scale 로 대각선 배치.
-    private void AddFacilityImg(GameObject holder, Sprite sp, Vector2 offset, float scale)
+    // 행 컬럼 구분선 - 우측 끝 기준 xFromRight 위치에 세로 중앙 정렬된 짧고 둥근 바.
+    private void ColDivider(GameObject row, float xFromRight)
     {
-        if (sp == null) return;
-        var go = new GameObject("facIcon", typeof(RectTransform));
-        var rt = (RectTransform)go.transform; rt.SetParent(holder.transform, false);
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(28f, 28f) * scale; rt.anchoredPosition = offset;
-        var img = go.AddComponent<Image>(); img.sprite = sp; img.preserveAspect = true; img.raycastTarget = false;
+        var im = Img("colDiv", row, 0, 0, 2, 34, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1));
+        var rt = im.rectTransform;
+        rt.anchorMin = rt.anchorMax = new Vector2(1, 0.5f); rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = new Vector2(xFromRight, 0); im.raycastTarget = false;
     }
 
-    // 설비 2개 대각 분할: 설비 이미지를 삼각형 절반으로 마스킹하고, 내용이 그 삼각형 코너로 오도록 배치.
-    private void AddFacilityHalf(GameObject holder, Sprite sp, bool topLeft)
-    {
-        if (sp == null) return;
-        var maskGO = new GameObject(topLeft ? "halfTL" : "halfBR", typeof(RectTransform));
-        var mrt = (RectTransform)maskGO.transform; mrt.SetParent(holder.transform, false);
-        mrt.anchorMin = mrt.anchorMax = mrt.pivot = new Vector2(0.5f, 0.5f);
-        mrt.sizeDelta = new Vector2(28f, 28f); mrt.anchoredPosition = Vector2.zero;
-        var mImg = maskGO.AddComponent<Image>(); mImg.sprite = TriangleSprite(topLeft); mImg.raycastTarget = false;
-        maskGO.AddComponent<Mask>().showMaskGraphic = false;
-
-        var go = new GameObject("facIcon", typeof(RectTransform));
-        var rt = (RectTransform)go.transform; rt.SetParent(maskGO.transform, false);
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(17f, 17f);   // 각 반쪽에 또렷이 들어갈 크기
-        rt.anchoredPosition = topLeft ? new Vector2(-6f, 6f) : new Vector2(6f, -6f);  // 각 삼각형 반쪽 중앙으로
-        var img = go.AddComponent<Image>(); img.sprite = sp; img.preserveAspect = true; img.raycastTarget = false;
-    }
-
-    // 반반 대각 마스크("/" 대각선 기준 왼쪽위 / 오른쪽아래). 두 절반 사이 간격으로 구분선 효과. 캐시.
-    private static Sprite _triTL, _triBR;
-    private static Sprite TriangleSprite(bool topLeft)
-    {
-        if (topLeft && _triTL != null) return _triTL;
-        if (!topLeft && _triBR != null) return _triBR;
-        const int S = 64, gap = 2;
-        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-        var px = new Color32[S * S];
-        var on = new Color32(255, 255, 255, 255); var off = new Color32(255, 255, 255, 0);
-        for (int y = 0; y < S; y++)
-            for (int x = 0; x < S; x++)
-            {
-                int d = y - x;   // >0 = 왼쪽위(/ 대각 기준), <0 = 오른쪽아래
-                bool onHalf = topLeft ? (d > gap) : (d < -gap);
-                px[y * S + x] = onHalf ? on : off;
-            }
-        tex.SetPixels32(px); tex.Apply();
-        var sp = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), 100f);
-        if (topLeft) _triTL = sp; else _triBR = sp;
-        return sp;
-    }
-
-    private void BuildDoc(GameObject parent, Color col)
-    {
-        for (int i = 0; i < 3; i++)
-            Img($"dl{i}", parent, 0, 0, 12, 1.8f, col, UISpriteFactory.RoundedRect(8, 1))
-                .rectTransform.anchoredPosition = new Vector2(0, 4 - i * 4);
-        foreach (Transform t in parent.transform) { var rt = (RectTransform)t; rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f); }
-    }
-    // 마커 아이콘: 중심 정렬 이미지 헬퍼(마커 홀더 자식용)
+    // 중심 정렬 이미지 헬퍼(아이콘 홀더 자식용)
     private Image MarkerIcon(string n, GameObject parent, float w, float h, Color col, Sprite spr, float rotZ = 0f, Vector2 off = default)
     {
         var im = Img(n, parent, 0, 0, w, h, col, spr); var rt = im.rectTransform;
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = off; if (rotZ != 0f) rt.localRotation = Quaternion.Euler(0, 0, rotZ);
         im.raycastTarget = false; return im;
-    }
-    // 완료 = 각인 메달(구간 색 코인 + 어두운 테두리 림 + 중앙 각인)
-    private void BuildGem(GameObject parent, Color col)
-    {
-        MarkerIcon("doneCoin", parent, 16, 16, col, UISpriteFactory.Disc(32));                  // 채운 코인
-        MarkerIcon("doneRim",  parent, 16, 16, C("0A1420", 0.9f), UISpriteFactory.Ring(48, 2f)); // 어두운 테두리 림
-        MarkerIcon("doneCore", parent, 5, 5, C("0A1420", 0.9f), UISpriteFactory.Disc(16));       // 중앙 각인
-    }
-    // 다음 = 타깃(링 + 중앙 점)
-    private void BuildTarget(GameObject parent, Color col)
-    {
-        MarkerIcon("tgtRing", parent, 16, 16, col, UISpriteFactory.Ring(48, 3f));
-        MarkerIcon("tgtDot", parent, 5, 5, col, UISpriteFactory.Disc(16));
     }
 
     // ── 폰트 ──────────────────────────────────────────────────────────
@@ -1743,86 +1981,12 @@ public class TransmissionComputerUI : MonoBehaviour
         var any = FindAnyObjectByType<TextMeshProUGUI>(); if (any != null && any.font != null) return any.font;
         return TMP_Settings.defaultFontAsset;
     }
+
     private static TMP_FontAsset FindLoaded(string namePart)
     {
         foreach (var f in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
             if (f != null && f.name.IndexOf(namePart, StringComparison.OrdinalIgnoreCase) >= 0) return f;
         return null;
     }
-
-    // ── 절차 텍스처 ───────────────────────────────────────────────────
-    private static Sprite _hgrad, _radial, _grid, _scan, _tri, _sweep2, _vig;
-
-    private static Sprite HGrad()
-    {
-        if (_hgrad != null) return _hgrad;
-        int w = 256; var tex = new Texture2D(w, 4, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-        Color[] stops = { C("43B06C"), C("5BC7E8"), C("D9A44A"), C("E0593A") };
-        var px = new Color[w * 4];
-        for (int x = 0; x < w; x++)
-        {
-            float f = x / (float)(w - 1) * 3f; int i = Mathf.Clamp((int)f, 0, 2); Color c = Color.Lerp(stops[i], stops[i + 1], f - i);
-            for (int y = 0; y < 4; y++) px[y * w + x] = c;
-        }
-        tex.SetPixels(px); tex.Apply(); _hgrad = Sprite.Create(tex, new Rect(0, 0, w, 4), new Vector2(0.5f, 0.5f), 100f); return _hgrad;
-    }
-    private static Sprite RadialTex()
-    {
-        if (_radial != null) return _radial;
-        int s = 256; var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-        Color c0 = C("101C33"), c1 = C("0A1120"), c2 = C("070C17");
-        Vector2 ctr = new Vector2(0.30f, 0.90f) * s;
-        float maxd = s * 1.2f; var px = new Color[s * s];
-        for (int y = 0; y < s; y++) for (int x = 0; x < s; x++)
-        {
-            float d = Mathf.Clamp01(Vector2.Distance(new Vector2(x, y), ctr) / maxd);
-            px[y * s + x] = d < 0.55f ? Color.Lerp(c0, c1, d / 0.55f) : Color.Lerp(c1, c2, (d - 0.55f) / 0.45f);
-        }
-        tex.SetPixels(px); tex.Apply(); _radial = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f); return _radial;
-    }
-    private static Sprite GridTile()
-    {
-        if (_grid != null) return _grid;
-        int s = 56; var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Point };
-        var px = new Color[s * s];
-        for (int y = 0; y < s; y++) for (int x = 0; x < s; x++) px[y * s + x] = (x == 0 || y == 0) ? Color.white : new Color(1, 1, 1, 0);
-        tex.SetPixels(px); tex.Apply(); _grid = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f); return _grid;
-    }
-    private static Sprite ScanTile()
-    {
-        if (_scan != null) return _scan;
-        int s = 4; var tex = new Texture2D(4, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Point };
-        var px = new Color[4 * s];
-        for (int y = 0; y < s; y++) for (int x = 0; x < 4; x++) px[y * 4 + x] = (y == 0) ? Color.white : new Color(1, 1, 1, 0);
-        tex.SetPixels(px); tex.Apply(); _scan = Sprite.Create(tex, new Rect(0, 0, 4, s), new Vector2(0.5f, 0.5f), 100f); return _scan;
-    }
-    private static Sprite TriTex()
-    {
-        if (_tri != null) return _tri; int s = 32; var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-        var px = new Color[s * s];
-        for (int y = 0; y < s; y++) for (int x = 0; x < s; x++)
-        { float ty = Mathf.Abs(y - s / 2f) / (s / 2f); px[y * s + x] = (x / (float)s <= 1f - ty) ? Color.white : new Color(1, 1, 1, 0); }
-        tex.SetPixels(px); tex.Apply(); _tri = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f); return _tri;
-    }
-    private static Sprite SweepTex()
-    {
-        if (_sweep2 != null) return _sweep2; int w = 64; var tex = new Texture2D(w, 4, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-        var px = new Color[w * 4];
-        for (int x = 0; x < w; x++) { float f = x / (float)(w - 1); float a = Mathf.Sin(f * Mathf.PI) * 0.35f; for (int y = 0; y < 4; y++) px[y * w + x] = new Color(1, 1, 1, a); }
-        tex.SetPixels(px); tex.Apply(); _sweep2 = Sprite.Create(tex, new Rect(0, 0, w, 4), new Vector2(0.5f, 0.5f), 100f); return _sweep2;
-    }
-    private static Sprite VignetteTex()
-    {
-        if (_vig != null) return _vig; int s = 128; var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-        var px = new Color[s * s]; Vector2 c = new Vector2(s / 2f, s / 2f);
-        for (int y = 0; y < s; y++) for (int x = 0; x < s; x++)
-        { float d = Vector2.Distance(new Vector2(x, y), c) / (s / 2f); float a = Mathf.Clamp01((d - 0.6f) / 0.4f) * 0.4f; px[y * s + x] = new Color(0, 0, 0, a); }
-        tex.SetPixels(px); tex.Apply(); _vig = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f); return _vig;
-    }
-
-    private static Color C(string hex, float a = 1f)
-    {
-        if (ColorUtility.TryParseHtmlString("#" + hex, out Color c)) { c.a = a; return c; }
-        return Color.white;
-    }
+#endif
 }

@@ -54,9 +54,10 @@ public class TransmissionComputerTerminal : MonoBehaviour, IInteractable, IInter
             player.Skill.IsExecuting || player.Dash.IsDashing)
             return;
 
-        // 전송 컴퓨터 UI 오픈 (없으면 런타임 생성)
+        // 전송 컴퓨터 UI 오픈. 씬에 실물이 없으면 GetOrCreate 가 에러를 찍고 null 을 준다
+        // (메뉴 Tools/TIMEKOV/전송 컴퓨터 UI 생성 으로 만든다).
         GameUIController.Instance?.OpenTransmissionUI();
-        TransmissionComputerUI.GetOrCreate().Open();
+        TransmissionComputerUI.GetOrCreate()?.Open();
         // 소개 영상은 엔드게임 퀘(quest_end_02)의 영상 objective 가 전송기 도착 시점에 재생한다(코어와 동일).
         //   예전엔 여기서 RaiseInteracted("transmit") 로 발견 큐를 띄웠는데 UI 를 연 뒤라 타이밍이 어긋나 제거했다.
     }
