@@ -23,7 +23,11 @@ public class RuntimeGeneratedSprite : MonoBehaviour
         RoundedRectVGrad,   // 세로 그라데이션 둥근 사각 (9-slice)
     }
 
-    [Tooltip("만들 모양.")]
+    [Tooltip("UISpriteFactory 캐시 키(예: rr_48_16). 값이 있으면 아래 모양 설정보다 이게 우선한다.\n" +
+             "런타임 생성 UI 를 씬으로 옮길 때 빌더가 자동으로 채워넣는다(호출부를 안 고쳐도 되게).")]
+    public string sourceKey;
+
+    [Tooltip("만들 모양. sourceKey 가 비어 있을 때만 쓴다.")]
     public Shape shape = Shape.RoundedRect;
     [Tooltip("생성할 텍스처 세로 크기(px). 모서리가 뭉개지면 키운다. Chevron 외에는 정사각.")]
     public int texSize = 64;
@@ -50,6 +54,11 @@ public class RuntimeGeneratedSprite : MonoBehaviour
     {
         var img = GetComponent<Image>();
         if (img == null) return;
+        if (!string.IsNullOrEmpty(sourceKey))
+        {
+            var byKey = UISpriteFactory.FromKey(sourceKey);
+            if (byKey != null) { img.sprite = byKey; return; }
+        }
         img.sprite = shape switch
         {
             Shape.Ring => UISpriteFactory.Ring(texSize, ringThickness),

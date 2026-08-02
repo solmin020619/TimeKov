@@ -53,6 +53,27 @@ public static class UIBuilderUtil
             gen.Apply();
     }
 
+    /// <summary>방금 만든 계층에서 UISpriteFactory 가 만든 스프라이트를 쓰는 Image 를 전부 찾아
+    /// 재생성용 키를 심어둔다(RuntimeGeneratedSprite.sourceKey).
+    ///
+    /// 왜: 팩토리 스프라이트는 에셋이 아니라 메모리 생성물이라 유니티를 껐다 켜면 사라진다.
+    ///   호출부가 수십 군데인 화면은 하나씩 컴포넌트를 붙일 수 없으므로, 빌드가 끝난 뒤 한 번에 훑는다.
+    /// 이미 RuntimeGeneratedSprite 가 붙어 있으면(모양을 손으로 지정한 경우) 건드리지 않는다.</summary>
+    public static int AttachGeneratedSpriteKeys(GameObject root)
+    {
+        if (root == null) return 0;
+        int n = 0;
+        foreach (var img in root.GetComponentsInChildren<UnityEngine.UI.Image>(true))
+        {
+            if (img.sprite == null) continue;
+            if (img.GetComponent<RuntimeGeneratedSprite>() != null) continue;
+            if (!UISpriteFactory.TryGetKey(img.sprite, out string key)) continue;   // 진짜 에셋 스프라이트는 건너뜀
+            img.gameObject.AddComponent<RuntimeGeneratedSprite>().sourceKey = key;
+            n++;
+        }
+        return n;
+    }
+
     /// <summary>씬 어디에 있든(비활성 포함) 해당 UI 컴포넌트를 가진 오브젝트를 지운다.
     /// 부모가 잘못 잡혀 엉뚱한 곳에 만들어진 이전 결과물까지 정리하기 위함.</summary>
     public static int RemoveExisting<T>() where T : Component
