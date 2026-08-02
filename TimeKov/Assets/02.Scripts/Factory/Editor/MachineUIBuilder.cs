@@ -24,10 +24,10 @@ using TIMEKOV.Factory;
 public static class MachineUIBuilder
 {
     // ── 경로/상수 (인벤 빌더와 동일 자산 재사용) ──
-    const string PartDir = "Assets/11.UI/New";                       // clggdesign 간유리 부품 PNG
+    const string PartDir = "Assets/15.UI/New";                       // clggdesign 간유리 부품 PNG
     const string PanelSpritePath = PartDir + "/panel_ash_a78.png";   // 간유리 패널 표면(9-slice)
     const int PanelSlice = 56;
-    const string SprDir = "Assets/11.UI/Inventory UI/sprites/";      // 아이콘 PNG 폴더
+    const string SprDir = "Assets/15.UI/Inventory UI/sprites/";      // 아이콘 PNG 폴더
 
     // ── 색 (인벤 팔레트 복제 + 공장 노란 액센트) ──
     //   [07-02 교훈] 웜(베이지) 틴트 전면 교체는 오답이었음(안 어울림). 엔필의 톤 = 무색 유리 + 밝은 투과.

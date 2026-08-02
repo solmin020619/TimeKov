@@ -17,8 +17,8 @@ using JeffGrawAssets.FlexibleUI;
 public static class InventoryUIBuilder
 {
     const string SlotPrefabPath = "Assets/05.Prefabs/Inventory/InventorySlot.prefab";
-    const string SprDir = "Assets/11.UI/Inventory UI/sprites/";
-    const string WarehouseDir = "Assets/11.UI/Warehouse/sprites/";   // 창고 전용 부품 PNG (ic_warehouse/ic_trash/ic_deposit_all/cat_*/tab_selected)
+    const string SprDir = "Assets/15.UI/Inventory UI/sprites/";
+    const string WarehouseDir = "Assets/15.UI/Warehouse/sprites/";   // 창고 전용 부품 PNG (ic_warehouse/ic_trash/ic_deposit_all/cat_*/tab_selected)
 
     // 카테고리 7 아이콘 (HANDOFF §10 순서 = 전체/원재료/1차/2차/전술/코어/특수)
     static readonly string[] CatIcons =
@@ -29,7 +29,7 @@ public static class InventoryUIBuilder
     const float BagRightX = 500f;   // 가방을 화면 중앙에서 오른쪽으로. 패널/블러 같은 값으로 정렬 (값 키울수록 더 오른쪽)
     // clggdesign 따뜻한 간유리 패널 표면 (9-slice). 톤을 배경무관 고정 + 블러는 뒤에서 깊이만.
     // 알파 강화 원하면 a82/a88 파일로 경로만 바꾸면 됨.
-    const string PartDir = "Assets/11.UI/New";   // clggdesign 부품 PNG 폴더 (패널 변형 + header_bar/grade_bar/divider/scrollbar/icons)
+    const string PartDir = "Assets/15.UI/New";   // clggdesign 부품 PNG 폴더 (패널 변형 + header_bar/grade_bar/divider/scrollbar/icons)
     const string PanelSpritePath = PartDir + "/panel_ash_a78.png";   // 기본 = 밝은 중성 쿨(ash). F9로 steel/cool 비교
     const int PanelSlice = 56;
     static Color Panel    => RGBA(26, 32, 42, 0.40f);   // 본체 (쿨 뉴트럴 - 엔드필드처럼 깔끔. 진한 파랑 빼서 블러색이 살게)
@@ -666,7 +666,7 @@ public static class InventoryUIBuilder
         var first = ConfigurePanelSprite(PanelSpritePath);
         if (first != null) list.Add(first);
 
-        var guids = AssetDatabase.FindAssets("panel t:Texture2D", new[] { PartDir, "Assets/11.UI/Inventory UI/sprites" });
+        var guids = AssetDatabase.FindAssets("panel t:Texture2D", new[] { PartDir, "Assets/15.UI/Inventory UI/sprites" });
         foreach (var g in guids)
         {
             var path = AssetDatabase.GUIDToAssetPath(g);

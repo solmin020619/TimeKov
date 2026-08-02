@@ -744,7 +744,7 @@ public static class TutorialAssetBuilder
         EnsureFolder("Assets", "Resources");
         EnsureFolder("Assets/Resources", "TutorialVideo");
         // 영상 테두리 = 인벤 "슬롯" 강조 프레임(네모 닫힌 형). 아래 뚫린 region 프레임 아님.
-        CopySpriteToResources("Assets/11.UI/New/hl_slot_frame@2x.png",
+        CopySpriteToResources("Assets/15.UI/New/hl_slot_frame@2x.png",
                               "Assets/Resources/TutorialVideo/vid_frame.png");
     }
 
