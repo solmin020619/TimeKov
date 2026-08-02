@@ -13,13 +13,21 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class RuntimeGeneratedSprite : MonoBehaviour
 {
-    public enum Shape { RoundedRect, Ring, Chevron }
+    public enum Shape
+    {
+        RoundedRect,        // 둥근 사각형 (9-slice)
+        Ring,               // 링 (속 빈 동그라미)
+        Chevron,            // 화살표 '>' (왼쪽은 localScale.x 를 -1 로 뒤집어 쓴다)
+        Disc,               // 소프트 원 (후광/글로우)
+        VFade,              // 세로 알파 페이드 (주사선/비네트)
+        RoundedRectVGrad,   // 세로 그라데이션 둥근 사각 (9-slice)
+    }
 
-    [Tooltip("RoundedRect = 둥근 사각형 / Ring = 링(아이콘용) / Chevron = 화살표 '>' (왼쪽은 localScale.x 를 -1 로 뒤집어 쓴다)")]
+    [Tooltip("만들 모양.")]
     public Shape shape = Shape.RoundedRect;
-    [Tooltip("생성할 텍스처 세로 크기(px). 모서리가 뭉개지면 키운다. RoundedRect/Ring 은 정사각.")]
+    [Tooltip("생성할 텍스처 세로 크기(px). 모서리가 뭉개지면 키운다. Chevron 외에는 정사각.")]
     public int texSize = 64;
-    [Tooltip("RoundedRect 의 모서리 반경(px).")]
+    [Tooltip("RoundedRect / RoundedRectVGrad 의 모서리 반경(px).")]
     public int radius = 4;
     [Tooltip("Ring 의 두께(px).")]
     public float ringThickness = 6f;
@@ -28,7 +36,17 @@ public class RuntimeGeneratedSprite : MonoBehaviour
     [Tooltip("Chevron 의 가로/세로 비율. 0.75 면 texSize 64 -> 48x64 텍스처.")]
     public float chevronAspect = 0.75f;
 
-    private void Awake()
+    [Header("VFade / RoundedRectVGrad 전용")]
+    [Tooltip("위쪽 색. VFade 는 알파만 쓴다.")]
+    public Color topColor = Color.white;
+    [Tooltip("아래쪽 색. VFade 는 알파만 쓴다.")]
+    public Color bottomColor = new Color(1f, 1f, 1f, 0f);
+
+    private void Awake() => Apply();
+
+    /// <summary>설정한 모양대로 sprite 를 채운다. 실행 시 자동 호출되고,
+    /// 빌더도 만든 직후 한 번 불러 에디터에서 모양이 보이게 한다(그 참조는 재시작 때 사라진다).</summary>
+    public void Apply()
     {
         var img = GetComponent<Image>();
         if (img == null) return;
@@ -37,7 +55,12 @@ public class RuntimeGeneratedSprite : MonoBehaviour
             Shape.Ring => UISpriteFactory.Ring(texSize, ringThickness),
             Shape.Chevron => UISpriteFactory.Chevron(
                 Mathf.Max(1, Mathf.RoundToInt(texSize * chevronAspect)), texSize, chevronThickness),
+            Shape.Disc => UISpriteFactory.Disc(texSize),
+            Shape.VFade => UISpriteFactory.VFade(Alpha(topColor), Alpha(bottomColor), texSize),
+            Shape.RoundedRectVGrad => UISpriteFactory.RoundedRectVGrad(topColor, bottomColor, texSize, radius),
             _ => UISpriteFactory.RoundedRect(texSize, radius),
         };
     }
+
+    private static byte Alpha(Color c) => (byte)Mathf.Clamp(Mathf.RoundToInt(c.a * 255f), 0, 255);
 }

@@ -197,6 +197,9 @@ public static class TutorialVideoUIBuilder
         SetRef(so, "chevronRight", chevR);
         so.ApplyModifiedPropertiesWithoutUndo();
 
+        // 절차 스프라이트(링/셰브론)를 지금 한 번 채워 에디터에서도 제 모양으로 보이게 한다.
+        UIBuilderUtil.ApplyGeneratedSprites(rootGo);
+
         // 오브젝트는 항상 활성으로 두고 Canvas 만 끈다(런타임 LateUpdate 가 계속 돌아야 설정창 복귀를 감지한다).
         // 에디터에서도 꺼두는 이유: 켜두면 전체화면 블러+딤이 씬/게임 뷰를 통째로 덮어 다른 작업이 불가능하다.
         // 레이아웃을 눈으로 보며 조정하려면 이 Canvas 체크박스를 잠깐 켜라(실행하면 어차피 자동으로 꺼진다).

@@ -110,13 +110,15 @@ public static class PromptPanelBuilder
         SetRef(so, "blur", blur);
         so.ApplyModifiedPropertiesWithoutUndo();
 
+        // 절차 스프라이트를 지금 한 번 채워 에디터에서도 둥글게 보이게 한다.
+        UIBuilderUtil.ApplyGeneratedSprites(rootGo);
+
         panelGo.SetActive(false);   // 평소 숨김(루트는 켜둔 채 Panel 만 토글)
 
         Selection.activeGameObject = rootGo;
         EditorUtility.DisplayDialog("완료",
             rootName + " 를 만들었습니다.\n\n" +
-            "위치: Canvas/Overlays/" + rootName + "\n" +
-            "스프라이트는 실행 시 코드가 넣습니다(에디터에선 각져 보이는 게 정상).\n\n" +
+            "위치: Canvas/Overlays/" + rootName + "\n\n" +
             "Ctrl+S 로 씬을 저장하세요.", "확인");
     }
 

@@ -43,6 +43,16 @@ public static class UIBuilderUtil
         return go.transform;
     }
 
+    /// <summary>방금 만든 계층 안의 절차 스프라이트를 지금 한 번 채운다(에디터 미리보기용).
+    /// 이 참조는 유니티 재시작 때 사라지지만, 그때는 RuntimeGeneratedSprite 가 실행 시 스스로 다시 채운다.
+    /// 안 부르면 에디터에서 흰 사각형만 보여 레이아웃 조정이 어렵다.</summary>
+    public static void ApplyGeneratedSprites(GameObject root)
+    {
+        if (root == null) return;
+        foreach (var gen in root.GetComponentsInChildren<RuntimeGeneratedSprite>(true))
+            gen.Apply();
+    }
+
     /// <summary>씬 어디에 있든(비활성 포함) 해당 UI 컴포넌트를 가진 오브젝트를 지운다.
     /// 부모가 잘못 잡혀 엉뚱한 곳에 만들어진 이전 결과물까지 정리하기 위함.</summary>
     public static int RemoveExisting<T>() where T : Component
