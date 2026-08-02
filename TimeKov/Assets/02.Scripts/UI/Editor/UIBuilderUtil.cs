@@ -1,0 +1,60 @@
+using UnityEditor;
+using UnityEngine;
+
+// [08-02] UI 빌더 공용 헬퍼.
+//
+// 겪은 사고: 빌더들이 FindFirstObjectByType<Canvas>() 로 캔버스를 찾았는데,
+//   우리가 만든 UI(CastGauge 등)가 정렬 격리용으로 Canvas 컴포넌트를 갖고 있어서 그게 먼저 잡혔다.
+//   결과: Canvas/InventoryCanvas/CastGauge/ChestPrompt 처럼 UI 안에 UI 가 파묻히고,
+//         부모의 CanvasGroup 알파가 0 이라 자식까지 통째로 안 보였다.
+//   -> 캔버스 탐색은 반드시 '루트 캔버스'로 한다.
+public static class UIBuilderUtil
+{
+    /// <summary>씬의 메인(루트) 캔버스. 중첩 Canvas 는 제외한다.</summary>
+    public static Canvas FindMainCanvas()
+    {
+        var all = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Canvas best = null;
+        foreach (var c in all)
+        {
+            if (!c.isRootCanvas) continue;               // 중첩 캔버스(우리 UI가 붙인 것) 제외
+            if (c.renderMode != RenderMode.ScreenSpaceOverlay && c.renderMode != RenderMode.ScreenSpaceCamera) continue;
+            if (best == null) { best = c; continue; }
+            // 이름이 정확히 "Canvas" 인 쪽을 우선(메인 캔버스 관례)
+            if (c.name == "Canvas" && best.name != "Canvas") best = c;
+        }
+        return best;
+    }
+
+    /// <summary>캔버스 아래 그룹 컨테이너를 찾고, 없으면 만든다(HUD/Overlays/Panels/Modals 정리용).</summary>
+    public static Transform EnsureGroup(Canvas canvas, string groupName)
+    {
+        var t = canvas.transform.Find(groupName);
+        if (t != null) return t;
+
+        var go = new GameObject(groupName, typeof(RectTransform));
+        go.transform.SetParent(canvas.transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        Undo.RegisterCreatedObjectUndo(go, "Create UI Group");
+        return go.transform;
+    }
+
+    /// <summary>씬 어디에 있든(비활성 포함) 해당 UI 컴포넌트를 가진 오브젝트를 지운다.
+    /// 부모가 잘못 잡혀 엉뚱한 곳에 만들어진 이전 결과물까지 정리하기 위함.</summary>
+    public static int RemoveExisting<T>() where T : Component
+    {
+        var found = Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        int n = 0;
+        foreach (var c in found)
+        {
+            if (c == null) continue;
+            Undo.DestroyObjectImmediate(c.gameObject);
+            n++;
+        }
+        return n;
+    }
+}
