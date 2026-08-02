@@ -126,6 +126,12 @@ public enum SfxId
     // 전투 종료 임팩트 (BattleBgm · 교전 종료 시 필드 BGM 페이드인 직전 샤악- 1회) ──
     //   클립 없으면 무음(안전). SFX 볼륨을 따른다. Resources/Sfx/BattleEndAccent 폴백 가능.
     BattleEndAccent,          // 전투 종료 전환 강조음(엔드필드식 샤악)
+
+    // ── 기믹 (스위치 / 레이저 결계 · Resources/Sfx 이름 폴백으로 클립 연결) ──
+    //   ★enum 끝에 append 유지(중간 삽입 금지 — GameSfxConfig id 매핑 보존).
+    GimmickSwitchOn,          // 스위치 켜짐(오브젝트 활성화음)
+    GimmickSwitchOff,         // 스위치 꺼짐(토글 스위치)
+    LaserBarrierDown,         // 레이저 결계 소멸(전자식 전환음)
 }
 
 // 런타임 UI/이벤트 효과음 재생기 (지연 싱글톤, 씬 세팅 불필요).

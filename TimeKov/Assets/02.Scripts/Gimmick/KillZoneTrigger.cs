@@ -66,11 +66,18 @@ public class KillZoneTrigger : GimmickTrigger
     [Tooltip("거리 체크 주기(초). 매 프레임 안 재도 됨(가벼운 폴링).")]
     [SerializeField] private float checkInterval = 0.25f;
 
+    [Header("어그로 공유")]
+    [Tooltip("체크: 가드 중 하나라도 플레이어를 인식하면 전원이 즉시 함께 인식한다.\n" +
+             "VisionSensor 를 쓰는 몹(필드/헬 등)만 해당. 자폭거미처럼 거리기반 몹은 알아서 덤빈다.")]
+    [SerializeField] private bool shareAggro = true;
+
     // 인스펙터/디버그용
     public int EditorWave => _waveIndex;
     public int EditorRemaining => _remaining;
 
     private readonly List<EnemyHealth> _alive = new();
+    private readonly List<VisionSensor> _visions = new();   // 현재 웨이브 가드들의 시야 센서(어그로 공유용)
+    private bool _alerted;                                   // 한 마리라도 인식 → 전원 각성 상태
     private int _remaining;
     private int _waveIndex = -1;   // 현재 진행 중 웨이브(-1=미시작)
     private bool _started;
@@ -114,16 +121,44 @@ public class KillZoneTrigger : GimmickTrigger
         {
             DespawnReset();                         // 진행 중 이탈 → 정리 후 처음부터 리셋
         }
+
+        if (shareAggro && _started && !_cleared) CheckSharedAggro();
+    }
+
+    // 가드 중 하나라도 플레이어를 인식하면 전원의 시야센서에 강제 타깃을 걸어 함께 각성시킨다.
+    private void CheckSharedAggro()
+    {
+        if (_alerted) { BroadcastAlert(); return; }   // 이미 각성 — 계속 물고 있게 유지(놓치지 않음)
+        for (int i = 0; i < _visions.Count; i++)
+        {
+            if (_visions[i] != null && _visions[i].SpottedTarget != null)
+            {
+                _alerted = true;
+                BroadcastAlert();
+                return;
+            }
+        }
+    }
+
+    private void BroadcastAlert()
+    {
+        if (_player == null) return;
+        for (int i = 0; i < _visions.Count; i++)
+            if (_visions[i] != null) _visions[i].ForceSetTarget(_player);
     }
 
     private void StartWaves()
     {
         _started = true;
-        EngageMusic();                              // 웨이브 시퀀스 동안 전투 BGM 유지(텀에도 안 끊김)
+        _alerted = false;                           // 새 교전 시작 — 각성 상태 초기화
+        // ★여기서 BGM 을 켜지 않는다. 범위에 들어왔다고 전투가 시작된 건 아니므로.
+        //   전투 BGM 은 몹들이 각자 플레이어를 인식(교전)할 때 스스로 켠다(EnemyBrain 등).
+        //   트리거의 홀드는 '첫 몹 사망'(=실제 교전 확정) 시점부터 걸어 웨이브 사이 텀만 메운다.
         SpawnWave(0);                               // 첫 웨이브는 접근 즉시(텀 무시)
     }
 
     // 트리거가 자기 id로 교전 1개를 잡아둔다 → 웨이브 사이 텀에 몹이 0이어도 카운트가 0으로 안 떨어져 BGM 유지.
+    //   ★단, '전투가 이미 시작된 뒤'에만 건다(접근만으로는 안 켜지게). 첫 몹 사망 때 호출된다.
     private void EngageMusic()
     {
         if (_musicEngaged) return;
@@ -142,6 +177,7 @@ public class KillZoneTrigger : GimmickTrigger
     {
         _waveIndex = index;
         _alive.Clear();
+        _visions.Clear();
         _remaining = 0;
 
         if (waves == null || index < 0 || index >= waves.Count) { AdvanceOrClear(); return; }
@@ -167,6 +203,8 @@ public class KillZoneTrigger : GimmickTrigger
                         {
                             _alive.Add(hp);
                             _remaining++;
+                            var vs = go.GetComponentInChildren<VisionSensor>();
+                            if (vs != null) _visions.Add(vs);     // 어그로 공유용 시야센서
                             var captured = hp;                    // per-iteration 캡처(안전)
                             hp.OnDeath += () => OnGuardDied(captured);
                         }
@@ -175,12 +213,18 @@ public class KillZoneTrigger : GimmickTrigger
             }
         }
 
+        // 이미 각성 상태(이전 웨이브에서 인식됨)면 새 웨이브 몹도 즉시 전원 인식.
+        if (_alerted && shareAggro) BroadcastAlert();
+
         // 이 웨이브가 비었으면(설정 누락) 바로 다음으로.
         if (_remaining == 0) AdvanceOrClear();
     }
 
     private void OnGuardDied(EnemyHealth hp)
     {
+        // 첫 몹이 죽었다 = 실제 교전 중. 이제부터 트리거가 BGM 을 잡아 웨이브 사이 텀에도 안 끊기게 한다.
+        //   (죽는 몹 자신의 Disengage 로 카운트가 0이 돼도, 트리거 id 가 남아 BGM 유지)
+        EngageMusic();
         _alive.Remove(hp);
         _remaining = Mathf.Max(0, _remaining - 1);
         if (_remaining == 0) AdvanceOrClear();      // 현재 웨이브 전 영역 전멸
@@ -253,9 +297,11 @@ public class KillZoneTrigger : GimmickTrigger
         for (int i = _alive.Count - 1; i >= 0; i--)
             if (_alive[i] != null) Destroy(_alive[i].gameObject);
         _alive.Clear();
+        _visions.Clear();
         _remaining = 0;
         _waveIndex = -1;
         _started = false;
+        _alerted = false;
     }
 
     private void OnDestroy()

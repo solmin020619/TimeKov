@@ -37,6 +37,17 @@ public class ChestPromptUI : PromptPanelUI
         return Instance;
     }
 
+    // 기믹(스위치 등)으로 잠긴 상자 — F/G 로 못 열고, 스위치를 찾아야 함을 알린다.
+    public void ShowGimmickLocked(ChestInteractable owner)
+    {
+        _owner = owner;
+        SetTitle(Loc.Get("잠긴 상자"));
+        SetProgress(false);
+        SetPrimary(null, null, null);                              // F 버튼 없음(스위치로만 풀림)
+        SetSecondary("", Loc.Get("스위치를 활성화하라"), null);      // 안내 문구(키 없음, 눌러도 동작 없음)
+        ShowPanel();
+    }
+
     public void ShowIdle(ChestInteractable owner, float instantCost,
                          System.Action onF, System.Action onG)
     {

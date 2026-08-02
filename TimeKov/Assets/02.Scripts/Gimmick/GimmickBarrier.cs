@@ -29,6 +29,11 @@ public class GimmickBarrier : GimmickTarget
     [Tooltip("한 번 깜빡이는 간격(초). 작을수록 빠르게 점멸. 실제론 약간 랜덤하게 흔들린다.")]
     [SerializeField] private float flickerInterval = 0.08f;
 
+    [Header("소멸 사운드")]
+    [Tooltip("결계가 열릴(사라질) 때 재생. 레이저 결계는 기본 전자식 전환음(LaserBarrierDown).\n" +
+             "문/다리 등 다른 용도로 쓸 땐 None 으로 바꾸거나 다른 사운드로 교체.")]
+    [SerializeField] private SfxId powerDownSfx = SfxId.LaserBarrierDown;
+
     private Coroutine _flicker;
 
     protected override void ApplyState(bool open, bool instant)
@@ -44,6 +49,15 @@ public class GimmickBarrier : GimmickTarget
 
         // 열림: 통과용(다리)은 즉시 켜고, 막던 것은 깜빡이며(또는 즉시) 끈다.
         SetActiveAll(passObjects, true);
+
+        // 실제 개방(연출)일 때만 소멸음. 시작 시 초기화(instant)에선 무음.
+        //   powerDownSfx 가 None(기존 프리팹이 신규필드 기본값을 못 받은 경우)이면 기본 레이저음으로 폴백.
+        //   ★문/다리 등 다른 용도로 쓰며 무음을 원하면 이 폴백 대신 별도 사운드를 지정할 것.
+        if (!instant)
+        {
+            SfxId sfx = powerDownSfx == SfxId.None ? SfxId.LaserBarrierDown : powerDownSfx;
+            GameSfx.Play(sfx);   // 결계 해제 이벤트 = 거리 무관 2D(빈 부모가 멀리 있어도 또렷하게)
+        }
 
         if (instant || !flickerOut)
         {

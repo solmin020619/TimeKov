@@ -29,6 +29,12 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
              "결계/기믹이 실질적 잠금 역할을 하므로 상자 자체는 즉시 열리게 둔다.")]
     [SerializeField] private bool startUnlocked = false;
 
+    [Tooltip("★기믹(스위치/에너지 노드 등)으로 '상자 자체'를 여는 잠금. 체크하면 다가가도 F·힌트가 전혀\n" +
+             "안 뜨는 완전 잠금으로 시작 → GimmickChestLock 타깃이 GimmickUnlock() 을 호출하면 풀린다.\n" +
+             "풀리면 startUnlocked 처럼 F 한 번에 바로 전리품을 연다.")]
+    [SerializeField] private bool gimmickLocked = false;
+    private bool _gimmickUnlocked = false;   // gimmickLocked 상자가 스위치 등으로 풀렸는지
+
     [Header("열기 / 즉시완료")]
     [Tooltip("F로 걸어두면 이 시간(초) 뒤 '수령 가능'이 된다. 자리를 비워도 카운트됨.")]
     [SerializeField] private float openTimeSeconds = 20f;
@@ -93,6 +99,23 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     private Light[]    _fadeLights;       // 상자에 붙은 Light 컴포넌트(있으면 밝기도 같이 페이드)
     private float[]    _fadeLightBase;
 
+    // ── 기믹 잠금 표시등 (빨강=잠김 / 파랑=해제) ──────────────────────────
+    [Header("기믹 잠금 표시등 (gimmickLocked 상자만)")]
+    [Tooltip("잠겨 있을 때 표시등 색(빨강).")]
+    [SerializeField] private Color lockedLightColor   = new Color(1f, 0.12f, 0.08f);
+    [Tooltip("기믹으로 풀렸을 때 표시등 색(파랑).")]
+    [SerializeField] private Color unlockedLightColor = new Color(0.18f, 0.55f, 1f);
+    [Tooltip("색을 바꿀 표시등 발광 메시. 비우면 이름에 'light'가 들어간 자식 렌더러를 자동으로 쓴다.")]
+    [SerializeField] private Renderer[] lockIndicatorRenderers;
+    [Tooltip("색을 바꿀 Light 컴포넌트. 비우면 자식 Light 전체를 자동으로 쓴다.")]
+    [SerializeField] private Light[] lockIndicatorLights;
+
+    // 표시등 발광 머티리얼 1개(색 프로퍼티 + 원래 밝기). mag = 원래 HDR 밝기(색만 갈아끼우고 밝기는 유지).
+    private struct LockMatCol { public Material mat; public int id; public float mag; }
+    private readonly List<LockMatCol> _lockMatCols = new();
+    private Light[] _lockLights;
+    private bool    _lockIndicatorInit;
+
     private void Awake()
     {
         _colliders = GetComponentsInChildren<Collider>(true);
@@ -105,6 +128,85 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         SetupGlow();
         // 기믹으로 여는 상자: 잠금/대기 없이 '수령 가능'으로 시작 → 첫 F 에 바로 전리품을 굴려 연다.
         if (startUnlocked) _state = State.Ready;
+        // 기믹 잠금 상자: 표시등을 빨강(잠김)으로. 이미 풀린 상태면 파랑.
+        //   ApplyLockIndicator(locked) — 시작 시엔 아직 안 풀렸으니 locked=true(빨강).
+        if (gimmickLocked) ApplyLockIndicator(!_gimmickUnlocked);
+    }
+
+    // ── 기믹 잠금 해제 (GimmickChestLock 타깃이 스위치/에너지 노드 충족 시 호출) ──────
+    // gimmickLocked 상자를 열 수 있게 푼다. 풀리면 startUnlocked 처럼 '수령 가능'이 되어
+    //   다가가 F 한 번에 바로 전리품을 연다. 이미 풀렸으면 무시.
+    public void GimmickUnlock()
+    {
+        if (!gimmickLocked || _gimmickUnlocked) return;
+        _gimmickUnlocked = true;
+        if (_state == State.Idle) _state = State.Ready;   // 잠금이 실질 역할 → 풀리면 즉시 개방
+        GameSfx.Play(SfxId.ChestOpenComplete, transform.position);
+        ApplyLockIndicator(false);   // 표시등 파랑(해제)
+    }
+
+    // ── 잠금 표시등 ──────────────────────────────────────────────────────
+    // 표시등 발광 메시/Light 를 모아 색을 갈아끼운다. 원래 밝기(HDR)는 유지하고 색만 교체.
+    private void SetupLockIndicator()
+    {
+        if (_lockIndicatorInit) return;
+        _lockIndicatorInit = true;
+
+        // 대상 Light — 지정 없으면 자식 전체.
+        _lockLights = (lockIndicatorLights != null && lockIndicatorLights.Length > 0)
+            ? lockIndicatorLights
+            : GetComponentsInChildren<Light>(true);
+
+        // 대상 렌더러 — 지정 없으면 이름에 'light' 들어간 자식 렌더러(발광 메시).
+        Renderer[] rends = lockIndicatorRenderers;
+        if (rends == null || rends.Length == 0)
+        {
+            var list = new List<Renderer>();
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null || r is ParticleSystemRenderer) continue;
+                if (r.gameObject.name.ToLowerInvariant().Contains("light")) list.Add(r);
+            }
+            rends = list.ToArray();
+        }
+
+        _lockMatCols.Clear();
+        foreach (var r in rends)
+        {
+            if (r == null) continue;
+            foreach (var m in r.materials)   // 인스턴스 — 다른 상자에 영향 없음
+            {
+                if (m == null) continue;
+                var sh = m.shader;
+                int count = sh != null ? sh.GetPropertyCount() : 0;
+                for (int i = 0; i < count; i++)
+                {
+                    if (sh.GetPropertyType(i) != UnityEngine.Rendering.ShaderPropertyType.Color) continue;
+                    int id = sh.GetPropertyNameId(i);
+                    if (!m.HasProperty(id)) continue;
+                    Color o = m.GetColor(id);
+                    float mag = Mathf.Max(o.r, o.g, o.b, 1f);   // 원래 밝기 유지용(HDR 발광 보존)
+                    _lockMatCols.Add(new LockMatCol { mat = m, id = id, mag = mag });
+                }
+            }
+        }
+    }
+
+    private void ApplyLockIndicator(bool locked)
+    {
+        SetupLockIndicator();
+        Color tint = locked ? lockedLightColor : unlockedLightColor;
+
+        for (int i = 0; i < _lockMatCols.Count; i++)   // 발광 메시: 밝기 유지, 색만 교체
+        {
+            var f = _lockMatCols[i];
+            if (f.mat == null) continue;
+            Color c = tint * f.mag; c.a = 1f;
+            f.mat.SetColor(f.id, c);
+        }
+        if (_lockLights != null)                        // 실제 Light: 색만 교체(세기 유지)
+            foreach (var l in _lockLights)
+                if (l != null) l.color = tint;
     }
 
     // 인벤토리 UI가 열려있거나 promptRange 밖이면 차단. 그 외엔 항시 F 가능(걸어두기/수령/즉시 재오픈).
@@ -112,6 +214,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     {
         get
         {
+            // 기믹 잠금(스위치 등) — 아직 안 풀렸으면 상호작용/힌트 자체를 막는다.
+            if (gimmickLocked && !_gimmickUnlocked) return false;
             var inv = InventoryUIController.Instance;
             if (inv != null && inv.IsOpen) return false;
             // 프롬프트 UI가 뜨는 거리와 F가 통하는 거리를 일치시킨다(물리 콜라이더 형태 때문에
@@ -194,7 +298,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
 
         bool near = IsPlayerNear();
         RefreshIndicator(near);
-        bool highlight = near && _state != State.Depleted && !(_state == State.Opened && !HasItems());
+        // 기믹 상자는 노란 근접 발광을 쓰지 않는다(빨강/파랑 잠금 표시등이 그 역할).
+        bool highlight = !gimmickLocked && near && _state != State.Depleted && !(_state == State.Opened && !HasItems());
         // 해금 중엔 범위 밖이어도 연한 펄스로 표시 유지.
         bool openingRemote = _state == State.Opening && !near;
         UpdateGlow(highlight, openingRemote);
@@ -411,7 +516,8 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     // 리젠: 새 상자로 다시 등장(Idle = 잠김). 처음부터 다시 까야 함 = 새로운 상자 개념.
     private void Respawn()
     {
-        _state = startUnlocked ? State.Ready : State.Idle;   // startUnlocked 면 리젠도 잠금 없이 바로 열림
+        // startUnlocked, 또는 이미 기믹으로 풀린 상자는 리젠 후에도 바로 열림(스위치는 계속 켜진 상태).
+        _state = (startUnlocked || (gimmickLocked && _gimmickUnlocked)) ? State.Ready : State.Idle;
         _timer = 0f;
         _contents = null;
         RestoreOpaqueMaterials();   // 소멸 페이드로 투명해졌던 머티리얼을 원래 불투명/색으로 복원
@@ -439,6 +545,14 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         if (ui == null) return;   // 씬에 프롬프트가 없으면 조용히 스킵(매 프레임 NRE 방지)
 
         if (anyUIOpen) { ui.HideIfOwner(this); return; }
+
+        // 기믹 잠금 중: 가까이 가면 '잠긴 상자' 표시(F 로 못 엶 — 스위치로 풀림). 멀면 숨김.
+        if (gimmickLocked && !_gimmickUnlocked)
+        {
+            if (!near) { ui.HideIfOwner(this); return; }
+            ui.ShowGimmickLocked(this);
+            return;
+        }
 
         switch (_state)
         {
