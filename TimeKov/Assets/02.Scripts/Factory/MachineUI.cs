@@ -129,10 +129,6 @@ public class MachineUI : MonoBehaviour
     private Image _gaugeFill;
     private const float GA_W = 300f;   // 게이지 선 길이
     private const float GA_H = 3f;     // 게이지 선 두께
-    private static readonly bool ShowBottomStatus = false;   // 하단 ">>> 생산 중" 표시(종욱: 일단 제거, 나중에 조정 예정)
-    // 하단 중앙 상태(">>> 생산 중" + 밑줄) - 옛 진행 슬라이더 자리.
-    private TextMeshProUGUI _bottomStatusText;
-    private Image _bottomStatusLine;
 
     // 설비 UI 열림 여부(HUD 자동 페이드 등 외부에서 참조).
     public static bool IsAnyOpen { get; private set; }
@@ -240,15 +236,12 @@ public class MachineUI : MonoBehaviour
         _processTimeText.text = "";
     }
 
-    // ── 깔끔 게이지 + 하단 상태 (엔필식 정리) ─────────────────────────
+    // ── 깔끔 게이지 (엔필식 정리) ─────────────────────────────────────
     // 정리: 하단 슬라이더/노브 끔, 트레이 노란 게이지 끔, 공식 스트립 상태라벨 끔, 하단 드롭힌트 끔.
-    // 생성: (1) 도면 아래 얇은 선 게이지(양끝 점 + 좌->우 채움) + 그 위 "N초"(기존 텍스트 이사)
-    //       (2) 패널 하단 중앙 ">>> 생산 중" + 밑줄(옛 슬라이더 자리).
+    // 생성: 도면 아래 얇은 선 게이지(양끝 점 + 좌->우 채움) + 그 위 "N초"(기존 텍스트 이사).
     private void SetupCleanGauge()
     {
         if (_gaugeRoot != null || uiPanel == null) return;
-
-        RectTransform pbRt = progressBar != null ? (RectTransform)progressBar.transform : null;
 
         // 게이지 위치 = 옛 트레이 게이지 자리 재사용(도면과 정렬 유지).
         Transform gaugeParent = uiPanel.transform;
@@ -285,37 +278,6 @@ public class MachineUI : MonoBehaviour
             _processTimeText.alignment = TextAlignmentOptions.Center;
         }
 
-        // 하단 상태는 일단 표시 안 함(플래그) - 켜면 아래 생성 코드가 그대로 복귀.
-        if (!ShowBottomStatus) return;
-
-        // (2) 하단 중앙 상태: 옛 진행 슬라이더의 가로 범위를 그대로 물려받아 그 자리에.
-        var srt = MakeRect("BottomStatus", pbRt != null ? pbRt.parent : uiPanel.transform, Vector2.zero, Vector2.zero);
-        if (pbRt != null)
-        {
-            srt.anchorMin = pbRt.anchorMin; srt.anchorMax = pbRt.anchorMax;
-            srt.pivot = new Vector2(0.5f, 0f);
-            srt.offsetMin = new Vector2(pbRt.offsetMin.x, 8f);
-            srt.offsetMax = new Vector2(pbRt.offsetMax.x, 46f);
-        }
-        var line = new GameObject("Line", typeof(RectTransform), typeof(Image));
-        line.transform.SetParent(srt, false);
-        var lrt = (RectTransform)line.transform;
-        lrt.anchorMin = new Vector2(0f, 0f); lrt.anchorMax = new Vector2(1f, 0f); lrt.pivot = new Vector2(0.5f, 0f);
-        lrt.offsetMin = new Vector2(60f, 0f); lrt.offsetMax = new Vector2(-60f, GA_H);
-        _bottomStatusLine = line.GetComponent<Image>();
-        _bottomStatusLine.raycastTarget = false;
-
-        var st = new GameObject("Text", typeof(RectTransform));
-        st.transform.SetParent(srt, false);
-        var strt = (RectTransform)st.transform;
-        strt.anchorMin = new Vector2(0f, 0f); strt.anchorMax = new Vector2(1f, 1f);
-        strt.offsetMin = new Vector2(0f, GA_H + 3f); strt.offsetMax = Vector2.zero;
-        _bottomStatusText = st.AddComponent<TextMeshProUGUI>();
-        if (formulaStatusText != null) _bottomStatusText.font = formulaStatusText.font;   // 한글 폰트 유지
-        _bottomStatusText.fontSize = 15;
-        _bottomStatusText.alignment = TextAlignmentOptions.Center;
-        _bottomStatusText.raycastTarget = false;
-        _bottomStatusText.text = "";
     }
 
     private static RectTransform MakeRect(string name, Transform parent, Vector2 size, Vector2 pos)
@@ -709,66 +671,8 @@ public class MachineUI : MonoBehaviour
     // 중앙 도면 PNG 밝기(배경 가라앉히기). 너무 흐리면 올리고 슬롯/칩과 또 싸우면 내려라.
     private const float FacilityArtAlpha = 0.50f;
 
-    // [실험] 와이어프레임 도면 대신 실제 모델 렌더(퀵슬롯 아이콘)를 어둡게 깔기.
-    // 엔필 방식 = 3D 음영이 구워진 면 그림을 명도만 눌러 배경층으로. false 면 기존 도면 PNG 경로.
-    private const bool UseModelBackdrop = false;   // 모델 렌더 실험 오답 판정(종욱) - PNG 루트 확정되면 관련 코드 삭제 예정
-    private static readonly Color ModelBackdropTint = new Color(0.32f, 0.38f, 0.46f, 0.95f);   // 어둡게 곱하는 쿨 틴트
-
-    // 기계 그림 무채색 변환(엔필 = 실제색 없이 회색/검정 명암만. 원색은 틴트 곱해도 살아남아서 원천 제거).
-    // 압축/읽기금지 텍스처 대응: GPU 복사(Blit) 후 ReadPixels - 임포트 설정 안 건드림. 설비당 1회 굽고 캐시.
-    private static readonly System.Collections.Generic.Dictionary<Sprite, Sprite> _grayArtCache
-        = new System.Collections.Generic.Dictionary<Sprite, Sprite>();
-
-    private static Sprite GetGrayArt(Sprite src)
-    {
-        if (src == null) return null;
-        if (_grayArtCache.TryGetValue(src, out var hit) && hit != null) return hit;
-        try { return BuildGrayArt(src); }
-        catch (System.Exception e)
-        {
-            // 장식용 변환이 UI 오픈을 막으면 안 됨 - 실패 시 원본 아이콘 폴백.
-            Debug.LogWarning("기계 그림 무채색 변환 실패, 원본 사용: " + e.Message);
-            return null;
-        }
-    }
-
-    private static Sprite BuildGrayArt(Sprite src)
-    {
-        var tex = src.texture;
-        var rt = RenderTexture.GetTemporary(tex.width, tex.height, 0);
-        Graphics.Blit(tex, rt);
-        var prev = RenderTexture.active;
-        RenderTexture.active = rt;
-        var full = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
-        full.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
-        full.Apply();
-        RenderTexture.active = prev;
-        RenderTexture.ReleaseTemporary(rt);
-
-        // 아틀라스 스프라이트는 textureRect 가 소수점일 수 있음 -> 전부 정수화 + 텍스처 경계 클램프.
-        var r = src.textureRect;
-        int rx = Mathf.Clamp(Mathf.FloorToInt(r.x), 0, tex.width - 1);
-        int ry = Mathf.Clamp(Mathf.FloorToInt(r.y), 0, tex.height - 1);
-        int rw = Mathf.Clamp(Mathf.FloorToInt(r.width), 1, tex.width - rx);
-        int rh = Mathf.Clamp(Mathf.FloorToInt(r.height), 1, tex.height - ry);
-
-        var px = full.GetPixels(rx, ry, rw, rh);
-        for (int i = 0; i < px.Length; i++)
-        {
-            float g = px[i].r * 0.299f + px[i].g * 0.587f + px[i].b * 0.114f;
-            px[i] = new Color(g, g, g, px[i].a);
-        }
-        var gray = new Texture2D(rw, rh, TextureFormat.RGBA32, false);
-        gray.SetPixels(px);
-        gray.Apply();
-        Destroy(full);
-
-        var sp = Sprite.Create(gray, new Rect(0f, 0f, rw, rh), new Vector2(0.5f, 0.5f), src.pixelsPerUnit);
-        _grayArtCache[src] = sp;
-        return sp;
-    }
-
     // (생산 구역 어두운 무대는 오답 판정 - 종욱: 엔필의 어두워 보이는 구역은 별도 판이 아니라 그라데이션. 제거함)
+    // (모델 렌더를 무채색으로 구워 배경에 까는 실험도 오답 판정 - 도면 PNG 경로로 확정됐다.)
 
     public void OpenFor(ProcessingMachine machine, string title)
     {
@@ -804,24 +708,12 @@ public class MachineUI : MonoBehaviour
                 ? FacilityIconDatabase.Instance.GetIcon(machine.FacilityId) : null;
             if (facilityImage != null)
             {
-                Sprite spr; Color artColor;
-                if (UseModelBackdrop && fIcon != null)
-                {
-                    // 실제 모델 렌더를 무채색화 + 어둡게 곱해 배경층으로(면의 명암 단차 = 입체감 공짜).
-                    var gray = GetGrayArt(fIcon);
-                    spr = gray != null ? gray : fIcon;
-                    artColor = ModelBackdropTint;
-                }
-                else
-                {
-                    var blueprint = LoadFacilityBlueprint(machine.FacilityId);
-                    spr = blueprint != null ? blueprint : fIcon;
-                    // 도면은 배경 취급: 흰 라인 풀알파가 슬롯/칩과 같은 층에서 싸움 - 알파로 가라앉힘.
-                    artColor = new Color(1f, 1f, 1f, FacilityArtAlpha);
-                }
+                var blueprint = LoadFacilityBlueprint(machine.FacilityId);
+                var spr = blueprint != null ? blueprint : fIcon;
                 facilityImage.sprite = spr;
                 facilityImage.enabled = spr != null;
-                facilityImage.color = artColor;
+                // 도면은 배경 취급: 흰 라인 풀알파가 슬롯/칩과 같은 층에서 싸움 - 알파로 가라앉힘.
+                facilityImage.color = new Color(1f, 1f, 1f, FacilityArtAlpha);
             }
             if (headerIconImage != null) { headerIconImage.sprite = fIcon; headerIconImage.enabled = fIcon != null; }
         }
@@ -2182,28 +2074,7 @@ public class MachineUI : MonoBehaviour
             var gc = machineGlow.color; gc.a = 0f; machineGlow.color = gc;
         }
 
-        // (옛 ProcessingGauge/공식 스트립 상태라벨은 깔끔 게이지 + 하단 상태로 대체 - SetupCleanGauge 에서 비활성.)
-
-        // 하단 중앙 상태(#31 이사): ">>> 생산 중" / 연료 부족 / 대기 중 + 밑줄 색 동기.
-        if (_bottomStatusText != null)
-        {
-            Color c;
-            bool producing = isSelectedRecipeActive && _machine.IsProcessing;
-            // 다른 레시피가 커밋(재료 있음/가공중)됐는데 그 아닌 레시피를 보고 있으면 = 이 설비는 다른 레시피 사용 중.
-            //   (안 그러면 A 가공 중에 B를 볼 때 "대기 중"으로 떠서 "왜 안 돌지" 오해 - 착시 방지 마무리)
-            bool otherCommitted = _machine.IsCommitted && _selectedRecipeIndex != _machine.EffectiveRecipeIndex;
-            if (producing)
-            { _bottomStatusText.text = ">>>  생산 중"; c = new Color(0.90f, 0.76f, 0.29f, 1f); }
-            else if (otherCommitted)
-            { _bottomStatusText.text = "다른 레시피 사용 중"; c = new Color(0.55f, 0.72f, 0.85f, 0.95f); }
-            else if (_machine.Status == MachineStatus.NoFuel)
-            { _bottomStatusText.text = "연료 부족"; c = new Color(0.88f, 0.45f, 0.40f, 1f); }
-            else
-            { _bottomStatusText.text = "대기 중"; c = new Color(0.72f, 0.77f, 0.82f, 0.9f); }
-            _bottomStatusText.color = c;
-            if (_bottomStatusLine != null)
-                _bottomStatusLine.color = new Color(c.r, c.g, c.b, producing ? 0.9f : 0.22f);
-        }
+        // (옛 ProcessingGauge/공식 스트립 상태라벨은 깔끔 게이지로 대체 - SetupCleanGauge 에서 비활성.)
 
         // 흐름 레일: 아이템 통과 순간 연출은 항상 감지(가동 여부 무관), 중앙 화살표 펄스만 가동 시.
         UpdateFlowRails(isSelectedRecipeActive && _machine.IsProcessing);
