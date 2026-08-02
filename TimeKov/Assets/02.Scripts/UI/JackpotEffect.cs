@@ -23,6 +23,6 @@ public static class JackpotEffect
         if (cam == null) return;
         Vector3 sp = cam.WorldToScreenPoint(worldPos + Vector3.up * HeadOffset);
         if (sp.z < 0f) return;   // 카메라 뒤(설비가 화면 뒤쪽)면 스킵
-        FloatingTextManager.Show("<size=130%>잭팟!</size> x2", Gold, sp);
+        FloatingTextManager.Show($"<size=130%>{Loc.Get("잭팟!")}</size> x2", Gold, sp);
     }
 }

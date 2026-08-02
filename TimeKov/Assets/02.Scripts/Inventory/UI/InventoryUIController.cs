@@ -491,7 +491,7 @@ public class InventoryUIController : MonoBehaviour
 
         if (capacityText != null)
         {
-            capacityText.text = "용량 " + used + "/" + max;   // clggdesign #4: 띄어쓰기 없이
+            capacityText.text = Loc.Get("용량") + " " + used + "/" + max;   // clggdesign #4: 띄어쓰기 없이
             // 최종 디자인 = 게이지 바 없음, 글자색만 상태색 (평소 어두운회색 / 90% 노랑 / 가득 빨강)
             float r = max > 0 ? Mathf.Clamp01((float)used / max) : 0f;
             capacityText.color =
@@ -505,13 +505,13 @@ public class InventoryUIController : MonoBehaviour
         {
             int cu = InventoryManager.ChestInstance.GetUsedSlotCount();
             int cm = InventoryManager.ChestInstance.GetMaxSlots();
-            chestCapacityText.text = "아이템 " + cu + "/" + cm;
+            chestCapacityText.text = Loc.Get("아이템") + " " + cu + "/" + cm;
         }
 
         // 통합패널(결계 안) 가방 구역 용량도 동일하게
         if (warehouseBagCapacityText != null)
         {
-            warehouseBagCapacityText.text = "용량 " + used + "/" + max;
+            warehouseBagCapacityText.text = Loc.Get("용량") + " " + used + "/" + max;
             float rw = max > 0 ? Mathf.Clamp01((float)used / max) : 0f;
             warehouseBagCapacityText.color =
                 rw >= 1f   ? new Color(0.878f, 0.349f, 0.290f, 1f) :
@@ -739,13 +739,13 @@ public class InventoryUIController : MonoBehaviour
         splitPopup?.Close();
 
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
-        string name = data != null ? data.itemName : "아이템";
+        string name = data != null ? data.itemName : Loc.Get("아이템");
         int amount = slot.SlotData.amount;
         int itemId = slot.SlotData.itemId;
         int slotIdx = slot.SlotData.slotIndex;
         var owner = slot.Owner;
 
-        string message = name + " x" + amount + (permanent ? "개를 영구 삭제하시겠습니까?" : "개를 버리시겠습니까?");
+        string message = name + " x" + amount + (permanent ? Loc.Get("개를 영구 삭제하시겠습니까?") : Loc.Get("개를 버리시겠습니까?"));
 
         confirmPopup.Open(message, () =>
         {

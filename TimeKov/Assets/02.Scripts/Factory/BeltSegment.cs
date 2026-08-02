@@ -864,7 +864,7 @@ namespace TIMEKOV.Factory
         {
             _occupant = null; _occupantVisual = null;
             InventoryManager.StorageInstance?.AddItem(token.itemId, token.amount);
-            if (notify) ToastManager.Warning("가동 중 철거 - 아이템 창고로 회수");
+            if (notify) ToastManager.Warning(Loc.Get("가동 중 철거 - 아이템 창고로 회수"));
             if (visual != null) Destroy(visual);
         }
 

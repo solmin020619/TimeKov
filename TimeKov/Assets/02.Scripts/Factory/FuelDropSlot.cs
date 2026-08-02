@@ -212,7 +212,7 @@ public class FuelDropSlot : MonoBehaviour,
         }
         if (_burnInfo != null)
         {
-            string fuelName = "연료";
+            string fuelName = Loc.Get("연료");
             var cfg = FuelConfig.Instance;
             if (cfg != null)
             {
@@ -223,12 +223,12 @@ public class FuelDropSlot : MonoBehaviour,
             _burnInfo.rectTransform.anchoredPosition = new Vector2(BurnerGaugeX + (iconShown ? 34f : 0f), 16f);
             if (lit)
             {
-                _burnInfo.text = $"연소 중  -  {currentTime:F0}초";
+                _burnInfo.text = Loc.Get("연소 중 -") + "  " + $"{currentTime:F0}" + Loc.Get("초");
                 _burnInfo.color = new Color(0.92f, 0.94f, 0.97f, 0.95f);
             }
             else
             {
-                _burnInfo.text = $"연료 없음  -  {fuelName} 필요";
+                _burnInfo.text = Loc.Get("연료 없음 -") + "  " + fuelName + " " + Loc.Get("필요");
                 _burnInfo.color = new Color(0.80f, 0.58f, 0.52f, 0.85f);
             }
         }
@@ -305,7 +305,7 @@ public class FuelDropSlot : MonoBehaviour,
             if (_burnerRt == null && t > 0f)
             {
                 // 현재 아이템 1개분의 남은 시간만 표시
-                timeText.text  = $"{currentTime:F0}초";
+                timeText.text  = $"{currentTime:F0}" + Loc.Get("초");
                 timeText.color = normalTextColor;
                 timeText.enabled = true;
             }
@@ -401,7 +401,7 @@ public class FuelDropSlot : MonoBehaviour,
     {
         _dragHighlighted = on;
         if (borderImage != null) borderImage.color = on ? hoverBorderColor : normalBorderColor;
-        if (labelText   != null) labelText.text    = on ? "연료 넣기" : "";
+        if (labelText   != null) labelText.text    = on ? Loc.Get("연료 넣기") : "";
         SetFrame(on);
     }
 
@@ -429,7 +429,7 @@ public class FuelDropSlot : MonoBehaviour,
         if (draggedSlot.SlotData.itemId != cfg.fuelItemId) return;
 
         if (borderImage != null) borderImage.color = hoverBorderColor;
-        if (labelText   != null) labelText.text    = "연료 넣기";
+        if (labelText   != null) labelText.text    = Loc.Get("연료 넣기");
         SetFrame(true);
     }
 
@@ -441,7 +441,7 @@ public class FuelDropSlot : MonoBehaviour,
         if (_dragHighlighted)
         {
             if (borderImage != null) borderImage.color = hoverBorderColor;
-            if (labelText   != null) labelText.text    = "연료 넣기";
+            if (labelText   != null) labelText.text    = Loc.Get("연료 넣기");
             return;
         }
         if (borderImage != null) borderImage.color = normalBorderColor;
@@ -472,7 +472,7 @@ public class FuelDropSlot : MonoBehaviour,
         // 라이브 시각 칸 대신 박제한 출발 슬롯 사용(컴팩트 표시에서 드래그 중 재렌더로 엉뚱한 아이템 차감 방지).
         if (!handler.SourceStillValid()) return;
         int itemId = handler.SrcItemId;
-        if (itemId != cfg.fuelItemId) { ToastManager.Warning("연료만 넣을 수 있습니다"); return; }
+        if (itemId != cfg.fuelItemId) { ToastManager.Warning(Loc.Get("연료만 넣을 수 있습니다")); return; }
 
         var inv      = handler.SrcManager;
         int srcIndex = handler.SrcSlotIndex;
@@ -585,7 +585,7 @@ public class FuelDropSlot : MonoBehaviour,
         if (leftover > 0)
         {
             _machine.AddFuel(leftover);
-            ToastManager.Warning("가방이 가득 찼습니다");
+            ToastManager.Warning(Loc.Get("가방이 가득 찼습니다"));
         }
         inv?.ForceRefreshUI();
 

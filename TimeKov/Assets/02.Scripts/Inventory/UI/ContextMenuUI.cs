@@ -173,7 +173,7 @@ public class ContextMenuUI : MonoBehaviour
         vl.childForceExpandHeight = false;
 
         var label = NewText(_effectBox.transform, "EffLabel", 12f, FontStyles.Bold, new Color32(120, 170, 210, 255));
-        label.text = "사용 효과";
+        label.text = Loc.Get("사용 효과");
         _effectText = NewText(_effectBox.transform, "EffText", 14f, FontStyles.Normal, TextColor);
     }
 
@@ -181,12 +181,12 @@ public class ContextMenuUI : MonoBehaviour
     {
         var row1 = NewButtonRow("BtnRow1");
         _consumableRow = row1.gameObject;
-        BuildButton(row1, "사용", BtnUseColor, OnClickUse);
-        _quickBtn = BuildButton(row1, "퀵슬롯 등록", BtnQuickColor, OnClickRegisterQuick);
+        BuildButton(row1, Loc.Get("사용"), BtnUseColor, OnClickUse);
+        _quickBtn = BuildButton(row1, Loc.Get("퀵슬롯 등록"), BtnQuickColor, OnClickRegisterQuick);
 
         var row2 = NewButtonRow("BtnRow2");
-        _splitBtn = BuildButton(row2, "분할", BtnColor, OnClickSplit);
-        BuildButton(row2, "버리기", BtnTrashColor, OnClickTrash);
+        _splitBtn = BuildButton(row2, Loc.Get("분할"), BtnColor, OnClickSplit);
+        BuildButton(row2, Loc.Get("버리기"), BtnTrashColor, OnClickTrash);
     }
 
     // ── 열기 ─────────────────────────────────────────────────────────────
@@ -214,7 +214,7 @@ public class ContextMenuUI : MonoBehaviour
                 _nameText.text = data.itemName;
                 _nameText.color = GradeVisual.IsCommon(g) ? TextColor : GradeVisual.GetColor(g);
             }
-            else { _nameText.text = "알 수 없는 아이템"; _nameText.color = TextColor; }
+            else { _nameText.text = Loc.Get("알 수 없는 아이템"); _nameText.color = TextColor; }
         }
         if (_categoryText != null)
         {
@@ -262,7 +262,7 @@ public class ContextMenuUI : MonoBehaviour
         // 만피 회복 앰플은 소비하지 않고 토스트만(아이템 보존)
         if (!ConsumableEffectApplier.CanApply(itemId.ToString(), player))
         {
-            ToastManager.Warning("시간이 이미 가득 찼습니다.");
+            ToastManager.Warning(Loc.Get("시간이 이미 가득 찼습니다."));
             Close();
             return;
         }
@@ -284,7 +284,7 @@ public class ContextMenuUI : MonoBehaviour
         var player = FindAnyObjectByType<Player>();
         if (player == null || player.QuickSlot == null)
         {
-            ToastManager.Warning("퀵슬롯을 사용할 수 없습니다.");
+            ToastManager.Warning(Loc.Get("퀵슬롯을 사용할 수 없습니다."));
             Close();
             return;
         }
@@ -428,7 +428,7 @@ public class ContextMenuUI : MonoBehaviour
     private static string CategoryName(ItemCategory c)
     {
         int i = Mathf.Clamp((int)c, 0, CategoryNames.Length - 1);
-        return CategoryNames[i];
+        return Loc.Get(CategoryNames[i]);
     }
 
     private static Sprite Load(string n) => Resources.Load<Sprite>("ContextQuickslot/" + n);

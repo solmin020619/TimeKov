@@ -256,7 +256,7 @@ public class CodexUI : MonoBehaviour
         thlg.childAlignment = TextAnchor.LowerLeft; thlg.spacing = 12f;
         thlg.childControlWidth = true; thlg.childControlHeight = true;
         thlg.childForceExpandWidth = false; thlg.childForceExpandHeight = false;
-        Txt(NewChild("도감", title), "도감", 36f, FontStyles.Bold, TxtMain, TextAlignmentOptions.BottomLeft);
+        Txt(NewChild("도감", title), Loc.Get("도감"), 36f, FontStyles.Bold, TxtMain, TextAlignmentOptions.BottomLeft);
         Txt(NewChild("CODEX", title), "CODEX", 13f, FontStyles.Normal, Accent, TextAlignmentOptions.BottomLeft);
 
         _tabRow = Make("Tabs", header, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -324,7 +324,7 @@ public class CodexUI : MonoBehaviour
 
         // 상단: 카테고리 + 수치(모노, 우측정렬)
         Txt(Make("ctxt", _completionBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -17f), new Vector2(0f, 0f)),
-            TabNames[_tab] + " 도감  " + got + " / " + total + "  (" + pct + "%)", 14f, FontStyles.Bold, TxtSub, TextAlignmentOptions.Right);
+            Loc.Get(TabNames[_tab]) + " " + Loc.Get("도감") + got + " / " + total + "  (" + pct + "%)", 14f, FontStyles.Bold, TxtSub, TextAlignmentOptions.Right);
 
         // 하단: 진행 바(트랙 + 채움)
         var track = Make("track", _completionBox, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 3f), new Vector2(0f, 9f));
@@ -686,7 +686,7 @@ public class CodexUI : MonoBehaviour
             shown++;
         }
         if (shown == 0)
-            Txt(NewChild("none", _itemGrid), "표시할 아이템이 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
+            Txt(NewChild("none", _itemGrid), Loc.Get("표시할 아이템이 없습니다."), 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
     }
 
     private void BuildItemCard(RectTransform parent, ItemDataSheetData it)
@@ -753,7 +753,7 @@ public class CodexUI : MonoBehaviour
             var p = _tutCfg.pages[i];
             var e = new Entry
             {
-                name = (p != null && !string.IsNullOrEmpty(p.title)) ? p.title : ("영상 " + (i + 1)),
+                name = (p != null && !string.IsNullOrEmpty(p.title)) ? p.title : (Loc.Get("영상") + " " + (i + 1)),
                 state = St.Hidden, status = "미시청", tutPage = p
             };
             // 실제 시청: 인게임서 그 영상 봤으면(CodexDiscovery) Public, 아니면 Hidden(미시청).
@@ -835,7 +835,7 @@ public class CodexUI : MonoBehaviour
             }
             // 실제 발견: 처치(CodexDiscovery)했으면 Public, 아니면 Hidden(???). config RevealState(mock)는 무시.
             if (_devUnlockAll || CodexDiscovery.IsMonsterDiscovered(e.monsterSourceId)) { e.state = St.Public; e.status = null; }
-            if (e.state == St.Public && string.IsNullOrEmpty(e.name)) e.name = "몬스터 " + (i + 1);
+            if (e.state == St.Public && string.IsNullOrEmpty(e.name)) e.name = Loc.Get("몬스터") + " " + (i + 1);
             list[i] = e;
         }
         return SortMonsters(list);
@@ -931,7 +931,7 @@ public class CodexUI : MonoBehaviour
             Img(play, UISpriteFactory.Ring(96, 3f), new Color(1f, 1f, 1f, 0.5f));
         }
         DecorateDarkViewport(media, true);   // 코너+REC 틀(영상 위에)
-        Txt(Make("ml", media, new Vector2(0f, 1f), new Vector2(0.5f, 1f), new Vector2(14f, -30f), new Vector2(0f, -10f)), "MEDIA - 영상", 12f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.4f), TextAlignmentOptions.Left);
+        Txt(Make("ml", media, new Vector2(0f, 1f), new Vector2(0.5f, 1f), new Vector2(14f, -30f), new Vector2(0f, -10f)), "MEDIA - " + Loc.Get("영상"), 12f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.4f), TextAlignmentOptions.Left);
 
         // 제목/설명도 영상과 같은 좌우 폭으로(센터 컬럼처럼 정렬). 본문은 기존 튜토 텍스트 복붙(강조색만 라이트용 치환).
         var title = Make("T", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(90f, 116f), new Vector2(-90f, 156f));
@@ -939,7 +939,7 @@ public class CodexUI : MonoBehaviour
         var desc = Make("D", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(90f, 24f), new Vector2(-90f, 110f));
         string descText = (page != null && !string.IsNullOrEmpty(page.body))
             ? AdaptEmphasis(page.body)
-            : "이 항목의 가이드 설명이 여기에 들어갑니다. 핵심은 시간 자원 관리이며, 단계별 안내와 이미지, 주의사항이 본문에 배치됩니다.";
+            : Loc.Get("이 항목의 가이드 설명이 여기에 들어갑니다. 핵심은 시간 자원 관리이며, 단계별 안내와 이미지, 주의사항이 본문에 배치됩니다.");
         Txt(desc, descText, 16f, FontStyles.Normal, TxtSub, TextAlignmentOptions.TopLeft).textWrappingMode = TextWrappingModes.Normal;
     }
 
@@ -956,7 +956,7 @@ public class CodexUI : MonoBehaviour
     {
         bool full = kills >= KillsForDropRate;
         // 풀해금(10) 전엔 진행도 "X / 10", 이후엔 누적 처치수만("처치 137" 같은 재미요소)
-        string label = full ? ("처치 " + kills) : ("처치 " + kills + " / " + KillsForDropRate);
+        string label = full ? (Loc.Get("처치") + " " + kills) : (Loc.Get("처치") + " " + kills + " / " + KillsForDropRate);
         var pill = NewChild("kc", row);
         var le = pill.gameObject.AddComponent<LayoutElement>();
         le.preferredWidth = 128f; le.minWidth = 128f; le.preferredHeight = 28f; le.minHeight = 28f;
@@ -1015,26 +1015,26 @@ public class CodexUI : MonoBehaviour
             hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
             // 실제 스탯(MeleeEnemyData). 값 없으면 "?".
             string atkSpd = data != null && data.attackCooldown > 0.01f ? (1f / data.attackCooldown).ToString("0.0") : "?";
-            AddStat(statRow, "체력", data != null ? Mathf.RoundToInt(data.maxHP).ToString("N0") : "?", "");
-            AddStat(statRow, "공격력", data != null ? Mathf.RoundToInt(data.attackDamage).ToString() : "?", "");
-            AddStat(statRow, "공격속도", atkSpd, "/s");
-            AddStat(statRow, "이동속도", data != null ? data.moveSpeed.ToString("0.0") : "?", "m/s");
-            AddStat(statRow, "사거리", data != null ? data.attackRange.ToString("0.0") : "?", "m");
-            AddStat(statRow, "시야", data != null ? Mathf.RoundToInt(data.visionRange).ToString() : "?", "m");
+            AddStat(statRow, Loc.Get("체력"), data != null ? Mathf.RoundToInt(data.maxHP).ToString("N0") : "?", "");
+            AddStat(statRow, Loc.Get("공격력"), data != null ? Mathf.RoundToInt(data.attackDamage).ToString() : "?", "");
+            AddStat(statRow, Loc.Get("공격속도"), atkSpd, "/s");
+            AddStat(statRow, Loc.Get("이동속도"), data != null ? data.moveSpeed.ToString("0.0") : "?", "m/s");
+            AddStat(statRow, Loc.Get("사거리"), data != null ? data.attackRange.ToString("0.0") : "?", "m");
+            AddStat(statRow, Loc.Get("시야"), data != null ? Mathf.RoundToInt(data.visionRange).ToString() : "?", "m");
         }
         else if (kills >= KillsForStats)
         {
             // 5마리 처치 완료 -> 빨강 [스탯 활성화] 버튼(클릭해 직접 해금)
             var pill = Make("stact", statArea, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
             pill.sizeDelta = new Vector2(240f, 46f); pill.anchoredPosition = new Vector2(120f, -74f);
-            RedActivateButton(pill, "스탯 공개",
-                () => { CodexDiscovery.ActivateStats(srcId); ToastManager.Success("스탯 공개"); Refresh(); });
+            RedActivateButton(pill, Loc.Get("스탯 공개"),
+                () => { CodexDiscovery.ActivateStats(srcId); ToastManager.Success(Loc.Get("스탯 공개")); Refresh(); });
         }
         else
         {
             // 5마리 미만 -> 잠금 + 진행도
             Txt(Make("stlock", statArea, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -84f), new Vector2(0f, -52f)),
-                "스탯 잠김 - " + KillsForStats + "마리 처치 시 활성화  (" + Mathf.Min(kills, KillsForStats) + " / " + KillsForStats + ")",
+                string.Format(Loc.Get("스탯 잠김 - {0}마리 처치 시 활성화 ({1} / {0})"), KillsForStats, Mathf.Min(kills, KillsForStats)),
                 17f, FontStyles.Bold, C32(150, 158, 168), TextAlignmentOptions.Left);
         }
 
@@ -1049,12 +1049,12 @@ public class CodexUI : MonoBehaviour
                 // 10마리 처치 완료 -> 빨강 [드롭 확률 활성화]
                 var pill = Make("ratact", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
                 pill.sizeDelta = new Vector2(196f, 40f); pill.anchoredPosition = new Vector2(282f, -225f);
-                RedActivateButton(pill, "확률 공개",
-                    () => { CodexDiscovery.ActivateRates(srcId); ToastManager.Success("드롭 확률 공개"); Refresh(); });
+                RedActivateButton(pill, Loc.Get("확률 공개"),
+                    () => { CodexDiscovery.ActivateRates(srcId); ToastManager.Success(Loc.Get("드롭 확률 공개")); Refresh(); });
             }
             else
                 Txt(Make("drlock", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(178f, -237f), new Vector2(0f, -211f)),
-                    "확률 잠김 - " + KillsForDropRate + "마리 처치 시 활성화  (" + Mathf.Min(kills, KillsForDropRate) + " / " + KillsForDropRate + ")",
+                    string.Format(Loc.Get("확률 잠김 - {0}마리 처치 시 활성화 ({1} / {0})"), KillsForDropRate, Mathf.Min(kills, KillsForDropRate)),
                     14f, FontStyles.Bold, C32(108, 120, 136), TextAlignmentOptions.Left);
         }
         var grid = Make("DropGrid", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -244f));
@@ -1069,7 +1069,7 @@ public class CodexUI : MonoBehaviour
         if (drops.Count > 0)
             foreach (var d in drops) BuildDropCard(grid, d, ratesOn);
         else
-            Txt(Make("nd", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, -244f)), "드롭 정보가 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.TopLeft);
+            Txt(Make("nd", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, -244f)), Loc.Get("드롭 정보가 없습니다."), 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.TopLeft);
     }
 
     // 프리팹 -> MeleeEnemyData(스탯)
@@ -1104,7 +1104,7 @@ public class CodexUI : MonoBehaviour
             if (item == null) continue;
             int gi = (int)item.itemGrade;
             float pct = totalW > 0 ? r.chance * 100f / totalW : 0f;   // 한 종 뽑기(가중치) -> 정규화 %
-            string cnt = r.minCount == r.maxCount ? $"{r.minCount}개" : $"{r.minCount}~{r.maxCount}개";
+            string cnt = r.minCount == r.maxCount ? (r.minCount + Loc.Get("개")) : (r.minCount + "~" + r.maxCount + Loc.Get("개"));
             list.Add(new Drop
             {
                 name = item.itemName, rarity = GradeVisual.GetName(gi), rc = GradeVisual.GetColor(gi),
@@ -1153,7 +1153,7 @@ public class CodexUI : MonoBehaviour
         tier = Mathf.Clamp(tier, 1, 5);
 
         var lbl = Make("tl", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0f), new Vector2(52f, 0f));
-        Txt(lbl, "위험도", 12f, FontStyles.Bold, C32(120, 130, 142), TextAlignmentOptions.Right);
+        Txt(lbl, Loc.Get("위험도"), 12f, FontStyles.Bold, C32(120, 130, 142), TextAlignmentOptions.Right);
 
         // 칸은 전 몬스터 동일 색(통일). 위험도 '단계'는 채운 칸 수로만, '색' 구분은 액자 테두리가 담당.
         Color fillCol = Accent;
@@ -1222,10 +1222,10 @@ public class CodexUI : MonoBehaviour
         var body = MainHeader("설비 - FACILITY", selName, TxtMain, true);
         Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), "제작 가능 레시피 - RECIPES", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         // 재료가 클릭 가능하다는 상시 힌트(호버 발광/툴팁과 함께 발견성 확보). RECIPES 라벨 바로 옆.
-        Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), "재료를 누르면 출처 보기", 14f, FontStyles.Bold, Accent, TextAlignmentOptions.Left);
+        Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), Loc.Get("재료를 누르면 출처 보기"), 14f, FontStyles.Bold, Accent, TextAlignmentOptions.Left);
         // 잭팟 설명(우측). 마스터한 레시피의 보너스 = 직관적 안내.
         Txt(Make("jl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(-12f, -6f)),
-            "레시피 10회 제작 후 활성화 시 -> 제작마다 10% 확률로 2배 생산!", 13f, FontStyles.Normal, C32(165, 130, 60), TextAlignmentOptions.Right);
+            Loc.Get("레시피 10회 제작 후 활성화 시 -> 제작마다 10% 확률로 2배 생산!"), 13f, FontStyles.Normal, C32(165, 130, 60), TextAlignmentOptions.Right);
 
         // 레시피 많은 설비(용해로 등)는 패널 밖으로 넘치니 스크롤. 뷰포트(마스크)+콘텐츠.
         var vp = Make("RecipeViewport", body, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -40f));
@@ -1269,7 +1269,7 @@ public class CodexUI : MonoBehaviour
             }
         }
         else
-            Txt(NewChild("none", rows), "표시할 레시피가 없습니다.", 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
+            Txt(NewChild("none", rows), Loc.Get("표시할 레시피가 없습니다."), 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
     }
 
     // 레시피 제작수/마스터 (F9 전부해금이면 마스터로 간주 - 테스트용)
@@ -1303,7 +1303,7 @@ public class CodexUI : MonoBehaviour
         var cle = chip.gameObject.AddComponent<LayoutElement>();
         cle.minWidth = 46f; cle.preferredWidth = 46f; cle.minHeight = 30f; cle.preferredHeight = 30f;
         Img(chip, RoundedFallback(7), new Color(1f, 1f, 1f, 0.92f)).raycastTarget = false;
-        Txt(chip, "클릭", 13f, FontStyles.Bold, C32(208, 70, 70), TextAlignmentOptions.Center);
+        Txt(chip, Loc.Get("클릭"), 13f, FontStyles.Bold, C32(208, 70, 70), TextAlignmentOptions.Center);
 
         var lbl = Txt(NewChild("lbl", host), label, 15f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
         lbl.ForceMeshUpdate();
@@ -1344,14 +1344,14 @@ public class CodexUI : MonoBehaviour
         le.preferredWidth = 172f; le.minWidth = 172f; le.preferredHeight = 56f;
 
         if (jackpotOn)
-            Txt(box, crafts + " / " + RecipeProgress.CraftsToMaster + "  <color=#3FB46B>잭팟 ON</color>", 15f, FontStyles.Bold, C32(60, 68, 76), TextAlignmentOptions.Right);
+            Txt(box, crafts + " / " + RecipeProgress.CraftsToMaster + "  <color=#3FB46B>" + Loc.Get("잭팟 ON") + "</color>", 15f, FontStyles.Bold, C32(60, 68, 76), TextAlignmentOptions.Right);
         else if (crafts >= RecipeProgress.CraftsToMaster)
         {
             var pill = Make("jp", box, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             pill.pivot = new Vector2(1f, 0.5f);   // 우측 정렬 -> 박스 안에 들어와 안 잘림(기본 0.5피벗이면 오른쪽 절반이 밖으로 삐져 클리핑)
             pill.sizeDelta = new Vector2(152f, 40f); pill.anchoredPosition = new Vector2(-6f, 0f);
             string rid = recipeId;
-            RedActivateButton(pill, "잭팟 ON", () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success("잭팟 활성화! 제작마다 10% 확률로 2배 생산"); Refresh(); });
+            RedActivateButton(pill, Loc.Get("잭팟 ON"), () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success(Loc.Get("잭팟 활성화! 제작마다 10% 확률로 2배 생산")); Refresh(); });
         }
         else
             Txt(box, Mathf.Min(crafts, RecipeProgress.CraftsToMaster) + " / " + RecipeProgress.CraftsToMaster, 16f, FontStyles.Bold, C32(120, 128, 140), TextAlignmentOptions.Right);
@@ -1456,8 +1456,8 @@ public class CodexUI : MonoBehaviour
         int afterBag = leftover;
         if (leftover > 0 && InventoryManager.StorageInstance != null)
             leftover = InventoryManager.StorageInstance.TryAddItemFromLoot(itemId, leftover);
-        if (afterBag > 0 && leftover < afterBag) ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
-        if (leftover > 0) { ToastManager.Error("보상을 받지 못했습니다. 인벤토리를 비워주세요"); return false; }
+        if (afterBag > 0 && leftover < afterBag) ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
+        if (leftover > 0) { ToastManager.Error(Loc.Get("보상을 받지 못했습니다. 인벤토리를 비워주세요")); return false; }
         return true;
     }
 
@@ -1469,7 +1469,7 @@ public class CodexUI : MonoBehaviour
         if (GrantReward(itemId, count))
         {
             RecipeProgress.MarkFacilityRewardClaimed(facilityId);
-            ToastManager.Success("보상 수령 - 코어 키트 " + count + "개");
+            ToastManager.Success(Loc.Get("보상 수령 - 코어 키트") + " " + count + Loc.Get("개"));
             Refresh();
         }
     }
@@ -1505,12 +1505,12 @@ public class CodexUI : MonoBehaviour
 
         // 텍스트 컬럼(슬롯 오른쪽 ~ 버튼 왼쪽). 캡션/이름/진행도를 세로로 분리해 안 겹치게.
         Txt(Make("rblab", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -28f), new Vector2(-196f, -8f)),
-            "전 레시피 마스터 보상", 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
-        string iname = item != null ? item.itemName : ("아이템 " + rewardItemId);
+            Loc.Get("전 레시피 마스터 보상"), 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        string iname = item != null ? item.itemName : (Loc.Get("아이템") + " " + rewardItemId);
         Txt(Make("rbnm", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -66f), new Vector2(-196f, -32f)),
             iname + "  x" + rewardCount, 21f, FontStyles.Bold, complete ? TxtMain : TxtSub, TextAlignmentOptions.Left);
         Txt(Make("rbpg", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -94f), new Vector2(-196f, -70f)),
-            "레시피 " + mastered + " / " + total + " 마스터", 14f, FontStyles.Bold, complete ? C32(40, 110, 150) : C32(124, 132, 142), TextAlignmentOptions.Left);
+            Loc.Get("레시피") + " " + mastered + " / " + total + " " + Loc.Get("마스터"), 14f, FontStyles.Bold, complete ? C32(40, 110, 150) : C32(124, 132, 142), TextAlignmentOptions.Left);
 
         // 수령 버튼
         var btn = Make("rbbtn", pad, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
@@ -1518,17 +1518,17 @@ public class CodexUI : MonoBehaviour
         if (claimed)
         {
             Img(btn, RoundedFallback(9), new Color(0.31f, 0.70f, 0.43f, 0.20f));
-            Txt(btn, "수령 완료", 16f, FontStyles.Bold, C32(60, 160, 95), TextAlignmentOptions.Center);
+            Txt(btn, Loc.Get("수령 완료"), 16f, FontStyles.Bold, C32(60, 160, 95), TextAlignmentOptions.Center);
         }
         else if (complete)
         {
             int fid = facilityId, iid = rewardItemId, cnt = rewardCount;
-            RedActivateButton(btn, "보상 수령", () => ClaimFacilityReward(fid, iid, cnt));
+            RedActivateButton(btn, Loc.Get("보상 수령"), () => ClaimFacilityReward(fid, iid, cnt));
         }
         else
         {
             Img(btn, RoundedFallback(9), new Color(0.5f, 0.55f, 0.6f, 0.14f));
-            Txt(btn, "미달성", 16f, FontStyles.Bold, C32(150, 156, 164), TextAlignmentOptions.Center);
+            Txt(btn, Loc.Get("미달성"), 16f, FontStyles.Bold, C32(150, 156, 164), TextAlignmentOptions.Center);
         }
     }
 
@@ -1598,7 +1598,7 @@ public class CodexUI : MonoBehaviour
         string effectDesc = ConsumableEffectApplier.Describe(itemId.ToString());
         if (!string.IsNullOrEmpty(effectDesc))
         {
-            Txt(NewChild("efflbl", card), "효과", 13f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+            Txt(NewChild("efflbl", card), Loc.Get("효과"), 13f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
             var effRow = NewChild("eff", card);
             effRow.gameObject.AddComponent<LayoutElement>().minHeight = 28f;
             Txt(effRow, effectDesc, 16f, FontStyles.Bold, C32(56, 140, 92), TextAlignmentOptions.Left);
@@ -1607,7 +1607,7 @@ public class CodexUI : MonoBehaviour
         var div = NewChild("div", card);
         div.gameObject.AddComponent<LayoutElement>().minHeight = 1f;
         Img(div, null, Divider);
-        Txt(NewChild("hint", card), "획득 방법", 13f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
+        Txt(NewChild("hint", card), Loc.Get("획득 방법"), 13f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
 
         int rowCount = 0;
         // 제작 출처(가공템) -> 설비로 이동
@@ -1617,12 +1617,12 @@ public class CodexUI : MonoBehaviour
             if (FacilityUnlocked(fid))
             {
                 var fac = GameDataUtility.GetFacility(fid);
-                string fname = fac != null ? fac.facilityName : ("설비 " + fid);
-                AddSourceRow(card, "제작", Accent, fname + " 에서 제작", "이동", () => JumpToFacility(fid, itemId));
+                string fname = fac != null ? fac.facilityName : (Loc.Get("설비") + " " + fid);
+                AddSourceRow(card, Loc.Get("제작"), Accent, fname + " " + Loc.Get("에서 제작"), Loc.Get("이동"), () => JumpToFacility(fid, itemId));
             }
             else   // 미해금 설비는 스포 방지 -> ???
             {
-                AddSourceRow(card, "제작", C32(150, 156, 164), "??? (미해금 설비)", null, null);
+                AddSourceRow(card, Loc.Get("제작"), C32(150, 156, 164), Loc.Get("??? (미해금 설비)"), null, null);
             }
             rowCount++;
         }
@@ -1634,7 +1634,7 @@ public class CodexUI : MonoBehaviour
             {
                 if (chestShown) continue;
                 chestShown = true;
-                AddSourceRow(card, "상자", C32(150, 162, 178), "상자 파밍에서 획득", null, null);
+                AddSourceRow(card, Loc.Get("상자"), C32(150, 162, 178), Loc.Get("상자 파밍에서 획득"), null, null);
                 rowCount++;
             }
             else   // Monster
@@ -1643,19 +1643,19 @@ public class CodexUI : MonoBehaviour
                 var mlist = _monsters ?? Monsters;
                 if (mi >= 0 && mlist[mi].state == St.Public)
                 {
-                    string mn = string.IsNullOrEmpty(mlist[mi].name) ? "몬스터" : mlist[mi].name;
+                    string mn = string.IsNullOrEmpty(mlist[mi].name) ? Loc.Get("몬스터") : mlist[mi].name;
                     int idx = mi;
-                    AddSourceRow(card, "처치", C32(214, 120, 120), mn + " 처치", "도감", () => JumpToMonster(idx));
+                    AddSourceRow(card, Loc.Get("처치"), C32(214, 120, 120), mn + " " + Loc.Get("처치"), Loc.Get("도감"), () => JumpToMonster(idx));
                 }
                 else
                 {
-                    AddSourceRow(card, "처치", C32(150, 156, 164), "??? (미발견 몬스터)", null, null);
+                    AddSourceRow(card, Loc.Get("처치"), C32(150, 156, 164), Loc.Get("??? (미발견 몬스터)"), null, null);
                 }
                 rowCount++;
             }
         }
         if (rowCount == 0)
-            AddSourceRow(card, "정보", C32(150, 156, 164), "출처 정보가 없습니다", null, null);
+            AddSourceRow(card, Loc.Get("정보"), C32(150, 156, 164), Loc.Get("출처 정보가 없습니다"), null, null);
     }
 
     // 출처 한 줄: [태그 칩][라벨][액션 버튼?]
@@ -1962,9 +1962,9 @@ public class CodexUI : MonoBehaviour
         Img(_tooltip, RoundedFallback(10), new Color(0.10f, 0.13f, 0.18f, 0.96f)).raycastTarget = false;
         Line(_tooltip, new Color32(120, 140, 160, 80));
         Txt(Make("t1", _tooltip, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -26f), new Vector2(0f, -6f)),
-            "자세히 보기", 14f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
+            Loc.Get("자세히 보기"), 14f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
         Txt(Make("t2", _tooltip, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 6f), new Vector2(0f, 24f)),
-            "좌클릭", 12f, FontStyles.Normal, new Color(0.62f, 0.78f, 0.95f, 1f), TextAlignmentOptions.Center);
+            Loc.Get("좌클릭"), 12f, FontStyles.Normal, new Color(0.62f, 0.78f, 0.95f, 1f), TextAlignmentOptions.Center);
         _tooltip.gameObject.SetActive(false);
     }
 

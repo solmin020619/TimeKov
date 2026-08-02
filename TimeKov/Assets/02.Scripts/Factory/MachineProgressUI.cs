@@ -58,7 +58,7 @@ namespace TIMEKOV.Factory
                     var itemData = GameDataUtility.GetItem(id);
                     outName = itemData?.itemName ?? id.ToString();
                 }
-                statusText.text = $"[{machine.MachineName}] 제작 중\n→ {outName} {(machine.Progress * 100f):F0}%";
+                statusText.text = $"[{machine.MachineName}] " + Loc.Get("제작 중") + $"\n→ {outName} {(machine.Progress * 100f):F0}%";
             }
             else if (machine.Status == MachineStatus.OutputReady)
             {
@@ -74,8 +74,8 @@ namespace TIMEKOV.Factory
                     break;
                 }
                 statusText.text = string.IsNullOrEmpty(outName)
-                    ? $"[{machine.MachineName}] 완료!\nF키로 회수"
-                    : $"[{machine.MachineName}] 완료!\n{outName} x{outAmt}  F키로 회수";
+                    ? $"[{machine.MachineName}] " + Loc.Get("완료!") + "\n" + Loc.Get("F키로 회수")
+                    : $"[{machine.MachineName}] " + Loc.Get("완료!") + $"\n{outName} x{outAmt}  " + Loc.Get("F키로 회수");
             }
         }
     }

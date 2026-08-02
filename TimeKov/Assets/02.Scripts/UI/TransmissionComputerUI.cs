@@ -253,8 +253,8 @@ public class TransmissionComputerUI : MonoBehaviour
         // 좌측 그룹
         Img("sysDot", _content, 88, 62, 8, 8, Accent, UISpriteFactory.RoundedRect(16, 4)).raycastTarget = false;
         Txt("sys", _content, 108, 58, 600, 18, "TIMEKOV // TRANSFER TERMINAL", _mono, 14, C("4CC9F7", 0.75f), TextAlignmentOptions.Left, 3);
-        Txt("title", _content, 86, 84, 900, 62, "시간에너지 전송", _kr, 48, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        _subLabel = Txt("sub", _content, 88, 156, 900, 26, "기지 전송 컴퓨터     현재 구간 설원", _kr, 19, C("E8F2FB", 0.55f), TextAlignmentOptions.Left);
+        Txt("title", _content, 86, 84, 900, 62, Loc.Get("시간에너지 전송"), _kr, 48, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        _subLabel = Txt("sub", _content, 88, 156, 900, 26, Loc.Get("기지 전송 컴퓨터 현재 구간") + " " + Loc.Get("설원"), _kr, 19, C("E8F2FB", 0.55f), TextAlignmentOptions.Left);
 
         // 우측 전송률 카드 = 액체 탱크(전송률만큼 구간 색이 차오르고 표면이 물결친다)
         float cw = 250, cx = 1832 - cw, cy = 40, ch = 182;
@@ -271,13 +271,13 @@ public class TransmissionComputerUI : MonoBehaviour
         _rateWavePx = new Color[RWW * RWH];
         _rateWave.texture = _rateWaveTex; _rateWave.color = C("5BC7E8", 1f); _rateWave.raycastTarget = false;
 
-        Txt("rateLbl", card.transform, 18, 16, cw - 36, 16, "현재 전송률", _mono, 12, C("E8F2FB", 0.5f), TextAlignmentOptions.Left, 3);
+        Txt("rateLbl", card.transform, 18, 16, cw - 36, 16, Loc.Get("현재 전송률"), _mono, 12, C("E8F2FB", 0.5f), TextAlignmentOptions.Left, 3);
         _rateBig = Txt("rateBig", card.transform, 0, 50, cw, 92, "42%", _mono, 74, TextBright, TextAlignmentOptions.Center, 0, FontStyles.Bold);
         // 하단 행: 구간 이름(좌) / 목표 칩(우)
-        _rateRegionLabel = Txt("rcBottom", card.transform, 18, ch - 30, cw - 36 - 74, 20, "설원 구간", _mono, 12, C("E8F2FB", 0.6f), TextAlignmentOptions.Left);
+        _rateRegionLabel = Txt("rcBottom", card.transform, 18, ch - 30, cw - 36 - 74, 20, Loc.Get("설원") + " " + Loc.Get("구간"), _mono, 12, C("E8F2FB", 0.6f), TextAlignmentOptions.Left);
         var goalChip = Img("goalChip", card.transform, cw - 18 - 66, ch - 32, 66, 22, C("5BC7E8", 0f), UISpriteFactory.RoundedRect(40, 11));
         Outline(goalChip.gameObject, C("5BC7E8", 0.4f));
-        Txt("goalTxt", goalChip.transform, 0, 0, 66, 22, "목표 50%", _mono, 12, AccentSoft2, TextAlignmentOptions.Center);
+        Txt("goalTxt", goalChip.transform, 0, 0, 66, 22, Loc.Get("목표 50%"), _mono, 12, AccentSoft2, TextAlignmentOptions.Center);
     }
 
     // ── C-2 진행 바 패널 ──────────────────────────────────────────────
@@ -462,12 +462,12 @@ public class TransmissionComputerUI : MonoBehaviour
 
         // 좌: 보유 충전 키트
         var lp = Panel("kitPanel", 88, by, leftW, bh);
-        PanelHeader(lp, leftW, "보유 충전 키트");
+        PanelHeader(lp, leftW, Loc.Get("보유 충전 키트"));
         // 열 헤더 — 각 행의 x9 / +5% 컬럼이 무엇인지 안내. 행 컬럼 x와 맞춰 우측 정렬.
         // (행 우측 끝 = 스크롤 뷰 우측 끝 = leftW-16. qty: 우측에서 -96,폭60,중앙 / gain: 우측에서 -14,우측정렬)
         float rowRight = leftW - 16f;
-        Txt("colQty", lp.gameObject, rowRight - 156f, 22, 60, 15, "수량", _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Center, 1);
-        Txt("colGain", lp.gameObject, rowRight - 14f - 130f, 22, 130, 15, "예상 상승률", _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Right, 1);
+        Txt("colQty", lp.gameObject, rowRight - 156f, 22, 60, 15, Loc.Get("수량"), _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Center, 1);
+        Txt("colGain", lp.gameObject, rowRight - 14f - 130f, 22, 130, 15, Loc.Get("예상 상승률"), _mono, 12, C("E8F2FB", 0.45f), TextAlignmentOptions.Right, 1);
         // 컬럼 구분선(이름|수량|상승률) — 짧고 둥근 은은한 세로 바. 행 구분선과 같은 x.
         Img("colDivH1", lp.gameObject, rowRight - 165f, 14, 2, 28, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1)).raycastTarget = false;
         Img("colDivH2", lp.gameObject, rowRight - 93f, 14, 2, 28, C("9EC7D9", 0.16f), UISpriteFactory.RoundedRect(4, 1)).raycastTarget = false;
@@ -497,17 +497,17 @@ public class TransmissionComputerUI : MonoBehaviour
 
         // 우: 전송 제어
         var rp = Panel("ctrlPanel", 88 + leftW + gap, by, rightW, bh);
-        PanelHeader(rp, rightW, "전송 제어");
+        PanelHeader(rp, rightW, Loc.Get("전송 제어"));
         float ix = 24, iw = rightW - 48, iy = 74;
         var selCard = Card(rp.transform, ix, iy, iw, 84, C("E8F2FB", 0.04f), C("E8F2FB", 0.08f));
-        Txt("selLbl", selCard.transform, 18, 14, iw - 36, 16, "선택된 키트", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
-        _selName = Txt("selName", selCard.transform, 18, 32, iw - 36, 28, "없음", _kr, 22, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
-        _selMeta = Txt("selMeta", selCard.transform, 18, 60, iw - 36, 20, "목록에서 키트를 클릭", _kr, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
+        Txt("selLbl", selCard.transform, 18, 14, iw - 36, 16, Loc.Get("선택된 키트"), _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
+        _selName = Txt("selName", selCard.transform, 18, 32, iw - 36, 28, Loc.Get("없음"), _kr, 22, TextBright, TextAlignmentOptions.Left, 0, FontStyles.Bold);
+        _selMeta = Txt("selMeta", selCard.transform, 18, 60, iw - 36, 20, Loc.Get("목록에서 키트를 클릭"), _kr, 14, C("E8F2FB", 0.5f), TextAlignmentOptions.Left);
 
         iy += 84 + 12;   // 카드 간 세로 간격 12로 통일
         var pvCard = Card(rp.transform, ix, iy, iw, 84, C("4CC9F7", 0.06f), C("4CC9F7", 0.2f));
-        Txt("pvLbl", pvCard.transform, 18, 14, iw - 36, 16, "예상 전송률", _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
-        _previewVal = Txt("pvVal", pvCard.transform, 18, 36, iw - 36, 36, "키트를 선택하세요", _kr, 30, C("E8F2FB", 0.4f), TextAlignmentOptions.Left, 0, FontStyles.Normal);
+        Txt("pvLbl", pvCard.transform, 18, 14, iw - 36, 16, Loc.Get("예상 전송률"), _kr, 13, C("E8F2FB", 0.45f), TextAlignmentOptions.Left, 1);
+        _previewVal = Txt("pvVal", pvCard.transform, 18, 36, iw - 36, 36, Loc.Get("키트를 선택하세요"), _kr, 30, C("E8F2FB", 0.4f), TextAlignmentOptions.Left, 0, FontStyles.Normal);
 
         // 버튼 행 + 로그 (패널 로컬 좌표: 아래에서부터 로그→버튼)
         float logH = 110;
@@ -523,13 +523,13 @@ public class TransmissionComputerUI : MonoBehaviour
         var tri = Img("sendTri", send.gameObject, 0, 0, 15, 16, C("06202E"), TriTex());
         tri.rectTransform.anchorMin = tri.rectTransform.anchorMax = tri.rectTransform.pivot = new Vector2(0.5f, 0.5f);
         tri.rectTransform.anchoredPosition = new Vector2(-34, 0); tri.raycastTarget = false;
-        Txt("sendTxt", send.gameObject, 0, 0, sendW, 62, "전송", _mono, 22, C("06202E"), TextAlignmentOptions.Center, 0, FontStyles.Bold)
+        Txt("sendTxt", send.gameObject, 0, 0, sendW, 62, Loc.Get("전송"), _mono, 22, C("06202E"), TextAlignmentOptions.Center, 0, FontStyles.Bold)
             .rectTransform.anchoredPosition += new Vector2(12, 0);
 
         var close = Img("closeBtn", rp.transform, ix + sendW + 14, btnY, 130, 62, C("E8F2FB", 0.07f), UISpriteFactory.RoundedRect(48, 12));
         var cb = close.gameObject.AddComponent<Button>(); cb.targetGraphic = close; cb.navigation = new Navigation { mode = Navigation.Mode.None };
         cb.onClick.AddListener(Close); AddButtonSfx(cb); Outline(close.gameObject, C("E2EDF8", 0.25f));
-        Txt("closeTxt", close.gameObject, 0, 0, 130, 62, "닫기 ESC", _mono, 18, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
+        Txt("closeTxt", close.gameObject, 0, 0, 130, 62, Loc.Get("닫기") + " ESC", _mono, 18, C("E8F2FB", 0.6f), TextAlignmentOptions.Center);
 
         // 이벤트 로그 (헤더 아래 로그 라인 — 위/아래 여백 균등)
         var logBox = Img("txLog", rp.transform, ix, logY, iw, logH, C("070C17", 0.7f), UISpriteFactory.RoundedRect(48, 12));
@@ -711,7 +711,7 @@ public class TransmissionComputerUI : MonoBehaviour
         _rewardDesc.textWrappingMode = TextWrappingModes.Normal;
 
         // 클릭 힌트(우하단). 특수 글리프(삼각형 등)는 폰트 아틀라스에 없어 깨지므로(스펙 F-3) 순수 텍스트만.
-        _rewardHint = Txt("rwHint", _rewardCard.gameObject, PW - 210, PH - 30, 190, 18, "클릭하여 계속", _mono, 12, C("E8F2FB", 0.42f), TextAlignmentOptions.Right, 2);
+        _rewardHint = Txt("rwHint", _rewardCard.gameObject, PW - 210, PH - 30, 190, 18, Loc.Get("클릭하여 계속"), _mono, 12, C("E8F2FB", 0.42f), TextAlignmentOptions.Right, 2);
 
         // 스윕 하이라이트(등장 시 좌→우로 한 번 지나감). 카드 마스크로 양끝 클리핑.
         _rewardSweep = TL(NewGO("rwSweep", _rewardCard), 0, 0, 90, PH);
@@ -761,7 +761,7 @@ public class TransmissionComputerUI : MonoBehaviour
             tt.anchoredPosition = new Vector2(0, -80); tt.sizeDelta = new Vector2(320, 24);
             var t = tt.gameObject.AddComponent<TextMeshProUGUI>();
             if (_kr != null) t.font = _kr;
-            t.text = "보유한 충전키트가 없습니다.";
+            t.text = Loc.Get("보유한 충전키트가 없습니다.");
             t.fontSize = 15; t.color = C("E8F2FB", 0.4f); t.alignment = TextAlignmentOptions.Center;
             t.textWrappingMode = TextWrappingModes.NoWrap; t.raycastTarget = false;
             _kitEmptyLabel = go;
@@ -818,13 +818,13 @@ public class TransmissionComputerUI : MonoBehaviour
     private void RefreshSelection()
     {
         var k = _m.Selected();
-        _selName.text = k != null ? k.name : "없음";
-        _selMeta.text = k != null ? KitMeta(k) : "목록에서 키트를 클릭";
+        _selName.text = k != null ? k.name : Loc.Get("없음");
+        _selMeta.text = k != null ? KitMeta(k) : Loc.Get("목록에서 키트를 클릭");
         // 예상 전송률
         string pv; Color pc; bool active;
-        if (k == null) { pv = "키트를 선택하세요"; pc = C("E8F2FB", 0.4f); active = false; }
-        else if (!_m.Usable(k)) { pv = "전송 불가"; pc = C("E8F2FB", 0.4f); active = false; }
-        else { int t = _m.Target(k); int d = t - Mathf.RoundToInt(_m.progress); pv = $"전송 시 {t}% (+{d})"; pc = Accent; active = d > 0; }
+        if (k == null) { pv = Loc.Get("키트를 선택하세요"); pc = C("E8F2FB", 0.4f); active = false; }
+        else if (!_m.Usable(k)) { pv = Loc.Get("전송 불가"); pc = C("E8F2FB", 0.4f); active = false; }
+        else { int t = _m.Target(k); int d = t - Mathf.RoundToInt(_m.progress); pv = string.Format(Loc.Get("전송 시 {0}% (+{1})"), t, d); pc = Accent; active = d > 0; }
         _previewVal.text = pv; _previewVal.color = pc;
         _sendBtnImg.color = active ? C("47C4F0") : C("47C4F0", 0.4f);
         _sendBtnCg.alpha = active ? 1f : 0.5f; _sendBtnCg.blocksRaycasts = active; _sendBtnCg.interactable = active;
@@ -871,7 +871,7 @@ public class TransmissionComputerUI : MonoBehaviour
     private void RefreshStatus()
     {
         _statusLine.text = _m.StatusText();
-        if (_subLabel != null) _subLabel.text = $"기지 전송 컴퓨터     현재 구간 {RegionKo[(int)_m.Cur]}";
+        if (_subLabel != null) _subLabel.text = Loc.Get("기지 전송 컴퓨터 현재 구간") + " " + Loc.Get(RegionKo[(int)_m.Cur]);
         SetRateTankColor();
         PositionCursor();
         RefreshLegend();
@@ -984,7 +984,7 @@ public class TransmissionComputerUI : MonoBehaviour
         if (!IsOpen) return;   // 닫혀있으면 연출 스킵(스테일 큐 방지)
         _revealQ.Enqueue(new Reveal
         {
-            title = $"구간 달성 {pct}%", name = pct >= 100 ? _m.RewardName(pct) : $"{_m.RewardName(pct)} 획득!",
+            title = Loc.Get("구간 달성") + " " + pct + "%", name = pct >= 100 ? _m.RewardName(pct) : _m.RewardName(pct) + " " + Loc.Get("획득!"),
             desc = _m.RewardDesc(pct), color = RegionColorForPct(pct), markerPct = pct, order = pct, milestone = true
         });
         ScheduleRevealStart();
@@ -1180,7 +1180,7 @@ public class TransmissionComputerUI : MonoBehaviour
             Color rc = RegionCol[(int)_m.Cur];
             _rateWave.color = new Color(rc.r, rc.g, rc.b, 1f);
         }
-        if (_rateRegionLabel != null) _rateRegionLabel.text = $"{RegionKo[(int)_m.Cur]} 구간";
+        if (_rateRegionLabel != null) _rateRegionLabel.text = Loc.Get(RegionKo[(int)_m.Cur]) + " " + Loc.Get("구간");
     }
 
     // 물 텍스처 재생성 — 열(x)마다 여러 진행파를 합쳐 수면 행(s)을 구하고, 그 아래를 채운다.
@@ -1268,7 +1268,7 @@ public class TransmissionComputerUI : MonoBehaviour
         Color col = st == MState.Done ? Success : st == MState.Next ? Accent : C("E2EDF8", 0.35f);
         // 보상 이름은 이미 획득(Done)했거나 바로 다음 구간(Next)일 때만 공개. 그 이후(Locked)는 ??? 로 가림.
         string name = st == MState.Locked ? "???" : _m.RewardName(pct);
-        ShowTooltipCommon(col, $"{pct}% 지점 보상", name, _m.TooltipStatus(pct, st), marker);
+        ShowTooltipCommon(col, pct + Loc.Get("% 지점 보상"), name, _m.TooltipStatus(pct, st), marker);
     }
 
     // 키트 행 호버 — 사용 가능하면 상승치를, 불가면 사유를 보여준다.
@@ -1277,8 +1277,8 @@ public class TransmissionComputerUI : MonoBehaviour
         if (k == null) return;
         bool usable = _m.Usable(k);
         Color col = usable ? Accent : Danger;
-        string state = usable ? $"전송 시 +{k.gain}% 상승" : _m.UnusableReason(k);
-        ShowTooltipCommon(col, k.isBoss ? "보스 충전키트" : "일반 충전키트", k.name, state, anchor);
+        string state = usable ? string.Format(Loc.Get("전송 시 +{0}% 상승"), k.gain) : _m.UnusableReason(k);
+        ShowTooltipCommon(col, k.isBoss ? Loc.Get("보스 충전키트") : Loc.Get("일반 충전키트"), k.name, state, anchor);
     }
 
     // 공통 툴팁 표시 — 색/제목/이름/상태 세팅 후 앵커 위로 떠오르며 페이드 인.
@@ -1370,13 +1370,13 @@ public class TransmissionComputerUI : MonoBehaviour
         // 사용 불가 사유(툴팁용) — Usable() 판정과 같은 순서로 첫 번째 걸리는 이유를 문장으로.
         public string UnusableReason(Kit k)
         {
-            if (Mgr == null || k == null) return "사용 불가";
-            if (progress >= TransmissionManager.MaxRate) return "전송률 100% · 더 올릴 수 없음";
-            if (k.region != Cur) return $"다른 지역 키트 · 현재 {RegionKo[(int)Cur]} 구간에서 사용 불가";
-            if (!k.isBoss && progress >= Mgr.CurrentRegionNormalCap) return $"일반 상한 {Mgr.CurrentRegionNormalCap}% 도달 · 보스 키트 필요";
-            if (k.qty <= 0) return "보유 수량 없음";
-            if (Target(k) <= Mathf.RoundToInt(progress)) return "전송률 상승 없음";
-            return "사용 불가";
+            if (Mgr == null || k == null) return Loc.Get("사용 불가");
+            if (progress >= TransmissionManager.MaxRate) return Loc.Get("전송률 100% · 더 올릴 수 없음");
+            if (k.region != Cur) return string.Format(Loc.Get("다른 지역 키트 · 현재 {0} 구간에서 사용 불가"), Loc.Get(RegionKo[(int)Cur]));
+            if (!k.isBoss && progress >= Mgr.CurrentRegionNormalCap) return string.Format(Loc.Get("일반 상한 {0}% 도달 · 보스 키트 필요"), Mgr.CurrentRegionNormalCap);
+            if (k.qty <= 0) return Loc.Get("보유 수량 없음");
+            if (Target(k) <= Mathf.RoundToInt(progress)) return Loc.Get("전송률 상승 없음");
+            return Loc.Get("사용 불가");
         }
         public bool Send(Kit k)
         {
@@ -1398,61 +1398,61 @@ public class TransmissionComputerUI : MonoBehaviour
         // 실제 지급 보상(TransmissionManager.GrantMilestoneRewards)과 일치해야 함(2026-07-24 확정표).
         public string RewardName(int pct) => pct switch
         {
-            5  => "시간에너지 합성기", 10 => "용해로", 15 => "창고 출력 포트",
-            20 => "저장고 / 귀환석 Lv.1", 25 => "선체 보강재", 30 => "코어 합성기",
-            40 => "귀환석 Lv.2", 50 => "동력 안정기", 60 => "생체 분리기 / 에너지 변환기",
-            70 => "창고포트 상한 +1 / 귀환석 Lv.3", 75 => "우주선 엔진", 80 => "창고포트 상한 +3",
-            90 => "창고포트 상한 +2 / 앰플 꾸러미 / 코어 키트 V",
-            _ => "전송 완료"
+            5  => Loc.Get("시간에너지 합성기"), 10 => Loc.Get("용해로"), 15 => Loc.Get("창고 출력 포트"),
+            20 => Loc.Get("저장고 / 귀환석 Lv.1"), 25 => Loc.Get("선체 보강재"), 30 => Loc.Get("코어 합성기"),
+            40 => Loc.Get("귀환석 Lv.2"), 50 => Loc.Get("동력 안정기"), 60 => Loc.Get("생체 분리기 / 에너지 변환기"),
+            70 => Loc.Get("창고포트 상한 +1 / 귀환석 Lv.3"), 75 => Loc.Get("우주선 엔진"), 80 => Loc.Get("창고포트 상한 +3"),
+            90 => Loc.Get("창고포트 상한 +2 / 앰플 꾸러미 / 코어 키트 V"),
+            _ => Loc.Get("전송 완료")
         };
 
         public string RewardDesc(int pct) => pct switch
         {
-            5  => "시간에너지 합성기 설비를 해금했습니다. 이제 충전 키트를 직접 제작할 수 있습니다.",
-            10 => "용해로 설비를 해금했습니다.",
-            15 => "창고 출력 포트 설비를 해금했습니다.",
-            20 => "저장고 해금 + 귀환석 Lv.1(쿨타임 15분)을 획득했습니다.",
-            25 => "우주선 선체 보강재를 확보했습니다.",
-            30 => "코어 합성기 설비를 해금했습니다.",
-            40 => "귀환석 Lv.2(쿨타임 10분)로 강화되었습니다.",
-            50 => "우주선 동력 안정기를 확보했습니다.",
-            60 => "생체 분리기, 에너지 변환기 설비를 해금했습니다.",
-            70 => "창고 출력 포트 건설 수 +1 + 귀환석 Lv.3(쿨타임 5분)로 강화되었습니다.",
-            75 => "우주선 엔진을 확보했습니다.",
-            80 => "창고 출력 포트 건설 수가 3 늘어났습니다.",
-            90 => "창고 출력 포트 건설 수 +2 + 앰플 꾸러미(대량) + 코어 키트 V x5를 받았습니다.",
-            _ => "시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!"
+            5  => Loc.Get("시간에너지 합성기 설비를 해금했습니다. 이제 충전 키트를 직접 제작할 수 있습니다."),
+            10 => Loc.Get("용해로 설비를 해금했습니다."),
+            15 => Loc.Get("창고 출력 포트 설비를 해금했습니다."),
+            20 => Loc.Get("저장고 해금 + 귀환석 Lv.1(쿨타임 15분)을 획득했습니다."),
+            25 => Loc.Get("우주선 선체 보강재를 확보했습니다."),
+            30 => Loc.Get("코어 합성기 설비를 해금했습니다."),
+            40 => Loc.Get("귀환석 Lv.2(쿨타임 10분)로 강화되었습니다."),
+            50 => Loc.Get("우주선 동력 안정기를 확보했습니다."),
+            60 => Loc.Get("생체 분리기, 에너지 변환기 설비를 해금했습니다."),
+            70 => Loc.Get("창고 출력 포트 건설 수 +1 + 귀환석 Lv.3(쿨타임 5분)로 강화되었습니다."),
+            75 => Loc.Get("우주선 엔진을 확보했습니다."),
+            80 => Loc.Get("창고 출력 포트 건설 수가 3 늘어났습니다."),
+            90 => Loc.Get("창고 출력 포트 건설 수 +2 + 앰플 꾸러미(대량) + 코어 키트 V x5를 받았습니다."),
+            _ => Loc.Get("시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!")
         };
 
         public string TooltipStatus(int pct, MState st)
         {
-            if (st == MState.Done) return "획득 완료";
+            if (st == MState.Done) return Loc.Get("획득 완료");
             if (st == MState.Next)
             {
                 bool boundary = pct % 25 == 0; // 25/50/75/100
-                string grade = boundary ? "보스" : "일반";
-                return $"필요: {RegionKo[(int)Cur]} {grade} 충전키트";
+                string grade = boundary ? Loc.Get("보스") : Loc.Get("일반");
+                return string.Format(Loc.Get("필요: {0} {1} 충전키트"), Loc.Get(RegionKo[(int)Cur]), grade);
             }
-            return "??? (도달 시 공개)";
+            return Loc.Get("??? (도달 시 공개)");
         }
 
         public string StatusText()
         {
-            if (Mgr == null) return "전송 시스템 대기 중";
+            if (Mgr == null) return Loc.Get("전송 시스템 대기 중");
             int p = Mgr.TransmissionRate;
-            if (p >= TransmissionManager.MaxRate) return "전송률 100% 달성 — 엔딩 조건 충족";
-            return $"현재 구간 {RegionKo[(int)Cur]} / 일반 상한 {Mgr.CurrentRegionNormalCap}% / 목표 {Mgr.CurrentRegionGoal}%";
+            if (p >= TransmissionManager.MaxRate) return Loc.Get("전송률 100% 달성 — 엔딩 조건 충족");
+            return string.Format(Loc.Get("현재 구간 {0} / 일반 상한 {1}% / 목표 {2}%"), Loc.Get(RegionKo[(int)Cur]), Mgr.CurrentRegionNormalCap, Mgr.CurrentRegionGoal);
         }
     }
 
     private string KitMeta(Kit k)
     {
-        string g = k.isBoss ? "보스" : "일반";
+        string g = k.isBoss ? Loc.Get("보스") : Loc.Get("일반");
         string gradeHex = k.isBoss ? "F2C14E" : "8FB6C9";           // 보스=골드 / 일반=차분한 블루그레이
         string regionHex = ColorUtility.ToHtmlStringRGB(RegionCol[(int)k.region]);
-        string meta = $"<color=#{regionHex}>{RegionKo[(int)k.region]} 지역</color> / <color=#{gradeHex}>{g} 등급</color>";
-        if (k.region != _m.Cur) meta += "  <color=#F27059>다른 지역 / 이 구간 사용 불가</color>";
-        else if (k.qty <= 0) meta += "  <color=#F27059>수량 없음</color>";
+        string meta = "<color=#" + regionHex + ">" + Loc.Get(RegionKo[(int)k.region]) + " " + Loc.Get("지역") + "</color> / <color=#" + gradeHex + ">" + g + " " + Loc.Get("등급") + "</color>";
+        if (k.region != _m.Cur) meta += "  <color=#F27059>" + Loc.Get("다른 지역 / 이 구간 사용 불가") + "</color>";
+        else if (k.qty <= 0) meta += "  <color=#F27059>" + Loc.Get("수량 없음") + "</color>";
         return meta;
     }
 

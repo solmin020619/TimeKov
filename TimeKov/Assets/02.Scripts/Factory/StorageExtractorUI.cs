@@ -77,7 +77,7 @@ public class StorageExtractorUI : MonoBehaviour
 
         uiPanel.SetActive(true);
         uiPanel.GetComponent<UISlideEffect>()?.Open();
-        if (_titleText != null) _titleText.text = string.IsNullOrEmpty(title) ? "창고 출력 포트" : title;
+        if (_titleText != null) _titleText.text = string.IsNullOrEmpty(title) ? Loc.Get("창고 출력 포트") : title;
 
         // 설치 개수 제한 표시 (패널 열 때 현재 설치수/상한). UI 열려 있는 동안엔 안 바뀜.
         if (_installText != null)
@@ -87,7 +87,7 @@ public class StorageExtractorUI : MonoBehaviour
             {
                 var bm = FindFirstObjectByType<BuildManager>();
                 int placed = bm != null ? bm.CountPlacedFacilities(fid) : 0;
-                _installText.text = $"설치 {placed}/{FacilityBuildLimit.GetMax(fid)}";
+                _installText.text = Loc.Get("설치") + " " + $"{placed}/{FacilityBuildLimit.GetMax(fid)}";
             }
             else _installText.text = "";
         }
@@ -145,10 +145,10 @@ public class StorageExtractorUI : MonoBehaviour
 
         if (_statusText != null)
         {
-            if (selId <= 0)      _statusText.text = "아이템을 선택하세요";
-            else if (!hasBelt)   _statusText.text = "벨트 연결 필요";
-            else if (stock <= 0) _statusText.text = "창고에 재고 없음";
-            else                 _statusText.text = $"추출까지: {remaining:F1}초";
+            if (selId <= 0)      _statusText.text = Loc.Get("아이템을 선택하세요");
+            else if (!hasBelt)   _statusText.text = Loc.Get("벨트 연결 필요");
+            else if (stock <= 0) _statusText.text = Loc.Get("창고에 재고 없음");
+            else                 _statusText.text = string.Format(Loc.Get("추출까지: {0}초"), $"{remaining:F1}");
         }
         // 재고 없으면 게이지도 빈 채로(설비 타이머가 이미 멈춰 remaining=interval 이지만 UI 도 방어)
         if (_gauge != null)
@@ -278,7 +278,7 @@ public class StorageExtractorUI : MonoBehaviour
 
     private void BuildHeader(RectTransform prt)
     {
-        _titleText = NewText("Title", prt, "창고 출력 포트", 28, TxtDark, TextAlignmentOptions.Left);
+        _titleText = NewText("Title", prt, Loc.Get("창고 출력 포트"), 28, TxtDark, TextAlignmentOptions.Left);
         _titleText.fontStyle = FontStyles.Bold;
         var tr = _titleText.rectTransform;
         tr.anchorMin = tr.anchorMax = new Vector2(0, 1); tr.pivot = new Vector2(0, 1);
@@ -386,13 +386,13 @@ public class StorageExtractorUI : MonoBehaviour
         _installText.fontStyle = FontStyles.Bold;
         _installText.rectTransform.anchoredPosition = new Vector2(20, 326);
         _installText.rectTransform.sizeDelta = new Vector2(420, 40);
-        var instHint = NewText("InstallHint", area, "우주선을 수리하면 설치 개수를 늘릴 수 있습니다",
+        var instHint = NewText("InstallHint", area, Loc.Get("우주선을 수리하면 설치 개수를 늘릴 수 있습니다"),
             15, new Color(0.20f, 0.24f, 0.30f, 1f), TextAlignmentOptions.Center);
         instHint.rectTransform.anchoredPosition = new Vector2(20, 296);
         instHint.rectTransform.sizeDelta = new Vector2(500, 24);
 
         // 좌측: "현재 출력" + 추출 품목 슬롯(보존)
-        var cur = NewText("CurrentLabel", area, "현재 출력", 20, TxtMain, TextAlignmentOptions.Center);
+        var cur = NewText("CurrentLabel", area, Loc.Get("현재 출력"), 20, TxtMain, TextAlignmentOptions.Center);
         cur.rectTransform.anchoredPosition = new Vector2(-340, flowY + 120);
         cur.rectTransform.sizeDelta = new Vector2(200, 30);
 
@@ -441,7 +441,7 @@ public class StorageExtractorUI : MonoBehaviour
         portTick.rectTransform.sizeDelta = new Vector2(8f, 64f);
         _portTick = portTick; _tickBase = portTick.color;   // 배출 순간 반짝용
 
-        var outLbl = NewText("OutputLabel", area, "물류 출력", 18, TxtSub, TextAlignmentOptions.Center);
+        var outLbl = NewText("OutputLabel", area, Loc.Get("물류 출력"), 18, TxtSub, TextAlignmentOptions.Center);
         outLbl.rectTransform.anchoredPosition = new Vector2(beltEndX - 40f, flowY + 120);
         outLbl.rectTransform.sizeDelta = new Vector2(200, 30);
 
@@ -453,7 +453,7 @@ public class StorageExtractorUI : MonoBehaviour
         _flowIcon.rectTransform.sizeDelta = new Vector2(72, 72);
 
         // 게이지 "다음 배출까지"
-        var glabel = NewText("GaugeLabel", area, "다음 배출까지", 15, TxtSub, TextAlignmentOptions.Left);
+        var glabel = NewText("GaugeLabel", area, Loc.Get("다음 배출까지"), 15, TxtSub, TextAlignmentOptions.Left);
         glabel.rectTransform.pivot = new Vector2(0, 0.5f);
         glabel.rectTransform.anchoredPosition = new Vector2(-380, -150);
         glabel.rectTransform.sizeDelta = new Vector2(300, 26);
@@ -477,7 +477,7 @@ public class StorageExtractorUI : MonoBehaviour
         _gauge.fillRect = flr;
         _gauge.targetGraphic = fillImg;
 
-        _statusText = NewText("StatusText", area, "아이템을 선택하세요", 17, TxtMain, TextAlignmentOptions.Left);
+        _statusText = NewText("StatusText", area, Loc.Get("아이템을 선택하세요"), 17, TxtMain, TextAlignmentOptions.Left);
         _statusText.rectTransform.pivot = new Vector2(0, 0.5f);
         _statusText.rectTransform.anchoredPosition = new Vector2(-380, -206);
         _statusText.rectTransform.sizeDelta = new Vector2(600, 28);
@@ -492,7 +492,7 @@ public class StorageExtractorUI : MonoBehaviour
         var infoRim = info.gameObject.AddComponent<UnityEngine.UI.Outline>();
         infoRim.effectColor = new Color(0.55f, 0.66f, 0.80f, 0.34f); infoRim.effectDistance = new Vector2(0f, -1.5f);
         var ibody = NewText("InfoBody", info.transform,
-            "고른 아이템을 창고에서 꺼내 벨트로 내보냅니다.\n창고 테두리에 설치하세요.",
+            Loc.Get("고른 아이템을 창고에서 꺼내 벨트로 내보냅니다.\n창고 테두리에 설치하세요."),
             20, TxtMain, TextAlignmentOptions.Center);
         ibody.textWrappingMode = TextWrappingModes.Normal;
         ibody.enableAutoSizing = true; ibody.fontSizeMin = 15f; ibody.fontSizeMax = 24f;   // 패널 크기에 꽉 차게

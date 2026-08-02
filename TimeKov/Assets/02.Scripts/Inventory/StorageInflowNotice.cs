@@ -51,6 +51,6 @@ public static class StorageInflowNotice
         if (now < _suppressUntil) return;
         if (!quietLongEnough) return;   // 연속 유입(같은 철거/벨트 흐름)은 첫 1회만
 
-        ToastManager.Info("아이템이 창고로 이동했습니다");
+        ToastManager.Info(Loc.Get("아이템이 창고로 이동했습니다"));
     }
 }

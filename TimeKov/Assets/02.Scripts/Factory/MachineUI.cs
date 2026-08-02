@@ -402,8 +402,8 @@ public class MachineUI : MonoBehaviour
             UpdateStorageHeaderLabel();   // 첫 오픈부터 "창고 | 전체" 형식 유지(필터 클릭 전 맨 "창고"로 뜨던 것 통일)
         }
 
-        _bagBoxRt = MakeCollapsedBox(col, "가방", false);
-        _stoBoxRt = MakeCollapsedBox(col, "창고", true);
+        _bagBoxRt = MakeCollapsedBox(col, Loc.Get("가방"), false);
+        _stoBoxRt = MakeCollapsedBox(col, Loc.Get("창고"), true);
         // 레이아웃만 하면 레일 아이콘이 첫 클릭 전까지 무착색(활성탭 = 흰 위 흰 = 안 보임).
         // 스타일까지 포함한 UpdateTabVisual 로 초기화해야 처음 열 때부터 보인다.
         UpdateTabVisual();
@@ -539,7 +539,7 @@ public class MachineUI : MonoBehaviour
         tmp.fontSize = 22;   // 엔필 비례(박스 높이 대비 글자 크기)로 확대. 15는 박스만 커지고 글자가 못 따라갔음
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = new Color(0.20f, 0.23f, 0.28f, 0.85f);   // 밝은 박스 표면 = 어두운 글자(엔필과 동일 원리)
-        tmp.text = "아이템을 여기로 드래그하여 " + containerName + "에 보관 가능";
+        tmp.text = Loc.Get("아이템을 여기로 드래그하여") + " " + containerName + Loc.Get("에 보관 가능");
         tmp.raycastTarget = false;
         return rt;
     }
@@ -550,20 +550,20 @@ public class MachineUI : MonoBehaviour
         if (storageTabBtn == null || _storageFilterUI == null) return;
         var tmp = storageTabBtn.GetComponentInChildren<TextMeshProUGUI>(true);   // 비활성 중 호출 대비(SetTabActive 와 동일 이유)
         if (tmp == null) return;
-        string f = "전체";
+        string f = Loc.Get("전체");
         if (_storageFilter != null)
         {
             switch (_storageFilter.Value)
             {
-                case ItemCategory.RawMaterial:        f = "원재료"; break;
-                case ItemCategory.ProcessedTier1:     f = "1차 가공품"; break;
-                case ItemCategory.ProcessedTier2:     f = "2차 가공품"; break;
-                case ItemCategory.TacticalConsumable: f = "전술 소모품"; break;
-                case ItemCategory.CoreUpgrade:        f = "핵심 강화"; break;
-                case ItemCategory.Special:            f = "특수"; break;
+                case ItemCategory.RawMaterial:        f = Loc.Get("원재료"); break;
+                case ItemCategory.ProcessedTier1:     f = Loc.Get("1차 가공품"); break;
+                case ItemCategory.ProcessedTier2:     f = Loc.Get("2차 가공품"); break;
+                case ItemCategory.TacticalConsumable: f = Loc.Get("전술 소모품"); break;
+                case ItemCategory.CoreUpgrade:        f = Loc.Get("핵심 강화"); break;
+                case ItemCategory.Special:            f = Loc.Get("특수"); break;
             }
         }
-        tmp.text = "창고 | " + f;
+        tmp.text = Loc.Get("창고 |") + " " + f;
     }
 
     // 섹션 배치(가방 위/창고 아래 고정, 펼친 쪽만 그리드):
@@ -1026,7 +1026,7 @@ public class MachineUI : MonoBehaviour
         var inv = ActiveInv();
         int used = inv != null ? inv.GetUsedSlotCount() : 0;
         if (bagCapacityText != null && inv != null)
-            bagCapacityText.text = $"용량 {used} / {inv.GetMaxSlots()}";
+            bagCapacityText.text = Loc.Get("용량") + " " + used + " / " + inv.GetMaxSlots();
         if (bagEmptyText != null) bagEmptyText.gameObject.SetActive(used == 0);
         if (inv == null)
         {
@@ -1931,7 +1931,7 @@ public class MachineUI : MonoBehaviour
             var storage = InventoryManager.StorageInstance;
             StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
             if (storage != null) storage.AddItem(itemId, leftover);
-            ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+            ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
         }
 
         GameEvents.RaiseItemAcquired(itemId, amount);
@@ -2193,13 +2193,13 @@ public class MachineUI : MonoBehaviour
             //   (안 그러면 A 가공 중에 B를 볼 때 "대기 중"으로 떠서 "왜 안 돌지" 오해 - 착시 방지 마무리)
             bool otherCommitted = _machine.IsCommitted && _selectedRecipeIndex != _machine.EffectiveRecipeIndex;
             if (producing)
-            { _bottomStatusText.text = ">>>  생산 중"; c = new Color(0.90f, 0.76f, 0.29f, 1f); }
+            { _bottomStatusText.text = Loc.Get(">>> 생산 중"); c = new Color(0.90f, 0.76f, 0.29f, 1f); }
             else if (otherCommitted)
-            { _bottomStatusText.text = "다른 레시피 사용 중"; c = new Color(0.55f, 0.72f, 0.85f, 0.95f); }
+            { _bottomStatusText.text = Loc.Get("다른 레시피 사용 중"); c = new Color(0.55f, 0.72f, 0.85f, 0.95f); }
             else if (_machine.Status == MachineStatus.NoFuel)
-            { _bottomStatusText.text = "연료 부족"; c = new Color(0.88f, 0.45f, 0.40f, 1f); }
+            { _bottomStatusText.text = Loc.Get("연료 부족"); c = new Color(0.88f, 0.45f, 0.40f, 1f); }
             else
-            { _bottomStatusText.text = "대기 중"; c = new Color(0.72f, 0.77f, 0.82f, 0.9f); }
+            { _bottomStatusText.text = Loc.Get("대기 중"); c = new Color(0.72f, 0.77f, 0.82f, 0.9f); }
             _bottomStatusText.color = c;
             if (_bottomStatusLine != null)
                 _bottomStatusLine.color = new Color(c.r, c.g, c.b, producing ? 0.9f : 0.22f);
@@ -2218,7 +2218,7 @@ public class MachineUI : MonoBehaviour
             // 연료 슬롯에 "연료 넣기" 프롬프트가 떠 있으면(연료 드래그/호버) 같은 자리에 겹치므로 그땐 경고를 숨긴다.
             // (옛 경고기호는 Static 한글 폰트에 없어 깨진 네모로 떠서 텍스트만 남김 - 강조는 statusText 색으로.)
             bool inserting = fuelDropSlot != null && fuelDropSlot.IsInsertPromptVisible;
-            statusText.text = inserting ? "" : "연료 부족";              // 연료 칸 위
+            statusText.text = inserting ? "" : Loc.Get("연료 부족");              // 연료 칸 위
             if (_processTimeText != null) _processTimeText.text = "";
         }
         else if (isSelectedRecipeActive)
@@ -2227,7 +2227,7 @@ public class MachineUI : MonoBehaviour
             // 실제 남은시간 = 레시피 craftTime x 레벨배율 x 공장속도 (폴백 processingTime 아님).
             float remaining = _machine.ResolveProcessTime(_machine.ActiveRecipe) * (1f - _machine.Progress);
             if (_processTimeText != null)
-                _processTimeText.text = $"{remaining:F0}초";              // 제작 시간은 중앙(진행바 위)
+                _processTimeText.text = $"{remaining:F0}" + Loc.Get("초");              // 제작 시간은 중앙(진행바 위)
         }
         else
         {
@@ -2238,7 +2238,7 @@ public class MachineUI : MonoBehaviour
                 var sel = (_machine.Recipes != null && _selectedRecipeIndex >= 0 && _selectedRecipeIndex < _machine.Recipes.Count)
                     ? _machine.Recipes[_selectedRecipeIndex] : null;
                 float total = _machine.ResolveProcessTime(sel);
-                _processTimeText.text = total > 0f ? $"{total:F0}초" : "";
+                _processTimeText.text = total > 0f ? $"{total:F0}" + Loc.Get("초") : "";
             }
         }
     }
@@ -2267,7 +2267,7 @@ public class MachineUI : MonoBehaviour
             if (taken > 0) _machine.InputBuffer.Consume(itemId, taken);
             if (leftover > 0) someLeft = true;
         }
-        if (someLeft) ToastManager.Warning("가방이 가득 찼습니다");
+        if (someLeft) ToastManager.Warning(Loc.Get("가방이 가득 찼습니다"));
         inv?.ForceRefreshUI();
 
         _machine.PublicNotifyBufferChanged();
@@ -2310,7 +2310,7 @@ public class MachineUI : MonoBehaviour
                         GameEvents.RaiseItemAcquired(output.itemId, buffered);
                     }
                 }
-                if (movedToStorage) ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+                if (movedToStorage) ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
             }
         }
 

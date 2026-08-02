@@ -74,7 +74,7 @@ public abstract class PromptPanelUI : MonoBehaviour
         if (progressSection != null) progressSection.SetActive(show);
         if (!show) return;
         if (progressFill != null) progressFill.fillAmount = progress01;
-        if (timerText != null) timerText.text = $"{Mathf.CeilToInt(secsLeft)}초";
+        if (timerText != null) timerText.text = $"{Mathf.CeilToInt(secsLeft)}" + Loc.Get("초");
     }
 
     /// <summary>actionText 가 비어 있으면 버튼을 숨긴다.</summary>

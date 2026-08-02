@@ -27,6 +27,7 @@ public class GlobalSettingsManager : MonoBehaviour
     public static event Action<float> OnSFXVolumeChanged;
     public static event Action<float> OnSensitivityChanged;
     public static event Action OnKeyBindingsChanged;
+    public static event Action<LanguageCode> OnLanguageChanged;
 
     // 다른 스크립트의 PlayerPrefs 직접 읽기를 대체하는 정적 접근자 (effective 값 = master 적용 후)
     private static float _currentBGM = 1f;
@@ -35,6 +36,7 @@ public class GlobalSettingsManager : MonoBehaviour
     public static float CurrentBGMVolume    => _currentBGM;
     public static float CurrentSFXVolume    => _currentSFX;
     public static float CurrentSensitivity  => _currentSensitivity;
+    public static LanguageCode CurrentLanguage => Loc.CurrentLanguage;
 
     [Serializable]
     public class RebindSlot
@@ -349,6 +351,17 @@ public class GlobalSettingsManager : MonoBehaviour
 
         _currentSensitivity = data.sensitivity;
         OnSensitivityChanged?.Invoke(data.sensitivity);
+
+        var langCode = Loc.FromCode(data.language);
+        Loc.SetLanguage(langCode);
+        OnLanguageChanged?.Invoke(langCode);
+    }
+
+    // 언어 설정 변경 (옵션 UI에서 드롭다운 선택 시 호출)
+    public void SetLanguage(LanguageCode code)
+    {
+        _pending.language = Loc.ToCode(code);
+        _isDirty = true;
     }
 
     private void SyncUIValues()

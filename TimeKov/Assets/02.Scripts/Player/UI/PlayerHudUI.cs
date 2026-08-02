@@ -465,7 +465,7 @@ public class PlayerHudUI : MonoBehaviour
         if (t > 10) { _lastTimeWarn = int.MaxValue; return; }   // 10 초과로 회복하면 리셋
         if (t >= 1 && t < _lastTimeWarn)
         {
-            ToastManager.Warning($"시간이 {t}초 남았습니다!");
+            ToastManager.Warning(string.Format(Loc.Get("시간이 {0}초 남았습니다!"), t));
             _lastTimeWarn = t;
         }
     }

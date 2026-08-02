@@ -568,7 +568,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (cur != null)
         {
             string d = (!isMax && next != null && next.maxTime > cur.maxTime) ? PreviewTag($"+{next.maxTime - cur.maxTime}s") : "";
-            SetEffectRow(effectRows[0], "최대 시간", $"{cur.maxTime}s", d);
+            SetEffectRow(effectRows[0], Loc.Get("최대 시간"), $"{cur.maxTime}s", d);
         }
 
         // 1) 부활 체력
@@ -580,15 +580,15 @@ public class CoreUpgradeUI : MonoBehaviour
                 int dd = Mathf.RoundToInt((mgr.GetRespawnHpPercentAt(lv + 1) - c) * 100f);
                 if (dd > 0) d = PreviewTag($"+{dd}%");
             }
-            SetEffectRow(effectRows[1], "부활 체력", Pct(c), d);
+            SetEffectRow(effectRows[1], Loc.Get("부활 체력"), Pct(c), d);
         }
 
         // 2) 우클릭 대쉬 (해금형)
         {
             bool have = lv >= dashLv;
             bool soon = !isMax && !have && (lv + 1 >= dashLv);
-            if (have) SetEffectRow(effectRows[2], "우클릭 대쉬", "사용 가능", "");
-            else      SetEffectRowLocked(effectRows[2], "우클릭 대쉬", dashLv, soon);
+            if (have) SetEffectRow(effectRows[2], Loc.Get("우클릭 대쉬"), Loc.Get("사용 가능"), "");
+            else      SetEffectRowLocked(effectRows[2], Loc.Get("우클릭 대쉬"), dashLv, soon);
         }
 
         // 3) 흡수율 (해금형)
@@ -604,9 +604,9 @@ public class CoreUpgradeUI : MonoBehaviour
                     float dd = (mgr.GetLifestealPercentAt(lv + 1) - c) * 100f;
                     if (dd > 0.001f) d = PreviewTag($"+{dd:0.#}%");
                 }
-                SetEffectRow(effectRows[3], "흡수율", PctF(c), d);
+                SetEffectRow(effectRows[3], Loc.Get("흡수율"), PctF(c), d);
             }
-            else SetEffectRowLocked(effectRows[3], "흡수율", lifeLv, soon);
+            else SetEffectRowLocked(effectRows[3], Loc.Get("흡수율"), lifeLv, soon);
         }
     }
 
@@ -622,9 +622,9 @@ public class CoreUpgradeUI : MonoBehaviour
         if (row == null) return;
         row.gameObject.SetActive(true);
         if (soon)
-            row.text = $"<color=#FFD66B>{label}</color>    <color=#FFD66B>다음 강화 해금!</color>";
+            row.text = $"<color=#FFD66B>{label}</color>    <color=#FFD66B>" + Loc.Get("다음 강화 해금!") + "</color>";
         else
-            row.text = $"<color=#54657C>{label}</color>    <color=#54657C>??? ({unlockLv}단계 해금)</color>";
+            row.text = $"<color=#54657C>{label}</color>    <color=#54657C>??? ({unlockLv}" + Loc.Get("단계 해금") + ")</color>";
     }
 
     // 미리보기 태그(다음 강화 시 변화량) = 골드, 작게
@@ -650,7 +650,7 @@ public class CoreUpgradeUI : MonoBehaviour
             }
             if (kitStockTexts != null && i < kitStockTexts.Length && kitStockTexts[i] != null)
             {
-                string nm = item != null ? item.itemName : $"키트 {i + 1}";
+                string nm = item != null ? item.itemName : Loc.Get("키트") + " " + (i + 1);
                 kitStockTexts[i].text  = $"{nm}   <color=#EAF3FB>x{count}</color>";
                 kitStockTexts[i].color = count > 0 ? new Color(0.78f, 0.86f, 0.94f) : new Color(0.42f, 0.5f, 0.6f);
             }
@@ -751,7 +751,7 @@ public class CoreUpgradeUI : MonoBehaviour
             _btnGlow.effectColor = canUpgrade ? BtnGlowReady : BtnGlowLocked;
         if (upgradeButtonText != null)
         {
-            upgradeButtonText.text  = canUpgrade ? "강화" : "키트 부족";
+            upgradeButtonText.text  = canUpgrade ? Loc.Get("강화") : Loc.Get("키트 부족");
             upgradeButtonText.color = canUpgrade ? BtnTextReady : BtnTextLocked;
         }
     }
@@ -765,7 +765,7 @@ public class CoreUpgradeUI : MonoBehaviour
 
         if (noKit)
         {
-            SetText(kitNameText,     "재료 불필요");
+            SetText(kitNameText,     Loc.Get("재료 불필요"));
             SetText(kitCountText,    "");
             SetText(kitShortageText, "");
             SetText(successRateText, "100%");
@@ -778,7 +778,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (kitIconImage != null) kitIconImage.gameObject.SetActive(true);
 
         string kitName = GetKitName(next);
-        SetText(kitNameText, $"필요: {kitName}");
+        SetText(kitNameText, Loc.Get("필요:") + " " + kitName);
 
         int owned = 0;
         if (int.TryParse(kitIdStr, out int kitItemId))
@@ -795,7 +795,7 @@ public class CoreUpgradeUI : MonoBehaviour
         int required = next.requiredAmount;
         if (kitCountText != null)
         {
-            kitCountText.text  = $"보유:  {owned} / {required}";
+            kitCountText.text  = Loc.Get("보유:") + "  " + owned + " / " + required;
             kitCountText.color = owned >= required ? Color.white : shortageColor;
         }
 
@@ -804,7 +804,7 @@ public class CoreUpgradeUI : MonoBehaviour
             int shortage = required - owned;
             if (shortage > 0)
             {
-                kitShortageText.text  = $"← {shortage}개 부족";
+                kitShortageText.text  = "← " + shortage + Loc.Get("개 부족");
                 kitShortageText.color = shortageColor;
                 kitShortageText.gameObject.SetActive(true);
             }
@@ -814,7 +814,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (successRateText != null)
         {
             int ratePct = Mathf.RoundToInt(next.successRate * 100f);
-            successRateText.text  = $"성공 확률:  {ratePct}%";
+            successRateText.text  = Loc.Get("성공 확률:") + "  " + ratePct + "%";
             successRateText.color = ratePct >= 50 ? rateNormalColor : rateLowColor;
         }
 
@@ -839,9 +839,9 @@ public class CoreUpgradeUI : MonoBehaviour
         {
             var blockedNext = mgr.GetNextLevelData();
             if (blockedNext != null && IsKitShort(mgr, blockedNext))
-                ToastManager.Warning("강화 키트가 부족합니다");
+                ToastManager.Warning(Loc.Get("강화 키트가 부족합니다"));
             else
-                ToastManager.Warning("지금은 강화할 수 없습니다");
+                ToastManager.Warning(Loc.Get("지금은 강화할 수 없습니다"));
             return;
         }
 
@@ -944,7 +944,7 @@ public class CoreUpgradeUI : MonoBehaviour
         bool success = (mgr != null) && mgr.TryUpgrade(bonusPct / 100f);
 
         _phase = CatchPhase.Result;
-        ShowFeedback(success ? "강화 성공!" : "강화 실패", success ? deltaColor : shortageColor);
+        ShowFeedback(success ? Loc.Get("강화 성공!") : Loc.Get("강화 실패"), success ? deltaColor : shortageColor);
         PlayResultEffect(success);   // 플래시 + 펀치 + 성공 버스트 / 실패 흔들림
 
         // 성공 시 새로 켜진 노드 점등 연출 (+ 10단계면 완성 연출). 노드 색은 RefreshData(OnLevelChanged)가 이미 갱신.
@@ -1013,14 +1013,14 @@ public class CoreUpgradeUI : MonoBehaviour
 
     private void SetButtonStopMode(bool stop)
     {
-        if (upgradeButtonText != null) upgradeButtonText.text = stop ? "정지!" : "강화";
+        if (upgradeButtonText != null) upgradeButtonText.text = stop ? Loc.Get("정지!") : Loc.Get("강화");
         if (upgradeButton != null && upgradeButton.image != null)
             upgradeButton.image.color = stop ? stopButtonColor : _btnNormalColor;
     }
 
     private void SetButtonBusyMode()
     {
-        if (upgradeButtonText != null) upgradeButtonText.text = "강화 중...";
+        if (upgradeButtonText != null) upgradeButtonText.text = Loc.Get("강화 중...");
         if (upgradeButton != null && upgradeButton.image != null)
         {
             Color grey = _btnNormalColor * 0.5f; grey.a = _btnNormalColor.a;
@@ -1068,7 +1068,7 @@ public class CoreUpgradeUI : MonoBehaviour
         if (successRateText != null && bonusPct > 0)
         {
             int effPct = Mathf.RoundToInt(eff * 100f);
-            successRateText.text  = $"성공 확률:  {effPct}%  (+{bonusPct})";
+            successRateText.text  = Loc.Get("성공 확률:") + "  " + effPct + "%  (+" + bonusPct + ")";
             successRateText.color = rateNormalColor;
         }
     }

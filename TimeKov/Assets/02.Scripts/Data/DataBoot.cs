@@ -53,17 +53,21 @@ public class DataBoot : MonoBehaviour
 
         GameDataHolder.I.LoadAllFromGoogle(this, success =>
         {
-            IsLoaded = success;
-            if (success)
-            {
-                OnDataLoaded?.Invoke();
-                Debug.Log("[DataBoot] 데이터 로드 완료");
-            }
-            else
+            if (!success)
             {
                 Debug.LogError("[DataBoot] 데이터 로드 실패");
+                onComplete?.Invoke(false);
+                return;
             }
-            onComplete?.Invoke(success);
+
+            // 게임 데이터 로드 성공 → 현지화 테이블 로드 (실패해도 KO로 진행)
+            LocalizationLoader.LoadAsync(this, _ =>
+            {
+                IsLoaded = true;
+                OnDataLoaded?.Invoke();
+                Debug.Log("[DataBoot] 데이터 로드 완료");
+                onComplete?.Invoke(true);
+            });
         });
     }
 
@@ -77,17 +81,20 @@ public class DataBoot : MonoBehaviour
 
         GameDataHolder.I.ReloadAllFromGoogle(this, success =>
         {
-            IsLoaded = success;
-            if (success)
-            {
-                OnDataLoaded?.Invoke();
-                Debug.Log("[DataBoot] 데이터 강제 재로드 완료");
-            }
-            else
+            if (!success)
             {
                 Debug.LogError("[DataBoot] 데이터 강제 재로드 실패");
+                onComplete?.Invoke(false);
+                return;
             }
-            onComplete?.Invoke(success);
+
+            LocalizationLoader.LoadAsync(this, _ =>
+            {
+                IsLoaded = true;
+                OnDataLoaded?.Invoke();
+                Debug.Log("[DataBoot] 데이터 강제 재로드 완료");
+                onComplete?.Invoke(true);
+            });
         });
     }
 }

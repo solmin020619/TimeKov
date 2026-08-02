@@ -112,7 +112,7 @@ public class CategoryFilterUI : MonoBehaviour
 
             if (_tabLabels[i] != null)
             {
-                string nm = (i < TabNames.Length) ? TabNames[i] : "";
+                string nm = (i < TabNames.Length) ? Loc.Get(TabNames[i]) : "";
                 _tabLabels[i].text = nm;
                 float w = _tabLabels[i].GetPreferredValues(nm).x;
                 if (w < 1f) w = nm.Length * 26f;   // 폰트 미준비 폴백(한글 넉넉히)

@@ -102,8 +102,8 @@ public class TimeCatchUI : MonoBehaviour
         // 확률 텍스트
         int curPct   = Mathf.RoundToInt(currentSuccessRate * 100f);
         int bonusPct = Mathf.RoundToInt(Mathf.Clamp01(currentSuccessRate + 0.05f) * 100f);
-        if (currentRateText != null) currentRateText.text = $"성공 확률  {curPct}%";
-        if (bonusRateText   != null) bonusRateText.text   = $"캐치 성공  {bonusPct}%  (+5%)";
+        if (currentRateText != null) currentRateText.text = Loc.Get("성공 확률") + "  " + curPct + "%";
+        if (bonusRateText   != null) bonusRateText.text   = Loc.Get("캐치 성공") + "  " + bonusPct + "%  (+5%)";
 
         // 안내 / 결과 텍스트 초기화
         if (guideText  != null) { guideText.gameObject.SetActive(true);  guideText.text  = "SPACE"; }

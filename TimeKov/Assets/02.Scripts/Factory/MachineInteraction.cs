@@ -114,7 +114,7 @@ namespace TIMEKOV.Factory
                 {
                     facilitySelectPanel.SelectMachine(aimed);
                     if (aimed != _outlinedMachine) SetOutline(aimed);
-                    if (hintText != null) hintText.text = $"F  —  {aimed.MachineName} 열기";
+                    if (hintText != null) hintText.text = $"F  —  {aimed.MachineName}" + " " + Loc.Get("열기");
                 }
             }
 
@@ -298,7 +298,7 @@ namespace TIMEKOV.Factory
 
             _uiOpen = true;
             GameEvents.RaiseFacilityInteract(machine.FacilityId);
-            if (hintText != null) hintText.text = "F / ESC  —  닫기";
+            if (hintText != null) hintText.text = "F / ESC  —  " + Loc.Get("닫기");
         }
 
         private void CloseUI()

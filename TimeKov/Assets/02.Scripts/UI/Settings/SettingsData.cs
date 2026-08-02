@@ -43,6 +43,8 @@ public class SettingsData
 
     public KeyBindingData keyBindings = new KeyBindingData();
 
+    public string language = "KO"; // "KO" | "EN" | "CN" | "FR"
+
     private static string FilePath => Path.Combine(Application.persistentDataPath, "settings.json");
 
     public static SettingsData Load()

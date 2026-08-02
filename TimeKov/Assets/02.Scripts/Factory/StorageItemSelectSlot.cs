@@ -107,7 +107,7 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
 
         var storage = InventoryManager.StorageInstance;
         int count   = storage?.GetTotalItemCount(itemId) ?? 0;
-        countText.text = $"창고: {count}개";
+        countText.text = Loc.Get("창고:") + " " + count + Loc.Get("개");
     }
 
     // ── Hover ─────────────────────────────────────────────────────────────
@@ -122,13 +122,13 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
             // 인벤 아이템을 드래그해 올 때 = 드롭 대상 안내 (해제 오버레이는 숨김)
             ShowRemoveOverlay(false, null);
             if (borderImage != null) borderImage.color = hoverBorderColor;
-            if (labelText   != null) labelText.text    = "아이템 선택";
+            if (labelText   != null) labelText.text    = Loc.Get("아이템 선택");
         }
         else if (_machine != null && _machine.SelectedItemId > 0)
         {
             // 이미 선택돼 있으면 = 드래그로 빼서 해제 가능 안내 (아이콘 위 오버레이)
             if (borderImage != null) borderImage.color = hoverBorderColor;
-            ShowRemoveOverlay(true, "드래그로 빼기");
+            ShowRemoveOverlay(true, Loc.Get("드래그로 빼기"));
         }
     }
 
@@ -173,7 +173,7 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
 
         // 빼는 중 안내 (아이콘 위 오버레이 + 테두리 강조)
         if (borderImage != null) borderImage.color = hoverBorderColor;
-        ShowRemoveOverlay(true, "밖에 놓으면 해제");
+        ShowRemoveOverlay(true, Loc.Get("밖에 놓으면 해제"));
 
         UpdateGhostPosition(e);
     }

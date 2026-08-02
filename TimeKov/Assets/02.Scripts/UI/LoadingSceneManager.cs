@@ -106,7 +106,7 @@ public class LoadingSceneManager : MonoBehaviour
             {
                 wait -= Time.unscaledDeltaTime;
                 if (loadingText != null)
-                    loadingText.text = $"데이터를 불러오지 못했습니다. 재시도 중...({attempt})";
+                    loadingText.text = string.Format(Loc.Get("데이터를 불러오지 못했습니다. 재시도 중...({0})"), attempt);
                 yield return null;
             }
         }

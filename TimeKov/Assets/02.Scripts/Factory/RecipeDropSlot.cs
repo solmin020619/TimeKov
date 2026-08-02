@@ -162,7 +162,7 @@ public class RecipeDropSlot : MonoBehaviour,
         // 인벤토리 → 재료 슬롯 드래그일 때만 "재료 넣기" 표시
         bool isDragging = InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging;
         if (!isDragging) return;
-        if (labelText != null) labelText.text = "재료 넣기";
+        if (labelText != null) labelText.text = Loc.Get("재료 넣기");
         StartGlow();
     }
 
@@ -184,7 +184,7 @@ public class RecipeDropSlot : MonoBehaviour,
         _dragHighlighted = on;
         if (on)
         {
-            if (labelText != null) labelText.text = "재료 넣기";
+            if (labelText != null) labelText.text = Loc.Get("재료 넣기");
             StartGlow();
         }
         else
@@ -286,7 +286,7 @@ public class RecipeDropSlot : MonoBehaviour,
             int leftover = recInv != null ? recInv.AddItem(RequiredItemId, buffered) : buffered;
             int taken = buffered - leftover;
             if (taken > 0) _machine.InputBuffer.Consume(RequiredItemId, taken);
-            if (leftover > 0) ToastManager.Warning("가방이 가득 찼습니다");
+            if (leftover > 0) ToastManager.Warning(Loc.Get("가방이 가득 찼습니다"));
 
             _machine.PublicNotifyBufferChanged();
         }
@@ -323,11 +323,11 @@ public class RecipeDropSlot : MonoBehaviour,
         //   공통재료 섞임/"B가 준비된 듯" 착시로 인한 오작동 방지 - 바꾸려면 재료 회수 먼저.
         if (IsSuppressed())
         {
-            ToastManager.Warning("이미 다른 레시피에 재료가 들어있습니다. 재료를 회수한 뒤 바꿔주세요.");
+            ToastManager.Warning(Loc.Get("이미 다른 레시피에 재료가 들어있습니다. 재료를 회수한 뒤 바꿔주세요."));
             return;
         }
 
-        if (itemId != RequiredItemId) { ToastManager.Warning("요구하는 재료와 다릅니다"); return; }
+        if (itemId != RequiredItemId) { ToastManager.Warning(Loc.Get("요구하는 재료와 다릅니다")); return; }
         if (dragAmt <= 0) return;
 
         // 같은 아이템이 여러 칸에 나뉘어 있어도 실제로 드래그한 칸에서만 차감

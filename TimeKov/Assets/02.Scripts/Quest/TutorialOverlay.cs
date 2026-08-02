@@ -150,8 +150,8 @@ public class TutorialOverlay : MonoBehaviour
         {
             continueLabel.gameObject.SetActive(true);
             continueLabel.text = advanceKey == KeyCode.None
-                ? "아무 곳이나 클릭하여 계속"
-                : $"{advanceKey} 키를 눌러 계속";
+                ? Loc.Get("아무 곳이나 클릭하여 계속")
+                : $"{advanceKey}" + " " + Loc.Get("키를 눌러 계속");
         }
 
         // 코치마크 표시 중 좌측 퀘스트 트래커 숨김 (배너와 중복 방지, 토스트 느낌)

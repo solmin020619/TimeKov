@@ -41,9 +41,9 @@ public class ChestPromptUI : PromptPanelUI
                          System.Action onF, System.Action onG)
     {
         _owner = owner;
-        SetTitle("잠긴  상자");
+        SetTitle(Loc.Get("잠긴 상자"));
         SetProgress(false);
-        SetPrimary("F", "잠금 해제", onF);
+        SetPrimary("F", Loc.Get("잠금 해제"), onF);
         SetSecondary("G", instantCost > 0 ? InstantLabel(instantCost) : null, onG);
         ShowPanel();
     }
@@ -52,7 +52,7 @@ public class ChestPromptUI : PromptPanelUI
                             float instantCost, System.Action onG)
     {
         _owner = owner;
-        SetTitle("해제  중");
+        SetTitle(Loc.Get("해제 중"));
         SetProgress(true, progress, secsLeft);
         SetPrimary(null, null, null);
         SetSecondary("G", InstantLabel(instantCost), onG);
@@ -62,9 +62,9 @@ public class ChestPromptUI : PromptPanelUI
     public void ShowReady(ChestInteractable owner, System.Action onF)
     {
         _owner = owner;
-        SetTitle("해제  완료");
+        SetTitle(Loc.Get("해제 완료"));
         SetProgress(false);
-        SetPrimary("F", "열어보기", onF);
+        SetPrimary("F", Loc.Get("열어보기"), onF);
         SetSecondary(null, null, null);
         ShowPanel();
     }
@@ -72,9 +72,9 @@ public class ChestPromptUI : PromptPanelUI
     public void ShowOpened(ChestInteractable owner, System.Action onF)
     {
         _owner = owner;
-        SetTitle("열린  상자");
+        SetTitle(Loc.Get("열린 상자"));
         SetProgress(false);
-        SetPrimary("F", "열어보기", onF);
+        SetPrimary("F", Loc.Get("열어보기"), onF);
         SetSecondary(null, null, null);
         ShowPanel();
     }
@@ -91,5 +91,5 @@ public class ChestPromptUI : PromptPanelUI
     }
 
     private static string InstantLabel(float cost)
-        => $"즉시 열기   <color=#E05050>HP -{Mathf.CeilToInt(cost)}</color>";
+        => $"{Loc.Get("즉시 열기")}   <color=#E05050>HP -{Mathf.CeilToInt(cost)}</color>";
 }

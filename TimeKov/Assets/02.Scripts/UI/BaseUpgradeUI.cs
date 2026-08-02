@@ -262,15 +262,15 @@ public class BaseUpgradeUI : MonoBehaviour
         }
         if (submitButtonText != null)
         {
-            string label = "제출";
-            if (_selected == null) label = "항목 선택";
+            string label = Loc.Get("제출");
+            if (_selected == null) label = Loc.Get("항목 선택");
             else
             {
                 var st = mgr.GetState(_selected);
-                if (st == BaseUpgradeManager.ItemState.Owned)       label = "보유 중";
-                else if (st == BaseUpgradeManager.ItemState.Locked) label = "잠김";
-                else if (!mgr.HasKit(_selected))                    label = "재료 부족";
-                else                                                label = "제출";
+                if (st == BaseUpgradeManager.ItemState.Owned)       label = Loc.Get("보유 중");
+                else if (st == BaseUpgradeManager.ItemState.Locked) label = Loc.Get("잠김");
+                else if (!mgr.HasKit(_selected))                    label = Loc.Get("재료 부족");
+                else                                                label = Loc.Get("제출");
             }
             submitButtonText.text = label;
         }

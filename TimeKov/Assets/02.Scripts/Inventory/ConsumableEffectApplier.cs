@@ -197,13 +197,13 @@ public static class ConsumableEffectApplier
         switch (e.consumableType)
         {
             case ConsumableType.Heal:
-                return $"즉시 {target} {val} 회복";
+                return string.Format(Loc.Get("즉시 {0} {1} 회복"), target, val);
             case ConsumableType.SustainHeal:
-                return $"{sec}초 동안 {target} {val} 회복";
+                return string.Format(Loc.Get("{0}초 동안 {1} {2} 회복"), sec, target, val);
             case ConsumableType.Buff:
-                return $"{target} +{val} ({sec}초)";
+                return string.Format(Loc.Get("{0} +{1} ({2}초)"), target, val, sec);
             case ConsumableType.PermanentStat:
-                return $"{target} 영구 +{val}";
+                return string.Format(Loc.Get("{0} 영구 +{1}"), target, val);
             default:
                 return "";
         }
@@ -211,15 +211,15 @@ public static class ConsumableEffectApplier
 
     private static string TargetName(EffectTarget t) => t switch
     {
-        EffectTarget.Time        => "시간",
-        EffectTarget.ATK         => "공격력",
-        EffectTarget.DEF         => "방어력",
-        EffectTarget.MoveSpeed   => "이동속도",
-        EffectTarget.Stamina     => "스태미나",
-        EffectTarget.SkillGauge  => "스킬 게이지",
-        EffectTarget.TimeDecay   => "시간 감소율",
-        EffectTarget.DashStamina => "대시 소모",
-        EffectTarget.AllStats    => "전체 능력치",
+        EffectTarget.Time        => Loc.Get("시간"),
+        EffectTarget.ATK         => Loc.Get("공격력"),
+        EffectTarget.DEF         => Loc.Get("방어력"),
+        EffectTarget.MoveSpeed   => Loc.Get("이동속도"),
+        EffectTarget.Stamina     => Loc.Get("스태미나"),
+        EffectTarget.SkillGauge  => Loc.Get("스킬 게이지"),
+        EffectTarget.TimeDecay   => Loc.Get("시간 감소율"),
+        EffectTarget.DashStamina => Loc.Get("대시 소모"),
+        EffectTarget.AllStats    => Loc.Get("전체 능력치"),
         _ => ""
     };
 

@@ -123,7 +123,7 @@ public class ItemTooltipUI : MonoBehaviour
             }
             else
             {
-                itemNameText.text = "알 수 없는 아이템";
+                itemNameText.text = Loc.Get("알 수 없는 아이템");
                 itemNameText.color = Color.white;
             }
         }
@@ -135,7 +135,7 @@ public class ItemTooltipUI : MonoBehaviour
             {
                 // 파밍 상자 = 회수 안내 위주(상세는 가방에 넣으면 거기서 호버 시)
                 categoryText.richText = true;
-                categoryText.text = "<color=#9FB0C0>우클릭 / 더블클릭으로 회수</color>";
+                categoryText.text = $"<color=#9FB0C0>{Loc.Get("우클릭 / 더블클릭으로 회수")}</color>";
             }
             else if (data != null)
             {
@@ -143,7 +143,7 @@ public class ItemTooltipUI : MonoBehaviour
                 int g = (int)data.itemGrade;
                 int catIndex = Mathf.Clamp((int)data.itemCategory, 0, CategoryNames.Length - 1);
                 categoryText.richText = true;
-                categoryText.text = $"<color=#{GradeVisual.GetColorHex(g)}>{GradeVisual.GetName(g)}</color>  {CategoryNames[catIndex]}";
+                categoryText.text = $"<color=#{GradeVisual.GetColorHex(g)}>{GradeVisual.GetName(g)}</color>  {Loc.Get(CategoryNames[catIndex])}";
             }
             else
             {
