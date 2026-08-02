@@ -164,7 +164,6 @@ public class FireBossController : MonoBehaviour, IEnemyDataSource
 
     [Header("애니메이터 상태명 (L0 body)")]
     [SerializeField] private string speedParam = "Speed";
-    [SerializeField] private string idleState = "Idle";
     [SerializeField] private string eruptionState = "Attack1";
     [SerializeField] private string fireballState = "Attack2";
     [SerializeField] private string meteorState = "Attack3";

@@ -124,7 +124,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float ultCooldown = 11f;
     [SerializeField] private float ultWindup = 1.4f;        // Cast3 = 양팔 대시전(긴 예고)
     [SerializeField] private float ultRecover = 1.2f;
-    [SerializeField] private float ultDmgMul = 2.6f;
     [Header("[07-29] 궁극 = 한 번 멀리 순간이동 -> 거기서 플레이어 쪽으로 포격")]
     [Tooltip("순간이동으로 플레이어에게서 벌리는 거리(자폭처럼 안 보이게 거리부터 만듦).")]
     [SerializeField] private float ultBlinkDistance = 15f;
@@ -167,7 +166,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [Header("[07-29] 빙경 분신 Mirror (P2+ - 반투명 유령 분신 + 가짜 예고. 진짜만 실체=피해/피격)")]
     [Tooltip("진짜 포함 총 개수(진짜 1 + 가짜 나머지). 2~4.")]
     [SerializeField] private int mirrorCount = 3;
-    [SerializeField] private float mirrorRange = 22f;       // 이 사거리 안이면 사용
     [SerializeField] private float mirrorCooldown = 13f;
     [SerializeField] private float mirrorWindup = 0.9f;     // 분열 전 시전
     [SerializeField] private float mirrorRadius = 5.5f;     // 플레이어 중심 배치 반경
@@ -230,8 +228,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
 
     [Header("포효 페이즈 (HP 66%/33%)")]
     [SerializeField] private string roarState = "Roar";
-    [SerializeField] private float roarBuildup = 0.6f;
-    [SerializeField] private float roarRecover = 0.9f;
     [SerializeField] private float debuffDuration = 6f;
     [SerializeField] private float debuffDrainMult = 2.5f;
     [Range(0f, 0.8f)] [SerializeField] private float debuffDarkness = 0.45f;
@@ -257,8 +253,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private Transform chargeAnchor;
     [Tooltip("임팩트가 뜰 플레이어 몸 높이 보정(발밑 pivot 이면 위로).")]
     [SerializeField] private float impactHeight = 1.0f;
-    [Tooltip("근접 임팩트 크기 배율(IceCubesExplosion 은 원래 대형 AoE라 0.5 로 줄임).")]
-    [SerializeField] private float meleeImpactScale = 0.5f;
 
     [Header("애니메이터 (전용 컨트롤러 상태명)")]
     [SerializeField] private string speedParam = "Speed";
@@ -280,7 +274,6 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float wGuard = 0.8f;
     [SerializeField] private float wDash = 1.0f;
     [SerializeField] private float wUlt = 1.2f;
-    [SerializeField] private float wMirror = 1.1f;   // [07-29] 빙경 분신
     [Tooltip("직전에 쓴 패턴의 가중치 배율(연속 방지). 0=절대 연속 안 함, 1=페널티 없음.")]
     [Range(0f, 1f)] [SerializeField] private float repeatPenalty = 0.35f;
 

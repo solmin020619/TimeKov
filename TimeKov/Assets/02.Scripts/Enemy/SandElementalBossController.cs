@@ -79,7 +79,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private float waveCooldown = 4.5f;
     [SerializeField] private float waveWindup = 0.7f;       // Cast1 시전
     [SerializeField] private float waveRecover = 0.6f;
-    [SerializeField] private float waveHalfAngle = 40f;     // 정면 부채꼴 반각
     [SerializeField] private float waveDmgMul = 1.1f;
 
     [Header("모래 회오리 (Sand tornado - 플레이어 주변에 세워지는 지속 회오리, 닿으면 거슬리는 틱뎀)")]
@@ -166,15 +165,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [Tooltip("텔레그래프 원의 보이는 크기 배율. 파티클 링이라 transform 스케일 대비 작게 보여서 보정용.")]
     [SerializeField] private float telegraphScaleMul = 2.5f;
 
-    [Header("포효 페이즈 (HP 66%/33%)")]
-    [SerializeField] private string roarState = "Roar";
-    [SerializeField] private float roarBuildup = 0.6f;
-    [SerializeField] private float roarRecover = 0.9f;
-    [SerializeField] private float debuffDuration = 6f;
-    [SerializeField] private float debuffDrainMult = 2.5f;
-    [Range(0f, 0.8f)] [SerializeField] private float debuffDarkness = 0.45f;
-    [Range(0f, 1f)] [SerializeField] private float debuffVignetteStrength = 0.9f;
-    [Range(0.05f, 0.8f)] [SerializeField] private float debuffVignetteFalloff = 0.55f;
+    // [07-31] 포효/화면디버프 필드 삭제: 이 보스는 단일 페이즈로 재설계되어 포효 페이즈가 없다(전부 미사용 = CS0414).
+    [Header("광폭화 (흡수 회복 성공마다 누적)")]
     [SerializeField] private float enrageCdMul = 0.82f;     // [07-30] 회복(흡수)마다 공격 쿨 x (누적)
     [SerializeField] private float enrageSpeedMul = 1.15f;  // [07-30] 회복(흡수)마다 이속 x (누적)
 
@@ -197,8 +189,6 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     [SerializeField] private GameObject inflowPuffVfx;
     [Tooltip("빨려드는 모래가 시작되는 반경(보스 주변).")]
     [SerializeField] private float inflowRadius = 6f;
-    [Tooltip("모래 알갱이 생성 간격(초). 작을수록 촘촘히 빨려듦.")]
-    [SerializeField] private float inflowInterval = 0.1f;
     [Tooltip("모래 알갱이가 몸까지 빨려드는 시간(초).")]
     [SerializeField] private float inflowTravelTime = 0.45f;
     [Header("[07-30] 흡수 = 잠수 -> 이동 -> 솟구쳐 재등장 후 회복")]
