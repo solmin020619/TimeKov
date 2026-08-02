@@ -5,8 +5,18 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 // 폐우주선 수리 패널 컨트롤러 (풀스크린 대형, 공장풍 프로스티드 + 우주선 홀로그램 링게이지).
-// 패널 골격은 에디터 빌더(ShipRepairUIBuilder)가 만들고 ref 로 연결한다.
-// 레벨 사다리(pip)와 수리 단계 로드맵 행은 레벨 수가 가변이라 런타임에 이 컨트롤러가 생성한다.
+// 패널 계층은 전부 에디터 빌더(ShipRepairUIBuilder)가 만들고 ref 로 연결한다.
+//
+// [08-02] 런타임 생성 요소를 씬 실물로 전환.
+//   이전에는 부품 전시대/특수부품 칩/호버 툴팁을 이 스크립트가 코드로 만들었다. 그래서
+//   (1) "보유"/"필요"/부품 이름 같은 문구에 로컬라이징 컴포넌트를 못 붙이고
+//   (2) 위치/색을 인스펙터에서 못 고쳤다.
+//   지금은 전부 씬에 있고, 개수가 데이터에 따라 변하는 것(레벨 pip / 특수부품 칩)만
+//   빌더가 만들어둔 '템플릿'을 런타임에 복제한다. 이 파일에는 계층을 만드는 코드가 없다.
+//
+//   Resources.Load 와 transform.Find 경로 문자열도 전부 직렬화 참조로 교체했다
+//   (경로 오타/이름 변경으로 조용히 죽던 자리들).
+//
 // 부품은 단일 종류+개수제 - 데이터/조작은 ShipRepairManager 로만 (PartCount/CanRepairNext/TryRepairNext/OnChanged).
 public class ShipRepairUI : MonoBehaviour
 {
@@ -31,57 +41,113 @@ public class ShipRepairUI : MonoBehaviour
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private Button closeButton;
 
-    [Header("헤더 / 사다리")]
+    [Header("헤더 / 레벨 사다리")]
     [SerializeField] private TextMeshProUGUI levelText;      // "수리 단계 Lv.N / M"
-    [SerializeField] private RectTransform pipContainer;     // 레벨 pip 부모 (HorizontalLayoutGroup)
+    [Tooltip("레벨 pip 부모 (HorizontalLayoutGroup).")]
+    [SerializeField] private RectTransform pipContainer;
+    [Tooltip("pip 원본. 레벨 수만큼 복제한다. 씬에서는 꺼둔 상태로 둔다.")]
+    [SerializeField] private Image pipTemplate;
 
     [Header("홀로그램 (복원도)")]
     [SerializeField] private Image ringGauge;                // Filled Radial360, 복원도 비율
     [SerializeField] private TextMeshProUGUI restorePercentText;
-    [SerializeField] private RectTransform scanLine;         // 주사선 (열려있는 동안 위아래 왕복)
+    [Tooltip("주사선. 열려있는 동안 위아래로 왕복한다.")]
+    [SerializeField] private RectTransform scanLine;
+    [Tooltip("링 뒤 후광. 열려있는 동안 알파가 맥동한다.")]
+    [SerializeField] private Image holoGlow;
+    [Tooltip("우주선 홀로그램 아트. 레벨이 오를수록 완성된 그림으로 바뀐다.")]
+    [SerializeField] private Image shipHologramSlot;
 
     [Header("다음 수리 / 스탯")]
     [SerializeField] private TextMeshProUGUI nextHeaderText; // "다음 수리  Lv.N -> Lv.N+1"
     [Tooltip("[0]건축 범위 [1]설비 연료 [2]공장 가동속도 의 값 텍스트")]
     [SerializeField] private TextMeshProUGUI[] statValueTexts;
+    [Tooltip("위와 같은 순서의 항목 이름 텍스트. 이번 수리로 바뀌는 행만 밝아진다.")]
+    [SerializeField] private TextMeshProUGUI[] statNameTexts;
+    [Tooltip("위와 같은 순서의 행 배경. 바뀌는 행만 강조 스프라이트로 교체한다.")]
+    [SerializeField] private Image[] statRowImages;
 
-    [Header("부품")]
-    [SerializeField] private RectTransform partsContent;     // 부품 카드 부모 (VerticalLayoutGroup)
+    [Header("부품 전시대")]
+    [Tooltip("보유 개수(좌측 큰 숫자).")]
+    [SerializeField] private TextMeshProUGUI partOwnedText;
+    [Tooltip("필요 개수(우측 큰 숫자).")]
+    [SerializeField] private TextMeshProUGUI partRequiredText;
+    [Tooltip("아이콘 아래 부품 이름. 내용은 데이터에서 온다.")]
+    [SerializeField] private TextMeshProUGUI partNameText;
+    [Tooltip("아이콘 둘레 링 게이지 (보유/필요 비율로 차오름).")]
+    [SerializeField] private Image partGauge;
+    [Tooltip("링 트랙. 열려있는 동안 천천히 회전한다(스캐너 느낌).")]
+    [SerializeField] private RectTransform partRingTrack;
+    [Tooltip("아이콘 뒤 후광. 열려있는 동안 맥동한다.")]
+    [SerializeField] private Image partIconGlow;
+
+    [Header("특수 부품 칩")]
+    [Tooltip("칩 부모 (HorizontalLayoutGroup). 특수 부품이 정의된 레벨 수만큼 칩이 생긴다.")]
+    [SerializeField] private RectTransform extraChipContainer;
+    [Tooltip("칩 원본. 씬에서는 꺼둔 상태로 둔다.")]
+    [SerializeField] private ShipExtraPartChip extraChipTemplate;
+    [Tooltip("특수 부품이 하나도 정의되지 않았을 때 통째로 숨길 섹션.")]
+    [SerializeField] private GameObject extraChipSection;
+
+    [Header("특수 부품 호버 툴팁")]
+    [SerializeField] private GameObject chipTooltip;
+    [SerializeField] private TextMeshProUGUI chipTooltipTitle;
+    [SerializeField] private TextMeshProUGUI chipTooltipBody;
+    [SerializeField] private TextMeshProUGUI chipTooltipState;
+    // ★풀네임 필수: 18.외부에셋 의 3D Outline(전역 네임스페이스)이 UnityEngine.UI.Outline 을 가린다.
+    [Tooltip("툴팁 테두리. 상태색을 따라간다.")]
+    [SerializeField] private UnityEngine.UI.Outline chipTooltipOutline;
 
     [Header("수리 버튼")]
     [SerializeField] private Button repairButton;
     [SerializeField] private TextMeshProUGUI repairButtonText;
 
-    private static readonly Color Holo      = new Color(0.42f, 0.83f, 1.00f, 1f);
-    private static readonly Color HoloSoft  = new Color(0.42f, 0.83f, 1.00f, 0.16f);
-    private static readonly Color TextMain  = new Color(0.82f, 0.89f, 0.96f, 1f);
-    private static readonly Color TextDim   = new Color(0.44f, 0.51f, 0.60f, 1f);
-    private static readonly Color DoneCol   = new Color(0.36f, 0.84f, 0.56f, 1f);
-    private static readonly Color PipEmpty  = new Color(0.30f, 0.36f, 0.44f, 1f);
-    private static readonly Color BtnReady  = new Color(0.20f, 0.66f, 0.95f, 1f);
-    private static readonly Color BtnLocked = new Color(0.16f, 0.20f, 0.28f, 0.95f);
+    [Header("디자인 스프라이트 (빌더가 연결)")]
+    [Tooltip("점등된 레벨 노드.")]
+    [SerializeField] private Sprite pipOnSprite;
+    [Tooltip("꺼진 레벨 노드.")]
+    [SerializeField] private Sprite pipOffSprite;
+    [Tooltip("스탯 행 배경(기본).")]
+    [SerializeField] private Sprite statRowSprite;
+    [Tooltip("스탯 행 배경(이번 수리로 바뀌는 행).")]
+    [SerializeField] private Sprite statRowHighlightSprite;
+    [Tooltip("레벨별 우주선 홀로그램 아트. [0] = Lv.1.")]
+    [SerializeField] private Sprite[] shipHologramByLevel;
+
+    [Header("상태 색")]
+    [Tooltip("기본 홀로그램 시안. 진행/강조에 쓴다.")]
+    [SerializeField] private Color holoColor = new Color(0.42f, 0.83f, 1.00f, 1f);
+    [SerializeField] private Color textMainColor = new Color(0.82f, 0.89f, 0.96f, 1f);
+    [SerializeField] private Color textDimColor = new Color(0.44f, 0.51f, 0.60f, 1f);
+    [Tooltip("완료 상태(초록).")]
+    [SerializeField] private Color doneColor = new Color(0.36f, 0.84f, 0.56f, 1f);
+    [Tooltip("아직 도달 못한 레벨 pip 색(디자인 노드가 없을 때만 쓰임).")]
+    [SerializeField] private Color pipEmptyColor = new Color(0.30f, 0.36f, 0.44f, 1f);
+    [SerializeField] private Color repairReadyColor = new Color(0.20f, 0.66f, 0.95f, 1f);
+    [SerializeField] private Color repairLockedColor = new Color(0.16f, 0.20f, 0.28f, 0.95f);
+    [Tooltip("특수 부품 칩 배경 - 이미 사용(수리 완료).")]
+    [SerializeField] private Color chipUsedTint = new Color(0.26f, 0.45f, 0.62f, 1f);
+    [Tooltip("특수 부품 칩 배경 - 보유 중.")]
+    [SerializeField] private Color chipOwnedTint = new Color(0.30f, 0.62f, 0.44f, 1f);
+    [Tooltip("특수 부품 칩 배경 - 미획득.")]
+    [SerializeField] private Color chipMissingTint = Color.white;
+
+    [Header("연출 값")]
+    [Tooltip("복원도 링이 목표치까지 차는 속도(초당 비율).")]
+    [SerializeField] private float ringFillSpeed = 0.6f;
+    [Tooltip("주사선 왕복 속도(px/초).")]
+    [SerializeField] private float scanSpeed = 130f;
+    [Tooltip("주사선이 왕복할 위/아래 여백(px). 아래 복원도 라벨은 안 쓸고 다니게.")]
+    [SerializeField] private float scanMargin = 150f;
+    [Tooltip("부품 링 트랙 회전 속도(도/초). 음수 = 시계 방향.")]
+    [SerializeField] private float partRingSpin = -9f;
 
     private readonly List<Image> _pips = new();
-    private TextMeshProUGUI _partCardName;     // 아이콘 아래 부품 이름
-    private TextMeshProUGUI _partOwnedText;    // 좌측 큰 숫자 (보유)
-    private TextMeshProUGUI _partReqText;      // 우측 큰 숫자 (필요)
-    private Image _partCardGauge;              // 아이콘 둘레 링 게이지 (보유/필요 비율로 차오름)
-    private RectTransform _partRingTrack;      // 링 트랙 (눈금 아트 - DriveAmbient 가 천천히 회전 = 스캐너 느낌)
-    private Image _partIconGlow;               // 아이콘 뒤 후광 (DriveAmbient 가 맥동)
+    private readonly List<ShipExtraPartChip> _extraChips = new();
     private float _partGlowBaseA = 0.10f;      // 상태별 후광 기준 알파 (맥동의 중심값)
     private bool _dynamicBuilt;
-    private readonly List<ExtraChip> _extraChips = new();   // 특수 부품(전송 보상) 칩
-    private struct ExtraChip { public int level; public Image bg; public TextMeshProUGUI nameT; }
-    private GameObject _chipTip;   // 특수부품 호버 툴팁(시간에너지 UI 스타일 따라함)
-    private TextMeshProUGUI _chipTipTitle, _chipTipBody, _chipTipState;
-    private int  _openedFrame = -1;
-    private Image _holoGlowImg;      // 링 뒤 후광 (맥동 연출용)
-    private Image _shipSlotImg;      // 우주선 홀로그램 아트 슬롯 (PNG 오면 자동 연결)
-    private float _ringTarget;       // 링 게이지 목표치 (DriveAmbient 가 부드럽게 채움)
-
-    // 디자인 PNG (Resources/ShipRepair/, 없으면 절차 스프라이트 폴백) - Awake 에서 1회 로드
-    private Sprite _nodeOnSpr, _nodeOffSpr;   // 6/ 레벨 노드
-    private Sprite _rowSpr, _rowHlSpr;        // 3/ 부품 행 패널 (일반/강조)
+    private int _openedFrame = -1;
+    private float _ringTarget;                 // 링 게이지 목표치 (DriveAmbient 가 부드럽게 채움)
 
     // ── 라이프사이클 ──────────────────────────────────────────────────
 
@@ -95,53 +161,19 @@ public class ShipRepairUI : MonoBehaviour
         repairButton?.onClick.AddListener(OnClickRepair);
         panelRoot?.SetActive(false);
 
-        // 디자인 PNG 로드 (없으면 null = 절차 폴백)
-        _nodeOnSpr  = Resources.Load<Sprite>("ShipRepair/6/node_on");
-        _nodeOffSpr = Resources.Load<Sprite>("ShipRepair/6/node_off");
-        _rowSpr     = Resources.Load<Sprite>("ShipRepair/3/row_panel");
-        _rowHlSpr   = Resources.Load<Sprite>("ShipRepair/3/row_panel_hl");
+        if (pipTemplate != null) pipTemplate.gameObject.SetActive(false);
+        if (extraChipTemplate != null) extraChipTemplate.gameObject.SetActive(false);
+        if (chipTooltip != null) chipTooltip.SetActive(false);
 
-        ReapplyRuntimeSprites();
-        SetupButtonFeedback();
+        SetupHoverSound();
     }
 
-    // 호버 반응 (버튼=사운드+틴트+확대 / 행 패널=확대+밝아짐). 씬 세팅 없이 코드로 부착 - 빌더 재실행 불필요.
-    private void SetupButtonFeedback()
+    // 호버 사운드는 람다라 직렬화가 안 된다 -> 런타임에 건다.
+    // (확대/밝아짐 연출은 ShipUIHoverFx 컴포넌트로 씬에 붙어 있다.)
+    private void SetupHoverSound()
     {
         AddHoverSound(closeButton);
         AddHoverSound(repairButton);
-
-        // 버튼 확대 (밝기는 Button ColorTint 가 담당하므로 scaleOnly)
-        if (closeButton != null)  AddHoverFx(closeButton.gameObject, 1.08f, scaleOnly: true);
-        if (repairButton != null) AddHoverFx(repairButton.gameObject, 1.02f, scaleOnly: true);
-
-        // 스탯 3행: 호버 시 살짝 확대+밝아짐 (행 Image 가 포인터를 받도록 raycast 켬)
-        if (statValueTexts != null)
-        {
-            foreach (var t in statValueTexts)
-            {
-                var rowTr = t != null ? t.transform.parent : null;
-                if (rowTr == null) continue;
-                var img = rowTr.GetComponent<Image>();
-                if (img != null) img.raycastTarget = true;
-                AddHoverFx(rowTr.gameObject, 1.015f, scaleOnly: false);
-            }
-        }
-
-        // 수리 버튼: 유니티 기본 틴트는 호버 변화가 거의 안 보임 -> 닫기 버튼과 같은 명시 틴트.
-        // 잠금(부품 부족) 어둡기는 BtnLocked 이미지색이 담당하므로 disabled 틴트는 중립(이중 어둡힘 방지).
-        if (repairButton != null)
-        {
-            repairButton.transition = Selectable.Transition.ColorTint;
-            var cb = repairButton.colors;
-            cb.normalColor      = Color.white;
-            cb.highlightedColor = new Color(1.15f, 1.15f, 1.15f, 1f);
-            cb.pressedColor     = new Color(0.82f, 0.82f, 0.82f, 1f);
-            cb.selectedColor    = Color.white;
-            cb.disabledColor    = Color.white;
-            cb.colorMultiplier  = 1f; cb.fadeDuration = 0.1f;
-            repairButton.colors = cb;
-        }
     }
 
     private static void AddHoverSound(Button btn)
@@ -155,89 +187,6 @@ public class ShipRepairUI : MonoBehaviour
             if (btn.interactable) UISoundManager.Instance?.PlayButtonHover();   // 잠긴 버튼은 무음
         });
         trig.triggers.Add(entry);
-    }
-
-    private static void AddHoverFx(GameObject go, float scale, bool scaleOnly)
-    {
-        if (go == null) return;
-        var fx = go.GetComponent<ShipUIHoverFx>();
-        if (fx == null) fx = go.AddComponent<ShipUIHoverFx>();
-        fx.hoverScale = scale;
-        fx.scaleOnly = scaleOnly;
-    }
-
-    // 빌더가 박은 UISpriteFactory 스프라이트(런타임 생성물)는 에디터 재시작 시 참조가
-    // 소실될 수 있어(에셋 아님) 절차 스프라이트를 쓰는 비주얼 전부를 여기서 재적용해 보장한다.
-    // (PNG 에셋 참조는 씬에 영속이라 재적용 불필요 - 소실 가능한 것만.)
-    private void ReapplyRuntimeSprites()
-    {
-        // 링: 디자인 PNG(5/) 우선. 절차 링과 PNG 링은 굵기/반경이 달라 반드시 짝으로만 사용.
-        if (ringGauge != null)
-        {
-            var fillSpr  = Resources.Load<Sprite>("ShipRepair/5/ring_fill");
-            var trackSpr = Resources.Load<Sprite>("ShipRepair/5/ring_track");
-            bool ringArt = fillSpr != null && trackSpr != null;
-            ringGauge.sprite = ringArt ? fillSpr : UISpriteFactory.Ring(400, 13f);
-            ringGauge.color  = Holo;
-            var holoParent = ringGauge.transform.parent;
-            var track = holoParent != null ? holoParent.Find("RingTrack") : null;
-            if (track != null && track.TryGetComponent(out Image trackImg))
-            {
-                trackImg.sprite = ringArt ? trackSpr : UISpriteFactory.Ring(400, 13f);
-                trackImg.color  = ringArt ? Color.white : new Color(70f / 255f, 96f / 255f, 128f / 255f, 0.35f);
-            }
-            var glow = holoParent != null ? holoParent.Find("HoloGlow") : null;
-            if (glow != null && glow.TryGetComponent(out Image glowImg))
-            {
-                glowImg.sprite = UISpriteFactory.Disc(256);
-                _holoGlowImg = glowImg;   // 맥동 연출 대상
-            }
-        }
-
-        // 스캔라인: 위 투명 -> 아래 발광 페이드 (소실 시 흰 막대가 왕복하는 사고 방지)
-        if (scanLine != null && scanLine.TryGetComponent(out Image scanImg))
-        {
-            scanImg.sprite = UISpriteFactory.VFade(0, 40);
-            scanImg.color  = Holo;
-        }
-
-        if (panelRoot != null)
-        {
-            var backGlow = panelRoot.transform.Find("HoloBackGlow");
-            if (backGlow != null && backGlow.TryGetComponent(out Image bgImg)) bgImg.sprite = UISpriteFactory.Disc(256);
-
-            // "다음 수리" 헤더 배지 (항상 절차 그라데이션)
-            var nh = panelRoot.transform.Find("Content/RightCol/NextHeaderBg");
-            if (nh != null && nh.TryGetComponent(out Image nhImg))
-                nhImg.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(28, 40, 56, 235), new Color32(12, 18, 28, 235), 64, 18);
-
-            // 배경: PNG 로 빌드된 씬은 에셋 참조라 영속. 스프라이트도 그라데이션 컴포넌트도 없는
-            // 비정상 상태(PNG 삭제 등)만 단색 암막으로 메꿔 흰 화면을 막는다.
-            var backdrop = panelRoot.transform.Find("Backdrop");
-            if (backdrop != null && backdrop.TryGetComponent(out Image bdImg)
-                && bdImg.sprite == null && backdrop.GetComponent<UIFrostGradient>() == null)
-            {
-                var bgSpr = Resources.Load<Sprite>("ShipRepair/2/bg_hangar_blueprint");
-                if (bgSpr != null) bdImg.sprite = bgSpr;
-                else bdImg.color = new Color(10f / 255f, 14f / 255f, 21f / 255f, 1f);
-            }
-        }
-
-        // 절차 폴백으로 빌드됐던 스탯 행/수리 버튼: 소실(null)일 때만 재적용
-        if (repairButton != null && repairButton.image != null && repairButton.image.sprite == null)
-            repairButton.image.sprite = UISpriteFactory.RoundedRectVGrad(new Color32(255, 255, 255, 255), new Color32(185, 205, 222, 255), 64, 16);
-        if (statValueTexts != null)
-        {
-            foreach (var t in statValueTexts)
-            {
-                if (t == null || t.transform.parent == null) continue;
-                var rowImg = t.transform.parent.GetComponent<Image>();
-                if (rowImg != null && rowImg.sprite == null)
-                    rowImg.sprite = _rowSpr != null
-                        ? _rowSpr
-                        : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 215), new Color32(16, 22, 32, 235), 64, 14);
-            }
-        }
     }
 
     private void OnEnable()  => ShipRepairManager.OnChanged += Refresh;
@@ -256,31 +205,31 @@ public class ShipRepairUI : MonoBehaviour
     private void DriveAmbient()
     {
         if (ringGauge != null)
-            ringGauge.fillAmount = Mathf.MoveTowards(ringGauge.fillAmount, _ringTarget, Time.unscaledDeltaTime * 0.6f);
+            ringGauge.fillAmount = Mathf.MoveTowards(ringGauge.fillAmount, _ringTarget, Time.unscaledDeltaTime * ringFillSpeed);
 
         if (scanLine != null && scanLine.parent is RectTransform holo)
         {
             // 왕복 범위를 링/우주선 구역으로 한정 (아래 복원도 라벨/퍼센트 텍스트는 안 쓸고 다니게)
-            float half = Mathf.Max(0f, holo.rect.height * 0.5f - 150f);
-            float y = Mathf.PingPong(Time.unscaledTime * 130f, half * 2f) - half;
+            float half = Mathf.Max(0f, holo.rect.height * 0.5f - scanMargin);
+            float y = Mathf.PingPong(Time.unscaledTime * scanSpeed, half * 2f) - half;
             scanLine.anchoredPosition = new Vector2(scanLine.anchoredPosition.x, y);
         }
 
-        if (_holoGlowImg != null)
+        if (holoGlow != null)
         {
-            var c = _holoGlowImg.color;
+            var c = holoGlow.color;
             c.a = 0.055f + 0.03f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 1.7f));
-            _holoGlowImg.color = c;
+            holoGlow.color = c;
         }
 
         // 부품 전시대: 눈금 트랙 링 천천히 회전(스캐너 느낌) + 후광 맥동 (상태별 기준 알파 중심)
-        if (_partRingTrack != null)
-            _partRingTrack.Rotate(0f, 0f, -9f * Time.unscaledDeltaTime);
-        if (_partIconGlow != null)
+        if (partRingTrack != null)
+            partRingTrack.Rotate(0f, 0f, partRingSpin * Time.unscaledDeltaTime);
+        if (partIconGlow != null)
         {
-            var c = _partIconGlow.color;
+            var c = partIconGlow.color;
             c.a = _partGlowBaseA + 0.04f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 2.1f + 1.3f));
-            _partIconGlow.color = c;
+            partIconGlow.color = c;
         }
     }
 
@@ -290,7 +239,7 @@ public class ShipRepairUI : MonoBehaviour
 
     public void Open()
     {
-        // ★조용히 실패하지 않게 한다. panelRoot 는 빌더가 연결하는 참조라,
+        // 조용히 실패하지 않게 한다. panelRoot 는 빌더가 연결하는 참조라,
         //   빌더를 안 돌렸거나 패널을 손으로 지웠으면 null 이 된다.
         //   예전엔 여기서 그냥 return 해서 "F 는 먹는데 아무것도 안 뜨는" 상태가 됐다.
         if (panelRoot == null)
@@ -326,7 +275,8 @@ public class ShipRepairUI : MonoBehaviour
         GameUIController.Instance?.CloseShipRepairUI();
     }
 
-    // ── 가변 요소 생성 (레벨 pip / 부품 행) ────────────────────────────
+    // ── 개수가 데이터에 따라 변하는 것만 복제 (레벨 pip / 특수부품 칩) ──
+    // 계층은 만들지 않는다. 빌더가 씬에 넣어둔 템플릿을 그대로 찍어낸다.
 
     private void BuildDynamic()
     {
@@ -334,306 +284,86 @@ public class ShipRepairUI : MonoBehaviour
         var mgr = ShipRepairManager.Instance;
         if (mgr == null) return;
 
-        int max = mgr.MaxLevel;
-
         // 레벨 pip (Lv.1 ~ Lv.max)
-        if (pipContainer != null)
+        if (pipContainer != null && pipTemplate != null)
         {
-            for (int i = 0; i < max; i++)
-                _pips.Add(MakePip(pipContainer));
+            for (int lv = 1; lv <= mgr.MaxLevel; lv++)
+            {
+                var pip = Instantiate(pipTemplate, pipContainer);
+                pip.name = $"Pip_Lv{lv}";
+                pip.gameObject.SetActive(true);
+                _pips.Add(pip);
+            }
         }
 
-        // 부품 카드 (단일 부품 - 보유/필요 하나로 통일) + 특수 부품(전송 보상) 칩
-        if (partsContent != null)
+        // 특수 부품(전송 보상) 칩 - 이름이 정의된 레벨만.
+        //   데이터 = ShipRepairManager.ExtraPartNameFor (레벨 순회 = 데이터 정의 따라감, 하드코딩 X)
+        if (extraChipContainer != null && extraChipTemplate != null)
         {
-            MakePartCard(partsContent);
-            MakeExtraPartsRow(partsContent);
+            for (int lv = 1; lv <= mgr.MaxLevel; lv++)
+            {
+                string partName = mgr.ExtraPartNameFor(lv);
+                if (string.IsNullOrEmpty(partName)) continue;
 
-            // 하단 안내줄("부품은 맵 곳곳...")은 숨기고, 부품 영역을 그만큼 아래로 넓힌다.
-            // (칩이 늘어난 만큼 세로가 초과해 위로 밀려 링과 겹치던 것 해소. 빌더 재실행 없이 런타임 처리.)
-            var hint = partsContent.parent != null ? partsContent.parent.Find("PartsHint") : null;
-            if (hint != null) hint.gameObject.SetActive(false);
-            partsContent.offsetMin = new Vector2(partsContent.offsetMin.x, 76f);
+                var chip = Instantiate(extraChipTemplate, extraChipContainer);
+                chip.name = $"Chip_Lv{lv}";
+                chip.gameObject.SetActive(true);
+                chip.Setup(this, lv, partName);
+                _extraChips.Add(chip);
+            }
         }
+        // 특수 부품 정의가 하나도 없으면 섹션 자체를 접는다(빈 칸이 남지 않게).
+        if (extraChipSection != null) extraChipSection.SetActive(_extraChips.Count > 0);
 
-        BuildChipTooltip();   // 특수부품 호버 툴팁 1회 생성
         _dynamicBuilt = true;
     }
 
-    private Image MakePip(RectTransform parent)
-    {
-        bool art = _nodeOnSpr != null && _nodeOffSpr != null;   // 디자인 육각 노드 PNG
-
-        var go = new GameObject("Pip", typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(parent, false);
-        var le = go.AddComponent<LayoutElement>();
-        le.preferredWidth = art ? 36f : 30f; le.preferredHeight = art ? 36f : 30f;
-        var img = go.GetComponent<Image>();
-        img.sprite = art ? _nodeOffSpr : UISpriteFactory.Circle(48);
-        img.color = art ? Color.white : PipEmpty;
-        img.raycastTarget = false;
-        if (art) return img;   // 점등 노드에 후광이 그려져 있어 절차 후광 불필요
-
-        // 현재 단계 표시용 후광 (Refresh 가 현재 레벨 pip 만 켬)
-        var glowGo = new GameObject("Glow", typeof(RectTransform), typeof(Image));
-        glowGo.transform.SetParent(go.transform, false);
-        var grt = (RectTransform)glowGo.transform;
-        grt.anchorMin = grt.anchorMax = new Vector2(0.5f, 0.5f);
-        grt.sizeDelta = new Vector2(54f, 54f);
-        var gimg = glowGo.GetComponent<Image>();
-        gimg.sprite = UISpriteFactory.Disc(64);
-        gimg.color = new Color(0.42f, 0.83f, 1f, 0.35f);
-        gimg.raycastTarget = false;
-        glowGo.transform.SetAsFirstSibling();
-        glowGo.SetActive(false);
-        return img;
-    }
-
-    // 부품 전시대 (패널 없이 배경 위에 직접 띄우는 홀로그램 구성).
-    //   [보유 N] --- ((대형 아이콘 + 후광 + 링 2겹 회전)) --- [필요 M]
-    //                          수리 부품
-    //                  다음 수리까지 N개 더 필요
-    //                        [진행 게이지]
-    // 아이콘 = Resources/ShipRepair/7/icon_part.png 자동 연결. 링 회전/후광 맥동은 DriveAmbient 가 구동.
-    private void MakePartCard(RectTransform parent)
-    {
-        var go = new GameObject("PartDisplay", typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var le = go.AddComponent<LayoutElement>();
-        le.preferredHeight = 230f;
-        var root = (RectTransform)go.transform;
-
-        // 로컬 헬퍼: 중앙 기준 배치
-        RectTransform Put(string name, Vector2 size, Vector2 pos, out GameObject made)
-        {
-            var g = new GameObject(name, typeof(RectTransform));
-            g.transform.SetParent(root, false);
-            var rt = (RectTransform)g.transform;
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = size; rt.anchoredPosition = pos;
-            made = g;
-            return rt;
-        }
-
-        Vector2 iconC = new Vector2(0, 34);   // 아이콘 중심 (위쪽에 배치, 아래로 이름/안내/게이지)
-
-        // 후광 (맥동)
-        Put("IconGlow", new Vector2(230, 230), iconC, out var glowGo);
-        _partIconGlow = glowGo.AddComponent<Image>();
-        _partIconGlow.sprite = UISpriteFactory.Disc(256);
-        _partIconGlow.color = new Color(Holo.r, Holo.g, Holo.b, 0.10f);
-        _partIconGlow.raycastTarget = false;
-
-        // 아이콘 둘레 링 = 디자인 링 PNG(5/) 재사용 + 이 링이 곧 부품 게이지(보유/필요만큼 차오름).
-        // 좌측 복원도 링(수리 진행)과 같은 아트라 시각 언어가 맞는다. 없으면 절차 링 폴백.
-        var ringFillSpr  = Resources.Load<Sprite>("ShipRepair/5/ring_fill");
-        var ringTrackSpr = Resources.Load<Sprite>("ShipRepair/5/ring_track");
-        bool ringArt = ringFillSpr != null && ringTrackSpr != null;
-
-        _partRingTrack = Put("RingTrack", new Vector2(200, 200), iconC, out var trackRingGo);
-        var trackRingImg = trackRingGo.AddComponent<Image>();
-        trackRingImg.sprite = ringArt ? ringTrackSpr : UISpriteFactory.Ring(200, 4f);
-        trackRingImg.color = ringArt ? Color.white : new Color(70f / 255f, 96f / 255f, 128f / 255f, 0.35f);
-        trackRingImg.raycastTarget = false;
-
-        Put("RingGauge", new Vector2(200, 200), iconC, out var gaugeRingGo);
-        _partCardGauge = gaugeRingGo.AddComponent<Image>();
-        _partCardGauge.sprite = ringArt ? ringFillSpr : UISpriteFactory.Ring(200, 4f);
-        _partCardGauge.type = Image.Type.Filled;
-        _partCardGauge.fillMethod = Image.FillMethod.Radial360;
-        _partCardGauge.fillOrigin = (int)Image.Origin360.Top;
-        _partCardGauge.fillClockwise = true;
-        _partCardGauge.fillAmount = 0f;
-        _partCardGauge.color = Holo;
-        _partCardGauge.raycastTarget = false;
-
-        // 아이콘 (크게)
-        var iconSpr = Resources.Load<Sprite>("ShipRepair/7/icon_part");
-        if (iconSpr != null)
-        {
-            Put("Icon", new Vector2(140, 140), iconC, out var icoGo);
-            var ico = icoGo.AddComponent<Image>();
-            ico.sprite = iconSpr; ico.preserveAspect = true; ico.raycastTarget = false;
-        }
-
-        // 아이콘 양옆 연결 라인 (전시대 느낌)
-        Put("LineL", new Vector2(96, 2), iconC + new Vector2(-160, 0), out var lineL);
-        var llImg = lineL.AddComponent<Image>();
-        llImg.color = new Color(Holo.r, Holo.g, Holo.b, 0.30f); llImg.raycastTarget = false;
-        Put("LineR", new Vector2(96, 2), iconC + new Vector2(160, 0), out var lineR);
-        var lrImg = lineR.AddComponent<Image>();
-        lrImg.color = new Color(Holo.r, Holo.g, Holo.b, 0.30f); lrImg.raycastTarget = false;
-
-        // 좌 = 보유 / 우 = 필요 (라벨 + 큰 숫자)
-        TextMeshProUGUI MakeBigNum(string label, float x, out TextMeshProUGUI numT)
-        {
-            Put($"{label}Label", new Vector2(140, 22), new Vector2(x, iconC.y + 34), out var lgo);
-            var lt = lgo.AddComponent<TextMeshProUGUI>();
-            lt.text = label; lt.fontSize = 14f; lt.characterSpacing = 6f;
-            lt.alignment = TextAlignmentOptions.Center; lt.color = TextDim; lt.raycastTarget = false;
-
-            Put($"{label}Num", new Vector2(160, 52), new Vector2(x, iconC.y - 12), out var ngo);
-            numT = ngo.AddComponent<TextMeshProUGUI>();
-            numT.fontSize = 42f; numT.fontStyle = FontStyles.Bold;
-            numT.alignment = TextAlignmentOptions.Center; numT.raycastTarget = false;
-            return numT;
-        }
-        MakeBigNum("보유", -252, out _partOwnedText);
-        MakeBigNum("필요",  252, out _partReqText);
-
-        // 아이콘 아래: 이름 / 안내 (게이지는 아이콘 둘레 링이 담당)
-        Put("Name", new Vector2(400, 30), new Vector2(0, -84), out var nameGo);
-        _partCardName = nameGo.AddComponent<TextMeshProUGUI>();
-        _partCardName.fontSize = 20f; _partCardName.fontStyle = FontStyles.Bold;
-        _partCardName.alignment = TextAlignmentOptions.Center; _partCardName.raycastTarget = false;
-        _partCardName.color = TextMain;
-        // 부품 이름 아래 안내줄(_partCardSub)은 잔소리라 제거(종욱 요청). 보유/필요 큰 숫자로 충분.
-    }
-
-    // 특수 부품(전송 보상) 전시 — 선체 보강재/동력 안정기/엔진 등. 복구 에너지(개수제)와 달리
-    //   레벨당 1개(보유/미보유)라 시간에너지 전송으로만 얻는다. 그걸 상시 눈에 보이게 한다.
-    //   데이터 = ShipRepairManager.ExtraPartNameFor/HasExtraPart (레벨 순회 = 데이터 정의 따라감, 하드코딩 X).
-    private void MakeExtraPartsRow(RectTransform parent)
-    {
-        var mgr = ShipRepairManager.Instance;
-        if (mgr == null) return;
-
-        var levels = new List<int>();
-        for (int lv = 1; lv <= mgr.MaxLevel; lv++)
-            if (!string.IsNullOrEmpty(mgr.ExtraPartNameFor(lv))) levels.Add(lv);
-        if (levels.Count == 0) return;   // 특수 부품 정의 없으면 섹션 자체 생략
-
-        // ★섹션 = 높이만 잡는 빈 컨테이너(순수 LayoutElement). HLG 를 섹션에 직접 붙이면
-        //   childForceExpandHeight 가 flexibleHeight(>=1)를 만들어서, 부모 VerticalLayoutGroup 이
-        //   남는 세로 공간만큼 섹션을 늘려버린다 = preferredHeight 가 무시됨(칩이 계속 뚱뚱했던 진짜 원인).
-        //   그래서 HLG 는 '채우기 앵커' 자식(Chips)에 두고, 섹션은 LayoutElement 로 높이만 고정한다.
-        var secGo = new GameObject("ExtraParts", typeof(RectTransform));
-        secGo.transform.SetParent(parent, false);
-        secGo.AddComponent<LayoutElement>().preferredHeight = 58f;   // ★칩 세로 높이 = 여기 하나만 바꾸면 됨
-        var sec = (RectTransform)secGo.transform;
-
-        var rowGo = new GameObject("Chips", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-        rowGo.transform.SetParent(sec, false);
-        var rrt = (RectTransform)rowGo.transform;
-        rrt.anchorMin = Vector2.zero; rrt.anchorMax = Vector2.one; rrt.pivot = new Vector2(0.5f, 0.5f);
-        rrt.offsetMin = new Vector2(6f, 1f); rrt.offsetMax = new Vector2(-6f, -1f);
-        var hlg = rowGo.GetComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 8f; hlg.childAlignment = TextAnchor.MiddleCenter;
-        hlg.childControlWidth = hlg.childControlHeight = true;
-        hlg.childForceExpandWidth = hlg.childForceExpandHeight = true;
-
-        foreach (int lv in levels)
-            _extraChips.Add(MakeExtraChip(rrt, lv, mgr.ExtraPartNameFor(lv)));
-    }
-
-    private ExtraChip MakeExtraChip(RectTransform parent, int level, string partName)
-    {
-        var chip = new ExtraChip { level = level };
-
-        var go = new GameObject($"Chip_Lv{level}", typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(parent, false);
-        chip.bg = go.GetComponent<Image>();
-        chip.bg.sprite = _rowSpr != null ? _rowSpr
-            : UISpriteFactory.RoundedRectVGrad(new Color32(34, 46, 64, 220), new Color32(16, 22, 32, 235), 64, 12);
-        chip.bg.raycastTarget = true;   // 호버 툴팁을 받으려면 레이캐스트 대상이어야 함
-
-        // 이름만 (상태 텍스트 없음 - 보유/미보유는 색으로 구분). "우주선 " 접두사는 군더더기라 뗀다.
-        var nGo = new GameObject("Name", typeof(RectTransform));
-        nGo.transform.SetParent(go.transform, false);
-        var nrt = (RectTransform)nGo.transform;
-        nrt.anchorMin = Vector2.zero; nrt.anchorMax = Vector2.one; nrt.offsetMin = new Vector2(4f, 0f); nrt.offsetMax = new Vector2(-4f, 0f);
-        chip.nameT = nGo.AddComponent<TextMeshProUGUI>();
-        chip.nameT.text = partName.StartsWith("우주선 ") ? partName.Substring(4) : partName;
-        chip.nameT.fontSize = 18f; chip.nameT.fontStyle = FontStyles.Bold;
-        chip.nameT.alignment = TextAlignmentOptions.Center; chip.nameT.raycastTarget = false;
-
-        var hover = go.AddComponent<ChipHover>();
-        hover.ui = this; hover.level = level; hover.rect = (RectTransform)go.transform;
-
-        return chip;
-    }
-
-    // 시간에너지 UI(TransmissionComputerUI)의 호버 툴팁을 따라한 간이 버전.
-    //   칩에 마우스를 올리면 "이게 뭐지?" 하다가도 "몇 %에서 얻는 거구나" 하고 이해되게 한다.
-    //   연출(DOTween 페이드)은 생략하고 룩만 맞춘다(다크 라운드박스 + 아웃라인 + 제목/본문/상태 3줄).
-    private void BuildChipTooltip()
-    {
-        if (_chipTip != null || panelRoot == null) return;
-
-        _chipTip = new GameObject("ChipTooltip", typeof(RectTransform), typeof(Image));
-        _chipTip.transform.SetParent(panelRoot.transform, false);
-        var rt = (RectTransform)_chipTip.transform;
-        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.pivot = new Vector2(0.5f, 0f);   // 아래 기준 = 칩 위에 뜸
-        rt.sizeDelta = new Vector2(240, 84);
-        var box = _chipTip.GetComponent<Image>();
-        box.sprite = UISpriteFactory.RoundedRect(48, 12); box.type = Image.Type.Sliced;
-        box.color = new Color(0.06f, 0.10f, 0.18f, 0.98f); box.raycastTarget = false;
-        var ol = _chipTip.AddComponent<UnityEngine.UI.Outline>();
-        ol.effectColor = new Color(Holo.r, Holo.g, Holo.b, 0.5f); ol.effectDistance = new Vector2(1.2f, -1.2f);
-
-        _chipTipTitle = TipLine(12f, 24f, 17, Holo, FontStyles.Bold);
-        _chipTipBody  = TipLine(38f, 20f, 14, TextMain, FontStyles.Normal);
-        _chipTipState = TipLine(60f, 18f, 12, TextDim, FontStyles.Normal);
-
-        _chipTip.SetActive(false);
-    }
-
-    private TextMeshProUGUI TipLine(float topY, float h, int fontSize, Color col, FontStyles style)
-    {
-        var g = new GameObject("Line", typeof(RectTransform));
-        g.transform.SetParent(_chipTip.transform, false);
-        var rt = (RectTransform)g.transform;
-        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
-        rt.offsetMin = new Vector2(14f, -(topY + h)); rt.offsetMax = new Vector2(-14f, -topY);
-        var t = g.AddComponent<TextMeshProUGUI>();
-        t.fontSize = fontSize; t.fontStyle = style; t.color = col;
-        t.alignment = TextAlignmentOptions.Left; t.raycastTarget = false;
-        return t;
-    }
+    // ── 특수 부품 툴팁 ────────────────────────────────────────────────
+    // 칩에 마우스를 올리면 "이게 뭐지?" 하다가도 "몇 %에서 얻는 거구나" 하고 이해되게 한다.
 
     public void ShowChipTooltip(int level, RectTransform anchor)
     {
-        if (_chipTip == null || anchor == null) return;
+        if (chipTooltip == null || anchor == null) return;
         var mgr = ShipRepairManager.Instance;
         bool used = mgr != null && mgr.CurrentLevel >= level;   // 그 레벨까지 수리됨 = 사용 완료
         bool have = !used && mgr != null && mgr.HasExtraPart(level);
         int pct = ShipPartMilestone(level);
 
         string stateText; Color col;
-        if (used)      { stateText = "사용됨 (수리 완료)"; col = Holo; }
-        else if (have) { stateText = "보유 중";           col = DoneCol; }
-        else           { stateText = "미획득";            col = TextDim; }
+        if (used)      { stateText = "사용됨 (수리 완료)"; col = holoColor; }
+        else if (have) { stateText = "보유 중";           col = doneColor; }
+        else           { stateText = "미획득";            col = textDimColor; }
 
-        _chipTipTitle.text = mgr != null ? mgr.ExtraPartNameFor(level) : "";
-        _chipTipTitle.color = (used || have) ? col : TextMain;   // 미획득 제목은 읽히게 흰색
-        _chipTipBody.text = pct > 0 ? $"시간에너지 전송률 {pct}% 에서 획득" : "시간에너지 전송으로 획득";
-        _chipTipState.text = stateText;
-        _chipTipState.color = col;
-        var ol = _chipTip.GetComponent<UnityEngine.UI.Outline>();
-        if (ol != null) ol.effectColor = new Color(col.r, col.g, col.b, 0.5f);
+        if (chipTooltipTitle != null)
+        {
+            chipTooltipTitle.text = mgr != null ? mgr.ExtraPartNameFor(level) : "";
+            chipTooltipTitle.color = (used || have) ? col : textMainColor;   // 미획득 제목은 읽히게 흰색
+        }
+        if (chipTooltipBody != null)
+            chipTooltipBody.text = pct > 0 ? $"시간에너지 전송률 {pct}% 에서 획득" : "시간에너지 전송으로 획득";
+        if (chipTooltipState != null)
+        {
+            chipTooltipState.text = stateText;
+            chipTooltipState.color = col;
+        }
+        if (chipTooltipOutline != null)
+            chipTooltipOutline.effectColor = new Color(col.r, col.g, col.b, 0.5f);
 
-        _chipTip.SetActive(true);
-        _chipTip.transform.SetAsLastSibling();
+        chipTooltip.SetActive(true);
+        chipTooltip.transform.SetAsLastSibling();
         // 칩 상단 중앙 위에 배치(월드좌표 직접 세팅이라 부모 pivot 무관) + 살짝 위로.
-        _chipTip.transform.position = anchor.TransformPoint(new Vector3(0f, anchor.rect.height * 0.5f, 0f));
-        ((RectTransform)_chipTip.transform).anchoredPosition += new Vector2(0f, 12f);
+        chipTooltip.transform.position = anchor.TransformPoint(new Vector3(0f, anchor.rect.height * 0.5f, 0f));
+        ((RectTransform)chipTooltip.transform).anchoredPosition += new Vector2(0f, 12f);
     }
 
     public void HideChipTooltip()
     {
-        if (_chipTip != null) _chipTip.SetActive(false);
+        if (chipTooltip != null) chipTooltip.SetActive(false);
     }
 
     // 각 특수부품(레벨)이 나오는 시간에너지 전송률(%). 단일 소스 = TransmissionManager.ShipPartMilestones.
     //   (하드코딩 중복이 % 재조정 때 어긋나서, 매니저 표를 직접 참조하도록 통일 - 이제 여기 숫자 없음)
     private static int ShipPartMilestone(int level) => TransmissionManager.ShipPartMilestonePct(level);
-
-    private class ChipHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
-    {
-        public ShipRepairUI ui; public int level; public RectTransform rect;
-        public void OnPointerEnter(PointerEventData e) { if (ui != null) ui.ShowChipTooltip(level, rect); }
-        public void OnPointerExit(PointerEventData e)  { if (ui != null) ui.HideChipTooltip(); }
-    }
 
     // ── 갱신 ──────────────────────────────────────────────────────────
 
@@ -648,44 +378,20 @@ public class ShipRepairUI : MonoBehaviour
         if (levelText != null)
             levelText.text = $"수리 단계  Lv.{cur} / {max}";
 
-        // pip 점등 + 현재 단계 강조 (디자인 노드=점등 스프라이트 교체+현재만 살짝 확대 / 폴백=색+후광)
-        bool pipArt = _nodeOnSpr != null && _nodeOffSpr != null;
-        for (int i = 0; i < _pips.Count; i++)
-        {
-            int lv = i + 1;
-            var img = _pips[i];
-            if (img == null) continue;
-            if (pipArt)
-            {
-                img.sprite = lv <= cur ? _nodeOnSpr : _nodeOffSpr;
-                img.color  = Color.white;
-                img.transform.localScale = lv == cur ? Vector3.one * 1.15f : Vector3.one;
-            }
-            else
-            {
-                img.color = lv <= cur ? Holo : PipEmpty;
-            }
-            var glow = img.transform.Find("Glow");
-            if (glow != null) glow.gameObject.SetActive(lv == cur);
-        }
+        RefreshPips(cur);
 
         // 복원도 링 (Lv.1=0% ~ Lv.max=100%). 실제 채움은 DriveAmbient 가 부드럽게 스윕.
         float prog = max > 1 ? (cur - 1f) / (max - 1f) : 1f;
         _ringTarget = Mathf.Clamp01(prog);
         if (restorePercentText != null) restorePercentText.text = $"{Mathf.RoundToInt(prog * 100f)}%";
 
-        // 우주선 홀로그램 아트 - Resources/ShipRepair/1/ship_holo_lv{N}.png 자동 연결 (Lv 오를수록 완성)
-        if (_shipSlotImg == null && ringGauge != null && ringGauge.transform.parent != null)
+        // 우주선 홀로그램 아트 - 레벨 오를수록 완성된 그림
+        if (shipHologramSlot != null)
         {
-            var slotTr = ringGauge.transform.parent.Find("ShipHologramSlot");
-            if (slotTr != null) _shipSlotImg = slotTr.GetComponent<Image>();
-        }
-        if (_shipSlotImg != null)
-        {
-            var shipSpr = Resources.Load<Sprite>($"ShipRepair/1/ship_holo_lv{cur}");
-            _shipSlotImg.sprite  = shipSpr;
-            _shipSlotImg.enabled = shipSpr != null;
-            if (shipSpr != null) _shipSlotImg.preserveAspect = true;
+            var shipSpr = SpriteForLevel(cur);
+            shipHologramSlot.sprite = shipSpr;
+            shipHologramSlot.enabled = shipSpr != null;
+            if (shipSpr != null) shipHologramSlot.preserveAspect = true;
         }
 
         bool maxed = mgr.IsFullyRepaired;
@@ -697,71 +403,109 @@ public class ShipRepairUI : MonoBehaviour
         if (nextHeaderText != null)
             nextHeaderText.text = maxed ? "수리 완료" : $"다음 수리   Lv.{cur} -> Lv.{cur + 1}";
 
-        SetStat(0, "건축 범위",   curDef, nextDef, StatKind.Zone);
-        SetStat(1, "설비 연료",   curDef, nextDef, StatKind.Fuel);
-        SetStat(2, "공장 가동속도", curDef, nextDef, StatKind.Speed);
+        SetStat(0, curDef, nextDef, StatKind.Zone);
+        SetStat(1, curDef, nextDef, StatKind.Fuel);
+        SetStat(2, curDef, nextDef, StatKind.Speed);
 
-        // 부품 전시대: 좌 보유 / 우 필요 큰 숫자 + 이름/안내/게이지. 상태색 = 완료 초록 / 충분 시안 밝게 / 부족 시안 어둡게
+        RefreshPartDisplay(mgr, maxed);
+        RefreshExtraChips(mgr);
+        RefreshRepairButton(mgr, maxed);
+    }
+
+    // pip 점등 + 현재 단계 강조 (디자인 노드=점등 스프라이트 교체+현재만 살짝 확대 / 없으면 색만)
+    private void RefreshPips(int cur)
+    {
+        bool art = pipOnSprite != null && pipOffSprite != null;
+        for (int i = 0; i < _pips.Count; i++)
+        {
+            int lv = i + 1;
+            var img = _pips[i];
+            if (img == null) continue;
+            if (art)
+            {
+                img.sprite = lv <= cur ? pipOnSprite : pipOffSprite;
+                img.color  = Color.white;
+                img.transform.localScale = lv == cur ? Vector3.one * 1.15f : Vector3.one;
+            }
+            else
+            {
+                img.color = lv <= cur ? holoColor : pipEmptyColor;
+            }
+        }
+    }
+
+    private Sprite SpriteForLevel(int level)
+    {
+        int idx = level - 1;   // [0] = Lv.1
+        if (shipHologramByLevel == null || idx < 0 || idx >= shipHologramByLevel.Length) return null;
+        return shipHologramByLevel[idx];
+    }
+
+    // 부품 전시대: 좌 보유 / 우 필요 큰 숫자 + 이름 + 링 게이지.
+    // 상태색 = 완료 초록 / 충분 시안 밝게 / 부족 시안 어둡게
+    private void RefreshPartDisplay(ShipRepairManager mgr, bool maxed)
+    {
         int count = mgr.PartCount;
         int req   = mgr.NextRequiredParts;
         bool enough = !maxed && count >= req;
 
-        if (_partCardName != null)
-            _partCardName.text = mgr.PartName;
+        if (partNameText != null) partNameText.text = mgr.PartName;
 
-        if (_partOwnedText != null)
+        if (partOwnedText != null)
         {
-            _partOwnedText.text  = count.ToString();
-            _partOwnedText.color = maxed ? DoneCol : (enough ? Holo : TextMain);
+            partOwnedText.text  = count.ToString();
+            partOwnedText.color = maxed ? doneColor : (enough ? holoColor : textMainColor);
         }
-        if (_partReqText != null)
+        if (partRequiredText != null)
         {
-            _partReqText.text  = maxed ? "-" : req.ToString();
-            _partReqText.color = maxed ? TextDim : TextMain;
-        }
-
-        Color state = maxed ? DoneCol : Holo;
-        bool lit = maxed || enough;
-        _partGlowBaseA = lit ? 0.14f : 0.07f;
-        if (_partIconGlow != null)
-            _partIconGlow.color = new Color(state.r, state.g, state.b, _partGlowBaseA);
-
-        // 아이콘 둘레 링 = 부품 게이지 (보유/필요 비율)
-        if (_partCardGauge != null)
-        {
-            _partCardGauge.fillAmount = maxed ? 1f : (req > 0 ? Mathf.Clamp01((float)count / req) : 1f);
-            _partCardGauge.color = state;
+            partRequiredText.text  = maxed ? "-" : req.ToString();
+            partRequiredText.color = maxed ? textDimColor : textMainColor;
         }
 
-        // 특수 부품(전송 보상) 칩: 미획득=회색 / 보유(먹었고 아직 안 씀)=초록 / 이미 사용(그 레벨까지 수리 완료)=파랑.
-        //   ★수리하면 extraMask 가 소모돼 HasExtraPart 가 false 로 돌아간다 -> 그것만 보면 "미획득"이랑 구분 안 됨.
-        //     그래서 CurrentLevel >= 부품레벨 이면 "사용 완료"로 따로 처리한다(한 번만 먹는 부품이라 이게 자연스럽다).
+        Color state = maxed ? doneColor : holoColor;
+        _partGlowBaseA = (maxed || enough) ? 0.14f : 0.07f;
+        if (partIconGlow != null)
+            partIconGlow.color = new Color(state.r, state.g, state.b, _partGlowBaseA);
+
+        if (partGauge != null)
+        {
+            partGauge.fillAmount = maxed ? 1f : (req > 0 ? Mathf.Clamp01((float)count / req) : 1f);
+            partGauge.color = state;
+        }
+    }
+
+    // 특수 부품 칩: 미획득=회색 / 보유(먹었고 아직 안 씀)=초록 / 이미 사용(그 레벨까지 수리 완료)=파랑.
+    //   ★수리하면 extraMask 가 소모돼 HasExtraPart 가 false 로 돌아간다 -> 그것만 보면 "미획득"이랑 구분 안 됨.
+    //     그래서 CurrentLevel >= 부품레벨 이면 "사용 완료"로 따로 처리한다(한 번만 먹는 부품이라 이게 자연스럽다).
+    private void RefreshExtraChips(ShipRepairManager mgr)
+    {
         foreach (var chip in _extraChips)
         {
-            int lv = chip.level;
-            bool used = mgr.CurrentLevel >= lv;         // 그 레벨까지 수리됨 = 이 부품 사용 완료
+            if (chip == null) continue;
+            int lv = chip.Level;
+            bool used = mgr.CurrentLevel >= lv;          // 그 레벨까지 수리됨 = 이 부품 사용 완료
             bool have = !used && mgr.HasExtraPart(lv);   // 획득했고 아직 안 씀
-            if (chip.bg != null)
-                chip.bg.color = used ? new Color(0.26f, 0.45f, 0.62f, 1f)   // 파랑 틴트(완료)
-                              : have ? new Color(0.30f, 0.62f, 0.44f, 1f)   // 초록 틴트(보유)
-                              : Color.white;                                 // 기본 어두움(미획득)
-            if (chip.nameT != null)
-                chip.nameT.color = used ? Holo : have ? DoneCol : TextMain;
+            chip.SetState(
+                used ? chipUsedTint : have ? chipOwnedTint : chipMissingTint,
+                used ? holoColor    : have ? doneColor     : textMainColor);
         }
+    }
 
-        // 수리 버튼 (완전 수리 + 시간에너지 100% = "탈출하기" 로 전환 = 게임 클리어 트리거)
+    // 수리 버튼 (완전 수리 + 시간에너지 100% = "탈출하기" 로 전환 = 게임 클리어 트리거)
+    private void RefreshRepairButton(ShipRepairManager mgr, bool maxed)
+    {
         bool canRepair = mgr.CanRepairNext();
         bool canEscape = ShipEscape.CanEscape();   // 우주선 Lv.최대 AND 전송률 100%
         bool canAct = canEscape || canRepair;
         if (repairButton != null)
         {
             repairButton.interactable = canAct;
-            if (repairButton.image != null) repairButton.image.color = canAct ? BtnReady : BtnLocked;
+            if (repairButton.image != null) repairButton.image.color = canAct ? repairReadyColor : repairLockedColor;
         }
         if (repairButtonText != null)
             repairButtonText.text = maxed
                 ? (canEscape ? "탈출하기" : EscapeBlockedReason())   // 수리는 끝났지만 전송률 미완이면 이유 표기
-                : (canRepair ? "수리 실행" : BlockedReason(mgr, count));
+                : (canRepair ? "수리 실행" : BlockedReason(mgr, mgr.PartCount));
     }
 
     // 왜 수리를 못 하는지 버튼에 그대로 적는다.
@@ -788,7 +532,7 @@ public class ShipRepairUI : MonoBehaviour
 
     private enum StatKind { Zone, Fuel, Speed }
 
-    private void SetStat(int idx, string _, ShipRepairManager.LevelDef cur, ShipRepairManager.LevelDef next, StatKind kind)
+    private void SetStat(int idx, ShipRepairManager.LevelDef cur, ShipRepairManager.LevelDef next, StatKind kind)
     {
         if (statValueTexts == null || idx < 0 || idx >= statValueTexts.Length) return;
         var t = statValueTexts[idx];
@@ -799,7 +543,7 @@ public class ShipRepairUI : MonoBehaviour
         if (next == null)   // 최종 레벨 = 다음 없음
         {
             t.text = curS;
-            t.color = TextDim;
+            t.color = textDimColor;
         }
         else
         {
@@ -808,28 +552,25 @@ public class ShipRepairUI : MonoBehaviour
             if (changed)
             {
                 t.text  = $"{curS}  ->  {nextS}";
-                t.color = Holo;
+                t.color = holoColor;
             }
             else
             {
                 t.text  = curS;
-                t.color = TextDim;
+                t.color = textDimColor;
             }
         }
 
         // 패널 점등 = 부품 행과 같은 문법: 이번 수리로 바뀌는 스탯만 시안 점등, 나머지는 가라앉힘
-        var rowTr = t.transform.parent;
-        if (rowTr == null) return;
-        var rowImg = rowTr.GetComponent<Image>();
-        if (rowImg != null)
+        if (statRowImages != null && idx < statRowImages.Length && statRowImages[idx] != null)
         {
-            if (_rowSpr != null && _rowHlSpr != null)
-                rowImg.sprite = changed ? _rowHlSpr : _rowSpr;
+            var rowImg = statRowImages[idx];
+            if (statRowSprite != null && statRowHighlightSprite != null)
+                rowImg.sprite = changed ? statRowHighlightSprite : statRowSprite;
             rowImg.color = new Color(1f, 1f, 1f, changed ? 1f : 0.8f);
         }
-        var nameTr = rowTr.Find("Name");
-        if (nameTr != null && nameTr.TryGetComponent(out TextMeshProUGUI nameT))
-            nameT.color = changed ? new Color(0.80f, 0.87f, 0.94f, 1f) : TextDim;
+        if (statNameTexts != null && idx < statNameTexts.Length && statNameTexts[idx] != null)
+            statNameTexts[idx].color = changed ? new Color(0.80f, 0.87f, 0.94f, 1f) : textDimColor;
     }
 
     private string FormatStat(ShipRepairManager.LevelDef def, StatKind kind)
@@ -864,5 +605,4 @@ public class ShipRepairUI : MonoBehaviour
         mgr.TryRepairNext();   // 성공 시 OnChanged -> Refresh 자동
         Refresh();
     }
-
 }
