@@ -3,82 +3,91 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+// 상자 상호작용 프롬프트(잠긴 상자 / 해제 중 / 해제 완료 / 열린 상자).
+//
+// [08-02] 런타임 자체생성 -> 씬 실물 오브젝트로 전환.
+//   이전에는 Awake 에서 Canvas 부터 버튼까지 280줄로 만들어냈다. 에디터에 아무것도 없어서
+//   위치/색을 못 고치고, 컴포넌트를 붙일 수도 없었다. 계층 생성은 ChestPromptUIBuilder(에디터)가 담당한다.
+//
+//   DontDestroyOnLoad 도 같이 제거했다: 씬을 넘나들며 살아남는 싱글톤은 재입장 시 낡은 상태가 남는 사고의 원인이라,
+//   씬에 실물로 두고 씬과 함께 정리되게 하는 편이 안전하다.
+//
+//   초기 상태 규칙(HUD/오버레이): 오브젝트는 항상 활성, 표시/숨김은 자식 Panel 만 토글한다.
+//   -> Instance 를 항상 찾을 수 있고 등록/코루틴 타이밍이 예측 가능해진다.
 public class ChestPromptUI : MonoBehaviour
 {
-    // ── 팔레트 ────────────────────────────────────────────────────────
-    static readonly Color kBgTint    = new Color(0.08f, 0.08f, 0.08f, 0.88f);
-    static readonly Color kBorder    = new Color(1.00f, 1.00f, 1.00f, 0.13f);
-    static readonly Color kHdrLine   = new Color(1.00f, 1.00f, 1.00f, 0.11f);
-    static readonly Color kDivider   = new Color(1.00f, 1.00f, 1.00f, 0.07f);
-    static readonly Color kHdrBg     = new Color(0.00f, 0.00f, 0.00f, 0.22f);
-    static readonly Color kText      = new Color(0.88f, 0.90f, 0.90f, 1.00f);
-    static readonly Color kSubText   = new Color(0.54f, 0.55f, 0.55f, 1.00f);
-    static readonly Color kBtnHov    = new Color(1.00f, 1.00f, 1.00f, 0.07f);
-    static readonly Color kBtnPrs    = new Color(0.00f, 0.00f, 0.00f, 0.15f);
-    static readonly Color kBarBg     = new Color(0.05f, 0.05f, 0.05f, 1.00f);
-    static readonly Color kBarFill   = new Color(0.78f, 0.80f, 0.80f, 1.00f);
-    static readonly Color kTitle     = new Color(0.95f, 0.95f, 0.95f, 1.00f);
-    static readonly Color kKeyBorder = new Color(0.62f, 0.62f, 0.62f, 0.70f);
-    static readonly Color kKeyBg     = new Color(0.24f, 0.24f, 0.24f, 1.00f);
-    static readonly Color kKeyText   = new Color(0.96f, 0.96f, 0.96f, 1.00f);
-
-    // ── 필드 ──────────────────────────────────────────────────────────
     public static ChestPromptUI Instance { get; private set; }
 
-    private ChestInteractable _owner;
-    private RectTransform     _panel;
-    private TMP_Text          _titleText;
-    private GameObject        _progressSection;
-    private Image             _progressFill;
-    private TMP_Text          _timerText;
-    private Button            _primaryBtn;
-    private TMP_Text          _primaryKey;
-    private TMP_Text          _primaryLabel;
-    private Button            _secondaryBtn;
-    private TMP_Text          _secondaryKey;
-    private TMP_Text          _secondaryLabel;
-    private BlurredImage      _blur;
+    [Header("구성 요소 (빌더가 자동 연결)")]
+    [Tooltip("표시/숨김 대상. 이 오브젝트만 켜고 끈다.")]
+    [SerializeField] private GameObject panel;
+    [SerializeField] private TMP_Text titleText;
+    [Tooltip("해제 중일 때만 보이는 진행 섹션.")]
+    [SerializeField] private GameObject progressSection;
+    [SerializeField] private Image progressFill;
+    [SerializeField] private TMP_Text timerText;
 
+    [Header("주 버튼 (F)")]
+    [SerializeField] private Button primaryBtn;
+    [SerializeField] private TMP_Text primaryKey;
+    [SerializeField] private TMP_Text primaryLabel;
+
+    [Header("보조 버튼 (G)")]
+    [SerializeField] private Button secondaryBtn;
+    [SerializeField] private TMP_Text secondaryKey;
+    [SerializeField] private TMP_Text secondaryLabel;
+
+    [Header("배경 블러")]
+    [SerializeField] private BlurredImage blur;
+
+    private ChestInteractable _owner;
     private System.Action _onPrimary;
     private System.Action _onSecondary;
 
-    // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
-        Build();
-        // 진행 섹션 기본 숨김 (예외 후에도 안 보이도록 명시)
-        _progressSection?.SetActive(false);
-        _panel?.gameObject.SetActive(false);
+
+        // 클릭 배선은 런타임에서 건다(에디터 영속 리스너로 저장하지 않는다 = 씬 diff 가 깔끔).
+        if (primaryBtn != null) primaryBtn.onClick.AddListener(() => _onPrimary?.Invoke());
+        if (secondaryBtn != null) secondaryBtn.onClick.AddListener(() => _onSecondary?.Invoke());
+
+        if (progressSection != null) progressSection.SetActive(false);
+        if (panel != null) panel.SetActive(false);
     }
 
-    private void Start()
+    private void OnDestroy()
     {
-        if (_blur != null && _blur.Common.cameraReference == null)
-            _blur.Common.cameraReference = Camera.main;
+        if (Instance == this) Instance = null;
     }
 
+    private void Start() => EnsureBlurCamera();
+
+    /// <summary>씬에 있는 인스턴스를 돌려준다(없으면 에러 로그).</summary>
     public static ChestPromptUI GetOrCreate()
     {
         if (Instance != null) return Instance;
-        return new GameObject("ChestPromptUI").AddComponent<ChestPromptUI>();
+        Instance = FindAnyObjectByType<ChestPromptUI>(FindObjectsInactive.Include);
+        if (Instance == null)
+            Debug.LogError("[ChestPromptUI] 씬 Canvas 에 상자 프롬프트가 없다. 메뉴 Tools/TIMEKOV/상자 프롬프트 UI 생성 을 실행해라.");
+        return Instance;
     }
 
-    // ── 공개 API ──────────────────────────────────────────────────────
+    // 공개 API
+
     public void ShowIdle(ChestInteractable owner, float instantCost,
                          System.Action onF, System.Action onG)
     {
         _owner = owner;
         EnsureBlurCamera();
-        _titleText.text = "잠긴  상자";
-        _progressSection.SetActive(false);
+        SetTitle("잠긴  상자");
+        if (progressSection != null) progressSection.SetActive(false);
         SetPrimary("F", "잠금 해제", onF);
         SetSecondary("G", instantCost > 0
-            ? $"즉시 열기   <color=#E05050>HP –{Mathf.CeilToInt(instantCost)}</color>"
+            ? $"즉시 열기   <color=#E05050>HP -{Mathf.CeilToInt(instantCost)}</color>"
             : null, onG);
-        _panel.gameObject.SetActive(true);
+        Show();
     }
 
     public void ShowOpening(ChestInteractable owner, float progress, float secsLeft,
@@ -86,35 +95,35 @@ public class ChestPromptUI : MonoBehaviour
     {
         _owner = owner;
         EnsureBlurCamera();
-        _titleText.text = "해제  중";
-        _progressSection.SetActive(true);
-        _progressFill.fillAmount = progress;
-        _timerText.text = $"{Mathf.CeilToInt(secsLeft)}초";
+        SetTitle("해제  중");
+        if (progressSection != null) progressSection.SetActive(true);
+        if (progressFill != null) progressFill.fillAmount = progress;
+        if (timerText != null) timerText.text = $"{Mathf.CeilToInt(secsLeft)}초";
         SetPrimary(null, null, null);
-        SetSecondary("G", $"즉시 열기   <color=#E05050>HP –{Mathf.CeilToInt(instantCost)}</color>", onG);
-        _panel.gameObject.SetActive(true);
+        SetSecondary("G", $"즉시 열기   <color=#E05050>HP -{Mathf.CeilToInt(instantCost)}</color>", onG);
+        Show();
     }
 
     public void ShowReady(ChestInteractable owner, System.Action onF)
     {
         _owner = owner;
         EnsureBlurCamera();
-        _titleText.text = "해제  완료";
-        _progressSection.SetActive(false);
+        SetTitle("해제  완료");
+        if (progressSection != null) progressSection.SetActive(false);
         SetPrimary("F", "열어보기", onF);
         SetSecondary(null, null, null);
-        _panel.gameObject.SetActive(true);
+        Show();
     }
 
     public void ShowOpened(ChestInteractable owner, System.Action onF)
     {
         _owner = owner;
         EnsureBlurCamera();
-        _titleText.text = "열린  상자";
-        _progressSection.SetActive(false);
+        SetTitle("열린  상자");
+        if (progressSection != null) progressSection.SetActive(false);
         SetPrimary("F", "열어보기", onF);
         SetSecondary(null, null, null);
-        _panel.gameObject.SetActive(true);
+        Show();
     }
 
     public void HideIfOwner(ChestInteractable chest)
@@ -124,316 +133,46 @@ public class ChestPromptUI : MonoBehaviour
 
     public void Hide()
     {
-        if (_panel != null) _panel.gameObject.SetActive(false);
+        if (panel != null) panel.SetActive(false);
         _owner = null;
     }
 
-    // ── 내부 ──────────────────────────────────────────────────────────
+    // 내부
+
+    private void Show()
+    {
+        if (panel != null) panel.SetActive(true);
+    }
+
+    private void SetTitle(string t)
+    {
+        if (titleText != null) titleText.text = t;
+    }
+
     private void SetPrimary(string keyChar, string actionText, System.Action action)
     {
         _onPrimary = action;
         bool show = !string.IsNullOrEmpty(actionText);
-        if (_primaryBtn != null) _primaryBtn.gameObject.SetActive(show);
-        if (show)
-        {
-            if (_primaryKey != null)   _primaryKey.text   = keyChar ?? "";
-            if (_primaryLabel != null) _primaryLabel.text = actionText;
-        }
+        if (primaryBtn != null) primaryBtn.gameObject.SetActive(show);
+        if (!show) return;
+        if (primaryKey != null) primaryKey.text = keyChar ?? "";
+        if (primaryLabel != null) primaryLabel.text = actionText;
     }
 
     private void SetSecondary(string keyChar, string actionText, System.Action action)
     {
         _onSecondary = action;
         bool show = !string.IsNullOrEmpty(actionText);
-        if (_secondaryBtn != null) _secondaryBtn.gameObject.SetActive(show);
-        if (show)
-        {
-            if (_secondaryKey != null)   _secondaryKey.text   = keyChar ?? "";
-            if (_secondaryLabel != null) _secondaryLabel.text = actionText;
-        }
+        if (secondaryBtn != null) secondaryBtn.gameObject.SetActive(show);
+        if (!show) return;
+        if (secondaryKey != null) secondaryKey.text = keyChar ?? "";
+        if (secondaryLabel != null) secondaryLabel.text = actionText;
     }
 
+    // 블러는 카메라 참조가 있어야 동작하는데 Camera.main 은 실행 중에만 잡힌다.
     private void EnsureBlurCamera()
     {
-        if (_blur != null && _blur.Common.cameraReference == null)
-            _blur.Common.cameraReference = Camera.main;
-    }
-
-    // ── 빌드 ──────────────────────────────────────────────────────────
-    private void Build()
-    {
-        // Canvas
-        var cvGo = new GameObject("Canvas");
-        cvGo.transform.SetParent(transform, false);
-        var cv = cvGo.AddComponent<Canvas>();
-        cv.renderMode   = RenderMode.ScreenSpaceOverlay;
-        cv.sortingOrder = 50;
-        var cs = cvGo.AddComponent<CanvasScaler>();
-        cs.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        cs.referenceResolution = new Vector2(1920f, 1080f);
-        cvGo.AddComponent<GraphicRaycaster>();
-
-        // 패널 루트
-        var panelGo = new GameObject("Panel");
-        panelGo.transform.SetParent(cvGo.transform, false);
-        _panel = panelGo.AddComponent<RectTransform>();
-        _panel.anchorMin        = new Vector2(0.5f, 0f);
-        _panel.anchorMax        = new Vector2(0.5f, 0f);
-        _panel.pivot            = new Vector2(0.5f, 0f);
-        _panel.anchoredPosition = new Vector2(0f, 130f);
-        _panel.sizeDelta        = new Vector2(300f, 0f);
-
-        var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
-        vlg.padding               = new RectOffset(0, 0, 0, 8);
-        vlg.spacing               = 0f;
-        vlg.childControlWidth     = true;
-        vlg.childControlHeight    = true;
-        vlg.childForceExpandWidth  = true;
-        vlg.childForceExpandHeight = false;
-        panelGo.AddComponent<ContentSizeFitter>().verticalFit =
-            ContentSizeFitter.FitMode.PreferredSize;
-
-        // Absolute 레이어
-        AbsImg(panelGo, kBorder, UISpriteFactory.RoundedRect(64, 4), 0, 0, 0, 0);
-        AbsBlur(panelGo);
-        AbsImg(panelGo, kBgTint, UISpriteFactory.RoundedRect(64, 3), 1, 1, 1, 1);
-
-        // 레이아웃 자식
-        BuildHeader(panelGo);
-        HLine(panelGo, kHdrLine, 1f);
-        _progressSection = BuildProgressGroup(panelGo);
-        _progressSection.SetActive(false);  // 기본 숨김
-
-        (_primaryBtn,   _primaryKey,   _primaryLabel)   = MakeButton(panelGo);
-        _primaryBtn.onClick.AddListener(() => _onPrimary?.Invoke());
-        (_secondaryBtn, _secondaryKey, _secondaryLabel) = MakeButton(panelGo);
-        _secondaryBtn.onClick.AddListener(() => _onSecondary?.Invoke());
-    }
-
-    // BlurredImage 절대 레이어
-    private void AbsBlur(GameObject parent)
-    {
-        var go = new GameObject("_Blur");
-        go.transform.SetParent(parent.transform, false);
-        _blur = go.AddComponent<BlurredImage>();  // BlurredImage가 RT 자동 생성
-        _blur.sprite = UISpriteFactory.RoundedRect(64, 4);
-        _blur.type   = Image.Type.Sliced;
-        _blur.color  = Color.white;
-        _blur.raycastTarget = false;
-        _blur.Common.blurReferencesFrom = UIBlurCommon.BlurReferencesFrom.Self;
-        _blur.Common.featureNumber      = 0;
-        _blur.Common.unrankedLayer      = 1;
-        var rt = (RectTransform)go.transform;
-        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-        rt.offsetMin = new Vector2(1f, 1f); rt.offsetMax = new Vector2(-1f, -1f);
-        go.AddComponent<LayoutElement>().ignoreLayout = true;
-    }
-
-    // Image 절대 레이어 — Image.AddComponent가 RT를 자동 생성
-    private void AbsImg(GameObject parent, Color color, Sprite spr,
-                        float l, float b, float r, float t)
-    {
-        var go = new GameObject("_Abs");
-        go.transform.SetParent(parent.transform, false);
-        var img = go.AddComponent<Image>();  // RT 자동 생성
-        img.color = color; img.sprite = spr;
-        img.type = Image.Type.Sliced; img.raycastTarget = false;
-        var rt = (RectTransform)go.transform;
-        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-        rt.offsetMin = new Vector2(l, b); rt.offsetMax = new Vector2(-r, -t);
-        go.AddComponent<LayoutElement>().ignoreLayout = true;
-    }
-
-    // 헤더
-    private void BuildHeader(GameObject parent)
-    {
-        var go = new GameObject("Header");
-        go.transform.SetParent(parent.transform, false);
-        go.AddComponent<LayoutElement>().minHeight = 36f;
-        var bg = go.AddComponent<Image>();  // RT 자동 생성
-        bg.color = kHdrBg; bg.raycastTarget = false;
-
-        var txtGo = new GameObject("Title");
-        txtGo.transform.SetParent(go.transform, false);
-        _titleText = txtGo.AddComponent<TextMeshProUGUI>();  // RT 자동 생성
-        _titleText.fontSize  = 14f;
-        _titleText.fontStyle = FontStyles.Bold;
-        _titleText.color     = kTitle;
-        _titleText.alignment = TextAlignmentOptions.MidlineLeft;
-        _titleText.raycastTarget = false;
-        var rt = (RectTransform)txtGo.transform;
-        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-        rt.offsetMin = new Vector2(14f, 0f); rt.offsetMax = new Vector2(-14f, 0f);
-    }
-
-    // 가로 구분선
-    private void HLine(GameObject parent, Color color, float h)
-    {
-        var go = new GameObject("HLine");
-        go.transform.SetParent(parent.transform, false);
-        go.AddComponent<LayoutElement>().minHeight = h;
-        var img = go.AddComponent<Image>();
-        img.color = color; img.raycastTarget = false;
-    }
-
-    // 진행 섹션 (ShowOpening 전용)
-    private GameObject BuildProgressGroup(GameObject parent)
-    {
-        var wrapper = new GameObject("ProgressGroup");
-        wrapper.transform.SetParent(parent.transform, false);
-        var wvlg = wrapper.AddComponent<VerticalLayoutGroup>();
-        wvlg.spacing = 0f;
-        wvlg.childControlWidth = true; wvlg.childControlHeight = true;
-        wvlg.childForceExpandWidth = true; wvlg.childForceExpandHeight = false;
-
-        var inner = new GameObject("Inner");
-        inner.transform.SetParent(wrapper.transform, false);
-        var ivlg = inner.AddComponent<VerticalLayoutGroup>();
-        ivlg.padding = new RectOffset(12, 12, 7, 7);
-        ivlg.spacing = 5f;
-        ivlg.childControlWidth = true; ivlg.childControlHeight = true;
-        ivlg.childForceExpandWidth = true; ivlg.childForceExpandHeight = false;
-        inner.AddComponent<LayoutElement>();
-
-        // 타이머 행
-        var row = new GameObject("TimerRow");
-        row.transform.SetParent(inner.transform, false);
-        var rhlg = row.AddComponent<HorizontalLayoutGroup>();
-        rhlg.childControlWidth = true; rhlg.childControlHeight = true;
-        rhlg.childForceExpandWidth = true; rhlg.childForceExpandHeight = false;
-        row.AddComponent<LayoutElement>().minHeight = 20f;
-
-        AddTMP(row, "Lbl", "여는 중", 12f, kSubText, TextAlignmentOptions.MidlineLeft);
-        _timerText = AddTMP(row, "Timer", "", 12f, kTitle, TextAlignmentOptions.MidlineRight);
-        _timerText.fontStyle = FontStyles.Bold;
-
-        // 진행 바
-        var barGo = new GameObject("BarBG");
-        barGo.transform.SetParent(inner.transform, false);
-        barGo.AddComponent<LayoutElement>().minHeight = 4f;
-        var barImg = barGo.AddComponent<Image>();  // RT 자동 생성
-        barImg.color = kBarBg;
-        barImg.sprite = UISpriteFactory.RoundedRect(16, 2);
-        barImg.type = Image.Type.Sliced;
-        barImg.raycastTarget = false;
-
-        var fillGo = new GameObject("Fill");
-        fillGo.transform.SetParent(barGo.transform, false);
-        _progressFill = fillGo.AddComponent<Image>();  // RT 자동 생성
-        _progressFill.sprite     = UISpriteFactory.RoundedRect(16, 2);
-        _progressFill.type       = Image.Type.Filled;
-        _progressFill.fillMethod = Image.FillMethod.Horizontal;
-        _progressFill.fillOrigin = (int)Image.OriginHorizontal.Left;
-        _progressFill.color      = kBarFill;
-        _progressFill.fillAmount = 0f;
-        _progressFill.raycastTarget = false;
-        var fillRT = (RectTransform)fillGo.transform;
-        fillRT.anchorMin = Vector2.zero; fillRT.anchorMax = Vector2.one;
-        fillRT.offsetMin = Vector2.zero; fillRT.offsetMax = Vector2.zero;
-
-        HLine(wrapper, kDivider, 1f);
-        return wrapper;
-    }
-
-    // 키 배지 + 액션 텍스트가 있는 버튼
-    // 모든 RectTransform은 UI 컴포넌트(Image/TMP) 추가 시 자동 생성 후 캐스트 사용
-    private (Button btn, TMP_Text keyTmp, TMP_Text labelTmp) MakeButton(GameObject parent)
-    {
-        const float kBadgeSize  = 24f;
-        const float kBadgeLeft  = 12f;
-        const float kBadgeGap   =  9f;
-        const float kLabelRight = 12f;
-
-        // 버튼 루트
-        var go = new GameObject("Btn");
-        go.transform.SetParent(parent.transform, false);
-        var le = go.AddComponent<LayoutElement>();
-        le.minHeight = 40f; le.preferredHeight = 40f;
-
-        var img = go.AddComponent<Image>();  // RT 자동 생성
-        img.color  = new Color(0f, 0f, 0f, 0f);
-        img.sprite = UISpriteFactory.RoundedRect(16, 1);
-        img.type   = Image.Type.Sliced;
-
-        var btn = go.AddComponent<Button>();
-        var cb  = btn.colors;
-        cb.normalColor      = new Color(0f, 0f, 0f, 0f);
-        cb.highlightedColor = kBtnHov;
-        cb.pressedColor     = kBtnPrs;
-        cb.selectedColor    = new Color(0f, 0f, 0f, 0f);
-        cb.fadeDuration     = 0.08f;
-        btn.colors = cb; btn.targetGraphic = img;
-
-        // 상단 구분선
-        var sepGo = new GameObject("Sep");
-        sepGo.transform.SetParent(go.transform, false);
-        sepGo.AddComponent<LayoutElement>().ignoreLayout = true;
-        var sepImg = sepGo.AddComponent<Image>();  // RT 자동 생성
-        sepImg.color = kDivider; sepImg.raycastTarget = false;
-        var sepRT = (RectTransform)sepGo.transform;
-        sepRT.anchorMin = new Vector2(0f, 1f); sepRT.anchorMax = new Vector2(1f, 1f);
-        sepRT.pivot = new Vector2(0.5f, 1f);
-        sepRT.anchoredPosition = Vector2.zero; sepRT.sizeDelta = new Vector2(0f, 1f);
-
-        // ── 키 배지 ───────────────────────────────────────────────────
-        // 배지 컨테이너: Image를 먼저 추가해 RT를 자동 생성한 뒤 투명으로 둠
-        var badgeGo = new GameObject("KeyBadge");
-        badgeGo.transform.SetParent(go.transform, false);
-        badgeGo.AddComponent<LayoutElement>().ignoreLayout = true;
-        var badgeBase = badgeGo.AddComponent<Image>();  // RT 자동 생성
-        badgeBase.color = Color.clear; badgeBase.raycastTarget = false;
-        var badgeRT = (RectTransform)badgeGo.transform;
-        badgeRT.anchorMin        = new Vector2(0f, 0.5f);
-        badgeRT.anchorMax        = new Vector2(0f, 0.5f);
-        badgeRT.pivot            = new Vector2(0f, 0.5f);
-        badgeRT.anchoredPosition = new Vector2(kBadgeLeft, 0f);
-        badgeRT.sizeDelta        = new Vector2(kBadgeSize, kBadgeSize);
-
-        // 배지 테두리 (전체 크기)
-        AbsImg(badgeGo, kKeyBorder, UISpriteFactory.RoundedRect(32, 5), 0, 0, 0, 0);
-        // 배지 배경 (1px inset)
-        AbsImg(badgeGo, kKeyBg, UISpriteFactory.RoundedRect(32, 4), 1, 1, 1, 1);
-
-        // 배지 키 텍스트: TMP가 RT 자동 생성
-        var keyTxtGo = new GameObject("Key");
-        keyTxtGo.transform.SetParent(badgeGo.transform, false);
-        var keyTmp = keyTxtGo.AddComponent<TextMeshProUGUI>();  // RT 자동 생성
-        keyTmp.fontSize  = 13f;
-        keyTmp.fontStyle = FontStyles.Bold;
-        keyTmp.color     = kKeyText;
-        keyTmp.alignment = TextAlignmentOptions.Center;
-        keyTmp.raycastTarget = false;
-        var keyRT = (RectTransform)keyTxtGo.transform;
-        keyRT.anchorMin = Vector2.zero; keyRT.anchorMax = Vector2.one;
-        keyRT.offsetMin = Vector2.zero; keyRT.offsetMax = Vector2.zero;
-
-        // ── 액션 레이블: TMP가 RT 자동 생성 ─────────────────────────
-        var lblGo = new GameObject("Label");
-        lblGo.transform.SetParent(go.transform, false);
-        lblGo.AddComponent<LayoutElement>().ignoreLayout = true;
-        var lbl = lblGo.AddComponent<TextMeshProUGUI>();  // RT 자동 생성
-        lbl.fontSize           = 13f;
-        lbl.color              = kText;
-        lbl.alignment          = TextAlignmentOptions.MidlineLeft;
-        lbl.textWrappingMode = TextWrappingModes.NoWrap;
-        lbl.richText           = true;
-        lbl.raycastTarget      = false;
-        var lblRT = (RectTransform)lblGo.transform;
-        lblRT.anchorMin = Vector2.zero; lblRT.anchorMax = Vector2.one;
-        lblRT.offsetMin = new Vector2(kBadgeLeft + kBadgeSize + kBadgeGap, 0f);
-        lblRT.offsetMax = new Vector2(-kLabelRight, 0f);
-
-        return (btn, keyTmp, lbl);
-    }
-
-    private TMP_Text AddTMP(GameObject parent, string name, string text,
-                             float size, Color color, TextAlignmentOptions align)
-    {
-        var go = new GameObject(name);
-        go.transform.SetParent(parent.transform, false);
-        var t = go.AddComponent<TextMeshProUGUI>();  // RT 자동 생성
-        t.text = text; t.fontSize = size; t.color = color;
-        t.alignment = align; t.raycastTarget = false;
-        return t;
+        if (blur != null && blur.Common.cameraReference == null)
+            blur.Common.cameraReference = Camera.main;
     }
 }
