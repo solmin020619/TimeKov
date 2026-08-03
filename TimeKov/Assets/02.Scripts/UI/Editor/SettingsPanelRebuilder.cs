@@ -24,7 +24,7 @@ public static class SettingsPanelRebuilder
     // 흰 실루엣 PNG 아이콘 세트(체크/새로고침/닫기) — TMP 유니코드 글리프(✓,↻)는 프로젝트의
     // 모든 폰트 에셋이 Static 아틀라스라 해당 글자가 없으면 그냥 깨져버려서(□) 아이콘 대신
     // 실제 스프라이트를 쓴다. 폰트 교체로는 못 고치는 문제.
-    private const string IconKitDir = "Assets/SilentOutbreak_UIKIT/PNG/Icons/";
+    private const string IconKitDir = "Assets/18.외부에셋/메인UI킷/PNG/Icons/";
     private static Sprite LoadKitIcon(string fileName) => AssetDatabase.LoadAssetAtPath<Sprite>(IconKitDir + fileName);
 
     // 기본 TMP 폰트(LiberationSans SDF)는 Static 아틀라스라 이 패널에서 처음 쓰는 한글
@@ -350,6 +350,8 @@ public static class SettingsPanelRebuilder
 
         // 그래픽
         var (graphicsRoot, graphicsContent) = CreateScrollTab(settingsBG, "GraphicsTab");
+        CreateSectionHeader(graphicsContent, "언어 설정");
+        TMP_Dropdown languageDropdown       = CreateDropdownRow(graphicsContent, "언어");
         CreateSectionHeader(graphicsContent, "성능 및 화면");
         TMP_Dropdown qualityDropdown        = CreateDropdownRow(graphicsContent, "화면 품질");
         var (fullscreenOnBg, fullscreenOffBg, fullscreenOnLabel, fullscreenOffLabel) = CreateSegmentedRow(graphicsContent, "표시 모드", "전체 화면", "창 모드",
@@ -433,6 +435,7 @@ public static class SettingsPanelRebuilder
 
         // ── 6. GlobalSettingsManager 필드 연결 ───────────────────────────────
         Undo.RecordObject(settingsMgr, "Wire GlobalSettingsManager Fields");
+        settingsMgr.languageDropdown        = languageDropdown;
         settingsMgr.resolutionDropdown      = resolutionDropdown;
         settingsMgr.fullscreenOnBg          = fullscreenOnBg;
         settingsMgr.fullscreenOffBg         = fullscreenOffBg;
@@ -468,8 +471,8 @@ public static class SettingsPanelRebuilder
         Undo.CollapseUndoOperations(undoGroup);
         EditorSceneManager.MarkSceneDirty(settingsBG.gameObject.scene);
 
-        Debug.Log("[SettingsRebuilder] 설정창 재구성 완료 — 그래픽/오디오/조작 탭 3개, 컨트롤 " +
-                  "필드 GlobalSettingsManager에 연결됨. 인스펙터에서 확인하세요.");
+        Debug.Log("[SettingsRebuilder] 설정창 재구성 완료 — 그래픽(언어/성능)/오디오/조작 탭 3개, " +
+                  "컨트롤 필드 GlobalSettingsManager에 연결됨. 인스펙터에서 확인하세요.");
     }
 
     [MenuItem(MenuPath, true)]
@@ -827,8 +830,8 @@ public static class SettingsPanelRebuilder
         var viewportRt = viewportGO?.GetComponent<RectTransform>();
         if (viewportRt != null)
         {
-            viewportRt.offsetMin = new Vector2(0f, 8f);
-            viewportRt.offsetMax = new Vector2(0f, -24f);
+            viewportRt.offsetMin = new Vector2(0f, 4f);
+            viewportRt.offsetMax = new Vector2(0f, 0f);
         }
 
         // DropdownStyleSwitcher: 열릴 때 버튼 → RoundedTopSprite(위만 둥근)

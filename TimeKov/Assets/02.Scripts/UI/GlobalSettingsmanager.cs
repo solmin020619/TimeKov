@@ -47,6 +47,9 @@ public class GlobalSettingsManager : MonoBehaviour
         public TMP_Text keyLabel;
     }
 
+    [Header("UI - 언어")]
+    public TMP_Dropdown languageDropdown;
+
     [Header("UI - 그래픽")]
     public TMP_Dropdown resolutionDropdown;
     public Image         fullscreenOnBg;   // "전체 화면" 버튼 배경 (선택 시 노란색)
@@ -87,6 +90,7 @@ public class GlobalSettingsManager : MonoBehaviour
     private static readonly string[] QualityLabels        = { "낮음", "보통", "높음" }; // QualitySettings: Low(0)/Medium(1)/High(2)
     private static readonly string[] ShadowQualityLabels  = { "매우 높음", "높음", "보통", "낮음" };
     private static readonly string[] TextureQualityLabels = { "매우 높음", "높음", "보통", "낮음" };
+    private static readonly string[] LanguageLabels       = { "한국어", "영어", "중국어", "프랑스어" };
 
     private List<Resolution> _resolutions = new();
 
@@ -124,6 +128,7 @@ public class GlobalSettingsManager : MonoBehaviour
         ApplyToEngine(_data);
         InitResolutionOptions();
         InitQualityDropdowns();
+        InitLanguageDropdown();
         SyncUIValues();
         WireListeners();
         ShowTab(0);
@@ -161,12 +166,14 @@ public class GlobalSettingsManager : MonoBehaviour
         if (sfxSlider != null)          sfxSlider.onValueChanged.AddListener(SetSFXVolume);
         if (masterSlider != null)       masterSlider.onValueChanged.AddListener(SetMasterVolume);
         if (sensitivitySlider != null)  sensitivitySlider.onValueChanged.AddListener(SetSensitivity);
+        if (languageDropdown != null)       languageDropdown.onValueChanged.AddListener(SetLanguageFromIndex);
         if (resolutionDropdown != null) resolutionDropdown.onValueChanged.AddListener(SetResolution);
         if (qualityDropdown != null)        qualityDropdown.onValueChanged.AddListener(SetQualityLevel);
         if (shadowQualityDropdown != null)  shadowQualityDropdown.onValueChanged.AddListener(SetShadowQuality);
         if (textureQualityDropdown != null) textureQualityDropdown.onValueChanged.AddListener(SetTextureQuality);
 
         // 드랍다운 클릭음(열기) + 메뉴 항목 선택음
+        HookDropdownSfx(languageDropdown);
         HookDropdownSfx(resolutionDropdown);
         HookDropdownSfx(qualityDropdown);
         HookDropdownSfx(shadowQualityDropdown);
@@ -364,6 +371,8 @@ public class GlobalSettingsManager : MonoBehaviour
         _isDirty = true;
     }
 
+    private void SetLanguageFromIndex(int index) => SetLanguage((LanguageCode)index);
+
     private void SyncUIValues()
     {
         if (bgmSlider != null)         bgmSlider.SetValueWithoutNotify(_pending.bgmVolume);
@@ -371,6 +380,13 @@ public class GlobalSettingsManager : MonoBehaviour
         if (masterSlider != null)      masterSlider.SetValueWithoutNotify(_pending.masterVolume);
         if (sensitivitySlider != null) sensitivitySlider.SetValueWithoutNotify(_pending.sensitivity);
         UpdateFullscreenButtonVisual(_pending.fullscreen);
+
+        if (languageDropdown != null)
+        {
+            int langIdx = (int)Loc.FromCode(_pending.language);
+            languageDropdown.SetValueWithoutNotify(langIdx);
+            languageDropdown.RefreshShownValue();
+        }
 
         if (qualityDropdown != null)
         {
@@ -546,6 +562,13 @@ public class GlobalSettingsManager : MonoBehaviour
         resolutionDropdown.AddOptions(options);
         resolutionDropdown.SetValueWithoutNotify(currentIndex);
         resolutionDropdown.RefreshShownValue();
+    }
+
+    private void InitLanguageDropdown()
+    {
+        if (languageDropdown == null) return;
+        languageDropdown.ClearOptions();
+        languageDropdown.AddOptions(new System.Collections.Generic.List<string>(LanguageLabels));
     }
 
     private void InitQualityDropdowns()
