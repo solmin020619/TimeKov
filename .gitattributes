@@ -11,3 +11,8 @@
 *.physicMaterial -text
 *.meta       -text
 
+# C# 소스 — 줄바꿈을 각자 git 설정(core.autocrlf)에 맡기지 않고 여기서 고정.
+# 레포에는 LF 로 저장하고 체크아웃할 때 CRLF 로 준다(= 지금 동작과 동일해서 재정규화 diff 없음).
+# 인코딩은 .gitattributes 로 못 박을 수 없어서 .editorconfig 가 담당한다.
+*.cs text eol=crlf
+
