@@ -211,7 +211,7 @@ public class ContextMenuUI : MonoBehaviour
             if (data != null)
             {
                 int g = (int)data.itemGrade;
-                _nameText.text = data.itemName;
+                _nameText.text = data.GetLocalizedName();
                 _nameText.color = GradeVisual.IsCommon(g) ? TextColor : GradeVisual.GetColor(g);
             }
             else { _nameText.text = Loc.Get("알 수 없는 아이템"); _nameText.color = TextColor; }

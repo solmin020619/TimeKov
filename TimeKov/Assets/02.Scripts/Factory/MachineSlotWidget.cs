@@ -67,7 +67,7 @@ namespace TIMEKOV.Factory
             _hasItem = itemId > 0 && amount > 0;
 
             var itemData = GameDataUtility.GetItem(itemId);
-            string name = itemData != null ? itemData.itemName : itemId.ToString();
+            string name = itemData != null ? itemData.GetLocalizedName() : itemId.ToString();
 
             // 아이콘 로드
             Sprite sprite = null;

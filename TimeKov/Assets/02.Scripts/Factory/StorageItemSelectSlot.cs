@@ -82,7 +82,7 @@ public class StorageItemSelectSlot : MonoBehaviour, IDropHandler, IPointerEnterH
         Sprite sprite = itemData != null ? ItemDatabase.GetIcon(itemData.iconKey) : null;
 
         if (nameText != null)
-            nameText.text = itemData != null ? itemData.itemName : "";
+            nameText.text = itemData != null ? itemData.GetLocalizedName() : "";
 
         if (iconImage != null)
         {

@@ -719,7 +719,7 @@ public class CodexUI : MonoBehaviour
 
         // 이름(아래) — 미획득은 ???
         var nameRt = Make("nm", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(0f, 28f));
-        Txt(nameRt, got ? it.itemName : "???", 14f, got ? FontStyles.Bold : FontStyles.Normal, got ? TxtMain : TxtDim, TextAlignmentOptions.Center);
+        Txt(nameRt, got ? it.GetLocalizedName() : "???", 14f, got ? FontStyles.Bold : FontStyles.Normal, got ? TxtMain : TxtDim, TextAlignmentOptions.Center);
 
         // 획득품만 클릭 -> 상세(출처 팝업 재사용: 이름/등급/획득처)
         if (got) HoverButton(slot, () => ShowSourcePopup(id));
@@ -786,7 +786,7 @@ public class CodexUI : MonoBehaviour
         {
             var fd = GameDataUtility.GetFacility(id);
             if (fd == null) continue;
-            var e = new Entry { name = fd.facilityName, state = St.Silhouette, status = "미해금", facilityId = id };
+            var e = new Entry { name = fd.GetLocalizedName(), state = St.Silhouette, status = "미해금", facilityId = id };
             if (FacilityIconDatabase.Instance != null) e.icon = FacilityIconDatabase.Instance.GetIcon(id);
             // 실제 해금(FacilityUnlockManager) 또는 개발자 F9. 미해금이면 Silhouette("미해금") -> 선택 불가 = 레시피 가려짐.
             if (FacilityUnlocked(id)) { e.state = St.Public; e.status = null; }
@@ -1114,7 +1114,7 @@ public class CodexUI : MonoBehaviour
             string cnt = r.minCount == r.maxCount ? (r.minCount + Loc.Get("개")) : (r.minCount + "~" + r.maxCount + Loc.Get("개"));
             list.Add(new Drop
             {
-                name = item.itemName, rarity = GradeVisual.GetName(gi), rc = GradeVisual.GetColor(gi),
+                name = item.GetLocalizedName(), rarity = GradeVisual.GetName(gi), rc = GradeVisual.GetColor(gi),
                 grade = gi, desc = cnt, pct = pct.ToString("0") + "%", got = true,
                 icon = ItemDatabase.GetIcon(item.iconKey)
             });
@@ -1418,7 +1418,7 @@ public class CodexUI : MonoBehaviour
             HoverButton(cell, () => ShowSourcePopup(srcItemId));   // 재료 클릭 -> 출처 팝업(+호버 발광으로 발견성)
             var mn = NewChild("mn", ins);
             mn.gameObject.AddComponent<LayoutElement>().preferredWidth = 112f;   // 이름 고정폭(타이트) -> 열 정렬 + 트레일링 여백 축소
-            Txt(mn, it != null ? it.itemName : inputs[m].itemId.ToString(), 15f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+            Txt(mn, it != null ? it.GetLocalizedName() : inputs[m].itemId.ToString(), 15f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         }
 
         // = 거터(고정폭 -> 행마다 동일 위치)
@@ -1435,7 +1435,7 @@ public class CodexUI : MonoBehaviour
         AddItemCell(row, 76f, outItem, r.outputCount);
         var oName = NewChild("on", row);
         oName.gameObject.AddComponent<LayoutElement>().preferredWidth = 150f;
-        Txt(oName, outItem != null ? outItem.itemName : (string)r.outputItemId, 18f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+        Txt(oName, outItem != null ? outItem.GetLocalizedName() : (string)r.outputItemId, 18f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
 
         // 우측으로 밀어내는 스페이서 + 제작 진행도(N/10, 마스터면 잭팟)
         var spacer = NewChild("sp", row);
@@ -1513,7 +1513,7 @@ public class CodexUI : MonoBehaviour
         // 텍스트 컬럼(슬롯 오른쪽 ~ 버튼 왼쪽). 캡션/이름/진행도를 세로로 분리해 안 겹치게.
         Txt(Make("rblab", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -28f), new Vector2(-196f, -8f)),
             Loc.Get("전 레시피 마스터 보상"), 12f, FontStyles.Normal, TxtMono, TextAlignmentOptions.Left);
-        string iname = item != null ? item.itemName : (Loc.Get("아이템") + " " + rewardItemId);
+        string iname = item != null ? item.GetLocalizedName() : (Loc.Get("아이템") + " " + rewardItemId);
         Txt(Make("rbnm", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -66f), new Vector2(-196f, -32f)),
             iname + "  x" + rewardCount, 21f, FontStyles.Bold, complete ? TxtMain : TxtSub, TextAlignmentOptions.Left);
         Txt(Make("rbpg", pad, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -94f), new Vector2(-196f, -70f)),
@@ -1593,7 +1593,7 @@ public class CodexUI : MonoBehaviour
         }
         var htxt = NewChild("ht", head);
         htxt.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
-        Txt(htxt, item != null ? item.itemName : itemId.ToString(), 24f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
+        Txt(htxt, item != null ? item.GetLocalizedName() : itemId.ToString(), 24f, FontStyles.Bold, TxtMain, TextAlignmentOptions.Left);
         if (item != null)
         {
             var gr = NewChild("gr", head);
@@ -1624,7 +1624,7 @@ public class CodexUI : MonoBehaviour
             if (FacilityUnlocked(fid))
             {
                 var fac = GameDataUtility.GetFacility(fid);
-                string fname = fac != null ? fac.facilityName : (Loc.Get("설비") + " " + fid);
+                string fname = fac != null ? fac.GetLocalizedName() : (Loc.Get("설비") + " " + fid);
                 AddSourceRow(card, Loc.Get("제작"), Accent, fname + " " + Loc.Get("에서 제작"), Loc.Get("이동"), () => JumpToFacility(fid, itemId));
             }
             else   // 미해금 설비는 스포 방지 -> ???

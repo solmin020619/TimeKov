@@ -739,7 +739,7 @@ public class InventoryUIController : MonoBehaviour
         splitPopup?.Close();
 
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
-        string name = data != null ? data.itemName : Loc.Get("아이템");
+        string name = data != null ? data.GetLocalizedName() : Loc.Get("아이템");
         int amount = slot.SlotData.amount;
         int itemId = slot.SlotData.itemId;
         int slotIdx = slot.SlotData.slotIndex;

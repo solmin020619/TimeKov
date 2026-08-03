@@ -56,7 +56,7 @@ namespace TIMEKOV.Factory
                     int id = machine.ActiveRecipe.outputs[0].itemId;
                     // 구버전: DataStore.GetItem(id) → GameDataUtility.GetItem(id)
                     var itemData = GameDataUtility.GetItem(id);
-                    outName = itemData?.itemName ?? id.ToString();
+                    outName = itemData?.GetLocalizedName() ?? id.ToString();
                 }
                 statusText.text = $"[{machine.MachineName}] " + Loc.Get("제작 중") + $"\n→ {outName} {(machine.Progress * 100f):F0}%";
             }
@@ -69,7 +69,7 @@ namespace TIMEKOV.Factory
                 {
                     if (kv.Value <= 0) continue;
                     var itemData = GameDataUtility.GetItem(kv.Key);
-                    outName = itemData?.itemName ?? kv.Key.ToString();
+                    outName = itemData?.GetLocalizedName() ?? kv.Key.ToString();
                     outAmt  = kv.Value;
                     break;
                 }

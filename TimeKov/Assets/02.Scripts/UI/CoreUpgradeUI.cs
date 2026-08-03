@@ -652,7 +652,7 @@ public class CoreUpgradeUI : MonoBehaviour
             }
             if (kitStockTexts != null && i < kitStockTexts.Length && kitStockTexts[i] != null)
             {
-                string nm = item != null ? item.itemName : Loc.Get("키트") + " " + (i + 1);
+                string nm = item != null ? item.GetLocalizedName() : Loc.Get("키트") + " " + (i + 1);
                 kitStockTexts[i].text  = $"{nm}   <color=#EAF3FB>x{count}</color>";
                 kitStockTexts[i].color = count > 0 ? new Color(0.78f, 0.86f, 0.94f) : new Color(0.42f, 0.5f, 0.6f);
             }
@@ -1215,6 +1215,6 @@ public class CoreUpgradeUI : MonoBehaviour
         if (string.IsNullOrEmpty(kitIdStr) || kitIdStr == "-") return "";
         if (!int.TryParse(kitIdStr, out int kitItemId)) return kitIdStr;
         var itemData = GameDataUtility.GetItem(kitItemId);
-        return itemData != null ? itemData.itemName : kitIdStr;
+        return itemData != null ? itemData.GetLocalizedName() : kitIdStr;
     }
 }

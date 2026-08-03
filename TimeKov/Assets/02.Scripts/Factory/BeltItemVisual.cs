@@ -1,7 +1,7 @@
 // =====================================================================
 // BeltItemVisual.cs
-// ÄÁº£ÀÌ¾î º§Æ® À§ ¾ÆÀÌÅÛ ½Ã°¢È­
-// ±¸¹öÀü DataStore.GetItem ¡æ GameDataUtility.GetItem À¸·Î ±³Ã¼
+// ï¿½ï¿½ï¿½ï¿½ï¿½Ì¾ï¿½ ï¿½ï¿½Æ® ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½È­
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ DataStore.GetItem ï¿½ï¿½ GameDataUtility.GetItem ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼
 // =====================================================================
 
 using TMPro;
@@ -22,7 +22,7 @@ namespace TIMEKOV.Factory
 
         private void LateUpdate()
         {
-            // Ä«¸Þ¶ó ¹æÇâ ºôº¸µå (ÇÊ¿ä ½Ã ÁÖ¼® ÇØÁ¦)
+            // Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½Ê¿ï¿½ ï¿½ï¿½ ï¿½Ö¼ï¿½ ï¿½ï¿½ï¿½ï¿½)
             // if (_cam != null)
             //     transform.rotation = Quaternion.LookRotation(transform.position - _cam.transform.position, Vector3.up);
         }
@@ -40,7 +40,7 @@ namespace TIMEKOV.Factory
                 iconImage.enabled = sprite != null;
             }
 
-            if (nameText != null) nameText.text = itemData?.itemName ?? itemId.ToString();
+            if (nameText != null) nameText.text = itemData?.GetLocalizedName() ?? itemId.ToString();
             if (countText != null) countText.text = amount > 1 ? $"x{amount}" : "";
 
             gameObject.name = $"[Belt] {itemId} x{amount}";

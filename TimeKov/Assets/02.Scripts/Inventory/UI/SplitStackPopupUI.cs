@@ -1,6 +1,6 @@
 // SplitStackPopupUI.cs
-// SplitStackPopup ¿ÀºêÁ§Æ®¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// ½ºÅÃ ºÐÇÒ ¼ö·® ÀÔ·Â ÆË¾÷
+// SplitStackPopup ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½Ë¾ï¿½
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,11 +8,11 @@ using TMPro;
 
 public class SplitStackPopupUI : MonoBehaviour
 {
-    [Header("ÅØ½ºÆ® ÂüÁ¶")]
+    [Header("ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private TextMeshProUGUI itemNameText;
     [SerializeField] private TMP_InputField amountInput;
 
-    [Header("¹öÆ° ÂüÁ¶")]
+    [Header("ï¿½ï¿½Æ° ï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private Button minusBtn;
     [SerializeField] private Button plusBtn;
     [SerializeField] private Button maxBtn;
@@ -42,7 +42,7 @@ public class SplitStackPopupUI : MonoBehaviour
             amountInput.onEndEdit.AddListener(OnInputEndEdit);
     }
 
-    // ÆË¾÷ ¿­±â
+    // ï¿½Ë¾ï¿½ ï¿½ï¿½ï¿½ï¿½
     public void Open(InventorySlotUI slot)
     {
         if (slot == null || slot.IsEmpty) return;
@@ -54,11 +54,11 @@ public class SplitStackPopupUI : MonoBehaviour
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
 
         if (itemNameText != null)
-            itemNameText.text = data != null ? data.itemName : "¾Ë ¼ö ¾ø´Â ¾ÆÀÌÅÛ";
+            itemNameText.text = data != null ? data.GetLocalizedName() :"ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½";
 
         if (_maxAmount <= 0)
         {
-            Debug.LogWarning("[SplitStackPopupUI] ¼ö·®ÀÌ 1 ÀÌÇÏ¶ó ºÐÇÒ ºÒ°¡");
+            Debug.LogWarning("[SplitStackPopupUI] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 1 ï¿½ï¿½ï¿½Ï¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ò°ï¿½");
             return;
         }
 
@@ -66,14 +66,14 @@ public class SplitStackPopupUI : MonoBehaviour
         gameObject.SetActive(true);
     }
 
-    // ÆË¾÷ ´Ý±â
+    // ï¿½Ë¾ï¿½ ï¿½Ý±ï¿½
     public void Close()
     {
         _targetSlot = null;
         gameObject.SetActive(false);
     }
 
-    // ¼ö·® Ç¥½Ã °»½Å
+    // ï¿½ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     private void UpdateDisplay()
     {
         if (amountInput != null)
@@ -120,7 +120,7 @@ public class SplitStackPopupUI : MonoBehaviour
 
         bool success = owner.SplitStack(slot.slotIndex, _splitAmount, owner);
         if (!success)
-            Debug.LogWarning("[SplitStackPopupUI] ºÐÇÒ ½ÇÆÐ: ÀÎº¥Åä¸® °¡µæ Âü");
+            Debug.LogWarning("[SplitStackPopupUI] ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½: ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½");
 
         Close();
     }

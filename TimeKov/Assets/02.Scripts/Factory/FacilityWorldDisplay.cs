@@ -185,7 +185,7 @@ namespace TIMEKOV.Factory
             {
                 var fd = GameDataUtility.GetFacility(_machine.FacilityId);
                 if (fd != null && !string.IsNullOrEmpty(fd.facilityName))
-                    return fd.facilityName;
+                    return fd.GetLocalizedName();
             }
 
             string n = gameObject.name ?? "";

@@ -216,7 +216,7 @@ public class FuelDropSlot : MonoBehaviour,
             if (cfg != null)
             {
                 var d = GameDataUtility.GetItem(cfg.fuelItemId);
-                if (d != null) fuelName = d.itemName;
+                if (d != null) fuelName = d.GetLocalizedName();
             }
             bool iconShown = _burnItemIcon != null && _burnItemIcon.enabled;
             _burnInfo.rectTransform.anchoredPosition = new Vector2(BurnerGaugeX + (iconShown ? 34f : 0f), 16f);

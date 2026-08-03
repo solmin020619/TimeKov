@@ -118,7 +118,7 @@ public class ItemTooltipUI : MonoBehaviour
             if (data != null)
             {
                 int g = (int)data.itemGrade;
-                itemNameText.text = data.itemName;
+                itemNameText.text = data.GetLocalizedName();
                 itemNameText.color = GradeVisual.IsCommon(g) ? Color.white : GradeVisual.GetColor(g);
             }
             else
