@@ -64,7 +64,6 @@ public class EnemyHealth : MonoBehaviour
     {
         // 일반몹은 EnemyBrain, 보스는 전용 컨트롤러가 IEnemyDataSource 를 구현한다.
         var src = GetComponent<IEnemyDataSource>();
-        Debug.Log($"[{gameObject.name}] src={src}, data={src?.Data}, name={src?.Data?.enemyName}");
         if (src != null && src.Data != null && !string.IsNullOrEmpty(src.Data.enemyName))
             return Loc.Get(src.Data.enemyName);
         // SO 없을 때 fallback: "Enemy_X(Clone)" → "Enemy_X"

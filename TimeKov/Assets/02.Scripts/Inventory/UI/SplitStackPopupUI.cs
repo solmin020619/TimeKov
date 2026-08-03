@@ -40,6 +40,28 @@ public class SplitStackPopupUI : MonoBehaviour
 
         if (amountInput != null)
             amountInput.onEndEdit.AddListener(OnInputEndEdit);
+
+        RefreshButtonLabels();
+        Loc.OnLanguageChanged += RefreshButtonLabels;
+    }
+
+    private void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshButtonLabels;
+    }
+
+    private void RefreshButtonLabels()
+    {
+        SetBtnText(maxBtn, "최대");
+        SetBtnText(confirmBtn, "확인");
+        SetBtnText(cancelBtn, "취소");
+    }
+
+    private static void SetBtnText(Button btn, string key)
+    {
+        if (btn == null) return;
+        var label = btn.GetComponentInChildren<TextMeshProUGUI>();
+        if (label != null) label.text = Loc.Get(key);
     }
 
     // �˾� ����

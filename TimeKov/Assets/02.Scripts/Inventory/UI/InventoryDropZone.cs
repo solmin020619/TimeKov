@@ -10,6 +10,7 @@
 
 using UnityEngine;
 using UnityEngine.EventSystems;
+using TMPro;
 
 [RequireComponent(typeof(InventoryGridUI))]
 public class InventoryDropZone : MonoBehaviour, IDropHandler
@@ -22,6 +23,8 @@ public class InventoryDropZone : MonoBehaviour, IDropHandler
     private RectTransform _rect;
     private Canvas _canvas;
     private bool _region, _hint;
+    private TMP_Text _hintText;
+    private string _hintKey;
 
     private InventoryManager Source => depositToStorage ? InventoryManager.Instance : InventoryManager.StorageInstance;
     private InventoryManager Target => depositToStorage ? InventoryManager.StorageInstance : InventoryManager.Instance;
@@ -33,6 +36,25 @@ public class InventoryDropZone : MonoBehaviour, IDropHandler
         _canvas = GetComponentInParent<Canvas>();
         SetRegion(false);
         SetHint(false);
+
+        if (dragHint != null)
+        {
+            _hintText = dragHint.GetComponentInChildren<TMP_Text>(true);
+            if (_hintText != null) _hintKey = _hintText.text;
+        }
+        Loc.OnLanguageChanged += RefreshHintText;
+        RefreshHintText();
+    }
+
+    private void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshHintText;
+    }
+
+    private void RefreshHintText()
+    {
+        if (_hintText != null && _hintKey != null)
+            _hintText.text = Loc.Get(_hintKey);
     }
 
     private void Update()
