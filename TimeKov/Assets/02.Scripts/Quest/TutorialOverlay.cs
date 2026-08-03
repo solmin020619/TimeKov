@@ -77,8 +77,9 @@ public class TutorialOverlay : MonoBehaviour
     [SerializeField] private TMP_Text banner;
     [SerializeField] private TMP_Text continueLabel;
 
+    // 딤 색 슬롯은 없앴다. 어둡게 덮는 색은 fullDim / dimTop~Right 이미지 각자의 Color 가 그린다.
+    // 여기에 색을 넣어도 아무 데도 안 쓰이는 칸이었다.
     [Header("색")]
-    [SerializeField] private Color dimColor = new Color(0f, 0f, 0f, 0.88f);
     [Tooltip("구멍 테두리 색(계속 라벨과 동일 금색).")]
     [SerializeField] private Color borderColor = new Color(1f, 0.85f, 0.2f, 1f);
 
