@@ -159,7 +159,7 @@ public class BaseUpgradeManager : MonoBehaviour
 
         if (GetState(def) != ItemState.Available)
         {
-            ToastManager.Warning("지금 구매할 수 없는 항목입니다");
+            ToastManager.Warning(Loc.Get("지금 구매할 수 없는 항목입니다"));
             return false;
         }
         if (def.kind == UpgradeKind.StorageExtractor && storageExtractorPrefab == null)
@@ -169,7 +169,7 @@ public class BaseUpgradeManager : MonoBehaviour
         }
         if (!HasKit(def))
         {
-            ToastManager.Warning("재료가 부족합니다");
+            ToastManager.Warning(Loc.Get("재료가 부족합니다"));
             return false;
         }
         if (!ConsumeKit(def))
@@ -185,7 +185,7 @@ public class BaseUpgradeManager : MonoBehaviour
             //   기지 업그레이드의 구역 확장 항목은 인스펙터에서 지워라.
             Debug.LogWarning("[BaseUpgrade] 구역 확장 항목은 폐기됐다(우주선 수리가 담당). " +
                              "이 업그레이드 항목을 인스펙터에서 제거해라.");
-            ToastManager.Warning("이 업그레이드는 더 이상 사용하지 않습니다");
+            ToastManager.Warning(Loc.Get("이 업그레이드는 더 이상 사용하지 않습니다"));
             return false;
         }
         else
@@ -195,7 +195,7 @@ public class BaseUpgradeManager : MonoBehaviour
         }
 
         Save();
-        ToastManager.Success($"{def.displayName} 완료");
+        ToastManager.Success(string.Format(Loc.Get("{0} 완료"), def.displayName));
         OnChanged?.Invoke();
         return true;
     }

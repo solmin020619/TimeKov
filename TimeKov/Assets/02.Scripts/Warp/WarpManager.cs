@@ -151,7 +151,7 @@ public class WarpManager : MonoBehaviour, ISaveable
             //   (소개 영상이 "F로 활성화한 순간"에 딱 뜨도록. 지나가다 밟혀서 뜨는 어색함 제거)
             if (!IsActivated(wp.warpId))
             {
-                ToastManager.Info("먼저 F로 워프를 활성화하세요.");   // 활성화 전엔 밟아도 이동 안 됨
+                ToastManager.Info(Loc.Get("먼저 F로 워프를 활성화하세요."));   // 활성화 전엔 밟아도 이동 안 됨
                 return;
             }
 
@@ -161,7 +161,7 @@ public class WarpManager : MonoBehaviour, ISaveable
             {
                 // 복귀 지점 미할당 → 원점으로 텔레포트하면 물/허공에 박히므로 취소.
                 Debug.LogWarning($"[Warp] {RegionName(wp.region)} 기지 복귀 지점(baseReturn*)이 할당되지 않았습니다.", this);
-                ToastManager.Warning("기지 복귀 지점이 설정되지 않았습니다.");
+                ToastManager.Warning(Loc.Get("기지 복귀 지점이 설정되지 않았습니다."));
                 wp.SuppressUntilExit();
                 return;
             }
@@ -172,7 +172,7 @@ public class WarpManager : MonoBehaviour, ISaveable
             var dests = ActivatedPointsIn(wp.region);
             if (dests.Count == 0)
             {
-                ToastManager.Warning($"{RegionName(wp.region)} 지역에서 먼저 워프 지점을 활성화하세요.");
+                ToastManager.Warning(string.Format(Loc.Get("{0} 지역에서 먼저 워프 지점을 활성화하세요."), Loc.Get(RegionName(wp.region))));
                 wp.SuppressUntilExit();
                 return;
             }
@@ -192,7 +192,7 @@ public class WarpManager : MonoBehaviour, ISaveable
         _activated.Add(wp.warpId);
         SpawnVfx(ResolveArrival(wp), wp.Center, TintFor(wp.region));
         GameSfx.Play(SfxId.WarpArrive, wp.Center);   // 활성화음(도착음 공용)
-        ToastManager.Success($"워프 지점 활성화 - {RegionName(wp.region)}");
+        ToastManager.Success(string.Format(Loc.Get("워프 지점 활성화 - {0}"), Loc.Get(RegionName(wp.region))));
         SaveSlotManager.Instance?.SaveActive();
         DiscoveryCueManager.TryFire("warp");   // 소개 영상(1회, 이후 지점은 중복 무시)
 
@@ -218,7 +218,7 @@ public class WarpManager : MonoBehaviour, ISaveable
         _chargeCo = null;
         _chargingPoint = null;
         CleanupChargeVfx();
-        ToastManager.Warning("워프가 취소되었습니다.");
+        ToastManager.Warning(Loc.Get("워프가 취소되었습니다."));
     }
 
     // ── 충전(원통 안 대기) ────────────────────────────────────────────

@@ -171,33 +171,33 @@ public class TransmissionManager : MonoBehaviour, ISaveable
     public bool CanTransmit(ChargedKitDef kit, out string reason)
     {
         reason = null;
-        if (kit == null) { reason = "전송 가능한 시간에너지 키트가 없습니다."; return false; }
+        if (kit == null) { reason = Loc.Get("전송 가능한 시간에너지 키트가 없습니다."); return false; }
 
         if (TransmissionRate >= MaxRate)
         {
-            reason = "시간에너지 전송률 100%를 달성했습니다.";
+            reason = Loc.Get("시간에너지 전송률 100%를 달성했습니다.");
             return false;
         }
         if (kit.region != CurrentRegion)
         {
-            reason = "현재 전송 구간에서 사용할 수 없는 키트입니다.";
+            reason = Loc.Get("현재 전송 구간에서 사용할 수 없는 키트입니다.");
             return false;
         }
         if (!kit.isBoss && TransmissionRate >= CurrentRegionNormalCap)
         {
             // 일반 상한 도달 — 남은 구간은 보스 키트로만.
-            reason = "지역 보스 재료가 포함된 특수 키트가 필요합니다.";
+            reason = Loc.Get("지역 보스 재료가 포함된 특수 키트가 필요합니다.");
             return false;
         }
         if (GetOwnedCount(kit.itemId) <= 0)
         {
-            reason = "전송 가능한 시간에너지 키트가 없습니다.";
+            reason = Loc.Get("전송 가능한 시간에너지 키트가 없습니다.");
             return false;
         }
         if (GetProjectedRate(kit) <= TransmissionRate)
         {
             // 이미 이 구간 상한이라 더 못 올림
-            reason = "해당 지역의 시간에너지 전송을 완료했습니다.";
+            reason = Loc.Get("해당 지역의 시간에너지 전송을 완료했습니다.");
             return false;
         }
         return true;
@@ -233,7 +233,7 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         // ③ 전송률 상승 + 보상 지급 (상태 변경은 SaveSlotManager 자동 저장이 캡처)
         GameSfx.Play(SfxId.TransmissionSend);   // 전송 실행음(키트 전송 확정)
         ApplyRate(projected);                   // 내부에서 전송률 상승음/보상 수령음 발생
-        ToastManager.Success("시간에너지 전송이 완료되었습니다.");
+        ToastManager.Success(Loc.Get("시간에너지 전송이 완료되었습니다."));
         return true;
     }
 

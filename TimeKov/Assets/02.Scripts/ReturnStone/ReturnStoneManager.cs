@@ -149,7 +149,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     private IEnumerator UnlockRevealRoutine()
     {
         _hud?.PlayUnlockCelebration();
-        ToastManager.Success("귀환석을 획득했습니다! H로 기지에 귀환할 수 있습니다.");
+        ToastManager.Success(Loc.Get("귀환석을 획득했습니다! H로 기지에 귀환할 수 있습니다."));
         yield return new WaitForSecondsRealtime(1.2f);
         DiscoveryCueManager.TryFire("returnstone");   // 소개 영상(이미 봤으면 무해하게 스킵)
     }
@@ -159,7 +159,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
     public bool TryUse()
     {
         if (_channeling) return false;
-        if (!IsOwned) { _hud?.NudgeLock(); ToastManager.Warning("귀환석을 보유하고 있지 않습니다."); return false; }
+        if (!IsOwned) { _hud?.NudgeLock(); ToastManager.Warning(Loc.Get("귀환석을 보유하고 있지 않습니다.")); return false; }
 
         var player = ResolvePlayer();
         if (player == null) return false;
@@ -169,25 +169,25 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
         // 스킬/공격 모션 중에는 사용 불가 — 즉발기는 이펙트를 못 되돌리므로 모션이 끝난 뒤 사용.
         if (player.Skill != null && player.Skill.IsExecuting)
         {
-            ToastManager.Warning("행동 중에는 귀환석을 사용할 수 없습니다.");
+            ToastManager.Warning(Loc.Get("행동 중에는 귀환석을 사용할 수 없습니다."));
             return false;
         }
 
         // 이동 중에는 사용 불가 — 채널은 제자리에서만. (가만히 선 뒤 사용)
         if (player.Input != null && player.Input.MoveInputRaw.sqrMagnitude > 0.01f)
         {
-            ToastManager.Warning("이동 중에는 귀환석을 사용할 수 없습니다.");
+            ToastManager.Warning(Loc.Get("이동 중에는 귀환석을 사용할 수 없습니다."));
             return false;
         }
 
         if (player.Stat != null && player.Stat.IsInBase)
         {
-            ToastManager.Info("기지 안에서는 귀환석이 필요 없습니다.");
+            ToastManager.Info(Loc.Get("기지 안에서는 귀환석이 필요 없습니다."));
             return false;
         }
         if (_cooldownRemaining > 0f)
         {
-            ToastManager.Warning($"귀환석 재사용까지 약 {Mathf.CeilToInt(_cooldownRemaining / 60f)}분");
+            ToastManager.Warning(string.Format(Loc.Get("귀환석 재사용까지 약 {0}분"), Mathf.CeilToInt(_cooldownRemaining / 60f)));
             return false;
         }
 
@@ -235,7 +235,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
         if (cancelled || (stat != null && stat.IsDead))
         {
-            ToastManager.Warning("귀환이 취소되었습니다.");
+            ToastManager.Warning(Loc.Get("귀환이 취소되었습니다."));
             _channeling = false;
             yield break;
         }

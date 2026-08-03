@@ -412,7 +412,7 @@ public class BuildManager : MonoBehaviour, ISaveable
         if (buildSlots != null && index >= 0 && index < buildSlots.Length
             && buildSlots[index].facilityId == 0)
         {
-            ToastManager.Warning("아직 해금되지 않은 설비입니다");
+            ToastManager.Warning(Loc.Get("아직 해금되지 않은 설비입니다"));
             return;
         }
 
@@ -426,7 +426,7 @@ public class BuildManager : MonoBehaviour, ISaveable
                 int placed = CountPlacedFacilities(fid);
                 if (placed >= max)
                 {
-                    ToastManager.Warning($"설치 한도에 도달했습니다 ({placed}/{max})");
+                    ToastManager.Warning(string.Format(Loc.Get("설치 한도에 도달했습니다 ({0}/{1})"), placed, max));
                     return;
                 }
             }
@@ -525,7 +525,7 @@ public class BuildManager : MonoBehaviour, ISaveable
     void ShowBuildZoneToast()
     {
         // 공통 토스트로 통일 (#9) — 기존 buildZoneToast(퀘스트형) 대신 ToastManager 사용.
-        ToastManager.Show(buildZoneBlockedMessage, ToastStyle.Warning);
+        ToastManager.Show(Loc.Get(buildZoneBlockedMessage), ToastStyle.Warning);
     }
 
     // 진입 성공 여부 반환 (true=건설 모드, false=차단됨). 건축투어가 실패 시 대기하는 데 사용.
@@ -783,10 +783,10 @@ public class BuildManager : MonoBehaviour, ISaveable
                 Debug.LogError("[Build] 창고 출력 포트가 회전 불가로 설정돼 있다. " +
                                "FacilityData 시트의 facilityId 9 행 canRotate 를 1 로 바꿔라. " +
                                "(자유 배치로 바꾸면서 자동 회전이 사라졌다)");
-                ToastManager.Info("이 설비는 아직 회전 설정이 안 돼 있습니다");
+                ToastManager.Info(Loc.Get("이 설비는 아직 회전 설정이 안 돼 있습니다"));
                 return;
             }
-            ToastManager.Info("회전할 수 없는 설비입니다");
+            ToastManager.Info(Loc.Get("회전할 수 없는 설비입니다"));
             return;
         }
 

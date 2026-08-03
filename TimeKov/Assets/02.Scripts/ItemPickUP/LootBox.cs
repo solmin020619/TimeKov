@@ -88,7 +88,7 @@ public class LootBox : MonoBehaviour, IInteractable
             }
 
             if (movedToStorage)
-                ToastManager.Info("인벤토리가 가득 차 창고로 이동했습니다");
+                ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
         }
         else if (inv == null)
         {

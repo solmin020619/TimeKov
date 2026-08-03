@@ -13,7 +13,7 @@ public class DropPickupRow : MonoBehaviour
     {
         ItemDataSheetData item = GameDataUtility.GetItem(itemId);
 
-        nameText.text = item != null ? item.itemName : itemId.ToString();
+        nameText.text = item != null ? item.GetLocalizedName() : itemId.ToString();
         countText.text = count.ToString();
         tierBar.color = tierColor;
 

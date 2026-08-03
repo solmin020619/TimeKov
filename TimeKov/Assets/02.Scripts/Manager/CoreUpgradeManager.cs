@@ -97,7 +97,7 @@ public class CoreUpgradeManager : MonoBehaviour, ISaveable
     {
         if (CurrentCoreLevel >= MAX_LEVEL)
         {
-            ToastManager.Warning("이미 최대 코어 레벨");
+            ToastManager.Warning(Loc.Get("이미 최대 코어 레벨"));
             return;
         }
         CurrentCoreLevel++;
@@ -170,7 +170,7 @@ public class CoreUpgradeManager : MonoBehaviour, ISaveable
         if (!HasRequiredKit(nextData))
         {
             Debug.LogWarning("[CoreUpgrade] 재료 부족 (재검사 실패)");
-            ToastManager.Warning("강화 키트가 부족합니다");
+            ToastManager.Warning(Loc.Get("강화 키트가 부족합니다"));
             return false;
         }
 
@@ -195,7 +195,7 @@ public class CoreUpgradeManager : MonoBehaviour, ISaveable
             OnLevelChanged?.Invoke(CurrentCoreLevel);
             GameEvents.RaiseCoreUpgraded(CurrentCoreLevel);   // 튜토리얼 등 전역 구독자 통지
             GameSfx.Play(SfxId.CoreUpgradeSuccess);
-            ToastManager.Success("코어 강화 성공!");
+            ToastManager.Success(Loc.Get("코어 강화 성공!"));
         }
         else
         {

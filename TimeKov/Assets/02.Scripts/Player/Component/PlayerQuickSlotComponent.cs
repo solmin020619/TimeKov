@@ -45,14 +45,14 @@ public class PlayerQuickSlotComponent : MonoBehaviour
         var data = ItemDatabase.GetItem(itemId);
         if (data == null || data.itemCategory != ItemCategory.TacticalConsumable)
         {
-            ToastManager.Warning("소모품만 퀵슬롯에 등록할 수 있습니다.");
+            ToastManager.Warning(Loc.Get("소모품만 퀵슬롯에 등록할 수 있습니다."));
             return;
         }
 
         RegisteredItemId = itemId;
         OnChanged?.Invoke();
         GameEvents.RaiseQuickSlotRegistered(itemId);   // 튜토리얼 등록 퀘스트용
-        ToastManager.Success("퀵슬롯에 등록했습니다.");
+        ToastManager.Success(Loc.Get("퀵슬롯에 등록했습니다."));
     }
 
     public void ClearSlot()
@@ -76,7 +76,7 @@ public class PlayerQuickSlotComponent : MonoBehaviour
 
         if (inv.GetTotalItemCount(itemId) <= 0)
         {
-            ToastManager.Warning("소모품이 없습니다.");
+            ToastManager.Warning(Loc.Get("소모품이 없습니다."));
             return;
         }
 
@@ -86,7 +86,7 @@ public class PlayerQuickSlotComponent : MonoBehaviour
         // 만피 회복 앰플 등 의미 없는 사용은 막고 아이템 보존 (우클릭 메뉴와 동일 규칙).
         if (!ConsumableEffectApplier.CanApply(itemId.ToString(), _player))
         {
-            ToastManager.Warning("시간이 이미 가득 찼습니다.");
+            ToastManager.Warning(Loc.Get("시간이 이미 가득 찼습니다."));
             return;
         }
 

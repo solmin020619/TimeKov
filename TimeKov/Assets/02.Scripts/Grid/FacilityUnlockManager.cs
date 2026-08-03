@@ -131,12 +131,11 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
         GameEvents.RaiseFacilityUnlocked(facilityId);   // 튜토리얼 등 전역 구독자 통지
         CodexNotice.MarkUnseen(CodexNotice.Facility);   // 도감 알림(!) - 설비 탭에 새 항목
 
-        string facilityName = null;
-        if (GameDataHolder.I != null && GameDataHolder.I.FacilityData.TryGet(facilityId.ToString(), out var fdata))
-            facilityName = fdata.facilityName;
-        ToastManager.Success(string.IsNullOrEmpty(facilityName)
-            ? "설비를 해금했습니다!"
-            : $"{facilityName} 설비를 해금했습니다!");
+        FacilityDataSheetData fdata = null;
+        GameDataHolder.I?.FacilityData.TryGet(facilityId.ToString(), out fdata);
+        ToastManager.Success(fdata == null
+            ? Loc.Get("설비를 해금했습니다!")
+            : string.Format(Loc.Get("{0} 설비를 해금했습니다!"), fdata.GetLocalizedName()));
         return true;
     }
 }

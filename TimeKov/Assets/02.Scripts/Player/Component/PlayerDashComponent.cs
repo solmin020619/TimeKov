@@ -67,7 +67,7 @@ public class PlayerDashComponent : MonoBehaviour
     {
         if (_wasUnlocked || !IsDashUnlocked) return;
         _wasUnlocked = true;
-        ToastManager.Success("우클릭 대쉬 해금!");
+        ToastManager.Success(Loc.Get("우클릭 대쉬 해금!"));
         OnDashUnlocked?.Invoke();
     }
 
@@ -94,7 +94,7 @@ public class PlayerDashComponent : MonoBehaviour
         {
             if (_lockedToastTimer <= 0f)
             {
-                ToastManager.Warning($"우클릭 대쉬는 코어 {DashUnlockCoreLevel}강에 해금됩니다");
+                ToastManager.Warning(string.Format(Loc.Get("우클릭 대쉬는 코어 {0}강에 해금됩니다"), DashUnlockCoreLevel));
                 _lockedToastTimer = 2.5f;
                 OnDashBlocked?.Invoke();   // HUD 바 띄우고 잠금 슬롯 덜컹(왜 안 되는지 보게)
             }
