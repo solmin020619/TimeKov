@@ -10,7 +10,8 @@ using UnityEngine.UI;
 /// - 상단 배너 텍스트 + "아무 곳이나 눌러 계속하기".
 /// ContinueObjective / GuidedTourObjective 가 ShowContinueStep / Hide 를 호출한다.
 ///
-/// [08-02] 런타임 자체생성 -> 씬 실물 오브젝트로 전환. 계층 생성은 TutorialOverlayBuilder(에디터) 담당.
+/// [08-02] 런타임 자체생성 -> 씬 실물 오브젝트로 전환. 계층은 씬에 있는 실물이 원본이다.
+/// (생성용 에디터 빌더는 08-03 에 팀 합의로 제거. 다시 구워야 하면 git 이력에서 꺼낸다)
 ///   스포트라이트 '위치'는 타깃을 따라가야 해서 여전히 매 프레임 계산하지만,
 ///   구성 요소/색/두께/프레임 스프라이트는 이제 인스펙터에서 조정한다(프레임은 Resources.Load 대신 직접 참조).
 ///   오브젝트는 항상 활성으로 두고 Canvas/Raycaster 만 토글한다 - LateUpdate 가 계속 돌아야

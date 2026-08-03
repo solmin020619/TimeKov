@@ -57,7 +57,7 @@ public class CodexUI : MonoBehaviour
     static readonly Color TxtSub   = C32(76, 84, 93);
     static readonly Color TxtDim   = C32(170, 178, 187);
     static readonly Color TxtMono  = C32(124, 132, 140);
-    // 인벤 슬롯과 동일 소스(InventoryUIBuilder). 각진 반투명 다크 + 4변 쿨슬레이트 테두리.
+    // 인벤 슬롯과 같은 값을 쓴다. 각진 반투명 다크 + 4변 쿨슬레이트 테두리.
     static readonly Color SlotFill = new Color(12f / 255f, 16f / 255f, 24f / 255f, 0.10f);   // 칸 = 살짝만 어둡게(테두리가 정의)
     static readonly Color SlotLine = new Color(40f / 255f, 54f / 255f, 74f / 255f, 0.45f);   // 4변 균일 테두리(쿨 슬레이트)
     static readonly Color CloseBg  = new Color(1f, 1f, 1f, 0.60f);

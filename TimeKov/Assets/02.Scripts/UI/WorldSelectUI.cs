@@ -46,7 +46,7 @@ public class WorldSelectUI : MonoBehaviour
 
     void Awake()
     {
-        // mainMenuList는 MainMenuButtonsBuilder가 실행될 때마다 "MenuList"를 통째로
+        // mainMenuList는 예전에 에디터 빌더가 "MenuList"를 통째로
         // 지우고 새로 만든다 — 이 WorldSelectUI를 다시 빌드하지 않은 채로 그 builder를
         // 나중에 또 돌리면 여기 직렬화된 참조가 파괴된 옛 GameObject를 가리키게 되어(=null
         // 취급) 메인메뉴 버튼들이 안 가려지는 버그가 난다. 빌드 순서에 의존하지 않도록

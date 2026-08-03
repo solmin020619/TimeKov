@@ -5,7 +5,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// 메인메뉴 세로 메뉴 아이템의 호버 색/배경 전환 + 살짝 커지는 스케일 연출. MainMenuButtonsBuilder가 부착.
+/// 메인메뉴 세로 메뉴 아이템의 호버 색/배경 전환 + 살짝 커지는 스케일 연출.
+/// MainMenu 씬의 메뉴 항목에 실물로 붙어 있다(부착하던 에디터 빌더는 08-03 에 제거).
 /// </summary>
 public class MenuItemHoverFx : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {

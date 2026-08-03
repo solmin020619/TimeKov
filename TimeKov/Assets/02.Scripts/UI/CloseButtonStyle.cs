@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 // 닫기(X) 버튼의 호버/클릭 하이라이트를 인벤토리와 동일하게 통일한다.
 // 버튼 루트 Image = 둥근 배경(평소 투명) + ColorTint 로 은은한 슬레이트 하이라이트.
-// 값은 인벤 InventoryUIBuilder 의 CloseButton 과 1:1(어긋남 방지). X 아이콘은 별도 자식(Icon).
+// 값은 인벤토리 패널의 CloseButton 과 1:1(어긋남 방지). X 아이콘은 별도 자식(Icon).
 public static class CloseButtonStyle
 {
     public static void Apply(Button btn)
