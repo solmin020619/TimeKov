@@ -163,4 +163,23 @@ public class ActiveBuffManager : MonoBehaviour
     {
         ApplyDelta(buff.target, -buff.appliedDelta);
     }
+
+    /// <summary>
+    /// 지금 걸려 있는 버프들이 이 스탯에 더해 놓은 총량.
+    ///
+    /// 세이브가 이걸 빼고 저장해야 한다. 버프는 스탯 값에 직접 더해지는데(ApplyDelta),
+    /// 그 상태로 저장하면 버프량이 저장값에 눌어붙는다. 만료되면 실행 중인 값은 되돌아가지만
+    /// 저장된 값은 부푼 채라, 다음에 불러오면 되돌릴 버프가 없어서 영구 상승이 된다.
+    /// 퀘스트 클리어/코어 강화/귀환석 같은 자동 저장이 버프 지속 중에 걸리면 바로 발생하고,
+    /// 반복하면 계속 쌓인다.
+    ///
+    /// 앰플(PermanentStat)로 올린 영구 증가분은 이 목록에 안 들어오므로 그대로 저장된다.
+    /// </summary>
+    public float GetActiveDelta(EffectTarget target)
+    {
+        float sum = 0f;
+        for (int i = 0; i < _activeBuffs.Count; i++)
+            if (_activeBuffs[i].target == target) sum += _activeBuffs[i].appliedDelta;
+        return sum;
+    }
 }

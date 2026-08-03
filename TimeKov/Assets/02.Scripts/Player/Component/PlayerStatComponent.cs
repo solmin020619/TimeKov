@@ -113,9 +113,15 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     public void Capture(GameSaveData data)
     {
         data.playerHpPercent = MaxHp > 0f ? Mathf.Clamp01(CurrentHp / MaxHp) : 1f;
-        data.playerATK = ATK;
-        data.playerDEF = DEF;
-        data.playerMaxStamina = MaxStamina;
+
+        // 일시 버프로 부풀어 있는 만큼은 빼고 저장한다.
+        // 버프는 ATK/DEF 에 직접 더해지기 때문에, 그대로 저장하면 버프가 끝난 뒤에도
+        // 저장값에 남아 다음 로드에서 영구 상승이 된다(되돌릴 버프가 없으므로).
+        // 앰플로 올린 영구 증가분은 버프 목록에 없어서 그대로 저장된다.
+        var buffs = GetComponent<ActiveBuffManager>();
+        data.playerATK         = ATK         - (buffs != null ? buffs.GetActiveDelta(EffectTarget.ATK)     : 0f);
+        data.playerDEF         = DEF         - (buffs != null ? buffs.GetActiveDelta(EffectTarget.DEF)     : 0f);
+        data.playerMaxStamina  = MaxStamina  - (buffs != null ? buffs.GetActiveDelta(EffectTarget.Stamina) : 0f);
         data.hasPlayerPosition = true;
         data.playerPosition = transform.position;
         data.playerRotationY = transform.eulerAngles.y;
