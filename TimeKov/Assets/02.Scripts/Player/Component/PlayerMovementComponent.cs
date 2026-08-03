@@ -63,6 +63,7 @@ public class PlayerMovementComponent : MonoBehaviour
 
     private Vector3 _moveDir;
     private bool _isGrounded;
+    private Vector3 _lastGroundedPos;   // 발이 땅에서 떨어진 순간의 위치(공중일 때만 의미가 있다)
     private bool _wasGrounded;
     private Vector3 _groundNormal         = Vector3.up; // 현재 지면 법선 (SphereCast 원시값)
     private Vector3 _smoothedGroundNormal = Vector3.up; // 스무딩된 법선 (노이즈 제거)
@@ -128,6 +129,10 @@ public class PlayerMovementComponent : MonoBehaviour
 
         _rb.freezeRotation = true;
         _rb.useGravity = false;
+
+        // 시작 위치로 초기화. 한 번도 땅을 밟기 전에 공중에서 죽으면(스폰 직후 낙하 등)
+        // 이게 없으면 마지막 접지 지점이 (0,0,0) 이라 전리품이 월드 원점에 떨어진다.
+        _lastGroundedPos = transform.position;
     }
 
     void OnEnable()
@@ -283,6 +288,13 @@ public class PlayerMovementComponent : MonoBehaviour
 
     public bool  OnSteepSlope      => _onSteepSlope;
 
+    /// <summary>
+    /// 마지막으로 땅을 밟고 있던 위치.
+    /// 땅에 서 있으면 지금 위치가 그대로 답이고, 공중이면 발을 뗀 순간의 위치를 돌려준다.
+    /// 물/절벽으로 떨어져 죽었을 때 전리품을 회수 가능한 자리에 떨구는 용도.
+    /// </summary>
+    public Vector3 LastGroundedPosition => _isGrounded ? transform.position : _lastGroundedPos;
+
     void GroundCheck()
     {
         _wasGrounded = _isGrounded;
@@ -311,6 +323,12 @@ public class PlayerMovementComponent : MonoBehaviour
         // 단, 점프로 상승 중엔 접지로 오판하지 않게(중력이 걸려야 함) 강제 해제
         if (_isJumping && _rb.linearVelocity.y > 0.1f)
             _isGrounded = false;
+
+        // 발이 땅에서 떨어지는 그 순간에만 1회 기록한다(매 프레임 쓰지 않는다).
+        // 낭떠러지에서 떨어져 죽었을 때 전리품을 "발 뗀 자리" 에 떨구는 데 쓴다.
+        // 땅에 서 있는 동안은 지금 위치가 곧 마지막 접지 지점이라 저장할 필요가 없다(아래 프로퍼티 참고).
+        if (_wasGrounded && !_isGrounded)
+            _lastGroundedPos = transform.position;
 
         // SphereCast 원시 법선을 스무딩: 폴리곤 경계·돌출부에서 1~2프레임 노이즈 제거
         // Slerp factor 15 × deltaTime ≈ 0.25/frame → 약 4프레임에 걸쳐 부드럽게 수렴

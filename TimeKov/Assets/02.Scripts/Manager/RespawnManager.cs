@@ -173,6 +173,33 @@ public class RespawnManager : MonoBehaviour, ISaveLoadListener
     }
 
     // 인벤토리 아이템 전부 드롭
+    // 전리품 상자를 놓을 자리.
+    //
+    // 죽은 자리를 그대로 쓰면 바다에 빠져 죽었을 때 상자가 수면 위에 뜬다(물 콜라이더가 솔리드라
+    // 상자 착지 로직이 수면을 바닥으로 인정한다). 가지러 들어가면 또 죽으니 사실상 회수 불가다.
+    //
+    // 그래서 "마지막으로 땅을 밟은 자리" 를 기준으로 잡는다. 낭떠러지에서 떨어졌으면 발을 뗀
+    // 절벽 위에 뜨고, 물가에서 실수로 빠졌으면 밟고 있던 물가에 뜬다. 평지에서 죽으면 죽은 자리와 같다.
+    //   ★죽은 자리 기준으로 "가장 가까운 NavMesh" 를 찾는 방식은 쓰지 않는다. 절벽 밑이 바로 바다면
+    //     낙차까지 거리에 포함돼서, 물가 대신 바다 건너 섬이 뽑힐 수 있다.
+    //   기준점이 이미 땅 위라 NavMesh 보정 반경은 짧아도 된다(지형 틈새 메우는 용도).
+    private Vector3 ResolveDropPosition()
+    {
+        Vector3 basePos = _player.Movement != null
+            ? _player.Movement.LastGroundedPosition
+            : _player.transform.position;
+
+        if (UnityEngine.AI.NavMesh.SamplePosition(basePos, out var hit, DropNavSampleRadius,
+                                                  UnityEngine.AI.NavMesh.AllAreas))
+            basePos = hit.position;
+
+        return basePos + Vector3.up * 0.2f;
+    }
+
+    // 마지막 접지 지점 근처에서 걸어갈 수 있는 자리를 찾는 반경(m).
+    // 기준점이 이미 땅이라 짧게 잡는다. 못 찾으면 기준점 그대로 쓴다.
+    private const float DropNavSampleRadius = 5f;
+
     void DropInventoryItems()
     {
         var inv = InventoryManager.Instance;
@@ -202,9 +229,7 @@ public class RespawnManager : MonoBehaviour, ISaveLoadListener
         List<(int itemId, int amount)> items = inv.TakeAll();
         if (items.Count == 0) return;   // 빈 인벤토리면 드롭 없음
 
-        // 플레이어 발 위치에 LootBox 스폰
-        Vector3 spawnPos = _player.transform.position + Vector3.up * 0.2f;
-        var go = Instantiate(lootBoxPrefab, spawnPos, Quaternion.identity);
+        var go = Instantiate(lootBoxPrefab, ResolveDropPosition(), Quaternion.identity);
 
         var lootBox = go.GetComponentInChildren<LootBox>(true);
         if (lootBox != null)
