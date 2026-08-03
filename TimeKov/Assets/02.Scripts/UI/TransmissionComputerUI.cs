@@ -221,6 +221,10 @@ public class TransmissionComputerUI : MonoBehaviour
         return Instance;
     }
 
+    private void OnEnable()  => Loc.OnLanguageChanged += OnLanguageChanged;
+    private void OnDisable() => Loc.OnLanguageChanged -= OnLanguageChanged;
+    private void OnLanguageChanged() { if (_root != null && _root.activeSelf) RefreshAll(); }
+
     private void OnDestroy()
     {
         UnsubscribeManager();

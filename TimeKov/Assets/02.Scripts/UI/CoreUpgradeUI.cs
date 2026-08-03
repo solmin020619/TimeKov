@@ -167,6 +167,7 @@ public class CoreUpgradeUI : MonoBehaviour
         CoreUpgradeManager.OnUpgradeResult += OnUpgradeResult;
         CoreUpgradeManager.OnLevelChanged  += OnLevelChanged;
         DataBoot.OnDataLoaded += OnDataReady;
+        Loc.OnLanguageChanged += Refresh;
     }
 
     private void OnDisable()
@@ -174,6 +175,7 @@ public class CoreUpgradeUI : MonoBehaviour
         CoreUpgradeManager.OnUpgradeResult -= OnUpgradeResult;
         CoreUpgradeManager.OnLevelChanged  -= OnLevelChanged;
         DataBoot.OnDataLoaded -= OnDataReady;
+        Loc.OnLanguageChanged -= Refresh;
     }
 
     private void OnDataReady() => RefreshData();

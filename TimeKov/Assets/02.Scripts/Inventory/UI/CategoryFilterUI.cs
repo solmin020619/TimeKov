@@ -70,6 +70,24 @@ public class CategoryFilterUI : MonoBehaviour
         InitExpandLayout();   // 탭 이름 캐싱 + 초기 펼침 배치
     }
 
+    private void OnEnable()  => Loc.OnLanguageChanged += RefreshTabLabels;
+    private void OnDisable() => Loc.OnLanguageChanged -= RefreshTabLabels;
+
+    private void RefreshTabLabels()
+    {
+        if (_tabLabels == null) return;
+        for (int i = 0; i < _tabLabels.Length; i++)
+        {
+            if (_tabLabels[i] == null) continue;
+            string nm = (i < TabNames.Length) ? Loc.Get(TabNames[i]) : "";
+            _tabLabels[i].text = nm;
+            float w = _tabLabels[i].GetPreferredValues(nm).x;
+            if (w < 1f) w = nm.Length * 26f;
+            _expandedWidth[i] = 56f + w + 16f;
+        }
+        ApplyLayoutInstant(_selectedIndex);
+    }
+
     public void SetFilterByIndex(int index)
     {
         if (index < 0 || index >= IndexToCategory.Length) return;

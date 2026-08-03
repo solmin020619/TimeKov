@@ -132,6 +132,12 @@ public class CodexUI : MonoBehaviour
     {
         if (_i == this) _i = null;
         DataBoot.OnDataLoaded -= HandleDataLoaded;
+        Loc.OnLanguageChanged -= HandleLanguageChanged;
+    }
+
+    private void HandleLanguageChanged()
+    {
+        if (_root != null && _root.gameObject.activeSelf) Refresh();
     }
 
     private bool _dataLoading;
@@ -217,6 +223,7 @@ public class CodexUI : MonoBehaviour
         _font = TMP_Settings.defaultFontAsset;
 
         DataBoot.OnDataLoaded += HandleDataLoaded;   // 데이터가 나중에 로드돼도 갱신되게
+        Loc.OnLanguageChanged += HandleLanguageChanged;
         _cfg = Resources.Load<CodexPreviewConfig>("Codex/CodexPreviewConfig");   // 없으면 플레이스홀더로 폴백
         _tutCfg = Resources.Load<CodexTutorialConfig>("Codex/CodexTutorialConfig");
         _rewardCfg = Resources.Load<CodexRecipeRewardConfig>("Codex/CodexRecipeRewardConfig");
