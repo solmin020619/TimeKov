@@ -383,7 +383,7 @@ public class CodexUI : MonoBehaviour
         icoLe.preferredWidth = 18f; icoLe.minWidth = 18f; icoLe.preferredHeight = 18f; icoLe.minHeight = 18f;
         BuildTabIcon(index, ico, icCol);
 
-        var lbl = Txt(NewChild("lbl", tab), TabNames[index], 18f, FontStyles.Bold, icCol, TextAlignmentOptions.Center);
+        var lbl = Txt(NewChild("lbl", tab), Loc.Get(TabNames[index]), 18f, FontStyles.Bold, icCol, TextAlignmentOptions.Center);
         lbl.ForceMeshUpdate();   // 프리퍼드폭 즉시 확정(첫 오픈 탭 퍼짐 방지)
 
         // 안 본 새 항목이 있는 카테고리(비활성 탭)면 우상단 알림(!) 배지. 활성 탭은 열며 MarkSeen 되어 안 뜸.
@@ -543,7 +543,7 @@ public class CodexUI : MonoBehaviour
             if (!string.IsNullOrEmpty(e.status))
             {
                 var st = Make("Status", row, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-72f, 0f), new Vector2(-10f, 0f));
-                Txt(st, e.status, 11f, FontStyles.Normal, C32(188, 195, 203), TextAlignmentOptions.Right);
+                Txt(st, Loc.Get(e.status), 11f, FontStyles.Normal, C32(188, 195, 203), TextAlignmentOptions.Right);
             }
         }
     }
@@ -653,7 +653,7 @@ public class CodexUI : MonoBehaviour
         Btn(row, () => { _itemCatIndex = idx; Refresh(); });
 
         var nameRt = Make("Name", row, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(28f, 0f), new Vector2(-12f, 0f));
-        Txt(nameRt, ItemCatNames[index], 20f, selected ? FontStyles.Bold : FontStyles.Normal, selected ? TxtMain : C32(60, 68, 76), TextAlignmentOptions.Left);
+        Txt(nameRt, Loc.Get(ItemCatNames[index]), 20f, selected ? FontStyles.Bold : FontStyles.Normal, selected ? TxtMain : C32(60, 68, 76), TextAlignmentOptions.Left);
         if (!selected) Hatch(row);
     }
 
@@ -661,7 +661,7 @@ public class CodexUI : MonoBehaviour
     private void BuildItemMain()
     {
         ClearChildren(_mainBox);
-        string catName = ItemCatNames[Mathf.Clamp(_itemCatIndex, 0, ItemCatNames.Length - 1)];
+        string catName = Loc.Get(ItemCatNames[Mathf.Clamp(_itemCatIndex, 0, ItemCatNames.Length - 1)]);
         var body = MainHeader("아이템 - ITEM", catName, TxtMain, true);
 
         // 그리드 영역(스크롤)
