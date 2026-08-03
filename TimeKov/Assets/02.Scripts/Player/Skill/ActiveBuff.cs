@@ -1,9 +1,9 @@
 // =====================================================================
 // ActiveBuff.cs
-// È°¼º ¹öÇÁ µ¥ÀÌÅÍ : ActiveBuffManager °¡ ¸ñ·ÏÀ¸·Î °ü¸®
-// ¹öÇÁ ÁßÃ¸ ±ÔÄ¢
-//   µ¿ÀÏ itemId + µ¿ÀÏ effectTarget -> ±³Ã¼ (½Ã°£ ÃÊ±âÈ­)
-//   ´Ù¸¥ itemId + µ¿ÀÏ effectTarget -> ÁßÃ¸ Çã¿ë
+// í™œì„± ë²„í”„ ë°ì´í„° : ActiveBuffManager ê°€ ëª©ë¡ìœ¼ë¡œ ê´€ë¦¬
+// ë²„í”„ ì¤‘ì²© ê·œì¹™
+//   ë™ì¼ itemId + ë™ì¼ effectTarget -> êµì²´ (ì‹œê°„ ì´ˆê¸°í™”)
+//   ë‹¤ë¥¸ itemId + ë™ì¼ effectTarget -> ì¤‘ì²© í—ˆìš©
 // =====================================================================
 
 using System;
@@ -11,18 +11,18 @@ using System;
 [Serializable]
 public class ActiveBuff
 {
-    // ¾î¶² ½ºÅÈ¿¡ Àû¿ëµÈ ¹öÇÁÀÎÁö
+    // ì–´ë–¤ ìŠ¤íƒ¯ì— ì ìš©ëœ ë²„í”„ì¸ì§€
     public EffectTarget target;
 
-    // ½ÇÁ¦·Î Àû¿ëµÈ ¼öÄ¡ µ¨Å¸ (¸¸·á ½Ã ¿ªÀ¸·Î ¿øº¹)
+    // ì‹¤ì œë¡œ ì ìš©ëœ ìˆ˜ì¹˜ ë¸íƒ€ (ë§Œë£Œ ì‹œ ì—­ìœ¼ë¡œ ì›ë³µ)
     public float appliedDelta;
 
-    // ³²Àº Áö¼Ó ½Ã°£ (ÃÊ)
+    // ë‚¨ì€ ì§€ì† ì‹œê°„ (ì´ˆ)
     public float remainingTime;
 
-    // ¹öÇÁ ÃâÃ³ ¾ÆÀÌÅÛ ID
+    // ë²„í”„ ì¶œì²˜ ì•„ì´í…œ ID
     public string sourceItemId;
 
-    // ¸¸·á ¿©ºÎ
+    // ë§Œë£Œ ì—¬ë¶€
     public bool IsExpired => remainingTime <= 0f;
 }

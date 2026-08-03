@@ -5,5 +5,5 @@ using UnityEngine;
 public class Attack1Skill : ComboAttackBase
 {
     protected override float GetAnimDuration() => AnimDuration;
-    public float AnimDuration = 0.8f;   // ¾Ö´Ï¸ŞÀÌ¼Ç ±æÀÌ¿¡ ¸Â°Ô Á¶Á¤
+    public float AnimDuration = 0.8f;   // ì• ë‹ˆë©”ì´ì…˜ ê¸¸ì´ì— ë§ê²Œ ì¡°ì •
 }

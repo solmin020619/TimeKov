@@ -3,5 +3,5 @@ public enum SkillSheetId
     Skill1,
     Skill2,
     Skill3,
-    // ±âÈ¹ È®Á¤ ½Ã Ãß°¡
+    // ê¸°íš í™•ì • ì‹œ ì¶”ê°€
 }

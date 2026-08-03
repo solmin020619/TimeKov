@@ -1,8 +1,8 @@
 public interface IInteractable
 {
-    // »óÈ£ÀÛ¿ë °¡´É ¿©ºÎ
+    // ìƒí˜¸ì‘ìš© ê°€ëŠ¥ ì—¬ë¶€
     bool CanInteract { get; }
 
-    // FÅ° ´­·¶À» ¶§ È£Ãâ
+    // Fí‚¤ ëˆŒë €ì„ ë•Œ í˜¸ì¶œ
     void Interact(Player player);
 }
