@@ -589,7 +589,7 @@ public class SkillBarUI : MonoBehaviour
 
         // 꼬리(tail)는 절차 생성으론 테두리가 안 따라붙어 어두운 자국처럼 보여 제거. 깔끔한 꼬리는 디자인 스프라이트로 대체 예정.
         var msg = NewText("Msg", bubble, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(282f, 50f), 17f);
-        msg.text = "이제 대쉬를 사용할 수 있습니다!";
+        msg.text = Loc.Get("이제 대쉬를 사용할 수 있습니다!");
         msg.fontStyle = FontStyles.Bold;
         msg.color = TextMain;
 

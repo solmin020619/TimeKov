@@ -76,7 +76,7 @@ public class PlayerQuickSlotHudUI : MonoBehaviour
         _emptyText = MakeText("Empty", rt, 10f, FontStyles.Normal, TextAlignmentOptions.Center);
         StretchCenter(_emptyText.rectTransform, new Vector2(56, 28));
         _emptyText.color = TextDim;
-        _emptyText.text = "비어있음";
+        _emptyText.text = Loc.Get("비어있음");
 
         RefreshNow();
     }

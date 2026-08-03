@@ -625,7 +625,7 @@ public class GlobalSettingsManager : MonoBehaviour
         if (_rebindingActionId != null) return; // 이미 다른 키 리바인딩 중
         _rebindingActionId = actionId;
         var slot = FindSlot(actionId);
-        if (slot?.keyLabel != null) slot.keyLabel.text = "키 입력...";
+        if (slot?.keyLabel != null) slot.keyLabel.text = Loc.Get("키 입력...");
         ShowRebindModal(slot?.displayName ?? actionId);
     }
 
