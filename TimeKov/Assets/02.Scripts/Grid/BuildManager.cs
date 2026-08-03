@@ -66,6 +66,9 @@ public class BuildManager : MonoBehaviour, ISaveable
     private FacilityPlacer placer;
 
     [Header("References")]
+    // 여기 카메라를 꽂아도 소용없다. ResolveActiveBuildCamera 가 빌드모드/게임모드에 따라
+    // 아래 topViewCamera / gameplayCamera 중 하나로 매번 갈아끼운다. 꽂을 곳은 그 둘이다.
+    [FilledBy("아래 Top View Camera / Gameplay Camera (모드에 따라 자동 선택)")]
     public Camera mainCam;
     public PlayerBuildZoneChecker zoneChecker;
     public Transform buildParent;
@@ -134,6 +137,9 @@ public class BuildManager : MonoBehaviour, ISaveable
     public Transform railSlotIcon;
 
     [Header("Preview")]
+    // 설비를 고를 때마다 RefreshPreviewMarker 가 기존 걸 Destroy 하고 프리팹을 새로 Instantiate 한다.
+    // 여기에 씬 오브젝트를 꽂아두면 빌드모드에 들어가는 순간 그게 지워진다.
+    [FilledBy("게임 로직 (선택한 설비 프리팹으로 매번 새로 만듦)")]
     public GameObject previewMarker;
     // 프리뷰 틴트(초록/빨강) 대상 = 시설 렌더러만 캐시. 입출구 화살표는 이 캐시 이후 추가돼 틴트에서 제외(고유색 유지).
     private Renderer[] previewRenderers;
@@ -152,7 +158,6 @@ public class BuildManager : MonoBehaviour, ISaveable
     public float checkHeight = 0.45f;
 
     [SerializeField] private Rigidbody playerRigidbody;
-    [SerializeField] private CharacterController playerCharacterController;
     [SerializeField] private MonoBehaviour playerMovementScript;
     [SerializeField] private Animator playerAnimator;
 
@@ -1160,12 +1165,6 @@ public class BuildManager : MonoBehaviour, ISaveable
 
         topViewPanCamera.SetMouseDragEnabled(canDrag);
     }
-
-    [Header("Demolish Rail Highlight")]
-    [Tooltip("레일 호버 시 덮어씌울 머티리얼 (투명한 빨간색 Unlit 추천)")]
-    public Material railDemolishOverlayMaterial;
-    [Tooltip("레일 셀에 덮을 빨간 박스 높이")]
-    public float railDemolishOverlayHeight = 0.2f;
 
     private bool TryGetCurrentBuildData(
         out RaycastHit hit,

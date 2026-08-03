@@ -10,8 +10,10 @@ namespace TIMEKOV.Factory
     /// </summary>
     public class StorageExtractor : MachineBase
     {
-        [Header("설비 이름 (UI 표시용)")]
-        public string machineName = "창고 추출기";
+        // 설비 이름(UI 표시용) - Start 에서 시트 facilityName 으로 세팅한다.
+        // 시트가 원본이라 인스펙터 노출/직렬화 안 함(ProcessingMachine 과 같은 방식).
+        // 프리팹에 "창고 추출기" 가 박혀 있어 시트의 이름과 두 개로 갈라져 있던 것을 시트 하나로 합쳤다.
+        private string machineName;
         public override string MachineName => !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
 
         [Header("추출 설정")]
@@ -40,6 +42,38 @@ namespace TIMEKOV.Factory
 
         /// <summary>선택 아이템이 바뀔 때 발생.</summary>
         public event Action OnSelectionChanged;
+
+        // ── 초기화 ──────────────────────────────────────────────────────
+
+        protected override void Start()
+        {
+            base.Start();   // 월드 표시(FacilityWorldDisplay) 자동 부착
+
+            // 이름은 시트가 원본. 데이터가 이미 로드됐으면 즉시, 아직이면 로드 완료 시점에 읽는다.
+            if (DataBoot.IsLoaded) LoadNameFromSheet();
+            else DataBoot.OnDataLoaded += OnDataLoaded;
+        }
+
+        private void OnDestroy()
+        {
+            DataBoot.OnDataLoaded -= OnDataLoaded;
+        }
+
+        private void OnDataLoaded()
+        {
+            DataBoot.OnDataLoaded -= OnDataLoaded;
+            LoadNameFromSheet();
+        }
+
+        private void LoadNameFromSheet()
+        {
+            int fid = FacilityId;
+            if (fid <= 0) return;
+
+            var facility = GameDataUtility.GetFacility(fid);
+            if (facility != null && !string.IsNullOrEmpty(facility.facilityName))
+                machineName = facility.facilityName;
+        }
 
         // ── 공개 메서드 ──────────────────────────────────────────────────
 

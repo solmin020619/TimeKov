@@ -24,7 +24,12 @@ public class BuildPort : MonoBehaviour
     public Vector2Int localDirection = Vector2Int.right;
 
     [Header("Connection")]
+    [Tooltip("이 포트에 붙일 수 있는 벨트 수. 여기가 진짜 조절점이다.")]
     public int maxConnections = 1;
+
+    // 현재 붙어 있는 수. 레일을 놓고 지울 때 AddConnection/RemoveConnection 이 오르내린다.
+    // 여기에 숫자를 박아두면 실제로 연결이 없는데도 포트가 꽉 찬 것으로 판정돼 벨트를 못 붙인다.
+    [FilledBy("게임 로직 (벨트를 놓고 지울 때 자동 증감)")]
     public int connectionCount = 0;
 
     private PlacedBuilding cachedBuilding;

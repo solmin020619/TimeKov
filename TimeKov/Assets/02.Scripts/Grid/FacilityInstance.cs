@@ -3,8 +3,13 @@ using UnityEngine;
 
 public class FacilityInstance : MonoBehaviour
 {
+    // 설치하는 순간 FacilityPlacer 가 Initialize(facilityId) 로 둘 다 채운다(레벨은 1로 리셋).
+    // 세이브 복원은 그 뒤에 SetLevel() 로 저장된 레벨을 덮어쓴다. 프리팹에 박아둔 값은 살아남지 못한다.
+    // 값이 보이는 건 쓸모 있어서(플레이 중 이 설비가 몇 번/몇 레벨인지) 숨기지 않고 잠그기만 한다.
     [Header("Runtime Data")]
+    [FilledBy("설치할 때 FacilityPlacer 가 지정 (설비 종류는 빌드 슬롯에서 고른다)")]
     [SerializeField] private int facilityId;
+    [FilledBy("게임 로직 (설치 시 1, 업그레이드/세이브 복원으로 변경)")]
     [SerializeField] private int currentLevel = 1;
 
     private FacilityDataSheetData facilityData;

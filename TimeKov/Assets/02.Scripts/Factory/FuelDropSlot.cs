@@ -33,7 +33,6 @@ public class FuelDropSlot : MonoBehaviour,
     [Tooltip("통합 인벤과 동일한 hl_region_frame 스프라이트(빌더 배선). 비우면 시안 4변 폴백.")]
     [SerializeField] private Sprite highlightFrameSprite;
     private GameObject _highlightFrame;
-    [SerializeField] private Color noFuelTextColor   = new Color(1f, 0.3f, 0.3f, 1f);
     [SerializeField] private Color normalTextColor   = new Color(1f, 1f, 1f, 1f);
 
     [Header("빈 슬롯 미리보기")]
