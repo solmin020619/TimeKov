@@ -130,7 +130,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         }
 
         _extraMask |= (1 << level);
-        ToastManager.Success(string.Format(Loc.Get("{0} 회수"), name));
+        ToastManager.Success(string.Format(Loc.Get("{0} 회수"), Loc.Get(name)));
         OnChanged?.Invoke();
     }
 
@@ -170,8 +170,8 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         _partCount += amount;
 
         ToastManager.Success(amount == 1
-            ? string.Format(Loc.Get("{0} 회수"), partName)
-            : string.Format(Loc.Get("{0} +{1}"), partName, amount));
+            ? string.Format(Loc.Get("{0} 회수"), Loc.Get(partName))
+            : string.Format(Loc.Get("{0} +{1}"), Loc.Get(partName), amount));
         OnChanged?.Invoke();
     }
 
@@ -212,7 +212,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         int need = NextRequiredParts;
         if (_partCount < need)
         {
-            ToastManager.Warning(string.Format(Loc.Get("{0}이(가) 부족합니다 ({1} / {2})"), partName, _partCount, need));
+            ToastManager.Warning(string.Format(Loc.Get("{0}이(가) 부족합니다 ({1} / {2})"), Loc.Get(partName), _partCount, need));
             return false;
         }
 
@@ -221,7 +221,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
         string extra = ExtraPartNameFor(next);
         if (!string.IsNullOrEmpty(extra) && !HasExtraPart(next))
         {
-            ToastManager.Warning(string.Format(Loc.Get("{0}이(가) 필요합니다"), extra));
+            ToastManager.Warning(string.Format(Loc.Get("{0}이(가) 필요합니다"), Loc.Get(extra)));
             return false;
         }
 

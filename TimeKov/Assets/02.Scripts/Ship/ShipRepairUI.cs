@@ -450,7 +450,7 @@ public class ShipRepairUI : MonoBehaviour
         int req   = mgr.NextRequiredParts;
         bool enough = !maxed && count >= req;
 
-        if (partNameText != null) partNameText.text = mgr.PartName;
+        if (partNameText != null) partNameText.text = Loc.Get(mgr.PartName);
 
         if (partOwnedText != null)
         {

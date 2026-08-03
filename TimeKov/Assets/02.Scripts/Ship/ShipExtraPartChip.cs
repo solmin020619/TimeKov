@@ -24,7 +24,10 @@ public class ShipExtraPartChip : MonoBehaviour, IPointerEnterHandler, IPointerEx
         _level = level;
         // "우주선 " 접두사는 패널 안에서 군더더기라 뗀다.
         if (nameText != null)
-            nameText.text = partName != null && partName.StartsWith("우주선 ") ? partName.Substring(4) : partName;
+        {
+            string localized = Loc.Get(partName ?? "");
+            nameText.text = localized.StartsWith("우주선 ") ? localized.Substring(4) : localized;
+        }
     }
 
     /// <summary>상태 반영. bgTint = 배경 틴트, nameCol = 이름 색.</summary>

@@ -32,7 +32,7 @@ public static class GradeVisual
 
     // 등급 한글 이름. 범위 밖이면 빈 문자열.
     public static string GetName(int grade)
-        => (grade >= 0 && grade < Names.Length) ? Names[grade] : "";
+        => (grade >= 0 && grade < Names.Length) ? Loc.Get(Names[grade]) : "";
     public static string GetName(ItemGrade grade) => GetName((int)grade);
 
     // 리치텍스트용 RRGGBB 16진 (예: <color=#xxxxxx>...). # 없이 6자리.
