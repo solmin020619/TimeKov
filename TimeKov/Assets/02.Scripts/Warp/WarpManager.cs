@@ -229,7 +229,7 @@ public class WarpManager : MonoBehaviour, ISaveable
         _chargingPoint = from;
         _chargeVfx = SpawnVfxTracked(ResolveDeparture(from), from.Center, TintFor(theme));
         StartChargeLoop(from.Center);   // 충전 중 도는 루프음(SfxId.WarpChargeLoop)
-        CastGaugeUI.Ensure()?.Begin("워프 중");   // 상단 게이지(얼마나 워프됐는지 표시)
+        CastGaugeUI.Ensure()?.Begin(Loc.Get("워프 중"));   // 상단 게이지(얼마나 워프됐는지 표시)
         _chargeCo = StartCoroutine(ChargeRoutine(player, dest, arriveAt, theme));
     }
 
