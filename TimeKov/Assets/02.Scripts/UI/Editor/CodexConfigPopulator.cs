@@ -3,59 +3,11 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-// 일회용 편의 메뉴. 도감 몬스터 설정(CodexPreviewConfig)에 05.Prefabs/Enemy/Enemy_* 8종을
-// 자동으로 채운다(직접 드래그 대신). 이미 들어있는 프리팹은 보존(프레이밍 튜닝 안 날림).
-// 메뉴: Tools > TIMEKOV > Codex > 몬스터 설정 자동 채우기
+// 도감 설정을 손 드래그 대신 자동으로 채우는 편의 기능.
+// 메뉴는 정리해서 숨겼고, TutorialAssetBuilder 가 PopulateTutorial() 을 직접 호출한다.
+// (몬스터 설정 자동 채우기는 삭제했다 - 메뉴도 숨겨져 있고 부르는 곳도 없었다)
 public static class CodexConfigPopulator
 {
-    // [MenuItem("Tools/TIMEKOV/Codex/몬스터 설정 자동 채우기")]   // 메뉴 정리: 숨김(필요시 주석 해제)
-    public static void Populate()
-    {
-        // 1) 설정 에셋 찾기(없으면 Resources/Codex 에 생성)
-        CodexPreviewConfig cfg;
-        string cfgPath;
-        var found = AssetDatabase.FindAssets("t:CodexPreviewConfig");
-        if (found.Length > 0)
-        {
-            cfgPath = AssetDatabase.GUIDToAssetPath(found[0]);
-            cfg = AssetDatabase.LoadAssetAtPath<CodexPreviewConfig>(cfgPath);
-        }
-        else
-        {
-            cfgPath = ResourcesCodexFolder() + "/CodexPreviewConfig.asset";
-            cfg = ScriptableObject.CreateInstance<CodexPreviewConfig>();
-            AssetDatabase.CreateAsset(cfg, cfgPath);
-        }
-
-        // 2) Enemy_ 프리팹 수집(이름순)
-        var prefabs = AssetDatabase.FindAssets("t:GameObject Enemy_")
-            .Select(g => AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(g)))
-            .Where(p => p != null && p.name.StartsWith("Enemy_"))
-            .OrderBy(p => p.name)
-            .ToList();
-
-        // 3) 이미 있는 프리팹은 건너뛰고 추가(튜닝 보존)
-        int added = 0;
-        foreach (var p in prefabs)
-        {
-            if (cfg.monsters.Any(m => m != null && m.prefab == p)) continue;
-            cfg.monsters.Add(new CodexPreviewConfig.MonsterEntry
-            {
-                displayName = p.name.Replace("Enemy_", ""),
-                prefab = p,
-                state = CodexPreviewConfig.RevealState.Revealed
-            });
-            added++;
-        }
-
-        EditorUtility.SetDirty(cfg);
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-        Selection.activeObject = cfg;
-        EditorGUIUtility.PingObject(cfg);
-        Debug.Log($"[Codex] 설정 채움 완료: 신규 {added}개, 총 {cfg.monsters.Count}개. 경로 {cfgPath}");
-    }
-
     // 기존 영상 튜토(TutorialVideoObjective)의 페이지를 도감 튜토 설정으로 복붙.
     // 영상 추가/삭제 따라가게 매번 새로 채운다(튜토는 별도 튜닝 없음).
     // [MenuItem("Tools/TIMEKOV/Codex/튜토리얼 영상 설정 자동 채우기")]   // 메뉴 정리: 숨김(필요시 주석 해제)

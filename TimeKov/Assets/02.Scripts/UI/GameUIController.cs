@@ -255,8 +255,6 @@ public class GameUIController : MonoBehaviour
         CoreUpgradeUI.Instance?.HidePanel();
         // 전송 컴퓨터 UI
         TransmissionComputerUI.Instance?.HidePanel();
-        // 상자 오픈 UI
-        ChestOpenUI.Instance?.HidePanel();
         // 폐우주선 수리 UI
         ShipRepairUI.Instance?.HidePanel();
 
