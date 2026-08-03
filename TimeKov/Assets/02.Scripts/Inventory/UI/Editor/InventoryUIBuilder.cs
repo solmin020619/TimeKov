@@ -20,10 +20,6 @@ public static class InventoryUIBuilder
     const string SprDir = "Assets/15.UI/Inventory UI/sprites/";
     const string WarehouseDir = "Assets/15.UI/Warehouse/sprites/";   // 창고 전용 부품 PNG (ic_warehouse/ic_trash/ic_deposit_all/cat_*/tab_selected)
 
-    // 카테고리 7 아이콘 (HANDOFF §10 순서 = 전체/원재료/1차/2차/전술/코어/특수)
-    static readonly string[] CatIcons =
-        { "cat_all", "cat_raw", "cat_primary", "cat_secondary", "cat_tactical", "cat_core", "cat_special" };
-
     // HANDOFF §3 색
     const string BlurCanvasName = "InventoryBlurCanvas";
     const float BagRightX = 500f;   // 가방을 화면 중앙에서 오른쪽으로. 패널/블러 같은 값으로 정렬 (값 키울수록 더 오른쪽)
@@ -32,33 +28,17 @@ public static class InventoryUIBuilder
     const string PartDir = "Assets/15.UI/New";   // clggdesign 부품 PNG 폴더 (패널 변형 + header_bar/grade_bar/divider/scrollbar/icons)
     const string PanelSpritePath = PartDir + "/panel_ash_a78.png";   // 기본 = 밝은 중성 쿨(ash). F9로 steel/cool 비교
     const int PanelSlice = 56;
-    static Color Panel    => RGBA(26, 32, 42, 0.40f);   // 본체 (쿨 뉴트럴 - 엔드필드처럼 깔끔. 진한 파랑 빼서 블러색이 살게)
-    static Color BarBg    => RGBA(34, 40, 52, 0.55f);   // 헤더 바 (쿨 뉴트럴, 약간 더 불투명)
-    static Color SlotTone => RGBA(30, 36, 46, 0.10f);   // 본문 톤
-    static Color CatBtn   => RGBA(40, 60, 88, 0.32f);
     static Color Chrome   => RGBA(150, 178, 205, 0.26f);
-    static Color ChromeHi => RGBA(170, 196, 222, 0.42f);
     static Color Cyan     => Hex("5fc4ff");
-    static Color CyanHi   => Hex("aee3ff");
     // 클로드디자인 확정: 밝은 간유리 콘텐츠 밴드 + 어두운 베이스(테두리/푸터) + 어두운 슬롯 셀 + 무채색 슬레이트 글자.
     // ("라이트 washes out"은 사실 InventoryRoot active 버그였고, 고쳐진 지금은 라이트가 정상. 컬러는 아이템/등급바에만.)
     static Color TxtMain  => Hex("242a31");                 // 어두운 슬레이트 (밝은 밴드 위)
     static Color TxtSub   => Hex("4c545d");
     static Color BaseDark   => RGBA(230, 223, 211, 0.38f);  // PNG 못 찾을때 폴백색. 정상시엔 패널이 PNG라 안쓰임.
-    static Color BandHead   => RGBA(150, 165, 185, 0.18f);  // 헤더/푸터 밴드 = 쿨 라이트(프레임 또렷). 인셋26으로 코너 회피.
     static Color BandBody   => RGBA(232, 225, 213, 0.00f);  // 본문 투명 (PNG가 표면 담당, 이중 틴트 방지)
-    static Color Hairline   => RGBA(20, 24, 30, 0.50f);     // 헤더 밑 1px 선 (밝은 위라 어둡게)
-    static Color BtnLight   => RGBA(255, 255, 255, 0.40f);  // 하단 버튼(밝은 무채색)
-    static Color BtnLightBd => RGBA(255, 255, 255, 0.50f);
     static Color SlotFill   => RGBA(12, 16, 24, 0.10f);    // 칸 = 살짝만 어둡게(마진보다 약간 진해 칸 음각) + 블러 통과. 정의는 4변 테두리가 담당.
-    static Color SlotEmptyC => RGBA(12, 16, 24, 0.22f);     // 빈 칸 더 어둡게
     static Color SlotBorder => RGBA(8, 10, 14, 0.85f);      // 슬롯 테두리 기본
-    // 칸 음각용 비대칭 엣지 + 크롬 (쿨)
-    static Color SlotEdgeDark  => RGBA(12, 16, 24, 0.22f);  // (구) 비대칭 음각 - 밝은 패널선 안 보여 폐기
-    static Color SlotEdgeLight => RGBA(150, 165, 188, 0.22f);
     static Color SlotLine      => RGBA(40, 54, 74, 0.45f);  // 칸 4변 균일 테두리(쿨 슬레이트). 밝은 패널 위에서 격자 또렷.
-    static Color HeaderHair   => RGBA(170, 190, 212, 0.28f); // 헤더/푸터 구분선 (쿨 라이트)
-    static Color PillDark     => RGBA(16, 20, 28, 0.55f);   // 닫기/액션 pill 다크 배경
     static Color ScrollHandle => RGBA(150, 178, 205, 0.40f); // 스크롤 핸들 쿨실버
 
     [MenuItem("Tools/TIMEKOV/인벤토리 UI 생성 (가방)")]
@@ -561,53 +541,7 @@ public static class InventoryUIBuilder
         return true;
     }
 
-    // ── 카테고리 탭 (배경 버튼 + 가운데 아이콘) ──
-    static GameObject MakeCatTab(Transform parent, string iconName)
-    {
-        var go = MakeRounded("CatTab_" + iconName, parent, new Vector2(64, 44), Vector2.zero, CatBtn);
-        AddOutline(go, Chrome, new Vector2(1f, -1f));
-        go.AddComponent<Button>().targetGraphic = go.GetComponent<Image>();
-        var icon = MakeImage("CatIcon", go.transform, new Vector2(28, 28), Vector2.zero, Hex("c2d4e6"));
-        var img = icon.GetComponent<Image>();
-        img.raycastTarget = false; img.preserveAspect = true;
-        var spr = LoadSpr(iconName);
-        if (spr != null) img.sprite = spr;
-        return go;
-    }
-
     // ── 헬퍼 ──
-    // 블러 캔버스: Screen Space-Camera 루트 캔버스 + UIBlur 영역(보이지 않음, 카메라 출력의 그 사각 영역을 블러).
-    // 데모 "Single Camera UI Preserving Blur" 검증 방식. Overlay 인벤 UI가 그 위에 그려져 sharp 유지.
-    static GameObject MakeBlurCanvas(Vector2 regionSize)
-    {
-        var cam = PickBuildCamera();
-
-        var go = new GameObject(BlurCanvasName, typeof(Canvas), typeof(CanvasScaler));
-        var canvas = go.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceCamera;
-        canvas.worldCamera = cam;
-        canvas.planeDistance = 1f;
-        canvas.sortingOrder = 9;   // 인벤 캔버스(10)보다 아래
-        var scaler = go.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920, 1080);
-        scaler.matchWidthOrHeight = 0.5f;
-
-        var region = new GameObject("BagBlurRegion", typeof(RectTransform), typeof(CanvasRenderer));
-        region.transform.SetParent(go.transform, false);
-        var rt = region.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = regionSize; rt.anchoredPosition = new Vector2(BagRightX, 0);   // 패널과 같은 오른쪽 위치 (정렬)
-
-        var uiBlur = region.AddComponent<UIBlur>();
-        var s = uiBlur.Common.blurInstanceSettings;
-        // 채도 낮춤(맵색 중화). 다크 표면이라 밝기는 0 (올리면 표면이 떠서 글자 대비 죽음).
-        if (s != null) { s.blurAdditionalDistancePerIteration = 6f; s.vibrancy = 0f; s.brightness = 0.02f; }   // 채도=0(정석 글래스모피즘은 오히려 saturate. -0.55는 회색죽 만들던 원인). 밝기는 흰막이 담당. Tuner 기본값과 동일하게
-        if (cam != null) uiBlur.Common.cameraReference = cam;
-        region.AddComponent<InventoryBlurTuner>();
-        return go;
-    }
-
     static Camera PickBuildCamera()
     {
         var main = Camera.main;
@@ -734,54 +668,10 @@ public static class InventoryUIBuilder
         return go;
     }
 
-    // 아이콘(좌) + 글자 버튼 (예: [정리])
-    static GameObject MakeIconTextButton(string name, Transform parent, string iconName, string label, float w, float h, Color bg)
-    {
-        var go = MakeRounded(name, parent, new Vector2(w, h), Vector2.zero, bg);
-        AddOutline(go, Chrome, new Vector2(1f, -1f));
-        var btn = go.AddComponent<Button>(); btn.targetGraphic = go.GetComponent<Image>();
-
-        var icon = MakeImage("Icon", go.transform, new Vector2(h * 0.5f, h * 0.5f), Vector2.zero, TxtSub);
-        var irt = icon.GetComponent<RectTransform>();
-        irt.anchorMin = irt.anchorMax = new Vector2(0, 0.5f); irt.pivot = new Vector2(0, 0.5f);
-        irt.anchoredPosition = new Vector2(9, 0);
-        var img = icon.GetComponent<Image>(); img.raycastTarget = false; img.preserveAspect = true;
-        var spr = LoadSpr(iconName); if (spr != null) img.sprite = spr;
-
-        var txt = MakeTMP("Text", go.transform, label, 15, TxtSub, TextAlignmentOptions.Center);
-        var trt = txt.rectTransform;
-        trt.anchorMin = new Vector2(0, 0); trt.anchorMax = new Vector2(1, 1);
-        trt.offsetMin = new Vector2(9 + h * 0.5f, 0); trt.offsetMax = new Vector2(-6, 0);
-        return go;
-    }
-
     static void AddOutline(GameObject go, Color color, Vector2 dist)
     {
         var ol = go.AddComponent<UnityEngine.UI.Outline>();
         ol.effectColor = color; ol.effectDistance = dist;
-    }
-
-    // 밴드 상단 흰 sheen (유리 두께감). 위 흰빛 -> 아래 투명, 높이 14.
-    static void AddTopSheen(Transform parent, float a)
-    {
-        var go = new GameObject("Sheen", typeof(RectTransform), typeof(Image), typeof(UIFrostGradient));
-        go.transform.SetParent(parent, false);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1); rt.pivot = new Vector2(0.5f, 1);
-        rt.sizeDelta = new Vector2(0, 14); rt.anchoredPosition = Vector2.zero;
-        var img = go.GetComponent<Image>(); img.color = Color.white; img.raycastTarget = false;
-        var g = go.GetComponent<UIFrostGradient>();
-        g.topColor = RGBA(255, 255, 255, a); g.bottomColor = RGBA(255, 255, 255, 0f);
-    }
-
-    // 헤더 밑 1px hairline (바닥 밀착).
-    static void AddBottomHairline(Transform parent, Color c)
-    {
-        var go = MakeImage("Hairline", parent, Vector2.zero, Vector2.zero, c);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(1, 0); rt.pivot = new Vector2(0.5f, 0);
-        rt.sizeDelta = new Vector2(0, 1); rt.anchoredPosition = Vector2.zero;
-        go.GetComponent<Image>().raycastTarget = false;
     }
 
     // 슬롯 4변 테두리 한 변 (독립 Image라 알파가 fill에 안 곱해짐 -> 연한 fill 위에서도 진한 검정 유지).
@@ -827,12 +717,8 @@ public static class InventoryUIBuilder
     { rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = new Vector2(side, bottom); rt.offsetMax = new Vector2(-side, -top); }
     static void AnchorLeft(RectTransform rt, float x, float w, float h)
     { rt.anchorMin = rt.anchorMax = new Vector2(0, 0.5f); rt.pivot = new Vector2(0, 0.5f); rt.sizeDelta = new Vector2(w, h); rt.anchoredPosition = new Vector2(x, 0); }
-    static void AnchorLeftMid(RectTransform rt, float x, float w, float h)
-    { rt.anchorMin = rt.anchorMax = new Vector2(0, 0.5f); rt.pivot = new Vector2(0, 0.5f); rt.sizeDelta = new Vector2(w, h); rt.anchoredPosition = new Vector2(x, 0); }
     static void AnchorRight(RectTransform rt, float x, float w, float h)
     { rt.anchorMin = rt.anchorMax = new Vector2(1, 0.5f); rt.pivot = new Vector2(1, 0.5f); rt.sizeDelta = new Vector2(w, h); rt.anchoredPosition = new Vector2(-x, 0); }
-    static void AnchorRightBottom(RectTransform rt, float x, float y, float size)
-    { rt.anchorMin = rt.anchorMax = new Vector2(1, 0); rt.pivot = new Vector2(1, 0); rt.sizeDelta = new Vector2(size, size); rt.anchoredPosition = new Vector2(-x, y); }
 
     // 창고 부품 PNG 로드 (11.UI/Warehouse/sprites/). 통짜 아이콘=Vector4.zero, tab_selected=9slice 보더.
     static Sprite LoadWarehouseSprite(string n, Vector4 border) => LoadPartSprite(WarehouseDir + n + ".png", border);
@@ -1483,14 +1369,6 @@ public static class InventoryUIBuilder
         if (_rounded == null)
             _rounded = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd");
         return _rounded;
-    }
-
-    static Sprite _knob;
-    static Sprite KnobSprite()   // 원형 (아이콘 뒤 backing 용)
-    {
-        if (_knob == null)
-            _knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-        return _knob;
     }
 
     static Sprite LoadSpr(string n)

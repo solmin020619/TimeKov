@@ -888,15 +888,6 @@ public static class MachineUIBuilder
         go.SetActive(false);
     }
 
-    // 구역 캡션(재료/연료/결과) 뒤 얇은 알약 배경 = 작은 개별 패널(큰 박스 아님).
-    static void CaptionBadge(Transform parent, RectTransform capRt)
-    {
-        var go = MakeRounded("CapBadge", parent, capRt.sizeDelta + new Vector2(20, 8), capRt.anchoredPosition, RGBA(20, 28, 40, 0.32f));
-        go.GetComponent<Image>().raycastTarget = false;
-        AddOutline(go, Chrome, new Vector2(1f, -1f));
-        go.transform.SetAsFirstSibling();      // 캡션 글자 뒤로
-    }
-
     // 호버/프레스 ColorTint(베이스색에 곱연산: 호버 살짝 밝게, 프레스 어둡게).
     static void ApplyHover(Button btn)
     {

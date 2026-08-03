@@ -26,16 +26,6 @@ public static class MainMenuButtonsBuilder
     private static readonly Color HoverColor  = new Color(0.498f, 0.816f, 1f, 1f);     // #7FD0FF
     private static readonly Color HoverBgColor = new Color(1f, 1f, 1f, 15f / 255f);
 
-    // ── 게임 종료 확인 모달 색상 (WorldSelectUIBuilder와 동일 톤 — 프로젝트 전반 다크 네이비 통일) ──
-    private static readonly Color ModalBoxColor   = Hex("0A1018", 255);
-    private static readonly Color ModalLabelBg    = Hex("5A5A5A", 255);
-    private static readonly Color ModalLabelTx    = Hex("C8D8E4", 255);
-    private static readonly Color ModalLineColor  = Hex("FFFFFF", 40);
-    private static readonly Color ModalTickColor  = Hex("FFFFFF", 120);
-    private static readonly Color FlatBtnBg       = Hex("5A5A5A", 255);
-    private static readonly Color FlatBtnBorder   = Hex("FFFFFF", 70);
-    private static readonly Color FlatBtnText     = Hex("E8ECEF", 255);
-
     private static TMP_FontAsset _koreanFont;
     private static TMP_FontAsset KoreanFont =>
         _koreanFont ??= AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/11.Font/남양주고딕Light (OTF) SDF.asset");
@@ -224,55 +214,6 @@ public static class MainMenuButtonsBuilder
         rt.sizeDelta = size;
         rt.anchoredPosition = pos;
         go.GetComponent<Image>().color = color;
-        return go;
-    }
-
-    static TextMeshProUGUI MakeLabel(string name, Transform parent, Vector2 size, Vector2 pos,
-        string text, float fontSize, Color color, TextAlignmentOptions align)
-    {
-        var go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = size;
-        rt.anchoredPosition = pos;
-        var tmp = go.AddComponent<TextMeshProUGUI>();
-        tmp.text = text;
-        tmp.fontSize = fontSize;
-        tmp.color = color;
-        tmp.alignment = align;
-        tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        return tmp;
-    }
-
-    // 예/아니요 버튼 — WorldSelectUIBuilder 하단 액션 바와 동일한 무채색 평면 + 얇은 외곽선 스타일.
-    static GameObject MakeFlatDialogButton(string name, Transform parent, Vector2 size, Vector2 pos, string label)
-    {
-        const float borderThickness = 1.5f;
-        var border = MakeRect(name + "_Border", parent, size + Vector2.one * (borderThickness * 2f), pos, FlatBtnBorder);
-
-        var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-        go.transform.SetParent(parent, false);
-        var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = size;
-        rt.anchoredPosition = pos;
-        go.GetComponent<Image>().color = FlatBtnBg;
-        go.GetComponent<Button>().targetGraphic = go.GetComponent<Image>();
-
-        var txtGo = new GameObject("Text", typeof(RectTransform));
-        txtGo.transform.SetParent(go.transform, false);
-        var txtRt = txtGo.GetComponent<RectTransform>();
-        txtRt.anchorMin = Vector2.zero;
-        txtRt.anchorMax = Vector2.one;
-        txtRt.offsetMin = txtRt.offsetMax = Vector2.zero;
-        var tmp = txtGo.AddComponent<TextMeshProUGUI>();
-        tmp.text = label;
-        tmp.fontSize = 20f;
-        tmp.color = FlatBtnText;
-        tmp.alignment = TextAlignmentOptions.Center;
-        ApplyFont(tmp);
-
         return go;
     }
 

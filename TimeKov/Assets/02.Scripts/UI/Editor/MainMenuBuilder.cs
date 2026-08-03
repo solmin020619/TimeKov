@@ -453,18 +453,6 @@ public static class MainMenuBuilder
         rect.offsetMax = Vector2.zero;
     }
 
-    static void CreateLetterbox(Transform parent, string name, bool top, float height)
-    {
-        var rect = CreateUIChild(parent, name);
-        var img = rect.gameObject.AddComponent<Image>();
-        img.color = Color.black;
-        rect.anchorMin = top ? new Vector2(0, 1) : new Vector2(0, 0);
-        rect.anchorMax = top ? new Vector2(1, 1) : new Vector2(1, 0);
-        rect.pivot = new Vector2(0.5f, top ? 1 : 0);
-        rect.sizeDelta = new Vector2(0, height);
-        rect.anchoredPosition = Vector2.zero;
-    }
-
     static void SetupParticles(Transform canvasTransform)
     {
         // Particles 컨테이너 (RectMask2D로 화면 밖 입자 자동 클리핑)
@@ -501,68 +489,4 @@ public static class MainMenuBuilder
         so.ApplyModifiedProperties();
     }
 
-    static void ConfigureDustParticles_Unused(ParticleSystem ps)
-    {
-        // 원본 tk-rise 키프레임 (index.html):
-        //   0%  → opacity 0
-        //   10% → opacity 0.7    (빠른 fade in)
-        //   90% → opacity 0.5
-        //   100% → translateY(-460px) translateX(20px), opacity 0
-        //   duration 14~24s linear
-        // Unity: Canvas referenceResolution 1080 기준 460px ≈ 5.3 world unit (대략)
-        var main = ps.main;
-        main.duration = 5f;
-        main.loop = true;
-        main.prewarm = true;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(14f, 24f);
-        main.startSpeed = 0f;  // velocityOverLifetime에서 직접 제어
-        main.startSize = new ParticleSystem.MinMaxCurve(0.04f, 0.1f);
-        main.startColor = new Color(0.78f, 0.88f, 1f, 1f);  // 알파는 colorOverLifetime에서
-        main.simulationSpace = ParticleSystemSimulationSpace.Local;
-        main.gravityModifier = 0f;
-        main.maxParticles = 30;  // 원본 18개 + 여유
-
-        var emission = ps.emission;
-        emission.rateOverTime = 1.3f;  // 19초 평균 lifetime 동안 ~25개 → 동시 18~22개
-
-        var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Box;
-        shape.scale = new Vector3(7f, 0.1f, 0.1f);  // Canvas 너비 cover
-        shape.position = Vector3.zero;
-
-        var vel = ps.velocityOverLifetime;
-        vel.enabled = true;
-        // 14~24초 동안 위로 ~5유닛 → 평균 0.27/초. 오른쪽 +20px ≈ 0.23유닛 → 0.012/초
-        vel.x = new ParticleSystem.MinMaxCurve(0.005f, 0.015f);
-        vel.y = new ParticleSystem.MinMaxCurve(0.20f, 0.35f);
-        vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
-
-        // 원본 tk-rise alpha 키프레임 그대로
-        var col = ps.colorOverLifetime;
-        col.enabled = true;
-        var grad = new Gradient();
-        grad.SetKeys(
-            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-            new[] {
-                new GradientAlphaKey(0f, 0f),     // 0% — fade in 시작
-                new GradientAlphaKey(0.7f, 0.1f), // 10% — peak
-                new GradientAlphaKey(0.5f, 0.9f), // 90% — fade out 시작
-                new GradientAlphaKey(0f, 1f)      // 100% — 사라짐
-            }
-        );
-        col.color = new ParticleSystem.MinMaxGradient(grad);
-
-        var renderer = ps.GetComponent<ParticleSystemRenderer>();
-        renderer.renderMode = ParticleSystemRenderMode.Billboard;
-        // Canvas Screen Space Camera 안에서 ParticleSystem이 Canvas 다른 UI 위에 그려지도록
-        renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = 200;  // Canvas sortingOrder(100)보다 위
-
-        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                  ?? Shader.Find("Particles/Standard Unlit")
-                  ?? Shader.Find("Particles/Unlit")
-                  ?? Shader.Find("Sprites/Default");
-        if (shader != null)
-            renderer.material = new Material(shader) { name = "DustParticle_Mat" };
-    }
 }
