@@ -207,7 +207,7 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
         if (target != null && !_engaged)
         {
             _engaged = true;
-            BossHealthBarUI.Show(_health, data != null ? data.enemyName : "보스", bossSubtitle);
+            BossHealthBarUI.Show(_health, data != null ? Loc.Get(data.enemyName) : Loc.Get("보스"), bossSubtitle);
             _feedback?.PlayDetect();   // SO detectSound 1회 재생(다른 적과 동일 훅)
             BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지)
         }

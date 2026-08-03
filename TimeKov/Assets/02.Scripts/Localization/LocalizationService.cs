@@ -32,6 +32,8 @@ public static class Loc
     public static void LoadTable(LanguageCode code, Dictionary<string, string> table)
     {
         _tables[code] = table;
+        if (code == CurrentLanguage)
+            OnLanguageChanged?.Invoke();
     }
 
     public static void ClearTables()

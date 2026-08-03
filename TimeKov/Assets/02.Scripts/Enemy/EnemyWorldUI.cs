@@ -80,6 +80,12 @@ public class EnemyWorldUI : MonoBehaviour
         nameText.UpdateMeshPadding();   // 외곽선 폭만큼 메쉬 패딩 재계산(안 하면 외곽선이 잘림)
     }
 
+    public void SetName(string enemyName)
+    {
+        if (nameText != null)
+            nameText.text = enemyName;
+    }
+
     public void Initialize(EnemyHealth health, string enemyName)
     {
         targetHealth = health;
@@ -96,6 +102,7 @@ public class EnemyWorldUI : MonoBehaviour
             nameText.text = enemyName;
 
         RefreshHP();
+
 
         if (canvasGroup != null)
             canvasGroup.alpha = 1f;
