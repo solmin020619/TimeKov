@@ -56,7 +56,7 @@ public class GimmickBarrier : GimmickTarget
         if (!instant)
         {
             SfxId sfx = powerDownSfx == SfxId.None ? SfxId.LaserBarrierDown : powerDownSfx;
-            GameSfx.Play(sfx);   // 결계 해제 이벤트 = 거리 무관 2D(빈 부모가 멀리 있어도 또렷하게)
+            GameSfx.Play(sfx, transform.position);   // 레이저 위치에서 3D 재생
         }
 
         if (instant || !flickerOut)
