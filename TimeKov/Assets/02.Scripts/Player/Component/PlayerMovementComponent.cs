@@ -109,7 +109,6 @@ public class PlayerMovementComponent : MonoBehaviour
     public float CurrentSpeed => _currentSpeed;  // 현재 이동 속도
     public bool IsGrounded => _isGrounded;     // 지면 여부
     public bool IsJumping => _isJumping;      // 점프 중 여부
-    public bool IsSlashing => _isSlashing;     // 슬래시 중 여부
     public bool IsSprinting { get; private set; } // 스프린트 중 여부 (스태미나 재생 판단용)
     /// <summary>
     /// dead zone 또는 그 직후 애니메이션 sync 중: true
@@ -282,8 +281,6 @@ public class PlayerMovementComponent : MonoBehaviour
         _steepContact = false;  // 소비 후 리셋 → 다음 스텝 컨택트가 다시 설정(자기정리)
     }
 
-    // 현재 밟고 있는 지면 경사각(도) / 급경사 여부 — 외부·디버그 확인용
-    public float CurrentSlopeAngle => Vector3.Angle(Vector3.up, _smoothedGroundNormal);
     public bool  OnSteepSlope      => _onSteepSlope;
 
     void GroundCheck()

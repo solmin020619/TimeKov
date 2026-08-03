@@ -4,16 +4,27 @@ using UnityEngine;
 
 public class PlayerStatComponent : MonoBehaviour, ISaveable
 {
-    public float MaxHp = 300f;
+    // 인스펙터에서 숨긴다 = 여기서 바꿔도 소용없기 때문.
+    // 최대 체력(=시간)은 코어 강화 전용이고 값의 권위는 CoreLevelData 시트다.
+    // CoreUpgradeManager.Start() -> ApplyCoreStats(data.maxTime) 가 무조건 덮어쓴다.
+    // 조절하려면 시트의 maxTime 컬럼을 고쳐라.
+    [HideInInspector] public float MaxHp = 300f;
     public float HpDrainRate = 1f;
     [Tooltip("시간(HP) 드레인 배수 - 보스 포효 등 디버프로 일시 가속(1=기본). 결계 밖에서만 적용.")]
     public float HpDrainMultiplier = 1f;
 
-    [Header("ATK / DEF")]
+    // ATK/DEF/MaxStamina = 앰플로 영구 누적되는 값. 세이브 슬롯이 있으면 저장값이 인스펙터를 덮어쓴다.
+    // 따라서 여기 값은 "새 슬롯의 시작값" 으로만 산다.
+    // ★GameSaveData 의 기본값(playerATK/playerDEF/playerMaxStamina)과 반드시 같아야 한다.
+    //   어긋나면 새 슬롯과 로드한 슬롯이 다른 베이스로 시작한다(과거 0/0 으로 뜨던 버그).
+    [Header("ATK / DEF (새 슬롯 시작값. 세이브 있으면 저장값이 이김)")]
+    [Tooltip("새 슬롯 시작값. GameSaveData.playerATK 와 같은 값을 유지할 것.")]
     public float ATK = 0f;
+    [Tooltip("새 슬롯 시작값. GameSaveData.playerDEF 와 같은 값을 유지할 것.")]
     public float DEF = 0f;
 
     [Header("Stamina")]
+    [Tooltip("새 슬롯 시작값. GameSaveData.playerMaxStamina 와 같은 값을 유지할 것.")]
     public float MaxStamina = 100f;
     public float StaminaDrain = 10f;
     [Tooltip("기본 최대치 기준 초당 회복량. 앰플로 최대치가 커지면 회복량도 같은 비율로 커져 0->풀 완충 시간이 일정하게 유지된다. 예) 기본 100을 10초에 채우면(=10/s) 500으로 늘어도 10초에 채워진다.")]
