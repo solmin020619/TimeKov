@@ -63,7 +63,8 @@ public class PlayerMovementComponent : MonoBehaviour
 
     private Vector3 _moveDir;
     private bool _isGrounded;
-    private Vector3 _lastGroundedPos;   // 발이 땅에서 떨어진 순간의 위치(공중일 때만 의미가 있다)
+    private Vector3 _lastGroundedPos;   // 설 수 있는 땅에서 발을 뗀 순간의 위치(공중/급경사일 때만 의미가 있다)
+    private bool    _wasStableGround;   // 직전 프레임의 '설 수 있는 땅' 여부(전환 순간만 기록하려고 둔다)
     private bool _wasGrounded;
     private Vector3 _groundNormal         = Vector3.up; // 현재 지면 법선 (SphereCast 원시값)
     private Vector3 _smoothedGroundNormal = Vector3.up; // 스무딩된 법선 (노이즈 제거)
@@ -133,6 +134,7 @@ public class PlayerMovementComponent : MonoBehaviour
         // 시작 위치로 초기화. 한 번도 땅을 밟기 전에 공중에서 죽으면(스폰 직후 낙하 등)
         // 이게 없으면 마지막 접지 지점이 (0,0,0) 이라 전리품이 월드 원점에 떨어진다.
         _lastGroundedPos = transform.position;
+        _wasStableGround = true;   // 스폰 직후 첫 낙하도 시작 위치가 기록되게
     }
 
     void OnEnable()
@@ -289,11 +291,15 @@ public class PlayerMovementComponent : MonoBehaviour
     public bool  OnSteepSlope      => _onSteepSlope;
 
     /// <summary>
-    /// 마지막으로 땅을 밟고 있던 위치.
-    /// 땅에 서 있으면 지금 위치가 그대로 답이고, 공중이면 발을 뗀 순간의 위치를 돌려준다.
-    /// 물/절벽으로 떨어져 죽었을 때 전리품을 회수 가능한 자리에 떨구는 용도.
+    /// 마지막으로 '설 수 있는 땅' 을 밟고 있던 위치.
+    /// 걸어서 서 있을 수 있는 상태면 지금 위치가 그대로 답이고,
+    /// 공중이거나 급경사를 미끄러지는 중이면 그 땅에서 발을 뗀 순간의 위치를 돌려준다.
+    ///
+    /// 급경사를 제외하는 이유: 낭떠러지가 70~80도라 미끄러져 내려가는 동안에도 접지 판정이
+    /// 살아 있다. 접지만 보면 마지막 지점이 결국 물가가 돼서 전리품을 못 건진다.
     /// </summary>
-    public Vector3 LastGroundedPosition => _isGrounded ? transform.position : _lastGroundedPos;
+    public Vector3 LastGroundedPosition =>
+        (_isGrounded && !_onSteepSlope) ? transform.position : _lastGroundedPos;
 
     void GroundCheck()
     {
@@ -324,12 +330,6 @@ public class PlayerMovementComponent : MonoBehaviour
         if (_isJumping && _rb.linearVelocity.y > 0.1f)
             _isGrounded = false;
 
-        // 발이 땅에서 떨어지는 그 순간에만 1회 기록한다(매 프레임 쓰지 않는다).
-        // 낭떠러지에서 떨어져 죽었을 때 전리품을 "발 뗀 자리" 에 떨구는 데 쓴다.
-        // 땅에 서 있는 동안은 지금 위치가 곧 마지막 접지 지점이라 저장할 필요가 없다(아래 프로퍼티 참고).
-        if (_wasGrounded && !_isGrounded)
-            _lastGroundedPos = transform.position;
-
         // SphereCast 원시 법선을 스무딩: 폴리곤 경계·돌출부에서 1~2프레임 노이즈 제거
         // Slerp factor 15 × deltaTime ≈ 0.25/frame → 약 4프레임에 걸쳐 부드럽게 수렴
         _smoothedGroundNormal = Vector3.Slerp(
@@ -359,6 +359,19 @@ public class PlayerMovementComponent : MonoBehaviour
                 if (_steepExitTimer >= STEEP_SLOPE_EXIT_DELAY) _onSteepSlope = false;
             }
         }
+
+        // 발이 '설 수 있는 땅' 에서 떨어지는 그 순간에만 1회 기록한다(매 프레임 쓰지 않는다).
+        // 낭떠러지에서 떨어져 죽었을 때 전리품을 회수 가능한 자리에 떨구는 데 쓴다.
+        //
+        // ★접지(_isGrounded) 만으로 판단하면 안 된다. 낭떠러지가 70~80도라 수직이 아니면
+        //   미끄러져 내려가는 내내 접지 판정이 살아 있어서, 마지막 지점이 결국 물가가 된다.
+        //   그래서 급경사 슬라이딩(_onSteepSlope)은 '설 수 있는 땅' 에서 제외한다.
+        //   -> 경사면에 발을 들이는 순간의 절벽 위 좌표가 남는다.
+        // 안정 지면에 서 있는 동안은 지금 위치가 곧 답이라 저장할 필요가 없다(LastGroundedPosition 참고).
+        bool stableGround = _isGrounded && !_onSteepSlope;
+        if (_wasStableGround && !stableGround)
+            _lastGroundedPos = transform.position;
+        _wasStableGround = stableGround;
 
         // UI 열려있을 때 점프 홀드 상태 무시 (PlayerInputComponent를 통해 읽음)
         bool jumpHeld = _player.Input.JumpHeld;
