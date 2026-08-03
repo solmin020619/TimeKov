@@ -3,7 +3,15 @@ using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
 {
+    // 인스펙터에서 잠근다 = 여기서 바꿔도 소용없기 때문.
+    // 몬스터 25종 전부 AI(EnemyBrain / BossMotor.ApplyData / FieldMonsterAI / HellMonsterAI /
+    // SelfDestructSpiderAI)가 Awake 에서 자기 SO 의 maxHP 로 덮어쓴다. 예외 프리팹 없음.
+    [FilledBy("몬스터 SO 의 maxHP (06.ScriptableObjects/Enemy)")]
     public float maxHP = 100f;
+
+    // 순수 런타임 상태. Awake 에서 maxHP 로 채우므로 저장된 값은 의미가 없다.
+    // 플레이 중 깎이는 걸 눈으로 보는 용도라 숨기지 않고 잠그기만 한다.
+    [FilledBy("게임 로직 (시작할 때 maxHP 로 채움)")]
     public float currentHP;
 
     [Header("UI")]

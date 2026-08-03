@@ -81,11 +81,11 @@ public class MeleeEnemyData : ScriptableObject
     [Tooltip("발견 후 정지하는 시간 (초). 발견 모션 재생용. 0이면 즉시 추격")]
     public float detectStunDuration = 1.5f;
 
+    // 출현 소리 슬롯은 없앴다. EnemyFeedback.PlaySpawn 이 소리를 아예 안 내는 구조라
+    // (등장 연출은 감지 포효가 대신함) 클립을 꽂아도 재생될 길이 없는 칸이었다.
     [Header("Feedback - Spawn")]
     [Tooltip("출현 시 재생 VFX")]
     public GameObject spawnVFX;
-    [Tooltip("출현 시 재생 소리")]
-    public AudioClip spawnSound;
 
     [Header("Feedback - Detect")]
     [Tooltip("플레이어 발견 시 재생 VFX")]

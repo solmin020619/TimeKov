@@ -2,9 +2,16 @@ using UnityEngine;
 
 public class VisionSensor : MonoBehaviour
 {
+    // ★visionRange / visionAngle 은 인스펙터에서 잠겨 있다.
+    //   VisionSensor 를 쓰는 AI 3종(EnemyBrain / FieldMonsterAI / HellMonsterAI)이 전부
+    //   Awake 에서 ApplyVisionParameters(data.visionRange, data.visionAngle) 로 덮어쓴다.
+    //   반면 eyeHeight 는 아무도 안 덮어쓰니 여기가 진짜 값이다(빌더가 구울 때만 세팅).
     [Header("Vision")]
+    [FilledBy("몬스터 SO 의 visionRange")]
     [SerializeField] private float visionRange = 12f;
-    [SerializeField, Range(0f, 360f)] private float visionAngle = 110f;
+    [FilledBy("몬스터 SO 의 visionAngle")]
+    [SerializeField] private float visionAngle = 110f;
+    [Tooltip("시야 레이 시작 높이. 큰 몹은 올린다. 여기가 진짜 조절점이다.")]
     [SerializeField] private float eyeHeight = 1.6f;
 
     [Header("Layers")]
@@ -16,6 +23,7 @@ public class VisionSensor : MonoBehaviour
 
     [Header("Lost Memory")]
     [Tooltip("시야에서 벗어난 후에도 이 시간 동안 마지막 타깃을 유지. 즉시 정지 방지.")]
+    [FilledBy("몬스터 SO 의 targetLostMemory")]
     [SerializeField] private float lostMemory = 1.5f;
 
     public Transform SpottedTarget { get; private set; }
