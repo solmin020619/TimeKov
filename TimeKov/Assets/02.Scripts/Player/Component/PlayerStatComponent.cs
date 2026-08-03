@@ -19,9 +19,9 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     //   어긋나면 새 슬롯과 로드한 슬롯이 다른 베이스로 시작한다(과거 0/0 으로 뜨던 버그).
     [Header("ATK / DEF (새 슬롯 시작값. 세이브 있으면 저장값이 이김)")]
     [Tooltip("새 슬롯 시작값. GameSaveData.playerATK 와 같은 값을 유지할 것.")]
-    public float ATK = 0f;
+    public float ATK = 10f;
     [Tooltip("새 슬롯 시작값. GameSaveData.playerDEF 와 같은 값을 유지할 것.")]
-    public float DEF = 0f;
+    public float DEF = 10f;
 
     [Header("Stamina")]
     [Tooltip("새 슬롯 시작값. GameSaveData.playerMaxStamina 와 같은 값을 유지할 것.")]
