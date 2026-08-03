@@ -13,19 +13,16 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     [Tooltip("시간(HP) 드레인 배수 - 보스 포효 등 디버프로 일시 가속(1=기본). 결계 밖에서만 적용.")]
     public float HpDrainMultiplier = 1f;
 
-    // ATK/DEF/MaxStamina = 앰플로 영구 누적되는 값. 세이브 슬롯이 있으면 저장값이 인스펙터를 덮어쓴다.
-    // 따라서 여기 값은 "새 슬롯의 시작값" 으로만 산다.
-    // ★GameSaveData 의 기본값(playerATK/playerDEF/playerMaxStamina)과 반드시 같아야 한다.
-    //   어긋나면 새 슬롯과 로드한 슬롯이 다른 베이스로 시작한다(과거 0/0 으로 뜨던 버그).
-    [Header("ATK / DEF (새 슬롯 시작값. 세이브 있으면 저장값이 이김)")]
-    [Tooltip("새 슬롯 시작값. GameSaveData.playerATK 와 같은 값을 유지할 것.")]
-    public float ATK = 10f;
-    [Tooltip("새 슬롯 시작값. GameSaveData.playerDEF 와 같은 값을 유지할 것.")]
-    public float DEF = 10f;
+    // ATK/DEF/MaxStamina = 앰플로 영구 누적되는 값이라 인스펙터에서 조절할 수 없다.
+    // 세이브가 있으면 저장값이, 없으면 PlayerBaseStats 가 값을 정한다.
+    // 그래서 아예 직렬화를 끊었다([NonSerialized]) - 씬에 박혀 있던 사본이 죽어서
+    // 같은 숫자를 씬/코드/GameSaveData 세 군데에 손으로 맞추던 이중관리가 사라진다.
+    // 시작값을 바꾸려면 PlayerBaseStats 를 고쳐라.
+    [NonSerialized] public float ATK = PlayerBaseStats.ATK;
+    [NonSerialized] public float DEF = PlayerBaseStats.DEF;
+    [NonSerialized] public float MaxStamina = PlayerBaseStats.MaxStamina;
 
     [Header("Stamina")]
-    [Tooltip("새 슬롯 시작값. GameSaveData.playerMaxStamina 와 같은 값을 유지할 것.")]
-    public float MaxStamina = 100f;
     public float StaminaDrain = 10f;
     [Tooltip("기본 최대치 기준 초당 회복량. 앰플로 최대치가 커지면 회복량도 같은 비율로 커져 0->풀 완충 시간이 일정하게 유지된다. 예) 기본 100을 10초에 채우면(=10/s) 500으로 늘어도 10초에 채워진다.")]
     public float StaminaRegen = 5f;
@@ -61,7 +58,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     private Coroutine _hurtRoutine;
     private float _regenLockTimer;   // >0 동안 스태미나 회복 정지(대쉬 소모 직후만. 달리기는 안 검)
     private float _iframeTimer;       // >0 동안 피격 무적. '같은 순간 중복 히트'만 차단(다단/볼리/틱은 간격이 있어 통과).
-    private float _baseMaxStamina = 100f;   // 앰플 누적 전 기본 최대 스태미나(씬 직렬화값). 회복량을 이 값 대비 현재 MaxStamina 비율로 스케일 -> 최대치를 늘려도 완충 시간 일정.
+    private float _baseMaxStamina = PlayerBaseStats.MaxStamina;   // 앰플 누적 전 기본 최대 스태미나. 회복량을 이 값 대비 현재 MaxStamina 비율로 스케일 -> 최대치를 늘려도 완충 시간 일정.
 
     // 로드 직후 ApplyCoreStats가 MaxHp를 확정하기 전까지 대기 중인 복원 비율(없으면 null).
     // CoreUpgradeManager.Start()가 ApplyCoreStats를 호출하는 시점에 1회만 소비된다.
@@ -76,9 +73,9 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     {
         _player = GetComponent<Player>();
 
-        // 앰플 누적 전 기본 최대치를 잡아둔다(아래 저장 복원이 MaxStamina를 덮어쓰기 전).
-        // 회복량을 이 값 대비 비율로 스케일해서, 최대치를 늘려도 0->풀 완충 시간이 일정하게 유지된다.
-        _baseMaxStamina = MaxStamina;
+        // 앰플 누적 전 기본 최대치(= PlayerBaseStats.MaxStamina). 회복량을 이 값 대비 비율로
+        // 스케일해서, 앰플로 최대치를 늘려도 0->풀 완충 시간이 일정하게 유지된다.
+        _baseMaxStamina = PlayerBaseStats.MaxStamina;
 
         SaveSlotManager.Instance?.Register(this);
         if (SaveSlotManager.Instance != null && SaveSlotManager.Instance.HasActiveSlot)

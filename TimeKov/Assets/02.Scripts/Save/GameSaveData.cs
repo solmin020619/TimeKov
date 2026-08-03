@@ -39,12 +39,10 @@ public class GameSaveData
 
     // ── 플레이어 영구 스탯 (앰플로 누적되는 ATK/DEF/MaxStamina, ConsumableEffectApplier.ApplyPermanentStat) ──
     // 코어 강화(MaxHp)와 분리된 별도 누적치라 절대값 그대로 저장.
-    // 씬 플레이어의 인스펙터 베이스(ATK/DEF=10, MaxStamina=100)와 반드시 일치시킬 것.
-    //   불일치하면 세이브 로드 시 이 값이 인스펙터를 덮어써 신규게임이 엉뚱한 베이스로 시작한다
-    //   (과거 0/0 이라 메인메뉴 진입 시 ATK/DEF 가 0 으로 뜨던 버그).
-    public float playerATK = 10f;
-    public float playerDEF = 10f;
-    public float playerMaxStamina = 100f;
+    // 시작값의 원본은 PlayerBaseStats 하나뿐이다. 숫자를 바꾸려면 거기서 바꿔라.
+    public float playerATK = PlayerBaseStats.ATK;
+    public float playerDEF = PlayerBaseStats.DEF;
+    public float playerMaxStamina = PlayerBaseStats.MaxStamina;
 
     // ── 플레이어 위치 ────────────────────────────────────────────────────
     // hasPlayerPosition=false면 새 슬롯이라 씬 기본 스폰 위치를 그대로 둔다(원점으로 텔레포트 안 함).
