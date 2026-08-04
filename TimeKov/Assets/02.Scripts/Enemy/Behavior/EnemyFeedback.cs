@@ -33,6 +33,23 @@ public class EnemyFeedback : MonoBehaviour
         // 3D 소리 강제 (인스펙터에서 미설정한 경우 대비)
         if (audioSource != null && audioSource.spatialBlend < 0.5f)
             audioSource.spatialBlend = 1f;
+
+        // 스폰 시점의 SFX 볼륨을 즉시 반영.
+        // VolumeSync 는 볼륨이 '바뀔 때'만 씬을 훑기 때문에, 그 뒤에 스폰된 몬스터는
+        // 아무도 볼륨을 걸어주지 않아 슬라이더를 내려도 최대 음량으로 났다.
+        // 프리팹 11종(구형 5종 + 거미/자이언트웜/헬 5종)에 VolumeSyncReceiver 가 없어서
+        // 여기서 일괄로 보장한다. 위에서 audioSource 존재를 이미 보장했으므로 전 몬스터가 커버된다.
+        ApplySfxVolume(GlobalSettingsManager.CurrentSFXVolume);
+    }
+
+    private void OnEnable()
+    {
+        GlobalSettingsManager.OnSFXVolumeChanged += ApplySfxVolume;
+    }
+
+    private void ApplySfxVolume(float vol)
+    {
+        if (audioSource != null) audioSource.volume = vol;
     }
 
     public void SetData(MeleeEnemyData data)
@@ -105,6 +122,7 @@ public class EnemyFeedback : MonoBehaviour
 
     private void OnDisable()
     {
+        GlobalSettingsManager.OnSFXVolumeChanged -= ApplySfxVolume;
         _knockCo = null;
     }
 

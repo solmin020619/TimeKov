@@ -29,7 +29,9 @@ public class GlobalSettingsManager : MonoBehaviour
     public static event Action OnKeyBindingsChanged;
     public static event Action<LanguageCode> OnLanguageChanged;
 
-    // 다른 스크립트의 PlayerPrefs 직접 읽기를 대체하는 정적 접근자 (effective 값 = master 적용 후)
+    // 다른 스크립트의 PlayerPrefs 직접 읽기를 대체하는 정적 접근자.
+    // 주의: 마스터는 여기 안 섞인다 - 마스터는 AudioListener.volume(전역)이 담당한다.
+    //   그래서 이 값은 'BGM/SFX 슬라이더 값' 그 자체다.
     private static float _currentBGM = 1f;
     private static float _currentSFX = 1f;
     private static float _currentSensitivity = 1f;
@@ -351,8 +353,14 @@ public class GlobalSettingsManager : MonoBehaviour
         KeyBindings.Apply(data.keyBindings);
         OnKeyBindingsChanged?.Invoke(); // 스킬바 등 키 라벨을 직접 그리는 UI에게 리바인딩 결과를 알림
 
-        _currentBGM = data.bgmVolume * data.masterVolume;
-        _currentSFX = data.sfxVolume * data.masterVolume;
+        // 마스터는 AudioListener 전역 볼륨으로 건다.
+        // 개별 AudioSource 볼륨에 곱해 넣으면 '지금 씬에 있는 소리'에만 반영된다 -> 그 뒤에
+        // 스폰되는 몬스터나 PlayClipAtPoint 로 나는 소리는 동기화 시점을 놓쳐서
+        // 마스터 0 인데도 최대 음량으로 났다(QA 보고). 전역이면 태어나는 시점과 무관하게 걸린다.
+        AudioListener.volume = Mathf.Clamp01(data.masterVolume);
+
+        _currentBGM = data.bgmVolume;
+        _currentSFX = data.sfxVolume;
         OnBGMVolumeChanged?.Invoke(_currentBGM);
         OnSFXVolumeChanged?.Invoke(_currentSFX);
 
