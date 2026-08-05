@@ -62,6 +62,14 @@ public static class TutorialAssetBuilder
     const string Y = "<color=#FFCC00>";  // 강조 색 열기
     const string E = "</color>";          // 닫기
 
+    // -- 데모(자연맵 전용) 토글 --
+    // true = 설원/사막/용암 구역 퀘스트(quest_end_05~10)를 아예 만들지 않는다.
+    //   자연맵만 여는 데모 빌드에서는 그 구역에 갈 수 없어 objective 가 영구 미완료로 남기 때문.
+    //   남는 엔드게임 라인 = 전송기 이동 -> 첫 전송 5% -> 와이번 처치 + 전송률 25% -> 우주선 Lv.3(= 데모 끝).
+    // 본편 복귀 = false 로 바꾸고 Tools/Quest/Generate Tutorial Assets 재실행.
+    //   ★재실행하면 quest_end_05~10 과 그 objective 들이 git 에서 deleted 로 뜬다(삭제도 같이 커밋할 것).
+    const bool DemoNatureOnly = true;
+
     // -- 영상 팝업 토글 --
     // false 로 두고 재생성하면 영상 단계가 빠진다(설명만 사라지고 행동 퀘는 그대로라 흐름은 완주 가능). 안전 복원용.
     const bool EnableVideoTutorials = true;
@@ -281,7 +289,10 @@ public static class TutorialAssetBuilder
         if (EnableVideoTutorials)
             transmitObjs.Add(CreateVideoTutorial("obj_transmit_video", "시간에너지 전송 안내를 확인하세요.",
                 VPage("시간에너지 전송",
-                    $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 지역별로 25%씩 채우고, 각 구간 마지막은 {Y}보스 재료{E} 특수 키트가 필요합니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}합니다.")));
+                    DemoNatureOnly
+                    // 데모는 자연 구간(25%)이 상한이라 100% 를 목표로 안내하면 못 이룰 목표를 심게 된다.
+                    ? $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 구간 마지막은 {Y}보스 재료{E}가 들어간 특수 키트가 필요합니다. 이번 데모에서는 자연 구역 {Y}25%{E} 달성과 {Y}우주선 수리{E}까지 진행할 수 있습니다."
+                    : $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 지역별로 25%씩 채우고, 각 구간 마지막은 {Y}보스 재료{E} 특수 키트가 필요합니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}합니다.")));
         transmitObjs.Add(CreateTransmissionRate("obj_first_transmit",
             $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 전송률 {Y}5%{E}를 달성하세요.", 5));
         endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "첫 시간에너지 전송", transmitObjs.ToArray()));
@@ -304,33 +315,38 @@ public static class TutorialAssetBuilder
             CreateShipRepairLevel("obj_ship_lv3",
                 $"모은 {Y}복구 에너지{E}와 {Y}선체 보강재{E}로 우주선을 {Y}Lv.3{E}까지 수리하세요.", 3)));
 
-        // 설원 구역 (25 -> 50%). 30% 코어 합성기, 40% 귀환석 Lv.2.
-        endgameQuests.Add(BuildQuest("quest_end_05_region_snow", "설원 구역 돌파",
-            CreateEnemyKill("obj_boss_snow", $"설원의 {Y}얼음정령{E}을 {Y}처치{E}하세요.", "ice_elemental_boss", 1),
-            CreateTransmissionRate("obj_rate_50", $"전송률 {Y}50%{E}를 달성하세요.", 50)));
+        // 아래 3구역 + 탈출은 자연맵 밖이라 데모 빌드에서는 통째로 만들지 않는다(DemoNatureOnly).
+        // 만들어두면 갈 수 없는 보스/전송률이 목표로 떠서 영구 미완료로 남는다.
+        if (!DemoNatureOnly)
+        {
+            // 설원 구역 (25 -> 50%). 30% 코어 합성기.
+            endgameQuests.Add(BuildQuest("quest_end_05_region_snow", "설원 구역 돌파",
+                CreateEnemyKill("obj_boss_snow", $"설원의 {Y}얼음정령{E}을 {Y}처치{E}하세요.", "ice_elemental_boss", 1),
+                CreateTransmissionRate("obj_rate_50", $"전송률 {Y}50%{E}를 달성하세요.", 50)));
 
-        endgameQuests.Add(BuildQuest("quest_end_06_ship_lv4", "2차 우주선 수리",
-            CreateShipRepairLevel("obj_ship_lv4",
-                $"{Y}동력 안정기{E}로 우주선을 {Y}Lv.4{E}까지 수리하세요.", 4)));
+            endgameQuests.Add(BuildQuest("quest_end_06_ship_lv4", "2차 우주선 수리",
+                CreateShipRepairLevel("obj_ship_lv4",
+                    $"{Y}동력 안정기{E}로 우주선을 {Y}Lv.4{E}까지 수리하세요.", 4)));
 
-        // 사막 구역 (50 -> 75%). 60% 생체 분리기+에너지 변환기, 70% 창고 상한+귀환석 Lv.3.
-        endgameQuests.Add(BuildQuest("quest_end_07_region_desert", "사막 구역 돌파",
-            CreateEnemyKill("obj_boss_desert", $"사막의 {Y}모래정령{E}을 {Y}처치{E}하세요.", "sand_elemental_boss", 1),
-            CreateTransmissionRate("obj_rate_75", $"전송률 {Y}75%{E}를 달성하세요.", 75)));
+            // 사막 구역 (50 -> 75%). 70% 창고 상한.
+            endgameQuests.Add(BuildQuest("quest_end_07_region_desert", "사막 구역 돌파",
+                CreateEnemyKill("obj_boss_desert", $"사막의 {Y}모래정령{E}을 {Y}처치{E}하세요.", "sand_elemental_boss", 1),
+                CreateTransmissionRate("obj_rate_75", $"전송률 {Y}75%{E}를 달성하세요.", 75)));
 
-        endgameQuests.Add(BuildQuest("quest_end_08_ship_lv5", "최종 우주선 수리",
-            CreateShipRepairLevel("obj_ship_lv5",
-                $"{Y}우주선 엔진{E}으로 우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5)));
+            endgameQuests.Add(BuildQuest("quest_end_08_ship_lv5", "최종 우주선 수리",
+                CreateShipRepairLevel("obj_ship_lv5",
+                    $"{Y}우주선 엔진{E}으로 우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5)));
 
-        // 용암 구역 (75 -> 100%). 80/90% 창고 상한·앰플 꾸러미·코어 키트. 100% 도달 = 엔딩 조건.
-        endgameQuests.Add(BuildQuest("quest_end_09_region_lava", "용암 구역 돌파",
-            CreateEnemyKill("obj_boss_lava", $"용암의 {Y}화염정령{E}을 {Y}처치{E}하세요.", "fire_boss", 1),
-            CreateTransmissionRate("obj_rate_100", $"전송률 {Y}100%{E}를 달성하세요.", 100)));
+            // 용암 구역 (75 -> 100%). 80/90% 창고 상한·앰플 꾸러미·코어 키트. 100% 도달 = 엔딩 조건.
+            endgameQuests.Add(BuildQuest("quest_end_09_region_lava", "용암 구역 돌파",
+                CreateEnemyKill("obj_boss_lava", $"용암의 {Y}화염정령{E}을 {Y}처치{E}하세요.", "fire_boss", 1),
+                CreateTransmissionRate("obj_rate_100", $"전송률 {Y}100%{E}를 달성하세요.", 100)));
 
-        // 탈출 - 우주선 완전 수리 + 전송 100% 둘 다 충족 시 탈출. (앞 퀘로 이미 달성돼 있으면 즉시 완료 = 승리 확인)
-        endgameQuests.Add(BuildQuest("quest_end_10_escape", "탈출",
-            CreateShipRepairLevel("obj_escape_ship", $"우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5),
-            CreateTransmissionRate("obj_escape_rate", $"시간에너지 {Y}100%{E}를 달성해 {Y}탈출{E}하세요.", 100)));
+            // 탈출 - 우주선 완전 수리 + 전송 100% 둘 다 충족 시 탈출. (앞 퀘로 이미 달성돼 있으면 즉시 완료 = 승리 확인)
+            endgameQuests.Add(BuildQuest("quest_end_10_escape", "탈출",
+                CreateShipRepairLevel("obj_escape_ship", $"우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5),
+                CreateTransmissionRate("obj_escape_rate", $"시간에너지 {Y}100%{E}를 달성해 {Y}탈출{E}하세요.", 100)));
+        }
 
         // [2층] 상황별 발견 팝업 데이터셋 생성 (이벤트 처음 발생 시 1회 설명 팝업. Resources 런타임 로드).
         BuildDiscoveryCueSet();
