@@ -114,7 +114,7 @@ namespace TIMEKOV.Factory
                 {
                     facilitySelectPanel.SelectMachine(aimed);
                     if (aimed != _outlinedMachine) SetOutline(aimed);
-                    if (hintText != null) hintText.text = $"F  —  {aimed.MachineName}" + " " + Loc.Get("열기");
+                    if (hintText != null) hintText.text = $"F  —  {Loc.Get(aimed.MachineName)}" + " " + Loc.Get("열기");
                 }
             }
 
@@ -154,7 +154,7 @@ namespace TIMEKOV.Factory
                     if (m == machine) { dup = true; break; }
                 if (dup) continue;
 
-                string name = machine.MachineName;
+                string name = Loc.Get(machine.MachineName);
                 _nearMachines.Add((machine, name));
             }
 

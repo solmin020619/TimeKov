@@ -191,6 +191,15 @@ public class MachineUI : MonoBehaviour
         UpdateBagDropBoxText();
         UpdateStorageDropBoxText();
         UpdateStorageHeaderLabel();
+
+        if (machineTitleText != null && _machine != null)
+            machineTitleText.text = Loc.Get(_machine.MachineName);
+        if (recipeNameText != null && _machine?.Recipes != null
+            && _selectedRecipeIndex >= 0 && _selectedRecipeIndex < _machine.Recipes.Count)
+        {
+            var r = _machine.Recipes[_selectedRecipeIndex];
+            recipeNameText.text = !string.IsNullOrEmpty(r.recipeName) ? Loc.Get(r.recipeName) : "";
+        }
     }
 
     private static void SetBtnLabel(Button btn, string key)
@@ -1443,7 +1452,7 @@ public class MachineUI : MonoBehaviour
             && _selectedRecipeIndex < _machine.Recipes.Count)
         {
             var recipe = _machine.Recipes[_selectedRecipeIndex];
-            recipeNameText.text = !string.IsNullOrEmpty(recipe.recipeName) ? recipe.recipeName : "";
+            recipeNameText.text = !string.IsNullOrEmpty(recipe.recipeName) ? Loc.Get(recipe.recipeName) : "";
         }
 
         RefreshRecipeChips(multiRecipe);
