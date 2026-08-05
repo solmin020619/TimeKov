@@ -1909,7 +1909,7 @@ public class MachineUI : MonoBehaviour
             // 실제 남은시간 = 레시피 craftTime x 레벨배율 x 공장속도 (폴백 processingTime 아님).
             float remaining = _machine.ResolveProcessTime(_machine.ActiveRecipe) * (1f - _machine.Progress);
             if (_processTimeText != null)
-                _processTimeText.text = $"{remaining:F0}초";              // 제작 시간은 중앙(진행바 위)
+                _processTimeText.text = $"{remaining:F0}{Loc.Get("초")}";              // 제작 시간은 중앙(진행바 위)
         }
         else
         {
@@ -1920,7 +1920,7 @@ public class MachineUI : MonoBehaviour
                 var sel = (_machine.Recipes != null && _selectedRecipeIndex >= 0 && _selectedRecipeIndex < _machine.Recipes.Count)
                     ? _machine.Recipes[_selectedRecipeIndex] : null;
                 float total = _machine.ResolveProcessTime(sel);
-                _processTimeText.text = total > 0f ? $"{total:F0}초" : "";
+                _processTimeText.text = total > 0f ? $"{total:F0}{Loc.Get("초")}" : "";
             }
         }
     }

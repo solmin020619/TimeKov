@@ -24,7 +24,7 @@ public class EnemyKillObjective : ObjectiveSO
 
     public override string GetDisplayLabel()
     {
-        var displayLabel = string.IsNullOrEmpty(label) ? "처치" : label;
+        var displayLabel = string.IsNullOrEmpty(label) ? Loc.Get("처치") : Loc.Get(label);
         return requiredCount > 1 ? $"{displayLabel} ({_count}/{requiredCount})" : displayLabel;
     }
 
