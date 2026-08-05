@@ -39,6 +39,9 @@ public class GimmickSlideDoor : GimmickTarget
 
         if (_move != null) { StopCoroutine(_move); _move = null; }
 
+        // 실제 개폐(연출)일 때 문짝의 기존 AudioSource(원래 슬라이드 소리)를 그대로 재생. 시작 초기화(instant)엔 무음.
+        if (!instant) PlayDoorAudio();
+
         if (instant || slideTime <= 0f)
         {
             for (int i = 0; i < doors.Length; i++)
@@ -73,6 +76,17 @@ public class GimmickSlideDoor : GimmickTarget
         for (int i = 0; i < doors.Length; i++)
             if (doors[i] != null) doors[i].transform.localPosition = to[i];
         _move = null;
+    }
+
+    // 문짝에 붙은 기존 AudioSource(원래 문 슬라이드 소리)를 재생 — DoorHori.OpenDoor 와 같은 소리.
+    private void PlayDoorAudio()
+    {
+        foreach (var d in doors)
+        {
+            if (d == null) continue;
+            var au = d.GetComponent<AudioSource>();
+            if (au != null) au.Play();
+        }
     }
 
     // 열림 목표 = 닫힘 + (0, -translateValue, 0). DoorHori 의 OpenDoor 궤적과 동일.

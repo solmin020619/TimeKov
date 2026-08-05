@@ -8,9 +8,7 @@ using UnityEngine;
 //   1개(depositPerPress)씩 소모해 이 노드를 채운다. requiredAmount 만큼 차면 활성화(IsActive).
 //
 //   • 연료 = 인벤토리 아이템(fuelItemId). 공장에서 만든 충전키트/시간에너지 등.
-//   • openDuration>0 이면 활성화 후 그 시간(초)이 지나면 '연료가 소진되어' 다시 꺼진다(재주입 필요).
-//     0 이하면 한 번 채우면 영구 유지.
-//   • 주입은 '일방향'(회수 없음) — 넣은 연료는 소모된다.
+//   • 주입은 '일방향'(회수 없음) — 넣은 연료는 소모된다. 완료되면 계속 활성(영구 개방).
 //   • 연료가 없으면 거부(빨강 점멸 + 토스트). 채워질수록 점점 밝게 발광.
 //
 //   WarpPoint/GimmickSwitch 와 같은 방식으로 F 알약 + 근접 발광/외곽선을 쓴다.
@@ -29,11 +27,6 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
     [Min(1)] [SerializeField] private int requiredAmount = 3;
     [Tooltip("F 한 번에 넣는 연료 개수. 보통 1(한 개씩 넣는 손맛). 크게 하면 한 번에 확 참.")]
     [Min(1)] [SerializeField] private int depositPerPress = 1;
-
-    [Header("지속 시간")]
-    [Tooltip("활성화된 뒤 이 시간(초)이 지나면 연료가 소진되어 다시 꺼진다(설비 연료처럼). 0 이하면 영구 유지.\n" +
-             "여러 노드를 묶어 쓸 땐 EnergyConduit 의 latch 를 끄면 하나라도 꺼질 때 문이 닫힌다.")]
-    [SerializeField] private float openDuration = 40f;
 
     [Header("충전 게이지 (선택)")]
     [Tooltip("채워질수록 앞에서부터 켜질 오브젝트들(칸 아이콘 등). 개수는 requiredAmount 에 맞추길 권장.")]
@@ -94,7 +87,6 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
 
     private InteractHighlight _highlight;
     private Coroutine _flash;
-    private Coroutine _revert;
     private MaterialPropertyBlock _mpb;
     private static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
 
@@ -162,13 +154,6 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
                 if (t != null) t.SetOpen(true);
 
             OnChanged?.Invoke(this);   // 여러 노드를 묶는 EnergyConduit 에도 완료 통지
-
-            // 지속 시간이 있으면 그만큼 뒤 연료 소진되어 다시 꺼진다.
-            if (openDuration > 0f)
-            {
-                if (_revert != null) StopCoroutine(_revert);
-                _revert = StartCoroutine(RevertAfter(openDuration));
-            }
         }
         else
         {
@@ -179,30 +164,6 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
             Flash(activeColor, 0.15f);
             RefreshHint();   // 진행도(n/N) 갱신
         }
-    }
-
-    // 지속 시간 경과 → 연료 소진: 비활성화 + 초기화 + 연결 타깃 닫기.
-    private IEnumerator RevertAfter(float sec)
-    {
-        yield return new WaitForSeconds(sec);
-        _revert = null;
-        Deactivate();
-    }
-
-    private void Deactivate()
-    {
-        if (!IsActive && _filled == 0) return;
-        IsActive = false;
-        _filled = 0;
-        UpdateIndicators();
-        ApplyVisual();
-        SetGlowLevel(0f);
-        GameSfx.Play(SfxId.GimmickSwitchOff, transform.position);
-
-        foreach (var t in targets)
-            if (t != null) t.SetOpen(false);
-
-        OnChanged?.Invoke(this);   // Conduit 재평가(latch 꺼져 있으면 문 닫힘)
     }
 
     // 연료가 없어 주입이 거부됐을 때 — 빨강 한 번 점멸.

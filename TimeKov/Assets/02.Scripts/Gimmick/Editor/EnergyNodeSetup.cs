@@ -60,7 +60,6 @@ public static class EnergyNodeSetup
         var so = new SerializedObject(node);
         so.FindProperty("requiredAmount").intValue  = 3;
         so.FindProperty("depositPerPress").intValue = 1;
-        so.FindProperty("openDuration").floatValue  = 40f;   // 설비 연료처럼 40초 뒤 소진
         so.FindProperty("showOutline").boolValue    = false; // 땅에 박은 오브젝트 = 외곽선 대신 근접 발광
         so.FindProperty("glowIntensity").floatValue = 2f;    // 런타임 밝기(강하면 인스펙터서 낮추고, 어두우면 올림)
         var gls = so.FindProperty("glowLights");
@@ -96,9 +95,9 @@ public static class EnergyNodeSetup
         var trig = host.AddComponent<EnergyConduit>();
         var so = new SerializedObject(trig);
         so.FindProperty("requireAll").boolValue = true;
-        // 지속 시간(40초)이 있는 노드를 쓰면 하나라도 꺼질 때 문이 닫혀야 하므로 latch 를 끈다.
+        // 완료되면 영구 개방(노드가 다시 안 꺼짐)이므로 latch 켜 둔다.
         var latch = so.FindProperty("latch");
-        if (latch != null) latch.boolValue = false;
+        if (latch != null) latch.boolValue = true;
         var list = so.FindProperty("nodes");
         list.arraySize = nodes.Count;
         for (int i = 0; i < nodes.Count; i++)
@@ -107,7 +106,7 @@ public static class EnergyNodeSetup
 
         Selection.activeGameObject = host;
         MarkDirty(host);
-        Debug.Log($"[에너지노드] EnergyConduit 생성 — 노드 {nodes.Count}개 연결(requireAll, latch 꺼짐). " +
+        Debug.Log($"[에너지노드] EnergyConduit 생성 — 노드 {nodes.Count}개 연결(requireAll, latch 켜짐=영구 개방). " +
                   "★Targets(문 GimmickSlideDoor 등)를 연결하라.", host);
     }
 
