@@ -41,16 +41,21 @@ public class BuildingLabelUI : MonoBehaviour
     private Texture2D _bgTexture;
     private Texture2D _shadowTexture;
 
-  
+    private string _facilityKey;
 
-    public void Setup(int facilityId, string facilityName, Sprite icon)
+    public void Setup(int facilityId, string facilityKey, Sprite icon)
     {
+        _facilityKey = facilityKey;
+
+        Loc.OnLanguageChanged -= RefreshText;
+        Loc.OnLanguageChanged += RefreshText;
+
         if (_root == null) CreateLabel();
 
         if (_nameText != null)
         {
             if (fontAsset != null) _nameText.font = fontAsset;
-            _nameText.text = facilityName;
+            _nameText.text = Loc.Get(facilityKey);
             _nameText.ForceMeshUpdate();
         }
 
@@ -78,6 +83,18 @@ public class BuildingLabelUI : MonoBehaviour
     public void ShowLabel() { if (_root != null) _root.SetActive(true); }
     public void HideLabel() { if (_root != null) _root.SetActive(false); }
 
+    private void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshText;
+    }
+
+    private void RefreshText()
+    {
+        if (string.IsNullOrEmpty(_facilityKey) || _nameText == null) return;
+        _nameText.text = Loc.Get(_facilityKey);
+        _nameText.ForceMeshUpdate();
+    }
+
     private void Awake() { }
 
     private void LateUpdate()
@@ -86,7 +103,19 @@ public class BuildingLabelUI : MonoBehaviour
             _root.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 
         if (_nameText != null)
+        {
             _nameText.transform.localRotation = Quaternion.Euler(textRotX, textRotY, textRotZ);
+
+            if (!string.IsNullOrEmpty(_facilityKey))
+            {
+                string expected = Loc.Get(_facilityKey);
+                if (_nameText.text != expected)
+                {
+                    _nameText.text = expected;
+                    _nameText.ForceMeshUpdate();
+                }
+            }
+        }
     }
 
 

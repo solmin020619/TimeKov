@@ -1314,7 +1314,7 @@ public class BuildManager : MonoBehaviour, ISaveable
         if (railSlotEffect != null)
         {
             bool isRailSelected = IsBuildMode && CurrentSubMode == BuildSubMode.Rail;
-            railSlotEffect.SetSelected(isRailSelected, isRailSelected ? "레일 설치" : "");
+            railSlotEffect.SetSelected(isRailSelected, isRailSelected ? Loc.Get("레일 설치") : "");
         }
 
         // 새 퀵슬롯 스킨 선택 글로우 (slotEffects가 씬 미연결이라 직접 구동)
@@ -1354,7 +1354,7 @@ public class BuildManager : MonoBehaviour, ISaveable
     {
         if (facilityId <= 0) return "";
         var data = GetFacilityData(facilityId);
-        return data != null ? data.facilityName : "";
+        return data != null ? data.GetLocalizedName() : "";
     }
 
     // =====================================================================
