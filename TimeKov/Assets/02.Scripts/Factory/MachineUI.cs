@@ -95,6 +95,8 @@ public class MachineUI : MonoBehaviour
     [Header("연료 슬롯")]
     [Tooltip("FuelDropSlot 컴포넌트가 붙은 연료 슬롯 오브젝트.")]
     public FuelDropSlot fuelDropSlot;
+    [Tooltip("연료 슬롯 위 '연료' 라벨 텍스트.")]
+    [SerializeField] private TextMeshProUGUI fuelSectionLabel;
 
     [Header("드래그&드랍 설정")]
     [Tooltip("인벤토리 패널에 붙어 있는 InventoryPanelDropZone 오브젝트.\n" +
@@ -166,6 +168,52 @@ public class MachineUI : MonoBehaviour
 
         SetupDropZone();
         SetupDualSections();
+        RefreshLocalization();
+        Loc.OnLanguageChanged += RefreshLocalization;
+    }
+
+    private void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshLocalization;
+    }
+
+    private void RefreshLocalization()
+    {
+        if (bagTabBtn != null)
+        {
+            var tmp = bagTabBtn.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (tmp != null) tmp.text = Loc.Get("가방");
+        }
+        if (bagEmptyText != null)   bagEmptyText.text   = Loc.Get("비어있음");
+        if (fuelSectionLabel != null) fuelSectionLabel.text = Loc.Get("연료");
+        SetBtnLabel(takeInputsBtn, "재료 회수");
+        SetBtnLabel(takeOutputBtn, "모두 받기");
+        UpdateBagDropBoxText();
+        UpdateStorageDropBoxText();
+        UpdateStorageHeaderLabel();
+    }
+
+    private static void SetBtnLabel(Button btn, string key)
+    {
+        if (btn == null) return;
+        var tmp = btn.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (tmp != null) tmp.text = Loc.Get(key);
+    }
+
+    private void UpdateBagDropBoxText()
+    {
+        if (_bagBoxRt == null) return;
+        var tmp = _bagBoxRt.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (tmp != null)
+            tmp.text = Loc.Get("아이템을 여기로 드래그하여 가방에 보관 가능");
+    }
+
+    private void UpdateStorageDropBoxText()
+    {
+        if (_stoBoxRt == null) return;
+        var tmp = _stoBoxRt.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (tmp != null)
+            tmp.text = Loc.Get("아이템을 여기로 드래그하여 창고에 보관 가능");
     }
 
     private static RectTransform MakeRect(string name, Transform parent, Vector2 size, Vector2 pos)
@@ -389,7 +437,8 @@ public class MachineUI : MonoBehaviour
         tmp.fontSize = 22;   // 엔필 비례(박스 높이 대비 글자 크기)로 확대. 15는 박스만 커지고 글자가 못 따라갔음
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = new Color(0.20f, 0.23f, 0.28f, 0.85f);   // 밝은 박스 표면 = 어두운 글자(엔필과 동일 원리)
-        tmp.text = Loc.Get("아이템을 여기로 드래그하여") + " " + Loc.Get(containerName) + Loc.Get("에 보관 가능");
+        string dropKey = toStorage ? "아이템을 여기로 드래그하여 창고에 보관 가능" : "아이템을 여기로 드래그하여 가방에 보관 가능";
+        tmp.text = Loc.Get(dropKey);
         tmp.raycastTarget = false;
         return rt;
     }

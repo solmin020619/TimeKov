@@ -1,7 +1,7 @@
 // ConfirmPopupUI.cs
-// ConfirmPopup ø¿∫Í¡ß∆Æø° ∫Ÿ¿Ã¥¬ Ω∫≈©∏≥∆Æ
-// πˆ∏Æ±‚ »Æ¿Œ ∆Àæ˜ (MessageText / ConfirmBtn / CancelBtn)
-// Open(message, onConfirm) ¿∏∑Œ π¸øÎ ªÁøÎ ∞°¥…
+// ConfirmPopup Ïò§Î∏åÏ†ùÌä∏Ïóê Î∂ôÏù¥Îäî Ïä§ÌÅ¨Î¶ΩÌä∏
+// Î≤ÑÎ¶¨Í∏∞ ÌôïÏù∏ ÌåùÏóÖ (MessageText / ConfirmBtn / CancelBtn)
+// Open(message, onConfirm) ÏúºÎ°ú Î≤îÏö© ÏÇ¨Ïö© Í∞ÄÎä•
 
 using System;
 using UnityEngine;
@@ -10,15 +10,13 @@ using TMPro;
 
 public class ConfirmPopupUI : MonoBehaviour
 {
-    [Header("¬¸¡∂")]
-    [SerializeField] private TextMeshProUGUI messageText;   // ∏ﬁΩ√¡ˆ ≈ÿΩ∫∆Æ
-    [SerializeField] private Button confirmBtn;    // »Æ¿Œ πˆ∆∞
-    [SerializeField] private Button cancelBtn;     // √Îº“ πˆ∆∞
+    [Header("Ï∞∏Ï°∞")]
+    [SerializeField] private TextMeshProUGUI messageText;
+    [SerializeField] private Button confirmBtn;
+    [SerializeField] private Button cancelBtn;
 
-    // »Æ¿Œ πˆ∆∞ ¥≠∑∂¿ª ∂ß Ω««‡«“ ƒ›πÈ
     private Action _onConfirm;
 
-    // «ˆ¿Á ø≠∑¡¿÷¥¬¡ˆ ø©∫Œ
     public bool IsOpen => gameObject.activeSelf;
 
     private void Awake()
@@ -30,11 +28,29 @@ public class ConfirmPopupUI : MonoBehaviour
     {
         if (confirmBtn != null) confirmBtn.onClick.AddListener(OnClickConfirm);
         if (cancelBtn != null) cancelBtn.onClick.AddListener(Close);
+
+        RefreshButtonLabels();
+        Loc.OnLanguageChanged += RefreshButtonLabels;
     }
 
-    // ∆Àæ˜ ø≠±‚
-    // message: «•Ω√«“ ∏ﬁΩ√¡ˆ
-    // onConfirm: »Æ¿Œ πˆ∆∞ ¥≠∑∂¿ª ∂ß Ω««‡«“ ƒ›πÈ
+    private void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshButtonLabels;
+    }
+
+    private void RefreshButtonLabels()
+    {
+        SetBtnText(confirmBtn, "ÌôïÏù∏");
+        SetBtnText(cancelBtn, "Ï∑®ÏÜå");
+    }
+
+    private static void SetBtnText(Button btn, string key)
+    {
+        if (btn == null) return;
+        var label = btn.GetComponentInChildren<TextMeshProUGUI>();
+        if (label != null) label.text = Loc.Get(key);
+    }
+
     public void Open(string message, Action onConfirm)
     {
         if (messageText != null)
@@ -44,14 +60,12 @@ public class ConfirmPopupUI : MonoBehaviour
         gameObject.SetActive(true);
     }
 
-    // ∆Àæ˜ ¥›±‚
     public void Close()
     {
         _onConfirm = null;
         gameObject.SetActive(false);
     }
 
-    // »Æ¿Œ πˆ∆∞ «⁄µÈ∑Ø
     private void OnClickConfirm()
     {
         _onConfirm?.Invoke();

@@ -1,6 +1,6 @@
 // SplitStackPopupUI.cs
-// SplitStackPopup ������Ʈ�� ���̴� ��ũ��Ʈ
-// ���� ���� ���� �Է� �˾�
+// SplitStackPopup 오브젝트에 붙이는 스크립트
+// 아이템 개수 분할 입력 팝업
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,11 +8,11 @@ using TMPro;
 
 public class SplitStackPopupUI : MonoBehaviour
 {
-    [Header("�ؽ�Ʈ ����")]
+    [Header("텍스트 참조")]
     [SerializeField] private TextMeshProUGUI itemNameText;
     [SerializeField] private TMP_InputField amountInput;
 
-    [Header("��ư ����")]
+    [Header("버튼 참조")]
     [SerializeField] private Button minusBtn;
     [SerializeField] private Button plusBtn;
     [SerializeField] private Button maxBtn;
@@ -64,7 +64,7 @@ public class SplitStackPopupUI : MonoBehaviour
         if (label != null) label.text = Loc.Get(key);
     }
 
-    // �˾� ����
+    // 팝업 열기
     public void Open(InventorySlotUI slot)
     {
         if (slot == null || slot.IsEmpty) return;
@@ -76,11 +76,11 @@ public class SplitStackPopupUI : MonoBehaviour
         var data = ItemDatabase.GetItem(slot.SlotData.itemId);
 
         if (itemNameText != null)
-            itemNameText.text = data != null ? data.GetLocalizedName() :"�� �� ���� ������";
+            itemNameText.text = data != null ? data.GetLocalizedName() : "알 수 없는 아이템";
 
         if (_maxAmount <= 0)
         {
-            Debug.LogWarning("[SplitStackPopupUI] ������ 1 ���϶� ���� �Ұ�");
+            Debug.LogWarning("[SplitStackPopupUI] 수량이 1 이하일때 분할 불가");
             return;
         }
 
@@ -88,14 +88,14 @@ public class SplitStackPopupUI : MonoBehaviour
         gameObject.SetActive(true);
     }
 
-    // �˾� �ݱ�
+    // 팝업 닫기
     public void Close()
     {
         _targetSlot = null;
         gameObject.SetActive(false);
     }
 
-    // ���� ǥ�� ����
+    // 수량 표시 갱신
     private void UpdateDisplay()
     {
         if (amountInput != null)
@@ -142,7 +142,7 @@ public class SplitStackPopupUI : MonoBehaviour
 
         bool success = owner.SplitStack(slot.slotIndex, _splitAmount, owner);
         if (!success)
-            Debug.LogWarning("[SplitStackPopupUI] ���� ����: �κ��丮 ���� ��");
+            Debug.LogWarning("[SplitStackPopupUI] 분할 실패: 인벤토리 여유 없음");
 
         Close();
     }

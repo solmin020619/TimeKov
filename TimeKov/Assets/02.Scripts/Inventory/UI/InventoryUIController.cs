@@ -36,6 +36,8 @@ public class InventoryUIController : MonoBehaviour
     [SerializeField] private CategoryFilterUI warehouseFilterUI;
 
     [Header("가방 패널 UI 버튼")]
+    [SerializeField] private TextMeshProUGUI bagPanelTitle;
+    [SerializeField] private TextMeshProUGUI storagePanelTitle;
     [SerializeField] private TextMeshProUGUI capacityText;
     [SerializeField] private Image bagCapacityGaugeFill;   // 용량 게이지 fill (비율 + 상태색 갱신)
     [SerializeField] private Button moveAllBtn;
@@ -198,6 +200,9 @@ public class InventoryUIController : MonoBehaviour
         InventorySlotUI.OnAnySlotRightClicked += OnSlotRightClicked;
         InventorySlotUI.OnAnySlotHoverEnter += OnSlotHoverEnter;
         InventorySlotUI.OnAnySlotHoverExit += OnSlotHoverExit;
+
+        RefreshPanelTitles();
+        Loc.OnLanguageChanged += RefreshPanelTitles;
     }
 
     private void OnDestroy()
@@ -212,6 +217,13 @@ public class InventoryUIController : MonoBehaviour
         InventorySlotUI.OnAnySlotRightClicked -= OnSlotRightClicked;
         InventorySlotUI.OnAnySlotHoverEnter -= OnSlotHoverEnter;
         InventorySlotUI.OnAnySlotHoverExit -= OnSlotHoverExit;
+        Loc.OnLanguageChanged -= RefreshPanelTitles;
+    }
+
+    private void RefreshPanelTitles()
+    {
+        if (bagPanelTitle != null)     bagPanelTitle.text     = Loc.Get("가방");
+        if (storagePanelTitle != null) storagePanelTitle.text = Loc.Get("창고");
     }
 
     private void Update()
