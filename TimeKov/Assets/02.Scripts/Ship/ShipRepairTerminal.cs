@@ -36,7 +36,7 @@ public class ShipRepairTerminal : MonoBehaviour, IInteractable, IInteractHint
     // (PlayerInteractComponent 가 매 프레임 nearest 를 갱신하며 호출)
     public void ShowHint(bool show)
     {
-        InteractHintPanel.Show(hintUI, show, hintLabel, hintIcon);
+        InteractHintPanel.Show(hintUI, show, Loc.Get(hintLabel), hintIcon);
         _highlight?.Set(show);
     }
 

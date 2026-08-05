@@ -44,7 +44,7 @@ public class EmergencyConsole : MonoBehaviour, IInteractable, IInteractHint
     void ApplyLabel()
     {
         var tmp = _hintUI.GetComponentInChildren<TMP_Text>(true);
-        if (tmp != null) tmp.text = _hintLabel;
+        if (tmp != null) tmp.text = Loc.Get(_hintLabel);
         var iconImg = _hintUI.transform.Find("PanelRoot/RowContainer/FacilitySelectRow/Icon")?.GetComponent<Image>();
         if (iconImg != null)
         {

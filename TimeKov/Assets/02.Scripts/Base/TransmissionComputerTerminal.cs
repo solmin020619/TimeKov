@@ -35,7 +35,7 @@ public class TransmissionComputerTerminal : MonoBehaviour, IInteractable, IInter
 
     public void ShowHint(bool show)
     {
-        InteractHintPanel.Show(hintUI, show, hintLabel, hintIcon);
+        InteractHintPanel.Show(hintUI, show, Loc.Get(hintLabel), hintIcon);
         _highlight?.Set(show);
     }
 
