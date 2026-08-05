@@ -1,6 +1,6 @@
 // SortBarUI.cs
-// WarehouseBottomBar ¿¡ ºÙÀÌ´Â ½ºÅ©¸³Æ®
-// Á¤·Ä ±âÁØ µå·Ó´Ù¿î, ¿À¸§/³»¸² Åä±Û, Ã¢°í Á¤¸® ¹öÆ° Ã³¸®
+// WarehouseBottomBar ì— ë¶™ì´ëŠ” ìŠ¤í¬ë¦½íŠ¸
+// ì •ë ¬ ê¸°ì¤€ ë“œë¡­ë‹¤ìš´, ì˜¤ë¦„/ë‚´ë¦¼ í† ê¸€, ì°½ê³  ì •ë¦¬ ë²„íŠ¼ ì²˜ë¦¬
 
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,38 +8,26 @@ using TMPro;
 
 public class SortBarUI : MonoBehaviour
 {
-    [Header("Á¤·Ä ÂüÁ¶")]
+    [Header("ì •ë ¬ ì°¸ì¡°")]
     [SerializeField] private TMP_Dropdown sortDropdown;
     [SerializeField] private Button orderToggleBtn;
     [SerializeField] private TextMeshProUGUI orderBtnText;
 
-    [Header("Á¤¸® ¹öÆ°")]
+    [Header("ì •ë¦¬ ë²„íŠ¼")]
     [SerializeField] private Button organizeBtn;
 
-    // ÇöÀç Á¤·Ä ¹æÇâ (true = ¿À¸§Â÷¼ø)
+    // í˜„ì¬ ì •ë ¬ ë°©í–¥ (true = ì˜¤ë¦„ì°¨ìˆœ)
     private bool _ascending = true;
 
-    // Á¤·Ä ´ë»ó ÀÎº¥Åä¸® (InventoryUIController ¿¡¼­ ¼³Á¤)
+    // ì •ë ¬ ëŒ€ìƒ ì¸ë²¤í† ë¦¬ (InventoryUIController ì—ì„œ ì„¤ì •)
     private InventoryManager _targetManager;
 
-    // ÇöÀç Ã¢°í ÇÊÅÍ Á¢±Ù¿ë (InventoryUIController ¿¡¼­ ¼³Á¤)
+    // í˜„ì¬ ì°½ê³  í•„í„° ì ‘ê·¼ìš© (InventoryUIController ì—ì„œ ì„¤ì •)
     private CategoryFilterUI _warehouseFilter;
 
     private void Start()
     {
-        // µå·Ó´Ù¿î ¿É¼Ç ÃÊ±âÈ­
-        if (sortDropdown != null)
-        {
-            sortDropdown.ClearOptions();
-            sortDropdown.AddOptions(new System.Collections.Generic.List<string>
-            {
-                "ÀÌ¸§¼ø",
-                "Ä«Å×°í¸®¼ø",
-                "µî±Ş¼ø",
-                "¼ö·®¼ø"
-            });
-            sortDropdown.onValueChanged.AddListener(OnDropdownChanged);
-        }
+        RebuildDropdownOptions();
 
         if (orderToggleBtn != null)
             orderToggleBtn.onClick.AddListener(OnToggleOrder);
@@ -48,9 +36,39 @@ public class SortBarUI : MonoBehaviour
             organizeBtn.onClick.AddListener(OnClickOrganize);
 
         UpdateOrderBtnText();
+        Loc.OnLanguageChanged += RefreshLocalization;
     }
 
-    // Á¤·Ä ´ë»ó ¹× ÇÊÅÍ ¹ÙÀÎµù
+    private void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshLocalization;
+    }
+
+    void RefreshLocalization()
+    {
+        int prev = sortDropdown != null ? sortDropdown.value : 0;
+        RebuildDropdownOptions();
+        if (sortDropdown != null) sortDropdown.SetValueWithoutNotify(prev);
+        UpdateOrderBtnText();
+    }
+
+    void RebuildDropdownOptions()
+    {
+        if (sortDropdown == null) return;
+
+        sortDropdown.ClearOptions();
+        sortDropdown.AddOptions(new System.Collections.Generic.List<string>
+        {
+            Loc.Get("ì´ë¦„ìˆœ"),
+            Loc.Get("ì¹´í…Œê³ ë¦¬ìˆœ"),
+            Loc.Get("ë“±ê¸‰ìˆœ"),
+            Loc.Get("ìˆ˜ëŸ‰ìˆœ")
+        });
+        sortDropdown.onValueChanged.RemoveListener(OnDropdownChanged);
+        sortDropdown.onValueChanged.AddListener(OnDropdownChanged);
+    }
+
+    // ì •ë ¬ ëŒ€ìƒ ë° í•„í„° ë°”ì¸ë”©
     public void Bind(InventoryManager manager, CategoryFilterUI filterUI)
     {
         _targetManager = manager;
@@ -69,7 +87,7 @@ public class SortBarUI : MonoBehaviour
         ApplySort();
     }
 
-    // µå·Ó´Ù¿î ±âÁØÀ¸·Î Á¤·Ä ½ÇÇà
+    // ë“œë¡­ë‹¤ìš´ ê¸°ì¤€ìœ¼ë¡œ ì •ë ¬ ì‹¤í–‰
     private void ApplySort()
     {
         if (_targetManager == null || sortDropdown == null) return;
@@ -78,7 +96,7 @@ public class SortBarUI : MonoBehaviour
         _targetManager.SortSlots(sortType, _ascending);
     }
 
-    // Á¤¸® ¹öÆ°: ÇöÀç Ã¢°í ÇÊÅÍ ±âÁØÀ¸·Î º´ÇÕ + Á¤·Ä
+    // ì •ë¦¬ ë²„íŠ¼: í˜„ì¬ ì°½ê³  í•„í„° ê¸°ì¤€ìœ¼ë¡œ ë³‘í•© + ì •ë ¬
     private void OnClickOrganize()
     {
         if (_targetManager == null) return;
@@ -90,6 +108,6 @@ public class SortBarUI : MonoBehaviour
     private void UpdateOrderBtnText()
     {
         if (orderBtnText != null)
-            orderBtnText.text = _ascending ? "¿À¸§" : "³»¸²";
+            orderBtnText.text = _ascending ? Loc.Get("ì˜¤ë¦„") : Loc.Get("ë‚´ë¦¼");
     }
 }
