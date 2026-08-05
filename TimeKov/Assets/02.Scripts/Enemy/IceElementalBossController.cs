@@ -400,7 +400,7 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (target != null && !_engaged)
         {
             _engaged = true;
-            BossHealthBarUI.Show(_health, data != null ? data.enemyName : "얼음정령", bossSubtitle);
+            BossHealthBarUI.Show(_health, data != null ? Loc.Get(data.enemyName) : Loc.Get("얼음정령"), Loc.Get(bossSubtitle));
             _feedback?.PlayDetect();
             BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지). 보스 공통 브금 재사용.
         }

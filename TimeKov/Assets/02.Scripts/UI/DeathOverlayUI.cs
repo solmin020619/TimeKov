@@ -79,6 +79,8 @@ public class DeathOverlayUI : MonoBehaviour
     private RectTransform _ringRt;
     private TMP_Text      _ringNumber;      // 시계 중앙 카운트다운 숫자
     private TMP_Text      _loss;            // 아이템 상실 문구(shimmer)
+    private TMP_Text      _kicker;          // 타이틀 아래 부제 (SYNC LOST · 시간 소멸)
+    private TMP_Text      _buttonLabel;     // 리스폰 버튼 텍스트
 
     private Button        _respawnButton;
     private CanvasGroup   _buttonGroup;
@@ -107,6 +109,19 @@ public class DeathOverlayUI : MonoBehaviour
         EnsureTopmostCanvas();
         Build();
         gameObject.SetActive(false);
+        Loc.OnLanguageChanged += RefreshLocalization;
+    }
+
+    void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshLocalization;
+    }
+
+    void RefreshLocalization()
+    {
+        if (_loss != null) _loss.text = Loc.Get(lossString);
+        if (_kicker != null) _kicker.text = "SYNC LOST · " + Loc.Get("시간 소멸");
+        if (_buttonLabel != null) _buttonLabel.text = Loc.Get(buttonString);
     }
 
     // ── 공개 API ──────────────────────────────────────────────────
@@ -494,7 +509,7 @@ public class DeathOverlayUI : MonoBehaviour
 
         // 6) 아이템 상실 문구 — 다이아몬드 캡 라인으로 감싼 캡션 + 은은한 shimmer (위치 아래로)
         MakeCapLine(root, 360f, new Vector2(0f, -215f));
-        _loss = NewText("Loss", root, lossString, 24f, ColText, FontStyles.Normal, TextAlignmentOptions.Center);
+        _loss = NewText("Loss", root, Loc.Get(lossString), 24f, ColText, FontStyles.Normal, TextAlignmentOptions.Center);
         ApplyBodyFont(_loss);
         Center(_loss.rectTransform, 1200f, 34f, new Vector2(0f, -247f));
         MakeCapLine(root, 360f, new Vector2(0f, -279f));
@@ -824,7 +839,8 @@ public class DeathOverlayUI : MonoBehaviour
         }
 
         // 키커
-        var kicker = NewText("Kicker", cluster, "SYNC LOST · 시간 소멸", 18f, new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.6f), FontStyles.Bold, TextAlignmentOptions.Center);
+        _kicker = NewText("Kicker", cluster, "SYNC LOST · " + Loc.Get("시간 소멸"), 18f, new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.6f), FontStyles.Bold, TextAlignmentOptions.Center);
+        var kicker = _kicker;
         ApplyBodyFont(kicker);
         Center(kicker.rectTransform, 1000f, 28f, new Vector2(0f, -64f));
         kicker.characterSpacing = 16f;
@@ -953,7 +969,8 @@ public class DeathOverlayUI : MonoBehaviour
         inner.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.16f);
         inner.raycastTarget = false;
 
-        var label = NewText("BtnLabel", btnRt, buttonString, 26f, new Color(ColText.r, ColText.g, ColText.b, 0.9f), FontStyles.Bold, TextAlignmentOptions.Center);
+        _buttonLabel = NewText("BtnLabel", btnRt, Loc.Get(buttonString), 26f, new Color(ColText.r, ColText.g, ColText.b, 0.9f), FontStyles.Bold, TextAlignmentOptions.Center);
+        var label = _buttonLabel;
         ApplyBodyFont(label);
         Stretch(label.rectTransform);
         label.characterSpacing = 6f;
