@@ -64,6 +64,7 @@ public class TransmissionComputerUI : MonoBehaviour
     [SerializeField] private TMP_Text _rateBig;
     [SerializeField] private RawImage _rateWave;
     [SerializeField] private TMP_Text _rateRegionLabel;
+    [SerializeField] private TMP_Text _goalLabel;
 
     [Header("진행 바")]
     [SerializeField] private RectTransform _trackRT;
@@ -193,6 +194,7 @@ public class TransmissionComputerUI : MonoBehaviour
         }
 
         _m = new Model();
+        _m.logs.Add("__UPLINK__");
         EnsureManager();          // 씬에 매니저 없으면 런타임 생성
         SubscribeManager();       // 전송률/보상/해금 이벤트 구독(닫혀있어도 _shownRate 동기화)
         _shownRate = Mathf.RoundToInt(_m.progress);
@@ -523,7 +525,7 @@ public class TransmissionComputerUI : MonoBehaviour
             bool isCur = i == cur && reached;
             if (reached)
             {
-                _legendLabels[i].text = $"{RegionKo[i]} {i * 25}-{(i + 1) * 25}";
+                _legendLabels[i].text = $"{Loc.Get(RegionKo[i])} {i * 25}-{(i + 1) * 25}";
                 _legendLabels[i].color = new Color(RegionCol[i].r, RegionCol[i].g, RegionCol[i].b, isCur ? 1f : 0.88f);
                 _legendLabels[i].fontStyle = isCur ? FontStyles.Bold : FontStyles.Normal;
                 if (_legendDots[i] != null)
@@ -608,7 +610,11 @@ public class TransmissionComputerUI : MonoBehaviour
     {
         var sb = new System.Text.StringBuilder();
         int start = Mathf.Max(0, _m.logs.Count - 4);
-        for (int i = start; i < _m.logs.Count; i++) sb.AppendLine("> " + _m.logs[i]);
+        for (int i = start; i < _m.logs.Count; i++)
+        {
+            string entry = _m.logs[i] == "__UPLINK__" ? Loc.Get("UPLINK 연결됨") : _m.logs[i];
+            sb.AppendLine("> " + entry);
+        }
         _logText.text = sb.ToString().TrimEnd();
     }
 
@@ -658,7 +664,7 @@ public class TransmissionComputerUI : MonoBehaviour
             var brt = _sendBtnImg.rectTransform; brt.DOKill(); brt.localScale = Vector3.one;
             brt.DOPunchScale(new Vector3(0.03f, 0.06f, 0f), 0.3f, 9, 0.8f).SetUpdate(true);
         }
-        _m.logs.Add($"{kn} x1 전송 / {from}% -> {Mathf.RoundToInt(_m.progress)}%");
+        _m.logs.Add(string.Format(Loc.Get("{0} x1 전송 / {1}% -> {2}%"), kn, from, Mathf.RoundToInt(_m.progress)));
         RefreshLog();
     }
 
@@ -720,7 +726,7 @@ public class TransmissionComputerUI : MonoBehaviour
 
     private void HandleMilestone(int pct)
     {
-        _m.logs.Add($"{pct}% 구간 보상 획득"); if (IsOpen) RefreshLog();
+        _m.logs.Add(string.Format(Loc.Get("{0}% 구간 보상 획득"), pct)); if (IsOpen) RefreshLog();
         if (!IsOpen) return;   // 닫혀있으면 연출 스킵(스테일 큐 방지)
         _revealQ.Enqueue(new Reveal
         {
@@ -942,6 +948,11 @@ public class TransmissionComputerUI : MonoBehaviour
             _rateWave.color = new Color(rc.r, rc.g, rc.b, 1f);
         }
         if (_rateRegionLabel != null) _rateRegionLabel.text = Loc.Get(RegionKo[(int)_m.Cur]) + " " + Loc.Get("구간");
+        if (_goalLabel != null)
+        {
+            int goal = TransmissionManager.Instance != null ? TransmissionManager.Instance.CurrentRegionGoal : 0;
+            _goalLabel.text = string.Format(Loc.Get("목표 {0}%"), goal);
+        }
     }
 
     // 물 텍스처 재생성 - 열(x)마다 여러 진행파를 합쳐 수면 행(s)을 구하고, 그 아래를 채운다.
@@ -1137,7 +1148,7 @@ public class TransmissionComputerUI : MonoBehaviour
 
         public string selectedId;
         public readonly List<Kit> kits = new();
-        public readonly List<string> logs = new() { "UPLINK 연결됨" };
+        public readonly List<string> logs = new();
 
         public float progress => Mgr != null ? Mgr.TransmissionRate : 0f;
         public TransmissionRegion Cur => Mgr != null ? Mgr.CurrentRegion : TransmissionRegion.Nature;
