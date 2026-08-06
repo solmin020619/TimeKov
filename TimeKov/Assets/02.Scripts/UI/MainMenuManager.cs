@@ -30,6 +30,7 @@ public class MainMenuManager : MonoBehaviour
 
         if (quitConfirmPanel != null) quitConfirmPanel.SetActive(false);
         if (mainButtonGroup != null) mainButtonGroup.SetActive(true);
+
     }
 
     private void Update()

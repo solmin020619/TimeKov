@@ -7,6 +7,7 @@ using TMPro;
 public class LocalizedLabel : MonoBehaviour
 {
     [SerializeField] string _koreanKey;
+    [SerializeField] string _prefix;   // 번역 앞에 붙는 고정 접두어 (예: "+  ")
 
     private TMP_Text _text;
 
@@ -29,10 +30,9 @@ public class LocalizedLabel : MonoBehaviour
     private void Refresh()
     {
         if (_text != null)
-            _text.text = Loc.Get(_koreanKey);
+            _text.text = _prefix + Loc.Get(_koreanKey);
     }
 
-    // 런타임에서 키를 바꿔야 할 때 (예: 동적으로 생성되는 UI)
     public void SetKey(string koreanKey)
     {
         _koreanKey = koreanKey;

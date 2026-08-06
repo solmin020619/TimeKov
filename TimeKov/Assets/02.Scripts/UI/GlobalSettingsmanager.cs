@@ -135,6 +135,11 @@ public class GlobalSettingsManager : MonoBehaviour
         WireListeners();
         ShowTab(0);
 
+        // DataBoot를 거치지 않은 씬(MainMenu 직접 실행 등)에서도 번역 테이블을 로드한다.
+        // DataBoot.IsLoaded == true이면 이미 로드됐으므로 건너뛴다.
+        if (!DataBoot.IsLoaded)
+            LocalizationLoader.LoadAsync(this, _ => { });
+
         // GameUIController가 없는 씬(MainMenu)에서는 패널을 직접 관리해야 한다.
         // World 씬은 GameUIController.Awake()의 ApplyState()가 시작 시 강제로 닫아주지만
         // 여기는 그게 없으므로, 초기화가 끝난 뒤 여기서 직접 닫아둔다.
