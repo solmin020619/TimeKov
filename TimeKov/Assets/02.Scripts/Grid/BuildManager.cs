@@ -48,6 +48,10 @@ public class BuildManager : MonoBehaviour, ISaveable
     [Tooltip("레일 오브젝트 레이어. 해제 모드에서 레일도 대상으로 삼을 때 사용.")]
     public LayerMask railMask;
 
+    /// <summary>해제 모드가 켜지거나 꺼질 때 1회 발생. 상단 배너 같은 UI 가 구독한다.
+    /// 값이 실제로 바뀔 때만 오므로 매 프레임 검사할 필요가 없다.</summary>
+    public static event System.Action<bool> OnDemolishModeChanged;
+
     private bool _isDemolishMode = false;
     // 해제 모드 on/off 가 바뀔 때마다 BeltSegment 에 알려 모든 벨트를 흰색으로 띄운다.
     // (설치 모드의 SuppressConnectionColor 와 동일한 방식 — 진입 시 전부 흰색, 호버만 빨강)
@@ -59,6 +63,7 @@ public class BuildManager : MonoBehaviour, ISaveable
             if (_isDemolishMode == value) return;
             _isDemolishMode = value;
             TIMEKOV.Factory.BeltSegment.DemolishModeActive = value;
+            OnDemolishModeChanged?.Invoke(value);
         }
     }
     private BuildDemolisher demolisher;
