@@ -5,6 +5,7 @@ public class BuildModeHintsLocalizer : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI demolishText;
     [SerializeField] private TextMeshProUGUI rotateText;
+    [SerializeField] private TextMeshProUGUI exitTopViewText;
 
     private void OnEnable()
     {
@@ -20,7 +21,8 @@ public class BuildModeHintsLocalizer : MonoBehaviour
 
     private void Refresh()
     {
-        if (demolishText != null) demolishText.text = Loc.Get("해제 모드");
-        if (rotateText   != null) rotateText.text   = Loc.Get("설비 회전");
+        if (demolishText    != null) demolishText.text    = Loc.Get("해제 모드");
+        if (rotateText      != null) rotateText.text      = Loc.Get("설비 회전");
+        if (exitTopViewText != null) exitTopViewText.text = Loc.Get("탑뷰 모드 나가기");
     }
 }

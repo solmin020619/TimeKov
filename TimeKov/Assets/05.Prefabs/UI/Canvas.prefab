@@ -4163,8 +4163,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 8616115783285865536}
   toggle: {fileID: 1234015932256031319}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &173529134498759838
 GameObject:
   m_ObjectHideFlags: 0
@@ -5343,9 +5346,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d7484011df209449774179036a0b14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rippleDepth: 1
-  startOut: 14
-  period: 0.8
 --- !u!1 &237780801825312765
 GameObject:
   m_ObjectHideFlags: 0
@@ -11939,6 +11939,7 @@ MonoBehaviour:
   iconImage: {fileID: 8811966687588762817}
   borderImage: {fileID: 1364306593585655535}
   rarityBorder: {fileID: 0}
+  gradeAurora: {fileID: 0}
   amountText: {fileID: 8131151730799079739}
   labelText: {fileID: 2875813920658793566}
 --- !u!1 &554478644144685322
@@ -27235,9 +27236,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d7484011df209449774179036a0b14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rippleDepth: 1
-  startOut: 14
-  period: 0.8
 --- !u!1 &1138032371105658483
 GameObject:
   m_ObjectHideFlags: 0
@@ -63131,8 +63129,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 95422175049363095}
   toggle: {fileID: 3891202149222835056}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &2635349397817720546
 GameObject:
   m_ObjectHideFlags: 0
@@ -65008,17 +65009,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a76ec1a358427d4eb09339d2606e74a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  overlayGroup: {fileID: 445695709239540056}
-  titleText: {fileID: 3957355469098081351}
-  subtitleText: {fileID: 5185804116329366688}
-  countdownNumber: {fileID: 5842530004140509913}
-  countdownLabel: {fileID: 5842530004140509913}
-  respawnButton: {fileID: 3318937383127973064}
-  buttonGroup: {fileID: 3931801620094872299}
+  lossString: "\uC778\uBCA4\uD1A0\uB9AC\uC758 \uC544\uC774\uD15C\uC744 \uC783\uC5B4\uBC84\uB838\uB2E4\u2026"
+  buttonString: "\uC2DC\uAC04 \uB418\uAC10\uAE30"
   fadeInDuration: 0.6
   fadeOutDuration: 0.4
-  titleString: YOU DIED
-  subtitleString: "\uB9AC\uC2A4\uD3F0 \uC911..."
+  titleFont: {fileID: 0}
+  bodyFont: {fileID: 0}
 --- !u!1 &2700745043460683106
 GameObject:
   m_ObjectHideFlags: 0
@@ -67700,8 +67696,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 5533003188468066466}
   toggle: {fileID: 1046135605693067326}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &2802905839772817439
 GameObject:
   m_ObjectHideFlags: 0
@@ -70528,8 +70527,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 6471969129887142606}
   toggle: {fileID: 2275587300637089410}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &2919793099450321119
 GameObject:
   m_ObjectHideFlags: 0
@@ -78604,8 +78606,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 8511012450963580714}
   toggle: {fileID: 6202727805257226609}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &3229159894232139457
 GameObject:
   m_ObjectHideFlags: 0
@@ -81778,6 +81783,7 @@ MonoBehaviour:
   iconImage: {fileID: 148520137180241853}
   borderImage: {fileID: 1520988458765861805}
   rarityBorder: {fileID: 0}
+  gradeAurora: {fileID: 0}
   amountText: {fileID: 5634570719848205643}
   labelText: {fileID: 977563982875627490}
 --- !u!1 &3351618103851985441
@@ -83116,8 +83122,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 3709800470439571154}
   toggle: {fileID: 6563062966045102726}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &3409419758530613887
 GameObject:
   m_ObjectHideFlags: 0
@@ -97446,17 +97455,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a76ec1a358427d4eb09339d2606e74a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  overlayGroup: {fileID: 2612353248277810187}
-  titleText: {fileID: 2038744808307737293}
-  subtitleText: {fileID: 3169282667775165848}
-  countdownNumber: {fileID: 6965945348713710569}
-  countdownLabel: {fileID: 6965945348713710569}
-  respawnButton: {fileID: 2706808654375931946}
-  buttonGroup: {fileID: 6399171395305188086}
+  lossString: "\uC778\uBCA4\uD1A0\uB9AC\uC758 \uC544\uC774\uD15C\uC744 \uC783\uC5B4\uBC84\uB838\uB2E4\u2026"
+  buttonString: "\uC2DC\uAC04 \uB418\uAC10\uAE30"
   fadeInDuration: 0.6
   fadeOutDuration: 0.4
-  titleString: YOU DIED
-  subtitleString: "\uB9AC\uC2A4\uD3F0 \uC911..."
+  titleFont: {fileID: 0}
+  bodyFont: {fileID: 0}
 --- !u!1 &4036054294603503882
 GameObject:
   m_ObjectHideFlags: 0
@@ -98581,9 +98585,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d7484011df209449774179036a0b14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rippleDepth: 1
-  startOut: 14
-  period: 0.8
 --- !u!1 &4119829518409935939
 GameObject:
   m_ObjectHideFlags: 0
@@ -101200,8 +101201,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 5587266047717479552}
   toggle: {fileID: 6376167878729417123}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &4246836821672383056
 GameObject:
   m_ObjectHideFlags: 0
@@ -108089,12 +108093,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   uiPanel: {fileID: 4614596708853609007}
-  titleText: {fileID: 6155729450986695509}
   itemSelectSlot: {fileID: 2761974975703445119}
-  timerText: {fileID: 3061284208924297190}
-  timerSlider: {fileID: 3026981938837960035}
-  closeBtn: {fileID: 7008076953325704079}
-  inventorySlotParent: {fileID: 4207623891191449751}
   inventorySlotPrefab: {fileID: 4752992831769660478, guid: c8fc623efafcd514e9865fc3f2de0fbc, type: 3}
   inventorySlotCount: 20
 --- !u!1 &4615250022068037633
@@ -110044,8 +110043,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 7123809463007105766}
   toggle: {fileID: 4778021166682397768}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &4713416688981761468
 GameObject:
   m_ObjectHideFlags: 0
@@ -110471,13 +110473,6 @@ MonoBehaviour:
   panelRoot: {fileID: 8487718113428128636}
   rowContainer: {fileID: 91076534207687300}
   rowPrefab: {fileID: 2949223065550112196, guid: 352045b7b4cb7e5439fb9bd09c959d2c, type: 3}
-  tierColors:
-  - {r: 0.78, g: 0.78, b: 0.8, a: 1}
-  - {r: 0.35, g: 0.8, b: 0.4, a: 1}
-  - {r: 0.33, g: 0.62, b: 1, a: 1}
-  - {r: 0.7, g: 0.45, b: 0.95, a: 1}
-  - {r: 1, g: 0.66, b: 0.25, a: 1}
-  fuelColor: {r: 0.23, g: 0.51, b: 0.96, a: 1}
 --- !u!1 &4757463271026322345
 GameObject:
   m_ObjectHideFlags: 0
@@ -121045,8 +121040,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 1229566323459602553}
   toggle: {fileID: 1019289862981243622}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &5167539476881933973
 GameObject:
   m_ObjectHideFlags: 0
@@ -124447,8 +124445,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 7126429798142167527}
   toggle: {fileID: 2679355240201586801}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &5286195577604855443
 GameObject:
   m_ObjectHideFlags: 0
@@ -125922,9 +125923,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d7484011df209449774179036a0b14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rippleDepth: 1
-  startOut: 14
-  period: 0.8
 --- !u!1 &5346506157655239814
 GameObject:
   m_ObjectHideFlags: 0
@@ -126899,13 +126897,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rowPrefab: {fileID: 2949223065550112196, guid: 352045b7b4cb7e5439fb9bd09c959d2c, type: 3}
   rowContainer: {fileID: 2351175605710018235}
-  tierColors:
-  - {r: 0.78, g: 0.78, b: 0.8, a: 1}
-  - {r: 0.35, g: 0.8, b: 0.4, a: 1}
-  - {r: 0.33, g: 0.62, b: 1, a: 1}
-  - {r: 0.7, g: 0.45, b: 0.95, a: 1}
-  - {r: 1, g: 0.66, b: 0.25, a: 1}
-  fuelColor: {r: 0.23, g: 0.51, b: 0.96, a: 1}
   headerObject: {fileID: 3784080991781959165}
   displayDuration: 3
   fadeDuration: 0.5
@@ -147188,9 +147179,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d7484011df209449774179036a0b14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rippleDepth: 1
-  startOut: 14
-  period: 0.8
 --- !u!1 &6080359933220348650
 GameObject:
   m_ObjectHideFlags: 0
@@ -149411,23 +149399,28 @@ MonoBehaviour:
   recipeNextBtn: {fileID: 6242825127153872078}
   recipeIndexText: {fileID: 0}
   recipeNameText: {fileID: 8691665970163514023}
-  progressBar: {fileID: 1337150385126362224}
   statusText: {fileID: 2830596894233838403}
   outputSlot: {fileID: 7412557645872168607}
-  processingGauge: {fileID: 7021654313038796175}
   facilityImage: {fileID: 0}
+  railBagSprite: {fileID: 0}
+  railStorageSprite: {fileID: 0}
+  regionFrameSprite: {fileID: 0}
   bagCapacityText: {fileID: 0}
   bagTabBtn: {fileID: 0}
   storageTabBtn: {fileID: 0}
   headerIconImage: {fileID: 0}
-  progressKnob: {fileID: 0}
   bagEmptyText: {fileID: 0}
-  machineGlow: {fileID: 0}
-  formulaContent: {fileID: 0}
-  formulaStatusText: {fileID: 0}
+  outputRail: {fileID: 0}
+  inputBus: {fileID: 0}
+  busToMachine: {fileID: 0}
+  flowRailsRoot: {fileID: 0}
   playerInventory: {fileID: 0}
   fuelDropSlot: {fileID: 686677335599551149}
+  fuelSectionLabel: {fileID: 0}
   inventoryDropZone: {fileID: 0}
+  _gaugeRoot: {fileID: 0}
+  _gaugeFill: {fileID: 0}
+  _processTimeText: {fileID: 0}
 --- !u!114 &7890198041376654016
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -189315,9 +189308,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69d7484011df209449774179036a0b14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rippleDepth: 1
-  startOut: 14
-  period: 0.8
 --- !u!1 &7773251025885848021
 GameObject:
   m_ObjectHideFlags: 0
@@ -192320,8 +192310,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 5272602880568398273}
   toggle: {fileID: 6233907174194989638}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &7880673366605430907
 GameObject:
   m_ObjectHideFlags: 0
@@ -205578,6 +205571,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6d748a133ce17b4cb7d95a9d248282a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  languageDropdown: {fileID: 0}
   resolutionDropdown: {fileID: 3367275475541554874}
   fullscreenOnBg: {fileID: 6703276114404556374}
   fullscreenOffBg: {fileID: 2028506835831228448}
@@ -206794,8 +206788,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   background: {fileID: 6633788218559614004}
   toggle: {fileID: 763142321568883780}
+  label: {fileID: 0}
   selectedColor: {r: 0.62, g: 0.62, b: 0.62, a: 1}
   unselectedColor: {r: 0.93, g: 0.93, b: 0.93, a: 1}
+  selectedTextColor: {r: 0.88, g: 0.9, b: 0.92, a: 1}
+  unselectedTextColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
 --- !u!1 &8469852921754160152
 GameObject:
   m_ObjectHideFlags: 0
@@ -211497,6 +211494,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   iconImage: {fileID: 8397743096163796138}
   rarityBorder: {fileID: 0}
+  gradeAurora: {fileID: 0}
   itemNameText: {fileID: 0}
   amountText: {fileID: 6245269076336725568}
 --- !u!1 &8647847237976190220
@@ -214216,9 +214214,10 @@ MonoBehaviour:
   timeText: {fileID: 7106128037411473388}
   labelText: {fileID: 2128807512748625654}
   fuelGauge: {fileID: 0}
+  gradeAurora: {fileID: 0}
   normalBorderColor: {r: 1, g: 1, b: 1, a: 0}
   hoverBorderColor: {r: 0.41255784, g: 0.61044437, b: 0.6886792, a: 0.8}
-  noFuelTextColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+  highlightFrameSprite: {fileID: 0}
   normalTextColor: {r: 1, g: 1, b: 1, a: 1}
   emptySilhouetteColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &8769376634144581401
@@ -226957,6 +226956,9 @@ PrefabInstance:
       insertIndex: 0
       addedObject: {fileID: 1989258928262670091}
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3671368357948972582, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8929524751027504738}
     - targetCorrespondingSourceObject: {fileID: 4555547724132253795, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 638119645653471111}
@@ -227067,6 +227069,26 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 3826828983957854794, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
   m_PrefabInstance: {fileID: 4517412276054362061}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &883339490932677099 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3671368357948972582, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
+  m_PrefabInstance: {fileID: 4517412276054362061}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8929524751027504738
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 883339490932677099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5c6a36a749ad774ea538269b2b1b564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  demolishText: {fileID: 5512820572710306577}
+  rotateText: {fileID: 9025724708145591392}
+  exitTopViewText: {fileID: 1341221767362757689}
 --- !u!1 &1001856027662758510 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3699245540171167139, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
@@ -227093,6 +227115,17 @@ MonoBehaviour:
   namePopupGroup: {fileID: 5044503466696645073}
   nameLabel: {fileID: 9123060014544681741}
   nameFadeDuration: 0.15
+--- !u!114 &1341221767362757689 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3183456218984760308, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
+  m_PrefabInstance: {fileID: 4517412276054362061}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!224 &1804178767360165054 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 2862223931656078195, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
@@ -227223,11 +227256,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!224 &3770032742572154581 stripped
-RectTransform:
-  m_CorrespondingSourceObject: {fileID: 783848754048358680, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
-  m_PrefabInstance: {fileID: 4517412276054362061}
-  m_PrefabAsset: {fileID: 0}
 --- !u!114 &3882491102091756188 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 815278601946449233, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
@@ -227323,6 +227351,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 8399346859521700245, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
   m_PrefabInstance: {fileID: 4517412276054362061}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &5512820572710306577 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8228194844093744348, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
+  m_PrefabInstance: {fileID: 4517412276054362061}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!224 &5947765050595217185 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 7799010020406036716, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
@@ -227472,6 +227511,17 @@ MonoBehaviour:
   namePopupGroup: {fileID: 4105831283024262042}
   nameLabel: {fileID: 403872513265045406}
   nameFadeDuration: 0.15
+--- !u!114 &9025724708145591392 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4895626421781558189, guid: 3aa2d53bf5d3f0443aab4eefba421a4a, type: 3}
+  m_PrefabInstance: {fileID: 4517412276054362061}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &6697909838850514576
 PrefabInstance:
   m_ObjectHideFlags: 0
