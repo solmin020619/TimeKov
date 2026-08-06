@@ -757,7 +757,9 @@ public class InventoryUIController : MonoBehaviour
         int slotIdx = slot.SlotData.slotIndex;
         var owner = slot.Owner;
 
-        string message = name + " x" + amount + (permanent ? Loc.Get("개를 영구 삭제하시겠습니까?") : Loc.Get("개를 버리시겠습니까?"));
+        string message = string.Format(
+            permanent ? Loc.Get("{0} x{1}개를 영구 삭제하시겠습니까?") : Loc.Get("{0} x{1}개를 버리시겠습니까?"),
+            name, amount);
 
         confirmPopup.Open(message, () =>
         {
