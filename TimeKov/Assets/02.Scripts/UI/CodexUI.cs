@@ -453,7 +453,7 @@ public class CodexUI : MonoBehaviour
         ClearChildren(_listBox);
 
         var label = Make("Label", _listBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(8f, -28f), new Vector2(-14f, -4f));
-        Txt(label, "목록 - LIST", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        Txt(label, Loc.Get("목록 - LIST"), 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
 
         // 항목이 많으면(튜토 영상 16개 등) 패널 밖으로 넘치니 스크롤. 뷰포트(마스크)+콘텐츠(VLG+Fitter).
         var viewport = Make("Viewport", _listBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 2f), new Vector2(-12f, -32f));
@@ -534,7 +534,7 @@ public class CodexUI : MonoBehaviour
         var nameRt = Make("Name", row, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(textLeft, 0f), new Vector2(-12f, 0f));
         if (e.state == St.Public)
         {
-            Txt(nameRt, e.name, 20f, selected ? FontStyles.Bold : FontStyles.Normal, selected ? TxtMain : C32(60, 68, 76), TextAlignmentOptions.Left);
+            Txt(nameRt, Loc.Get(e.name), 20f, selected ? FontStyles.Bold : FontStyles.Normal, selected ? TxtMain : C32(60, 68, 76), TextAlignmentOptions.Left);
             if (!selected) Hatch(row);   // 엔필식 미세 해칭 - 세 카테고리 공개행 통일(선택행 제외)
         }
         else
@@ -728,8 +728,8 @@ public class CodexUI : MonoBehaviour
     private string SelectedName()
     {
         var list = CurList;
-        if (_sel >= 0 && _sel < list.Length && list[_sel].state == St.Public) return list[_sel].name;
-        foreach (var e in list) if (e.state == St.Public) return e.name;
+        if (_sel >= 0 && _sel < list.Length && list[_sel].state == St.Public) return Loc.Get(list[_sel].name);
+        foreach (var e in list) if (e.state == St.Public) return Loc.Get(e.name);
         return "-";
     }
 
@@ -909,7 +909,7 @@ public class CodexUI : MonoBehaviour
 
     private void BuildTutorialMain(string selName)
     {
-        var body = MainHeader("튜토리얼 - GUIDE", "", TxtMono, false);
+        var body = MainHeader(Loc.Get("튜토리얼 - GUIDE"), "", TxtMono, false);
         var page = SelectedEntry()?.tutPage;
 
         // 영상은 꽉 채우지 않고 여백 넉넉히(좌우 90 / 상 28 / 하 184) - 엔필처럼 여유있게 가운데로.
@@ -985,7 +985,7 @@ public class CodexUI : MonoBehaviour
         int tier = ThreatTier(data);
         Color tierCol = ThreatColor(tier);
         var thr = Make("ThreatBadge", _mainBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-184f, -34f), new Vector2(-16f, -12f));
-        var body = MainHeader("몬스터 - THREAT", "", C32(154, 162, 170), false);
+        var body = MainHeader(Loc.Get("몬스터 - THREAT"), "", C32(154, 162, 170), false);
         BuildThreatBadge(thr, tier);
 
         var face = Make("Face", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
@@ -1048,7 +1048,7 @@ public class CodexUI : MonoBehaviour
         var line = Make("MidLine", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -204f), new Vector2(0f, -203f));
         Img(line, null, Divider);
 
-        Txt(Make("dl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -236f), new Vector2(0f, -212f)), "드랍 아이템 - DROPS", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        Txt(Make("dl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -236f), new Vector2(0f, -212f)), Loc.Get("드랍 아이템 - DROPS"), 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         if (!ratesOn)
         {
             if (kills >= KillsForDropRate)
@@ -1226,8 +1226,8 @@ public class CodexUI : MonoBehaviour
 
     private void BuildFacilityMain(string selName)
     {
-        var body = MainHeader("설비 - FACILITY", selName, TxtMain, true);
-        Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), "제작 가능 레시피 - RECIPES", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        var body = MainHeader(Loc.Get("설비 - FACILITY"), selName, TxtMain, true);
+        Txt(Make("rl", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(0f, -6f)), Loc.Get("제작 가능 레시피 - RECIPES"), 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         // 재료가 클릭 가능하다는 상시 힌트(호버 발광/툴팁과 함께 발견성 확보). RECIPES 라벨 바로 옆.
         Txt(Make("rlhint", body, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(212f, -30f), new Vector2(0f, -6f)), Loc.Get("재료를 누르면 출처 보기"), 14f, FontStyles.Bold, Accent, TextAlignmentOptions.Left);
         // 잭팟 설명(우측). 마스터한 레시피의 보너스 = 직관적 안내.
@@ -1650,7 +1650,7 @@ public class CodexUI : MonoBehaviour
                 var mlist = _monsters ?? Monsters;
                 if (mi >= 0 && mlist[mi].state == St.Public)
                 {
-                    string mn = string.IsNullOrEmpty(mlist[mi].name) ? Loc.Get("몬스터") : mlist[mi].name;
+                    string mn = string.IsNullOrEmpty(mlist[mi].name) ? Loc.Get("몬스터") : Loc.Get(mlist[mi].name);
                     int idx = mi;
                     AddSourceRow(card, Loc.Get("처치"), C32(214, 120, 120), mn + " " + Loc.Get("처치"), Loc.Get("도감"), () => JumpToMonster(idx));
                 }
