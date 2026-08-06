@@ -20,6 +20,10 @@ public class CoreUpgradeUI : MonoBehaviour
     [Header("루트 패널")]
     [SerializeField] private GameObject panelRoot;
 
+    // ── 타이틀 ────────────────────────────────────────────────────────
+    [Header("타이틀")]
+    [SerializeField] private TextMeshProUGUI titleText;
+
     // ── 레벨 표시 ─────────────────────────────────────────────────────
     [Header("레벨")]
     [SerializeField] private TextMeshProUGUI levelText;
@@ -253,6 +257,7 @@ public class CoreUpgradeUI : MonoBehaviour
         bool isMax = (next == null) && DataBoot.IsLoaded;
         int lv = mgr.CurrentCoreLevel;
 
+        if (titleText != null) titleText.text = $"{Loc.Get("코어")} <color=#5FC4FF>{Loc.Get("강화")}</color>";
         if (levelText != null) levelText.text = $"Lv.{lv} / 10";
         if (upgradeInfoGroup != null) upgradeInfoGroup.SetActive(!isMax);
         if (maxLevelGroup    != null) maxLevelGroup.SetActive(isMax);
@@ -806,7 +811,7 @@ public class CoreUpgradeUI : MonoBehaviour
             int shortage = required - owned;
             if (shortage > 0)
             {
-                kitShortageText.text  = "← " + shortage + Loc.Get("개 부족");
+                kitShortageText.text  = string.Format(Loc.Get("← {0}개 부족"), shortage);
                 kitShortageText.color = shortageColor;
                 kitShortageText.gameObject.SetActive(true);
             }

@@ -190,8 +190,8 @@ public class ShipRepairUI : MonoBehaviour
         trig.triggers.Add(entry);
     }
 
-    private void OnEnable()  => ShipRepairManager.OnChanged += Refresh;
-    private void OnDisable() => ShipRepairManager.OnChanged -= Refresh;
+    private void OnEnable()  { ShipRepairManager.OnChanged += Refresh; Loc.OnLanguageChanged += Refresh; }
+    private void OnDisable() { ShipRepairManager.OnChanged -= Refresh; Loc.OnLanguageChanged -= Refresh; }
 
     private void Update()
     {
@@ -331,9 +331,9 @@ public class ShipRepairUI : MonoBehaviour
         int pct = ShipPartMilestone(level);
 
         string stateText; Color col;
-        if (used)      { stateText = "사용됨 (수리 완료)"; col = holoColor; }
-        else if (have) { stateText = "보유 중";           col = doneColor; }
-        else           { stateText = "미획득";            col = textDimColor; }
+        if (used)      { stateText = Loc.Get("사용됨 (수리 완료)"); col = holoColor; }
+        else if (have) { stateText = Loc.Get("보유 중");            col = doneColor; }
+        else           { stateText = Loc.Get("미획득");             col = textDimColor; }
 
         if (chipTooltipTitle != null)
         {
@@ -341,7 +341,9 @@ public class ShipRepairUI : MonoBehaviour
             chipTooltipTitle.color = (used || have) ? col : textMainColor;   // 미획득 제목은 읽히게 흰색
         }
         if (chipTooltipBody != null)
-            chipTooltipBody.text = pct > 0 ? $"시간에너지 전송률 {pct}% 에서 획득" : "시간에너지 전송으로 획득";
+            chipTooltipBody.text = pct > 0
+                ? string.Format(Loc.Get("시간에너지 전송률 {0}% 에서 획득"), pct)
+                : Loc.Get("시간에너지 전송으로 획득");
         if (chipTooltipState != null)
         {
             chipTooltipState.text = stateText;
@@ -377,7 +379,7 @@ public class ShipRepairUI : MonoBehaviour
         int max = mgr.MaxLevel;
 
         if (levelText != null)
-            levelText.text = $"수리 단계  Lv.{cur} / {max}";
+            levelText.text = $"{Loc.Get("수리 단계")}  Lv.{cur} / {max}";
 
         RefreshPips(cur);
 
@@ -402,7 +404,7 @@ public class ShipRepairUI : MonoBehaviour
         var nextDef = maxed ? null : mgr.GetLevel(cur + 1);
 
         if (nextHeaderText != null)
-            nextHeaderText.text = maxed ? "수리 완료" : $"다음 수리   Lv.{cur} -> Lv.{cur + 1}";
+            nextHeaderText.text = maxed ? Loc.Get("수리 완료") : $"{Loc.Get("다음 수리")}   Lv.{cur} -> Lv.{cur + 1}";
 
         SetStat(0, curDef, nextDef, StatKind.Zone);
         SetStat(1, curDef, nextDef, StatKind.Fuel);
@@ -505,8 +507,8 @@ public class ShipRepairUI : MonoBehaviour
         }
         if (repairButtonText != null)
             repairButtonText.text = maxed
-                ? (canEscape ? "탈출하기" : EscapeBlockedReason())   // 수리는 끝났지만 전송률 미완이면 이유 표기
-                : (canRepair ? "수리 실행" : BlockedReason(mgr, mgr.PartCount));
+                ? (canEscape ? Loc.Get("탈출하기") : EscapeBlockedReason())
+                : (canRepair ? Loc.Get("수리 실행") : BlockedReason(mgr, mgr.PartCount));
     }
 
     // 왜 수리를 못 하는지 버튼에 그대로 적는다.
@@ -515,12 +517,12 @@ public class ShipRepairUI : MonoBehaviour
     private static string BlockedReason(ShipRepairManager mgr, int count)
     {
         int need = mgr.NextRequiredParts;
-        if (count < need) return $"{mgr.PartName} 부족  {count} / {need}";
+        if (count < need) return $"{Loc.Get(mgr.PartName)}  {count} / {need}";
 
         string extra = mgr.NextExtraPartName;
-        if (!string.IsNullOrEmpty(extra)) return $"{extra} 필요";
+        if (!string.IsNullOrEmpty(extra)) return string.Format(Loc.Get("{0} 필요"), Loc.Get(extra));
 
-        return "수리 불가";
+        return Loc.Get("수리 불가");
     }
 
     // 수리는 끝났지만(Lv.최대) 아직 탈출 못 하는 이유 = 시간에너지 전송률 미완(100% 필요).
@@ -528,7 +530,7 @@ public class ShipRepairUI : MonoBehaviour
     {
         var tm = TransmissionManager.Instance;
         int rate = tm != null ? tm.TransmissionRate : 0;
-        return $"시간에너지 {rate}% / 100%";
+        return string.Format(Loc.Get("시간에너지 {0}% / 100%"), rate);
     }
 
     private enum StatKind { Zone, Fuel, Speed }
@@ -571,7 +573,15 @@ public class ShipRepairUI : MonoBehaviour
             rowImg.color = new Color(1f, 1f, 1f, changed ? 1f : 0.8f);
         }
         if (statNameTexts != null && idx < statNameTexts.Length && statNameTexts[idx] != null)
+        {
             statNameTexts[idx].color = changed ? new Color(0.80f, 0.87f, 0.94f, 1f) : textDimColor;
+            switch (kind)
+            {
+                case StatKind.Zone:  statNameTexts[idx].text = Loc.Get("건축 범위"); break;
+                case StatKind.Fuel:  statNameTexts[idx].text = Loc.Get("설비 연료"); break;
+                case StatKind.Speed: statNameTexts[idx].text = Loc.Get("공장 가동속도"); break;
+            }
+        }
     }
 
     private string FormatStat(ShipRepairManager.LevelDef def, StatKind kind)
@@ -580,9 +590,9 @@ public class ShipRepairUI : MonoBehaviour
         switch (kind)
         {
             // 단계 번호는 플레이어에게 아무 의미가 없다. 실제 칸 수를 보여준다.
-            case StatKind.Zone:  return def.zoneCells > 0 ? $"{def.zoneCells}x{def.zoneCells}칸" : "-";
-            case StatKind.Fuel:  return $"{Mathf.RoundToInt(def.fuelSeconds)}초";
-            case StatKind.Speed: return $"제작 {Mathf.RoundToInt(def.factorySpeed * 100f)}%";
+            case StatKind.Zone:  return def.zoneCells > 0 ? string.Format(Loc.Get("{0}x{1}칸"), def.zoneCells, def.zoneCells) : "-";
+            case StatKind.Fuel:  return string.Format(Loc.Get("{0}초"), Mathf.RoundToInt(def.fuelSeconds));
+            case StatKind.Speed: return string.Format(Loc.Get("제작 {0}%"), Mathf.RoundToInt(def.factorySpeed * 100f));
         }
         return "-";
     }
