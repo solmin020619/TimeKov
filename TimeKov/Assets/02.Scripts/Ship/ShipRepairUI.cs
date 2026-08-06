@@ -337,7 +337,7 @@ public class ShipRepairUI : MonoBehaviour
 
         if (chipTooltipTitle != null)
         {
-            chipTooltipTitle.text = mgr != null ? mgr.ExtraPartNameFor(level) : "";
+            chipTooltipTitle.text = mgr != null ? Loc.Get(mgr.ExtraPartNameFor(level)) : "";
             chipTooltipTitle.color = (used || have) ? col : textMainColor;   // 미획득 제목은 읽히게 흰색
         }
         if (chipTooltipBody != null)
