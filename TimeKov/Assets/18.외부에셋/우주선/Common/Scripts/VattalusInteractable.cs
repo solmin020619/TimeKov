@@ -78,7 +78,6 @@ public class VattalusInteractable : MonoBehaviour
 
         //find the sceneController script
         sceneController = FindFirstObjectByType<VattalusSceneController>();
-        if (sceneController == null) Debug.Log("color=#FF0000>VattalusAssets: Interactable object did not find reference to the VattalusSceneController. Make sure to include it in the scene</color>");
 
         //initialize the animation clip (if its the case)
         if (animationComponent == null)
