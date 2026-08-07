@@ -1285,7 +1285,8 @@ public class TransmissionComputerUI : MonoBehaviour
             string fac = FacilityRewardNames(pct);
             if (!string.IsNullOrEmpty(fac))
             {
-                parts.Add(string.Format(Loc.Get("{0} 설비를 해금했습니다."), fac));
+                // 느낌표 버전은 FacilityUnlockManager 가 이미 쓰고 시트에도 번역돼 있다. 새 키를 만들지 말고 재사용한다.
+                parts.Add(string.Format(Loc.Get("{0} 설비를 해금했습니다!"), fac));
                 var ids = Mgr != null ? Mgr.GetRewardFacilityIds(pct) : null;
                 if (ids != null) foreach (int id in ids) AddPart(parts, FacilityHint(id));
             }

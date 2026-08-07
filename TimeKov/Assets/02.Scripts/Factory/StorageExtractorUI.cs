@@ -278,7 +278,7 @@ public class StorageExtractorUI : MonoBehaviour
 
     private void BuildHeader(RectTransform prt)
     {
-        _titleText = NewText("Title", prt, Loc.Get("창고 출력 포트"), 28, TxtDark, TextAlignmentOptions.Left);
+        _titleText = LocLbl(NewText("Title", prt, "창고 출력 포트", 28, TxtDark, TextAlignmentOptions.Left));
         _titleText.fontStyle = FontStyles.Bold;
         var tr = _titleText.rectTransform;
         tr.anchorMin = tr.anchorMax = new Vector2(0, 1); tr.pivot = new Vector2(0, 1);
@@ -386,13 +386,13 @@ public class StorageExtractorUI : MonoBehaviour
         _installText.fontStyle = FontStyles.Bold;
         _installText.rectTransform.anchoredPosition = new Vector2(20, 326);
         _installText.rectTransform.sizeDelta = new Vector2(420, 40);
-        var instHint = NewText("InstallHint", area, Loc.Get("우주선을 수리하면 설치 개수를 늘릴 수 있습니다"),
-            15, new Color(0.20f, 0.24f, 0.30f, 1f), TextAlignmentOptions.Center);
+        var instHint = LocLbl(NewText("InstallHint", area, "우주선을 수리하면 설치 개수를 늘릴 수 있습니다",
+            15, new Color(0.20f, 0.24f, 0.30f, 1f), TextAlignmentOptions.Center));
         instHint.rectTransform.anchoredPosition = new Vector2(20, 296);
         instHint.rectTransform.sizeDelta = new Vector2(500, 24);
 
         // 좌측: "현재 출력" + 추출 품목 슬롯(보존)
-        var cur = NewText("CurrentLabel", area, Loc.Get("현재 출력"), 20, TxtMain, TextAlignmentOptions.Center);
+        var cur = LocLbl(NewText("CurrentLabel", area, "현재 출력", 20, TxtMain, TextAlignmentOptions.Center));
         cur.rectTransform.anchoredPosition = new Vector2(-340, flowY + 120);
         cur.rectTransform.sizeDelta = new Vector2(200, 30);
 
@@ -441,7 +441,7 @@ public class StorageExtractorUI : MonoBehaviour
         portTick.rectTransform.sizeDelta = new Vector2(8f, 64f);
         _portTick = portTick; _tickBase = portTick.color;   // 배출 순간 반짝용
 
-        var outLbl = NewText("OutputLabel", area, Loc.Get("물류 출력"), 18, TxtSub, TextAlignmentOptions.Center);
+        var outLbl = LocLbl(NewText("OutputLabel", area, "물류 출력", 18, TxtSub, TextAlignmentOptions.Center));
         outLbl.rectTransform.anchoredPosition = new Vector2(beltEndX - 40f, flowY + 120);
         outLbl.rectTransform.sizeDelta = new Vector2(200, 30);
 
@@ -453,7 +453,7 @@ public class StorageExtractorUI : MonoBehaviour
         _flowIcon.rectTransform.sizeDelta = new Vector2(72, 72);
 
         // 게이지 "다음 배출까지"
-        var glabel = NewText("GaugeLabel", area, Loc.Get("다음 배출까지"), 15, TxtSub, TextAlignmentOptions.Left);
+        var glabel = LocLbl(NewText("GaugeLabel", area, "다음 배출까지", 15, TxtSub, TextAlignmentOptions.Left));
         glabel.rectTransform.pivot = new Vector2(0, 0.5f);
         glabel.rectTransform.anchoredPosition = new Vector2(-380, -150);
         glabel.rectTransform.sizeDelta = new Vector2(300, 26);
@@ -491,9 +491,9 @@ public class StorageExtractorUI : MonoBehaviour
         info.rectTransform.sizeDelta = new Vector2(860, 100);
         var infoRim = info.gameObject.AddComponent<UnityEngine.UI.Outline>();
         infoRim.effectColor = new Color(0.55f, 0.66f, 0.80f, 0.34f); infoRim.effectDistance = new Vector2(0f, -1.5f);
-        var ibody = NewText("InfoBody", info.transform,
-            Loc.Get("고른 아이템을 창고에서 꺼내 벨트로 내보냅니다.\n창고 테두리에 설치하세요."),
-            20, TxtMain, TextAlignmentOptions.Center);
+        var ibody = LocLbl(NewText("InfoBody", info.transform,
+            "고른 아이템을 창고에서 꺼내 벨트로 내보냅니다.\n창고 테두리에 설치하세요.",
+            20, TxtMain, TextAlignmentOptions.Center));
         ibody.textWrappingMode = TextWrappingModes.Normal;
         ibody.enableAutoSizing = true; ibody.fontSizeMin = 15f; ibody.fontSizeMax = 24f;   // 패널 크기에 꽉 차게
         var ibrt = ibody.rectTransform;
@@ -555,6 +555,17 @@ public class StorageExtractorUI : MonoBehaviour
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
         var img = go.GetComponent<Image>(); img.color = c;
         return img;
+    }
+
+    // ★[08-07] 언어 변경 대응. BuildUI() 는 _built 가드가 있어 게임당 한 번만 돈다.
+    //   그래서 여기서 Loc.Get 으로 한 번 번역해 넣으면 언어를 바꿔도 옛 글자가 그대로 남는다.
+    //   Loc.Get(...) 대신 한글 원문을 그대로 넘기고 이 함수로 감싸면 LocalizedLabel 이 붙어
+    //   스스로 다시 칠한다(닫혀 있는 동안 바뀐 언어도 OnEnable 에서 따라잡는다).
+    private static TextMeshProUGUI LocLbl(TextMeshProUGUI t)
+    {
+        if (t == null) return null;
+        t.gameObject.AddComponent<LocalizedLabel>().SetKey(t.text);   // 현재 문구가 곧 한글 키
+        return t;
     }
 
     private static TextMeshProUGUI NewText(string name, Transform parent, string text, float size, Color c, TextAlignmentOptions align)

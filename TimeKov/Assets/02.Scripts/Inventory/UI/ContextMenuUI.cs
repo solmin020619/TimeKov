@@ -173,7 +173,7 @@ public class ContextMenuUI : MonoBehaviour
         vl.childForceExpandHeight = false;
 
         var label = NewText(_effectBox.transform, "EffLabel", 12f, FontStyles.Bold, new Color32(120, 170, 210, 255));
-        label.text = Loc.Get("사용 효과");
+        label.gameObject.AddComponent<LocalizedLabel>().SetKey("사용 효과");   // BuildEffect 는 1회라 직접 번역하면 안 바뀐다
         _effectText = NewText(_effectBox.transform, "EffText", 14f, FontStyles.Normal, TextColor);
     }
 
@@ -181,12 +181,12 @@ public class ContextMenuUI : MonoBehaviour
     {
         var row1 = NewButtonRow("BtnRow1");
         _consumableRow = row1.gameObject;
-        BuildButton(row1, Loc.Get("사용"), BtnUseColor, OnClickUse);
-        _quickBtn = BuildButton(row1, Loc.Get("퀵슬롯 등록"), BtnQuickColor, OnClickRegisterQuick);
+        BuildButton(row1, "사용", BtnUseColor, OnClickUse);
+        _quickBtn = BuildButton(row1, "퀵슬롯 등록", BtnQuickColor, OnClickRegisterQuick);
 
         var row2 = NewButtonRow("BtnRow2");
-        _splitBtn = BuildButton(row2, Loc.Get("분할"), BtnColor, OnClickSplit);
-        BuildButton(row2, Loc.Get("버리기"), BtnTrashColor, OnClickTrash);
+        _splitBtn = BuildButton(row2, "분할", BtnColor, OnClickSplit);
+        BuildButton(row2, "버리기", BtnTrashColor, OnClickTrash);
     }
 
     // ── 열기 ─────────────────────────────────────────────────────────────
@@ -397,7 +397,10 @@ public class ContextMenuUI : MonoBehaviour
         btn.onClick.AddListener(onClick);
 
         var t = NewText(go.transform, "Label", 14f, FontStyles.Bold, TextColor);
-        t.text = label;
+        // ★label 은 번역 전 한글 원문을 받는다. EnsureBuilt() 가 게임당 한 번만 돌아서
+        //   여기서 Loc.Get 으로 한 번 번역해 넣으면 언어를 바꿔도 옛 글자가 남는다.
+        //   LocalizedLabel 을 붙여 스스로 다시 칠하게 한다.
+        t.gameObject.AddComponent<LocalizedLabel>().SetKey(label);
         t.alignment = TextAlignmentOptions.Center;
         t.textWrappingMode = TextWrappingModes.NoWrap;
         var trt = t.rectTransform;

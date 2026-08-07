@@ -16,18 +16,38 @@ public class ShipExtraPartChip : MonoBehaviour, IPointerEnterHandler, IPointerEx
 
     private ShipRepairUI _owner;
     private int _level;
+    private string _partName = "";
 
     /// <summary>복제 직후 1회. 이 칩이 어느 레벨의 부품인지와 표시 이름을 정한다.</summary>
     public void Setup(ShipRepairUI owner, int level, string partName)
     {
         _owner = owner;
         _level = level;
-        // "우주선 " 접두사는 패널 안에서 군더더기라 뗀다.
-        if (nameText != null)
-        {
-            string localized = Loc.Get(partName ?? "");
-            nameText.text = localized.StartsWith("우주선 ") ? localized.Substring(4) : localized;
-        }
+        _partName = partName ?? "";
+        ApplyName();
+    }
+
+    // ★[08-07] 언어 변경 대응. 칩은 ShipRepairUI.BuildDynamic() 에서 만들어지는데 거기에
+    //   _dynamicBuilt 가드가 있어 게임당 한 번만 돈다. Setup 에서 번역해 넣고 끝내면
+    //   언어를 바꿔도 옛 글자가 남는다. 접두사를 떼는 후처리가 있어 LocalizedLabel 로는
+    //   대체가 안 되므로 직접 구독한다(패널이 닫혀 있는 동안 바뀐 언어는 OnEnable 이 따라잡는다).
+    private void OnEnable()
+    {
+        Loc.OnLanguageChanged += ApplyName;
+        ApplyName();
+    }
+
+    private void OnDisable()
+    {
+        Loc.OnLanguageChanged -= ApplyName;
+    }
+
+    private void ApplyName()
+    {
+        if (nameText == null || string.IsNullOrEmpty(_partName)) return;
+        // "우주선 " 접두사는 패널 안에서 군더더기라 뗀다(한국어일 때만 해당).
+        string localized = Loc.Get(_partName);
+        nameText.text = localized.StartsWith("우주선 ") ? localized.Substring(4) : localized;
     }
 
     /// <summary>상태 반영. bgTint = 배경 틴트, nameCol = 이름 색.</summary>

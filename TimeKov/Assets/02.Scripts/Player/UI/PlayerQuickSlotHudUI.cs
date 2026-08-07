@@ -76,7 +76,8 @@ public class PlayerQuickSlotHudUI : MonoBehaviour
         _emptyText = MakeText("Empty", rt, 10f, FontStyles.Normal, TextAlignmentOptions.Center);
         StretchCenter(_emptyText.rectTransform, new Vector2(56, 28));
         _emptyText.color = TextDim;
-        _emptyText.text = Loc.Get("비어있음");
+        // Setup() 은 HUD 생성 때 1회만 돈다. 직접 번역해 넣으면 언어를 바꿔도 안 바뀐다.
+        _emptyText.gameObject.AddComponent<LocalizedLabel>().SetKey("비어있음");
 
         RefreshNow();
     }
