@@ -318,8 +318,12 @@ public class TutorialVideoUI : MonoBehaviour
             pageCount.text = n > 1 ? $"{_page + 1} / {n}" : string.Empty;
             pageCount.gameObject.SetActive(n > 1);
         }
-        if (titleText != null) titleText.text = p.title ?? string.Empty;
-        if (bodyText != null) bodyText.text = p.body ?? string.Empty;
+        // ★[08-07] 번역 배선. 지금까지 여기만 Loc.Get 을 안 거쳐서 도감/영상 팝업의 제목·본문이
+        //   시트에 키를 넣어도 번역되지 않았다(코드에 문자열이 없으니 grep 조사에도 안 잡혔다).
+        //   문구가 확정되면 시트에 원문을 넣기만 하면 바로 붙는다. 아직 없으면 원문 그대로 나온다.
+        //   ★WatchTutorial 에는 p.title 원문을 그대로 넘긴다 - 그건 저장용 식별자라 번역하면 안 된다.
+        if (titleText != null) titleText.text = Loc.Get(p.title ?? string.Empty);
+        if (bodyText != null) bodyText.text = Loc.Get(p.body ?? string.Empty);
 
         // 영상 / 플레이스홀더
         if (p.clip != null)

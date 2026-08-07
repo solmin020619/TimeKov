@@ -899,9 +899,12 @@ public class CodexUI : MonoBehaviour
     private RectTransform MainHeader(string monoLabel, string rightText, Color rightCol, bool rightBig)
     {
         var hdr = Make("MHeader", _mainBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -34f), new Vector2(0f, 0f));
-        Txt(Make("l", hdr, new Vector2(0f, 0f), new Vector2(0.6f, 1f), Vector2.zero, Vector2.zero), monoLabel, 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        // ★왼쪽은 왼쪽정렬, 오른쪽은 오른쪽정렬이라 구간이 겹치면 서로를 향해 자라다 포개진다.
+        //   예전엔 l=0~0.6 / r=0.4~1 이라 0.4~0.6 이 원래부터 겹쳐 있었다(한국어가 짧아 안 보였을 뿐).
+        //   0.55 에서 딱 잘라두면 각자 자기 칸만 쓰고, 길어지면 TextAutoFit 이 줄인다.
+        Txt(Make("l", hdr, new Vector2(0f, 0f), new Vector2(0.55f, 1f), Vector2.zero, new Vector2(-8f, 0f)), monoLabel, 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
         if (!string.IsNullOrEmpty(rightText))
-            Txt(Make("r", hdr, new Vector2(0.4f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), rightText, rightBig ? 20f : 11f, rightBig ? FontStyles.Bold : FontStyles.Normal, rightCol, TextAlignmentOptions.Right);
+            Txt(Make("r", hdr, new Vector2(0.55f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), rightText, rightBig ? 20f : 11f, rightBig ? FontStyles.Bold : FontStyles.Normal, rightCol, TextAlignmentOptions.Right);
         var line = Make("MLine", _mainBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -49f), new Vector2(0f, -48f));
         Img(line, null, Divider);
         return Make("MBody", _mainBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -58f));
@@ -1216,8 +1219,13 @@ public class CodexUI : MonoBehaviour
         var dotR = Make("rcdot", nameRow, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
         dotR.sizeDelta = new Vector2(9f, 9f); dotR.anchoredPosition = new Vector2(5f, 0f);
         Img(dotR, UISpriteFactory.Disc(16), d.rc);
-        Txt(Make("nm", nameRow, new Vector2(0f, 0f), new Vector2(0.7f, 1f), new Vector2(20f, 0f), new Vector2(0f, 0f)), d.name, 19f, FontStyles.Bold, d.got ? TxtMain : TxtDim, TextAlignmentOptions.Left);
-        Txt(Make("ra", nameRow, new Vector2(0.55f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), d.rarity, 16f, FontStyles.Bold, C32(92, 100, 112), TextAlignmentOptions.Left);
+        // ★이름(0~62%)과 등급(62~100%)의 앵커 구간이 겹치면 안 된다.
+        //   예전엔 이름 0~70% / 등급 55~100% 라 55~70% 가 원래부터 포개져 있었다.
+        //   한국어("자연 시간에너지 조각")는 짧아 70%까지 안 가서 안 보였을 뿐이고,
+        //   영어("Nature Time Energy Shard")로 바꾸는 순간 등급 글자와 정확히 겹쳤다.
+        //   구간을 나눠두면 이름이 길어져도 자기 칸을 넘칠 뿐이라 TextAutoFit 이 줄여준다.
+        Txt(Make("nm", nameRow, new Vector2(0f, 0f), new Vector2(0.62f, 1f), new Vector2(20f, 0f), new Vector2(-10f, 0f)), d.name, 19f, FontStyles.Bold, d.got ? TxtMain : TxtDim, TextAlignmentOptions.Left);
+        Txt(Make("ra", nameRow, new Vector2(0.62f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero), d.rarity, 16f, FontStyles.Bold, C32(92, 100, 112), TextAlignmentOptions.Left);
         Txt(Make("ds", info, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 26f)), d.desc, 17f, FontStyles.Bold, C32(84, 92, 104), TextAlignmentOptions.BottomLeft);
         var pct = Make("pct", card, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
         pct.sizeDelta = new Vector2(80f, 52f); pct.anchoredPosition = new Vector2(-44f, 0f);
