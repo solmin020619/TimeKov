@@ -15,8 +15,9 @@ public static class Loc
     {
         if (string.IsNullOrEmpty(koreanKey)) return koreanKey;
         if (CurrentLanguage == LanguageCode.KO) return koreanKey;
+        string normalizedKey = koreanKey.Replace("\r\n", "\n").Replace("\r", "\n").TrimEnd();
         if (_tables.TryGetValue(CurrentLanguage, out var table) &&
-            table.TryGetValue(koreanKey, out var translated) &&
+            table.TryGetValue(normalizedKey, out var translated) &&
             !string.IsNullOrEmpty(translated))
             return translated;
         return koreanKey;

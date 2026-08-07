@@ -17,6 +17,8 @@ public class PrologueRadioUI : MonoBehaviour
         public string       speakerName = "알 수 없음";
         [TextArea(2, 5)]
         public string       message;
+        [Tooltip("번역 키. 비워두면 message 원문을 키로 사용. 짧은 영문 ID 권장 (예: radio_intro_start)")]
+        public string       locKey;
     }
 
     [Header("대화 목록")]
@@ -164,7 +166,7 @@ public class PrologueRadioUI : MonoBehaviour
             _portraitImage.sprite  = entry.portrait;
             _portraitImage.enabled = entry.portrait != null;
         }
-        if (_speakerText != null) _speakerText.text = entry.speakerName;
+        if (_speakerText != null) _speakerText.text = Loc.Get(entry.speakerName);
         if (_messageText != null) { _messageText.text = ""; _messageText.maxVisibleCharacters = 0; }
 
         if (_signalCoroutine != null) StopCoroutine(_signalCoroutine);
@@ -174,7 +176,10 @@ public class PrologueRadioUI : MonoBehaviour
         SlideIn(() => animDone = true);
         yield return new WaitUntil(() => animDone);
 
-        yield return StartCoroutine(Typewriter(entry.message));
+        string msg = !string.IsNullOrEmpty(entry.locKey)
+            ? (Loc.CurrentLanguage == LanguageCode.KO ? entry.message : Loc.Get(entry.locKey))
+            : Loc.Get(entry.message);
+        yield return StartCoroutine(Typewriter(msg));
 
         // 타이프라이터 완료 후 최소 읽기 시간 확보
         yield return new WaitForSeconds(_readHoldDuration);

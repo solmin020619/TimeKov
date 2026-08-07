@@ -149,7 +149,7 @@ public class ObjectiveLine : MonoBehaviour
     {
         if (_o == null || labelText == null) return;
         string lbl = _o.GetDisplayLabel();
-        labelText.text = lbl;
+        labelText.text = Loc.Get(lbl);
 
         // 라벨 비어있는 Objective는 줄 자체를 숨김 (인식만 하고 UI 표시 안 함).
         // → 한 퀘스트에 여러 Objective 두되 통합 라벨 하나만 표시하고 싶을 때 사용.

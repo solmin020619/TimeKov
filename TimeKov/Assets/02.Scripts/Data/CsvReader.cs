@@ -14,31 +14,78 @@ using UnityEngine.Networking;
 public static class CsvReader
 {
     // CSV 텍스트를 CsvTable 로 파싱
-    // 쉼표 구분, 따옴표 내부의 쉼표/개행은 하나의 셀로 처리한다
+    // RFC 4180 준수: 따옴표 내부의 쉼표/개행은 하나의 셀로 처리한다
     public static CsvTable Parse(string csvText)
     {
         var table = new CsvTable();
-        var lines = SplitLines(csvText);
+        var allRows = ParseAll(csvText);
 
-        if (lines.Count == 0)
+        if (allRows.Count == 0)
             return table;
 
         // 첫 행은 헤더
-        var headerCells = ParseLine(lines[0]);
-        foreach (var h in headerCells)
+        foreach (var h in allRows[0])
             table.Headers.Add(h.Trim());
 
         // 나머지 행은 데이터
-        for (int i = 1; i < lines.Count; i++)
+        for (int i = 1; i < allRows.Count; i++)
         {
-            var line = lines[i].Trim();
-            if (string.IsNullOrEmpty(line))
-                continue;
-            var cells = ParseLine(line);
-            table.Rows.Add(new CsvRow(cells.ToArray()));
+            var cells = allRows[i];
+            bool empty = true;
+            foreach (var c in cells) if (!string.IsNullOrEmpty(c)) { empty = false; break; }
+            if (empty) continue;
+            table.Rows.Add(new CsvRow(cells));
         }
 
         return table;
+    }
+
+    // RFC 4180 전체 파싱: 따옴표 내 줄바꿈·쉼표를 셀 내용으로 처리
+    private static List<string[]> ParseAll(string text)
+    {
+        var rows = new List<string[]>();
+        var cells = new List<string>();
+        var cell = new System.Text.StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < text.Length && text[i + 1] == '"') { cell.Append('"'); i++; }
+                    else inQuotes = false;
+                }
+                else cell.Append(c);
+            }
+            else
+            {
+                if (c == '"') { inQuotes = true; }
+                else if (c == ',') { cells.Add(cell.ToString()); cell.Clear(); }
+                else if (c == '\r')
+                {
+                    if (i + 1 < text.Length && text[i + 1] == '\n') i++;
+                    cells.Add(cell.ToString()); cell.Clear();
+                    rows.Add(cells.ToArray()); cells.Clear();
+                }
+                else if (c == '\n')
+                {
+                    cells.Add(cell.ToString()); cell.Clear();
+                    rows.Add(cells.ToArray()); cells.Clear();
+                }
+                else cell.Append(c);
+            }
+        }
+
+        if (cell.Length > 0 || cells.Count > 0)
+        {
+            cells.Add(cell.ToString());
+            rows.Add(cells.ToArray());
+        }
+
+        return rows;
     }
 
     // 구글 시트에서 동기 다운로드 (에디터 전용)

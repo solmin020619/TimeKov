@@ -56,7 +56,7 @@ public class QuestEntry : MonoBehaviour
     {
         _quest = q; _rt = rt;
 
-        if (title != null) title.text = q.title;
+        if (title != null) title.text = Loc.Get(q.title);
 
         foreach (var o in rt.activeObjectives)
         {
@@ -99,8 +99,8 @@ public class QuestEntry : MonoBehaviour
             if (any) sb.Append(", ");
             // 아이템 이름 조회 — 못 찾으면 ID로 폴백
             var itemData = ItemDatabase.GetItem(r.itemId);
-            string itemName = itemData != null ? itemData.itemName : r.itemId.ToString();
-            sb.Append($"<color={rewardItemColorHex}>{itemName}</color> {r.amount}개");
+            string itemName = itemData != null ? Loc.Get(itemData.itemName) : r.itemId.ToString();
+            sb.Append($"<color={rewardItemColorHex}>{itemName}</color> {r.amount}{Loc.Get("개")}");
             any = true;
         }
 
@@ -111,7 +111,7 @@ public class QuestEntry : MonoBehaviour
         }
 
         // 목표 줄들과 너무 붙지 않게 한 줄 띄워서 표시(위에 빈 줄 한 칸).
-        rewardText.text = "\n" + rewardPrefix + sb.ToString();
+        rewardText.text = "\n" + Loc.Get(rewardPrefix) + sb.ToString();
         rewardText.gameObject.SetActive(true);
 
         // 목표 줄들 다음(맨 아래)에 오도록 강제 — rewardText 가 objectiveList 자식일 때만

@@ -29,7 +29,7 @@ public class VattalusDoorBridge : MonoBehaviour, IInteractable, IInteractHint
     void ApplyLabel()
     {
         var tmp = _hintUI.GetComponentInChildren<TMP_Text>(true);
-        if (tmp != null) tmp.text = _intendedOpen ? "문 닫기" : "문 열기";
+        if (tmp != null) tmp.text = _intendedOpen ? Loc.Get("문 닫기") : Loc.Get("문 열기");
         var iconImg = _hintUI.transform.Find("PanelRoot/RowContainer/FacilitySelectRow/Icon")?.GetComponent<Image>();
         if (iconImg != null)
         {

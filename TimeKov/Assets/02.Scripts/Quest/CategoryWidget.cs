@@ -22,7 +22,7 @@ public class CategoryWidget : MonoBehaviour
         _rt = rt;
         if (showCategoryTitle)
         {
-            if (categoryTitle != null) categoryTitle.text = rt.data.title;
+            if (categoryTitle != null) categoryTitle.text = Loc.Get(rt.data.title);
         }
         else if (categoryTitle != null)
         {

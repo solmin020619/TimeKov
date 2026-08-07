@@ -114,7 +114,7 @@ public class QuestPanelUI : MonoBehaviour
         if (toast == null) return;
 
         // 토스트가 hold 끝나고 좌측으로 사라지기 시작하는 시점 = 다음 QuestEntry의 iconAlert -> iconNormal 전환 시점
-        toast.Show(toastMessage, toastDelay, onHideStart: () =>
+        toast.Show(Loc.Get(toastMessage), toastDelay, onHideStart: () =>
         {
             if (_lastShownWidget != null) _lastShownWidget.TriggerIconSwitchToNormal();
         });

@@ -59,7 +59,7 @@ public static class LocalizationLoader
 
         foreach (var row in table.Rows)
         {
-            string key = row.Get(0); // A열: 한글 원문 (Key)
+            string key = row.Get(0).Replace("\r\n", "\n").Replace("\r", "\n"); // A열: 한글 원문 (Key)
             if (string.IsNullOrEmpty(key)) continue;
 
             if (enIdx >= 0) { string v = row.Get(enIdx); if (!string.IsNullOrEmpty(v)) enTable[key] = v; }
