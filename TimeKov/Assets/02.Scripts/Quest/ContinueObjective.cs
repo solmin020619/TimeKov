@@ -26,7 +26,7 @@ public class ContinueObjective : ObjectiveSO
     {
         var ov = TutorialOverlay.I;
         if (ov != null)
-            ov.ShowContinueStep(label, spotlightTargetId, OnContinueClicked, advanceKey);
+            ov.ShowContinueStep(Loc.Get(label), spotlightTargetId, OnContinueClicked, advanceKey);
         else
             Complete();   // 오버레이 생성 불가(에디터 등) 시 막히지 않게 즉시 완료
     }

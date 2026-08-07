@@ -23,6 +23,7 @@ public class CategoryWidget : MonoBehaviour
         if (showCategoryTitle)
         {
             if (categoryTitle != null) categoryTitle.text = Loc.Get(rt.data.title);
+            Loc.OnLanguageChanged += RefreshTitle;
         }
         else if (categoryTitle != null)
         {
@@ -30,6 +31,17 @@ public class CategoryWidget : MonoBehaviour
             // 위로 밀리지 않음(토스트와 겹침 방지). SetActive(false)는 VLG에서 빠져 레이아웃이 올라감.
             categoryTitle.enabled = false;
         }
+    }
+
+    void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshTitle;
+    }
+
+    void RefreshTitle()
+    {
+        if (_rt != null && categoryTitle != null)
+            categoryTitle.text = Loc.Get(_rt.data.title);
     }
 
     public void ShowQuest(QuestSO q)

@@ -15,7 +15,7 @@ public class FacilityUnlockObjective : ObjectiveSO
     public override float Progress => Mathf.Clamp01((float)CurrentCount / Mathf.Max(1, requiredCount));
 
     public override string GetDisplayLabel()
-        => requiredCount > 1 ? $"{label} ({Mathf.Min(CurrentCount, requiredCount)}/{requiredCount})" : label;
+        => requiredCount > 1 ? $"{Loc.Get(label)} ({Mathf.Min(CurrentCount, requiredCount)}/{requiredCount})" : label;
 
     // 이벤트 누적이 아니라 "현재 해금 상태" 기준 (미리 해금해도 인식).
     int CurrentCount

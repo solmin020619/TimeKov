@@ -37,6 +37,7 @@ public class ObjectiveLine : MonoBehaviour
         _o = o;
         _o.OnProgressChanged += OnProgress;
         _o.OnCompleted += OnDone;
+        Loc.OnLanguageChanged += Refresh;
         Refresh();
 
         if (checkBoxEmpty)
@@ -159,8 +160,11 @@ public class ObjectiveLine : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_o == null) return;
-        _o.OnProgressChanged -= OnProgress;
-        _o.OnCompleted -= OnDone;
+        if (_o != null)
+        {
+            _o.OnProgressChanged -= OnProgress;
+            _o.OnCompleted -= OnDone;
+        }
+        Loc.OnLanguageChanged -= Refresh;
     }
 }

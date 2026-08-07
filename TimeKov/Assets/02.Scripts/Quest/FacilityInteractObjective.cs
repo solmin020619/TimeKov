@@ -29,7 +29,7 @@ public class FacilityInteractObjective : ObjectiveSO
     protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
-        => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;
+        => requiredCount > 1 ? $"{Loc.Get(label)} ({_count}/{requiredCount})" : label;
 
     void OnInteract(int facId)
     {

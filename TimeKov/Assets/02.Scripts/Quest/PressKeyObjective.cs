@@ -16,7 +16,7 @@ public class PressKeyObjective : ObjectiveSO
     public override float Progress => Mathf.Clamp01((float)_count / Mathf.Max(1, requiredCount));
 
     public override string GetDisplayLabel()
-        => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;
+        => requiredCount > 1 ? $"{Loc.Get(label)} ({_count}/{requiredCount})" : label;
 
     void OnKey(KeyCode k)
     {

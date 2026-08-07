@@ -52,6 +52,15 @@ public class QuestEntry : MonoBehaviour
     CategoryRuntime _rt;
     Sequence _alertPulseSeq;
 
+    void OnEnable()  => Loc.OnLanguageChanged += RefreshTitle;
+    void OnDisable() => Loc.OnLanguageChanged -= RefreshTitle;
+
+    void RefreshTitle()
+    {
+        if (_quest != null && title != null)
+            title.text = Loc.Get(_quest.title);
+    }
+
     public void PlaySlideIn(QuestSO q, CategoryRuntime rt)
     {
         _quest = q; _rt = rt;

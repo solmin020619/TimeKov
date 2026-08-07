@@ -22,7 +22,7 @@ public class ItemUseObjective : ObjectiveSO
     protected override bool IsAlreadySatisfied() => _count >= requiredCount;
 
     public override string GetDisplayLabel()
-        => requiredCount > 1 ? $"{label} ({_count}/{requiredCount})" : label;
+        => requiredCount > 1 ? $"{Loc.Get(label)} ({_count}/{requiredCount})" : label;
 
     void OnUsed(int id)
     {

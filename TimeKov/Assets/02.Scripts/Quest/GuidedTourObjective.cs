@@ -79,7 +79,7 @@ public class GuidedTourObjective : ObjectiveSO
         var ov = TutorialOverlay.I;
         if (ov == null) { Complete(); return; }   // 오버레이 생성 불가(에디터 등) 시 막히지 않게
         var s = steps[_index];
-        ov.ShowContinueStep(s.stepLabel, s.spotlightTargetId, OnAdvance, s.advanceKey);
+        ov.ShowContinueStep(Loc.Get(s.stepLabel), s.spotlightTargetId, OnAdvance, s.advanceKey);
     }
 
     void OnAdvance()
