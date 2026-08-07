@@ -1206,34 +1206,94 @@ public class TransmissionComputerUI : MonoBehaviour
             return pct == next ? MState.Next : MState.Locked;
         }
 
-        // 실제 지급 보상(TransmissionManager.GrantMilestoneRewards)과 일치해야 함(2026-07-24 확정표).
-        public string RewardName(int pct) => pct switch
+        // ── 마일스톤 보상 문구 ─────────────────────────────────────────────
+        // ★설비 이름을 손으로 적지 마라. 매니저의 해금 목록(GetRewardFacilityIds)과 FacilityData 시트에서
+        //   그때그때 만든다. 예전엔 여기에 % -> 이름 표를 손으로 유지했는데, 마일스톤을 재배치하자마자
+        //   전부 어긋나서 "10% 에 용해로"(실제로는 5% 에 이미 받음) 처럼 없는 보상을 예고했다.
+        //   표를 다시 두면 마일스톤을 옮길 때마다 또 어긋난다. 설비 외 보상만 아래 표로 유지한다
+        //   (매니저 GrantMilestoneRewards 의 switch / ShipPartMilestones 와 짝).
+
+        // 이 마일스톤이 해금하는 설비 이름. 없으면 null.
+        private static string FacilityRewardNames(int pct)
         {
-            5  => Loc.Get("시간에너지 합성기"), 10 => Loc.Get("용해로"), 15 => Loc.Get("창고 출력 포트"),
-            20 => Loc.Get("저장고 / 귀환석 Lv.1"), 25 => Loc.Get("선체 보강재"), 30 => Loc.Get("코어 합성기"),
-            40 => Loc.Get("귀환석 Lv.2"), 50 => Loc.Get("동력 안정기"), 60 => Loc.Get("생체 분리기 / 에너지 변환기"),
-            70 => Loc.Get("창고포트 상한 +1 / 귀환석 Lv.3"), 75 => Loc.Get("우주선 엔진"), 80 => Loc.Get("창고포트 상한 +3"),
-            90 => Loc.Get("창고포트 상한 +2 / 앰플 꾸러미 / 코어 키트 V"),
-            _ => Loc.Get("전송 완료")
+            var ids = Mgr != null ? Mgr.GetRewardFacilityIds(pct) : null;
+            if (ids == null || ids.Count == 0) return null;
+            var names = new List<string>(ids.Count);
+            foreach (int id in ids)
+                if (GameDataHolder.I != null && GameDataHolder.I.FacilityData.TryGet(id.ToString(), out var d)
+                    && !string.IsNullOrEmpty(d.facilityName))
+                    names.Add(Loc.Get(d.facilityName));
+            return names.Count > 0 ? string.Join(" / ", names) : null;
+        }
+
+        // 설비별 한 줄 부연(있는 것만). 해금 문장 뒤에 붙는다. 설비 id 기준이라 % 를 옮겨도 따라온다.
+        private static string FacilityHint(int facilityId) => facilityId switch
+        {
+            3 => Loc.Get("이제 충전 키트를 직접 제작할 수 있습니다."),   // 첫 전송 보상 = 부트스트랩이라 설명이 필요
+            _ => null,
         };
 
-        public string RewardDesc(int pct) => pct switch
+        // 창고 출력 포트 상한 증가분 - 매니저 램프(WarehousePortLimitAt)에서 직전 마일스톤과의 차로 뽑는다.
+        //   램프는 15% 부터 거의 매 마일스톤 오르는데 예전 표는 70/80/90 만 적어뒀고 그 수치마저 틀렸다.
+        private static int PortLimitGain(int pct)
         {
-            5  => Loc.Get("시간에너지 합성기 설비를 해금했습니다. 이제 충전 키트를 직접 제작할 수 있습니다."),
-            10 => Loc.Get("용해로 설비를 해금했습니다."),
-            15 => Loc.Get("창고 출력 포트 설비를 해금했습니다."),
-            20 => Loc.Get("저장고 해금 + 귀환석 Lv.1(쿨타임 15분)을 획득했습니다."),
+            int prev = 0;
+            foreach (int m in TransmissionManager.RewardMilestones) { if (m >= pct) break; prev = m; }
+            return TransmissionManager.WarehousePortLimitAt(pct) - TransmissionManager.WarehousePortLimitAt(prev);
+        }
+
+        private static string ExtraRewardName(int pct) => pct switch
+        {
+            20 => Loc.Get("귀환석 Lv.1"), 25 => Loc.Get("선체 보강재"),
+            40 => Loc.Get("귀환석 Lv.2"), 50 => Loc.Get("동력 안정기"),
+            70 => Loc.Get("귀환석 Lv.3"), 75 => Loc.Get("우주선 엔진"),
+            90 => Loc.Get("앰플 꾸러미 / 코어 키트 V"),
+            _  => null,
+        };
+
+        private static string ExtraRewardDesc(int pct) => pct switch
+        {
+            20 => Loc.Get("귀환석 Lv.1(쿨타임 15분)을 획득했습니다."),
             25 => Loc.Get("우주선 선체 보강재를 확보했습니다."),
-            30 => Loc.Get("코어 합성기 설비를 해금했습니다."),
             40 => Loc.Get("귀환석 Lv.2(쿨타임 10분)로 강화되었습니다."),
             50 => Loc.Get("우주선 동력 안정기를 확보했습니다."),
-            60 => Loc.Get("생체 분리기, 에너지 변환기 설비를 해금했습니다."),
-            70 => Loc.Get("창고 출력 포트 건설 수 +1 + 귀환석 Lv.3(쿨타임 5분)로 강화되었습니다."),
+            70 => Loc.Get("귀환석 Lv.3(쿨타임 5분)로 강화되었습니다."),
             75 => Loc.Get("우주선 엔진을 확보했습니다."),
-            80 => Loc.Get("창고 출력 포트 건설 수가 3 늘어났습니다."),
-            90 => Loc.Get("창고 출력 포트 건설 수 +2 + 앰플 꾸러미(대량) + 코어 키트 V x5를 받았습니다."),
-            _ => Loc.Get("시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!")
+            90 => Loc.Get("앰플 꾸러미(대량)와 코어 키트 V x5를 받았습니다."),
+            _  => null,
         };
+
+        private static void AddPart(List<string> list, string s) { if (!string.IsNullOrEmpty(s)) list.Add(s); }
+
+        public string RewardName(int pct)
+        {
+            if (pct >= TransmissionManager.MaxRate) return Loc.Get("전송 완료");
+            var parts = new List<string>(3);
+            AddPart(parts, FacilityRewardNames(pct));
+            AddPart(parts, ExtraRewardName(pct));
+            // 창고 출력 포트 상한은 15% 부터 거의 매 구간 올라서, 이름에 늘 붙이면 리빌 카드 제목이 넘친다.
+            //   다른 보상이 하나도 없는 구간(60/80)에서만 대표 이름으로 쓴다. 상세는 RewardDesc 가 항상 알려준다.
+            int port = PortLimitGain(pct);
+            if (parts.Count == 0 && port > 0) parts.Add(string.Format(Loc.Get("창고 출력 포트 상한 +{0}"), port));
+            return parts.Count > 0 ? string.Join(" / ", parts) : Loc.Get("전송 완료");
+        }
+
+        public string RewardDesc(int pct)
+        {
+            if (pct >= TransmissionManager.MaxRate) return Loc.Get("시간에너지 전송 100% — 탈출(엔딩) 조건을 달성했습니다!");
+            var parts = new List<string>(4);
+            string fac = FacilityRewardNames(pct);
+            if (!string.IsNullOrEmpty(fac))
+            {
+                parts.Add(string.Format(Loc.Get("{0} 설비를 해금했습니다."), fac));
+                var ids = Mgr != null ? Mgr.GetRewardFacilityIds(pct) : null;
+                if (ids != null) foreach (int id in ids) AddPart(parts, FacilityHint(id));
+            }
+            AddPart(parts, ExtraRewardDesc(pct));
+            int port = PortLimitGain(pct);
+            if (port > 0) parts.Add(string.Format(Loc.Get("창고 출력 포트 건설 수가 {0} 늘어났습니다."), port));
+            return parts.Count > 0 ? string.Join(" ", parts) : Loc.Get("전송 보상을 획득했습니다.");
+        }
 
         public string TooltipStatus(int pct, MState st)
         {

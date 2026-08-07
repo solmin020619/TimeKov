@@ -131,6 +131,7 @@ public class TutorialVideoUI : MonoBehaviour
         // 팝업이 열린 채 파괴(씬 전환 등)되면 게임이 timeScale=0 으로 멈춘 채 남지 않도록 복원.
         if (_open && Time.timeScale == 0f) Time.timeScale = _resumeTimeScale;
         if (_i == this) _i = null;
+        if (videoPlayer != null) videoPlayer.errorReceived -= OnVideoError;
         if (_rt != null) { _rt.Release(); Destroy(_rt); _rt = null; }
     }
 
@@ -364,8 +365,51 @@ public class TutorialVideoUI : MonoBehaviour
         _rt.filterMode = FilterMode.Bilinear;
         _rt.Create();
 
-        if (videoPlayer != null) videoPlayer.targetTexture = _rt;
+        // 갓 만든 RenderTexture 는 내용이 미정의다(드라이버에 따라 흰색/쓰레기값).
+        //   영상이 안 그려졌을 때 흰 사각형이 뜨던 원인 중 하나라 검정으로 한 번 밀어둔다.
+        //   이러면 실패해도 뒤의 VideoFrame(검정)과 같은 색이라 화면이 덜 튄다.
+        var prev = RenderTexture.active;
+        RenderTexture.active = _rt;
+        GL.Clear(true, true, Color.black);
+        RenderTexture.active = prev;
+
+        if (videoPlayer != null)
+        {
+            // ★씬에 직렬화된 값에 기대지 말고 코드에서 못 박는다.
+            //   런타임 생성 -> 씬 실물로 전환할 때(커밋 d110e9f56) 아래 설정들이 코드에서 통째로 빠지고
+            //   씬 컴포넌트의 저장값에만 의존하게 됐다. 그 뒤로 영상이 흰 화면으로만 떴다.
+            //   VideoPlayer 는 source/renderMode 가 한 칸만 틀어져도 에러 없이 조용히 아무것도 안 그린다.
+            //   누가 인스펙터를 잘못 만지거나 컴포넌트를 다시 만들어도 여기서 항상 바로잡힌다.
+            videoPlayer.source            = VideoSource.VideoClip;
+            videoPlayer.renderMode        = VideoRenderMode.RenderTexture;
+            videoPlayer.audioOutputMode   = VideoAudioOutputMode.None;   // 무음 데모
+            videoPlayer.playOnAwake       = false;
+            videoPlayer.waitForFirstFrame = true;
+            videoPlayer.isLooping         = true;
+            videoPlayer.targetTexture     = _rt;
+
+            videoPlayer.errorReceived  += OnVideoError;
+            videoPlayer.prepareCompleted += OnVideoPrepared;
+        }
         if (videoImage != null) videoImage.texture = _rt;
+    }
+
+    // 디코딩 실패는 조용히 넘어가면 원인을 못 찾는다(흰 화면만 남는다). 콘솔에 파일명까지 찍는다.
+    private void OnVideoError(VideoPlayer vp, string message)
+    {
+        string clipName = vp != null && vp.clip != null ? vp.clip.name : "(클립 없음)";
+        Debug.LogError($"[TutorialVideoUI] 영상 재생 실패 - '{clipName}': {message}");
+    }
+
+    // 준비 완료 로그. 이게 안 찍히면 디코딩 단계에서 막힌 것이고,
+    //   찍히는데도 화면이 희면 출력(RenderTexture -> RawImage) 쪽 문제다. 둘을 가르는 유일한 신호라 남겨둔다.
+    private void OnVideoPrepared(VideoPlayer vp)
+    {
+        if (vp == null) return;
+        Debug.Log($"[TutorialVideoUI] 준비 완료 - '{(vp.clip != null ? vp.clip.name : "?")}' "
+                + $"{vp.width}x{vp.height} / renderMode={vp.renderMode} / source={vp.source} "
+                + $"/ targetTexture={(vp.targetTexture != null ? vp.targetTexture.name : "null")} "   // 우리 RT 가 맞는지
+                + $"/ timeUpdateMode={vp.timeUpdateMode} / timeScale={Time.timeScale}");
     }
 
     // 화면에 렌더하는 카메라 (RenderTexture 대상 제외) - 블러 소스

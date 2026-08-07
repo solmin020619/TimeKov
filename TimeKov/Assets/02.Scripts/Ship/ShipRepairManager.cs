@@ -66,7 +66,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     public int MaxLevel => levels != null ? Mathf.Max(1, levels.Count) : 1;
     public bool IsMaxLevel => _level >= MaxLevel;
 
-    /// <summary>Lv.5 최종 수리 완료 여부 = 완성 우주선 노출 + 탈출 시도 개방 신호.
+    /// <summary>최종 레벨 수리 완료 여부 = 완성 우주선 노출 + 탈출 시도 개방 신호.
     /// (실제 탈출 조건에 시간에너지 100% 를 AND 로 추가하는 건 별도 시스템에서.)</summary>
     public bool IsFullyRepaired => IsMaxLevel;
 
@@ -278,23 +278,47 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     }
 
 #if UNITY_EDITOR
-    // 컴포넌트 처음 부착 시 5레벨 기본값을 채운다(빈 리스트부터 안 만들게). 값은 인스펙터서 자유 수정.
+    // 컴포넌트 처음 부착 시 10레벨 기본값을 채운다(빈 리스트부터 안 만들게). 값은 인스펙터서 자유 수정.
+    //   ★씬에 저장된 값이 이긴다. 여기만 고치면 반영 안 되고, 인스펙터에서 컴포넌트 우클릭 -> Reset 을
+    //     눌러야 이 표가 씬에 들어간다(유니티가 Reset 직전에 필드를 초기값으로 되돌려 아래 가드를 통과시킨다).
     private void Reset()
     {
         if (levels != null && levels.Count > 0) return;
 
+        // [08-07] 5단계 -> 10단계 재설계.
+        //
+        // ★불변식: requiredParts 는 매 레벨 +1 로 계속 오른다(1,2,3,4,5,6,7,8,9).
+        //   뒷 레벨이 더 싸거나 같으면 플레이어는 버그로 읽는다. 값을 만질 때 이 순서부터 지켜라.
+        //
+        // [부품 예산] 필요 총량 45개. 자연맵 구간(Lv.2~5)은 10개뿐이라 자연맵 배치 15개로 충분하다
+        //   = ★자연맵만으로 Lv.5 까지 도달(데모의 최종 목표), 여유 5개.
+        //   Lv.6~10 은 35개가 더 필요하다. 맵 배치를 늘려서 맞춘다(종욱 결정 08-07:
+        //   "부품이야 늘리면 된다"). 수열을 예산에 맞춰 눌러 뒷 레벨을 싸게 만드는 것보다
+        //   배치를 늘리는 쪽이 맞다.
+        //   ★현재 배치량 대비 충분한지는 Tools/TIMEKOV/우주선 수리 레벨 초기화 가
+        //     씬의 ShipPartPickup 을 실제로 세어서 알려준다. 부품을 추가한 뒤 다시 실행해 확인해라.
+        //
+        // [특수부품] 전송 마일스톤에서만 나온다(TransmissionManager.ShipPartMilestones 와 짝).
+        //   Lv.6=선체 보강재(전송 25%) / Lv.8=동력 안정기(50%) / Lv.10=엔진(75%).
+        //   ★Lv.2~5 에는 일부러 안 붙였다. 붙이면 자연맵만으로 Lv.5 가 불가능해진다.
+        //
+        // [건축 범위] zoneCells 는 매 레벨 +4 로 계속 자란다(18 -> 54). 단계가 두 배로 늘어난 만큼
+        //   한 번의 증가폭을 절반으로 줄여, 끝값은 그대로 두면서 확장을 자주 체감하게 했다.
+        //   Lv.1 의 18 은 튜토(추출기·배양기)만 딱 들어갈 크기다.
         levels = new List<LevelDef>
         {
-            // ★건축 범위(zoneCells)는 매 레벨 성장 = 레벨업마다 확장 체감(2026-07-26 재설계).
-            //   시작(Lv.1) 18 로 좁게 -> 매 수리 +8~10. Lv.1 은 튜토(추출기·배양기)만 딱 들어갈 크기.
-            //   ★씬에 저장된 값이 이긴다 - 인스펙터의 Levels/Zone Cells 도 같이 바꿔야 실제 반영된다.
-            new LevelDef { title = "파손 상태",           requiredParts = 0,  factorySpeed = 1.0f, fuelSeconds = 40f, zoneCells = 18 },
-            new LevelDef { title = "시설 제어 계통 수리",    requiredParts = 3,  factorySpeed = 0.9f, fuelSeconds = 40f, zoneCells = 28 },
-            new LevelDef { title = "동력 변환 계통 수리",    requiredParts = 5,  factorySpeed = 0.8f, fuelSeconds = 50f, zoneCells = 36,
+            new LevelDef { title = "파손 상태",            requiredParts = 0, factorySpeed = 1.00f, fuelSeconds = 40f, zoneCells = 18 },
+            new LevelDef { title = "외벽 응급 보수",        requiredParts = 1, factorySpeed = 0.95f, fuelSeconds = 45f, zoneCells = 22 },
+            new LevelDef { title = "시설 제어 계통 수리",     requiredParts = 2, factorySpeed = 0.90f, fuelSeconds = 50f, zoneCells = 26 },
+            new LevelDef { title = "배선 계통 복구",         requiredParts = 3, factorySpeed = 0.85f, fuelSeconds = 55f, zoneCells = 30 },
+            new LevelDef { title = "냉각 계통 복구",         requiredParts = 4, factorySpeed = 0.80f, fuelSeconds = 60f, zoneCells = 34 },
+            new LevelDef { title = "선체 구조 보강",         requiredParts = 5, factorySpeed = 0.76f, fuelSeconds = 65f, zoneCells = 38,
                            extraPartName = "우주선 선체 보강재" },
-            new LevelDef { title = "공간 안정화 계통 수리",  requiredParts = 7,  factorySpeed = 0.8f, fuelSeconds = 60f, zoneCells = 44,
+            new LevelDef { title = "동력 변환 계통 수리",     requiredParts = 6, factorySpeed = 0.72f, fuelSeconds = 70f, zoneCells = 42 },
+            new LevelDef { title = "공간 안정화 계통 수리",   requiredParts = 7, factorySpeed = 0.68f, fuelSeconds = 75f, zoneCells = 46,
                            extraPartName = "우주선 동력 안정기" },
-            new LevelDef { title = "주 동력 계통 최종 수리",  requiredParts = 10, factorySpeed = 0.7f, fuelSeconds = 70f, zoneCells = 54,
+            new LevelDef { title = "항법 계통 복구",         requiredParts = 8, factorySpeed = 0.64f, fuelSeconds = 80f, zoneCells = 50 },
+            new LevelDef { title = "주 동력 계통 최종 수리",   requiredParts = 9, factorySpeed = 0.60f, fuelSeconds = 90f, zoneCells = 54,
                            extraPartName = "우주선 엔진" },
         };
     }

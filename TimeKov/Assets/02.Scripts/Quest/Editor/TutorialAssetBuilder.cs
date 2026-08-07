@@ -65,7 +65,7 @@ public static class TutorialAssetBuilder
     // -- 데모(자연맵 전용) 토글 --
     // true = 설원/사막/용암 구역 퀘스트(quest_end_05~10)를 아예 만들지 않는다.
     //   자연맵만 여는 데모 빌드에서는 그 구역에 갈 수 없어 objective 가 영구 미완료로 남기 때문.
-    //   남는 엔드게임 라인 = 전송기 이동 -> 첫 전송 5% -> 와이번 처치 + 전송률 25% -> 우주선 Lv.3(= 데모 끝).
+    //   남는 엔드게임 라인 = 전송기 이동 -> 첫 전송 5% -> 와이번 처치 + 전송률 25% -> 우주선 Lv.5(= 데모 끝).
     // 본편 복귀 = false 로 바꾸고 Tools/Quest/Generate Tutorial Assets 재실행.
     //   ★재실행하면 quest_end_05~10 과 그 objective 들이 git 에서 deleted 로 뜬다(삭제도 같이 커밋할 것).
     const bool DemoNatureOnly = true;
@@ -100,12 +100,13 @@ public static class TutorialAssetBuilder
         EnsureFolder(RootFolder, "Categories");
         EnsureFolder(RootFolder, "Tutorials");
 
-        // 영상 클립을 떨궈둘 폴더 보장 + 런타임 스프라이트 복사
+        // 영상 클립을 떨궈둘 폴더 보장.
+        //   ★스프라이트 복사(EnsureVideoUiSprites)는 08-07 에 제거했다 - 아래 '영상 클립 로드' 주석 참고.
+        //     매 실행마다 GUID 를 새로 만들어 씬의 영상 테두리 참조를 끊어놓던 코드였다.
         if (EnableVideoTutorials)
         {
             EnsureFolder("Assets", "17.Video");
             EnsureFolder("Assets/17.Video", "Tutorial");
-            EnsureVideoUiSprites();   // 인벤 강조 프레임을 Resources로 복사(런타임 로드용, 9-slice 보존)
         }
 
         var quests = new List<QuestSO>();
@@ -306,14 +307,15 @@ public static class TutorialAssetBuilder
         //     활성화되기 '전에' 보스를 미리 잡으면(RecentCount 3.5초 창 지나) EnemyKill 이 영구 미완료.
         //     보스가 리스폰하거나 조기 도달 불가면 문제 없음. 리스폰 안 하면 % 단일 objective 로 바꾸면 됨(라벨에 보스 명시).
 
-        // 자연 구역 (5 -> 25%). 25% 마일스톤이 우주선 Lv.3 재료(선체 보강재)를 지급.
+        // 자연 구역 (5 -> 25%). 25% 마일스톤이 우주선 Lv.6 재료(선체 보강재)를 지급 - 데모(Lv.5)에선 안 쓰고 다음 구간용.
         endgameQuests.Add(BuildQuest("quest_end_03_region_nature", "자연 구역 돌파",
             CreateEnemyKill("obj_boss_nature", $"자연의 지배자 {Y}와이번{E}을 {Y}처치{E}하세요.", "wyvern_boss", 1),
             CreateTransmissionRate("obj_rate_25", $"충전 키트를 전송해 전송률 {Y}25%{E}를 달성하세요.", 25)));
 
-        endgameQuests.Add(BuildQuest("quest_end_04_ship_lv3", "1차 우주선 수리",
-            CreateShipRepairLevel("obj_ship_lv3",
-                $"모은 {Y}복구 에너지{E}와 {Y}선체 보강재{E}로 우주선을 {Y}Lv.3{E}까지 수리하세요.", 3)));
+        // 자연맵 복구 에너지 15개로 Lv.5 까지 올라간다(특수부품 불필요). 데모의 최종 목표.
+        endgameQuests.Add(BuildQuest("quest_end_04_ship_lv5", "1차 우주선 수리",
+            CreateShipRepairLevel("obj_ship_lv5",
+                $"모은 {Y}복구 에너지{E}로 우주선을 {Y}Lv.5{E}까지 수리하세요.", 5)));
 
         // 아래 3구역 + 탈출은 자연맵 밖이라 데모 빌드에서는 통째로 만들지 않는다(DemoNatureOnly).
         // 만들어두면 갈 수 없는 보스/전송률이 목표로 떠서 영구 미완료로 남는다.
@@ -324,18 +326,18 @@ public static class TutorialAssetBuilder
                 CreateEnemyKill("obj_boss_snow", $"설원의 {Y}얼음정령{E}을 {Y}처치{E}하세요.", "ice_elemental_boss", 1),
                 CreateTransmissionRate("obj_rate_50", $"전송률 {Y}50%{E}를 달성하세요.", 50)));
 
-            endgameQuests.Add(BuildQuest("quest_end_06_ship_lv4", "2차 우주선 수리",
-                CreateShipRepairLevel("obj_ship_lv4",
-                    $"{Y}동력 안정기{E}로 우주선을 {Y}Lv.4{E}까지 수리하세요.", 4)));
+            endgameQuests.Add(BuildQuest("quest_end_06_ship_lv8", "2차 우주선 수리",
+                CreateShipRepairLevel("obj_ship_lv8",
+                    $"{Y}동력 안정기{E}로 우주선을 {Y}Lv.8{E}까지 수리하세요.", 8)));
 
             // 사막 구역 (50 -> 75%). 70% 창고 상한.
             endgameQuests.Add(BuildQuest("quest_end_07_region_desert", "사막 구역 돌파",
                 CreateEnemyKill("obj_boss_desert", $"사막의 {Y}모래정령{E}을 {Y}처치{E}하세요.", "sand_elemental_boss", 1),
                 CreateTransmissionRate("obj_rate_75", $"전송률 {Y}75%{E}를 달성하세요.", 75)));
 
-            endgameQuests.Add(BuildQuest("quest_end_08_ship_lv5", "최종 우주선 수리",
-                CreateShipRepairLevel("obj_ship_lv5",
-                    $"{Y}우주선 엔진{E}으로 우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5)));
+            endgameQuests.Add(BuildQuest("quest_end_08_ship_lv10", "최종 우주선 수리",
+                CreateShipRepairLevel("obj_ship_lv10",
+                    $"{Y}우주선 엔진{E}으로 우주선을 {Y}Lv.10{E}까지 완전 수리하세요.", 10)));
 
             // 용암 구역 (75 -> 100%). 80/90% 창고 상한·앰플 꾸러미·코어 키트. 100% 도달 = 엔딩 조건.
             endgameQuests.Add(BuildQuest("quest_end_09_region_lava", "용암 구역 돌파",
@@ -344,7 +346,7 @@ public static class TutorialAssetBuilder
 
             // 탈출 - 우주선 완전 수리 + 전송 100% 둘 다 충족 시 탈출. (앞 퀘로 이미 달성돼 있으면 즉시 완료 = 승리 확인)
             endgameQuests.Add(BuildQuest("quest_end_10_escape", "탈출",
-                CreateShipRepairLevel("obj_escape_ship", $"우주선을 {Y}Lv.5{E}까지 완전 수리하세요.", 5),
+                CreateShipRepairLevel("obj_escape_ship", $"우주선을 {Y}Lv.10{E}까지 완전 수리하세요.", 10),
                 CreateTransmissionRate("obj_escape_rate", $"시간에너지 {Y}100%{E}를 달성해 {Y}탈출{E}하세요.", 100)));
         }
 
@@ -743,7 +745,7 @@ public static class TutorialAssetBuilder
             // 우주선 부품 첫 획득 - 수리 시스템 소개. 부품은 필드(결계 밖)에 있으므로 safe:false
             //   = 팝업을 기지 복귀 때로 미룬다(전투 중 방해 방지 + 기지의 우주선 위치와 자연스럽게 연결). ShipPartPickup.TryFire("shiprepair").
             Cue("shiprepair", false, VPage("우주선 수리 소개",
-                $"필드에서 모은 {Y}복구 에너지{E}로 기지의 {Y}폐우주선{E}을 수리합니다. 우주선에 {Y}F{E}로 단말을 열어 레벨을 올리면 {Y}건축 범위, 제작 속도, 연료 효율{E}이 좋아지고, {Y}Lv.5 완료 + 시간에너지 100%{E}면 {Y}탈출{E}할 수 있습니다.")),
+                $"필드에서 모은 {Y}복구 에너지{E}로 기지의 {Y}폐우주선{E}을 수리합니다. 우주선에 {Y}F{E}로 단말을 열어 레벨을 올리면 {Y}건축 범위, 제작 속도, 연료 효율{E}이 좋아지고, {Y}Lv.10 완료 + 시간에너지 100%{E}면 {Y}탈출{E}할 수 있습니다.")),
         };
 
         EditorUtility.SetDirty(set);
@@ -753,24 +755,19 @@ public static class TutorialAssetBuilder
         => new DiscoveryCue { cueKey = key, safe = safe, pages = pages };
 
     // ============================================================
-    // 영상 UI 스프라이트 / 클립 로드
+    // 영상 클립 로드
     // ============================================================
-    static void EnsureVideoUiSprites()
-    {
-        EnsureFolder("Assets", "Resources");
-        EnsureFolder("Assets/Resources", "TutorialVideo");
-        // 영상 테두리 = 인벤 "슬롯" 강조 프레임(네모 닫힌 형). 아래 뚫린 region 프레임 아님.
-        CopySpriteToResources("Assets/15.UI/New/hl_slot_frame@2x.png",
-                              "Assets/Resources/TutorialVideo/vid_frame.png");
-    }
-
-    static void CopySpriteToResources(string src, string dst)
-    {
-        if (AssetDatabase.LoadAssetAtPath<Texture2D>(src) == null) return;     // 원본 없음 -> 런타임 폴백
-        if (AssetDatabase.LoadAssetAtPath<Sprite>(dst) != null)
-            AssetDatabase.DeleteAsset(dst);                                    // 소스 바뀌면 갈아끼우게 기존 것 삭제
-        AssetDatabase.CopyAsset(src, dst);                                     // 9-slice/sprite 설정 보존
-    }
+    // ★[08-07] 삭제됨: EnsureVideoUiSprites / CopySpriteToResources
+    //   영상 테두리 스프라이트를 Assets/Resources/TutorialVideo/vid_frame.png 로 복사하던 코드였다.
+    //   "지웠다가 다시 복사"라서 실행할 때마다 GUID 가 새로 생겼는데,
+    //   커밋 d110e9f56 이 그 스프라이트를 런타임 Resources.Load(경로 기반) 에서
+    //   씬에 박힌 직접 참조(GUID 기반)로 바꾸면서 궁합이 깨졌다.
+    //   -> 이 빌더를 돌릴 때마다 씬의 VideoBorder 스프라이트 참조가 끊기고,
+    //      스프라이트 없는 Image 는 자기 영역을 흰색으로 꽉 채워 그려서 영상을 통째로 가렸다.
+    //      ("영상이 흰 화면으로만 나옴" 의 진범. 영상/코덱/클립 연결은 전부 정상이었다.)
+    //   Resources.Load 가 사라진 이상 복사본은 존재 이유가 없다. 씬이 원본
+    //   Assets/15.UI/New/hl_slot_frame@2x.png 를 직접 참조하면 GUID 가 고정되어 다시는 안 끊긴다.
+    //   Resources 폴더는 통째로 빌드에 포함되므로 복사본을 없애면 빌드 용량에도 이득이다.
 
     static VideoClip LoadVideoClip(string fileName)
     {

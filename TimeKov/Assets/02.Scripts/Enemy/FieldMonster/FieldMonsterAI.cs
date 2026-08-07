@@ -678,6 +678,7 @@ public class FieldMonsterAI : MonoBehaviour
             if (staggered) yield break;    // ★돌진 중 경직 → 즉시 중단(접촉 판정 취소)
             t += Time.deltaTime;
             Vector3 step = dir * data.chargeSpeed * Time.deltaTime;
+            if (MoveBlocked(step)) break;                     // ★벽/바위에 닿으면 그 자리에서 돌진 종료(관통 방지)
             if (nav != null && nav.enabled) nav.Move(step);   // navmesh 위에서 전진
             else                            transform.position += step;
 
@@ -754,7 +755,9 @@ public class FieldMonsterAI : MonoBehaviour
         while (Time.time < end && !dead)
         {
             if (Target == null) break;
-            nav.Move(dir * speed * Time.deltaTime);   // 고정 방향 = 직선
+            Vector3 step = dir * speed * Time.deltaTime;   // 고정 방향 = 직선
+            if (MoveBlocked(step)) break;                  // 벽에 막히면 스텝 중단(지형 관통 방지)
+            nav.Move(step);
             yield return null;
         }
 
@@ -802,7 +805,9 @@ public class FieldMonsterAI : MonoBehaviour
             Vector3 local = transform.InverseTransformDirection(dir);
             SetLocomotion(new Vector2(local.x, local.z));
 
-            nav.Move(dir * speed * Time.deltaTime);
+            Vector3 step = dir * speed * Time.deltaTime;
+            if (MoveBlocked(step)) break;   // 뒤가 벽이면 후퇴 중단(지형 관통 방지)
+            nav.Move(step);
             yield return null;
         }
 
@@ -813,6 +818,20 @@ public class FieldMonsterAI : MonoBehaviour
     }
 
     // ── helpers ────────────────────────────────────────────────────
+
+    /// <summary>이 만큼 밀면 네비메시 밖(= 벽/바위/절벽)으로 나가는가.</summary>
+    // ★[08-07] 지형 관통 수정. 돌진/스텝/후퇴는 경로탐색을 끄고(isStopped+ResetPath)
+    //   nav.Move() 로 직접 미는 방식인데, Move() 는 네비메시 경계에서 멈추지 않는다.
+    //   상대 이동을 그대로 적용할 뿐이라 장애물 회피도 콜라이더도 안 걸린다
+    //   (프리팹에 Rigidbody 가 없어 CapsuleCollider 는 피격 판정용이다).
+    //   그래서 버섯 돌진(chargeSpeed 12 x chargeDuration 1 = 한 번에 12m 직선)이
+    //   자연맵 바위를 그냥 뚫고 들어갔다. 스텝/후퇴도 거리가 짧을 뿐 같은 구멍이었다.
+    //   NavMesh.Raycast 는 두 점 사이에 '갈 수 없는 곳'이 있으면 true 를 준다.
+    private bool MoveBlocked(Vector3 step)
+    {
+        if (nav == null || !nav.enabled || !nav.isOnNavMesh) return false;
+        return NavMesh.Raycast(transform.position, transform.position + step, out _, NavMesh.AllAreas);
+    }
     /// <summary>전조/발사 기준 위치. 앵커(눈/턱/머리 본) + 몸 기준 오프셋(앞/위)으로 얼굴 앞을 잡는다.</summary>
     private Vector3 MuzzlePos()
     {

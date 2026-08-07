@@ -312,7 +312,7 @@ public class TransmissionManager : MonoBehaviour, ISaveable
     }
 
     // 창고 출력 포트(9) 설치 상한(절대값) - 전송률 램프. 15% 해금 후 계속 증설해 80%+ 에 30개.
-    //   우주선 Lv5(75%) 건축범위 기준 20~30개 필요(QA) -> 초반 적게, 후반(존 확장 Lv3/4/5=25/50/75%)에 맞춰 증설.
+    //   우주선 최종레벨(75%) 건축범위 기준 20~30개 필요(QA) -> 초반 적게, 후반(특수부품 Lv6/8/10=25/50/75%)에 맞춰 증설.
     //   지급(GrantMilestoneRewards)과 재진입 복원이 둘 다 이 함수로 SetMax = 단일 소스, 항상 동기.
     //   수치는 placeholder(밸런싱 미확정) - 이 표만 고치면 지급/복원 다 따라온다.
     public static int WarehousePortLimitAt(int rate)
@@ -362,8 +362,11 @@ public class TransmissionManager : MonoBehaviour, ISaveable
 
     // 우주선 특수부품이 나오는 전송 마일스톤 (전송률% -> 수리 레벨). 지급(GrantMilestoneRewards)과
     //   UI 라벨(ShipRepairUI)이 공유하는 단일 소스 — 퍼센트 재조정 때 한쪽만 고쳐 어긋나던 것 방지.
+    // [08-07] 우주선 수리가 5단계 -> 10단계로 늘면서 3/4/5 -> 6/8/10 으로 옮겼다.
+    //   Lv.1~5 는 자연맵 복구 에너지(15개)만으로 올라가고, 특수부품은 자연맵 밖 구간부터 필요하다.
+    //   Lv.6=선체 보강재 / Lv.8=동력 안정기 / Lv.10=엔진 - 씬의 ShipRepairManager.levels 와 짝이라 같이 고쳐야 한다.
     private static readonly (int pct, int shipLevel)[] ShipPartMilestones =
-        { (25, 3), (50, 4), (75, 5) };
+        { (25, 6), (50, 8), (75, 10) };
 
     /// <summary>우주선 특수부품(수리 레벨 3~5)이 나오는 전송률 %. 없으면 0. (ShipRepairUI 라벨용)</summary>
     public static int ShipPartMilestonePct(int shipLevel)
