@@ -671,7 +671,10 @@ public class CodexUI : MonoBehaviour
         _itemGrid = Make("ItemGrid", vp, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
         _itemGrid.pivot = new Vector2(0.5f, 1f);
         var grid = _itemGrid.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(118f, 146f); grid.spacing = new Vector2(12f, 12f);
+        // ★셀 높이 146 -> 164. 이름 칸을 한 줄(26)에서 두 줄(44)로 늘리기 위해서다.
+        //   프랑스어 아이템명("Ampoule de soin intermédiaire" 등)은 118px 한 줄에 절대 안 들어간다.
+        //   한 줄로 두면 도감 아이템 20여 개가 전부 말줄임으로 잘린다(실측).
+        grid.cellSize = new Vector2(118f, 164f); grid.spacing = new Vector2(12f, 12f);
         grid.padding = new RectOffset(2, 12, 4, 10);
         grid.startCorner = GridLayoutGroup.Corner.UpperLeft; grid.startAxis = GridLayoutGroup.Axis.Horizontal;
         grid.childAlignment = TextAnchor.UpperLeft; grid.constraint = GridLayoutGroup.Constraint.Flexible;
@@ -718,8 +721,11 @@ public class CodexUI : MonoBehaviour
             Txt(iconRt, "?", 30f, FontStyles.Bold, new Color(0.4f, 0.45f, 0.5f, 0.5f), TextAlignmentOptions.Center);
 
         // 이름(아래) — 미획득은 ???
-        var nameRt = Make("nm", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(0f, 28f));
-        Txt(nameRt, got ? it.GetLocalizedName() : "???", 14f, got ? FontStyles.Bold : FontStyles.Normal, got ? TxtMain : TxtDim, TextAlignmentOptions.Center);
+        //   ★두 줄까지 허용한다. Txt() 기본값이 NoWrap 이라 여기서만 되돌린다.
+        //     한 줄로 두면 긴 번역명이 전부 잘린다. 두 줄로도 모자라면 TextAutoFit 이 줄여준다.
+        var nameRt = Make("nm", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(0f, 46f));
+        var nameTxt = Txt(nameRt, got ? it.GetLocalizedName() : "???", 14f, got ? FontStyles.Bold : FontStyles.Normal, got ? TxtMain : TxtDim, TextAlignmentOptions.Center);
+        nameTxt.textWrappingMode = TextWrappingModes.Normal;
 
         // 획득품만 클릭 -> 상세(출처 팝업 재사용: 이름/등급/획득처)
         if (got) HoverButton(slot, () => ShowSourcePopup(id));

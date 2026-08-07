@@ -115,7 +115,7 @@ public static class TutorialAssetBuilder
         // 도입 - 시작 안내 (스포트라이트 투어, 9->5스텝 압축)
         //   인트로는 HUD 위치를 짚는 게 본질이라 영상 대신 스포트라이트 유지.
         // ============================================================
-        quests.Add(BuildQuest("quest_tut_00_intro", "시작 안내",
+        quests.Add(BuildQuest("quest_tut_00_intro", "상태 확인하기",
             CreateGuidedTour("obj_intro_tour",
                 TourStep($"이 게임은 {Y}체력{E}이 곧 {Y}시간{E}입니다. 시간이 {Y}0{E}이 되면 사망합니다.", TargetTimeBar),
                 TourStep($"{Y}스태미나{E}입니다. {Y}달리기{E}나 {Y}대시{E}를 쓰면 줄고, {Y}멈추거나 걸으면{E} 다시 찹니다. 바닥나면 잠시 달리기나 대시를 쓸 수 없어요.", TargetStaminaBar),
@@ -129,8 +129,8 @@ public static class TutorialAssetBuilder
         //   여기서 재교육하지 않는다(중복 제거). 대시(우클릭)는 코어 1강 해금이라 초반 튜토 제외.
         // ============================================================
 
-        quests.Add(BuildQuest("quest_tut_01b_reach_hunt", "사냥터로 이동",
-            CreateReachTrigger("obj_reach_enemy", $"결계 밖 {Y}사냥터{E}로 {Y}이동{E}하세요. (결계 밖에선 {Y}시간{E}이 줄기 시작합니다)", "enemy")));
+        quests.Add(BuildQuest("quest_tut_01b_reach_hunt", "결계 밖 탐사 지점으로 이동하기",
+            CreateReachTrigger("obj_reach_enemy", $"결계 밖 {Y}사냥터{E}로 {Y}이동{E}하세요.", "enemy")));
 
         // ============================================================
         // [영상] 전리품 + 상자 - 사냥터 '도착 직후'(곧 전투 직전)에 발화하도록 도착 퀘 바로 뒤 독립 퀘.
@@ -140,11 +140,11 @@ public static class TutorialAssetBuilder
         if (EnableVideoTutorials)
             quests.Add(BuildLootVideoQuest());
 
-        quests.Add(BuildQuest("quest_tut_02_combat", "전투",
+        quests.Add(BuildQuest("quest_tut_02_combat", "위협 개체 처치하기",
             CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
-            CreateEnemyKill("obj_kill", $"외부의 {Y}적{E}을 {Y}처치{E}하세요.", "", 1)));   // enemyId 빈값 = 아무 몹이나 1마리(거미/언데드/오크 다 인정)
+            CreateEnemyKill("obj_kill", $"{Y}위협 개체{E}를 {Y}처치{E}하세요.", "", 1)));   // enemyId 빈값 = 아무 몹이나 1마리(거미/언데드/오크 다 인정)
 
-        quests.Add(BuildQuest("quest_tut_03_loot", "전리품 획득",
+        quests.Add(BuildQuest("quest_tut_03_loot", "전투 자원 회수하기",
             CreateItemAcquire("obj_loot_venom", $"{Y}거미{E}를 잡아 {Y}거미 독액{E}을 {Y}2개{E} {Y}획득{E}하세요.", ItemSpiderVenom, 2),
             CreateItemAcquire("obj_loot_corrosive", $"{Y}언데드{E}를 잡아 {Y}부식액{E}을 {Y}2개{E} {Y}획득{E}하세요.", ItemCorrosive, 2),
             CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
@@ -157,18 +157,18 @@ public static class TutorialAssetBuilder
         //  튜토에서 '추출기 이동/해금' 단계 제거 - 바로 건설로 넘어간다. 퀵슬롯에 이미 들어있음.)
 
         // ★건설구역 도착 - 별 퀘. EnterBuildMode/투어 앞에서 '존 안' 진입을 선행 보장.
-        quests.Add(BuildQuest("quest_tut_05b_reach_build", "건설 구역으로 이동",
-            CreateReachTrigger("obj_reach_build", $"{Y}건설 구역{E}(결계 안)으로 {Y}이동{E}하세요. 건설은 {Y}이 구역에서만{E} 가능합니다.", "build")));
+        quests.Add(BuildQuest("quest_tut_05b_reach_build", "기지의 건설 구역으로 이동하기",
+            CreateReachTrigger("obj_reach_build", $"결계 안 {Y}건설 구역{E}으로 {Y}이동{E}하세요.", "build")));
 
         // 건설 모드 진입 - 별 퀘(플레이어가 직접 B 를 눌러 배우게. 투어가 자동진입하면 'B 누르기' 학습이 묻힘)
-        quests.Add(BuildQuest("quest_tut_06_enter_build", "건설 모드 진입",
+        quests.Add(BuildQuest("quest_tut_06_enter_build", "건설 모드 진입하기",
             CreateEnterBuildMode("obj_build_mode", $"{Y}B{E}로 {Y}건설 모드{E}에 진입하세요.")));
 
         // [영상] 설비 설치/해제 (Shift 일괄해제 포함) - B로 건설 진입 직후 바로 영상으로 안내(스포트라이트 투어 대체).
         if (EnableVideoTutorials)
             quests.Add(BuildBuildingVideoQuest());
 
-        quests.Add(BuildQuest("quest_tut_06b_place_extractor", "생체 추출기 설치",
+        quests.Add(BuildQuest("quest_tut_06b_place_extractor", "생체 추출기 설치하기",
             CreateFacilityPlace("obj_place_extractor", $"{Y}생체 추출기{E}를 {Y}설치{E}하세요.", BioExtractorId, 1)));
 
         // ============================================================
@@ -182,13 +182,13 @@ public static class TutorialAssetBuilder
         //   이유: 연료/재료를 별개 순차 퀘로 나누면 그 사이에 통째 퀘가 끼어 lookback(3.5s)을 넘기고,
         //   플레이어가 자연스럽게 재료를 먼저 넣으면 재료 투입 목표가 활성될 땐 이미 만료돼 미인정 ->
         //   재료회수 후 재투입해야 깨지던 문제. 셋을 한 퀘로 두면 동시에 활성이라 어느 순서로 넣어도 다 잡힘.
-        quests.Add(BuildQuest("quest_tut_08_operate", "연료와 재료 투입",
+        quests.Add(BuildQuest("quest_tut_08_operate", "첫 재료 가공하기",
             CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId),
             CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemSpiderVenom, 1),
             CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemCorrosive, 1)));
 
         // 앰플 젤 회수 (+ 다음 배양기/레일 가동 연료 나뭇가지 보상)
-        quests.Add(BuildQuestRewarded("quest_tut_10_collect_gel", "결과물 회수",
+        quests.Add(BuildQuestRewarded("quest_tut_10_collect_gel", "가공 결과물 회수하기",
             new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 5 } },
             CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}앰플 젤{E}을 {Y}모두 받기{E}로 {Y}회수{E}하세요.", ItemHealGel, 1)));
 
@@ -196,20 +196,20 @@ public static class TutorialAssetBuilder
         // 배양 - 두 번째 설비(반복 학습=정착, 안내 없이 텍스트만)
         // ============================================================
         // (배양기2 도 기본해금 - 이동/해금 objective 제거, 설치만. 이미 건설구역 안이라 도착 불필요)
-        quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치",
+        quests.Add(BuildQuest("quest_tut_11_build_cultivator", "생체 배양기 설치하기",
             CreateFacilityPlace("obj_place_cultivator", $"{Y}생체 배양기{E}를 {Y}설치{E}하세요.", BioCultivatorId, 1)));
 
-        quests.Add(BuildQuestRewarded("quest_tut_12_cultivate", "앰플 젤 가공",
+        quests.Add(BuildQuestRewarded("quest_tut_12_cultivate", "회복 앰플 제작하기",
             new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 1 } },
             CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 {Y}생체 배양기{E}를 여세요.", BioCultivatorId, 1),
             CreateFacilityInput("obj_in_gel", $"{Y}앰플 젤{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
 
         // ★앰플 회수 / 사용 분리 (한 퀘에 ItemAcquire+ItemUse 두면 1개짜리 소비형 비대칭 갭락)
-        quests.Add(BuildQuest("quest_tut_13_collect_ampoule", "회복 앰플 완성",
+        quests.Add(BuildQuest("quest_tut_13_collect_ampoule", "회복 앰플 회수하기",
             CreateItemAcquire("obj_collect_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}회수{E}하세요.", ItemHealAmpoule, 1)));
 
         // 사용 학습 + 보상으로 앰플 1개 더 지급 -> 다음 퀵슬롯 등록 퀘에서 가방에 둘 게 있어 바로 등록 시도 가능.
-        quests.Add(BuildQuestRewarded("quest_tut_13b_use_ampoule", "회복 앰플 사용",
+        quests.Add(BuildQuestRewarded("quest_tut_13b_use_ampoule", "회복 앰플 사용하기",
             new[] { new QuestSO.QuestReward { itemId = ItemHealAmpoule, amount = 1 } },
             CreateItemUse("obj_use_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}사용{E}해 시간을 회복하세요.", ItemHealAmpoule, 1)));
 
@@ -219,7 +219,7 @@ public static class TutorialAssetBuilder
 
         // 등록만 하면 바로 끝나 어색하니 사용까지(V) 한 번 해보게 2단계. 사용 단계는 'V로 시도'라
         // 만피 상태(회복 막힘)에서도 완료된다(소프트락 방지). 둘은 병렬이지만 V 사용은 등록 후에만 발생.
-        quests.Add(BuildQuest("quest_tut_14b_quickslot_register", "퀵슬롯 등록과 사용",
+        quests.Add(BuildQuest("quest_tut_14b_quickslot_register", "회복 앰플 퀵슬롯 등록하기",
             CreateQuickSlotRegister("obj_quickslot_register",
                 $"인벤토리에서 {Y}회복 앰플{E}을 {Y}우클릭 -> 퀵슬롯 등록{E}으로 {Y}V 슬롯{E}에 등록하세요."),
             CreateQuickSlotUse("obj_quickslot_use",
@@ -233,14 +233,14 @@ public static class TutorialAssetBuilder
             quests.Add(BuildRailVideoQuest());
 
         // 보상(거미독액+부식액) = 다음 자동화 확인에서 추출기에 넣어 라인 흐르게 할 재료
-        quests.Add(BuildQuestRewarded("quest_tut_16_rail_connect", "레일 연결",
+        quests.Add(BuildQuestRewarded("quest_tut_16_rail_connect", "설비 사이 레일 연결하기",
             new[] {
                 new QuestSO.QuestReward { itemId = ItemSpiderVenom, amount = 1 },
                 new QuestSO.QuestReward { itemId = ItemCorrosive,   amount = 1 },
             },
             CreateRailConnect("obj_rail_connect", $"{Y}생체 추출기{E}를 {Y}생체 배양기{E}에 {Y}레일{E}로 이어보세요.", BioExtractorId, BioCultivatorId, 1)));
 
-        quests.Add(BuildQuest("quest_tut_16b_rail_move", "레일 자동화 확인",
+        quests.Add(BuildQuest("quest_tut_16b_rail_move", "레일 자동화 작동 확인하기",
             CreateRailItemMove("obj_rail_move",
                 $"{Y}생체 추출기{E}에 재료를 넣고, 결과물이 {Y}레일{E}을 타고 {Y}생체 배양기{E}로 {Y}자동으로 넘어가는지{E} 확인하세요.", 1)));
 
@@ -248,7 +248,7 @@ public static class TutorialAssetBuilder
         // 코어 강화 - 이동(보상 키트) -> [영상 안내 + 열기 + 강화] -> 결과/마무리
         //   ★이동(보상)과 강화는 별 퀘(보상선행). 키트는 이동 퀘 완료시 지급되어 강화 퀘 땐 손에 있음.
         // ============================================================
-        quests.Add(BuildQuestRewarded("quest_tut_17_reach_core", "코어 강화 단말로 이동",
+        quests.Add(BuildQuestRewarded("quest_tut_17_reach_core", "코어 강화 단말로 이동하기",
             new[] { new QuestSO.QuestReward { itemId = CoreKitId, amount = CoreKitAmount } },
             CreateReachTrigger("obj_reach_core", $"{Y}코어 강화 단말{E}이 있는 곳으로 {Y}이동{E}하세요.", "core")));
 
@@ -264,7 +264,7 @@ public static class TutorialAssetBuilder
                     $"{Y}강화 시작{E}을 누르면 코어가 {Y}시계{E}로 바뀝니다. 바늘이 {Y}초록 성공존{E}에 올 때 {Y}정지! 버튼(또는 Space){E}으로 멈추면 성공 확률이 오릅니다. {Y}강화 버튼{E}과 {Y}성공 확률 바{E}는 코어 강화 창에 있습니다.")));
         coreObjs.Add(CreateCoreOpen("obj_open_core", $"{Y}F{E}로 {Y}코어 강화 단말{E}을 여세요."));
         coreObjs.Add(CreateCoreUpgrade("obj_core_upgrade", $"{Y}강화 시작{E}을 누르고 {Y}정지! 버튼{E}으로 멈춰 코어를 강화해 보세요.", 0));
-        quests.Add(BuildQuest("quest_tut_18_core", "코어 강화", coreObjs.ToArray()));
+        quests.Add(BuildQuest("quest_tut_18_core", "코어 강화하기", coreObjs.ToArray()));
 
         // (강화 결과/마무리 안내 팝업 제거 - 코어 UI 위에 또 뜨는 게 불필요. 아래 엔드게임 라인이 다음 방향 제시.)
         // (구 quest_tut_22 "숨겨진 설비 찾기" 상시목표 제거 - 경제 재설계로 설비 3~9 는 전송 마일스톤 해금이라
@@ -278,7 +278,7 @@ public static class TutorialAssetBuilder
         var endgameQuests = new List<QuestSO>();
 
         // 전송기로 이동 - 완료 시 스타터 충전 키트 지급(이걸로 다음 퀘에서 첫 전송).
-        endgameQuests.Add(BuildQuestRewarded("quest_end_01_reach_transmit", "시간에너지 전송기로 이동",
+        endgameQuests.Add(BuildQuestRewarded("quest_end_01_reach_transmit", "시간에너지 전송기 찾기",
             new[] { new QuestSO.QuestReward { itemId = StarterKitId, amount = 1 } },
             CreateReachTrigger("obj_reach_transmit",
                 $"기지의 {Y}시간에너지 전송기{E}로 {Y}이동{E}하세요.", "transmit")));
@@ -289,14 +289,12 @@ public static class TutorialAssetBuilder
         var transmitObjs = new List<ObjectiveSO>();
         if (EnableVideoTutorials)
             transmitObjs.Add(CreateVideoTutorial("obj_transmit_video", "시간에너지 전송 안내를 확인하세요.",
+                // 문구 = 기획 확정본(08-07 라디오 통합 진행표 28행). 100% 목표를 약속하지 않아 데모/본편 공용이다.
                 VPage("시간에너지 전송",
-                    DemoNatureOnly
-                    // 데모는 자연 구간(25%)이 상한이라 100% 를 목표로 안내하면 못 이룰 목표를 심게 된다.
-                    ? $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 구간 마지막은 {Y}보스 재료{E}가 들어간 특수 키트가 필요합니다. 이번 데모에서는 자연 구역 {Y}25%{E} 달성과 {Y}우주선 수리{E}까지 진행할 수 있습니다."
-                    : $"{Y}충전 키트{E}를 전송해 {Y}전송률{E}을 올리는 곳입니다. 지역별로 25%씩 채우고, 각 구간 마지막은 {Y}보스 재료{E} 특수 키트가 필요합니다. {Y}100%{E} 달성 + 우주선 수리로 {Y}탈출{E}합니다.")));
+                    $"{Y}충전 키트{E}를 전송하면 {Y}전송률{E}이 오릅니다. 전송률이 오르면 {Y}보급 신호{E}와 다음 목표가 열립니다.")));
         transmitObjs.Add(CreateTransmissionRate("obj_first_transmit",
             $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 전송률 {Y}5%{E}를 달성하세요.", 5));
-        endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "첫 시간에너지 전송", transmitObjs.ToArray()));
+        endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "시간에너지 키트 전송하기", transmitObjs.ToArray()));
 
         // ── 구역 캠페인 (5% -> 100%) : 4구역 x (보스 처치 + 전송률) + 우주선 수리 3회 -> 탈출 ──
         //   전송은 25%씩 4구역(자연/설원/사막/용암). 구역 경계는 보스 재료 특수 키트가 필요 = 보스 처치가 핵심 서브.
@@ -308,14 +306,14 @@ public static class TutorialAssetBuilder
         //     보스가 리스폰하거나 조기 도달 불가면 문제 없음. 리스폰 안 하면 % 단일 objective 로 바꾸면 됨(라벨에 보스 명시).
 
         // 자연 구역 (5 -> 25%). 25% 마일스톤이 우주선 Lv.6 재료(선체 보강재)를 지급 - 데모(Lv.5)에선 안 쓰고 다음 구간용.
-        endgameQuests.Add(BuildQuest("quest_end_03_region_nature", "자연 구역 돌파",
-            CreateEnemyKill("obj_boss_nature", $"자연의 지배자 {Y}와이번{E}을 {Y}처치{E}하세요.", "wyvern_boss", 1),
+        endgameQuests.Add(BuildQuest("quest_end_03_region_nature", "자연권역 전송률 25% 달성하기",
+            CreateEnemyKill("obj_boss_nature", $"자연권역의 강한 {Y}생체 반응{E} 개체를 {Y}처치{E}하세요.", "wyvern_boss", 1),
             CreateTransmissionRate("obj_rate_25", $"충전 키트를 전송해 전송률 {Y}25%{E}를 달성하세요.", 25)));
 
         // 자연맵 복구 에너지 15개로 Lv.5 까지 올라간다(특수부품 불필요). 데모의 최종 목표.
-        endgameQuests.Add(BuildQuest("quest_end_04_ship_lv5", "1차 우주선 수리",
+        endgameQuests.Add(BuildQuest("quest_end_04_ship_lv5", "우주선 Lv.5 복구 진행하기",
             CreateShipRepairLevel("obj_ship_lv5",
-                $"모은 {Y}복구 에너지{E}로 우주선을 {Y}Lv.5{E}까지 수리하세요.", 5)));
+                $"모은 {Y}복구 에너지{E}로 우주선을 {Y}Lv.5{E}까지 복구하세요.", 5)));
 
         // 아래 3구역 + 탈출은 자연맵 밖이라 데모 빌드에서는 통째로 만들지 않는다(DemoNatureOnly).
         // 만들어두면 갈 수 없는 보스/전송률이 목표로 떠서 영구 미완료로 남는다.
@@ -437,30 +435,30 @@ public static class TutorialAssetBuilder
     // ============================================================
     // 전리품 = 줍기/창고 + 상자(F열기/G즉시) 페이지 흡수. 사냥터 도착 순간 한 묶음으로 1회 발화(단독 상자팝업 제거).
     static QuestSO BuildLootVideoQuest()
-        => BuildQuest("quest_tut_02v_loot_video", "전리품",
-            CreateVideoTutorial("obj_loot_video", "전리품 안내를 확인하세요.",
+        => BuildQuest("quest_tut_02v_loot_video", "전투 자원 회수 방법 확인하기",
+            CreateVideoTutorial("obj_loot_video", "전투 자원 회수 방법을 확인하세요.",
                 VPage("아이템 줍기",
-                    $"적이나 오브젝트를 처치하면 {Y}아이템{E}이 떨어집니다. 가까이 가면 {Y}자동으로 줍습니다{E}."),
+                    $"적이나 오브젝트에서 나온 {Y}아이템{E}은 가까이 가면 {Y}획득{E}됩니다."),
                 VPage("창고",
                     $"{Y}가방{E}이 가득 차면 아이템이 {Y}창고{E}로 자동 보관됩니다. 창고를 열어 필요한 아이템을 {Y}꺼내 쓸 수 있어요{E}."),
                 VPage("결계 안과 밖",
-                    $"{Y}결계(기지) 안{E}에선 {Y}TAB{E}으로 {Y}창고{E}까지 함께 열려 아이템을 옮길 수 있고, {Y}결계 밖{E}에선 {Y}창고가 열리지 않습니다{E}. 또 결계 밖에선 {Y}시간이 계속 줄어드니{E} 아이템 정리는 안에서 하세요."),
+                    $"결계 안에서는 {Y}시간 감소가 멈춥니다{E}. 결계 밖에서는 {Y}시간이 줄어듭니다{E}."),
                 VPage("상자파밍",
                     $"맵에서 발견한 {Y}상자{E}는 {Y}F{E}로 엽니다. {Y}등급 높은{E} 아이템이 들어 있어요."),
                 VPage("즉시완료",
                     $"기다리지 않고 {Y}G{E}를 눌러 상자를 {Y}즉시{E} 열 수도 있습니다.")));
 
     static QuestSO BuildUnlockVideoQuest()
-        => BuildQuest("quest_tut_04v_unlock_video", "설비 해금",
-            CreateVideoTutorial("obj_unlock_video", "설비 해금 안내를 확인하세요.",
+        => BuildQuest("quest_tut_04v_unlock_video", "새 설비 확인하기",
+            CreateVideoTutorial("obj_unlock_video", "새로 열린 설비를 확인하세요.",
                 VPage("설비해금",
                     $"맵에 떨어진 {Y}설비{E}는 {Y}F{E}로 {Y}해금{E}합니다. 해금하면 {Y}건설 퀵슬롯{E}에 추가돼요."),
                 VPage("즉시해금",
                     $"기다리지 않고 {Y}G{E}를 눌러 설비를 {Y}즉시 해금{E}할 수도 있습니다.")));
 
     static QuestSO BuildFactoryVideoQuest()
-        => BuildQuest("quest_tut_07v_factory_video", "설비 가공",
-            CreateVideoTutorial("obj_factory_video", "설비 가공 안내를 확인하세요.",
+        => BuildQuest("quest_tut_07v_factory_video", "설비 가공 방법 확인하기",
+            CreateVideoTutorial("obj_factory_video", "설비 가공 방법을 확인하세요.",
                 VPage("설비 열기",
                     $"설치한 설비에 다가가 {Y}F{E}를 누르면 설비 UI가 열립니다. 이 화면에서 {Y}연료{E}와 {Y}재료{E}를 넣어 원하는 물건을 {Y}가공{E}할 수 있습니다."),
                 VPage("재료 투입과 가공",
@@ -471,7 +469,7 @@ public static class TutorialAssetBuilder
                     $"한 설비가 여러 {Y}레시피{E}를 만들 수 있을 때, 만들고 싶은 {Y}레시피{E}를 {Y}클릭{E}해 {Y}바꿀 수 있습니다{E}. (한 번에 하나의 레시피만 가동)")));
 
     static QuestSO BuildRailVideoQuest()
-        => BuildQuest("quest_tut_15v_rail_video", "레일 자동화",
+        => BuildQuest("quest_tut_15v_rail_video", "레일 자동화 확인하기",
             CreateVideoTutorial("obj_rail_video", "레일 자동화 안내를 확인하세요.",
                 VPage("레일 자동화란",
                     $"이제 {Y}자동화{E}를 배워봅시다. 설비를 {Y}레일{E}로 이으면, 아이템이 {Y}자동으로{E} 다음 설비로 이동해 {Y}직접 회수{E}할 필요가 없어집니다. (레일은 {Y}건설 모드(B){E}에서 깝니다)"),
@@ -480,8 +478,8 @@ public static class TutorialAssetBuilder
 
     // 설비 설치 + 해제 (Shift 일괄해제 포함). 건설 조작 투어 뒤에 발화.
     static QuestSO BuildBuildingVideoQuest()
-        => BuildQuest("quest_tut_06v_building_video", "건설하기",
-            CreateVideoTutorial("obj_building_video", "건설 안내를 확인하세요.",
+        => BuildQuest("quest_tut_06v_building_video", "설비 설치 방법 확인하기",
+            CreateVideoTutorial("obj_building_video", "설비 설치 방법을 확인하세요.",
                 VPage("설비 설치",
                     $"{Y}건설 모드(B){E}에서 {Y}퀵슬롯{E}의 설비를 고른 뒤 {Y}건설 구역{E} 바닥을 클릭해 설치합니다. 놓을 수 있으면 {Y}초록{E}, 안 되면 {Y}빨강{E}으로 표시돼요. ({Y}R{E}로 회전)"),
                 VPage("설비 해제",
@@ -489,10 +487,10 @@ public static class TutorialAssetBuilder
 
     // 퀵슬롯 등록 - 소모품을 우클릭으로 V 퀵슬롯에 등록해 전투 중 즉시 사용.
     static QuestSO BuildQuickslotVideoQuest()
-        => BuildQuest("quest_tut_14v_quickslot_video", "퀵슬롯 등록",
-            CreateVideoTutorial("obj_quickslot_video", "퀵슬롯 안내를 확인하세요.",
+        => BuildQuest("quest_tut_14v_quickslot_video", "퀵슬롯 사용 방법 확인하기",
+            CreateVideoTutorial("obj_quickslot_video", "퀵슬롯 사용 방법을 확인하세요.",
                 VPage("퀵슬롯 등록",
-                    $"{Y}소모품 표시{E}가 있는 아이템(회복 앰플 등)은 인벤토리에서 {Y}우클릭 -> 퀵슬롯 등록{E}으로 등록하면, 전투 중 {Y}V{E}로 바로 쓸 수 있습니다. 단 {Y}가방에 있을 때만{E} 사용되니(창고에 넣어두면 0), 쓸 소모품은 가방에 두세요.")));
+                    $"자주 쓰는 아이템은 {Y}퀵슬롯{E}에 등록해 빠르게 사용할 수 있습니다. 인벤토리에서 {Y}우클릭 -> 퀵슬롯 등록{E}, 사용은 {Y}V{E}입니다. ({Y}가방에 있을 때만{E} 사용됩니다)")));
 
     // ============================================================
     // Objective 빌더
@@ -733,19 +731,19 @@ public static class TutorialAssetBuilder
 
             // 귀환석 - 첫 획득(전송 20% 보상) 순간. 기지 안이라 안전.
             Cue("returnstone", true, VPage("귀환석",
-                $"결계 밖 어디서든 {Y}기지로 긴급 복귀{E}하는 수단입니다. {Y}H{E}로 사용하면 잠시 채널링 후 기지로 텔레포트합니다. 레벨이 오를수록 {Y}쿨타임{E}이 짧아집니다.")),
+                $"{Y}귀환석{E}을 사용하면 기지로 빠르게 복귀할 수 있습니다. {Y}H{E}로 사용하며, 레벨이 오를수록 {Y}쿨타임{E}이 짧아집니다.")),
 
             // (전송기 소개는 DiscoveryCue 가 아니라 엔드게임 퀘 quest_end_02 의 영상 objective 로 재생 - 전송기 도착 순간.
             //  코어 강화와 동일 패턴. 예전 interact:transmit 큐는 F로 UI 연 뒤 떠서 타이밍이 어긋나 제거.)
 
             // 첫 워프 지점 활성화 - 워프 시스템 소개. F로 활성화하는 순간 즉시(safe=true). WarpManager.ActivateRegionPoint 안에서 TryFire("warp").
             Cue("warp", true, VPage("워프 지점",
-                $"필드의 {Y}워프 지점{E}에 다가가 {Y}F로 활성화{E}하세요. 활성화한 지점을 밟으면 {Y}기지로 복귀{E}, 기지 워프대에서 그 지역으로 {Y}다시 이동{E}할 수 있습니다. 먼 지역을 빠르게 오가는 지름길입니다.")),
+                $"발견한 {Y}워프 지점{E}은 {Y}F로 활성화{E}한 뒤 이후 이동에 사용할 수 있습니다. 기지와 지역을 빠르게 오가는 지름길입니다.")),
 
             // 우주선 부품 첫 획득 - 수리 시스템 소개. 부품은 필드(결계 밖)에 있으므로 safe:false
             //   = 팝업을 기지 복귀 때로 미룬다(전투 중 방해 방지 + 기지의 우주선 위치와 자연스럽게 연결). ShipPartPickup.TryFire("shiprepair").
             Cue("shiprepair", false, VPage("우주선 수리 소개",
-                $"필드에서 모은 {Y}복구 에너지{E}로 기지의 {Y}폐우주선{E}을 수리합니다. 우주선에 {Y}F{E}로 단말을 열어 레벨을 올리면 {Y}건축 범위, 제작 속도, 연료 효율{E}이 좋아지고, {Y}Lv.10 완료 + 시간에너지 100%{E}면 {Y}탈출{E}할 수 있습니다.")),
+                $"우주선 {Y}복구{E}에 사용되는 특수 에너지입니다. 충분히 모으면 기지의 {Y}복구 장치{E}에서 우주선 복구를 진행할 수 있습니다.")),
         };
 
         EditorUtility.SetDirty(set);

@@ -71,6 +71,21 @@ public class TopViewBannerLabel : MonoBehaviour
     {
         if (pill == null || keyBox == null) return;
 
+        // ★[08-07] TextAutoFit 이 이 라벨을 줄이지 못하게 한다.
+        //   이 배너는 '글자에 맞춰 알약이 늘어나는' 구조라 글자를 줄이면 안 된다. 그런데
+        //   예전엔 라벨 rect 를 authored 폭(240) 그대로 뒀더니, 프랑스어처럼 긴 문구에서
+        //   TextAutoFit 이 "상자를 넘쳤다"고 보고 축소 + 말줄임까지 걸어버렸다.
+        //   줄어든 preferredWidth 때문에 알약도 덜 늘어나 원래 의도가 깨진다.
+        //   -> 아래에서 라벨 rect 를 글자 폭에 딱 맞춰준다. 넘치지 않으니 TextAutoFit 은
+        //      건드릴 게 없고, 혹시 이미 줄여놨다면 여기서 원래 크기로 되돌린 뒤 잰다.
+        if (label.enableAutoSizing)
+        {
+            label.enableAutoSizing = false;
+            if (label.fontSizeMax > 0f) label.fontSize = label.fontSizeMax;
+        }
+        if (label.overflowMode == TMPro.TextOverflowModes.Ellipsis)
+            label.overflowMode = TMPro.TextOverflowModes.Overflow;
+
         // preferredWidth 는 메시가 갱신돼 있어야 정확하다.
         label.ForceMeshUpdate();
         float labelW = label.preferredWidth;
@@ -82,6 +97,7 @@ public class TopViewBannerLabel : MonoBehaviour
             selfRt.sizeDelta = new Vector2(pillW, pill.sizeDelta.y);
 
         float left = -pillW * 0.5f;
+        label.rectTransform.sizeDelta         = new Vector2(labelW, label.rectTransform.sizeDelta.y);
         label.rectTransform.anchoredPosition  = new Vector2(left + gap + labelW * 0.5f, 0f);
         keyBox.anchoredPosition               = new Vector2(left + gap + labelW + gap + keyBoxVisibleWidth * 0.5f, 0f);
     }

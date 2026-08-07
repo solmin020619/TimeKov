@@ -204,12 +204,17 @@ public class TextAutoFit : MonoBehaviour
     // ── 겹침 진단 ────────────────────────────────────────────────────────
     // 라벨이 '자기 위에 그려지는 형제'와 겹치는지 본다. 겹치면 글자를 줄여도 안 풀린다
     //   (라벨 입장에선 안 넘쳤으므로). 컨테이너를 고쳐야 하는 곳의 목록을 만드는 용도다.
+    //
+    // ★rect 가 아니라 '실제로 그려진 글자 영역'으로 비교한다. rect 로 비교하면
+    //   "왼쪽정렬 짧은 라벨(rect 는 전체폭) + 오른쪽에 놓인 형제" 같은 정상 배치가
+    //   전부 겹침으로 잡힌다(도감 DROPS/RECIPES 라벨이 87~99% 로 오탐났다).
+    //   눈에 보이는 충돌만 잡아야 목록이 쓸모 있다.
     private static void ReportOverlap(TMP_Text tmp, RectTransform rt)
     {
         var parent = rt.parent as RectTransform;
         if (parent == null) return;
         int myIndex = rt.GetSiblingIndex();
-        Rect mine = WorldRect(rt);
+        Rect mine = InkRect(rt, tmp);
         if (mine.width <= 1f) return;
 
         for (int i = myIndex + 1; i < parent.childCount; i++)   // 나보다 위에 그려지는 것만
@@ -219,7 +224,7 @@ public class TextAutoFit : MonoBehaviour
             var g = sib.GetComponent<Graphic>();
             if (g == null || !g.enabled || g.color.a <= 0.01f) continue;
 
-            Rect other = WorldRect(sib);
+            Rect other = InkRect(sib, g as TMP_Text);
             if (other.width <= 1f) continue;
             if (other.Contains(new Vector2(mine.xMin, mine.yMin)) &&
                 other.Contains(new Vector2(mine.xMax, mine.yMax))) continue;   // 배경처럼 나를 감싸는 건 제외
@@ -243,6 +248,20 @@ public class TextAutoFit : MonoBehaviour
         var c = new Vector3[4];
         rt.GetWorldCorners(c);
         return Rect.MinMaxRect(c[0].x, c[0].y, c[2].x, c[2].y);
+    }
+
+    // 실제로 잉크가 찍힌 영역. 텍스트면 글자 경계(textBounds), 이미지면 rect 그대로.
+    //   textBounds 는 정렬까지 반영된 로컬 좌표라, 왼쪽정렬 짧은 글자는 rect 가 넓어도
+    //   왼쪽 조각만 돌려준다. 그래서 정상 배치를 겹침으로 오인하지 않는다.
+    private static Rect InkRect(RectTransform rt, TMP_Text tmp)
+    {
+        if (tmp == null) return WorldRect(rt);
+        var b = tmp.textBounds;
+        if (b.size.x <= 0.01f || b.size.y <= 0.01f) return WorldRect(rt);
+        Vector3 a = rt.TransformPoint(new Vector3(b.min.x, b.min.y, 0f));
+        Vector3 c = rt.TransformPoint(new Vector3(b.max.x, b.max.y, 0f));
+        return Rect.MinMaxRect(Mathf.Min(a.x, c.x), Mathf.Min(a.y, c.y),
+                               Mathf.Max(a.x, c.x), Mathf.Max(a.y, c.y));
     }
 
     private static string Trim(string s)
