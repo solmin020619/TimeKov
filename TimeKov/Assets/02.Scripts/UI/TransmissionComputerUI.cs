@@ -673,8 +673,9 @@ public class TransmissionComputerUI : MonoBehaviour
     private static void EnsureManager()
     {
         if (TransmissionManager.Instance != null) return;
+        // 어느 씬에도 매니저를 두지 않는 게 현재 구성이라 이 경로가 정상이다.
+        // 경고로 알릴 이유가 없어 뺐다(열 때마다 떴다).
         new GameObject("TransmissionManager").AddComponent<TransmissionManager>();
-        Debug.LogWarning("[TransmissionUI] 씬에 TransmissionManager가 없어 런타임 생성했습니다.");
     }
 
     private void SubscribeManager()

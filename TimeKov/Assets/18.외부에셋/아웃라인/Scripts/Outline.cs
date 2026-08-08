@@ -83,8 +83,12 @@ public class Outline : MonoBehaviour {
   void Awake() {
 
     // Cache renderers (ParticleSystemRenderer 제외 — 아웃라인 재질이 파티클 이펙트를 덮어씌우는 문제 방지)
+    //   VFXRenderer(VFX Graph)도 제외한다. 얘는 재질 교체 자체가 막혀 있어서 넣어봐야
+    //   "not allowed to set the material of a VFXRenderer" 경고만 나오고 아무 일도 안 일어난다.
+    //   설비를 고르거나 상호작용할 때마다 켜고 꺼서 콘솔이 이 경고로 도배됐다.
+    //   타입을 직접 참조하지 않고 이름으로 거른다(VFX 패키지 의존성을 만들지 않으려고).
     renderers = GetComponentsInChildren<Renderer>()
-      .Where(r => !(r is ParticleSystemRenderer))
+      .Where(r => !(r is ParticleSystemRenderer) && r.GetType().Name != "VFXRenderer")
       .ToArray();
 
     // Instantiate outline materials

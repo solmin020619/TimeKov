@@ -65,8 +65,7 @@ public class DataBoot : MonoBehaviour
             {
                 IsLoaded = true;
                 OnDataLoaded?.Invoke();
-                Debug.Log("[DataBoot] 데이터 로드 완료");
-                onComplete?.Invoke(true);
+                onComplete?.Invoke(true);   // 성공은 조용히 - 실패만 위에서 에러로 알린다
             });
         });
     }
@@ -92,7 +91,6 @@ public class DataBoot : MonoBehaviour
             {
                 IsLoaded = true;
                 OnDataLoaded?.Invoke();
-                Debug.Log("[DataBoot] 데이터 강제 재로드 완료");
                 onComplete?.Invoke(true);
             });
         });

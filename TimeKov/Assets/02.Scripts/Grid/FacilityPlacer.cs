@@ -153,6 +153,8 @@ public class FacilityPlacer
         Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
         for (int i = 0; i < renderers.Length; i++)
         {
+            // VFX Graph 렌더러는 재질 교체가 막혀 있다. 건드려봐야 효과 없이 경고만 남는다.
+            if (renderers[i] == null || renderers[i].GetType().Name == "VFXRenderer") continue;
             Material[] mats = renderers[i].materials;
             for (int j = 0; j < mats.Length; j++)
                 mats[j] = owner.hologramMaterial;

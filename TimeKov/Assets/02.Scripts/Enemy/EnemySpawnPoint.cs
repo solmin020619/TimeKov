@@ -158,7 +158,8 @@ public class EnemySpawnPoint : MonoBehaviour
 
         if (spawnEntries == null || spawnEntries.Count == 0)
         {
-            Debug.LogWarning($"[EnemySpawnPoint] {name}: Spawn Entries 비어있음 -> 아무것도 안 나옴. 적을 항목으로 추가하세요(단일몹/보스도 항목 1개).", this);
+            // 스포너가 씬에 25개라 각자 찍으면 콘솔이 이 줄로만 찬다. 프레임 끝에 묶어 한 줄로.
+            LogOnce.Group("[EnemySpawnPoint] Spawn Entries 비어있음 -> 아무것도 안 나옴. 적을 항목으로 추가하세요", name);
             yield break;
         }
 
@@ -220,7 +221,8 @@ public class EnemySpawnPoint : MonoBehaviour
 
         if (!TryGetRandomNavPos(out Vector3 pos))
         {
-            Debug.LogWarning($"[EnemySpawnPoint] {name}: 영역 안 NavMesh 점 못 찾음. NavMesh Bake 확인.", this);
+            // 스폰 시도마다 부르는 자리라, 그대로 두면 리스폰될 때마다 같은 줄이 무한히 쌓인다.
+            LogOnce.Warn($"navmesh:{name}", $"[EnemySpawnPoint] {name}: 영역 안 NavMesh 점 못 찾음. NavMesh Bake 확인.");
             return null;
         }
 

@@ -1030,7 +1030,8 @@ public class BuildManager : MonoBehaviour, ISaveable
 
         for (int i = 0; i < renderers.Length; i++)
         {
-            if (renderers[i] == null) continue;
+            // VFX Graph 렌더러는 재질 접근 자체가 막혀 있어 경고만 나온다(설치 미리보기에서 도배됐다).
+            if (renderers[i] == null || renderers[i].GetType().Name == "VFXRenderer") continue;
             Material mat = renderers[i].material;
             // URP 는 _BaseColor, 빌트인은 _Color 를 쓴다. 셰이더에 있는 쪽을 칠해야 색이 먹는다.
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tint);

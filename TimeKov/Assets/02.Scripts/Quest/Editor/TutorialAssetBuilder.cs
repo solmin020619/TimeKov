@@ -68,11 +68,15 @@ public static class TutorialAssetBuilder
     //   남는 엔드게임 라인 = 전송기 이동 -> 첫 전송 5% -> 와이번 처치 + 전송률 25% -> 우주선 Lv.5(= 데모 끝).
     // 본편 복귀 = false 로 바꾸고 Tools/Quest/Generate Tutorial Assets 재실행.
     //   ★재실행하면 quest_end_05~10 과 그 objective 들이 git 에서 deleted 로 뜬다(삭제도 같이 커밋할 것).
-    const bool DemoNatureOnly = true;
+    //   ★const 가 아니라 static readonly 인 이유: const 면 컴파일러가 아래 if 블록을
+    //     도달 불가로 판정해 CS0162 경고를 띄운다. 그 블록은 본편 복귀용이라 지울 수 없다.
+    static readonly bool DemoNatureOnly = true;
 
     // -- 영상 팝업 토글 --
     // false 로 두고 재생성하면 영상 단계가 빠진다(설명만 사라지고 행동 퀘는 그대로라 흐름은 완주 가능). 안전 복원용.
-    const bool EnableVideoTutorials = true;
+    //   위 DemoNatureOnly 와 같은 이유로 const 를 쓰지 않는다 - false 로 내리는 순간
+    //   이 값을 보는 if 블록 8곳이 전부 CS0162 경고를 뿜는다.
+    static readonly bool EnableVideoTutorials = true;
     // 영상 클립은 이 폴더에서 "페이지 제목 == 파일명"으로 자동 로드. 종욱이 제목 그대로 mp4 를 여기 넣으면 됨.
     const string VideoFolder = "Assets/17.Video/Tutorial";
 

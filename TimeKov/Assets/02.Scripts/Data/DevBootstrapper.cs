@@ -16,7 +16,8 @@ public class DevBootstrapper : MonoBehaviour
         // 로딩씬을 정상적으로 거쳐온 경우 — 아무것도 안 함
         if (DataBoot.IsLoaded) return;
 
-        Debug.Log("[DevBoot] 로딩씬 미경유 감지 — 데이터 직접 로드 시작");
+        // 씬 직접 플레이는 테스트할 때 늘 하는 일이라 알림을 찍지 않는다(매번 도배됨).
+        // 데이터가 안 오면 아래 실패 에러로 알게 된다.
 
         // DataBoot 없으면 생성
         if (DataBoot.Instance == null)
@@ -29,9 +30,7 @@ public class DevBootstrapper : MonoBehaviour
         // 데이터 로드 시작
         DataBoot.Instance.LoadAsync(success =>
         {
-            if (success)
-                Debug.Log("[DevBoot] 데이터 로드 완료 — 테스트 준비됨");
-            else
+            if (!success)
                 Debug.LogError("[DevBoot] 데이터 로드 실패 — 인터넷 연결 또는 시트 URL 확인");
         });
     }

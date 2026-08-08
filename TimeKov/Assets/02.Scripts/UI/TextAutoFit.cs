@@ -45,8 +45,9 @@ public class TextAutoFit : MonoBehaviour
     /// <summary>전체 끄기. 문제가 생기면 이거부터 false 로 두고 원인을 좁힌다.</summary>
     public static bool Enabled = true;
 
-    /// <summary>줄이거나 되돌린 라벨을 콘솔에 찍는다. 어떤 문구가 넘치는지 훑을 때만 켠다.</summary>
-    public static bool LogAdjustments = true;
+    /// <summary>줄이거나 되돌린 라벨을 콘솔에 찍는다. 어떤 문구가 넘치는지 훑을 때만 켠다.
+    /// ★평소엔 꺼둔다 - 글자가 바뀔 때마다 찍혀서 콘솔이 도배되고 정작 볼 경고가 묻힌다.</summary>
+    public static bool LogAdjustments = false;
 
     /// <summary>★옆 형제와 겹치는 라벨을 찾아 콘솔에 찍는다. 이 시스템이 못 고치는 종류라
     /// 목록을 뽑아 컨테이너를 수동으로 고치는 용도다. 한 라벨당 한 번만 찍는다.</summary>
@@ -68,15 +69,34 @@ public class TextAutoFit : MonoBehaviour
     //   바뀌었을 때만 다시 시도하면 최악에도 한 번 출렁이고 멈춘다.
     private static readonly Dictionary<int, (Vector2 size, int text)> _shrunkAt = new();
 
+    // 겹침 검사 대상 수집용(할당 재사용). MaxProbe = 한 라벨당 볼 그래픽 상한 - 진단이 프레임을 먹지 않게.
+    private const int MaxProbe = 48;
+    private static readonly List<Graphic> _probe = new();
+    private static readonly List<Graphic> _inner = new();
+
     // 넘침 판정 여유. 반올림 오차로 매 프레임 껐다 켜지는 걸 막는다.
     private const float Slack = 0.5f;
     // 되돌릴 때는 더 넉넉히 본다. 줄임<->되돌림이 매 프레임 번갈아 도는 걸 막는 이력(hysteresis).
     private const float RestoreSlack = 4f;
 
+    // ★플레이 재진입 대비. 도메인 리로드를 끄면 static 이 살아남아
+    //   (a) 줄임/겹침 기록이 남아 두 번째 플레이부터 진단이 안 뜨고
+    //   (b) 아래 Boot 이 또 돌아 펌프가 중복 생성돼 같은 라벨을 두 번 처리한다.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetOnPlay()
+    {
+        _incoming.Clear(); _pending.Clear(); _work.Clear();
+        _overlapReported.Clear(); _shrunkAt.Clear();
+        _booted = false;
+    }
+
+    private static bool _booted;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Boot()
     {
-        if (!Enabled) return;
+        if (!Enabled || _booted) return;
+        _booted = true;
         var go = new GameObject("[TextAutoFit]") { hideFlags = HideFlags.HideAndDontSave };
         go.AddComponent<TextAutoFit>();
         DontDestroyOnLoad(go);
@@ -112,6 +132,16 @@ public class TextAutoFit : MonoBehaviour
     private static void Fit(TMP_Text tmp)
     {
         if (tmp == null || !tmp.isActiveAndEnabled) return;
+
+        RectTransform rt0 = tmp.rectTransform;
+        if (rt0 == null) return;
+
+        // ★겹침 '진단'은 크기조절 로직보다 먼저, 그리고 독립적으로 돈다.
+        //   예전엔 ShouldSkip 뒤에 있어서 레이아웃이 크기를 정하는 라벨과 키캡류가
+        //   진단에서 통째로 빠졌다. 겹침은 글자를 줄일 수 있는지와 아무 상관이 없는데도.
+        //   (우주선 수리 제목이 pip 과 겹친 건을 이 순서 때문에 놓쳤다)
+        if (LogOverlaps && rt0.rect.width > 1f && rt0.rect.height > 1f) ReportOverlap(tmp, rt0);
+
         if (ShouldSkip(tmp, out RectTransform rt)) return;
 
         Rect r = rt.rect;
@@ -126,8 +156,6 @@ public class TextAutoFit : MonoBehaviour
             ? r.width  < authored
             : r.height < authored;
         if (tinyBox) return;
-
-        if (LogOverlaps) ReportOverlap(tmp, rt);
 
         bool over = Overflow(tmp, r, Slack);
 
@@ -257,18 +285,42 @@ public class TextAutoFit : MonoBehaviour
     {
         var parent = rt.parent as RectTransform;
         if (parent == null) return;
-        int myIndex = rt.GetSiblingIndex();
+
+        // ★빈 라벨은 그리는 게 없으니 겹칠 수도 없다. 이걸 안 막으면 아래 InkRect 가
+        //   '글자 경계 0 -> 상자 전체' 폴백을 타서, 스킬 슬롯의 숨은 쿨타임 숫자 같은
+        //   빈 라벨이 아이콘/링과 100% 겹친 것으로 보고된다(전부 오탐이었다).
+        if (string.IsNullOrWhiteSpace(tmp.text)) return;
+
         Rect mine = InkRect(rt, tmp);
         if (mine.width <= 1f) return;
 
-        for (int i = myIndex + 1; i < parent.childCount; i++)   // 나보다 위에 그려지는 것만
+        // ★형제를 '앞뒤 가리지 않고' 다 본다. 예전엔 나보다 위에 그려지는 것만 봤는데,
+        //   눈에 보이는 충돌은 그리는 순서와 무관하다. 배경처럼 나를 감싸는 경우는
+        //   아래 Contains 검사가 따로 걸러내므로 순서 제한은 정보만 버리는 조건이었다.
+        _probe.Clear();
+        for (int i = 0; i < parent.childCount && _probe.Count < MaxProbe; i++)
         {
             var sib = parent.GetChild(i) as RectTransform;
-            if (sib == null || !sib.gameObject.activeInHierarchy) continue;
-            var g = sib.GetComponent<Graphic>();
-            if (g == null || !g.enabled || g.color.a <= 0.01f) continue;
+            if (sib == null || sib == rt || !sib.gameObject.activeInHierarchy) continue;
 
-            Rect other = InkRect(sib, g as TMP_Text);
+            var g = sib.GetComponent<Graphic>();
+            if (g != null) { _probe.Add(g); continue; }
+
+            // ★그래픽이 없는 '빈 컨테이너'면 그 안에 실제로 그려지는 것들을 본다.
+            //   컨테이너만 보고 넘기면 그 안의 내용과 겹쳐도 못 잡는다
+            //   (우주선 수리의 pip 줄이 정확히 이 모양이라 진단을 통째로 빠져나갔다).
+            sib.GetComponentsInChildren(false, _inner);
+            for (int k = 0; k < _inner.Count && _probe.Count < MaxProbe; k++) _probe.Add(_inner[k]);
+        }
+
+        for (int i = 0; i < _probe.Count; i++)
+        {
+            var g = _probe[i];
+            if (g == null || !g.enabled || g.color.a <= 0.01f) continue;
+            var srt = g.rectTransform;
+            if (srt == null || srt.IsChildOf(rt)) continue;   // 내 장식(밑줄 등)은 겹침이 아니다
+
+            Rect other = InkRect(srt, g as TMP_Text);
             if (other.width <= 1f) continue;
             if (other.Contains(new Vector2(mine.xMin, mine.yMin)) &&
                 other.Contains(new Vector2(mine.xMax, mine.yMax))) continue;   // 배경처럼 나를 감싸는 건 제외
@@ -279,11 +331,10 @@ public class TextAutoFit : MonoBehaviour
             float ratio = (inter.width * inter.height) / (mine.width * mine.height);
             if (ratio < 0.05f) continue;   // 살짝 스치는 건 무시
 
-            int key = rt.GetInstanceID() ^ sib.GetInstanceID();
-            if (!_overlapReported.Add(key)) return;
-            Debug.LogWarning($"[TextAutoFit/겹침] '{Trim(tmp.text)}' 이(가) '{sib.name}' 과 {ratio:P0} 겹친다. "
-                           + $"({Path(tmp)}) -> 이 줄은 컨테이너를 가로 레이아웃으로 바꿔야 한다.");
-            return;
+            int key = rt.GetInstanceID() ^ srt.GetInstanceID();
+            if (!_overlapReported.Add(key)) continue;   // 이 조합만 건너뛴다(예전엔 여기서 통째로 빠져나갔다)
+            Debug.LogWarning($"[TextAutoFit/겹침] '{Trim(tmp.text)}' 이(가) '{srt.name}' 과 {ratio:P0} 겹친다. "
+                           + $"({Path(tmp)}) -> 이 줄은 컨테이너를 가로 레이아웃으로 바꾸거나 글자 폭만큼 옆을 밀어야 한다.");
         }
     }
 
@@ -300,6 +351,9 @@ public class TextAutoFit : MonoBehaviour
     private static Rect InkRect(RectTransform rt, TMP_Text tmp)
     {
         if (tmp == null) return WorldRect(rt);
+        // 글자가 없는 TMP 는 '상자 전체' 로 폴백하면 안 된다. 안 그리는 것을 크게 잡아
+        // 겹침으로 오인한다(상대편으로 걸릴 때도 마찬가지).
+        if (string.IsNullOrWhiteSpace(tmp.text)) return Rect.zero;
         var b = tmp.textBounds;
         if (b.size.x <= 0.01f || b.size.y <= 0.01f) return WorldRect(rt);
         Vector3 a = rt.TransformPoint(new Vector3(b.min.x, b.min.y, 0f));

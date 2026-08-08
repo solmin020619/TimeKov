@@ -583,7 +583,9 @@ public class HellMonsterAI : MonoBehaviour, IEnemyDataSource
     {
         if (data.projectilePrefab == null)
         {
-            Debug.LogWarning($"[{data.enemyName}] 원거리 패턴인데 projectilePrefab 이 비었다: {a.label}");
+            // 공격을 시도할 때마다 부르는 자리 + 같은 몹이 여러 마리라, 그대로 두면 전투 내내 쌓인다.
+            LogOnce.Warn($"noprojectile:{data.enemyName}:{a.label}",
+                         $"[{data.enemyName}] 원거리 패턴인데 projectilePrefab 이 비었다: {a.label}");
             yield break;
         }
 

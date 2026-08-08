@@ -318,7 +318,10 @@ public class TutorialVideoUI : MonoBehaviour
         {
             if (t == null || t.GetComponent<LocalizedLabel>() != null) continue;
             if (string.IsNullOrWhiteSpace(t.text)) continue;
-            t.gameObject.AddComponent<LocalizedLabel>().SetKey(t.text);
+            // ★키를 먼저 담는다. AddComponent 가 OnEnable 을 즉시 돌려서,
+            //   't.text' 를 인자 자리에서 읽으면 그 사이 변형된 값이 넘어간다.
+            string key = t.text;
+            t.gameObject.AddComponent<LocalizedLabel>().SetKey(key);
         }
     }
 
@@ -424,16 +427,9 @@ public class TutorialVideoUI : MonoBehaviour
         Debug.LogError($"[TutorialVideoUI] 영상 재생 실패 - '{clipName}': {message}");
     }
 
-    // 준비 완료 로그. 이게 안 찍히면 디코딩 단계에서 막힌 것이고,
-    //   찍히는데도 화면이 희면 출력(RenderTexture -> RawImage) 쪽 문제다. 둘을 가르는 유일한 신호라 남겨둔다.
-    private void OnVideoPrepared(VideoPlayer vp)
-    {
-        if (vp == null) return;
-        Debug.Log($"[TutorialVideoUI] 준비 완료 - '{(vp.clip != null ? vp.clip.name : "?")}' "
-                + $"{vp.width}x{vp.height} / renderMode={vp.renderMode} / source={vp.source} "
-                + $"/ targetTexture={(vp.targetTexture != null ? vp.targetTexture.name : "null")} "   // 우리 RT 가 맞는지
-                + $"/ timeUpdateMode={vp.timeUpdateMode} / timeScale={Time.timeScale}");
-    }
+    // 흰 화면 원인을 가르던 진단 로그는 뺐다(영상 출력 건 해결됨). 페이지를 넘길 때마다 찍혀 도배된다.
+    //   다시 필요하면 vp.width/renderMode/targetTexture 를 여기서 찍으면 된다. 실패는 errorReceived 가 잡는다.
+    private void OnVideoPrepared(VideoPlayer vp) { }
 
     // 화면에 렌더하는 카메라 (RenderTexture 대상 제외) - 블러 소스
     private static Camera PickScreenCamera()

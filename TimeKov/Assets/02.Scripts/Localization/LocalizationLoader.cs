@@ -72,7 +72,9 @@ public static class LocalizationLoader
         Loc.LoadTable(LanguageCode.FR, frTable);
         SaveCache(enTable, cnTable, frTable);
 
-        Debug.Log($"[LocalizationLoader] 번역 로드 완료 — EN:{enTable.Count} CN:{cnTable.Count} FR:{frTable.Count}");
+        // 부팅 로그는 짧게. 자세한 수치는 문제 생겼을 때만 의미가 있다.
+        if (enTable.Count == 0 || cnTable.Count == 0 || frTable.Count == 0)
+            Debug.LogWarning($"[Loc] 번역 일부 비었음 — EN:{enTable.Count} CN:{cnTable.Count} FR:{frTable.Count}");
     }
 
     // ── 로컬 캐시 ────────────────────────────────────────────────────
