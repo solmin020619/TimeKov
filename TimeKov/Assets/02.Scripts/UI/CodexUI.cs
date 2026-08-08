@@ -604,7 +604,7 @@ public class CodexUI : MonoBehaviour
         ClearChildren(_listBox);
 
         var label = Make("Label", _listBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(8f, -28f), new Vector2(-14f, -4f));
-        Txt(label, "분류 - CATEGORY", 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
+        Txt(label, Loc.Get("분류 - CATEGORY"), 14f, FontStyles.Normal, TxtSub, TextAlignmentOptions.Left);
 
         var viewport = Make("Viewport", _listBox, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 2f), new Vector2(-12f, -32f));
         var vpImg = viewport.gameObject.AddComponent<Image>();
@@ -662,7 +662,7 @@ public class CodexUI : MonoBehaviour
     {
         ClearChildren(_mainBox);
         string catName = Loc.Get(ItemCatNames[Mathf.Clamp(_itemCatIndex, 0, ItemCatNames.Length - 1)]);
-        var body = MainHeader("아이템 - ITEM", catName, TxtMain, true);
+        var body = MainHeader(Loc.Get("아이템 - ITEM"), catName, TxtMain, true);
 
         // 그리드 영역(스크롤)
         var vp = Make("ItemViewport", body, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);

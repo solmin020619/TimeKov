@@ -79,7 +79,7 @@ public class KeyLock : GimmickTrigger, IInteractable, IInteractHint
         SetSatisfied(true);   // latch → targets 영구 개방
         ApplyVisual();
         _highlight?.Set(false);
-        InteractHintPanel.Show(hintUI, false, hintLabel, hintIcon);
+        InteractHintPanel.Show(hintUI, false, Loc.Get(hintLabel), hintIcon);
     }
 
     private void ApplyVisual()
@@ -91,7 +91,7 @@ public class KeyLock : GimmickTrigger, IInteractable, IInteractHint
     public void ShowHint(bool show)
     {
         if (IsSatisfied) { _highlight?.Set(false); return; }
-        InteractHintPanel.Show(hintUI, show, hintLabel, hintIcon);
+        InteractHintPanel.Show(hintUI, show, Loc.Get(hintLabel), hintIcon);
         _highlight?.Set(show);
     }
 }
