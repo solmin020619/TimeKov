@@ -21,7 +21,25 @@ using TMPro;
 
 public class GlobalSettingsManager : MonoBehaviour
 {
-    public static GlobalSettingsManager Instance { get; private set; }
+    private static GlobalSettingsManager _instance;
+    public static GlobalSettingsManager Instance
+    {
+        get
+        {
+#if UNITY_EDITOR
+            // 재생 전(에디터 툴에서 설정 UI를 씬에 굽는 등)에는 Awake가 돌지 않아 비어 있다.
+            // 씬에서 직접 찾아준다. 비활성 오브젝트에 붙어 있어도 찾도록 FindObjectsOfTypeAll을 쓰되,
+            // 프로젝트의 프리팹 에셋은 제외하기 위해 씬에 속한 것만 고른다.
+            if (_instance == null && !Application.isPlaying)
+            {
+                foreach (var m in Resources.FindObjectsOfTypeAll<GlobalSettingsManager>())
+                    if (m.gameObject.scene.IsValid()) { _instance = m; break; }
+            }
+#endif
+            return _instance;
+        }
+        private set => _instance = value;
+    }
 
     public static event Action<float> OnBGMVolumeChanged;
     public static event Action<float> OnSFXVolumeChanged;
@@ -775,6 +793,67 @@ public class GlobalSettingsManager : MonoBehaviour
         }
         _isDirty = true;
     }
+
+    // ── 코드 생성 설정 UI(GameSettingsUI) 연동 ─────────────────────────
+    // 기존 로직·저장 형식·적용 순서는 그대로 두고, 새 UI가 편집 중인 값을 읽고
+    // 커밋할 수 있도록 최소한만 공개한다. 새 UI는 인스펙터 참조(드롭다운/슬라이더)를
+    // 하나도 쓰지 않으므로, 그 조합에서 이 컴포넌트는 모델·엔진 계층으로만 동작한다.
+
+    /// 아직 "설정 적용"을 누르지 않은 변경사항이 있는가.
+    public bool HasUnappliedChanges => _isDirty;
+
+    /// 편집 중인 임시값. "설정 적용"을 눌러야 _data로 커밋된다.
+    public SettingsData PendingData { get { EnsureLoaded(); return _pending; } }
+
+    // _data/_pending은 Start()에서 초기화되는데, Start끼리의 실행 순서는 보장되지 않는다.
+    // 새 UI가 자기 Start에서 이 값들을 읽으므로, 아직 로드 전이면 여기서 먼저 채운다.
+    // (Start가 나중에 돌아 다시 로드해도 결과는 같으므로 기존 흐름에는 영향이 없다)
+    private void EnsureLoaded()
+    {
+        if (_pending != null) return;
+        if (_data == null) _data = SettingsData.Load();
+        _pending = Clone(_data);
+    }
+
+    /// 리바인딩 대상 12개 액션 (id, 표시명).
+    public static readonly (string id, string label)[] RebindActions =
+    {
+        ("Attack",    "기본 공격"), ("Dash",   "대시"),   ("Jump",   "점프"),
+        ("Skill1",    "스킬 1"),    ("Skill2", "스킬 2"), ("Skill3", "스킬 3"),
+        ("Interact",  "상호작용"),  ("Instant","즉시완료"), ("QuickSlot","퀵슬롯"),
+        ("Inventory", "인벤토리"),  ("Stat",   "스탯창"), ("Codex",  "도감"),
+    };
+
+    public KeyCode GetPendingKey(string actionId) { EnsureLoaded(); return GetKeyForAction(actionId); }
+
+    /// 캡처한 키를 충돌 검사 후 _pending에 커밋한다. 충돌이면 false + 충돌 상대 이름.
+    /// rebindSlots(구 UI의 인스펙터 목록)에 의존하지 않도록 RebindActions로 검사한다.
+    public bool TryRebind(string actionId, KeyCode code, out string conflictAction)
+    {
+        EnsureLoaded();
+        foreach (var (id, label) in RebindActions)
+            if (id != actionId && GetKeyForAction(id) == code) { conflictAction = label; return false; }
+        if (IsReservedKeyConflict(code, out conflictAction)) return false;
+        SetKeyForAction(actionId, code);
+        conflictAction = null;
+        return true;
+    }
+
+    /// 해상도를 인덱스가 아니라 값으로 지정. _resolutions는 resolutionDropdown이 있어야
+    /// 채워지므로, 드롭다운을 쓰지 않는 새 UI에서는 이 오버로드를 쓴다.
+    public void SetResolution(int width, int height)
+    {
+        EnsureLoaded();
+        _pending.resolutionWidth  = width;
+        _pending.resolutionHeight = height;
+        _isDirty = true;
+    }
+
+    public static IReadOnlyList<(int width, int height)> ResolutionOptions   => FixedResolutions;
+    public static IReadOnlyList<string> QualityOptions        => QualityLabels;
+    public static IReadOnlyList<string> ShadowQualityOptions  => ShadowQualityLabels;
+    public static IReadOnlyList<string> TextureQualityOptions => TextureQualityLabels;
+    public static IReadOnlyList<string> LanguageOptions       => LanguageLabels;
 
     // 키보드 키 + 마우스 좌/우/휠클릭만 후보로 사용 (조이스틱·기타 마우스 버튼 제외)
     // 기본 공격/대시가 마우스 좌/우클릭이라 리바인딩 후보에 Mouse0~2를 포함해야
