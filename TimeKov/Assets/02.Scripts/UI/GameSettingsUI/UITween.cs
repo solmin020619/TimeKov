@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -29,6 +30,9 @@ namespace GameSettingsUI
         static string K(UnityEngine.Object o, string ch) => o.GetInstanceID() + ":" + ch;
         static void Run(UnityEngine.Object o, string ch, IEnumerator co)
         {
+            // 대상이 이미 파괴됐으면 시작하지 않는다. 러너는 DontDestroyOnLoad라 씬이 바뀌어도
+            // 살아 있어서, 이 검사가 없으면 파괴된 오브젝트에 접근해 MissingReferenceException이 난다.
+            if (!o) return;
             Ensure();
             if (I == null)
             {
@@ -50,6 +54,18 @@ namespace GameSettingsUI
             I.running.Remove(k);
         }
 
+        // 이 러너는 DontDestroyOnLoad라 씬이 바뀌어도 살아남는다. 진행 중이던 트윈은
+        // 대상이 씬과 함께 파괴되므로 전부 정리한다(코루틴 내부 검사와 이중 안전장치).
+        // 람다로 구독하면 -= 할 때 다른 인스턴스라 해제가 안 된다. 반드시 이름 있는 메서드로.
+        void OnEnable()  { SceneManager.sceneUnloaded += OnSceneUnloaded; }
+        void OnDisable() { SceneManager.sceneUnloaded -= OnSceneUnloaded; }
+
+        void OnSceneUnloaded(Scene s)
+        {
+            StopAllCoroutines();
+            running.Clear();
+        }
+
         public static void AnchorX(RectTransform rt, float to, float dur, Ease e) => Run(rt, "ax", Anchor(rt, to, dur, e, true));
         public static void AnchorY(RectTransform rt, float to, float dur, Ease e) => Run(rt, "ay", Anchor(rt, to, dur, e, false));
         static IEnumerator Anchor(RectTransform rt, float to, float dur, Ease e, bool x)
@@ -63,6 +79,7 @@ namespace GameSettingsUI
                 var p = rt.anchoredPosition;
                 if (x) p.x = Mathf.LerpUnclamped(from, to, k); else p.y = Mathf.LerpUnclamped(from, to, k);
                 rt.anchoredPosition = p; yield return null;
+                if (!rt) yield break;   // 씬 전환 등으로 대상이 파괴되면 중단
             }
             var f = rt.anchoredPosition; if (x) f.x = to; else f.y = to; rt.anchoredPosition = f;
         }
@@ -72,7 +89,7 @@ namespace GameSettingsUI
         {
             if (dur <= 0) { cg.alpha = to; yield break; }
             float t = 0, from = cg.alpha;
-            while (t < dur) { t += Time.unscaledDeltaTime; cg.alpha = Mathf.LerpUnclamped(from, to, Easing.E(e, t / dur)); yield return null; }
+            while (t < dur) { t += Time.unscaledDeltaTime; cg.alpha = Mathf.LerpUnclamped(from, to, Easing.E(e, t / dur)); yield return null; if (!cg) yield break; }
             cg.alpha = to;
         }
 
@@ -83,7 +100,7 @@ namespace GameSettingsUI
         {
             if (dur <= 0) { g.color = to; yield break; }
             float t = 0; Color from = g.color;
-            while (t < dur) { t += Time.unscaledDeltaTime; g.color = UnityEngine.Color.LerpUnclamped(from, to, Easing.E(e, t / dur)); yield return null; }
+            while (t < dur) { t += Time.unscaledDeltaTime; g.color = UnityEngine.Color.LerpUnclamped(from, to, Easing.E(e, t / dur)); yield return null; if (!g) yield break; }
             g.color = to;
         }
 
@@ -92,7 +109,7 @@ namespace GameSettingsUI
         {
             if (dur <= 0) { rt.localScale = Vector3.one * to; yield break; }
             float t = 0, from = rt.localScale.x;
-            while (t < dur) { t += Time.unscaledDeltaTime; rt.localScale = Vector3.one * Mathf.LerpUnclamped(from, to, Easing.E(e, t / dur)); yield return null; }
+            while (t < dur) { t += Time.unscaledDeltaTime; rt.localScale = Vector3.one * Mathf.LerpUnclamped(from, to, Easing.E(e, t / dur)); yield return null; if (!rt) yield break; }
             rt.localScale = Vector3.one * to;
         }
         // 0.6 -> overshoot -> 1 팝
@@ -100,7 +117,7 @@ namespace GameSettingsUI
         static IEnumerator PopCo(RectTransform rt)
         {
             float dur = UIAnim.IconPop, t = 0;
-            while (t < dur) { t += Time.unscaledDeltaTime; float k = Easing.E(Ease.OutBack, t / dur); rt.localScale = Vector3.one * Mathf.LerpUnclamped(0.6f, 1f, k); yield return null; }
+            while (t < dur) { t += Time.unscaledDeltaTime; float k = Easing.E(Ease.OutBack, t / dur); rt.localScale = Vector3.one * Mathf.LerpUnclamped(0.6f, 1f, k); yield return null; if (!rt) yield break; }
             rt.localScale = Vector3.one;
         }
 
@@ -109,7 +126,7 @@ namespace GameSettingsUI
         {
             if (dur <= 0) { rt.localEulerAngles = new Vector3(0, 0, to); yield break; }
             float t = 0, from = rt.localEulerAngles.z; if (from > 180) from -= 360;
-            while (t < dur) { t += Time.unscaledDeltaTime; rt.localEulerAngles = new Vector3(0, 0, Mathf.LerpUnclamped(from, to, Easing.E(e, t / dur))); yield return null; }
+            while (t < dur) { t += Time.unscaledDeltaTime; rt.localEulerAngles = new Vector3(0, 0, Mathf.LerpUnclamped(from, to, Easing.E(e, t / dur))); yield return null; if (!rt) yield break; }
             rt.localEulerAngles = new Vector3(0, 0, to);
         }
 
@@ -118,7 +135,7 @@ namespace GameSettingsUI
         {
             if (dur <= 0) { var s0 = rt.sizeDelta; s0.x = to; rt.sizeDelta = s0; yield break; }
             float t = 0, from = rt.sizeDelta.x;
-            while (t < dur) { t += Time.unscaledDeltaTime; var s = rt.sizeDelta; s.x = Mathf.LerpUnclamped(from, to, Easing.E(Ease.OutQuad, t / dur)); rt.sizeDelta = s; yield return null; }
+            while (t < dur) { t += Time.unscaledDeltaTime; var s = rt.sizeDelta; s.x = Mathf.LerpUnclamped(from, to, Easing.E(Ease.OutQuad, t / dur)); rt.sizeDelta = s; yield return null; if (!rt) yield break; }
             var f = rt.sizeDelta; f.x = to; rt.sizeDelta = f;
         }
 
@@ -126,7 +143,7 @@ namespace GameSettingsUI
         static IEnumerator PulseCo(CanvasGroup cg)
         {
             float half = UIAnim.Pulse * 0.5f, t = 0; bool down = true;
-            while (true)
+            while (cg)   // 대상이 파괴되면 즉시 종료. 무한 루프라 검사가 없으면 영영 안 끝난다.
             {
                 t += Time.unscaledDeltaTime;
                 float k = Easing.E(Ease.InOutSine, Mathf.Clamp01(t / half));

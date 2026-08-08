@@ -446,6 +446,26 @@ public class GlobalSettingsManager : MonoBehaviour
         return true;
     }
 
+    /// 저장된 해상도가 선택지(FixedResolutions)에 없으면 드롭다운에 아무것도 선택되지 않고
+    /// 표시값과 실제 값이 어긋난다. 기본값이 모니터 네이티브 해상도(SettingsData.CreateDefault)라
+    /// 4K·울트라와이드에서는 첫 실행부터 이 상태가 된다.
+    /// 목록 안의 값(저장값 이하 중 가장 큰 것)으로 맞춘다.
+    /// 사용자가 바꾼 게 아니므로 _isDirty는 건드리지 않는다 — 건드리면 열자마자 "미적용 변경"이 된다.
+    public void NormalizeResolution()
+    {
+        EnsureLoaded();
+        foreach (var (w, h) in FixedResolutions)
+            if (w == _pending.resolutionWidth && h == _pending.resolutionHeight) return;
+
+        int pick = 0;
+        for (int i = 0; i < FixedResolutions.Length; i++)
+            if (FixedResolutions[i].width <= _pending.resolutionWidth) pick = i;
+
+        var r = FixedResolutions[pick];
+        _pending.resolutionWidth = r.width; _pending.resolutionHeight = r.height;
+        if (_data != null) { _data.resolutionWidth = r.width; _data.resolutionHeight = r.height; }
+    }
+
     /// 해상도를 값으로 지정. 선택지는 FixedResolutions(= ResolutionOptions)에서 고른다.
     public void SetResolution(int width, int height)
     {

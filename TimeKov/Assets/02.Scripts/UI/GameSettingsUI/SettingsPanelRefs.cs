@@ -46,6 +46,8 @@ namespace GameSettingsUI
             displayPanel && audioPanel && controlsPanel &&
             displayCG && audioCG && controlsCG &&
             controlsHint && applyBG && warningModal &&
+            scrim && tabBarBG &&
+            rowBackgrounds != null && rowBackgrounds.Count > 0 &&
             AllPresent(tabIcons) && AllPresent(tabButtons);
 
         static bool AllPresent<T>(T[] arr) where T : Object

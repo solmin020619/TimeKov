@@ -14,11 +14,23 @@ namespace GameSettingsUI
     public class Btn : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler,
                        IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
     {
-        enum Mode { Color, Text, Icon }
-        Mode mode = Mode.Color;
-        Graphic target; Color n, h, a;
-        RectTransform scaleT; float hoverScale = 1f, pressScale = 1f;
-        Action onClick; bool hover;
+        // 피드백 방식.
+        //   Color — 배경 Graphic의 색을 바꾼다 (대부분의 버튼)
+        //   Text  — 라벨 알파를 낮춰 눌림감만 준다 (투명 히트영역 + 별도 라벨)
+        //   Icon  — 색 없이 스케일만 (음소거 아이콘)
+        public enum Mode { Color, Text, Icon }
+
+        // ⚠ 모두 직렬화되어야 한다. 예전에는 private이라 Init()이 실행 중에만 채웠고,
+        //   씬에 구운 계층에서는 Init()이 호출되지 않아 target이 null → 호버 색이 통째로 죽었다.
+        [Header("피드백")]
+        public Mode mode = Mode.Color;
+        [Tooltip("색을 바꿀 대상. Color 모드=배경, Text 모드=라벨")]
+        public Graphic target;
+        public Color normalColor, hoverColor, pressedColor;
+
+        [Tooltip("확대/축소할 대상. 비우면 스케일 피드백 없음")]
+        public RectTransform scaleTarget;
+        public float hoverScale = 1f, pressScale = 1f;
 
         // 씬에 배치된 버튼용. 람다는 직렬화가 안 되므로 "무슨 일을 하는지"만 저장해 두고
         // 실제 처리는 상위의 패널 컨트롤러가 받는다. 코드로 만들 때는 onClick이 채워지므로
@@ -27,6 +39,9 @@ namespace GameSettingsUI
         public SettingsAction action;
         [Tooltip("옵션 인덱스(SelectOption) / 액션 인덱스(StartRebind) 등")]
         public int actionParam;
+
+        Action onClick;
+        bool isHovered;
         bool colorFx = true;   // false면 배경색 피드백만 끈다(스케일·클릭은 유지)
 
         /// 배경 호버/클릭 색을 켜고 끈다. 이미 선택된 탭처럼 배경을 덮으면 안 되는 경우에 사용.
@@ -39,47 +54,61 @@ namespace GameSettingsUI
             // 먼저 끊지 않으면 여기서 투명으로 되돌려도 트윈이 끝나며 회색으로 덮어쓰고,
             // 피드백이 꺼진 뒤라 아무도 되돌리지 않아 노란 인디케이터 위에 회색이 남는다.
             UITween.StopColor(target);
-            target.color = on && hover ? h : n;
+            target.color = on && isHovered ? hoverColor : normalColor;
         }
 
         public void Init(Graphic target, Color n, Color h, Color a, RectTransform scaleT, float hoverScale, float pressScale, Action onClick)
         {
-            mode = Mode.Color; this.target = target; this.n = n; this.h = h; this.a = a;
-            this.scaleT = scaleT; this.hoverScale = hoverScale; this.pressScale = pressScale; this.onClick = onClick;
+            mode = Mode.Color; this.target = target;
+            normalColor = n; hoverColor = h; pressedColor = a;
+            scaleTarget = scaleT; this.hoverScale = hoverScale; this.pressScale = pressScale; this.onClick = onClick;
             if (target) target.color = n;
         }
         // 투명 히트 영역에 붙이고 label(실제로 보이는 텍스트)에 눌림 피드백을 준다.
-        public void InitTextButton(Graphic label, Action onClick) { mode = Mode.Text; target = label; this.onClick = onClick; scaleT = null; }
+        public void InitTextButton(Graphic label, Action onClick)
+        {
+            mode = Mode.Text; target = label; this.onClick = onClick; scaleTarget = null;
+        }
 
         /// 기본(비호버) 색을 나중에 바꾼다. 드롭다운 선택이 옮겨갈 때 필요.
         /// 이걸 안 하면 Btn이 예전 기본색을 기억해, 호버 후 빠져나올 때 그 색으로 되돌아간다.
-        public void SetNormal(Color c) { n = c; if (mode == Mode.Color && target && !hover) target.color = c; }
-        public void InitIconButton(RectTransform wrap, Action onClick) { mode = Mode.Icon; this.onClick = onClick; scaleT = wrap; hoverScale = 1.1f; pressScale = 0.86f; }
+        public void SetNormal(Color c)
+        {
+            normalColor = c;
+            if (mode == Mode.Color && target && !isHovered) target.color = c;
+        }
+        public void InitIconButton(RectTransform wrap, Action onClick)
+        {
+            mode = Mode.Icon; this.onClick = onClick; scaleTarget = wrap;
+            hoverScale = 1.1f; pressScale = 0.86f;
+        }
 
         public void OnPointerEnter(PointerEventData e)
         {
-            hover = true;
-            if (colorFx && mode == Mode.Color && target) UITween.Color(target, h, UIAnim.HoverColor, Ease.Linear);
-            if (scaleT && hoverScale != 1f) UITween.Scale(scaleT, hoverScale, UIAnim.HoverColor, Ease.OutQuad);
+            isHovered = true;
+            if (colorFx && mode == Mode.Color && target) UITween.Color(target, hoverColor, UIAnim.HoverColor, Ease.Linear);
+            if (scaleTarget && hoverScale != 1f) UITween.Scale(scaleTarget, hoverScale, UIAnim.HoverColor, Ease.OutQuad);
         }
         public void OnPointerExit(PointerEventData e)
         {
-            hover = false;
-            if (colorFx && mode == Mode.Color && target) UITween.Color(target, n, UIAnim.HoverColor, Ease.Linear);
-            if (scaleT && hoverScale != 1f) UITween.Scale(scaleT, 1f, UIAnim.HoverColor, Ease.OutQuad);
+            isHovered = false;
+            if (colorFx && mode == Mode.Color && target) UITween.Color(target, normalColor, UIAnim.HoverColor, Ease.Linear);
+            if (scaleTarget && hoverScale != 1f) UITween.Scale(scaleTarget, 1f, UIAnim.HoverColor, Ease.OutQuad);
             if (mode == Mode.Text) SetAlpha(1f);   // 누른 채로 벗어나도 복구
         }
         public void OnPointerDown(PointerEventData e)
         {
-            if (colorFx && mode == Mode.Color && target) target.color = a;
+            if (colorFx && mode == Mode.Color && target) target.color = pressedColor;
             if (mode == Mode.Text) SetAlpha(0.6f);
-            if (scaleT && pressScale != 1f) UITween.Scale(scaleT, pressScale, 0.06f, Ease.OutQuad);
+            if (scaleTarget && pressScale != 1f) UITween.Scale(scaleTarget, pressScale, 0.06f, Ease.OutQuad);
         }
         public void OnPointerUp(PointerEventData e)
         {
-            if (colorFx && mode == Mode.Color && target) UITween.Color(target, hover ? h : n, UIAnim.HoverColor, Ease.Linear);
+            if (colorFx && mode == Mode.Color && target)
+                UITween.Color(target, isHovered ? hoverColor : normalColor, UIAnim.HoverColor, Ease.Linear);
             if (mode == Mode.Text) SetAlpha(1f);
-            if (scaleT && pressScale != 1f) UITween.Scale(scaleT, hover && hoverScale != 1f ? hoverScale : 1f, 0.1f, Ease.OutQuad);
+            if (scaleTarget && pressScale != 1f)
+                UITween.Scale(scaleTarget, isHovered && hoverScale != 1f ? hoverScale : 1f, 0.1f, Ease.OutQuad);
         }
         public void OnPointerClick(PointerEventData e)
         {
@@ -96,9 +125,10 @@ namespace GameSettingsUI
         void SetAlpha(float v) { if (!target) return; var c = target.color; c.a = v; target.color = c; }
         void OnDisable()
         {
-            if (mode == Mode.Color && target) target.color = n;
+            isHovered = false;
+            if (mode == Mode.Color && target) target.color = normalColor;
             if (mode == Mode.Text) SetAlpha(1f);
-            if (scaleT) scaleT.localScale = Vector3.one;
+            if (scaleTarget) scaleTarget.localScale = Vector3.one;
         }
     }
 }

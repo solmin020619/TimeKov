@@ -132,6 +132,7 @@ namespace GameSettingsUI
             }
 
             built = true;   // 여기까지 와야 계층이 완성된 것. 중간에 예외가 나면 false로 남는다.
+            SettingsBinding.NormalizeResolution();   // 저장값이 선택지에 없으면 목록 안 값으로 보정
             ApplyBackdropTheme();   // 실행 시의 블러 상태 기준으로 배경색 확정 (베이크 값 덮어씀)
             SwitchTab(SettingsTab.Display, true);
             PlayOpenAnim();   // OnEnable이 Start보다 먼저라 첫 표시는 여기서 재생한다
@@ -545,7 +546,7 @@ namespace GameSettingsUI
             Stretch(overlay);
             overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.72f);  // 뒤 클릭 차단 겸 딤
 
-            var box = Panel(overlay, "Box", 720, 260, 24, UIColors.WarnBox);
+            var box = Panel(overlay, "WarningBox", 720, 260, 24, UIColors.WarnBox);
             box.anchorMin = box.anchorMax = new Vector2(0.5f, 0.5f);
             box.pivot = new Vector2(0.5f, 0.5f);
             box.anchoredPosition = Vector2.zero;
@@ -567,7 +568,7 @@ namespace GameSettingsUI
         }
         void WarnButton(RectTransform box, float x, string label, SettingsAction action)
         {
-            var b = Panel(box, "WBtn", 196, 62, 31, UIColors.KeyBG);
+            var b = Panel(box, $"WarnBtn_{action}", 196, 62, 31, UIColors.KeyBG);
             AnchorTL(b, x, 164, 196, 62);
             AddOutline(b.GetComponent<Image>(), UIColors.KeyBorder, 1);
             var t = Text(b, label, 21, FontWeight.Bold, UIColors.TextValue, TextAlignmentOptions.Center);
@@ -652,7 +653,7 @@ namespace GameSettingsUI
             AddOutline(cimg, UIColors.TabBorder, 1);
 
             // 인디케이터(노란 알약) — 먼저(뒤쪽)
-            tabIndicator = Panel(container, "Indicator", btnW, btnH, 16, UIColors.AccentYellow);
+            tabIndicator = Panel(container, "TabIndicator", btnW, btnH, 16, UIColors.AccentYellow);
             AnchorTL(tabIndicator, pad, 6, btnW, btnH);
 
             // 구분선 2개 — 버튼보다 먼저(뒤쪽). 호버로 커진 버튼이 구분선을 덮도록.
@@ -670,7 +671,7 @@ namespace GameSettingsUI
             // 닫기(X)
             var close = Panel(root, "Close", 56, 56, 28, UIColors.CloseBG);
             AnchorTR(close, CLOSE_MARGIN, CLOSE_MARGIN, 56, 56);   // 우측·상단 여백 동일
-            var closeIcon = IconChild(close, Icons.Close(), 20, 20, Color.white);
+            var closeIcon = IconChild(close, Icons.Close(), 20, 20, Color.white, "Icon_Close");
             AddBtn(close.gameObject, close.GetComponent<Image>(), UIColors.CloseBG, UIColors.CloseBGHover, UIColors.CloseBGActive, null,
                    RequestClose, SettingsAction.Close);
         }
@@ -694,9 +695,9 @@ namespace GameSettingsUI
             sr.viewport = viewport;
             bodyViewport = viewport;
 
-            displayPanel = MakePanel(viewport, out displayCG);
-            audioPanel = MakePanel(viewport, out audioCG);
-            controlsPanel = MakePanel(viewport, out controlsCG);
+            displayPanel = MakePanel(viewport, "DisplayPanel", out displayCG);
+            audioPanel = MakePanel(viewport, "AudioPanel", out audioCG);
+            controlsPanel = MakePanel(viewport, "ControlsPanel", out controlsCG);
             sr.content = displayPanel; // 활성 패널로 갱신됨
 
             BuildDisplay(displayPanel);
@@ -704,9 +705,9 @@ namespace GameSettingsUI
             BuildControls(controlsPanel);
         }
 
-        RectTransform MakePanel(RectTransform parent, out CanvasGroup cg)
+        RectTransform MakePanel(RectTransform parent, string name, out CanvasGroup cg)
         {
-            var p = NewRect("Panel", parent);
+            var p = NewRect(name, parent);
             p.anchorMin = new Vector2(0, 1); p.anchorMax = new Vector2(1, 1); p.pivot = new Vector2(0.5f, 1);
             p.offsetMin = new Vector2(SIDE, 0); p.offsetMax = new Vector2(-SIDE, 0);
             p.anchoredPosition = new Vector2(0, -20);
@@ -721,14 +722,14 @@ namespace GameSettingsUI
         {
             _y += 6;
             float h = 28;
-            var row = NewRect("Section", panel);
+            var row = NewRect($"Section_{label}", panel);
             AnchorTL(row, 0, _y, PanelW(), h);
             var t = Text(row, label, 23, FontWeight.Heavy, UIColors.SectionLabel, TextAlignmentOptions.Left);
             // 라벨 폭을 200px로 고정하면 짧은 라벨일수록 구분선이 멀리 밀린다(목업은 라벨 바로 뒤 26px).
             // 실제 렌더 폭을 재서 붙인다.
             float labelW = t.GetPreferredValues(label).x;
             AnchorTL(t.rectTransform, 0, 0, labelW, h);
-            var line = NewRect("Line", row);
+            var line = NewRect("SectionDivider", row);
             var li = line.gameObject.AddComponent<Image>(); li.color = UIColors.Divider;
             float lineX = labelW + 26;
             AnchorTL(line, lineX, (h - 1) / 2, PanelW() - lineX, 1);
@@ -737,12 +738,12 @@ namespace GameSettingsUI
 
         RectTransform SettingRow(RectTransform panel, string label, out RectTransform controlSlot, float bottomGap = 24f)
         {
-            var row = Panel(panel, "Row", PanelW(), 96, 18, RowColor());
+            var row = Panel(panel, $"Row_{label}", PanelW(), 96, 18, RowColor());
             rowBGs.Add(row.GetComponent<Image>());
             AnchorTL(row, 0, _y, PanelW(), 96);
             var t = Text(row, label, 25, FontWeight.SemiBold, UIColors.TextRow, TextAlignmentOptions.Left);
             AnchorLeftMiddle(t.rectTransform, 44, 700, 40);
-            controlSlot = NewRect("Ctrl", row);
+            controlSlot = NewRect("ControlSlot", row);
             controlSlot.anchorMin = new Vector2(1, 0.5f); controlSlot.anchorMax = new Vector2(1, 0.5f); controlSlot.pivot = new Vector2(1, 0.5f);
             controlSlot.anchoredPosition = new Vector2(-44, 0);
             _y += 96 + bottomGap;
@@ -844,12 +845,12 @@ namespace GameSettingsUI
 
         RectTransform FooterButton(RectTransform parent, string label, Sprite icon, Action onClick, SettingsAction action, float minW = 0)
         {
-            var b = Panel(parent, "FBtn", 0, FOOTER_BTN_H, FOOTER_BTN_H / 2f, UIColors.OffWhite);
+            var b = Panel(parent, $"Footer_{action}", 0, FOOTER_BTN_H, FOOTER_BTN_H / 2f, UIColors.OffWhite);
             var txt = Text(b, label, 21, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
             // 원형 아이콘
-            var circle = Panel(b, "Circle", 42, 42, 21, UIColors.CircleIconBG);
+            var circle = Panel(b, "IconCircle", 42, 42, 21, UIColors.CircleIconBG);
             AnchorRightMiddle(circle, 10, 42, 42);
-            IconChild(circle, icon, 20, 20, Color.white);
+            IconChild(circle, icon, 20, 20, Color.white, "Icon");
             // 텍스트: 왼쪽끝 ~ 아이콘 사이 중앙
             var tr = txt.rectTransform;
             tr.anchorMin = new Vector2(0, 0); tr.anchorMax = new Vector2(1, 1);
@@ -872,12 +873,12 @@ namespace GameSettingsUI
         {
             // 호버 배경은 인디케이터(노란 알약)와 같은 88x72 / radius 16 라운드 사각형이어야 한다.
             // NewRect + 민무늬 Image는 각진 사각형이 나오므로 Panel(9-slice 라운드 스프라이트)로 만든다.
-            var btn = Panel(parent, "Tab", 88, 72, 16, UIColors.Transparent(UIColors.TabHover));
+            var btn = Panel(parent, $"Tab_{action}", 88, 72, 16, UIColors.Transparent(UIColors.TabHover));
             // pivot을 정중앙으로. AnchorTL의 pivot(0,1)로 두면 hover scale이 우하단으로 커진다.
             btn.anchorMin = new Vector2(0, 1); btn.anchorMax = new Vector2(0, 1); btn.pivot = new Vector2(0.5f, 0.5f);
             btn.anchoredPosition = new Vector2(x + 88 / 2f, -(6 + 72 / 2f));
             var hit = btn.GetComponent<Image>();
-            var img = IconChild(btn, icon, 34, 34, UIColors.TabIconInactive);
+            var img = IconChild(btn, icon, 34, 34, UIColors.TabIconInactive, "Icon");
             var fx = btn.gameObject.AddComponent<Btn>();
             fx.action = action;
             // 시작색은 hover와 같은 RGB의 투명색 — 알파만 0→1로 페이드시켜 중간에 색이 뜨지 않게.
@@ -893,7 +894,7 @@ namespace GameSettingsUI
         {
             var options = SettingsBinding.Options(id);
 
-            var btn = Panel(slot, "DD", 460, 62, 31, UIColors.OffWhite);
+            var btn = Panel(slot, $"Dropdown_{id}", 460, 62, 31, UIColors.OffWhite);
             var dd = btn.gameObject.AddComponent<Dropdown>();
             dd.setting = id;
             btn.anchorMin = new Vector2(1, 0.5f); btn.anchorMax = new Vector2(1, 0.5f); btn.pivot = new Vector2(1, 0.5f);
@@ -903,7 +904,7 @@ namespace GameSettingsUI
             dd.viewport = bodyViewport;              // 펼침 방향(아래/위) 판단 기준
             dd.valueLabel = Text(btn, dd.Current, 23, FontWeight.SemiBold, UIColors.TextDark, TextAlignmentOptions.Left);
             AnchorLeftMiddle(dd.valueLabel.rectTransform, 30, 380, 40);
-            var chev = IconChild(btn, Icons.Chevron(), 22, 22, new Color(0.35f,0.35f,0.35f));
+            var chev = IconChild(btn, Icons.Chevron(), 22, 22, new Color(0.35f,0.35f,0.35f), "Icon_Chevron");
             var chevRT = (RectTransform)chev.transform;
             // 회전은 pivot 기준이라 AnchorRightMiddle의 pivot(1,0.5)로 두면 180° 돌 때
             // 아이콘이 축 반대편으로 넘어가 폭(22px)만큼 옆으로 튄다. pivot을 중앙으로 옮기고
@@ -936,7 +937,7 @@ namespace GameSettingsUI
                 // 맨 위/맨 아래에는 넣지 않는다.
                 if (!first)
                 {
-                    var sep = NewRect("OptLine", popup);
+                    var sep = NewRect("OptionDivider", popup);
                     AnchorTL(sep, 8, oy - 2.5f, optW, 1);
                     var si = sep.gameObject.AddComponent<Image>();
                     si.color = UIColors.OptDivider; si.raycastTarget = false;
@@ -944,7 +945,7 @@ namespace GameSettingsUI
                 first = false;
 
                 string cap = o;
-                var opt = Panel(popup, "Opt", optW, 54, 15, UIColors.Transparent(UIColors.OptHover));
+                var opt = Panel(popup, $"Option_{o}", optW, 54, 15, UIColors.Transparent(UIColors.OptHover));
                 AnchorTL(opt, 8, oy, 460 - 16, 54);
                 var ot = Text(opt, o, 22, FontWeight.SemiBold, UIColors.TextDark, TextAlignmentOptions.Left);
                 AnchorLeftMiddle(ot.rectTransform, 24, 400, 40);
@@ -977,10 +978,10 @@ namespace GameSettingsUI
         // ==================================================================
         void AddToggle(RectTransform slot)
         {
-            var track = Panel(slot, "Toggle", 460, 62, 31, UIColors.ToggleTrack);
+            var track = Panel(slot, "Toggle_DisplayMode", 460, 62, 31, UIColors.ToggleTrack);
             track.anchorMin = new Vector2(1, 0.5f); track.anchorMax = new Vector2(1, 0.5f); track.pivot = new Vector2(1, 0.5f);
             track.anchoredPosition = Vector2.zero;
-            var knob = Panel(track, "Knob", 226, 54, 27, UIColors.ToggleKnob);
+            var knob = Panel(track, "ToggleKnob", 226, 54, 27, UIColors.ToggleKnob);
             AnchorTL(knob, 4, 4, 226, 54);
             var full = Text(track, "전체 화면", 22, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
             AnchorTL(full.rectTransform, 0, 11, 230, 40);
@@ -998,7 +999,7 @@ namespace GameSettingsUI
         }
         void SegHit(RectTransform track, float x, TMP_Text label, Action onClick, SettingsAction action)
         {
-            var hit = NewRect("SegHit", track);
+            var hit = NewRect($"SegHit_{action}", track);
             AnchorTL(hit, x, 0, 230, 62);
             var img = hit.gameObject.AddComponent<Image>(); img.color = new Color(1, 1, 1, 0);
             var b = hit.gameObject.AddComponent<Btn>();
@@ -1013,7 +1014,7 @@ namespace GameSettingsUI
         void AddSlider(RectTransform slot, SettingId id,
                        bool hasMute, bool sensFmt, Sprite iconOn, Sprite iconOff)
         {
-            var group = NewRect("SliderGroup", slot);
+            var group = NewRect($"Slider_{id}", slot);
             group.anchorMin = new Vector2(1, 0.5f); group.anchorMax = new Vector2(1, 0.5f); group.pivot = new Vector2(1, 0.5f);
             SetSize(group, 660, 40); group.anchoredPosition = Vector2.zero;
 
@@ -1021,13 +1022,13 @@ namespace GameSettingsUI
             s.setting = id; s.hasMute = hasMute; s.sensFmt = sensFmt;
 
             // 아이콘/음소거 버튼 (좌)
-            var iconWrap = NewRect("Icon", group);
+            var iconWrap = NewRect("IconSlot", group);
             AnchorLeftMiddle(iconWrap, 0, 34, 34);
-            var on = IconChild(iconWrap, iconOn, 30, 30, UIColors.TextValue);
+            var on = IconChild(iconWrap, iconOn, 30, 30, UIColors.TextValue, "Icon_On");
             s.iconOn = on.gameObject;
             if (hasMute && iconOff != null)
             {
-                var off = IconChild(iconWrap, iconOff, 30, 30, Color.white);
+                var off = IconChild(iconWrap, iconOff, 30, 30, Color.white, "Icon_Muted");
                 s.iconOff = off.gameObject;
                 // 아이콘 Image는 raycastTarget=false, iconWrap엔 Graphic이 없어서 클릭이 아예 안 들어왔다.
                 // 투명 Image를 얹어 히트 영역을 만든다. (배경 하이라이트 없음 — 스펙 5.4)
@@ -1049,12 +1050,12 @@ namespace GameSettingsUI
             track.anchorMin = new Vector2(0, 0.5f); track.anchorMax = new Vector2(1, 0.5f); track.pivot = new Vector2(0.5f, 0.5f);
             track.offsetMin = new Vector2(34 + 24, -11); track.offsetMax = new Vector2(-(valW + 24), 11);
             var trackHit = track.gameObject.AddComponent<Image>(); trackHit.color = new Color(0,0,0,0);
-            var line = Panel(track, "Line", 10, 4, 2, UIColors.SliderTrack);
+            var line = Panel(track, "TrackLine", 10, 4, 2, UIColors.SliderTrack);
             line.anchorMin = new Vector2(0,0.5f); line.anchorMax = new Vector2(1,0.5f); line.pivot = new Vector2(0.5f,0.5f);
             line.offsetMin = new Vector2(0,-2); line.offsetMax = new Vector2(0,2);
-            var fill = Panel(track, "Fill", 10, 4, 2, new Color(0.94f,0.94f,0.94f,1));
+            var fill = Panel(track, "TrackFill", 10, 4, 2, new Color(0.94f,0.94f,0.94f,1));
             fill.anchorMin = new Vector2(0,0.5f); fill.anchorMax = new Vector2(0,0.5f); fill.pivot = new Vector2(0,0.5f);
-            var handle = Panel(track, "Handle", 17, 17, 9, Color.white);
+            var handle = Panel(track, "TrackHandle", 17, 17, 9, Color.white);
             handle.anchorMin = new Vector2(0,0.5f); handle.anchorMax = new Vector2(0,0.5f); handle.pivot = new Vector2(0.5f,0.5f);
             var hsh = handle.gameObject.AddComponent<Shadow>(); hsh.effectColor = new Color(0,0,0,0.5f); hsh.effectDistance = new Vector2(0,-1);
             s.track = track; s.fill = fill; s.handle = handle;
@@ -1070,7 +1071,7 @@ namespace GameSettingsUI
         // ==================================================================
         void AddKeyBind(RectTransform slot, int idx)
         {
-            var btn = Panel(slot, "Key", 210, 60, 30, UIColors.KeyBG);
+            var btn = Panel(slot, $"Key_{SettingsBinding.ActionLabel(idx)}", 210, 60, 30, UIColors.KeyBG);
             btn.anchorMin = new Vector2(1, 0.5f); btn.anchorMax = new Vector2(1, 0.5f); btn.pivot = new Vector2(1, 0.5f);
             btn.anchoredPosition = Vector2.zero;
             AddOutline(btn.GetComponent<Image>(), UIColors.KeyBorder, 1);
@@ -1175,8 +1176,9 @@ namespace GameSettingsUI
             ShowPanel(displayPanel, displayCG, t == SettingsTab.Display, instant);
             ShowPanel(audioPanel, audioCG, t == SettingsTab.Audio, instant);
             ShowPanel(controlsPanel, controlsCG, t == SettingsTab.Controls, instant);
-            var sr = displayPanel.parent.parent.GetComponent<ScrollRect>();
-            sr.content = t == SettingsTab.Display ? displayPanel : t == SettingsTab.Audio ? audioPanel : controlsPanel;
+            // parent.parent로 캐내면 계층이 한 단계만 바뀌어도 조용히 null이 된다.
+            var sr = displayPanel.GetComponentInParent<ScrollRect>();
+            if (sr) sr.content = t == SettingsTab.Display ? displayPanel : t == SettingsTab.Audio ? audioPanel : controlsPanel;
 
             controlsHint.SetActive(t == SettingsTab.Controls);
             if (listening >= 0) { keyRows[listening].SetListening(false); listening = -1; }
@@ -1284,24 +1286,44 @@ namespace GameSettingsUI
         }
         void Divider(RectTransform parent, float x, float h)
         {
-            var rt = NewRect("Div", parent);
+            var rt = NewRect("TabDivider", parent);
             AnchorTL(rt, x, (72 + 12 - h)/2, 1, h);
             var img = rt.gameObject.AddComponent<Image>(); img.color = UIColors.TabDivider;
         }
-        Image IconChild(RectTransform parent, Sprite sprite, float w, float h, Color color)
+        Image IconChild(RectTransform parent, Sprite sprite, float w, float h, Color color, string name = "Icon")
         {
-            var rt = NewRect("Icon", parent);
+            var rt = NewRect(name, parent);
             rt.anchorMin = new Vector2(0.5f,0.5f); rt.anchorMax = new Vector2(0.5f,0.5f); rt.pivot = new Vector2(0.5f,0.5f);
             rt.anchoredPosition = Vector2.zero; rt.sizeDelta = new Vector2(w,h);
             var img = rt.gameObject.AddComponent<Image>(); img.sprite = sprite; img.color = color; img.raycastTarget = false;
             img.preserveAspect = true;
             return img;
         }
+        // 계층에서 알아보기 쉽도록 텍스트 오브젝트 이름을 내용에서 만든다.
+        // 리치텍스트 태그(<size=26> 등)와 줄바꿈은 이름에 섞이면 읽기 어려우니 걷어낸다.
+        static string TextObjectName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "Text";
+            var sb = new System.Text.StringBuilder(s.Length);
+            bool inTag = false;
+            foreach (char c in s)
+            {
+                if (c == '<') { inTag = true; continue; }
+                if (c == '>') { inTag = false; continue; }
+                if (inTag) continue;
+                sb.Append(c == '\n' || c == '\r' ? ' ' : c);
+            }
+            string clean = sb.ToString().Trim();
+            if (clean.Length == 0) return "Text";
+            if (clean.Length > 16) clean = clean.Substring(0, 16).TrimEnd() + "…";
+            return "Text_" + clean;
+        }
+
         void AddOutline(Image img, Color c, float px) { var o = img.gameObject.AddComponent<UnityEngine.UI.Outline>(); o.effectColor = c; o.effectDistance = new Vector2(px, px); o.useGraphicAlpha = false; }
 
         TMP_Text Text(RectTransform parent, string s, float size, FontWeight weight, Color color, TextAlignmentOptions align)
         {
-            var go = new GameObject("Text", typeof(RectTransform));
+            var go = new GameObject(TextObjectName(s), typeof(RectTransform));
             var rt = (RectTransform)go.transform; rt.SetParent(parent, false);
             var t = go.AddComponent<TextMeshProUGUI>();
             if (koreanFont) t.font = koreanFont;

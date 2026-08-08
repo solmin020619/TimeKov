@@ -48,6 +48,9 @@ namespace GameSettingsUI
 
         public static bool Ready => GlobalSettingsManager.Instance != null;
 
+        /// 저장된 해상도가 선택지에 없으면 목록 안의 값으로 맞춘다(첫 표시 전 1회).
+        public static void NormalizeResolution() => M.NormalizeResolution();
+
         // 볼륨만 모델(0~1)과 화면 표시(0~100)의 단위가 다르다.
         const float VolumeDisplayScale = 100f;
 
