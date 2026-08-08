@@ -61,7 +61,10 @@ namespace GameSettingsUI.EditorTools
         /// 구워둔 에셋을 이름으로 찾아주는 리졸버. 씬 베이크 중에만 꽂는다.
         public static System.Func<string, Sprite> MakeResolver()
         {
-            var map = new Dictionary<string, Sprite>();
+            // 대소문자 무시. 윈도우는 파일을 덮어써도 원래 대소문자를 유지해서,
+            // 이름 규칙을 바꾼 뒤 다시 구우면 디스크에는 옛 표기(Icon_Gear)가 남는다.
+            // 대소문자를 구분하면 조회에 실패해 조용히 런타임 생성 스프라이트로 떨어진다.
+            var map = new Dictionary<string, Sprite>(System.StringComparer.OrdinalIgnoreCase);
             foreach (string guid in AssetDatabase.FindAssets("t:Sprite", new[] { OutDir }))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);

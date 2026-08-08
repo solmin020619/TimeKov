@@ -1,9 +1,12 @@
 // =====================================================================
 // GlobalSettingsManager.cs
-// 설정창 콘텐츠 관리 — 그래픽(해상도/전체화면/품질/그림자/텍스처), 오디오(마스터/BGM/SFX),
-// 조작(감도/키 리바인딩). 저장은 SettingsData(JSON, persistentDataPath/settings.json).
-// ESC / X 버튼 → GameUIController.CloseSettings() 로 닫힘
-// 게임 종료 버튼도 이 스크립트에서 처리
+// 설정값의 모델·엔진 계층 — 그래픽(해상도/전체화면/품질/그림자/텍스처),
+// 오디오(마스터/BGM/SFX), 조작(감도/키 리바인딩).
+// 저장은 SettingsData(JSON, persistentDataPath/settings.json).
+//
+// UI는 갖지 않는다. 화면은 GameSettingsUI(코드 생성 + 씬 베이크)가 담당하고,
+// 값 접근은 GameSettingsUI/SettingsBinding 한 곳을 통해 들어온다.
+// _pending(편집 중) → "설정 적용" → _data(커밋·저장·엔진 반영) 2단 구조는 그대로다.
 //
 // 다른 스크립트(InGameAudioManager 등)는 OnBGMVolumeChanged/OnSFXVolumeChanged/
 // OnSensitivityChanged/OnKeyBindingsChanged 이벤트와 CurrentBGMVolume/CurrentSFXVolume/
@@ -58,51 +61,6 @@ public class GlobalSettingsManager : MonoBehaviour
     public static float CurrentSensitivity  => _currentSensitivity;
     public static LanguageCode CurrentLanguage => Loc.CurrentLanguage;
 
-    [Serializable]
-    public class RebindSlot
-    {
-        public string  actionId;   // "Jump","Skill1","Skill2","Skill3","Interact","Instant","QuickSlot","Attack","Dash","Inventory","Stat","Codex"
-        public string  displayName; // "점프", "스킬 1" 등 — 리바인딩 모달에 표시용
-        public Button  button;
-        public TMP_Text keyLabel;
-    }
-
-    [Header("UI - 언어")]
-    public TMP_Dropdown languageDropdown;
-
-    [Header("UI - 그래픽")]
-    public TMP_Dropdown resolutionDropdown;
-    public Image         fullscreenOnBg;   // "전체 화면" 버튼 배경 (선택 시 노란색)
-    public Image         fullscreenOffBg;  // "창 모드" 버튼 배경 (선택 시 노란색)
-    public TMP_Text      fullscreenOnLabel;
-    public TMP_Text      fullscreenOffLabel;
-    public TMP_Dropdown qualityDropdown;
-    public TMP_Dropdown shadowQualityDropdown;
-    public TMP_Dropdown textureQualityDropdown;
-
-    [Header("UI - 오디오")]
-    public Slider masterSlider;
-    public Slider bgmSlider;
-    public Slider sfxSlider;
-
-    [Header("UI - 조작")]
-    public Slider sensitivitySlider;
-    public List<RebindSlot> rebindSlots = new();
-    public GameObject rebindModal;
-    public TMP_Text   rebindModalActionLabel;
-    public TMP_Text   rebindModalKeyDisplay;
-
-    [Header("UI - 공통")]
-    public GameObject applyWarningModal; // 적용 안 한 변경사항이 있을 때 닫기를 막고 띄우는 안내 팝업
-
-    [Header("UI - 탭 (순서: 0=그래픽 1=오디오 2=조작)")]
-    public Button[]     tabButtons;
-    public GameObject[] tabContents;
-    public GameObject[] tabHighlights;
-    public Image[]      tabIconImages; // 선택된 탭은 노란 하이라이트 위라 아이콘을 어둡게, 그 외엔 흰색
-
-    private static readonly Color TabIconSelected   = new Color(0.10f, 0.09f, 0.02f, 1f);
-    private static readonly Color TabIconUnselected = Color.white;
 
     [Header("Scene")]
     public string mainMenuSceneName = "MainMenu";
@@ -112,7 +70,6 @@ public class GlobalSettingsManager : MonoBehaviour
     private static readonly string[] TextureQualityLabels = { "매우 높음", "높음", "보통", "낮음" };
     private static readonly string[] LanguageLabels       = { "한국어", "영어", "중국어", "프랑스어" };
 
-    private List<Resolution> _resolutions = new();
 
     // _data = 마지막으로 "설정 적용"을 눌러 엔진에 반영 + 저장된 상태.
     // _pending = 지금 UI에서 편집 중인 임시값 — 슬라이더/드롭다운을 바꿔도 여기만 바뀌고,
@@ -120,10 +77,7 @@ public class GlobalSettingsManager : MonoBehaviour
     private SettingsData _data;
     private SettingsData _pending;
     private bool _isDirty;
-    private string _rebindingActionId;
-    private int _currentTab;
 
-    private static KeyCode[] _rebindCandidates;
 
     // GameUIController.settingsPanel은 이 컴포넌트가 붙은 루트(SettingsPanel)가 아니라
     // 자식 "Option"을 가리킨다(World 씬에서 실제로 켜고 끄는 대상) — SettingsPanel 자신은
@@ -146,12 +100,6 @@ public class GlobalSettingsManager : MonoBehaviour
         _pending = Clone(_data);
 
         ApplyToEngine(_data);
-        InitResolutionOptions();
-        InitQualityDropdowns();
-        InitLanguageDropdown();
-        SyncUIValues();
-        WireListeners();
-        ShowTab(0);
 
         // DataBoot를 거치지 않은 씬(MainMenu 직접 실행 등)에서도 번역 테이블을 로드한다.
         // DataBoot.IsLoaded == true이면 이미 로드됐으므로 건너뛴다.
@@ -168,89 +116,6 @@ public class GlobalSettingsManager : MonoBehaviour
     private static SettingsData Clone(SettingsData src) =>
         JsonUtility.FromJson<SettingsData>(JsonUtility.ToJson(src));
 
-    void Update()
-    {
-        if (_rebindingActionId == null) return;
-
-        if (Input.GetKeyDown(KeyCode.Escape)) { CancelRebind(); return; }
-
-        var candidates = GetRebindCandidates();
-        for (int i = 0; i < candidates.Length; i++)
-        {
-            if (Input.GetKeyDown(candidates[i]))
-            {
-                CompleteRebind(candidates[i]);
-                return;
-            }
-        }
-    }
-
-    private void WireListeners()
-    {
-        if (bgmSlider != null)          bgmSlider.onValueChanged.AddListener(SetBGMVolume);
-        if (sfxSlider != null)          sfxSlider.onValueChanged.AddListener(SetSFXVolume);
-        if (masterSlider != null)       masterSlider.onValueChanged.AddListener(SetMasterVolume);
-        if (sensitivitySlider != null)  sensitivitySlider.onValueChanged.AddListener(SetSensitivity);
-        if (languageDropdown != null)       languageDropdown.onValueChanged.AddListener(SetLanguageFromIndex);
-        if (resolutionDropdown != null) resolutionDropdown.onValueChanged.AddListener(SetResolution);
-        if (qualityDropdown != null)        qualityDropdown.onValueChanged.AddListener(SetQualityLevel);
-        if (shadowQualityDropdown != null)  shadowQualityDropdown.onValueChanged.AddListener(SetShadowQuality);
-        if (textureQualityDropdown != null) textureQualityDropdown.onValueChanged.AddListener(SetTextureQuality);
-
-        // 드랍다운 클릭음(열기) + 메뉴 항목 선택음
-        HookDropdownSfx(languageDropdown);
-        HookDropdownSfx(resolutionDropdown);
-        HookDropdownSfx(qualityDropdown);
-        HookDropdownSfx(shadowQualityDropdown);
-        HookDropdownSfx(textureQualityDropdown);
-
-        if (tabButtons != null)
-            for (int i = 0; i < tabButtons.Length; i++)
-            {
-                int idx = i;
-                if (tabButtons[i] != null) tabButtons[i].onClick.AddListener(() => { GameSfx.Play(SfxId.SettingsTabClick); ShowTab(idx); });   // 중앙 위 탭 위젯 클릭음(별도 사운드)
-            }
-
-        if (rebindSlots != null)
-            foreach (var slot in rebindSlots)
-            {
-                if (slot?.button == null) continue;
-                string id = slot.actionId;
-                slot.button.onClick.AddListener(() => BeginRebind(id));
-            }
-    }
-
-    // 드랍다운: 자체 클릭(열기) + 메뉴 항목 선택 시 클릭음. EventTrigger PointerClick은
-    // 드랍다운 본래 동작(열림)을 막지 않는다(이벤트 시스템이 같은 오브젝트의 핸들러를 모두 호출).
-    private static void HookDropdownSfx(TMP_Dropdown dd)
-    {
-        if (dd == null) return;
-        dd.onValueChanged.AddListener(_ => GameSfx.Play(SfxId.SettingsClick));   // 메뉴에서 항목 선택 시
-
-        var et = dd.gameObject.GetComponent<EventTrigger>();
-        if (et == null) et = dd.gameObject.AddComponent<EventTrigger>();
-        var entry = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
-        entry.callback.AddListener(_ => GameSfx.Play(SfxId.SettingsClick));   // 드랍다운 클릭(열기) 시
-        et.triggers.Add(entry);
-    }
-
-    // ── 탭 ───────────────────────────────────────────────────────────
-
-    public void ShowTab(int index)
-    {
-        _currentTab = index;
-        if (tabContents != null)
-            for (int i = 0; i < tabContents.Length; i++)
-                if (tabContents[i] != null) tabContents[i].SetActive(i == index);
-
-        if (tabHighlights != null)
-            for (int i = 0; i < tabHighlights.Length; i++)
-                if (tabHighlights[i] != null) tabHighlights[i].SetActive(i == index);
-
-        if (tabIconImages != null)
-            for (int i = 0; i < tabIconImages.Length; i++)
-                if (tabIconImages[i] != null) tabIconImages[i].color = (i == index) ? TabIconSelected : TabIconUnselected;
-    }
 
     // ── 설정창 열기 / 닫기 ───────────────────────────────────────────
 
@@ -273,18 +138,18 @@ public class GlobalSettingsManager : MonoBehaviour
     {
         _pending = Clone(_data);
         _isDirty = false;
-        HideApplyWarning();
-        SyncUIValues();
+
+
     }
 
     // 적용되지 않은 변경사항이 있으면 닫기를 거부하고 안내 메세지를 띄운다.
     // GameUIController가 X 버튼(CloseSettings)과 ESC(HandleEscape) 양쪽에서 호출.
     public bool RequestClose()
     {
-        if (_rebindingActionId != null) CancelRebind();
+
         if (_isDirty)
         {
-            ShowApplyWarning();
+
             return false;
         }
         return true;
@@ -300,46 +165,6 @@ public class GlobalSettingsManager : MonoBehaviour
         if (VisualRoot != null) VisualRoot.SetActive(false);
     }
 
-    private void ShowApplyWarning()
-    {
-        if (applyWarningModal != null) applyWarningModal.SetActive(true);
-    }
-
-    private void HideApplyWarning()
-    {
-        if (applyWarningModal != null) applyWarningModal.SetActive(false);
-    }
-
-    // 경고 팝업의 "예" 버튼 — 변경사항을 적용(저장)하고 닫는다.
-    public void ConfirmSaveAndClose()
-    {
-        ApplySettings(); // _isDirty를 false로 만들고 경고창도 숨김
-        CloseSettings();
-    }
-
-    // 경고 팝업의 "아니오" 버튼 — 변경사항을 버리고(되돌리고) 닫는다.
-    public void DiscardChangesAndClose()
-    {
-        _pending = Clone(_data);
-        _isDirty = false;
-        HideApplyWarning();
-        // _pending은 되돌렸지만 슬라이더/드롭다운 자체는 사용자가 만지던 값을 그대로 들고 있어서
-        // SyncUIValues() 없이는 패널을 다시 열었을 때(특히 GlobalSettingsManager.OpenSettings()를
-        // 거치지 않는 경로로 재오픈될 때) 화면에 바꾼 값이 계속 남아있는 것처럼 보였다.
-        SyncUIValues();
-        CloseSettings();
-    }
-
-    public void ToggleSettings()
-    {
-        var ui = GameUIController.Instance;
-        if (ui == null) return;
-
-        if (ui.GetCurrentState() == GameUIController.UIState.Settings)
-            CloseSettings();
-        else
-            OpenSettings();
-    }
 
     // ── 게임 종료 (메인 메뉴로) ──────────────────────────────────────
 
@@ -360,7 +185,7 @@ public class GlobalSettingsManager : MonoBehaviour
         _data.Save();
         ApplyToEngine(_data);
         _isDirty = false;
-        HideApplyWarning();
+
     }
 
     private void ApplyToEngine(SettingsData data)
@@ -402,43 +227,6 @@ public class GlobalSettingsManager : MonoBehaviour
         _isDirty = true;
     }
 
-    private void SetLanguageFromIndex(int index) => SetLanguage((LanguageCode)index);
-
-    private void SyncUIValues()
-    {
-        if (bgmSlider != null)         bgmSlider.SetValueWithoutNotify(_pending.bgmVolume);
-        if (sfxSlider != null)         sfxSlider.SetValueWithoutNotify(_pending.sfxVolume);
-        if (masterSlider != null)      masterSlider.SetValueWithoutNotify(_pending.masterVolume);
-        if (sensitivitySlider != null) sensitivitySlider.SetValueWithoutNotify(_pending.sensitivity);
-        UpdateFullscreenButtonVisual(_pending.fullscreen);
-
-        if (languageDropdown != null)
-        {
-            int langIdx = (int)Loc.FromCode(_pending.language);
-            languageDropdown.SetValueWithoutNotify(langIdx);
-            languageDropdown.RefreshShownValue();
-        }
-
-        if (qualityDropdown != null)
-        {
-            qualityDropdown.SetValueWithoutNotify(_pending.qualityLevel);
-            qualityDropdown.RefreshShownValue();
-        }
-        if (shadowQualityDropdown != null)
-        {
-            shadowQualityDropdown.SetValueWithoutNotify(_pending.shadowQualityLevel);
-            shadowQualityDropdown.RefreshShownValue();
-        }
-        if (textureQualityDropdown != null)
-        {
-            textureQualityDropdown.SetValueWithoutNotify(_pending.textureQualityLevel);
-            textureQualityDropdown.RefreshShownValue();
-        }
-
-        if (rebindSlots != null)
-            foreach (var slot in rebindSlots)
-                RestoreLabel(slot?.actionId);
-    }
 
     // ── 그래픽 ───────────────────────────────────────────────────────
 
@@ -447,24 +235,9 @@ public class GlobalSettingsManager : MonoBehaviour
         GameSfx.Play(SfxId.SettingsClick);   // 전체화면/창모드 전환음
         _pending.fullscreen = isFullscreen;
         _isDirty = true;
-        UpdateFullscreenButtonVisual(isFullscreen);
+
     }
 
-    public void SetFullscreenOn()  => SetFullscreen(true);
-    public void SetFullscreenOff() => SetFullscreen(false);
-
-    private static readonly Color SegmentSelectedColor    = new Color(1f, 1f, 1f, 1f);            // 화이트 액센트
-    private static readonly Color SegmentUnselectedColor  = new Color(0.165f, 0.158f, 0.125f, 0.95f); // 다크 올리브 (SettingsPanelRebuilder.ControlBg와 동일하게)
-    private static readonly Color SegmentSelectedText     = new Color(0.10f, 0.08f, 0.02f, 1f);  // 흰 배경 위 어두운 텍스트
-    private static readonly Color SegmentUnselectedText   = new Color(0.60f, 0.63f, 0.67f, 1f);  // 다크 배경 위 밝은 회색 텍스트
-
-    private void UpdateFullscreenButtonVisual(bool isFullscreen)
-    {
-        if (fullscreenOnBg != null)  fullscreenOnBg.color  = isFullscreen ? SegmentSelectedColor : SegmentUnselectedColor;
-        if (fullscreenOffBg != null) fullscreenOffBg.color = isFullscreen ? SegmentUnselectedColor : SegmentSelectedColor;
-        if (fullscreenOnLabel != null)  fullscreenOnLabel.color  = isFullscreen ? SegmentSelectedText : SegmentUnselectedText;
-        if (fullscreenOffLabel != null) fullscreenOffLabel.color = isFullscreen ? SegmentUnselectedText : SegmentSelectedText;
-    }
 
     // 설정 전체(오디오/조작/그래픽/키바인딩)를 기본값으로 초기화 ("설정 초기화" 버튼) — 폼만
     // 기본값으로 되돌리고, 실제 엔진 반영/저장은 다른 항목들처럼 "설정 적용"을 눌러야 이루어진다.
@@ -475,27 +248,9 @@ public class GlobalSettingsManager : MonoBehaviour
         defaults.qualityLevel = Mathf.Clamp(1, 0, QualitySettings.names.Length - 1);
         _pending = defaults;
         _isDirty = true;
-
-        var res = new Resolution { width = _pending.resolutionWidth, height = _pending.resolutionHeight };
-        int idx = _resolutions.FindIndex(r => r.width == res.width && r.height == res.height);
-        if (idx < 0) idx = 0;
-        if (resolutionDropdown != null)
-        {
-            resolutionDropdown.SetValueWithoutNotify(idx);
-            resolutionDropdown.RefreshShownValue();
-        }
-
-        SyncUIValues();
+        // 표시 갱신은 UI 쪽 책임 — 새 설정 UI가 이 호출 뒤 RefreshAll()로 다시 읽어간다.
     }
 
-    public void SetResolution(int index)
-    {
-        if (index < 0 || index >= _resolutions.Count) return;
-        Resolution res = _resolutions[index];
-        _pending.resolutionWidth  = res.width;
-        _pending.resolutionHeight = res.height;
-        _isDirty = true;
-    }
 
     public void SetQualityLevel(int index)
     {
@@ -556,70 +311,7 @@ public class GlobalSettingsManager : MonoBehaviour
         (2560, 1440),
     };
 
-    private void InitResolutionOptions()
-    {
-        if (resolutionDropdown == null) return;
 
-        _resolutions.Clear();
-        resolutionDropdown.ClearOptions();
-
-        var options = new List<string>();
-        int currentIndex = 0;
-        bool matched = false;
-
-        foreach (var (width, height) in FixedResolutions)
-        {
-            options.Add($"{width} x {height}");
-            _resolutions.Add(new Resolution { width = width, height = height });
-            if (width == _data.resolutionWidth && height == _data.resolutionHeight)
-            {
-                currentIndex = _resolutions.Count - 1;
-                matched = true;
-            }
-        }
-
-        // 저장된 해상도가 지금 모니터의 지원 목록에 없으면(모니터 교체 등) 드롭다운은 인덱스 0을
-        // 보여주는데 _data/_pending은 옛 값을 그대로 들고 있어 화면에 보이는 값과 실제 적용/저장될
-        // 값이 어긋났다 — 표시되는 해상도로 _data/_pending도 같이 맞춰준다.
-        if (!matched && _resolutions.Count > 0)
-        {
-            var fallback = _resolutions[currentIndex];
-            _data.resolutionWidth  = fallback.width;
-            _data.resolutionHeight = fallback.height;
-            _pending.resolutionWidth  = fallback.width;
-            _pending.resolutionHeight = fallback.height;
-        }
-
-        resolutionDropdown.AddOptions(options);
-        resolutionDropdown.SetValueWithoutNotify(currentIndex);
-        resolutionDropdown.RefreshShownValue();
-    }
-
-    private void InitLanguageDropdown()
-    {
-        if (languageDropdown == null) return;
-        languageDropdown.ClearOptions();
-        languageDropdown.AddOptions(new System.Collections.Generic.List<string>(LanguageLabels));
-    }
-
-    private void InitQualityDropdowns()
-    {
-        if (qualityDropdown != null)
-        {
-            qualityDropdown.ClearOptions();
-            qualityDropdown.AddOptions(new List<string>(QualityLabels));
-        }
-        if (shadowQualityDropdown != null)
-        {
-            shadowQualityDropdown.ClearOptions();
-            shadowQualityDropdown.AddOptions(new List<string>(ShadowQualityLabels));
-        }
-        if (textureQualityDropdown != null)
-        {
-            textureQualityDropdown.ClearOptions();
-            textureQualityDropdown.AddOptions(new List<string>(TextureQualityLabels));
-        }
-    }
 
     // ── 오디오 ───────────────────────────────────────────────────────
 
@@ -651,109 +343,6 @@ public class GlobalSettingsManager : MonoBehaviour
 
     // ── 키 리바인딩 ───────────────────────────────────────────────────
 
-    public void BeginRebind(string actionId)
-    {
-        if (_rebindingActionId != null) return; // 이미 다른 키 리바인딩 중
-        _rebindingActionId = actionId;
-        var slot = FindSlot(actionId);
-        if (slot?.keyLabel != null) slot.keyLabel.text = Loc.Get("키 입력...");
-        ShowRebindModal(slot?.displayName ?? actionId);
-    }
-
-    private void CancelRebind()
-    {
-        RestoreLabel(_rebindingActionId);
-        _rebindingActionId = null;
-        HideRebindModal();
-    }
-
-    // 키 캡처 중 ESC는 캡처만 취소해야 한다 — GameUIController.HandleEscape()가 패널을 닫기
-    // 전에 호출해서 처리 여부를 반환받는다. 같은 ESC 입력에 대해 이 Update()의 자체 캡처-취소
-    // 검사보다 먼저 실행되어도/나중에 실행되어도(스크립트 실행 순서 무관) 항상 캡처만 취소되고
-    // 패널은 닫히지 않도록, "캡처 중이었는지"를 그 자리에서 확정해서 호출자에게 알려준다.
-    public bool CancelRebindIfActive()
-    {
-        if (_rebindingActionId == null) return false;
-        CancelRebind();
-        return true;
-    }
-
-    // 정적 KeyBindings(현재 적용 중인 값)가 아니라 _pending.keyBindings(아직 적용 안 한 폼 값) 기준으로
-    // 충돌을 검사한다 — 같은 세션에서 먼저 바꾼 키(아직 미적용)와 충돌하는 것도 잡아야 하기 때문.
-    private bool IsPendingConflict(KeyCode code, string excludeAction, out string conflictAction)
-    {
-        conflictAction = null;
-        if (rebindSlots == null) return false;
-        foreach (var slot in rebindSlots)
-        {
-            if (slot == null || slot.actionId == excludeAction) continue;
-            if (GetKeyForAction(slot.actionId) == code) { conflictAction = slot.displayName; return true; }
-        }
-        return false;
-    }
-
-    // 리바인딩 가능한 12개 액션 외에, 게임 전역에서 상태와 무관하게 항상 활성화된 하드코딩 키.
-    // (건설모드/디버그용 키(E/R/B/X/Alpha1-9/F7~F11 등)는 해당 모드에서만 켜져서 일반 액션과
-    //  동시에 쓰이지 않으므로 제외 — 항상 켜져 있는 키만 여기 등록한다.)
-    private static readonly (KeyCode code, string label)[] ReservedGlobalKeys =
-    {
-        // J(퀘스트 팝업)는 잔재로 제거됨(GameUIController) - 더 이상 예약 키 없음.
-    };
-
-    private bool IsReservedKeyConflict(KeyCode code, out string conflictAction)
-    {
-        foreach (var (reservedCode, label) in ReservedGlobalKeys)
-        {
-            if (reservedCode == code) { conflictAction = label; return true; }
-        }
-        conflictAction = null;
-        return false;
-    }
-
-    private void CompleteRebind(KeyCode code)
-    {
-        if (IsPendingConflict(code, _rebindingActionId, out string conflictAction)
-            || IsReservedKeyConflict(code, out conflictAction))
-        {
-            Debug.LogWarning($"[Settings] '{code}' 키는 이미 '{conflictAction}'에 사용 중입니다.");
-            RestoreLabel(_rebindingActionId);
-            _rebindingActionId = null;
-            HideRebindModal();
-            return;
-        }
-
-        SetKeyForAction(_rebindingActionId, code);
-        RestoreLabel(_rebindingActionId);
-        _rebindingActionId = null;
-        HideRebindModal();
-    }
-
-    private void ShowRebindModal(string actionDisplayName)
-    {
-        if (rebindModal != null) rebindModal.SetActive(true);
-        if (rebindModalActionLabel != null) rebindModalActionLabel.text = actionDisplayName;
-        if (rebindModalKeyDisplay != null) rebindModalKeyDisplay.text = "";
-    }
-
-    private void HideRebindModal()
-    {
-        if (rebindModal != null) rebindModal.SetActive(false);
-    }
-
-    private void RestoreLabel(string actionId)
-    {
-        if (string.IsNullOrEmpty(actionId)) return;
-        var slot = FindSlot(actionId);
-        if (slot?.keyLabel != null) slot.keyLabel.text = GetKeyForAction(actionId).ToString();
-    }
-
-    private RebindSlot FindSlot(string actionId)
-    {
-        if (rebindSlots == null || string.IsNullOrEmpty(actionId)) return null;
-        foreach (var s in rebindSlots)
-            if (s != null && s.actionId == actionId) return s;
-        return null;
-    }
 
     // _pending.keyBindings(폼에서 편집 중인 값) 기준 — "설정 적용"을 눌러야 KeyBindings(static)에 반영된다.
     private KeyCode GetKeyForAction(string actionId) => actionId switch
@@ -828,6 +417,24 @@ public class GlobalSettingsManager : MonoBehaviour
 
     /// 캡처한 키를 충돌 검사 후 _pending에 커밋한다. 충돌이면 false + 충돌 상대 이름.
     /// rebindSlots(구 UI의 인스펙터 목록)에 의존하지 않도록 RebindActions로 검사한다.
+    // 리바인딩 가능한 12개 액션 외에, 게임 전역에서 상태와 무관하게 항상 활성화된 하드코딩 키.
+    // (건설모드/디버그용 키(E/R/B/X/Alpha1-9/F7~F11 등)는 해당 모드에서만 켜져서 일반 액션과
+    //  동시에 쓰이지 않으므로 제외 — 항상 켜져 있는 키만 여기 등록한다.)
+    private static readonly (KeyCode code, string label)[] ReservedGlobalKeys =
+    {
+        // J(퀘스트 팝업)는 잔재로 제거됨(GameUIController) - 더 이상 예약 키 없음.
+    };
+
+    private bool IsReservedKeyConflict(KeyCode code, out string conflictAction)
+    {
+        foreach (var (reservedCode, label) in ReservedGlobalKeys)
+        {
+            if (reservedCode == code) { conflictAction = label; return true; }
+        }
+        conflictAction = null;
+        return false;
+    }
+
     public bool TryRebind(string actionId, KeyCode code, out string conflictAction)
     {
         EnsureLoaded();
@@ -839,8 +446,7 @@ public class GlobalSettingsManager : MonoBehaviour
         return true;
     }
 
-    /// 해상도를 인덱스가 아니라 값으로 지정. _resolutions는 resolutionDropdown이 있어야
-    /// 채워지므로, 드롭다운을 쓰지 않는 새 UI에서는 이 오버로드를 쓴다.
+    /// 해상도를 값으로 지정. 선택지는 FixedResolutions(= ResolutionOptions)에서 고른다.
     public void SetResolution(int width, int height)
     {
         EnsureLoaded();
@@ -858,20 +464,4 @@ public class GlobalSettingsManager : MonoBehaviour
     // 키보드 키 + 마우스 좌/우/휠클릭만 후보로 사용 (조이스틱·기타 마우스 버튼 제외)
     // 기본 공격/대시가 마우스 좌/우클릭이라 리바인딩 후보에 Mouse0~2를 포함해야
     // 사용자가 키보드로 옮긴 뒤 다시 마우스로 되돌릴 수 있다.
-    private static KeyCode[] GetRebindCandidates()
-    {
-        if (_rebindCandidates != null) return _rebindCandidates;
-
-        var list = new List<KeyCode>();
-        foreach (KeyCode kc in Enum.GetValues(typeof(KeyCode)))
-        {
-            if (kc == KeyCode.None) continue;
-            string n = kc.ToString();
-            if (n.StartsWith("Joystick")) continue;
-            if (n.StartsWith("Mouse") && kc != KeyCode.Mouse0 && kc != KeyCode.Mouse1 && kc != KeyCode.Mouse2) continue;
-            list.Add(kc);
-        }
-        _rebindCandidates = list.ToArray();
-        return _rebindCandidates;
-    }
 }

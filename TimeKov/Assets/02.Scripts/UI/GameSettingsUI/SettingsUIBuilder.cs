@@ -270,6 +270,9 @@ namespace GameSettingsUI
         /// 현재 열려 있는 설정 패널. ESC 경로(GameUIController)가 이 패널의 경고창을 쓰도록 알려준다.
         public static SettingsUIBuilder Active { get; private set; }
 
+        /// 키 리바인딩 입력을 기다리는 중인가. ESC를 설정창 닫기로 흘리지 않기 위해 외부에서 확인한다.
+        public bool IsListeningKey => listening >= 0;
+
         /// ESC로 닫으려 할 때 호출. 닫아도 되면 true, 경고창을 띄워 막았으면 false.
         public bool TryCloseFromEscape()
         {

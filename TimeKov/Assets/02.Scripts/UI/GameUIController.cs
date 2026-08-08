@@ -179,11 +179,11 @@ public class GameUIController : MonoBehaviour
 
     public void HandleEscape()
     {
-        // 키 리바인딩 캡처 중이면 ESC는 그 캡처만 취소해야 한다. GlobalSettingsManager.Update()도
-        // 똑같은 ESC 입력을 보고 자체적으로 캡처를 취소하는데, 그걸 믿고 그냥 넘어가면 스크립트
-        // 실행 순서에 따라 같은 프레임에 "캡처 취소" 직후 _isDirty=false로 통과해버려 아래 로직이
-        // 설정창 전체까지 닫아버리는 버그가 생긴다 — 여기서 직접 취소시키고 그 즉시 리턴해서 차단.
-        if (GlobalSettingsManager.Instance != null && GlobalSettingsManager.Instance.CancelRebindIfActive())
+        // 키 리바인딩 캡처 중이면 ESC는 그 캡처만 취소해야 한다.
+        // 캡처는 새 설정 UI(SettingsUIBuilder.Update)가 직접 처리하므로, 여기서는
+        // 캡처 중이었는지만 물어보고 그 즉시 리턴해 설정창까지 닫히는 것을 막는다.
+        var settingsPanelUI = GameSettingsUI.SettingsUIBuilder.Active;
+        if (settingsPanelUI != null && settingsPanelUI.IsListeningKey)
             return;
 
         // 우클릭 컨텍스트 메뉴가 떠 있으면 ESC 1번은 그 메뉴부터 닫는다 (공장/인벤 어디서든).
