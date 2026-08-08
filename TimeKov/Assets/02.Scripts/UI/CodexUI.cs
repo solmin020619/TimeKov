@@ -950,11 +950,13 @@ public class CodexUI : MonoBehaviour
         Txt(Make("ml", media, new Vector2(0f, 1f), new Vector2(0.5f, 1f), new Vector2(14f, -30f), new Vector2(0f, -10f)), "MEDIA - " + Loc.Get("영상"), 12f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.4f), TextAlignmentOptions.Left);
 
         // 제목/설명도 영상과 같은 좌우 폭으로(센터 컬럼처럼 정렬). 본문은 기존 튜토 텍스트 복붙(강조색만 라이트용 치환).
+        //   ★번역을 먼저 걸고 강조색을 치환한다. 번역문도 원문과 같은 #FFCC00 태그를 들고 오기 때문.
+        //   (좌측 목록은 Loc.Get 을 타는데 이 상세만 원문을 그대로 써서 한국어로 남던 QA 건)
         var title = Make("T", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(90f, 116f), new Vector2(-90f, 156f));
-        Txt(title, page != null ? page.title : selName, 26f, FontStyles.Bold, TxtMain, TextAlignmentOptions.TopLeft);
+        Txt(title, page != null ? Loc.Get(page.title) : selName, 26f, FontStyles.Bold, TxtMain, TextAlignmentOptions.TopLeft);
         var desc = Make("D", body, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(90f, 24f), new Vector2(-90f, 110f));
         string descText = (page != null && !string.IsNullOrEmpty(page.body))
-            ? AdaptEmphasis(page.body)
+            ? AdaptEmphasis(Loc.Get(page.body))
             : Loc.Get("이 항목의 가이드 설명이 여기에 들어갑니다. 핵심은 시간 자원 관리이며, 단계별 안내와 이미지, 주의사항이 본문에 배치됩니다.");
         Txt(desc, descText, 16f, FontStyles.Normal, TxtSub, TextAlignmentOptions.TopLeft).textWrappingMode = TextWrappingModes.Normal;
     }

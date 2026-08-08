@@ -123,6 +123,13 @@ public class TutorialVideoUI : MonoBehaviour
         _i = this;
         _warnedMissing = false;   // 실물이 등록됐으니 '없음' 판정 해제(씬 재입장 대비)
         SetupVideo();
+        // ★씬에 구운 고정 문구(하단 안내줄/확인 버튼/플레이스홀더)는 코드가 다시 쓰지 않아서
+        //   시트에 키가 있어도 영원히 한국어로 남는다(씬에 박힌 TMP 유형). 제목/본문은 RenderPage 가
+        //   Loc.Get 으로 매번 쓰지만 이 셋은 아무도 안 만진다. LocalizedLabel 을 붙여 스스로 갱신하게 한다.
+        //   키 = 씬에 박힌 한글 원문 그대로(시트 키와 동일 문자열).
+        LocalizeBakedTexts(hintRow);
+        LocalizeBakedTexts(confirmBar);
+        LocalizeBakedTexts(placeholder);
         SetVisible(false);
     }
 
@@ -301,6 +308,18 @@ public class TutorialVideoUI : MonoBehaviour
         _onClosed = null;
         HideInternal(true);   // 화면은 페이드 아웃, 게임플레이는 즉시 재개(완료 콜백 지연 없음)
         cb?.Invoke();
+    }
+
+    // 씬에 구운 한글 TMP 전부에 LocalizedLabel 부착(있으면 통과). 숫자 라벨(pageCount)은 대상 밖.
+    private static void LocalizeBakedTexts(GameObject root)
+    {
+        if (root == null) return;
+        foreach (var t in root.GetComponentsInChildren<TMP_Text>(true))
+        {
+            if (t == null || t.GetComponent<LocalizedLabel>() != null) continue;
+            if (string.IsNullOrWhiteSpace(t.text)) continue;
+            t.gameObject.AddComponent<LocalizedLabel>().SetKey(t.text);
+        }
     }
 
     private VideoClip CurrentClip()

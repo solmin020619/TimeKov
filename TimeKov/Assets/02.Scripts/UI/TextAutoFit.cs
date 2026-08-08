@@ -61,6 +61,13 @@ public class TextAutoFit : MonoBehaviour
     private static readonly List<TMP_Text> _work = new();
     private static readonly HashSet<int> _overlapReported = new();  // 겹침 로그 중복 방지
 
+    // ★줄였을 당시의 (상자 크기, 글자) 기록. 조건이 그대로면 복구를 시도조차 안 한다.
+    //   복구 판정은 '원래 크기로 폈을 때'를 비례로 어림하는데, 줄바꿈 글자는 크게 하면
+    //   줄 수가 늘어서 이 어림이 낙관적으로 틀린다. 그 결과 줄임<->복구가 매 프레임
+    //   반복되며 글자가 위아래로 떨렸다(도감 아이템 이름에서 실제 발생). 상자나 글자가
+    //   바뀌었을 때만 다시 시도하면 최악에도 한 번 출렁이고 멈춘다.
+    private static readonly Dictionary<int, (Vector2 size, int text)> _shrunkAt = new();
+
     // 넘침 판정 여유. 반올림 오차로 매 프레임 껐다 켜지는 걸 막는다.
     private const float Slack = 0.5f;
     // 되돌릴 때는 더 넉넉히 본다. 줄임<->되돌림이 매 프레임 번갈아 도는 걸 막는 이력(hysteresis).
@@ -110,6 +117,16 @@ public class TextAutoFit : MonoBehaviour
         Rect r = rt.rect;
         if (r.width <= 1f || r.height <= 1f) return;   // 아직 레이아웃 안 잡힘
 
+        // ★글자 하나도 못 담는 상자는 '일부러 넘치게' 만든 디자인이다.
+        //   키캡(B/Q/E)이 대표 - 글자 상자를 10x10 으로 두고 Overflow 로 그리게 돼 있다.
+        //   이런 걸 줄이고 말줄임까지 걸면 글자가 통째로 사라진다(HUD B 키 증발 사고).
+        //   넘침을 보는 축과 같은 축으로만 잰다: 한줄(NoWrap)은 가로, 줄바꿈은 세로(한 줄 높이).
+        float authored = tmp.enableAutoSizing ? tmp.fontSizeMax : tmp.fontSize;
+        bool tinyBox = tmp.textWrappingMode == TextWrappingModes.NoWrap
+            ? r.width  < authored
+            : r.height < authored;
+        if (tinyBox) return;
+
         if (LogOverlaps) ReportOverlap(tmp, rt);
 
         bool over = Overflow(tmp, r, Slack);
@@ -128,6 +145,7 @@ public class TextAutoFit : MonoBehaviour
             tmp.fontSizeMax = baseSize;
             tmp.fontSizeMin = Mathf.Max(1f, baseSize * MinScale);
             tmp.enableAutoSizing = true;
+            _shrunkAt[tmp.GetInstanceID()] = (new Vector2(r.width, r.height), TextHash(tmp));
             if (LogAdjustments)
                 Debug.Log($"[TextAutoFit] 축소 '{Trim(tmp.text)}' ({Path(tmp)}) {baseSize:0.#} -> 최소 {tmp.fontSizeMin:0.#}");
             return;   // 다시 그려진 뒤 다음 패스에서 결과를 확인한다
@@ -150,21 +168,35 @@ public class TextAutoFit : MonoBehaviour
         if (!tmp.enableAutoSizing) return;
         if (tmp.fontSizeMax <= 0f) return;
 
+        // ★줄였을 때와 상자/글자가 그대로면 시도하지 않는다(클래스 상단 _shrunkAt 주석 참고).
+        int id = tmp.GetInstanceID();
+        int hash = TextHash(tmp);
+        var now = new Vector2(r.width, r.height);
+        if (_shrunkAt.TryGetValue(id, out var at) && at.size == now && at.text == hash) return;
+
         // 지금은 줄어든 크기로 재고 있다. 원래 크기로 폈을 때의 폭/높이를 비례로 환산해 본다.
         float cur = Mathf.Max(0.01f, tmp.fontSize);
         float scale = tmp.fontSizeMax / cur;
         bool wouldFit = tmp.textWrappingMode == TextWrappingModes.NoWrap
             ? tmp.preferredWidth  * scale <= r.width  - RestoreSlack
             : tmp.preferredHeight * scale <= r.height - RestoreSlack;
-        if (!wouldFit) return;
+        if (!wouldFit)
+        {
+            _shrunkAt[id] = (now, hash);   // 조건은 바뀌었는데 여전히 안 들어감 - 새 조건을 기록해 재시도 차단
+            return;
+        }
 
         float back = tmp.fontSizeMax;
         tmp.enableAutoSizing = false;
         tmp.fontSize = back;
         if (tmp.overflowMode == TextOverflowModes.Ellipsis) tmp.overflowMode = TextOverflowModes.Overflow;
+        _shrunkAt.Remove(id);
         if (LogAdjustments)
             Debug.Log($"[TextAutoFit] 원래 크기로 복구 '{Trim(tmp.text)}' ({Path(tmp)}) -> {back:0.#}");
     }
+
+    private static int TextHash(TMP_Text tmp)
+        => string.IsNullOrEmpty(tmp.text) ? 0 : tmp.text.GetHashCode();
 
     // 넘쳤는가. 줄바꿈 여부에 따라 봐야 할 축이 다르다.
     //   NoWrap  : 무조건 한 줄이므로 가로만 본다(preferredWidth = 한 줄로 폈을 때 폭).
@@ -197,6 +229,18 @@ public class TextAutoFit : MonoBehaviour
                 ? csf.horizontalFit != ContentSizeFitter.FitMode.Unconstrained
                 : csf.verticalFit   != ContentSizeFitter.FitMode.Unconstrained;
             if (grows) return true;
+        }
+
+        // ★부모 LayoutGroup 이 글자 상자 크기를 직접 정하는 경우도 같은 이유로 제외.
+        //   레이아웃이 preferredWidth 를 보고 상자를 다시 늘려주는데, 그 재계산과 우리의
+        //   측정이 서로 쫓아가며 어긋난다(영상 팝업 하단 안내줄에서 실제 발생).
+        var lg = rt.parent != null ? rt.parent.GetComponent<LayoutGroup>() : null;
+        if (lg != null && lg.enabled && lg is HorizontalOrVerticalLayoutGroup hv)
+        {
+            bool driven = tmp.textWrappingMode == TextWrappingModes.NoWrap
+                ? hv.childControlWidth
+                : hv.childControlHeight;
+            if (driven) return true;
         }
         return false;
     }

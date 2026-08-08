@@ -101,6 +101,7 @@ public class TutorialOverlay : MonoBehaviour
     private string _spotlightId;
     private Action _onContinue;
     private KeyCode _advanceKey;
+    private string _bannerRaw;   // 배너 원문 보관 - 언어(번역 테이블) 갱신 시 다시 그리는 용
     private bool _active;
     private bool _suppressed;   // 설정창(ESC 일시정지)이 위에 떠서 잠시 숨김 - 닫히면 복귀
     private float _shownTime;
@@ -123,10 +124,32 @@ public class TutorialOverlay : MonoBehaviour
         _useSpriteFrame = frameImage != null && frameImage.sprite != null;
         if (frameImage != null) frameImage.enabled = false;
 
+        // ★튜토 첫 배너는 게임 시작 직후에 떠서, 웹에서 받아오는 번역 테이블보다 빠르다.
+        //   그때 Loc.Get 은 한국어 폴백을 돌려주고, 배너는 한 번 쓰고 마는 글자라 영영 한국어로
+        //   남는다(첫 배너만 번역 안 되던 QA 건). 테이블 도착/언어 변경 이벤트에 다시 그린다.
+        Loc.OnLanguageChanged += RefreshBannerTexts;
+
         SetVisible(false);
     }
 
-    private void OnDestroy() { if (_i == this) _i = null; }
+    private void OnDestroy()
+    {
+        Loc.OnLanguageChanged -= RefreshBannerTexts;
+        if (_i == this) _i = null;
+    }
+
+    // 표시 중인 배너/계속 라벨을 현재 언어로 다시 쓴다.
+    //   배너 원문이 한국어(테이블 도착 전 표시)였으면 이제 번역이 잡히고,
+    //   이미 번역돼 들어온 문자열이면 키 미스로 원문 그대로 나와 무해하다.
+    private void RefreshBannerTexts()
+    {
+        if (!_active) return;
+        if (banner != null && !string.IsNullOrEmpty(_bannerRaw)) banner.text = Loc.Get(_bannerRaw);
+        if (continueLabel != null && continueLabel.gameObject.activeSelf)
+            continueLabel.text = _advanceKey == KeyCode.None
+                ? Loc.Get("아무 곳이나 클릭하여 계속")
+                : $"{_advanceKey}" + " " + Loc.Get("키를 눌러 계속");
+    }
 
     // ── 외부 API ──────────────────────────────────────────────────────
 
@@ -143,7 +166,8 @@ public class TutorialOverlay : MonoBehaviour
 
         if (banner != null)
         {
-            banner.text = bannerText ?? string.Empty;
+            _bannerRaw = bannerText;
+            banner.text = Loc.Get(bannerText ?? string.Empty);
             if (bannerBg != null) bannerBg.gameObject.SetActive(!string.IsNullOrEmpty(bannerText));
         }
 
