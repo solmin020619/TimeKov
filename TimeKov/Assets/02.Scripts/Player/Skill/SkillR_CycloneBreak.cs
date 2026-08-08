@@ -1,8 +1,9 @@
 using System.Collections;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "Skill2_CycloneBreak", menuName = "Skills/Skill2_CycloneBreak")]
-public class Skill2_CycloneBreak : SkillBase
+// R 키 궁극기. 어느 키로 나가는지는 에셋의 SkillSheetId(=Skill2)가 정한다(PlayerSkillComponent 디스패치).
+[CreateAssetMenu(fileName = "SkillR_CycloneBreak", menuName = "Skills/SkillR_CycloneBreak")]
+public class SkillR_CycloneBreak : SkillBase
 {
     [Header("Rotation Hits (1~4타)")]
     public float RotationDamage = 35f;
@@ -19,7 +20,9 @@ public class Skill2_CycloneBreak : SkillBase
 
     [Header("Settings")]
     public float TotalDuration = 2.2f;
-    public float HitHeight     = 1.0f;
+    [Tooltip("판정 원기둥의 높이(발밑 기준, m). 바닥 원 광역기라 반경만 중요하고 이 값은\n" +
+             "'공중에 높이 뜬 적을 뺄지' 만 정한다. 3 이면 지상 적은 전부 포함된다.")]
+    public float HitCylinderHeight = 3.0f;
     public LayerMask EnemyLayer;
 
     [Header("Camera Shake")]
@@ -39,27 +42,27 @@ public class Skill2_CycloneBreak : SkillBase
         var audio = caster.GetComponent<Player>()?.Audio;
 
         yield return new WaitForSeconds(Hit1Time);
-        AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
+        AttackUtils.HitCylinder(caster, RotationRadius, HitCylinderHeight, RotationDamage, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
                                onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(Hit2Time - Hit1Time);
-        AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
+        AttackUtils.HitCylinder(caster, RotationRadius, HitCylinderHeight, RotationDamage, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
                                onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(Hit3Time - Hit2Time);
-        AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
+        AttackUtils.HitCylinder(caster, RotationRadius, HitCylinderHeight, RotationDamage, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
                                onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(Hit4Time - Hit3Time);
-        AttackUtils.HitSphere(caster, RotationRadius, RotationDamage, HitHeight, EnemyLayer,
+        AttackUtils.HitCylinder(caster, RotationRadius, HitCylinderHeight, RotationDamage, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
                                onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(RotationShakeDuration, RotationShakeMagnitude); });
 
         yield return new WaitForSeconds(JumpHitTime - Hit4Time);
-        AttackUtils.HitSphere(caster, JumpRadius, JumpDamage, HitHeight, EnemyLayer,
+        AttackUtils.HitCylinder(caster, JumpRadius, HitCylinderHeight, JumpDamage, EnemyLayer,
                                HitVfxPrefab, HitVfxOffset, HitVfxLifeTime,
                                onHitEnemy: () => { audio?.PlaySkillHit(); ThirdPersonCamera.Shake(JumpShakeDuration, JumpShakeMagnitude); });
 

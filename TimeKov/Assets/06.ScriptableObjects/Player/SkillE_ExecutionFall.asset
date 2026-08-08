@@ -9,33 +9,33 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ee264a6e4c6f7b840ab57fdcdde50956, type: 3}
-  m_Name: Skill1_ReaperSlash
+  m_Script: {fileID: 11500000, guid: 476993cc060d7934cbfbb5b3876715f1, type: 3}
+  m_Name: SkillE_ExecutionFall
   m_EditorClassIdentifier: 
-  SkillSheetId: 0
+  SkillSheetId: 2
   SkillIcon: {fileID: 0}
   CoolTime: 1
-  CastVfxPrefab: {fileID: 4225603071983730024, guid: f4d288281a1df6f4ebfca6b8c34fe62e, type: 3}
+  CastVfxPrefab: {fileID: 6048045072459434303, guid: d2da7a201b47ee547b4a2f315bf2c270, type: 3}
   CastVfxBone: 18
-  CastVfxOffset: {x: -0.5, y: -1.3, z: 0}
+  CastVfxOffset: {x: 0, y: -1.3, z: 1}
   CastVfxRotation: {x: 0, y: 180, z: 0}
   CastVfxLifeTime: 4
   CastVfxFollowCaster: 0
   HitVfxPrefab: {fileID: 1893033738566276, guid: 3e04efdf8ee665d48962b33b06e8e3d3, type: 3}
   HitVfxOffset: {x: 0, y: 1, z: 0}
   HitVfxLifeTime: 1.5
-  Hit1Delay: 0.19
-  Hit1Damage: 20
+  Hit1Delay: 0.54
+  Hit1Damage: 30
   Hit1Radius: 2.5
-  Hit2Delay: 0.46
-  Hit2Damage: 30
+  Hit2Delay: 0.92
+  Hit2Damage: 60
   Hit2Radius: 3
-  TotalDuration: 1.2
+  TotalDuration: 1.6
   HitHeight: 1
   EnemyLayer:
     serializedVersion: 2
     m_Bits: 64
   Hit1ShakeDuration: 0.1
   Hit1ShakeMagnitude: 0.05
-  Hit2ShakeDuration: 0.15
-  Hit2ShakeMagnitude: 0.08
+  Hit2ShakeDuration: 0.2
+  Hit2ShakeMagnitude: 0.12

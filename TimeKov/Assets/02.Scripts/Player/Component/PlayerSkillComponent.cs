@@ -2,16 +2,32 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class PlayerSkillComponent : MonoBehaviour
 {
     [Header("Combo Attacks")]
     public List<ComboAttackBase> ComboAttackAssets;
 
-    [Header("Skills")]
-    public SkillBase Skill1Asset;
-    public SkillBase Skill2Asset;
-    public SkillBase Skill3Asset;
+    // 라벨을 '실제로 누르는 키'로 맞춰뒀다. 예전 이름(Skill1/2/3 Asset)은 번호가 키 순서와
+    // 어긋나서(2번이 R, 3번이 E) 인스펙터만 보면 무엇이 어느 키인지 알 수 없었다.
+    // FormerlySerializedAs 덕에 이미 꽂아둔 에셋은 그대로 따라온다.
+    //
+    // ★슬롯 순서는 키를 정하지 않는다. 어느 키로 나가는지는 에셋 자신의 SkillSheetId 가 정하고
+    //   (Awake 의 AddSkill 이 그걸로 등록), 키->SkillSheetId 디스패치는 Update 에 있다.
+    //   그래서 라벨과 실물이 어긋날 수 있어 아래 OnValidate 가 어긋나면 경고한다.
+    [Header("Skills (라벨 = 실제 사용 키)")]
+    [Tooltip("Q 키로 나가는 스킬. SkillSheetId 가 Skill1 인 에셋을 넣어라.")]
+    [FormerlySerializedAs("Skill1Asset")]
+    public SkillBase QSkill;
+
+    [Tooltip("E 키로 나가는 스킬. SkillSheetId 가 Skill3 인 에셋을 넣어라(E/R 교차).")]
+    [FormerlySerializedAs("Skill3Asset")]
+    public SkillBase ESkill;
+
+    [Tooltip("R 키로 나가는 스킬(궁극기). SkillSheetId 가 Skill2 인 에셋을 넣어라(E/R 교차).")]
+    [FormerlySerializedAs("Skill2Asset")]
+    public SkillBase RSkill;
 
     private Player _player;
 
@@ -35,9 +51,9 @@ public class PlayerSkillComponent : MonoBehaviour
     {
         _player = GetComponent<Player>();
 
-        if (Skill1Asset != null) AddSkill(Skill1Asset);
-        if (Skill2Asset != null) AddSkill(Skill2Asset);
-        if (Skill3Asset != null) AddSkill(Skill3Asset);
+        if (QSkill != null) AddSkill(QSkill);
+        if (ESkill != null) AddSkill(ESkill);
+        if (RSkill != null) AddSkill(RSkill);
 
         foreach (var attack in ComboAttackAssets)
             RegisterComboAttack(attack);
@@ -55,7 +71,7 @@ public class PlayerSkillComponent : MonoBehaviour
         var prefabs = new HashSet<GameObject>();
         void Add(GameObject p) { if (p != null) prefabs.Add(p); }
 
-        foreach (var s in new[] { Skill1Asset, Skill2Asset, Skill3Asset })
+        foreach (var s in new[] { QSkill, ESkill, RSkill })
         {
             if (s == null) continue;
             Add(s.CastVfxPrefab);
@@ -282,4 +298,23 @@ public class PlayerSkillComponent : MonoBehaviour
 
         if (_currentRoutine != null) Interrupt();
     }
+
+#if UNITY_EDITOR
+    // 슬롯 라벨(키)과 실제로 나갈 키가 어긋나면 알린다.
+    // 어느 키로 나가는지는 에셋의 SkillSheetId 가 정하므로, 엉뚱한 슬롯에 꽂아도 게임은
+    // 조용히 돌아간다 - 인스펙터만 거짓말을 하게 된다. 그걸 여기서 잡는다.
+    private void OnValidate()
+    {
+        Check(QSkill, SkillSheetId.Skill1, "Q");
+        Check(ESkill, SkillSheetId.Skill3, "E");
+        Check(RSkill, SkillSheetId.Skill2, "R");
+
+        void Check(SkillBase s, SkillSheetId expected, string key)
+        {
+            if (s == null || s.SkillSheetId == expected) return;
+            Debug.LogWarning($"[PlayerSkillComponent] {key} 슬롯에 '{s.name}'(SkillSheetId={s.SkillSheetId})이 들어있다. "
+                           + $"이 에셋은 {key} 가 아니라 다른 키로 나간다. {key} 슬롯에는 SkillSheetId={expected} 인 에셋을 넣어라.", this);
+        }
+    }
+#endif
 }

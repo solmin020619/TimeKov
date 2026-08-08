@@ -15,6 +15,8 @@
 //  F5 = 우주선 복구 에너지 지급 (맵 부품만; 특수 부품 선체보강재/동력안정기/엔진은 F3 전송률로만)  Debug/DevHotkeys.cs  [Dev 전용]
 //  F6 = 플레이어 비행 토글 (Space 상승+애니정지 <-> 다시 누르면 낙하)  Debug/DevHotkeys.cs [에디터/Dev빌드 전용 가드 있음]
 //  F7 = 현재 튜토리얼 퀘스트 스킵 (보상 정상 지급)               Debug/DevHotkeys.cs [에디터/Dev빌드 전용 가드 있음]
+//  F8 = 촬영 모드 - UI 전부 숨김/복구 토글 (트레일러 촬영용)      Debug/ScreenshotMode.cs
+//       ★F8 만 예외로 '정식 빌드에서도' 동작한다(트레일러를 빌드로 찍기 때문). 이 파일 소관이 아니다.
 //  `  = 설비 1~9 전부 즉시 해금                    Grid/FacilityUnlockManager.cs [에디터/Dev빌드 전용 가드 있음]
 //
 //  F1~F7 + ` : 정식 빌드에선 컴파일에서 빠진다(에디터/Development Build 에서만 동작).
@@ -60,6 +62,10 @@ public class DevHotkeys : MonoBehaviour
         // F7 = 현재 진행 중인 튜토리얼 퀘스트 강제 완료(스킵). 보상도 정상 지급되고 다음 퀘로 넘어간다.
         if (Input.GetKeyDown(KeyCode.F7))
             QuestManager.Instance?.DevSkipCurrentQuest();
+
+        // ★F8(촬영 모드)은 여기 없다. 트레일러는 빌드로 찍는데 이 파일은 릴리스에서
+        //   통째로 빠지므로, 정작 촬영할 때 안 먹는다. Debug/ScreenshotMode.cs 가 직접 받는다.
+        //   여기에 F8 을 또 넣으면 한 프레임에 두 번 토글돼서 아무 일도 안 일어난다.
     }
 
     private static void GrantShipRepairMaterials()

@@ -30,7 +30,7 @@
 //   '제 상자는 안 넘쳤는데 옆 아이콘과 겹치는' 경우. 라벨 rect 가 원래부터 아이콘
 //   자리까지 뻗어 있고 한국어가 짧아 안 보였을 뿐이라, 라벨 입장에선 넘친 게 아니다.
 //   그건 컨테이너를 HorizontalLayoutGroup 등으로 고쳐야 한다.
-//   -> LogOverlaps = true 로 켜면 그런 곳을 전부 찾아서 콘솔에 목록으로 찍어준다.
+//   -> 그런 곳은 [가려짐] 진단(LogOverlaps, 기본 ON)이 콘솔에 목록으로 찍어준다.
 //
 // [끄는 법] TextAutoFit.Enabled = false  (또는 라벨에 TextAutoFitIgnore 부착)
 // =====================================================================
@@ -53,9 +53,15 @@ public class TextAutoFit : MonoBehaviour
     /// 좌표/TMP 내부값으로 판정하는 '측정된 사실'이라 뜨면 실제 문제다. 기본 ON.</summary>
     public static bool LogSpill = true;
 
-    /// <summary>[추정] 옆 형제와 겹치는 라벨을 찾는다. '무엇이 배경인가'를 추측해야 해서
-    /// 오탐이 섞인다(배경/후광/테두리를 충돌로 신고했던 이력). 겹침을 훑을 때만 잠깐 켠다.</summary>
-    public static bool LogOverlaps = false;
+    /// <summary>[가려짐] 라벨 잉크 위에 '나중에 그려지는' 형제가 실제로 덮이는 곳을 찍는다.
+    /// 글자를 줄여도 안 풀리는, 컨테이너를 고쳐야 하는 곳의 목록이다.
+    /// 예전에 오탐이 심해 꺼뒀었는데 3대 원인이 전부 제거돼 켠다(08-08):
+    ///   (1)UI 가 두 벌이라 자기 쌍둥이와 겹치던 것 - 중복 정리로 소멸
+    ///   (2)알파 0 으로 숨긴 라벨이 검사를 타던 것 - IsVisible 게이트 추가
+    ///   (3)꺼진 패널의 그래픽이 '덮는 쪽'으로 잡히던 것 - 상대편도 그룹 알파까지 확인
+    /// 그래도 그리기 순서 규칙에 기대는 만큼 넘침/잘림보다 한 단계 추정이 섞여 있다.
+    /// 오탐이 보이면 규칙을 조이든가 도로 끈다.</summary>
+    public static bool LogOverlaps = true;
 
     /// <summary>줄일 수 있는 하한(원래 크기 대비). 0.7 = 최대 30%까지만 작아진다.</summary>
     public static float MinScale = 0.7f;
@@ -300,6 +306,10 @@ public class TextAutoFit : MonoBehaviour
         //   빈 라벨이 아이콘/링과 100% 겹친 것으로 보고된다(전부 오탐이었다).
         if (string.IsNullOrWhiteSpace(tmp.text)) return;
 
+        // ★안 보이는 라벨도 마찬가지다. 넘침 검사에는 이 게이트가 있는데 여기엔 없어서,
+        //   알파 0 으로 숨겨둔 카테고리 탭 이름 같은 것이 겹침으로만 계속 오탐났다.
+        if (!IsVisible(tmp)) return;
+
         Rect mine = InkRect(rt, tmp);
         if (mine.width <= 1f) return;
 
@@ -327,7 +337,9 @@ public class TextAutoFit : MonoBehaviour
         for (int i = 0; i < _probe.Count; i++)
         {
             var g = _probe[i];
-            if (g == null || !g.enabled || g.color.a <= 0.01f) continue;
+            // 덮는 쪽도 실제로 그려지는 상태여야 한다. 자기 알파만 보면 꺼진
+            // 패널(CanvasGroup 알파 0) 안의 그래픽이 덮는 것으로 잡힌다.
+            if (g == null || !g.enabled || g.color.a <= 0.01f || !GroupVisible(g.transform)) continue;
             var srt = g.rectTransform;
             if (srt == null || srt.IsChildOf(rt)) continue;   // 내 장식(밑줄 등)은 겹침이 아니다
 
@@ -432,9 +444,13 @@ public class TextAutoFit : MonoBehaviour
     //   그 숨은 라벨들이 좁은 아이콘 상자를 넘친다고 보고돼 인벤토리를 열 때마다 5줄이 떴다.
     //   글자 자체의 알파와, 패널을 통째로 숨기는 CanvasGroup 둘 다 본다.
     private static bool IsVisible(TMP_Text tmp)
+        => tmp.color.a > 0.01f && GroupVisible(tmp.transform);
+
+    // CanvasGroup 사슬로 통째로 숨겨져 있지 않은가(패널 페이드/숨김 대응).
+    // 라벨 쪽(IsVisible)과 덮는 쪽(겹침 상대) 양쪽이 같이 쓴다.
+    private static bool GroupVisible(Transform t)
     {
-        if (tmp.color.a <= 0.01f) return false;
-        var cg = tmp.GetComponentInParent<CanvasGroup>();
+        var cg = t.GetComponentInParent<CanvasGroup>();
         while (cg != null)
         {
             if (cg.alpha <= 0.01f) return false;

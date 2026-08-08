@@ -12,7 +12,12 @@ public abstract class SkillBase : ScriptableObject
     // ─────────────────────────────────────────────────────────────
     [Header("VFX - 시전 이펙트")]
     public GameObject CastVfxPrefab;
-    // 스폰 기준 뼈대 (RightHand = 검을 쥔 손 위치와 일치)
+    [Tooltip("체크하면 뼈 대신 캐릭터 발밑(root)에서 스폰한다.\n" +
+             "★바닥에 원이 그려지는 광역 VFX 는 반드시 켜라. 이 프리팹들은 원점이 지면(y=0)이라고 보고\n" +
+             "만들어져 있어서, 손 뼈에서 스폰하면 원이 1m 넘게 떠오르고 스윙 중 손을 따라 흔들린다\n" +
+             "= 판정 원(발밑 기준)과 중심이 어긋난다. 검 궤적처럼 손에서 나야 하는 것만 끈다.")]
+    public bool CastVfxAtRoot = false;
+    // 스폰 기준 뼈대 (RightHand = 검을 쥔 손 위치와 일치). CastVfxAtRoot 가 켜져 있으면 무시된다.
     public HumanBodyBones CastVfxBone = HumanBodyBones.RightHand;
     public Vector3 CastVfxOffset   = new Vector3(0f, 0f, 0.3f);
     public Vector3 CastVfxRotation = Vector3.zero;
@@ -38,6 +43,20 @@ public abstract class SkillBase : ScriptableObject
     /// <summary>시전 시작 시 VFX 스폰 (뼈대 기준)</summary>
     protected void SpawnCastVfx(GameObject caster)
     {
+        if (CastVfxAtRoot)
+        {
+            // 발밑 기준. 바닥 원 광역기는 이쪽이어야 판정 원과 중심이 같다.
+            VfxUtils.SpawnAtCaster(
+                CastVfxPrefab,
+                caster,
+                CastVfxOffset,
+                CastVfxRotation,
+                CastVfxLifeTime,
+                CastVfxFollowCaster
+            );
+            return;
+        }
+
         VfxUtils.SpawnAtBone(
             CastVfxPrefab,
             caster,
