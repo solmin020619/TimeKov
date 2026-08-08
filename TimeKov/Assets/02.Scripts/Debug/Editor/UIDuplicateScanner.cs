@@ -24,6 +24,9 @@
 //     - 프리팹과 무관한 씬 직속             -> 원본. 남긴다.
 //   원본이 확인될 때만 복사본에 배지를 붙이므로, 묶음 전체가 삭제 표시되는 일은 구조상 없다.
 //   전부 같은 출신이라 못 가리는 묶음은 배지 없이 '직접 확인'으로만 보고한다. 오탐보다 낫다.
+//   안전핀: 지울 복사본을 서브트리 밖에서 인스펙터로 가리키는 데가 있으면 배지를 접는다.
+//   (08-08 실사고: 설정창 Root 복사본을 SettingsPanelRefs 가 가리키고 있었는데 배지대로
+//    지웠더니 참조가 끊겨, 설정 빌더가 매번 런타임 재생성으로 빠지고 트윈이 잘려 나갔다)
 //
 // [플레이 기록을 버린 이유 - 이 툴이 실제로 틀렸던 지점]
 //   1차 설계는 플레이 중 '실제로 파괴된 쪽'의 경로를 기록해 에디터에서 되찾는 방식이었다.
@@ -100,8 +103,10 @@ public static class UIDuplicateScanner
         sb.AppendLine($"[UI 중복 검사] 단일 인스턴스 타입 중복 {dups.Count}종.");
         if (dups.Count == 0) sb.AppendLine("  (없음)");
 
-        // 참조 정보는 판정에 쓰지 않는다. 못 가린 묶음의 수동 확인을 돕는 참고로만 쓴다.
-        HashSet<int> refCache = null;
+        // 참조 지도: 대상 -> 그걸 인스펙터로 가리키는 쪽. 두 군데에 쓴다.
+        //   (1)안전핀 - 지울 복사본이 밖에서 참조받으면 배지를 접는다(지우면 참조가 끊긴다)
+        //   (2)쌍둥이 판정 - 어느 쪽을 남길지(참조받는 쪽) 고른다
+        var refMap = BuildReferenceMap();
 
         // 프리팹 에셋 경로 -> 그 프리팹 안에서 지워야 할 위치들. 근본 조치 안내용.
         var prefabsToFix = new Dictionary<string, List<string>>();
@@ -115,12 +120,20 @@ public static class UIDuplicateScanner
             // (원본 없이 전부 복사본이면 하나는 남겨야 하므로 여기선 판정하지 않는다)
             bool decided = hasOriginal && copies.Count > 0;
 
+            // 안전핀: 지울 복사본을 서브트리 '밖'에서 인스펙터로 가리키는 데가 있으면 판정을 접는다.
+            // 08-08 실사고: 설정창 Root 복사본을 참조 묶음(SettingsPanelRefs)이 가리키고 있었는데
+            // 배지대로 지웠더니 참조가 끊겨 설정창이 매번 런타임 재생성으로 빠졌다.
+            bool refBlocked = false;
+            if (decided)
+                foreach (var x in copies)
+                    if (ReferencedFromOutside(x.mb.transform, refMap)) { refBlocked = true; decided = false; break; }
+
             sb.AppendLine($"\n[{kv.Key.Name}] x{members.Count}");
 
             foreach (var (mb, origin) in members)
             {
                 bool del = decided && origin == Origin.PrefabContent;
-                if (del) _toDelete.Add(mb.gameObject.GetInstanceID());
+                if (del) MarkForDelete(mb.transform, null, prefabsToFix);
 
                 string tag = del ? "[삭제 필요]" : "[남김     ]";
                 string from = origin == Origin.AddedInScene ? "씬에서 추가(+)"
@@ -128,29 +141,22 @@ public static class UIDuplicateScanner
                             : "씬에 직접";
                 // 중복끼리는 경로가 같아서, 부모 아래 몇 번째인지로 구분해준다.
                 sb.AppendLine($"    {tag} ({from})  {UIDuplicateGuard.FullPath(mb.transform)}  (부모 아래 {mb.transform.GetSiblingIndex() + 1}번째)");
-
-                if (del && TryGetPrefabSource(mb.gameObject, out string assetPath, out string insidePath))
-                {
-                    if (!prefabsToFix.TryGetValue(assetPath, out var l)) { l = new List<string>(); prefabsToFix[assetPath] = l; }
-                    if (!l.Contains(insidePath)) l.Add(insidePath);
-                }
             }
 
             if (!decided)
             {
-                sb.AppendLine(copies.Count == members.Count
-                    ? "      -> 전부 프리팹 내용물이라 어느 것이 원본인지 구조로는 못 가린다. 배지 없음 - 직접 확인해라."
-                    : "      -> 프리팹에서 온 복사본이 없다(전부 씬 소속). Apply 사고가 아니라 씬 안에서 복제된 것이다. 배지 없음 - 직접 확인해라.");
-                refCache ??= BuildReferenceCache();
+                if (refBlocked)
+                    sb.AppendLine("      -> 지울 복사본을 밖에서 인스펙터로 가리키는 데가 있다(지우면 참조가 끊긴다). 배지 없음 - 직접 확인해라.");
+                else
+                    sb.AppendLine(copies.Count == members.Count
+                        ? "      -> 전부 프리팹 내용물이라 어느 것이 원본인지 구조로는 못 가린다. 배지 없음 - 직접 확인해라."
+                        : "      -> 프리팹에서 온 복사본이 없다(전부 씬 소속). Apply 사고가 아니라 씬 안에서 복제된 것이다. 배지 없음 - 직접 확인해라.");
                 foreach (var (mb, _) in members)
-                {
-                    bool referenced = refCache.Contains(mb.GetInstanceID()) || refCache.Contains(mb.gameObject.GetInstanceID());
-                    sb.AppendLine($"         참고: 부모 아래 {mb.transform.GetSiblingIndex() + 1}번째 = {(referenced ? "다른 오브젝트가 인스펙터로 가리키고 있다" : "아무도 안 가리킨다")}");
-                }
+                    sb.AppendLine($"         참고: 부모 아래 {mb.transform.GetSiblingIndex() + 1}번째 = {(ReferencedFromOutside(mb.transform, refMap) ? "밖에서 참조받는 중" : "아무도 안 가리킨다")}");
             }
         }
 
-        int pending = ScanCloneOverlaps(sb, prefabsToFix);
+        int pending = ScanCloneOverlaps(sb, prefabsToFix, refMap);
 
         if (_toDelete.Count > 0)
         {
@@ -204,6 +210,8 @@ public static class UIDuplicateScanner
         int guard = 0;
         for (var p = src.transform.parent; p != null && guard++ < 32; p = p.parent)
             sb.Insert(0, p.name + " / ");
+        // 쌍둥이는 프리팹 안 경로도 같아서, 부모 아래 몇 번째인지로 구분해준다.
+        sb.Append(" (부모 아래 ").Append(src.transform.GetSiblingIndex() + 1).Append("번째)");
         insidePath = sb.ToString();
         return true;
     }
@@ -262,9 +270,14 @@ public static class UIDuplicateScanner
     // 배지 기준은 검사 A 와 같은 구조 판정이다: 모양이 같은 짝에서 한쪽이 씬 소속(원본),
     // 한쪽이 프리팹 내용물(복사본)이면 그건 추정이 아니라 Apply 사고의 확정 신호다.
     // (08-08 실측: 이 서명에 걸린 20건을 프리팹/씬 파일 대조로 전수 확인 = 전부 진짜 중복)
-    // 출신이 안 갈리는 짝만 '확인 필요'로 남긴다 - 그건 런타임에 코드가 채워 넣는
-    // 리스트 항목(RecipeSlot 등)일 수 있어서 추정만으로 배지를 붙이면 안 된다.
-    private static int ScanCloneOverlaps(StringBuilder sb, Dictionary<string, List<string>> prefabsToFix)
+    //
+    // 출신이 안 갈리는 짝(양쪽 다 프리팹 소속 등)은 2차로 '쌍둥이'인지 내용을 대조한다.
+    // 직렬화 값/자식 구조까지 완전히 같으면 어느 쪽을 지워도 결과가 같음이 보장되므로
+    // 배지를 붙인다(외부에서 참조받는 쪽을 남기고, 없으면 첫째를 남긴다 - 복제는 뒤에 붙는다).
+    // 값 하나라도 다르면(색/스프라이트/활성 상태 등) 의도된 겹침일 수 있어 '확인 필요'로만
+    // 남긴다 - 런타임에 코드가 채워 넣는 리스트 항목(RecipeSlot 등)도 이 안전망에 걸린다.
+    private static int ScanCloneOverlaps(StringBuilder sb, Dictionary<string, List<string>> prefabsToFix,
+                                         Dictionary<int, List<Transform>> refMap)
     {
         // 검사 A 가 이미 잡은 것과 그 자식은 보고하지 않는다.
         // 부모를 지우면 자식은 같이 사라지므로, 자식까지 나열하면 목록만 부풀고 헷갈린다.
@@ -290,7 +303,11 @@ public static class UIDuplicateScanner
             {
                 var c = parent.GetChild(i) as RectTransform;
                 if (c == null) continue;
-                string sig = KindKey(c) + "|" + c.anchoredPosition + c.sizeDelta + c.anchorMin + c.anchorMax;
+                // 활성 상태도 서명에 넣는다. 꺼진 오브젝트는 그려지지 않으므로 켜진 것과
+                // '겹쳐 그려지는' 관계가 아니다. 설정창 슬라이더 아이콘처럼 스크립트가
+                // 켰다 껐다 바꿔치기하는 '상태 전환용 2벌'(켜짐+꺼짐)을 중복으로 오인했었다.
+                string sig = KindKey(c) + "|" + c.anchoredPosition + c.sizeDelta + c.anchorMin + c.anchorMax
+                           + "|" + c.gameObject.activeSelf;
                 if (!groups.TryGetValue(sig, out var list)) { list = new List<RectTransform>(); groups[sig] = list; }
                 list.Add(c);
             }
@@ -301,39 +318,65 @@ public static class UIDuplicateScanner
                 if (kv.Value.Any(v => covered.Contains(v))) continue;   // 검사 A 가 이미 다룬 대상
                 reported.Add(kv.Value[0]);
 
-                // 짝의 출신을 가른다. 원본(씬 소속)이 확인될 때만 프리팹 복사본에 배지를 붙인다.
+                // 1차: 짝의 출신을 가른다. 원본(씬 소속)이 확인될 때만 프리팹 복사본을 지운다.
                 var members = kv.Value.Select(v => (rt: v, origin: OriginOf(v.gameObject))).ToList();
                 var copies = members.Where(x => x.origin == Origin.PrefabContent).ToList();
                 bool decided = copies.Count > 0 && copies.Count < members.Count;
 
-                if (!decided)
+                // 안전핀: 지울 복사본이 밖에서 참조받으면 판정을 접는다(검사 A 와 동일).
+                bool refBlocked = false;
+                if (decided)
+                    foreach (var x in copies)
+                        if (ReferencedFromOutside(x.rt, refMap)) { refBlocked = true; decided = false; break; }
+
+                // 2차: 출신으로 못 갈랐으면 '내용까지 완전히 같은 쌍둥이'인지 대조한다.
+                // 쌍둥이면 어느 쪽을 지워도 결과가 같음이 보장된다. 남길 쪽은 밖에서
+                // 참조받는 쪽, 아무도 참조 안 하면 첫째(유니티 복제는 뒤에 붙는다).
+                int keep = -1;
+                if (!decided && !refBlocked)
+                {
+                    bool twins = true;
+                    for (int i = 1; i < members.Count && twins; i++)
+                        twins = SameSubtree(members[0].rt, members[i].rt);
+                    if (twins)
+                    {
+                        var refd = members.Where(x => ReferencedFromOutside(x.rt, refMap)).ToList();
+                        if (refd.Count == 1) keep = members.IndexOf(refd[0]);
+                        else if (refd.Count == 0)
+                        {
+                            keep = 0;
+                            for (int i = 1; i < members.Count; i++)
+                                if (members[i].rt.GetSiblingIndex() < members[keep].rt.GetSiblingIndex()) keep = i;
+                        }
+                        // 여럿이 각자 참조받으면 판단하지 않는다
+                    }
+                }
+
+                if (!decided && keep < 0)
                 {
                     found++;
                     sb.AppendLine($"\n[확인 필요] 같은 자리에 겹친 복제본 '{kv.Value[0].name}' x{kv.Value.Count}");
                     sb.AppendLine($"      부모: {UIDuplicateGuard.FullPath(parent)}");
+                    if (refBlocked)
+                        sb.AppendLine("      -> 지울 쪽 후보를 밖에서 인스펙터로 가리키는 데가 있다(지우면 참조가 끊긴다). 직접 확인해라.");
                     continue;
                 }
 
                 confirmed++;
-                sb.AppendLine($"\n[{kv.Value[0].name}] x{kv.Value.Count} (장식/패널 중복 - 출신으로 확정)");
+                sb.AppendLine(decided
+                    ? $"\n[{kv.Value[0].name}] x{kv.Value.Count} (장식/패널 중복 - 출신으로 확정)"
+                    : $"\n[{kv.Value[0].name}] x{kv.Value.Count} (쌍둥이 중복 - 내용 완전 동일)");
                 sb.AppendLine($"      부모: {UIDuplicateGuard.FullPath(parent)}");
-                foreach (var (rt, origin) in members)
+                for (int i = 0; i < members.Count; i++)
                 {
-                    bool del = origin == Origin.PrefabContent;
-                    if (del)
-                    {
-                        _toDelete.Add(rt.gameObject.GetInstanceID());
-                        covered.Add(rt);   // 이 복사본의 자식들은 따로 보고하지 않는다
-                        if (TryGetPrefabSource(rt.gameObject, out string assetPath, out string insidePath))
-                        {
-                            if (!prefabsToFix.TryGetValue(assetPath, out var l)) { l = new List<string>(); prefabsToFix[assetPath] = l; }
-                            if (!l.Contains(insidePath)) l.Add(insidePath);
-                        }
-                    }
+                    var (rt, origin) = members[i];
+                    bool del = decided ? origin == Origin.PrefabContent : i != keep;
+                    if (del) MarkForDelete(rt, covered, prefabsToFix);
                     string tag = del ? "[삭제 필요]" : "[남김     ]";
-                    string from = origin == Origin.AddedInScene ? "씬에서 추가(+)"
-                                : origin == Origin.PrefabContent ? "프리팹 내용물"
-                                : "씬에 직접";
+                    string from = decided
+                        ? (origin == Origin.AddedInScene ? "씬에서 추가(+)"
+                           : origin == Origin.PrefabContent ? "프리팹 내용물" : "씬에 직접")
+                        : (i == keep ? (ReferencedFromOutside(rt, refMap) ? "참조받는 쪽" : "첫째") : "쌍둥이");
                     sb.AppendLine($"    {tag} ({from})  부모 아래 {rt.GetSiblingIndex() + 1}번째");
                 }
             }
@@ -345,14 +388,12 @@ public static class UIDuplicateScanner
     }
 
     /// <summary>
-    /// 씬 안의 모든 컴포넌트가 인스펙터 필드로 '가리키고 있는' 대상들의 instanceID 집합.
-    /// 판정에는 안 쓰고, 구조로 못 가린 묶음에서 수동 확인을 돕는 참고 자료로만 쓴다.
-    /// (자기 자신/자기 자식이 가리키는 건 제외한다 - 복제본은 자기 내부 배선을 그대로 갖고 있어
-    ///  그것까지 세면 양쪽 다 '참조됨'이 되어 정보가 무의미해진다)
+    /// 씬의 모든 인스펙터 참조를 '대상 instanceID -> 가리키는 쪽 Transform 목록' 지도로 만든다.
+    /// 자기 배선인지 아닌지는 여기서 거르지 않고, 조회하는 쪽(ReferencedFromOutside)이 가른다.
     /// </summary>
-    private static HashSet<int> BuildReferenceCache()
+    private static Dictionary<int, List<Transform>> BuildReferenceMap()
     {
-        var refs = new HashSet<int>();
+        var map = new Dictionary<int, List<Transform>>();
         foreach (var mb in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(
                      FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
@@ -366,20 +407,103 @@ public static class UIDuplicateScanner
                 if (p.propertyType != SerializedPropertyType.ObjectReference) continue;
                 var target = p.objectReferenceValue;
                 if (target == null) continue;
-
-                Transform tt = target is Component c ? c.transform
-                             : target is GameObject go ? go.transform : null;
-                if (tt == null) continue;
-                // 같은 서브트리 안에서의 자체 배선은 제외
-                bool selfWiring = false;
-                for (var x = tt; x != null; x = x.parent) if (x == mb.transform) { selfWiring = true; break; }
-                if (selfWiring) continue;
-
-                refs.Add(target.GetInstanceID());
-                if (target is Component cc) refs.Add(cc.gameObject.GetInstanceID());
+                Add(target.GetInstanceID(), mb.transform);
+                if (target is Component c) Add(c.gameObject.GetInstanceID(), mb.transform);
             }
         }
-        return refs;
+        return map;
+
+        void Add(int id, Transform referrer)
+        {
+            if (!map.TryGetValue(id, out var l)) { l = new List<Transform>(); map[id] = l; }
+            l.Add(referrer);
+        }
+    }
+
+    /// <summary>
+    /// root 서브트리 안의 무언가를, 서브트리 '밖'의 누가 인스펙터로 가리키고 있는가.
+    /// 복사본 내부의 자체 배선은 세지 않고, 부모 패널이 특정 쪽을 물고 있는 배선은 센다.
+    /// 이게 true 인 것을 지우면 그 참조가 끊긴다(설정창 사고의 원인) - 배지를 붙이면 안 된다.
+    /// </summary>
+    private static bool ReferencedFromOutside(Transform root, Dictionary<int, List<Transform>> map)
+    {
+        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (HasOutside(t.gameObject.GetInstanceID())) return true;
+            foreach (var c in t.GetComponents<Component>())
+                if (c != null && HasOutside(c.GetInstanceID())) return true;
+        }
+        return false;
+
+        bool HasOutside(int id)
+        {
+            if (!map.TryGetValue(id, out var referrers)) return false;
+            foreach (var r in referrers)
+                if (r != null && !r.IsChildOf(root)) return true;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 서브트리 전체(이름/레이어/활성/컴포넌트 구성/직렬화 값/자식 구조)가 완전히 같은가.
+    /// 이게 true 면 두 오브젝트는 쌍둥이라, 어느 쪽을 지워도 게임 결과가 달라질 수 없다.
+    /// </summary>
+    private static bool SameSubtree(Transform a, Transform b)
+    {
+        if (a == null || b == null) return false;
+        if (a.name != b.name || a.gameObject.activeSelf != b.gameObject.activeSelf) return false;
+        if (a.gameObject.layer != b.gameObject.layer || a.gameObject.tag != b.gameObject.tag) return false;
+        var ca = a.GetComponents<Component>();
+        var cb = b.GetComponents<Component>();
+        if (ca.Length != cb.Length || a.childCount != b.childCount) return false;
+        for (int i = 0; i < ca.Length; i++)
+        {
+            if (ca[i] == null || cb[i] == null) { if (ca[i] != cb[i]) return false; continue; }
+            if (ca[i].GetType() != cb[i].GetType()) return false;
+            if (!SameComponentData(ca[i], cb[i])) return false;
+        }
+        for (int i = 0; i < a.childCount; i++)
+            if (!SameSubtree(a.GetChild(i), b.GetChild(i))) return false;
+        return true;
+    }
+
+    // 두 컴포넌트의 직렬화 값이 완전히 같은가. 오브젝트 참조는 '같은 대상'이면 같고,
+    // 각자 자기 내부를 가리키는 경우는 타입+이름이 대응하면 같다고 본다.
+    private static bool SameComponentData(Component a, Component b)
+    {
+        SerializedObject soA, soB;
+        try { soA = new SerializedObject(a); soB = new SerializedObject(b); } catch { return false; }
+        var pa = soA.GetIterator();
+        var pb = soB.GetIterator();
+        bool ma = pa.NextVisible(true), mb = pb.NextVisible(true);
+        while (ma && mb)
+        {
+            if (pa.propertyPath != pb.propertyPath || pa.propertyType != pb.propertyType) return false;
+            if (pa.propertyType == SerializedPropertyType.ObjectReference)
+            {
+                var oa = pa.objectReferenceValue;
+                var ob = pb.objectReferenceValue;
+                if ((oa == null) != (ob == null)) return false;
+                if (oa != null && oa != ob && (oa.GetType() != ob.GetType() || oa.name != ob.name)) return false;
+            }
+            else if (!pa.hasVisibleChildren && !SerializedProperty.DataEquals(pa, pb)) return false;
+            ma = pa.NextVisible(true);
+            mb = pb.NextVisible(true);
+        }
+        return ma == mb;
+    }
+
+    // 삭제 확정 공통 처리: 배지 등록 + (검사 B의) 하위 보고 생략 + 프리팹 안 삭제 위치 수집.
+    private static void MarkForDelete(Transform t, HashSet<Transform> covered,
+                                      Dictionary<string, List<string>> prefabsToFix)
+    {
+        _toDelete.Add(t.gameObject.GetInstanceID());
+        covered?.Add(t);
+        if (TryGetPrefabSource(t.gameObject, out string assetPath, out string insidePath))
+        {
+            if (!prefabsToFix.TryGetValue(assetPath, out var l)) { l = new List<string>(); prefabsToFix[assetPath] = l; }
+            if (!l.Contains(insidePath)) l.Add(insidePath);
+        }
     }
 
     private static int Depth(Transform t)
