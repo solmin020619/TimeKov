@@ -33,6 +33,13 @@ public class LocalizedLabel : MonoBehaviour
     {
         if (_text == null || _yielded) return;
 
+        // ★키가 아직 안 정해졌으면 라벨을 건드리지 않는다.
+        //   AddComponent 하는 순간 유니티가 OnEnable 을 즉시 호출하는데, 그 시점엔 SetKey 가
+        //   아직 안 불려 _koreanKey 가 비어 있다. 예전엔 여기서 Loc.Get(null) 결과로 라벨을
+        //   빈 문자열로 덮어써서, 원래 글자가 지워진 채 그 빈 값이 다시 키로 넘어갔다
+        //   (영상 팝업 키캡/안내문이 통째로 사라진 원인).
+        if (string.IsNullOrEmpty(_koreanKey)) return;
+
         // ★내가 쓴 값이 남의 손에 바뀌어 있으면, 그 라벨은 코드가 매번 갱신하는 것이다.
         //   (예: "용량 0 / 35" 처럼 값이 들어가는 줄). 여기서 원문 번역으로 되돌리면
         //   코드가 채운 숫자를 지워버린다. 한 번이라도 감지되면 영구히 손을 뗀다.
@@ -70,7 +77,10 @@ public class LocalizedLabel : MonoBehaviour
             if (t == null || t.GetComponent<LocalizedLabel>() != null) continue;
             if (string.IsNullOrWhiteSpace(t.text)) continue;
             if (!Loc.HasKey(t.text)) continue;
-            t.gameObject.AddComponent<LocalizedLabel>().SetKey(t.text);
+            // ★키를 미리 담아둔다. AddComponent 가 OnEnable 을 즉시 돌리므로
+            //   't.text' 를 인자 자리에서 읽으면 이미 변형된 값을 넘길 위험이 있다.
+            string key = t.text;
+            t.gameObject.AddComponent<LocalizedLabel>().SetKey(key);
         }
     }
 }

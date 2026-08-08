@@ -32,6 +32,7 @@ public class TutorialMarker : MonoBehaviour
     private Camera _cam;
     private CanvasGroup _markerCg;
     private bool _wasVisible;
+    private string _warnedMissingTrigger;   // 같은 트리거 경고 반복 방지
     private RectTransform _circle;
     private Vector3 _circleHome;
 
@@ -92,9 +93,12 @@ public class TutorialMarker : MonoBehaviour
         if (!found)
         {
             // 3초에 한 번 진단 로그 (활성 obj 종류 정리)
-            if (Time.frameCount % 180 == 0)
+            // ★같은 트리거에 대해 한 번만 알린다. 예전엔 3초마다 다시 찍어서
+            //   그 상태가 유지되는 동안 콘솔이 이 경고로만 채워졌다.
+            if (lastTriggerId != null && _warnedMissingTrigger != lastTriggerId)
             {
-                int total = 0, reachCount = 0;
+                _warnedMissingTrigger = lastTriggerId;
+                int total = 0;
                 string types = "";
                 foreach (var rt in QuestManager.Instance.Runtimes)
                 {
@@ -104,11 +108,9 @@ public class TutorialMarker : MonoBehaviour
                         if (obj == null) continue;
                         total++;
                         types += obj.GetType().Name + ",";
-                        if (obj is ReachTriggerObjective) reachCount++;
                     }
                 }
-                if (lastTriggerId != null)
-                    Debug.LogWarning($"[TutorialMarker] ReachTrigger='{lastTriggerId}' 활성인데 QuestTrigger GameObject 못 찾음. 활성 obj {total}개=[{types}]");
+                Debug.LogWarning($"[TutorialMarker] ReachTrigger='{lastTriggerId}' 활성인데 QuestTrigger GameObject 못 찾음. 활성 obj {total}개=[{types}]");
             }
             Hide();
             return;

@@ -145,7 +145,13 @@ public static class TableValidator
             return false;
         }
 
-        Debug.Log($"{prefix} 검증 통과 ({table.Rows.Count}행)");
+        // ★행이 0개여도 위 검사는 전부 통과한다(컬럼만 맞으면 되니까).
+        //   그러면 아이템/몬스터 데이터 없이 게임이 조용히 시작된다. 예전엔 통과 로그의
+        //   행 수를 보고 사람이 눈치챘는데, 그 로그를 없앤 만큼 여기서 명시적으로 잡는다.
+        if (table.Rows.Count == 0)
+            Debug.LogWarning($"{prefix} 시트에 데이터가 0행이다. 게시 설정이나 시트 내용을 확인해라.");
+
+        // 통과는 조용히. 시트마다 한 줄씩 찍으면 부팅 로그가 도배돼서 정작 봐야 할 경고가 묻힌다.
         return true;
     }
 
@@ -155,6 +161,7 @@ public static class TableValidator
         Dictionary<string, CsvTable> allTables)
     {
         bool allPassed = true;
+        int ok = 0, rows = 0;
         foreach (var schema in schemas)
         {
             if (!allTables.TryGetValue(schema.TableName, out var table))
@@ -164,8 +171,13 @@ public static class TableValidator
                 continue;
             }
             bool passed = Validate(schema, table, allTables, out var errors);
-            if (!passed) allPassed = false;
+            if (passed) { ok++; rows += table.Rows.Count; }
+            else allPassed = false;
         }
+        // ★성공은 아예 찍지 않는다. 잘 됐다는 건 게임이 도는 걸로 확인되고,
+        //   콘솔은 '문제만' 남아 있어야 눈에 띈다. 실패는 위에서 이미 에러로 나갔다.
+        if (!allPassed)
+            Debug.LogError($"[Validator] 시트 검증 실패 — 통과 {ok}/{schemas.Count} (총 {rows}행)");
         return allPassed;
     }
 }

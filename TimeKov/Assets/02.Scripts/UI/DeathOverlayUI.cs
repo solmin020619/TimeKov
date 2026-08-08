@@ -444,8 +444,11 @@ public class DeathOverlayUI : MonoBehaviour
         // 인스펙터 지정이 최우선(빌드/에디터 모두 신뢰 가능). 미지정 시에만 로드된 폰트에서 자동 탐색 시도.
         if (titleFont == null) titleFont = TryFindFontByName("Cinzel");
         if (bodyFont  == null) bodyFont  = TryFindFontByName("Maeumgyeol");
+        // ★본문 폰트 경고는 뺐다. 찾으라던 GabiaMaeumgyeol 은 지금 미사용 폰트고,
+        //   비었을 때 쓰이는 TMP 기본 폰트가 곧 프로젝트 표준(Pretendard-SemiBold)이라
+        //   폴백 결과가 오히려 정상이다. 매 실행 뜨는데 고칠 게 없는 경고였다.
+        //   제목(Cinzel)은 세리프 연출 의도가 있어 비면 알린다.
         if (titleFont == null) Debug.LogWarning("[DeathOverlay] Title Font(라틴 세리프)가 비어 있어 기본 폰트로 표시됩니다. DeathOverlayUI 컴포넌트의 'Title Font'에 'Cinzel SDF'를 할당하세요.", this);
-        if (bodyFont  == null) Debug.LogWarning("[DeathOverlay] Body Font(한글)가 비어 있어 기본 폰트로 표시됩니다. DeathOverlayUI 컴포넌트의 'Body Font'에 'GabiaMaeumgyeol SDF'를 할당하세요.", this);
 
         // 기존(구 디자인) 자식 숨김 — 파괴하지 않고 비활성화해 새 트리로 대체.
         for (int i = transform.childCount - 1; i >= 0; i--)
