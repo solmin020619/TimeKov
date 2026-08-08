@@ -46,7 +46,7 @@ public class ChestPromptUI : PromptPanelUI
         SetTitle(Loc.Get("잠긴 상자"));
         SetProgress(false);
         SetPrimary(null, null, null);                              // F 버튼 없음(스위치로만 풀림)
-        SetSecondary("", Loc.Get("스위치를 활성화하라"), null);      // 안내 문구(키 없음, 눌러도 동작 없음)
+        SetSecondary("", Loc.Get("스위치 활성화 필요"), null);      // 안내 문구(키 없음, 눌러도 동작 없음)
         ShowPanel();
     }
 
