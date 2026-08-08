@@ -163,6 +163,10 @@ public class CoreUpgradeUI : MonoBehaviour
         if (spinHint != null) spinHint.SetActive(false);
         if (judgeChipText != null) judgeChipText.gameObject.SetActive(false);
 
+        // 씬에 구운 고정 라벨("보유 코어 키트", "코어 효과", "멈춰서 성공존에 맞추세요!" 등)은
+        // 코드가 다시 쓰지 않아 번역이 있어도 한국어로 남는다. 값이 들어가는 줄은 자동으로 걸러진다.
+        LocalizedLabel.AttachToStaticLabels(panelRoot);
+
         panelRoot?.SetActive(false);
     }
 

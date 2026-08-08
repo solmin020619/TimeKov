@@ -139,6 +139,10 @@ public class InventoryUIController : MonoBehaviour
 
     private void Start()
     {
+        // 씬에 구운 고정 라벨(정렬 옵션/카테고리 제목/버튼 등)에 번역을 붙인다.
+        // 코드가 매번 쓰는 줄(용량 표시 등)은 키가 아니라 자동으로 걸러진다.
+        LocalizedLabel.AttachToStaticLabels(inventoryRoot);
+
         // 인벤토리 매니저 바인딩
         if (bagGridUI != null && InventoryManager.Instance != null)
             bagGridUI.Bind(InventoryManager.Instance);
