@@ -30,6 +30,12 @@ public class LoadingSceneManager : MonoBehaviour
 
     private void Start()
     {
+        // 씬에 구운 안내 문구("이 게임은 아직 개발중인 게임입니다.")에 번역을 붙인다.
+        // 표는 Loc 부트스트랩이 캐시에서 미리 깔아둔다(첫 실행만 한국어).
+        // 라벨이 이 오브젝트 하위란 보장이 없어 씬 루트를 전부 훑는다(로딩 씬은 작다).
+        foreach (var go in gameObject.scene.GetRootGameObjects())
+            LocalizedLabel.AttachToStaticLabels(go);
+
         if (loadingSlider != null) loadingSlider.value = 0f;
         if (loadingText   != null) loadingText.text    = "0%";
 

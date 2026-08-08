@@ -143,6 +143,9 @@ public class ShipRepairUI : MonoBehaviour
     [Tooltip("부품 링 트랙 회전 속도(도/초). 음수 = 시계 방향.")]
     [SerializeField] private float partRingSpin = -9f;
 
+    private const float PipGapPx = 16f;        // 제목 글자 끝과 pip 줄 사이 최소 간격
+    private float _pipLeftAuthored = float.NaN; // 씬에 저장된 pip 줄 시작점(짧은 언어의 기준선)
+
     private readonly List<Image> _pips = new();
     private readonly List<ShipExtraPartChip> _extraChips = new();
     private float _partGlowBaseA = 0.10f;      // 상태별 후광 기준 알파 (맥동의 중심값)
@@ -381,6 +384,7 @@ public class ShipRepairUI : MonoBehaviour
         if (levelText != null)
             levelText.text = $"{Loc.Get("수리 단계")}  Lv.{cur} / {max}";
 
+        PushPipsBehindLabel();
         RefreshPips(cur);
 
         // 복원도 링 (Lv.1=0% ~ Lv.max=100%). 실제 채움은 DriveAmbient 가 부드럽게 스윕.
@@ -416,6 +420,23 @@ public class ShipRepairUI : MonoBehaviour
     }
 
     // pip 점등 + 현재 단계 강조 (디자인 노드=점등 스프라이트 교체+현재만 살짝 확대 / 없으면 색만)
+    // "수리 단계 Lv.1 / 10" 제목과 그 오른쪽 pip 줄은 좌표가 각각 고정이라,
+    //   제목이 길어지면 pip 가 글자 위로 올라온다("Niveau de reparation" 에서 실제로 겹쳤다).
+    //   글자 실제 폭을 재서 pip 줄 시작점을 그 뒤로 민다. 둘은 같은 부모라 좌표계가 같다.
+    //   한국어처럼 짧으면 원래 위치보다 왼쪽이 나오므로 그때는 손대지 않는다.
+    private void PushPipsBehindLabel()
+    {
+        if (levelText == null || pipContainer == null) return;
+        if (float.IsNaN(_pipLeftAuthored)) _pipLeftAuthored = pipContainer.offsetMin.x;
+
+        var lrt = levelText.rectTransform;
+        float left = lrt.anchoredPosition.x - lrt.rect.width * lrt.pivot.x;
+        float wanted = left + levelText.preferredWidth + PipGapPx;
+        if (wanted <= _pipLeftAuthored) return;   // 짧은 언어 = 원래 배치 유지
+
+        pipContainer.offsetMin = new Vector2(wanted, pipContainer.offsetMin.y);
+    }
+
     private void RefreshPips(int cur)
     {
         bool art = pipOnSprite != null && pipOffSprite != null;

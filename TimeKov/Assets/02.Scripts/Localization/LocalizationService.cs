@@ -23,6 +23,11 @@ public static class Loc
     {
         try { CurrentLanguage = FromCode(SettingsData.Load().language); }
         catch (Exception e) { Debug.LogWarning($"[Loc] 저장된 언어 복원 실패, 한국어로 진행: {e.Message}"); }
+
+        // 직전 실행에서 받아둔 번역표를 먼저 깐다. 시트 다운로드는 로딩 씬에서야 끝나는데
+        // 그 전에 뜨는 화면(로딩 문구)까지 번역하려면 이 시점에 표가 있어야 한다.
+        // 네트워크 결과가 도착하면 최신 값으로 덮어쓴다.
+        if (CurrentLanguage != LanguageCode.KO) LocalizationLoader.LoadFromCache();
     }
 
     private static readonly Dictionary<LanguageCode, Dictionary<string, string>> _tables = new();

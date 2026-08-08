@@ -157,19 +157,12 @@ public class InventoryUIController : MonoBehaviour
         if (warehouseBagGridUI != null && InventoryManager.Instance != null)
             warehouseBagGridUI.Bind(InventoryManager.Instance);
 
-        // 카테고리 필터 이벤트 연결. 탭에서 이름 펼침을 없앤 대신(긴 번역어가 패널을
-        // 뚫는 문제) 선택 카테고리 이름은 패널 제목이 "가방 | 원재료" 형식으로 보여준다.
+        // 카테고리 필터 이벤트 연결
         if (bagFilterUI != null)
-        {
             bagFilterUI.OnFilterChanged += bagGridUI.SetFilter;
-            bagFilterUI.OnFilterChanged += _ => RefreshPanelTitles();
-        }
 
         if (warehouseFilterUI != null)
-        {
             warehouseFilterUI.OnFilterChanged += warehouseGridUI.SetFilter;
-            warehouseFilterUI.OnFilterChanged += _ => RefreshPanelTitles();
-        }
 
         // 버튼 이벤트 등록
         if (moveAllBtn != null) moveAllBtn.onClick.AddListener(OnClickMoveAll);
@@ -233,14 +226,9 @@ public class InventoryUIController : MonoBehaviour
 
     private void RefreshPanelTitles()
     {
-        // "가방 | 원재료" 형식 - 필터 탭이 아이콘 전용이 되면서 이름 표시는 제목이 담당.
-        //   언어 변경 이벤트와 필터 클릭 양쪽에서 호출된다.
-        if (bagPanelTitle != null)
-            bagPanelTitle.text = Loc.Get("가방") + " | "
-                + (bagFilterUI != null ? bagFilterUI.CurrentFilterName : Loc.Get("전체"));
-        if (storagePanelTitle != null)
-            storagePanelTitle.text = Loc.Get("창고") + " | "
-                + (warehouseFilterUI != null ? warehouseFilterUI.CurrentFilterName : Loc.Get("전체"));
+        // 인벤토리는 폭이 넉넉해 탭에 카테고리 이름이 그대로 펼쳐진다(제목에 중복 표기 안 함).
+        if (bagPanelTitle != null)     bagPanelTitle.text     = Loc.Get("가방");
+        if (storagePanelTitle != null) storagePanelTitle.text = Loc.Get("창고");
     }
 
     private void Update()

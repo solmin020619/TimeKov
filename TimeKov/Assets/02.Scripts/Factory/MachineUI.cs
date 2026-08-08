@@ -169,6 +169,9 @@ public class MachineUI : MonoBehaviour
         SetupDropZone();
         SetupDualSections();
         RefreshLocalization();
+        // 씬에 구운 고정 라벨 보강. fuelSectionLabel("연료")처럼 인스펙터 연결이 비어 있어
+        // 위 RefreshLocalization 이 건드리지 못하는 라벨이 있다. 값이 들어가는 줄은 자동 제외된다.
+        LocalizedLabel.AttachToStaticLabels(gameObject);
         Loc.OnLanguageChanged += RefreshLocalization;
     }
 
@@ -305,6 +308,10 @@ public class MachineUI : MonoBehaviour
             // 원본은 stretch 앵커라 sizeDelta.x=0 -> 앵커 교체 후 폭을 명시해야 탭들이 행 안에 온다.
             _filterRowRt.sizeDelta = new Vector2((SEC_ColW - SEC_LeftX - 8f) / 0.85f, 62f);
             _storageFilterUI = cloneGo.GetComponent<CategoryFilterUI>();
+            // ★이 칼럼만 폭이 좁아서, 선택 탭에 이름을 펼치면 프랑스어처럼 긴 번역어에서
+            //   탭 7개가 칼럼을 넘어 양끝 아이콘이 밖으로 밀려난다. 여기서만 아이콘 전용으로 둔다.
+            //   선택 카테고리는 바로 위 헤더가 "창고 | 원재료" 로 보여준다.
+            _storageFilterUI.SetTabNamesVisible(false);
             _storageFilterUI.OnFilterChanged += f => { _storageFilter = f; UpdateStorageHeaderLabel(); RefreshInventorySlots(); };
             UpdateStorageHeaderLabel();   // 첫 오픈부터 "창고 | 전체" 형식 유지(필터 클릭 전 맨 "창고"로 뜨던 것 통일)
         }
