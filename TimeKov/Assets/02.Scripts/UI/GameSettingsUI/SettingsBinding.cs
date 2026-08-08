@@ -72,35 +72,38 @@ namespace GameSettingsUI
             }
         }
 
+        // 드롭다운 표시용: 번역된 레이블 반환 (KO이면 원문 그대로)
         public static string[] Options(SettingId id)
         {
             switch (id)
             {
-                case SettingId.Language:       return ToArray(GlobalSettingsManager.LanguageOptions);
-                case SettingId.ScreenQuality:  return ToArray(GlobalSettingsManager.QualityOptions);
-                case SettingId.ShadowQuality:  return ToArray(GlobalSettingsManager.ShadowQualityOptions);
-                case SettingId.TextureQuality: return ToArray(GlobalSettingsManager.TextureQualityOptions);
+                case SettingId.Language:       return Localize(GlobalSettingsManager.LanguageOptions);
+                case SettingId.ScreenQuality:  return Localize(GlobalSettingsManager.QualityOptions);
+                case SettingId.ShadowQuality:  return Localize(GlobalSettingsManager.ShadowQualityOptions);
+                case SettingId.TextureQuality: return Localize(GlobalSettingsManager.TextureQualityOptions);
                 case SettingId.Resolution:     return ResolutionLabels;
                 default:                       return new string[0];
             }
         }
 
+        // 현재 선택값을 번역된 레이블로 반환
         public static string GetLabel(SettingId id)
         {
             switch (id)
             {
-                case SettingId.Language:       return At(Options(id), (int)Loc.FromCode(P.language));
-                case SettingId.ScreenQuality:  return At(Options(id), P.qualityLevel);
-                case SettingId.ShadowQuality:  return At(Options(id), P.shadowQualityLevel);
-                case SettingId.TextureQuality: return At(Options(id), P.textureQualityLevel);
+                case SettingId.Language:       return Loc.Get(At(GlobalSettingsManager.LanguageOptions, (int)Loc.FromCode(P.language)));
+                case SettingId.ScreenQuality:  return Loc.Get(At(GlobalSettingsManager.QualityOptions, P.qualityLevel));
+                case SettingId.ShadowQuality:  return Loc.Get(At(GlobalSettingsManager.ShadowQualityOptions, P.shadowQualityLevel));
+                case SettingId.TextureQuality: return Loc.Get(At(GlobalSettingsManager.TextureQualityOptions, P.textureQualityLevel));
                 case SettingId.Resolution:     return $"{P.resolutionWidth} x {P.resolutionHeight}";
                 default:                       return string.Empty;
             }
         }
 
+        // 드롭다운에서 선택된 번역 레이블 → 원본 인덱스로 역변환 후 저장
         public static void SetLabel(SettingId id, string label)
         {
-            int i = IndexOf(Options(id), label);
+            int i = IndexOfLocalized(id, label);
             switch (id)
             {
                 case SettingId.Language:       M.SetLanguage((LanguageCode)i);  break;
@@ -112,6 +115,23 @@ namespace GameSettingsUI
                     if (i >= 0 && i < res.Count) M.SetResolution(res[i].width, res[i].height);
                     break;
             }
+        }
+
+        // 번역 레이블 → 원본 배열에서 인덱스 검색 (번역 중 일치하는 것 우선)
+        static int IndexOfLocalized(SettingId id, string translatedLabel)
+        {
+            IReadOnlyList<string> raw;
+            switch (id)
+            {
+                case SettingId.Language:       raw = GlobalSettingsManager.LanguageOptions;       break;
+                case SettingId.ScreenQuality:  raw = GlobalSettingsManager.QualityOptions;        break;
+                case SettingId.ShadowQuality:  raw = GlobalSettingsManager.ShadowQualityOptions;  break;
+                case SettingId.TextureQuality: raw = GlobalSettingsManager.TextureQualityOptions; break;
+                default: return 0;
+            }
+            for (int i = 0; i < raw.Count; i++)
+                if (Loc.Get(raw[i]) == translatedLabel || raw[i] == translatedLabel) return i;
+            return 0;
         }
 
         // ── 슬라이더 ────────────────────────────────────────────────
@@ -189,6 +209,12 @@ namespace GameSettingsUI
         {
             var a = new string[src.Count];
             for (int i = 0; i < src.Count; i++) a[i] = src[i];
+            return a;
+        }
+        static string[] Localize(IReadOnlyList<string> src)
+        {
+            var a = new string[src.Count];
+            for (int i = 0; i < src.Count; i++) a[i] = Loc.Get(src[i]);
             return a;
         }
         static int IndexOf(IReadOnlyList<string> src, string v)

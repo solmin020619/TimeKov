@@ -81,6 +81,7 @@ namespace GameSettingsUI
         RectTransform bodyViewport;   // 드롭다운 펼침 방향 판단 기준(RectMask2D 클리핑 영역)
         bool blurActive;              // 블러가 실제로 성립했는지(카메라를 못 찾으면 false로 떨어진다)
         Image applyBG;
+        TMP_Text _titleTmp;
 
         [Header("열기 애니메이션")]
         [Tooltip("설정창이 열릴 때의 연출.\n" +
@@ -187,6 +188,7 @@ namespace GameSettingsUI
             if (blurCam) BuildBlurCanvas(blurCam);
 
             RefreshAll();   // 표시값을 현재 설정값으로 갱신 (배경색은 Start가 확정한다)
+            LocalizedLabel.AttachToStaticLabels(root.gameObject);   // 베이크된 한글 라벨에 자동 구독 부착
         }
 
         // 블러 패스는 Overlay 캔버스보다 먼저 그려지므로, UI가 Overlay가 아니면 덮인다.
@@ -289,6 +291,7 @@ namespace GameSettingsUI
             if (overlayCanvasGO) overlayCanvasGO.SetActive(true);
             // 다시 열 때는 매니저가 편집 폼을 _data 기준으로 되돌린 뒤일 수 있으므로 다시 읽어온다.
             if (built) { ResetMuteStates(); RefreshAll(); PlayOpenAnim(); }
+            Loc.OnLanguageChanged += RefreshTitleLabel;
         }
 
         // 열기 연출. 스크림이 화면 전체를 덮으므로 배율은 1 이상에서만 시작한다
@@ -452,6 +455,7 @@ namespace GameSettingsUI
             ShowWarning(false);   // 다음에 열 때 경고창이 떠 있는 채로 시작하지 않도록
             if (blurCanvasGO) blurCanvasGO.SetActive(false);
             if (overlayCanvasGO) overlayCanvasGO.SetActive(false);
+            Loc.OnLanguageChanged -= RefreshTitleLabel;
         }
         void OnDestroy() { if (blurCanvasGO) Destroy(blurCanvasGO); if (overlayCanvasGO) Destroy(overlayCanvasGO); }
 
@@ -552,10 +556,10 @@ namespace GameSettingsUI
             box.anchoredPosition = Vector2.zero;
             AddOutline(box.GetComponent<Image>(), UIColors.TabBorder, 1);
 
-            var msg = Text(box, "적용하지 않은 변경사항이 있습니다.", 26, FontWeight.Bold,
+            var msg = LocText(box, "적용하지 않은 변경사항이 있습니다.", 26, FontWeight.Bold,
                            UIColors.TextRow, TextAlignmentOptions.Center);
             AnchorTL(msg.rectTransform, 40, 52, 640, 40);
-            var sub = Text(box, "적용하고 닫을까요?", 22, FontWeight.Regular,
+            var sub = LocText(box, "적용하고 닫을까요?", 22, FontWeight.Regular,
                            UIColors.WarnSubText, TextAlignmentOptions.Center);
             AnchorTL(sub.rectTransform, 40, 96, 640, 36);
 
@@ -571,7 +575,7 @@ namespace GameSettingsUI
             var b = Panel(box, $"WarnBtn_{action}", 196, 62, 31, UIColors.KeyBG);
             AnchorTL(b, x, 164, 196, 62);
             AddOutline(b.GetComponent<Image>(), UIColors.KeyBorder, 1);
-            var t = Text(b, label, 21, FontWeight.Bold, UIColors.TextValue, TextAlignmentOptions.Center);
+            var t = LocText(b, label, 21, FontWeight.Bold, UIColors.TextValue, TextAlignmentOptions.Center);
             AnchorLeftMiddle(t.rectTransform, 0, 196, 40); t.alignment = TextAlignmentOptions.Center;
             // 키 바인딩 버튼과 같은 어두운 계열 — 패널 안의 다른 어두운 컨트롤과 톤을 맞춘다.
             AddBtn(b.gameObject, b.GetComponent<Image>(), UIColors.KeyBG, UIColors.KeyBGHover,
@@ -639,6 +643,8 @@ namespace GameSettingsUI
                 62, FontWeight.Heavy, Color.white, TextAlignmentOptions.Left);
             AnchorTL(title.rectTransform, SIDE, 46, 900, 80);   // 부제까지 들어가도록 폭 확보
             title.characterSpacing = -2f;                       // -2 units ≈ -1.24px @62 (부제 구간은 cspace가 덮어씀)
+            _titleTmp = title;
+            RefreshTitleLabel();
 
             // 중앙 탭 컨테이너
             var container = Panel(root, "TabBar", 300 + 24 + 26, 84, 20, TabBarColor()); // 3*88 + gaps... 계산 후 재조정
@@ -724,7 +730,7 @@ namespace GameSettingsUI
             float h = 28;
             var row = NewRect($"Section_{label}", panel);
             AnchorTL(row, 0, _y, PanelW(), h);
-            var t = Text(row, label, 23, FontWeight.Heavy, UIColors.SectionLabel, TextAlignmentOptions.Left);
+            var t = LocText(row, label, 23, FontWeight.Heavy, UIColors.SectionLabel, TextAlignmentOptions.Left);
             // 라벨 폭을 200px로 고정하면 짧은 라벨일수록 구분선이 멀리 밀린다(목업은 라벨 바로 뒤 26px).
             // 실제 렌더 폭을 재서 붙인다.
             float labelW = t.GetPreferredValues(label).x;
@@ -741,7 +747,7 @@ namespace GameSettingsUI
             var row = Panel(panel, $"Row_{label}", PanelW(), 96, 18, RowColor());
             rowBGs.Add(row.GetComponent<Image>());
             AnchorTL(row, 0, _y, PanelW(), 96);
-            var t = Text(row, label, 25, FontWeight.SemiBold, UIColors.TextRow, TextAlignmentOptions.Left);
+            var t = LocText(row, label, 25, FontWeight.SemiBold, UIColors.TextRow, TextAlignmentOptions.Left);
             AnchorLeftMiddle(t.rectTransform, 44, 700, 40);
             controlSlot = NewRect("ControlSlot", row);
             controlSlot.anchorMin = new Vector2(1, 0.5f); controlSlot.anchorMax = new Vector2(1, 0.5f); controlSlot.pivot = new Vector2(1, 0.5f);
@@ -823,7 +829,7 @@ namespace GameSettingsUI
             main.anchorMin = new Vector2(0, 0.5f); main.anchorMax = new Vector2(0, 0.5f); main.pivot = new Vector2(0, 0.5f);
             main.anchoredPosition = new Vector2(0, 0);
 
-            controlsHint = Text(footer, "변경하고자 하는 키를 눌러서 선택해 주세요.", 22, FontWeight.Regular, UIColors.HintText, TextAlignmentOptions.Left).gameObject;
+            controlsHint = LocText(footer, "변경하고자 하는 키를 눌러서 선택해 주세요.", 22, FontWeight.Regular, UIColors.HintText, TextAlignmentOptions.Left).gameObject;
             var hr = (RectTransform)controlsHint.transform;
             hr.anchorMin = new Vector2(0, 0.5f); hr.anchorMax = new Vector2(0, 0.5f); hr.pivot = new Vector2(0, 0.5f);
             hr.anchoredPosition = new Vector2(main.sizeDelta.x + 30, 0);
@@ -846,7 +852,7 @@ namespace GameSettingsUI
         RectTransform FooterButton(RectTransform parent, string label, Sprite icon, Action onClick, SettingsAction action, float minW = 0)
         {
             var b = Panel(parent, $"Footer_{action}", 0, FOOTER_BTN_H, FOOTER_BTN_H / 2f, UIColors.OffWhite);
-            var txt = Text(b, label, 21, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
+            var txt = LocText(b, label, 21, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
             // 원형 아이콘
             var circle = Panel(b, "IconCircle", 42, 42, 21, UIColors.CircleIconBG);
             AnchorRightMiddle(circle, 10, 42, 42);
@@ -983,9 +989,9 @@ namespace GameSettingsUI
             track.anchoredPosition = Vector2.zero;
             var knob = Panel(track, "ToggleKnob", 226, 54, 27, UIColors.ToggleKnob);
             AnchorTL(knob, 4, 4, 226, 54);
-            var full = Text(track, "전체 화면", 22, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
+            var full = LocText(track, "전체 화면", 22, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
             AnchorTL(full.rectTransform, 0, 11, 230, 40);
-            var win = Text(track, "창 모드", 22, FontWeight.Bold, UIColors.ToggleTextOff, TextAlignmentOptions.Center);
+            var win = LocText(track, "창 모드", 22, FontWeight.Bold, UIColors.ToggleTextOff, TextAlignmentOptions.Center);
             AnchorTL(win.rectTransform, 230, 11, 230, 40);
 
             // 라벨 TMP는 raycastTarget=false라 클릭을 못 받는다.
@@ -1320,6 +1326,24 @@ namespace GameSettingsUI
         }
 
         void AddOutline(Image img, Color c, float px) { var o = img.gameObject.AddComponent<UnityEngine.UI.Outline>(); o.effectColor = c; o.effectDistance = new Vector2(px, px); o.useGraphicAlpha = false; }
+
+        // Korean key를 Text()로 만들고 LocalizedLabel.SetKey()로 언어 변경 자동 구독.
+        TMP_Text LocText(RectTransform parent, string korKey, float size, FontWeight weight, Color color, TextAlignmentOptions align)
+        {
+            var t = Text(parent, korKey, size, weight, color, align);
+            if (!string.IsNullOrEmpty(korKey))
+                t.gameObject.AddComponent<LocalizedLabel>().SetKey(korKey);
+            return t;
+        }
+
+        void RefreshTitleLabel()
+        {
+            if (_titleTmp == null) return;
+            if (Loc.CurrentLanguage == LanguageCode.KO)
+                _titleTmp.text = "설정<space=14><size=26><cspace=0.02em><color=#8A8A8A>Settings</color></cspace></size>";
+            else
+                _titleTmp.text = Loc.Get("설정");
+        }
 
         TMP_Text Text(RectTransform parent, string s, float size, FontWeight weight, Color color, TextAlignmentOptions align)
         {
