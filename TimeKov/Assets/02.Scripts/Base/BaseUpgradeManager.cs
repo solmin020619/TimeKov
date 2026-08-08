@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+[SingleInstance]
 public class BaseUpgradeManager : MonoBehaviour
 {
     public static BaseUpgradeManager Instance { get; private set; }
@@ -90,7 +91,7 @@ public class BaseUpgradeManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
 
         if (zoneProgression == null) zoneProgression = FindAnyObjectByType<BuildZoneProgression>();

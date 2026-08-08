@@ -7,6 +7,7 @@ using UnityEngine.UI;
 //   밟으면 자동(WarpPoint 트리거) → OnWarpStepped 로 위임.
 //   RegionPoint: 최초=활성화(저장), 이후=기지 복귀.  BaseOutbound: 활성화된 지역 지점 중 랜덤 워프.
 //   맵이 단일 World.unity 안 지역이라 씬 로드 없이 트랜스폼만 이동한다.
+[SingleInstance]
 public class WarpManager : MonoBehaviour, ISaveable
 {
     public static WarpManager Instance { get; private set; }
@@ -62,7 +63,7 @@ public class WarpManager : MonoBehaviour, ISaveable
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         SaveSlotManager.Instance?.Register(this);
         RestoreFromSave();

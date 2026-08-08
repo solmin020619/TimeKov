@@ -441,14 +441,14 @@ public class DeathOverlayUI : MonoBehaviour
         _built = true;
 
         _font = FindFont();
-        // 인스펙터 지정이 최우선(빌드/에디터 모두 신뢰 가능). 미지정 시에만 로드된 폰트에서 자동 탐색 시도.
-        if (titleFont == null) titleFont = TryFindFontByName("Cinzel");
-        if (bodyFont  == null) bodyFont  = TryFindFontByName("Maeumgyeol");
-        // ★본문 폰트 경고는 뺐다. 찾으라던 GabiaMaeumgyeol 은 지금 미사용 폰트고,
-        //   비었을 때 쓰이는 TMP 기본 폰트가 곧 프로젝트 표준(Pretendard-SemiBold)이라
-        //   폴백 결과가 오히려 정상이다. 매 실행 뜨는데 고칠 게 없는 경고였다.
-        //   제목(Cinzel)은 세리프 연출 의도가 있어 비면 알린다.
-        if (titleFont == null) Debug.LogWarning("[DeathOverlay] Title Font(라틴 세리프)가 비어 있어 기본 폰트로 표시됩니다. DeathOverlayUI 컴포넌트의 'Title Font'에 'Cinzel SDF'를 할당하세요.", this);
+        // ★이름으로 폰트를 자동 탐색하던 코드를 뺐다. 이유:
+        //   Cinzel SDF 는 메인메뉴 로고 'TIMEKOV' 전용으로 9글자(E I K M O T V _ …)만 구운 폰트다.
+        //   자동 탐색은 '이미 메모리에 올라온 폰트'를 집으므로, 메인메뉴를 거쳐 오면 로고가 올려둔
+        //   Cinzel 이 잡혀 제목에 박힌다. 그러면 'TIME OVER' 의 R 이 없어 그 글자만 폴백 폰트로
+        //   그려져 혼자 튄다(월드 씬 직접 플레이에선 로드 전이라 안 잡혀서 오래 안 보였다).
+        //   비워두면 TMP 기본 폰트 = 프로젝트 표준(Pretendard)이라 전 글자가 고르게 나온다.
+        //   세리프 제목을 원하면 Cinzel 을 알파벳 전체로 다시 굽고 인스펙터에 직접 할당할 것.
+        //   경고도 뺐다 - 비어 있는 게 정상 상태라 알릴 이유가 없다.
 
         // 기존(구 디자인) 자식 숨김 — 파괴하지 않고 비활성화해 새 트리로 대체.
         for (int i = transform.childCount - 1; i >= 0; i--)
@@ -928,8 +928,9 @@ public class DeathOverlayUI : MonoBehaviour
     // 리스폰 버튼(둥근 알약형): 상시 소프트 글로우 + 호버 글로우 + 부유. 카운트다운 완료 시 페이드 인.
     void BuildButton(Transform parent, Vector2 pos)
     {
+        const float BtnW = 320f, BtnH = 60f;   // 기본 크기(한국어 기준). 긴 번역이면 아래에서 넓힌다.
         var btnRt = NewRect("RespawnButton", parent);
-        Center(btnRt, 320f, 60f, pos);
+        Center(btnRt, BtnW, BtnH, pos);
         _btnRt   = btnRt;
         _btnHome = pos;
 
@@ -966,7 +967,7 @@ public class DeathOverlayUI : MonoBehaviour
 
         // 안쪽 보조 알약 프레임(스틸, 아주 옅게) — 깊이감
         var inner = NewImage("BtnInner", btnRt);
-        Center(inner.rectTransform, 320f - 12f, 60f - 12f, Vector2.zero);
+        Center(inner.rectTransform, BtnW - 12f, BtnH - 12f, Vector2.zero);
         inner.sprite = RoundedSprite(64, 22, 1);
         inner.type = Image.Type.Sliced;
         inner.color = new Color(ColCyan.r, ColCyan.g, ColCyan.b, 0.16f);
@@ -977,6 +978,20 @@ public class DeathOverlayUI : MonoBehaviour
         ApplyBodyFont(label);
         Stretch(label.rectTransform);
         label.characterSpacing = 6f;
+
+        // ★알약 폭을 글자에 맞춘다. 320 은 한국어("시간 되감기") 기준이라
+        //   프랑스어("Rembobinage du temps")처럼 긴 번역은 좌우로 삐져나온다.
+        //   자간까지 반영해야 하므로 characterSpacing 을 정한 뒤에 잰다.
+        const float BtnPadX = 56f;   // 좌우 여백(테두리와 글자 사이)
+        float textW = label.GetPreferredValues(label.text).x;
+        float wantW = Mathf.Max(BtnW, textW + BtnPadX);
+        if (wantW > BtnW + 0.5f)
+        {
+            Center(btnRt, wantW, BtnH, pos);
+            Center(inner.rectTransform, wantW - 12f, BtnH - 12f, Vector2.zero);
+            Center(_btnGlowImg.rectTransform, wantW + 140f, 170f, Vector2.zero);
+            Center(glow.rectTransform, wantW + 120f, 150f, Vector2.zero);
+        }
 
         _respawnButton = btnRt.gameObject.AddComponent<Button>();
         _respawnButton.transition = Selectable.Transition.None;   // 시각은 DeathRespawnButton이 전담
@@ -1031,15 +1046,9 @@ public class DeathOverlayUI : MonoBehaviour
             t.font = bodyFont;
     }
 
-    // 로드된 TMP 폰트 애셋 중 이름에 namePart(예: "Cinzel")가 포함된 것을 찾는다(에디터/참조된 경우).
-    static TMP_FontAsset TryFindFontByName(string namePart)
-    {
-        var all = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
-        foreach (var f in all)
-            if (f != null && f.name.IndexOf(namePart, StringComparison.OrdinalIgnoreCase) >= 0)
-                return f;
-        return null;
-    }
+    // 이름으로 폰트를 자동 탐색하던 헬퍼는 제거했다(위 Build 주석 참고).
+    // '메모리에 올라와 있으면 집는다'는 방식이라, 어느 씬을 거쳐 왔는지에 따라
+    // 결과가 달라져서 같은 화면이 실행마다 다른 폰트로 그려졌다.
 
     static RectTransform NewRect(string name, Transform parent)
     {

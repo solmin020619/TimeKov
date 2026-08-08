@@ -6,6 +6,7 @@ using UnityEngine;
 // (생성용 에디터 빌더는 08-03 에 팀 합의로 제거. 다시 구워야 하면 git 이력에서 꺼낸다)
 //   패널 구조/버튼 조작은 설비 프롬프트와 완전히 같아서 PromptPanelUI 베이스로 뺐다. 여기 남는 건 상자 전용 상태 문구뿐.
 //   DontDestroyOnLoad 도 제거했다(씬 넘나드는 싱글톤은 재입장 시 낡은 상태가 남는 사고 원인).
+[SingleInstance]
 public class ChestPromptUI : PromptPanelUI
 {
     public static ChestPromptUI Instance { get; private set; }
@@ -15,7 +16,7 @@ public class ChestPromptUI : PromptPanelUI
 
     protected override void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         base.Awake();
     }

@@ -12,6 +12,7 @@ using UnityEngine;
 // 수치는 임시(인스펙터 편집). 저장 = 통합 세이브(ISaveable/SaveSlotManager, 슬롯 기반).
 // 활성 슬롯 없으면(World 씬 직접 Play) 복원/저장 모두 건너뜀 = 매번 Lv.1 새 상태(샌드박스 테스트).
 // 부품은 인벤토리로 안 들어가고 여기에 수량으로 모인다.
+[SingleInstance]
 public class ShipRepairManager : MonoBehaviour, ISaveable
 {
     public static ShipRepairManager Instance { get; private set; }
@@ -138,7 +139,7 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
 
         if (zoneProgression == null) zoneProgression = FindAnyObjectByType<BuildZoneProgression>();

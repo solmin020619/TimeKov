@@ -6,6 +6,7 @@ using TMPro;
 //   iconKey -> Resources/Facilities/{iconKey} 에서 스프라이트 로드 (아이템 아이콘 ItemDatabase.GetIcon 과 같은 방식).
 //   시트가 유일 원본이라 옛 인스펙터 수동매핑(entries)은 제거됨. iconKey 가 비면 아이콘 없음(null).
 // labelFont 는 BuildingLabelUI / FacilityWorldDisplay 가 쓰는 한글 폰트라 유지한다.
+[SingleInstance]
 public class FacilityIconDatabase : MonoBehaviour
 {
     // ── 싱글톤 ────────────────────────────────────────────────────────
@@ -13,7 +14,7 @@ public class FacilityIconDatabase : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
     }
 

@@ -18,6 +18,7 @@ using UnityEngine;
 /// <summary>전송 지역. 각 지역이 전체 전송률의 25% 구간을 담당한다.</summary>
 public enum TransmissionRegion { Nature, Snow, Desert, Lava }
 
+[SingleInstance]
 public class TransmissionManager : MonoBehaviour, ISaveable
 {
     // ── 싱글톤 ────────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ public class TransmissionManager : MonoBehaviour, ISaveable
     // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         EnsureKitDefs();
         SaveSlotManager.Instance?.Register(this);

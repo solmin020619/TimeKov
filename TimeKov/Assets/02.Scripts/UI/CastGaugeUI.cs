@@ -17,6 +17,7 @@ using UnityEngine.UI;
 //   메모리 생성물이라, 프리팹에 구워두면 유니티 재시작 때 사라진다(이 프로젝트에서 이미 겪은 함정).
 //
 //   숨김은 오브젝트 비활성이 아니라 CanvasGroup 알파로 한다(항상 활성 = Instance 를 항상 찾을 수 있음).
+[SingleInstance]
 public class CastGaugeUI : MonoBehaviour
 {
     public static CastGaugeUI Instance { get; private set; }
@@ -53,7 +54,7 @@ public class CastGaugeUI : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         ApplyRuntimeSprites();
         SetVisible(false, instant: true);

@@ -32,6 +32,7 @@ using JeffGrawAssets.FlexibleUI;
 /// 플레이어 이동/공격/스킬/J/C 를 막는다. 페이지 넘김(Q/E/화살표)은 이 컴포넌트가 raw Input 으로
 /// 직접 읽으므로 코치 키보드 차단과 무관하게 동작한다.
 /// </summary>
+[SingleInstance]
 public class TutorialVideoUI : MonoBehaviour
 {
     // ── 싱글턴 (씬에 있는 실물을 찾는다) ─────────────────────────────
@@ -119,7 +120,7 @@ public class TutorialVideoUI : MonoBehaviour
 
     private void Awake()
     {
-        if (_i != null && _i != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(_i, this)) { Destroy(gameObject); return; }
         _i = this;
         _warnedMissing = false;   // 실물이 등록됐으니 '없음' 판정 해제(씬 재입장 대비)
         SetupVideo();

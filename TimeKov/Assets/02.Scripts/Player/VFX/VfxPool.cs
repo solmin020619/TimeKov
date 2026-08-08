@@ -9,6 +9,7 @@ using UnityEngine;
 //
 // ★풀링 전제: 파티클이 스스로 파괴/비활성되면 풀이 깨지므로 생성 시 모든 PS의 StopAction을 None 으로 강제.
 //   수명 관리는 이 풀이 lifeTime 타이머로 직접 한다.
+[SingleInstance]
 public class VfxPool : MonoBehaviour
 {
     private static VfxPool _instance;
@@ -30,7 +31,7 @@ public class VfxPool : MonoBehaviour
 
     private void Awake()
     {
-        if (_instance != null && _instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(_instance, this)) { Destroy(gameObject); return; }
         _instance = this;
         DontDestroyOnLoad(gameObject);
     }

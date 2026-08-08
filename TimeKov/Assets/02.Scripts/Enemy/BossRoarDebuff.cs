@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 // 보스 포효 디버프: 화면 가장자리 어둠(ScreenVignette 재사용) + 플레이어 시간 드레인 가속.
 // 런타임 지연 싱글톤(씬 세팅/프리팹 불필요). WyvernBossController가 BossRoarDebuff.Trigger 호출.
+[SingleInstance]
 public class BossRoarDebuff : MonoBehaviour
 {
     private static BossRoarDebuff _instance;
@@ -38,7 +39,7 @@ public class BossRoarDebuff : MonoBehaviour
 
     private void Awake()
     {
-        if (_instance != null && _instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(_instance, this)) { Destroy(gameObject); return; }
         _instance = this;
         BuildVignette();
     }

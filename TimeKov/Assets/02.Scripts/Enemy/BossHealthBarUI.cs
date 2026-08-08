@@ -5,6 +5,7 @@ using UnityEngine.UI;
 
 // 팰월드식 상단 보스 체력바. 런타임 지연 싱글톤(씬 세팅/프리팹 불필요).
 // 보스 교전 시작 시 BossHealthBarUI.Show(health, 이름) 호출 -> 상단 중앙에 등장. 보스 사망/소멸 시 자동 페이드 아웃.
+[SingleInstance]
 public class BossHealthBarUI : MonoBehaviour
 {
     private static BossHealthBarUI _instance;
@@ -55,7 +56,7 @@ public class BossHealthBarUI : MonoBehaviour
 
     private void Awake()
     {
-        if (_instance != null && _instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(_instance, this)) { Destroy(gameObject); return; }
         _instance = this;
         Build();
     }

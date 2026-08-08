@@ -17,6 +17,7 @@ using UnityEngine.UI;
 ///   오브젝트는 항상 활성으로 두고 Canvas/Raycaster 만 토글한다 - LateUpdate 가 계속 돌아야
 ///   설정창이 위에 떴다 닫히는 걸 감지해 복귀할 수 있다(끄면 복귀 불가).
 /// </summary>
+[SingleInstance]
 public class TutorialOverlay : MonoBehaviour
 {
     private static TutorialOverlay _i;
@@ -115,7 +116,7 @@ public class TutorialOverlay : MonoBehaviour
 
     private void Awake()
     {
-        if (_i != null && _i != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(_i, this)) { Destroy(gameObject); return; }
         _i = this;
 
         if (canvasComp == null) canvasComp = GetComponent<Canvas>();

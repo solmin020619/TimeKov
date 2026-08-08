@@ -19,6 +19,7 @@ using UnityEngine.UI;
 //   (경로 오타/이름 변경으로 조용히 죽던 자리들).
 //
 // 부품은 단일 종류+개수제 - 데이터/조작은 ShipRepairManager 로만 (PartCount/CanRepairNext/TryRepairNext/OnChanged).
+[SingleInstance]
 public class ShipRepairUI : MonoBehaviour
 {
     public static ShipRepairUI Instance { get; private set; }
@@ -157,7 +158,7 @@ public class ShipRepairUI : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
 
         closeButton?.onClick.AddListener(() => UISoundManager.Instance?.PlayButtonClick());   // 닫기 버튼 클릭음(수리 버튼은 OnClickRepair 에서 재생)

@@ -5,6 +5,7 @@ using UnityEngine;
 /// 설비 해금 상태를 관리하는 싱글턴.
 /// 해금된 설비를 획득 순서대로 저장하며, BuildManager의 퀵슬롯(1~9)과 연동된다.
 /// </summary>
+[SingleInstance]
 public class FacilityUnlockManager : MonoBehaviour, ISaveable
 {
     public static FacilityUnlockManager Instance { get; private set; }
@@ -19,7 +20,7 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
 
         SaveSlotManager.Instance?.Register(this);

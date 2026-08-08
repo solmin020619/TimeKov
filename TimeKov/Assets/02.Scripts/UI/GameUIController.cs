@@ -8,6 +8,7 @@
 
 using UnityEngine;
 
+[SingleInstance]
 public class GameUIController : MonoBehaviour
 {
     public static GameUIController Instance { get; private set; }
@@ -85,7 +86,7 @@ public class GameUIController : MonoBehaviour
 
     protected virtual void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         _buildManager = FindAnyObjectByType<BuildManager>();
 

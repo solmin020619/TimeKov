@@ -22,6 +22,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+[SingleInstance]
 public class TransmissionComputerUI : MonoBehaviour
 {
     [Header("폰트 (빌더 입력용 - 실행 시에는 각 글자에 이미 박혀 있다)")]
@@ -183,7 +184,7 @@ public class TransmissionComputerUI : MonoBehaviour
     // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         _warnedMissing = false;
 

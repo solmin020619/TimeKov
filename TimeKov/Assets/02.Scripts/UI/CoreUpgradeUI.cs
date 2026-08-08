@@ -11,6 +11,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+[SingleInstance]
 public class CoreUpgradeUI : MonoBehaviour
 {
     // ── 싱글톤 ────────────────────────────────────────────────────────
@@ -149,7 +150,7 @@ public class CoreUpgradeUI : MonoBehaviour
     // ── 라이프사이클 ──────────────────────────────────────────────────
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
 
         upgradeButton?.onClick.AddListener(OnClickUpgrade);

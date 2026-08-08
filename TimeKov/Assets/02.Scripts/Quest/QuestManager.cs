@@ -52,6 +52,7 @@ using UnityEngine;
  *   |- OnReset -> [QuestPanelUI.HandleReset] -> 위젯 정리
  *   \- Initialize -> OnReady -> Setup 재실행 -> BeginAll
  */
+[SingleInstance]
 public class QuestManager : MonoBehaviour
 {
     public static QuestManager Instance { get; private set; }
@@ -95,7 +96,7 @@ public class QuestManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
 
         // 개발용 킬스위치: 켜면 퀘스트 전체 비활성. Instance 세팅 안 함 -> QuestPanelUI 등이 null 가드로 스킵.
         // 테스트 중 퀘스트가 안 뜨게 할 때만 체크한다. 배포 전엔 반드시 해제.

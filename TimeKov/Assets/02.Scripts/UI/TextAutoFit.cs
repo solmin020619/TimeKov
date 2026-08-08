@@ -49,9 +49,13 @@ public class TextAutoFit : MonoBehaviour
     /// ★평소엔 꺼둔다 - 글자가 바뀔 때마다 찍혀서 콘솔이 도배되고 정작 볼 경고가 묻힌다.</summary>
     public static bool LogAdjustments = false;
 
-    /// <summary>★옆 형제와 겹치는 라벨을 찾아 콘솔에 찍는다. 이 시스템이 못 고치는 종류라
-    /// 목록을 뽑아 컨테이너를 수동으로 고치는 용도다. 한 라벨당 한 번만 찍는다.</summary>
-    public static bool LogOverlaps = true;
+    /// <summary>★[확실] 글자가 자기 상자 밖으로 나갔거나 잘린 것을 찍는다.
+    /// 좌표/TMP 내부값으로 판정하는 '측정된 사실'이라 뜨면 실제 문제다. 기본 ON.</summary>
+    public static bool LogSpill = true;
+
+    /// <summary>[추정] 옆 형제와 겹치는 라벨을 찾는다. '무엇이 배경인가'를 추측해야 해서
+    /// 오탐이 섞인다(배경/후광/테두리를 충돌로 신고했던 이력). 겹침을 훑을 때만 잠깐 켠다.</summary>
+    public static bool LogOverlaps = false;
 
     /// <summary>줄일 수 있는 하한(원래 크기 대비). 0.7 = 최대 30%까지만 작아진다.</summary>
     public static float MinScale = 0.7f;
@@ -61,6 +65,7 @@ public class TextAutoFit : MonoBehaviour
     private static readonly HashSet<TMP_Text> _pending  = new();   // 지난 프레임에 들어온 것 = 지금 처리할 것
     private static readonly List<TMP_Text> _work = new();
     private static readonly HashSet<int> _overlapReported = new();  // 겹침 로그 중복 방지
+    private static readonly HashSet<int> _spillReported = new();    // 넘침/잘림 로그 중복 방지
 
     // ★줄였을 당시의 (상자 크기, 글자) 기록. 조건이 그대로면 복구를 시도조차 안 한다.
     //   복구 판정은 '원래 크기로 폈을 때'를 비례로 어림하는데, 줄바꿈 글자는 크게 하면
@@ -86,7 +91,7 @@ public class TextAutoFit : MonoBehaviour
     private static void ResetOnPlay()
     {
         _incoming.Clear(); _pending.Clear(); _work.Clear();
-        _overlapReported.Clear(); _shrunkAt.Clear();
+        _overlapReported.Clear(); _spillReported.Clear(); _shrunkAt.Clear();
         _booted = false;
     }
 
@@ -140,7 +145,11 @@ public class TextAutoFit : MonoBehaviour
         //   예전엔 ShouldSkip 뒤에 있어서 레이아웃이 크기를 정하는 라벨과 키캡류가
         //   진단에서 통째로 빠졌다. 겹침은 글자를 줄일 수 있는지와 아무 상관이 없는데도.
         //   (우주선 수리 제목이 pip 과 겹친 건을 이 순서 때문에 놓쳤다)
-        if (LogOverlaps && rt0.rect.width > 1f && rt0.rect.height > 1f) ReportOverlap(tmp, rt0);
+        if (rt0.rect.width > 1f && rt0.rect.height > 1f)
+        {
+            if (LogSpill) ReportSpill(tmp, rt0);
+            if (LogOverlaps) ReportOverlap(tmp, rt0);
+        }
 
         if (ShouldSkip(tmp, out RectTransform rt)) return;
 
@@ -294,11 +303,13 @@ public class TextAutoFit : MonoBehaviour
         Rect mine = InkRect(rt, tmp);
         if (mine.width <= 1f) return;
 
-        // ★형제를 '앞뒤 가리지 않고' 다 본다. 예전엔 나보다 위에 그려지는 것만 봤는데,
-        //   눈에 보이는 충돌은 그리는 순서와 무관하다. 배경처럼 나를 감싸는 경우는
-        //   아래 Contains 검사가 따로 걸러내므로 순서 제한은 정보만 버리는 조건이었다.
+        // ★'나보다 뒤에 그려지는 형제'만 본다. 앞에 그려지는 건 내 글자 아래 깔리는
+        //   배경/장식이라 겹치는 게 정상이다(버튼 배경, 제목 후광, 배경 오로라...).
+        //   한때 이 제한을 없앴더니 사망 화면 한 곳에서만 오탐이 6건 나왔다.
+        //   가려지는 쪽은 '위에 덮는 것'뿐이므로 순서는 반드시 봐야 한다.
+        int myIndex = rt.GetSiblingIndex();
         _probe.Clear();
-        for (int i = 0; i < parent.childCount && _probe.Count < MaxProbe; i++)
+        for (int i = myIndex + 1; i < parent.childCount && _probe.Count < MaxProbe; i++)
         {
             var sib = parent.GetChild(i) as RectTransform;
             if (sib == null || sib == rt || !sib.gameObject.activeInHierarchy) continue;
@@ -328,14 +339,68 @@ public class TextAutoFit : MonoBehaviour
             if (!mine.Overlaps(other)) continue;
             Rect inter = Rect.MinMaxRect(Mathf.Max(mine.xMin, other.xMin), Mathf.Max(mine.yMin, other.yMin),
                                          Mathf.Min(mine.xMax, other.xMax), Mathf.Min(mine.yMax, other.yMax));
-            float ratio = (inter.width * inter.height) / (mine.width * mine.height);
+            float mineArea = mine.width * mine.height;
+            float ratio = (inter.width * inter.height) / mineArea;
             if (ratio < 0.05f) continue;   // 살짝 스치는 건 무시
 
             int key = rt.GetInstanceID() ^ srt.GetInstanceID();
             if (!_overlapReported.Add(key)) continue;   // 이 조합만 건너뛴다(예전엔 여기서 통째로 빠져나갔다)
-            Debug.LogWarning($"[TextAutoFit/겹침] '{Trim(tmp.text)}' 이(가) '{srt.name}' 과 {ratio:P0} 겹친다. "
+            Debug.LogWarning($"[TextAutoFit/가려짐] '{Trim(tmp.text)}' 위에 '{srt.name}' 이(가) {ratio:P0} 덮인다. "
                            + $"({Path(tmp)}) -> 이 줄은 컨테이너를 가로 레이아웃으로 바꾸거나 글자 폭만큼 옆을 밀어야 한다.");
         }
+
+    }
+
+    // ── [확실] 넘침/잘림 검사 ────────────────────────────────────────────
+    // 추측이 하나도 없다. 재는 것은 두 가지뿐이고 둘 다 사실이다.
+    //   (1) 실제로 그려진 글자(잉크)가 자기 상자를 벗어났는가 - 좌표 비교
+    //   (2) 말줄임이 걸려 글자가 잘렸는가 - TMP 가 알려주는 값
+    // '무엇이 배경인가' 같은 추측을 안 하므로, 여기 뜨는 건 눈으로 확인할 필요가 없다.
+    private static void ReportSpill(TMP_Text tmp, RectTransform rt)
+    {
+        if (string.IsNullOrWhiteSpace(tmp.text)) return;
+        if (tmp.GetComponent<TextAutoFitIgnore>() != null) return;
+        if (!IsVisible(tmp)) return;   // 안 보이는 글자는 넘쳐도 화면에 아무 일이 없다
+
+        // 넘치는 게 정상인 표시 방식(스크롤/마스킹/페이지)과, 상자가 글자를 따라 늘어나는 구조는 제외.
+        var m = tmp.overflowMode;
+        if (m == TextOverflowModes.Masking || m == TextOverflowModes.ScrollRect ||
+            m == TextOverflowModes.Page    || m == TextOverflowModes.Linked) return;
+        var csf = tmp.GetComponent<ContentSizeFitter>();
+        if (csf != null && csf.enabled) return;
+
+        // (2) 잘림 - 표시할 글자 수보다 실제로 그린 글자 수가 적으면 뒤가 날아간 것이다.
+        var info = tmp.textInfo;
+        if (info != null && tmp.overflowMode == TextOverflowModes.Ellipsis)
+        {
+            int shown = info.characterCount;
+            int want  = tmp.text.Length;
+            if (shown > 0 && want - shown > 2)   // 태그/공백 오차 여유
+            {
+                if (_spillReported.Add(rt.GetInstanceID()))
+                    Debug.LogWarning($"[TextAutoFit/잘림] '{Trim(tmp.text)}' 이(가) 말줄임으로 잘렸다({shown}/{want}자). "
+                                   + $"({Path(tmp)}) -> 상자를 넓히거나 문구를 줄여야 한다.");
+                return;
+            }
+        }
+
+        // (1) 상자 이탈 - 잉크가 자기 rect 를 넘어간 픽셀 수.
+        //   상자 자체가 글자보다 작게 설계된 것(키캡 등)은 의도된 넘침이라 뺀다.
+        Rect box = WorldRect(rt);
+        Rect ink = InkRect(rt, tmp);
+        if (ink.width <= 1f || box.width <= 1f) return;
+        float authored = tmp.enableAutoSizing ? tmp.fontSizeMax : tmp.fontSize;
+        float scale = rt.lossyScale.y <= 0.0001f ? 1f : rt.lossyScale.y;
+        if (box.height < authored * scale) return;   // 글자 한 줄도 못 담는 상자 = 의도된 디자인
+
+        float outL = Mathf.Max(0f, box.xMin - ink.xMin);
+        float outR = Mathf.Max(0f, ink.xMax - box.xMax);
+        float outX = outL + outR;
+        if (outX <= box.width * 0.02f) return;       // 2% 미만은 글자 외곽선 수준
+
+        if (!_spillReported.Add(rt.GetInstanceID())) return;
+        Debug.LogWarning($"[TextAutoFit/넘침] '{Trim(tmp.text)}' 이(가) 자기 상자를 가로로 {outX / box.width:P0} 벗어났다"
+                       + $"(왼쪽 {outL:0}px / 오른쪽 {outR:0}px). ({Path(tmp)}) -> 상자를 넓히거나 문구를 줄여야 한다.");
     }
 
     private static Rect WorldRect(RectTransform rt)
@@ -360,6 +425,24 @@ public class TextAutoFit : MonoBehaviour
         Vector3 c = rt.TransformPoint(new Vector3(b.max.x, b.max.y, 0f));
         return Rect.MinMaxRect(Mathf.Min(a.x, c.x), Mathf.Min(a.y, c.y),
                                Mathf.Max(a.x, c.x), Mathf.Max(a.y, c.y));
+    }
+
+    // ★'화면에 실제로 보이는 글자'인지. 안 보이는 것을 재면 전부 헛수고이자 오탐이다.
+    //   대표 사례: 카테고리 필터 탭은 선택된 하나만 이름을 펼치고 나머지는 알파 0 으로 숨긴다.
+    //   그 숨은 라벨들이 좁은 아이콘 상자를 넘친다고 보고돼 인벤토리를 열 때마다 5줄이 떴다.
+    //   글자 자체의 알파와, 패널을 통째로 숨기는 CanvasGroup 둘 다 본다.
+    private static bool IsVisible(TMP_Text tmp)
+    {
+        if (tmp.color.a <= 0.01f) return false;
+        var cg = tmp.GetComponentInParent<CanvasGroup>();
+        while (cg != null)
+        {
+            if (cg.alpha <= 0.01f) return false;
+            if (cg.ignoreParentGroups) break;
+            var parent = cg.transform.parent;
+            cg = parent != null ? parent.GetComponentInParent<CanvasGroup>() : null;
+        }
+        return true;
     }
 
     private static string Trim(string s)

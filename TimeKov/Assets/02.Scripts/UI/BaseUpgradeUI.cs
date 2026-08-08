@@ -13,6 +13,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+[SingleInstance]
 public class BaseUpgradeUI : MonoBehaviour
 {
     public static BaseUpgradeUI Instance { get; private set; }
@@ -64,7 +65,7 @@ public class BaseUpgradeUI : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
 
         if (slide == null && panelRoot != null) slide = panelRoot.GetComponent<UISlideEffect>();

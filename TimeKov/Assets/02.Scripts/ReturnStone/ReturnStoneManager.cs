@@ -11,6 +11,7 @@ using UnityEngine.UI;
 //   보낸 시간으로만 차감된다 — 기지 안에 있는 동안은 멈춘다.
 //
 //   ※ 레벨 획득은 추후 시간에너지 보상과 연동. 지금은 인스펙터/공개 API(SetLevel)로 설정하는 시스템만.
+[SingleInstance]
 public class ReturnStoneManager : MonoBehaviour, ISaveable
 {
     public static ReturnStoneManager Instance { get; private set; }
@@ -91,7 +92,7 @@ public class ReturnStoneManager : MonoBehaviour, ISaveable
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         SaveSlotManager.Instance?.Register(this);
         RestoreFromSave();

@@ -26,6 +26,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+[SingleInstance]
 public class SaveSlotManager : MonoBehaviour
 {
     public static SaveSlotManager Instance { get; private set; }
@@ -65,7 +66,7 @@ public class SaveSlotManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
         Directory.CreateDirectory(SavesRoot);
         InvokeRepeating(nameof(AutoSaveTick), AutoSaveIntervalSeconds, AutoSaveIntervalSeconds);

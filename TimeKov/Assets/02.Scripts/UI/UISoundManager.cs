@@ -11,6 +11,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(AudioSource))]
+[SingleInstance]
 public class UISoundManager : MonoBehaviour
 {
     public static UISoundManager Instance { get; private set; }
@@ -25,7 +26,7 @@ public class UISoundManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
         Instance = this;
 
         // sfxSource가 연결되지 않으면 같은 오브젝트의 AudioSource 찾거나 새로 추가
