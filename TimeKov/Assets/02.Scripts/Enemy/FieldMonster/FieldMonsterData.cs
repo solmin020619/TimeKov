@@ -22,7 +22,7 @@ public enum CombatStepKind
 /// enemyId(퀘스트 킬 집계) / enemyName(HP바) / deathAnimDuration 을 읽는다.
 /// 상속해두면 그 연동이 전부 그대로 살아있다.
 /// </summary>
-[CreateAssetMenu(fileName = "FieldMonsterData", menuName = "Enemy/Field Monster Data")]
+[CreateAssetMenu(fileName = "FieldMonsterData", menuName = "TIMEKOV/적/필드 몬스터 데이터")]
 public class FieldMonsterData : MeleeEnemyData
 {
     // ── 전조(Telegraph) ────────────────────────────────────────────

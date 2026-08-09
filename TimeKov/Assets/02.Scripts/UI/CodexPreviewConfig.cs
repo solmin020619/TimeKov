@@ -6,7 +6,7 @@ using UnityEngine;
 // Resources/Codex/CodexPreviewConfig 에 두면 도감이 자동 로드한다.
 // 종욱이 8종 엔트리에 프리팹 연결 + 흉상 프레이밍(오프셋)만 잡으면 됨.
 // state는 임시값(테스트용) - 나중에 실제 해금 데이터로 대체.
-[CreateAssetMenu(fileName = "CodexPreviewConfig", menuName = "TIMEKOV/Codex Preview Config")]
+[CreateAssetMenu(fileName = "CodexPreviewConfig", menuName = "TIMEKOV/도감/미리보기 설정")]
 public class CodexPreviewConfig : ScriptableObject
 {
     public enum RevealState { Hidden, Silhouette, Revealed }

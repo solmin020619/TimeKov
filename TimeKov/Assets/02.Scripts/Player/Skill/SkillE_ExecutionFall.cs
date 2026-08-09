@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 // E 키 스킬. 어느 키로 나가는지는 에셋의 SkillSheetId(=Skill3)가 정한다(PlayerSkillComponent 디스패치).
-[CreateAssetMenu(fileName = "SkillE_ExecutionFall", menuName = "Skills/SkillE_ExecutionFall")]
+[CreateAssetMenu(fileName = "SkillE_ExecutionFall", menuName = "TIMEKOV/스킬/E 처형 낙하")]
 public class SkillE_ExecutionFall : SkillBase
 {
     [Header("Hit 1")]

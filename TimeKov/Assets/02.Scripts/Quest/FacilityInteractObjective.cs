@@ -6,7 +6,7 @@ using UnityEngine;
 /// 단순 F 키 누르기가 아니라 MachineInteraction.OpenUI()가 호출되어야 발화.
 /// 빌드 모드에서 F만 눌러도 깨지던 PressKey 방식의 한계 해결용.
 /// </summary>
-[CreateAssetMenu(menuName = "Quest/Objective/FacilityInteract")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/설비 상호작용")]
 public class FacilityInteractObjective : ObjectiveSO
 {
     [Tooltip("설비 ID. 0이면 모든 설비.")]

@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/PressKey")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/키 누르기")]
 public class PressKeyObjective : ObjectiveSO
 {
     public KeyCode key;

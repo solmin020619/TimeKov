@@ -2,7 +2,7 @@ using UnityEngine;
 
 // 레일(벨트)로 아이템이 다음 설비로 자동 이동(전달)하면 완료.
 // BeltSegment가 다음 설비에 Receive 시 GameEvents.RaiseRailItemMoved() 발화 → 여기서 감지.
-[CreateAssetMenu(menuName = "Quest/Objective/RailItemMove")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/레일로 아이템 이동")]
 public class RailItemMoveObjective : ObjectiveSO
 {
     [Tooltip("필요 이동 횟수(전달된 수량 합산)")]

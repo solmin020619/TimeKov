@@ -5,7 +5,7 @@ using UnityEngine.UI;
 [RequireComponent(typeof(RawImage))]
 public class ScreenVignette : MonoBehaviour
 {
-    [Header("ºñ³×Æ® ¼³Á¤")]
+    [Header("ë¹„ë„¤íŠ¸ ì„¤ì •")]
     [Range(0f, 1f)] public float vignetteStrength = 0.5f;
     [Range(0.05f, 0.8f)] public float vignetteFalloff = 0.4f;
     public int textureSize = 256;
@@ -35,14 +35,14 @@ public class ScreenVignette : MonoBehaviour
         _img.raycastTarget = false;
         _img.color = Color.white;
 
-        // ±âÁ¸ ÅØ½ºÃ³ Á¦°Å
+        // ê¸°ì¡´ í…ìŠ¤ì²˜ ì œê±°
         if (_tex != null)
         {
             if (Application.isPlaying) Destroy(_tex);
             else DestroyImmediate(_tex);
         }
 
-        // »õ ÅØ½ºÃ³ »ı¼º
+        // ìƒˆ í…ìŠ¤ì²˜ ìƒì„±
         _tex = new Texture2D(textureSize, textureSize, TextureFormat.RGBA32, false);
         _tex.filterMode = FilterMode.Bilinear;
         _tex.wrapMode = TextureWrapMode.Clamp;
@@ -55,17 +55,17 @@ public class ScreenVignette : MonoBehaviour
                 float u = x / (float)(textureSize - 1);
                 float v = y / (float)(textureSize - 1);
 
-                // Áß½É¿¡¼­ Å¸¿øÇü °Å¸® (È­¸é ºñÀ² º¸Á¤)
+                // ì¤‘ì‹¬ì—ì„œ íƒ€ì›í˜• ê±°ë¦¬ (í™”ë©´ ë¹„ìœ¨ ë³´ì •)
                 float dx = (u - 0.5f) * 2f;
                 float dy = (v - 0.5f) * 2f;
                 float dist = Mathf.Sqrt(dx * dx + dy * dy);
 
-                // smoothstepÀ¸·Î °æ°è¸¦ Èå¸´ÇÏ°Ô
-                // falloff °ªÀÌ Å¬¼ö·Ï ±×·¡µğ¾ğÆ® ¹üÀ§°¡ ³Ğ¾îÁ® °æ°è°¡ ´õ ºÎµå·¯¿ò
-                float inner = 0.1f;                          // ¿ÏÀü Åõ¸í ±¸°£
-                float outer = inner + vignetteFalloff * 1.5f; // ±×·¡µğ¾ğÆ® ±¸°£ (³Ğ°Ô)
+                // smoothstepìœ¼ë¡œ ê²½ê³„ë¥¼ íë¦¿í•˜ê²Œ
+                // falloff ê°’ì´ í´ìˆ˜ë¡ ê·¸ë˜ë””ì–¸íŠ¸ ë²”ìœ„ê°€ ë„“ì–´ì ¸ ê²½ê³„ê°€ ë” ë¶€ë“œëŸ¬ì›€
+                float inner = 0.1f;                          // ì™„ì „ íˆ¬ëª… êµ¬ê°„
+                float outer = inner + vignetteFalloff * 1.5f; // ê·¸ë˜ë””ì–¸íŠ¸ êµ¬ê°„ (ë„“ê²Œ)
                 float t = Mathf.Clamp01((dist - inner) / (outer - inner));
-                // smoothstep µÎ ¹ø Àû¿ë ¡æ °æ°è°¡ ¸Å¿ì ºÎµå·¯¿öÁü
+                // smoothstep ë‘ ë²ˆ ì ìš© â†’ ê²½ê³„ê°€ ë§¤ìš° ë¶€ë“œëŸ¬ì›Œì§
                 t = t * t * (3f - 2f * t);
                 t = t * t * (3f - 2f * t);
                 float alpha = t * vignetteStrength;

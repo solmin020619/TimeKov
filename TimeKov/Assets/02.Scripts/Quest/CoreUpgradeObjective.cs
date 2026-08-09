@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // 코어 강화. 0이면 강화를 "시도"(성공/실패 무관)하면 완료, targetLevel>0이면 그 레벨 도달(성공) 시 완료.
-[CreateAssetMenu(menuName = "Quest/Objective/CoreUpgrade")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/코어 강화")]
 public class CoreUpgradeObjective : ObjectiveSO
 {
     [Tooltip("이 레벨 이상 도달 시 완료. 0이면 강화를 시도(성공/실패 무관)하면 완료.")]

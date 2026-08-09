@@ -6,7 +6,7 @@ using UnityEngine;
 /// 클릭(또는 지정 키)으로 다음 단계로 — 오버레이를 닫지 않고 배너/스포트라이트만 교체해 끊김이 없다.
 /// 마지막 단계까지 넘기면 완료. (시작 가이드 투어용)
 /// </summary>
-[CreateAssetMenu(menuName = "Quest/Objective/GuidedTour")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/가이드 투어")]
 public class GuidedTourObjective : ObjectiveSO
 {
     [Serializable]

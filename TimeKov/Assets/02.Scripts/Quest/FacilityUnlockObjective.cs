@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // 설비를 F로 해금하면 완료. 퀘스트 뜨기 전에 이미 해금했어도 즉시 완료.
-[CreateAssetMenu(menuName = "Quest/Objective/FacilityUnlock")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/설비 해금")]
 public class FacilityUnlockObjective : ObjectiveSO
 {
     [Tooltip("해금할 설비 ID. 0이면 아무 설비나 해금 시 카운트.")]

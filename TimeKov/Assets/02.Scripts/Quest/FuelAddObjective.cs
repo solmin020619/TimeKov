@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 // 설비 연료 슬롯에 연료를 넣으면 완료. (MachineBase.AddFuel -> GameEvents.OnFuelAdded)
-[CreateAssetMenu(menuName = "Quest/Objective/FuelAdd")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/연료 넣기")]
 public class FuelAddObjective : ObjectiveSO
 {
     [Tooltip("연료를 넣을 설비 ID. 0이면 아무 설비나.")]

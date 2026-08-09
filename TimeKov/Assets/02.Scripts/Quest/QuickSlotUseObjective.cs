@@ -3,7 +3,7 @@ using UnityEngine;
 
 // 등록한 소모품을 퀵슬롯(V)으로 사용 시도하면 완료. PlayerQuickSlotComponent.TryUse -> GameEvents.RaiseQuickSlotUsed.
 // 만피로 실제 회복이 막혀도 'V로 시도'는 인정(만피 상태 영구 미완료=소프트락 방지). 갭 사용분은 lookback으로 인정.
-[CreateAssetMenu(menuName = "Quest/Objective/QuickSlotUse")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/퀵슬롯 사용")]
 public class QuickSlotUseObjective : ObjectiveSO
 {
     [NonSerialized] bool _done;

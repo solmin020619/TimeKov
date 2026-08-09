@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 // Q 키 스킬. 어느 키로 나가는지는 에셋의 SkillSheetId(=Skill1)가 정한다(PlayerSkillComponent 디스패치).
-[CreateAssetMenu(fileName = "SkillQ_ReaperSlash", menuName = "Skills/SkillQ_ReaperSlash")]
+[CreateAssetMenu(fileName = "SkillQ_ReaperSlash", menuName = "TIMEKOV/스킬/Q 리퍼 슬래시")]
 public class SkillQ_ReaperSlash : SkillBase
 {
     [Header("Hit 1")]

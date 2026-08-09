@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "Attack1Skill", menuName = "Skills/Attack1")]
+[CreateAssetMenu(fileName = "Attack1Skill", menuName = "TIMEKOV/스킬/평타 1타")]
 public class Attack1Skill : ComboAttackBase
 {
     protected override float GetAnimDuration() => AnimDuration;

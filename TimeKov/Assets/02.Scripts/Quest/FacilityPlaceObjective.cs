@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/FacilityPlace")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/설비 설치")]
 public class FacilityPlaceObjective : ObjectiveSO
 {
     [Tooltip("DataManager 설비 ID. 0이면 모든 설비 카운트.")]

@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 // R 키 궁극기. 어느 키로 나가는지는 에셋의 SkillSheetId(=Skill2)가 정한다(PlayerSkillComponent 디스패치).
-[CreateAssetMenu(fileName = "SkillR_CycloneBreak", menuName = "Skills/SkillR_CycloneBreak")]
+[CreateAssetMenu(fileName = "SkillR_CycloneBreak", menuName = "TIMEKOV/스킬/R 사이클론 브레이크")]
 public class SkillR_CycloneBreak : SkillBase
 {
     [Header("Rotation Hits (1~4타)")]

@@ -4,7 +4,7 @@ using UnityEngine;
 // 설비별 "전 레시피 마스터" 보상 설정 (인스펙터 편집).
 // 설비마다 레시피 개수가 달라(3번설비는 3개뿐) 100% 채우는 난이도가 다르므로 보상 개수를 설비별로 조절.
 // Resources/Codex/CodexRecipeRewardConfig 로 로드.
-[CreateAssetMenu(menuName = "TIMEKOV/Codex Recipe Reward Config")]
+[CreateAssetMenu(menuName = "TIMEKOV/도감/레시피 보상 설정")]
 public class CodexRecipeRewardConfig : ScriptableObject
 {
     [System.Serializable]

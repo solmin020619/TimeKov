@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/EnemyKill")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/적 처치")]
 public class EnemyKillObjective : ObjectiveSO
 {
     [Tooltip("빈 값이면 모든 적 카운트 ('아무 적이나 N마리')")]

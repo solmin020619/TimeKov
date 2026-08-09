@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Category")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/카테고리")]
 public class CategorySO : ScriptableObject
 {
     public string id;

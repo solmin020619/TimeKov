@@ -4,7 +4,7 @@ public class CustomCursor : MonoBehaviour
 {
     private void Update()
     {
-        // UI ÀÌ¹ÌÁö°¡ ½ÇÁ¦ ¸¶¿ì½º ÁÂÇ¥¸¦ ½Ç½Ã°£À¸·Î µû¶ó°¡°Ô ¸¸µì´Ï´Ù.
+        // UI ì´ë¯¸ì§€ê°€ ì‹¤ì œ ë§ˆìš°ìŠ¤ ì¢Œí‘œë¥¼ ì‹¤ì‹œê°„ìœ¼ë¡œ ë”°ë¼ê°€ê²Œ ë§Œë“­ë‹ˆë‹¤.
         transform.position = Input.mousePosition;
     }
 }

@@ -1,15 +1,15 @@
 using UnityEngine;
-using UnityEngine.EventSystems; // ¸¶¿ì½º ÀÌº¥Æ® °¨Áö¿ë
-using TMPro; // TextMeshPro »ç¿ë ½Ã ÇÊ¼ö
+using UnityEngine.EventSystems; // ë§ˆìš°ìŠ¤ ì´ë²¤íŠ¸ ê°ì§€ìš©
+using TMPro; // TextMeshPro ì‚¬ìš© ì‹œ í•„ìˆ˜
 
 public class ButtonTextHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
 {
     public TextMeshProUGUI buttonText;
 
-    [Header("ÅØ½ºÆ® »ö»ó ¼³Á¤")]
-    public Color normalColor = Color.black;      // Æò¼Ò (°ËÀº»ö)
-    public Color hoverColor = Color.white;       // ¸¶¿ì½º ¿Ã·ÈÀ» ¶§ (Èò»ö)
-    public Color pressedColor = Color.gray;      // ´­·¶À» ¶§ (È¸»ö)
+    [Header("í…ìŠ¤íŠ¸ ìƒ‰ìƒ ì„¤ì •")]
+    public Color normalColor = Color.black;      // í‰ì†Œ (ê²€ì€ìƒ‰)
+    public Color hoverColor = Color.white;       // ë§ˆìš°ìŠ¤ ì˜¬ë ¸ì„ ë•Œ (í°ìƒ‰)
+    public Color pressedColor = Color.gray;      // ëˆŒë €ì„ ë•Œ (íšŒìƒ‰)
 
     private void Start()
     {
@@ -17,28 +17,28 @@ public class ButtonTextHover : MonoBehaviour, IPointerEnterHandler, IPointerExit
             buttonText.color = normalColor;
     }
 
-    // ¸¶¿ì½º°¡ ¹öÆ° À§·Î ¿Ã¶ó¿ÔÀ» ¶§
+    // ë§ˆìš°ìŠ¤ê°€ ë²„íŠ¼ ìœ„ë¡œ ì˜¬ë¼ì™”ì„ ë•Œ
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (buttonText != null) buttonText.color = hoverColor;
     }
 
-    // ¸¶¿ì½º°¡ ¹öÆ° ¹ÛÀ¸·Î ³ª°¬À» ¶§
+    // ë§ˆìš°ìŠ¤ê°€ ë²„íŠ¼ ë°–ìœ¼ë¡œ ë‚˜ê°”ì„ ë•Œ
     public void OnPointerExit(PointerEventData eventData)
     {
         if (buttonText != null) buttonText.color = normalColor;
     }
 
-    // ¸¶¿ì½º¸¦ Å¬¸¯ÇÏ´Â ¼ø°£
+    // ë§ˆìš°ìŠ¤ë¥¼ í´ë¦­í•˜ëŠ” ìˆœê°„
     public void OnPointerDown(PointerEventData eventData)
     {
         if (buttonText != null) buttonText.color = pressedColor;
     }
 
-    // ¸¶¿ì½º Å¬¸¯À» ¶¼´Â ¼ø°£
+    // ë§ˆìš°ìŠ¤ í´ë¦­ì„ ë–¼ëŠ” ìˆœê°„
     public void OnPointerUp(PointerEventData eventData)
     {
-        // ¶ÃÀ» ¶§ ¿©ÀüÈ÷ ¸¶¿ì½º°¡ ¹öÆ° À§¿¡ ÀÖ´Ù¸é Hover »ö»óÀ¸·Î, ¾Æ´Ï¸é Normal·Î
+        // ë—ì„ ë•Œ ì—¬ì „íˆ ë§ˆìš°ìŠ¤ê°€ ë²„íŠ¼ ìœ„ì— ìˆë‹¤ë©´ Hover ìƒ‰ìƒìœ¼ë¡œ, ì•„ë‹ˆë©´ Normalë¡œ
         if (buttonText != null)
             buttonText.color = eventData.pointerCurrentRaycast.gameObject == gameObject ? hoverColor : normalColor;
     }

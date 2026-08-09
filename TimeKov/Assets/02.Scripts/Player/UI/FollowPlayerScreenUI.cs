@@ -7,7 +7,7 @@ public class FollowPlayerScreenUI : MonoBehaviour
     [SerializeField] private Camera targetCamera;
 
     [Header("Offset")]
-    [Tooltip("X´Â È­¸é ±âÁØ ¿À¸¥ÂÊ, Y´Â ¿ùµå À§ÂÊ, Z´Â Ä«¸Ş¶ó Àü¹æ ±âÁØ ¿ÀÇÁ¼Â")]
+    [Tooltip("XëŠ” í™”ë©´ ê¸°ì¤€ ì˜¤ë¥¸ìª½, YëŠ” ì›”ë“œ ìœ„ìª½, ZëŠ” ì¹´ë©”ë¼ ì „ë°© ê¸°ì¤€ ì˜¤í”„ì…‹")]
     [SerializeField] private Vector3 worldOffset = new Vector3(1.05f, 1.2f, 0f);
 
     [Header("Visibility")]

@@ -6,7 +6,7 @@ using UnityEngine;
 /// 상단 배너(label) + 선택적 스포트라이트(spotlightTargetId)를 띄우고,
 /// 아무 곳이나 클릭하면 완료된다. 순수 설명/코치마크용.
 /// </summary>
-[CreateAssetMenu(menuName = "Quest/Objective/Continue")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/계속 진행")]
 public class ContinueObjective : ObjectiveSO
 {
     [Tooltip("스포트라이트로 강조할 UI 타깃 id (TutorialHighlightTarget 와 매칭). 비우면 강조 없이 배너만.")]

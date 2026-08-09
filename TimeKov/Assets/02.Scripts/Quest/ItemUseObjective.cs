@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/ItemUse")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/아이템 사용")]
 public class ItemUseObjective : ObjectiveSO
 {
     [Tooltip("사용할 아이템 ID")]

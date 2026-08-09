@@ -1,26 +1,26 @@
 // ItemDatabase.cs
-// GameDataHolder.ItemData ¸¦ ·¡ÇÎÇØ¼­ UI ¿¡ ÇÊ¿äÇÑ µ¥ÀÌÅÍ Á¦°ø
-// ItemDataSO ¾øÀÌ ±âÁ¸ µ¥ÀÌÅÍ Å×ÀÌºí ½Ã½ºÅÛ°ú ¿¬µ¿
-// ¾ÆÀÌÄÜÀº Resources/Items/ Æú´õ¿¡¼­ iconKey ·Î ·Îµå
+// GameDataHolder.ItemData ë¥¼ ë˜í•‘í•´ì„œ UI ì— í•„ìš”í•œ ë°ì´í„° ì œê³µ
+// ItemDataSO ì—†ì´ ê¸°ì¡´ ë°ì´í„° í…Œì´ë¸” ì‹œìŠ¤í…œê³¼ ì—°ë™
+// ì•„ì´ì½˜ì€ Resources/Items/ í´ë”ì—ì„œ iconKey ë¡œ ë¡œë“œ
 
 using System.Collections.Generic;
 using UnityEngine;
 
 public static class ItemDatabase
 {
-    // ¾ÆÀÌÄÜ ½ºÇÁ¶óÀÌÆ® Ä³½Ã (Resources.Load Áßº¹ ¹æÁö)
+    // ì•„ì´ì½˜ ìŠ¤í”„ë¼ì´íŠ¸ ìºì‹œ (Resources.Load ì¤‘ë³µ ë°©ì§€)
     private static readonly Dictionary<string, Sprite> _iconCache = new Dictionary<string, Sprite>();
 
-    // itemId (int) ·Î ItemDataSheetData Á¶È¸
-    // ¾øÀ¸¸é null ¹İÈ¯
-    // GameDataUtility.GetItem ÀÌ ÀÌ¹Ì int Å°¸¦ Ã³¸®ÇÔ
+    // itemId (int) ë¡œ ItemDataSheetData ì¡°íšŒ
+    // ì—†ìœ¼ë©´ null ë°˜í™˜
+    // GameDataUtility.GetItem ì´ ì´ë¯¸ int í‚¤ë¥¼ ì²˜ë¦¬í•¨
     public static ItemDataSheetData GetItem(int itemId)
     {
         return GameDataUtility.GetItem(itemId);
     }
 
-    // iconKey ·Î ½ºÇÁ¶óÀÌÆ® ·Îµå (Ä³½Ã Àû¿ë)
-    // ½ºÇÁ¶óÀÌÆ®´Â Assets/Resources/Items/ Æú´õ¿¡ ÀÖ¾î¾ß ÇÔ
+    // iconKey ë¡œ ìŠ¤í”„ë¼ì´íŠ¸ ë¡œë“œ (ìºì‹œ ì ìš©)
+    // ìŠ¤í”„ë¼ì´íŠ¸ëŠ” Assets/Resources/Items/ í´ë”ì— ìˆì–´ì•¼ í•¨
     public static Sprite GetIcon(string iconKey)
     {
         if (string.IsNullOrEmpty(iconKey)) return null;
@@ -31,13 +31,13 @@ public static class ItemDatabase
         var sprite = Resources.Load<Sprite>("Items/" + iconKey);
 
         if (sprite == null)
-            Debug.LogWarning("[ItemDatabase] ¾ÆÀÌÄÜ ¾øÀ½: Resources/Items/" + iconKey);
+            Debug.LogWarning("[ItemDatabase] ì•„ì´ì½˜ ì—†ìŒ: Resources/Items/" + iconKey);
 
         _iconCache[iconKey] = sprite;
         return sprite;
     }
 
-    // ¾À ÀüÈ¯ ½Ã ¾ÆÀÌÄÜ Ä³½Ã ÃÊ±âÈ­
+    // ì”¬ ì „í™˜ ì‹œ ì•„ì´ì½˜ ìºì‹œ ì´ˆê¸°í™”
     public static void ClearCache()
     {
         _iconCache.Clear();

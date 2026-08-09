@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/MoveDistance")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/이동 거리")]
 public class MoveDistanceObjective : ObjectiveSO
 {
     public float requiredDistance = 3f;

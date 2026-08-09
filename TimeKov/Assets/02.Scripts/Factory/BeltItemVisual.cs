@@ -1,7 +1,7 @@
 // =====================================================================
 // BeltItemVisual.cs
-// �����̾� ��Ʈ �� ������ �ð�ȭ
-// ������ DataStore.GetItem �� GameDataUtility.GetItem ���� ��ü
+// 컨베이어 벨트 위 아이템 시각화
+// 구버전 DataStore.GetItem → GameDataUtility.GetItem 으로 교체
 // =====================================================================
 
 using TMPro;
@@ -22,7 +22,7 @@ namespace TIMEKOV.Factory
 
         private void LateUpdate()
         {
-            // ī�޶� ���� ������ (�ʿ� �� �ּ� ����)
+            // 카메라 방향 빌보드 (필요 시 주석 해제)
             // if (_cam != null)
             //     transform.rotation = Quaternion.LookRotation(transform.position - _cam.transform.position, Vector3.up);
         }

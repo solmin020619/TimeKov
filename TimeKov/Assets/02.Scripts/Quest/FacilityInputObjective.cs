@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/FacilityInput")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/설비에 재료 넣기")]
 public class FacilityInputObjective : ObjectiveSO
 {
     [Tooltip("설비 ID. 0이면 모든 설비.")]

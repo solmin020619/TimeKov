@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/FacilityProcessComplete")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/설비 제작 완료")]
 public class FacilityProcessCompleteObjective : ObjectiveSO
 {
     [Tooltip("설비 ID. 0이면 모든 설비.")]

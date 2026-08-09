@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Tutorial")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/튜토리얼")]
 public class TutorialSO : ScriptableObject
 {
     [Tooltip("PlayerPrefs 키 prefix. 본 게임 메인 퀘스트와 충돌 방지. 변경 시 진행도 리셋")]

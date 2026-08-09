@@ -8,7 +8,7 @@ using UnityEngine;
 //   - 시청 기록은 기존 도감 시스템(CodexDiscovery, 첫 페이지 title 기준)을 재사용 -> 세이브 별도 필드 불필요.
 //   - 도감 튜토 탭에서 재시청 가능(빌더가 큐 페이지를 CodexTutorialConfig 로 복사).
 //   Resources/DiscoveryCues/DiscoveryCueSet 에 두면 DiscoveryCueManager 가 자동 로드.
-[CreateAssetMenu(fileName = "DiscoveryCueSet", menuName = "TIMEKOV/Discovery Cue Set")]
+[CreateAssetMenu(fileName = "DiscoveryCueSet", menuName = "TIMEKOV/퀘스트/발견 큐 모음")]
 public class DiscoveryCueSet : ScriptableObject
 {
     public List<DiscoveryCue> cues = new List<DiscoveryCue>();

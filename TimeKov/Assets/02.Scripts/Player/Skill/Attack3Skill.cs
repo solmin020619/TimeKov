@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "Attack3Skill", menuName = "Skills/Attack3")]
+[CreateAssetMenu(fileName = "Attack3Skill", menuName = "TIMEKOV/스킬/평타 3타")]
 public class Attack3Skill : ComboAttackBase
 {
     [Header("Slash")]

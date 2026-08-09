@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/ItemAcquire")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/아이템 획득")]
 public class ItemAcquireObjective : ObjectiveSO
 {
     [Tooltip("DataManager 아이템 ID")]

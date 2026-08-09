@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "MeleeEnemyData", menuName = "Enemy/Melee Enemy Data")]
+[CreateAssetMenu(fileName = "MeleeEnemyData", menuName = "TIMEKOV/적/근접 몬스터 데이터")]
 public class MeleeEnemyData : ScriptableObject
 {
     [Header("Identity")]

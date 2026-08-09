@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-[CreateAssetMenu(menuName = "Quest/Quest")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/퀘스트")]
 public class QuestSO : ScriptableObject
 {
     // 퀘스트 완료 보상 1건 (아이템 ID + 개수)

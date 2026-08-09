@@ -24,7 +24,7 @@ public enum HellTelegraphKind
     FillCircle,     // ★착지 지점에 원이 뜨고 전조 시간에 맞춰 다 차오른다. 다 차는 순간 공격
 }
 
-[CreateAssetMenu(fileName = "HellData_", menuName = "TIMEKOV/Enemy/Hell Monster Data")]
+[CreateAssetMenu(fileName = "HellData_", menuName = "TIMEKOV/적/헬 몬스터 데이터")]
 public class HellMonsterData : MeleeEnemyData
 {
     [Header("전조 공통")]

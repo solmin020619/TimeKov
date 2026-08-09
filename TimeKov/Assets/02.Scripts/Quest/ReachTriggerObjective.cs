@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Quest/Objective/ReachTrigger")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/지점 도달")]
 public class ReachTriggerObjective : ObjectiveSO
 {
     public string targetTriggerId;

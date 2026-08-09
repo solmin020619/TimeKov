@@ -5,7 +5,7 @@ using UnityEngine;
 /// 아직 연료 아이템이 없으면 fuelItemId에 임시 아이템 ID를 입력해 테스트할 수 있다.
 /// 나중에 정식 연료 아이템이 추가되면 ID만 바꾸면 된다.
 /// </summary>
-[CreateAssetMenu(fileName = "FuelConfig", menuName = "TIMEKOV/Fuel Config")]
+[CreateAssetMenu(fileName = "FuelConfig", menuName = "TIMEKOV/설비/연료 설정")]
 public class FuelConfig : ScriptableObject
 {
     [Tooltip("연료로 사용할 아이템 ID.\n" +

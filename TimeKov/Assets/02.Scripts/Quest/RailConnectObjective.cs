@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 // 레일로 설비(포트-포트)를 연결하면 완료. (RailBuildManager.CompleteRoute -> GameEvents.OnRailConnected)
-[CreateAssetMenu(menuName = "Quest/Objective/RailConnect")]
+[CreateAssetMenu(menuName = "TIMEKOV/퀘스트/목표/레일 연결")]
 public class RailConnectObjective : ObjectiveSO
 {
     public int requiredCount = 1;
