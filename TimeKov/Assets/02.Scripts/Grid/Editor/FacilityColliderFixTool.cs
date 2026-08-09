@@ -39,7 +39,7 @@ public static class FacilityColliderFixTool
         "Assets/05.Prefabs/Grid/5X5/화학 정제기.prefab",
     };
 
-    [MenuItem("Tools/Grid/Fix Facility Colliders (anti-slide)")]
+    [MenuItem("Tools/TIMEKOV/건축/설비 콜라이더 고치기 (미끄러짐 방지)")]
     public static void FixAll()
     {
         var summary = new List<string>();

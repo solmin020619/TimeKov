@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace TimeKov.UI
 {
-    [CreateAssetMenu(fileName = "WindowOpenPolicy", menuName = "TimeKov/UI/Window Open Policy")]
+    [CreateAssetMenu(fileName = "WindowOpenPolicy", menuName = "TIMEKOV/UI/Window Open Policy")]
     public class WindowOpenPolicy : ScriptableObject
     {
         [System.Serializable]

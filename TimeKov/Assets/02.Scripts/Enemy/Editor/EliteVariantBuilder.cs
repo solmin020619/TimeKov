@@ -41,7 +41,7 @@ public static class EliteVariantBuilder
         ("SkeletonKnight", "해골 장군"),
     };
 
-    // [HIDDEN] [MenuItem("Tools/Enemy/Build Elite Variants")]
+    // [HIDDEN] [MenuItem("Tools/TIMEKOV/적/엘리트 변종 생성")]
     public static void Build()
     {
         bool ok = EditorUtility.DisplayDialog("엘리트 변형 생성",

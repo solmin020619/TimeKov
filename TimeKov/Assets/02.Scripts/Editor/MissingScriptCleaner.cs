@@ -6,8 +6,8 @@
 // 컴포넌트가 남는데, 이걸 하나씩 손으로 지우는 대신 메뉴 한 번으로 정리.
 //
 // 메뉴:
-//   Tools/Cleanup/Remove Missing Scripts (열린 씬 전체)
-//   Tools/Cleanup/Remove Missing Scripts (Selection)  — 선택한 오브젝트 + 자식만
+//   Tools/TIMEKOV/정리/깨진 스크립트 제거 (씬 전체)
+//   Tools/TIMEKOV/정리/깨진 스크립트 제거 (선택 항목)  — 선택한 오브젝트 + 자식만
 //
 // 동작:
 //   - 열린 씬의 모든 GameObject(비활성 포함)를 훑어 Missing 컴포넌트 제거
@@ -23,7 +23,7 @@ public static class MissingScriptCleaner
 {
     // ── 열린 씬 전체 ──────────────────────────────────────────────
 
-    [MenuItem("Tools/Cleanup/Remove Missing Scripts (Scene)")]
+    [MenuItem("Tools/TIMEKOV/정리/깨진 스크립트 제거 (씬 전체)")]
     public static void CleanOpenScenes()
     {
         int totalGo = 0;
@@ -47,7 +47,7 @@ public static class MissingScriptCleaner
 
     // ── 선택한 오브젝트 + 자식만 ──────────────────────────────────
 
-    [MenuItem("Tools/Cleanup/Remove Missing Scripts (Selection)")]
+    [MenuItem("Tools/TIMEKOV/정리/깨진 스크립트 제거 (선택 항목)")]
     public static void CleanSelection()
     {
         var sel = Selection.gameObjects;
@@ -68,7 +68,7 @@ public static class MissingScriptCleaner
     }
 
     // 선택이 있을 때만 메뉴 활성화
-    [MenuItem("Tools/Cleanup/Remove Missing Scripts (Selection)", true)]
+    [MenuItem("Tools/TIMEKOV/정리/깨진 스크립트 제거 (선택 항목)", true)]
     public static bool ValidateCleanSelection() => Selection.gameObjects.Length > 0;
 
     // ── 재귀 정리 ─────────────────────────────────────────────────

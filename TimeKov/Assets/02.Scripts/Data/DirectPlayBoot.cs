@@ -39,7 +39,7 @@ public static class DirectPlayBoot
         {
             // 사본이 없거나 검증에 걸림 -> 예전처럼 DevBootstrapper 가 받아온다(경고는 다시 뜬다).
             Debug.LogWarning("[직행 부팅] 로컬 사본이 부족해 평소대로 다운로드로 진행한다. " +
-                             "Tools/TIMEKOV/시트 백업 을 한 번 눌러 사본을 채워라.");
+                             "시트/백업 저장 을 한 번 눌러 사본을 채워라.");
             return;
         }
 

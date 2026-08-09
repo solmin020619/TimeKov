@@ -26,7 +26,7 @@ public static class IceElementalBossBuilder
     // 원본 2.14m -> 보스감. 정령이라 무기가 없어 리치도 짧은데 키우면 팔 스팬이 같이 늘어 해결된다.
     const float BossScale = 2.2f;
 
-    [MenuItem("Tools/Enemy/Build Ice Elemental Boss (prefab + SO)")]
+    [MenuItem("Tools/TIMEKOV/적/보스/얼음 정령 생성 (프리팹+SO)")]
     public static void Build()
     {
         if (!EditorUtility.DisplayDialog(

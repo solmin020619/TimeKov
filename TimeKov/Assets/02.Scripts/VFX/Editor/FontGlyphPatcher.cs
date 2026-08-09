@@ -15,7 +15,7 @@ public static class FontGlyphPatcher
     // 엘리트 칭호 + 흔한 칭호 글자(이미 구워진 건 자동 스킵). 새 이름 글자 생기면 여기 추가.
     const string CHARS = "아귀군주늑대왕거미여언데드쥐해골장정예대괴물우두머리흉포광폭";
 
-    [MenuItem("Tools/VFX/Patch Korean Font Glyphs (왕군 등)")]
+    [MenuItem("Tools/TIMEKOV/VFX/한글 폰트 글리프 패치 (왕군 등)")]
     public static void Patch()
     {
         var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);

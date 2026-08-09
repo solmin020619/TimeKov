@@ -13,7 +13,7 @@ public static class EnemyWorldUIBuilder
 {
     const string PrefabPath = "Assets/05.Prefabs/Enemy/HP_Bar_World.prefab";
 
-    // [HIDDEN] [MenuItem("Tools/Enemy/Build World HP Bar Prefab")]
+    // [HIDDEN] [MenuItem("Tools/TIMEKOV/적/월드 체력바 프리팹 생성")]
     public static void BuildPrefab()
     {
         EnsureFolder("Assets/05.Prefabs", "Enemy");
@@ -127,7 +127,7 @@ public static class EnemyWorldUIBuilder
             EditorGUIUtility.PingObject(prefab);
     }
 
-    // [HIDDEN] [MenuItem("Tools/Enemy/Attach HP Bar To Selected")]
+    // [HIDDEN] [MenuItem("Tools/TIMEKOV/적/체력바 붙이기 (선택 항목)")]
     public static void AttachToSelected()
     {
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);

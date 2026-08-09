@@ -1,7 +1,7 @@
 // =====================================================================
 // UIDuplicateScanner.cs  (Editor 전용)
 // "하나만 있어야 하는" UI 가 두 벌 있는지 찾아, 지워야 할 쪽에만 빨간 배지를 붙인다.
-// 메뉴: Tools/TIMEKOV/UI 중복 검사  /  Tools/TIMEKOV/UI 중복 표시 지우기
+// 메뉴: Tools/TIMEKOV/UI/중복 검사  /  Tools/TIMEKOV/UI/중복 표시 지우기
 // 플레이는 필요 없다. 에디트 모드에서 누르면 그 자리에서 판정한다.
 //
 // [왜 필요한가]
@@ -71,7 +71,7 @@ public static class UIDuplicateScanner
         EditorApplication.hierarchyWindowItemOnGUI += DrawBadge;
     }
 
-    [MenuItem("Tools/TIMEKOV/UI 중복 검사")]
+    [MenuItem("Tools/TIMEKOV/UI/중복 검사")]
     public static void Scan()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -533,7 +533,7 @@ public static class UIDuplicateScanner
         return name + "|" + string.Join(",", comps);
     }
 
-    [MenuItem("Tools/TIMEKOV/UI 중복 표시 지우기")]
+    [MenuItem("Tools/TIMEKOV/UI/중복 표시 지우기")]
     public static void ClearMarks()
     {
         _toDelete.Clear();

@@ -21,22 +21,22 @@ public static class HellMonsterConfigs
     const string FloorBlast =
         "Assets/00.창동에셋/VFX/VFX(전조)/Anime VFX URP/Shared/Particles/VFX_Explosion_Floor.prefab";
 
-    [MenuItem("Tools/Enemy/Hell/Build 헬하운드")]
+    [MenuItem("Tools/TIMEKOV/적/헬 몬스터/헬하운드 생성")]
     public static void BuildHound() => HellMonsterBuilder.Build(Hound());
 
-    [MenuItem("Tools/Enemy/Hell/Build 헬뱃")]
+    [MenuItem("Tools/TIMEKOV/적/헬 몬스터/헬뱃 생성")]
     public static void BuildBat() => HellMonsterBuilder.Build(Bat());
 
-    [MenuItem("Tools/Enemy/Hell/Build 헬버그")]
+    [MenuItem("Tools/TIMEKOV/적/헬 몬스터/헬버그 생성")]
     public static void BuildBug() => HellMonsterBuilder.Build(Bug());
 
-    [MenuItem("Tools/Enemy/Hell/Build 헬사이클롭")]
+    [MenuItem("Tools/TIMEKOV/적/헬 몬스터/헬사이클롭 생성")]
     public static void BuildCyclop() => HellMonsterBuilder.Build(Cyclop());
 
-    [MenuItem("Tools/Enemy/Hell/Build 헬플라잉데몬")]
+    [MenuItem("Tools/TIMEKOV/적/헬 몬스터/헬플라잉데몬 생성")]
     public static void BuildDemon() => HellMonsterBuilder.Build(Demon());
 
-    [MenuItem("Tools/Enemy/Hell/Build 5종 전부")]
+    [MenuItem("Tools/TIMEKOV/적/헬 몬스터/5종 전부 생성")]
     public static void BuildAll()
     {
         if (!EditorUtility.DisplayDialog("헬 5종 생성",

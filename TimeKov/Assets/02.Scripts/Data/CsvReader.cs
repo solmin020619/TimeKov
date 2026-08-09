@@ -88,25 +88,8 @@ public static class CsvReader
         return rows;
     }
 
-    // 구글 시트에서 동기 다운로드 (에디터 전용)
-    // EditorUtility 로 진행률을 표시하면서 사용한다
-#if UNITY_EDITOR
-    public static CsvTable DownloadSync(string url)
-    {
-        using var request = UnityWebRequest.Get(url);
-        request.SendWebRequest();
-
-        // 완료 대기 (에디터 전용 — 런타임에서 사용 금지)
-        while (!request.isDone) { }
-
-        if (request.result != UnityWebRequest.Result.Success)
-        {
-            Debug.LogError($"[CsvReader] 다운로드 실패: {url}\n{request.error}");
-            return null;
-        }
-        return Parse(request.downloadHandler.text);
-    }
-#endif
+    // [08-09] DownloadSync 삭제. 유일한 호출처였던 '시트 내용 보기' 메뉴가 없어졌다.
+    //   한 장씩 순서대로 받는 방식이라 에디터에서 쓸 일도 없다 - SheetCache 가 병렬로 받는다.
 
     // 여러 구글 시트를 "동시에" 다운로드한다 (직렬 대비 핵심 속도개선).
     // 원리: SendWebRequest() 를 yield 하지 않고 핸들만 모아 한꺼번에 띄운 뒤,

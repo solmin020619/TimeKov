@@ -20,7 +20,7 @@ public static class FireBossAnimatorBuilder
     public const string CtrlPath = "Assets/00.창동에셋/몬스터/화염보스/화염보스_Boss.controller";
     const string BossPrefab = "Assets/05.Prefabs/Enemy/Enemy_Fire_Boss.prefab";
 
-    [MenuItem("Tools/Enemy/Build Fire Boss Animator")]
+    [MenuItem("Tools/TIMEKOV/적/보스/화염 보스 애니메이터 생성")]
     public static void Build()
     {
         if (AssetDatabase.LoadAssetAtPath<AnimatorController>(CtrlPath) != null)

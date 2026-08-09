@@ -1,6 +1,6 @@
 // =====================================================================
 // SheetBackupMenu.cs (Editor Only)
-// Tools/TIMEKOV/데이터/시트 사본 갱신
+// 시트/백업 저장 (시트가 날아갔을 때 복구용)
 //
 // 구글 시트를 CSV 로 받아 Documentation/sheet_backup/ 에 저장한다.
 // 실제 받는 일은 SheetCache 가 한다(Play 누를 때 도는 것과 같은 코드).
@@ -22,10 +22,10 @@ using UnityEngine;
 
 public static class SheetBackupMenu
 {
-    [MenuItem("Tools/TIMEKOV/데이터/시트 사본 갱신")]
+    [MenuItem("시트/백업 저장 (시트가 날아갔을 때 복구용)")]
     public static void BackupAll()
     {
-        var res = SheetCache.RefreshAll("시트 사본 갱신");
+        var res = SheetCache.RefreshAll("시트 백업 저장");
 
         var msg = new StringBuilder();
         msg.AppendLine($"저장 위치: {LocalTableSource.DirRelative}");
@@ -46,10 +46,10 @@ public static class SheetBackupMenu
             foreach (var s in res.Failed) msg.AppendLine("  " + s);
         }
 
-        if (res.Failed.Count > 0) Debug.LogWarning("[시트 사본] 일부 실패\n" + msg);
-        else Debug.Log("[시트 사본] 완료\n" + msg);
+        if (res.Failed.Count > 0) Debug.LogWarning("[시트 백업] 일부 실패\n" + msg);
+        else Debug.Log("[시트 백업] 완료\n" + msg);
 
-        EditorUtility.DisplayDialog(res.Failed.Count > 0 ? "시트 사본 - 일부 실패" : "시트 사본 갱신 완료",
+        EditorUtility.DisplayDialog(res.Failed.Count > 0 ? "시트 백업 - 일부 실패" : "시트 백업 완료",
             msg.ToString() + "\n변경분을 커밋해 두면 시트가 날아가도 복구할 수 있다.", "확인");
     }
 }

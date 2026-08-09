@@ -44,7 +44,7 @@ public static class CodeGenerator
         var keys = schema.GetKeyColumns();
         var sb = new StringBuilder();
 
-        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)");
+        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (메뉴 '시트 > 코드 다시 만들기' 로 재생성)");
         sb.AppendLine();
         sb.AppendLine("using System;");
         sb.AppendLine();
@@ -111,7 +111,7 @@ public static class CodeGenerator
         var name = schema.TableName;
         var sb = new StringBuilder();
 
-        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)");
+        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (메뉴 '시트 > 코드 다시 만들기' 로 재생성)");
         sb.AppendLine();
         sb.AppendLine("using System;");
         sb.AppendLine();
@@ -145,7 +145,7 @@ public static class CodeGenerator
         var keys = schema.GetKeyColumns();
         var sb = new StringBuilder();
 
-        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)");
+        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (메뉴 '시트 > 코드 다시 만들기' 로 재생성)");
         sb.AppendLine();
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
@@ -241,7 +241,7 @@ public static class CodeGenerator
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)");
+        sb.AppendLine("// 자동 생성 파일 — 직접 수정 금지 (메뉴 '시트 > 코드 다시 만들기' 로 재생성)");
         sb.AppendLine();
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine();

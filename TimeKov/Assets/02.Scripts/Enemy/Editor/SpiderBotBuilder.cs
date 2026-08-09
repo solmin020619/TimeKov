@@ -31,7 +31,7 @@ public static class SpiderBotBuilder
     // 로코 클립(루프 필수)
     static readonly string[] LoopClips = { "SpiderBot@Idle", "SpiderBot@Walk" };
 
-    [MenuItem("Tools/Enemy/Build Suicide Spider (prefab + SO)")]
+    [MenuItem("Tools/TIMEKOV/적/자폭거미 생성 (프리팹+SO)")]
     public static void Build()
     {
         if (!EditorUtility.DisplayDialog(

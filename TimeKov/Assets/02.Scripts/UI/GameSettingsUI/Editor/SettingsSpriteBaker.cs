@@ -28,7 +28,7 @@ namespace GameSettingsUI.EditorTools
         // 빌더가 Panel(..., radius, ...)로 쓰는 모든 반지름. 하나라도 빠지면 그 위젯만 각지게 나온다.
         static readonly int[] Radii = { 2, 9, 15, 16, 18, 20, 21, 22, 27, 28, 30, 31 };
 
-        [MenuItem("Tools/GameSettingsUI/스프라이트 굽기")]
+        [MenuItem("Tools/TIMEKOV/UI/설정창 스프라이트 굽기")]
         public static void Bake()
         {
             Directory.CreateDirectory(OutDir);

@@ -1,4 +1,4 @@
-﻿// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)
+﻿// 자동 생성 파일 — 직접 수정 금지 (메뉴 '시트 > 코드 다시 만들기' 로 재생성)
 
 using System.Collections.Generic;
 

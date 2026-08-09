@@ -7,7 +7,7 @@ using UnityEngine;
 /// </summary>
 public static class EnemySpawnPointMenu
 {
-    [MenuItem("GameObject/Enemy/Spawn Point (Box Area)", false, 10)]
+    [MenuItem("GameObject/적/스폰 지점 (박스 영역)", false, 10)]
     public static void CreateSpawnPoint(MenuCommand cmd)
     {
         var go = new GameObject("EnemySpawnPoint");

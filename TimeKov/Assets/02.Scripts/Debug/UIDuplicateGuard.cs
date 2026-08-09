@@ -20,7 +20,7 @@
 //     2) 어느 쪽이 살아남는지는 Awake 순서 소관이라 실행마다 바뀐다.
 //        실행 결과는 지울 쪽의 근거가 못 된다.
 //   지울 쪽 판정은 프리팹 구조로 해야 확정이고, 그건 에디트 모드에서
-//   UIDuplicateScanner(Tools/TIMEKOV/UI 중복 검사)가 한다. 플레이는 필요 없다.
+//   UIDuplicateScanner(Tools/TIMEKOV/UI/중복 검사)가 한다. 플레이는 필요 없다.
 //
 // [쓰는 법] 기존 한 줄을 이걸로 바꾸면 된다.
 //   if (UIDuplicateGuard.Report(Instance, this)) { Destroy(gameObject); return; }
@@ -44,7 +44,7 @@ public static class UIDuplicateGuard
             $"[중복 UI] {typeof(T).Name} 이(가) 두 곳에 있다. 한쪽을 지워야 한다.\n" +
             $"  살아남음 : {FullPath(kept.transform)}\n" +
             $"  파괴됨   : {FullPath(dup.transform)}\n" +
-            $"  * 정지하고 메뉴 Tools/TIMEKOV/UI 중복 검사 를 누르면 지울 쪽에만 빨간 배지가 붙는다.",
+            $"  * 정지하고 메뉴 Tools/TIMEKOV/UI/중복 검사 를 누르면 지울 쪽에만 빨간 배지가 붙는다.",
             dup);
         return true;
     }

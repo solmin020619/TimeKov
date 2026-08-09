@@ -9,11 +9,11 @@ using UnityEngine;
 //   ★라이트 range/glowIntensity 를 작게 잡아 주변 지형 번짐을 줄였다(강하면 인스펙터서 조정).
 //
 //   사용법: 하이라키에서 주입구로 쓸 오브젝트 선택 →
-//           Tools/TIMEKOV/에너지노드/① 선택 오브젝트를 에너지 노드로 세팅
+//           Tools/TIMEKOV/기믹/에너지노드 1) 선택 오브젝트를 에너지 노드로 세팅
 //           그 뒤 여러 노드를 선택하고 '② EnergyConduit 생성'으로 조건 오브젝트를 만든다.
 public static class EnergyNodeSetup
 {
-    [MenuItem("Tools/TIMEKOV/에너지노드/① 선택 오브젝트를 에너지 노드로 세팅")]
+    [MenuItem("Tools/TIMEKOV/기믹/에너지노드 1) 선택 오브젝트를 에너지 노드로 세팅")]
     private static void SetupSelected()
     {
         var go = Selection.activeGameObject;
@@ -75,7 +75,7 @@ public static class EnergyNodeSetup
                   "★인스펙터에서 Fuel Item Id(연료 아이템)를 지정하고, 문은 Targets 또는 EnergyConduit 로 연결하라.", go);
     }
 
-    [MenuItem("Tools/TIMEKOV/에너지노드/② 선택 노드들로 EnergyConduit 생성")]
+    [MenuItem("Tools/TIMEKOV/기믹/에너지노드 2) 선택 노드들로 에너지 도관 생성")]
     private static void CreateConduit()
     {
         var nodes = new System.Collections.Generic.List<EnergyNode>();

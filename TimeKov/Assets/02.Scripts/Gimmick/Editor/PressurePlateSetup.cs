@@ -8,7 +8,7 @@ using UnityEngine;
 // 을 한 번에 붙여준다. 공유 프리팹 소스는 건드리지 않고 '선택한 인스턴스'에만 적용.
 //
 //   사용법: 하이라키에서 압력판으로 쓸 오브젝트(예: P_Can_Red_01) 선택 →
-//           메뉴 Tools/TIMEKOV/압력판/① 선택 오브젝트를 압력판으로 세팅
+//           메뉴 Tools/TIMEKOV/기믹/압력판 1) 선택 오브젝트를 압력판으로 세팅
 //           그 뒤 밟는 판들을 여러 개 선택하고 '② SequenceTrigger 생성'으로 조건 오브젝트를 만든다.
 public static class PressurePlateSetup
 {
@@ -17,7 +17,7 @@ public static class PressurePlateSetup
     private const float Footprint = 0.9f;    // 윗면 대비 박스 가로/세로 비율
 
     // ── ① 선택 오브젝트를 압력판으로 ───────────────────────────────────────────
-    [MenuItem("Tools/TIMEKOV/압력판/① 선택 오브젝트를 압력판으로 세팅")]
+    [MenuItem("Tools/TIMEKOV/기믹/압력판 1) 선택 오브젝트를 압력판으로 세팅")]
     private static void SetupSelected()
     {
         var go = Selection.activeGameObject;
@@ -88,7 +88,7 @@ public static class PressurePlateSetup
     }
 
     // ── ② 선택한 압력판들로 SequenceTrigger(순서 밟기) 생성 ─────────────────────
-    [MenuItem("Tools/TIMEKOV/압력판/② 선택 압력판들로 SequenceTrigger(순서 밟기) 생성")]
+    [MenuItem("Tools/TIMEKOV/기믹/압력판 2) 선택 압력판들로 순서 밟기 트리거 생성")]
     private static void CreateTrigger()
     {
         var plates = new System.Collections.Generic.List<PressurePlate>();

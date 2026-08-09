@@ -10,7 +10,7 @@ public static class CodexConfigPopulator
 {
     // 기존 영상 튜토(TutorialVideoObjective)의 페이지를 도감 튜토 설정으로 복붙.
     // 영상 추가/삭제 따라가게 매번 새로 채운다(튜토는 별도 튜닝 없음).
-    // [MenuItem("Tools/TIMEKOV/Codex/튜토리얼 영상 설정 자동 채우기")]   // 메뉴 정리: 숨김(필요시 주석 해제)
+    // [MenuItem("Tools/TIMEKOV/UI/도감 튜토리얼 영상 설정 자동 채우기")]   // 메뉴 정리: 숨김(필요시 주석 해제)
     public static void PopulateTutorial()
     {
         CodexTutorialConfig cfg;

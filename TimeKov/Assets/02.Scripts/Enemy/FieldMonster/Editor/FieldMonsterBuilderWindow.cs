@@ -25,7 +25,7 @@ public class FieldMonsterBuilderWindow : EditorWindow
         ("자이언트웜(사막)", WormBuilder.Build),
     };
 
-    [MenuItem("Window/Field Monster Builder")]
+    [MenuItem("Tools/TIMEKOV/적/필드 몬스터 만들기")]
     static void Open()
     {
         var w = GetWindow<FieldMonsterBuilderWindow>("Field Monster");
@@ -34,7 +34,7 @@ public class FieldMonsterBuilderWindow : EditorWindow
 
     void OnGUI()
     {
-        EditorGUILayout.LabelField("필드 몬스터 빌더", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("필드 몬스터 만들기", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox("원본 참조 방식. 재실행해도 안전(멱등). 빌드 후 씬의 인스턴스는 재생 시 자가복구.", MessageType.None);
         EditorGUILayout.Space();
 

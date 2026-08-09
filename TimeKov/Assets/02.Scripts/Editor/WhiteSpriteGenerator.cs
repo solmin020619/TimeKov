@@ -8,7 +8,7 @@ using UnityEditor;
 // png 파일을 직접 읽으므로 원본의 Read/Write Enabled 를 켤 필요가 없다.
 public static class WhiteSpriteGenerator
 {
-    [MenuItem("Tools/UI/흰색 스프라이트 생성 (선택 텍스처)")]
+    [MenuItem("Tools/TIMEKOV/UI/흰색 스프라이트 생성 (선택 텍스처)")]
     public static void Generate()
     {
         Object sel = Selection.activeObject;

@@ -32,7 +32,7 @@ public static class VefectsUrpMaterialConverter
                                                        // 높이면 큰 글로우 파티클이 하얗게 번져 박스처럼 됨(2.5는 그래서 안 됨).
     const int NameMatchThreshold = 3;                  // 이름 앞부분 최소 일치 글자수
 
-    [MenuItem("Tools/VFX/Convert Vefects (Anime) Materials To URP")]
+    [MenuItem("Tools/TIMEKOV/VFX/Vefects 머티리얼 URP 변환")]
     public static void Convert()
     {
         var shader = Shader.Find(UrpParticlesUnlit);

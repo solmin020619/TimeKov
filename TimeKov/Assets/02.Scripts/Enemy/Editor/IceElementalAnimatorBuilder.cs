@@ -21,7 +21,7 @@ public static class IceElementalAnimatorBuilder
     public const string CtrlPath = "Assets/00.창동에셋/몬스터/얼음정령/얼음정령_Boss.controller";
     const string BossPrefab = "Assets/05.Prefabs/Enemy/Enemy_IceElemental_Boss.prefab";
 
-    [MenuItem("Tools/Enemy/Build Ice Elemental Animator")]
+    [MenuItem("Tools/TIMEKOV/적/보스/얼음 정령 애니메이터 생성")]
     public static void Build()
     {
         if (AssetDatabase.LoadAssetAtPath<AnimatorController>(CtrlPath) != null)

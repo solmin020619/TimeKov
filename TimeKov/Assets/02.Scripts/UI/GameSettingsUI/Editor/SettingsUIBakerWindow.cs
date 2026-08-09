@@ -21,7 +21,7 @@ namespace GameSettingsUI.EditorTools
 {
     public static class SettingsUIBakerWindow
     {
-        [MenuItem("Tools/GameSettingsUI/선택한 오브젝트에 UI 굽기")]
+        [MenuItem("Tools/TIMEKOV/UI/설정창 UI 굽기 (선택 오브젝트)")]
         public static void BakeSelected()
         {
             var builder = Selection.activeGameObject

@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace TimeKov.UI
 {
-    [CreateAssetMenu(fileName = "WindowSortingSettings", menuName = "TimeKov/UI/Window Sorting Settings")]
+    [CreateAssetMenu(fileName = "WindowSortingSettings", menuName = "TIMEKOV/UI/Window Sorting Settings")]
     public class WindowSortingSettings : ScriptableObject
     {
         [Header("Layer → SortingOrder 매핑")]

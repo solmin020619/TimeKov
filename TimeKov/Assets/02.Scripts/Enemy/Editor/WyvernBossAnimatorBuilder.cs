@@ -15,7 +15,7 @@ public static class WyvernBossAnimatorBuilder
     public const string CtrlPath = "Assets/03.Model/Enemy/10.Wyvern/WyvernBoss.controller";
     const string BossPrefab = "Assets/05.Prefabs/Enemy/Enemy_Wyvern_Boss.prefab";
 
-    // [HIDDEN] [MenuItem("Tools/Enemy/Build Wyvern Boss Animator")]
+    // [HIDDEN] [MenuItem("Tools/TIMEKOV/적/보스/와이번 애니메이터 생성")]
     public static void Build()
     {
         if (AssetDatabase.LoadAssetAtPath<AnimatorController>(CtrlPath) != null)

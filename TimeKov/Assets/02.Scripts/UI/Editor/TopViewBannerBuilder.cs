@@ -56,7 +56,7 @@ public static class TopViewBannerBuilder
     private const string LabelDefault = "탑뷰 모드 나가기";
     private const string KeyDefault   = "B";
 
-    [MenuItem("Tools/TIMEKOV/탑뷰 배너 재생성")]
+    [MenuItem("Tools/TIMEKOV/UI/탑뷰 배너 재생성")]
     public static void Build()
     {
         var root = PrefabUtility.LoadPrefabContents(PrefabPath);

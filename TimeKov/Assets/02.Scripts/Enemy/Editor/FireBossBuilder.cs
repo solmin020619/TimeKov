@@ -37,7 +37,7 @@ public static class FireBossBuilder
     const float ModelHeight = 16.276306f;   // 스케일 적용 전 모델 실측 높이
     const float ModelRadius = 3.5f;
 
-    [MenuItem("Tools/Enemy/Build Fire Boss (prefab + SO)")]
+    [MenuItem("Tools/TIMEKOV/적/보스/화염 보스 생성 (프리팹+SO)")]
     public static void Build()
     {
         if (!EditorUtility.DisplayDialog(

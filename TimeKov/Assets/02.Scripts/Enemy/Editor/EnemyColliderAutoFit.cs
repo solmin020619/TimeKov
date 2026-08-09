@@ -11,7 +11,7 @@ public static class EnemyColliderAutoFit
     // T-pose에서 양팔 펼친 width를 보정. 0.35 = 몸통 폭 추정 (양팔 펼친 길이의 35%)
     const float WidthMultiplier = 0.35f;
 
-    // [HIDDEN] [MenuItem("Tools/Enemy/Auto-fit CapsuleCollider To Selected")]
+    // [HIDDEN] [MenuItem("Tools/TIMEKOV/적/캡슐 콜라이더 자동 맞춤 (선택 항목)")]
     public static void Fit()
     {
         if (Selection.gameObjects == null || Selection.gameObjects.Length == 0)

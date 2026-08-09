@@ -18,7 +18,7 @@ public static class SandElementalAnimatorBuilder
     public const string CtrlPath = "Assets/00.창동에셋/몬스터/모래정령/모래정령_Boss.controller";
     const string BossPrefab = "Assets/05.Prefabs/Enemy/Enemy_Sand_Elemental_Boss.prefab";
 
-    [MenuItem("Tools/Enemy/Build Sand Elemental Animator")]
+    [MenuItem("Tools/TIMEKOV/적/보스/모래 정령 애니메이터 생성")]
     public static void Build()
     {
         if (AssetDatabase.LoadAssetAtPath<AnimatorController>(CtrlPath) != null)
