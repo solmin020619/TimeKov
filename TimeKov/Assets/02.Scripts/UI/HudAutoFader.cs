@@ -18,6 +18,11 @@ public class HudAutoFader : MonoBehaviour
     [Tooltip("결계 안에서도 페이드 없이 항상 보일 묶음. 체력/시간바 HUD 루트를 여기에 넣는다(무적 표시). CanvasGroup 자동 부착.")]
     [SerializeField] private GameObject[] alwaysOnRoots;
 
+    [Header("촬영(F8) 때만 숨길 묶음")]
+    [Tooltip("평소엔 손대지 않고 촬영 모드에서만 숨긴다. 우측 상단 KeyGuide(K/TAB/B/C/ESC) 처럼\n" +
+             "평소 늘 떠 있어야 하지만 트레일러에는 안 나왔으면 하는 것을 넣는다. CanvasGroup 자동 부착.")]
+    [SerializeField] private GameObject[] screenshotHideRoots;
+
     [Header("튜닝")]
     [Tooltip("전투 신호 후 HUD를 유지하는 시간(초). 이 시간 지나면 다시 숨김.")]
     [SerializeField] private float showHoldSeconds = 3.5f;
@@ -28,6 +33,7 @@ public class HudAutoFader : MonoBehaviour
 
     private CanvasGroup[] _groups;
     private CanvasGroup[] _alwaysOnGroups;
+    private CanvasGroup[] _screenshotHideGroups;
     private PlayerStatComponent _stat;
     private PlayerSkillComponent _skill;
     private float _showTimer;
@@ -43,6 +49,7 @@ public class HudAutoFader : MonoBehaviour
         // 루트에 CanvasGroup get-or-add
         _groups = EnsureGroups(fadeRoots);
         _alwaysOnGroups = EnsureGroups(alwaysOnRoots);
+        _screenshotHideGroups = EnsureGroups(screenshotHideRoots);
 
         var player = FindAnyObjectByType<Player>();
         if (player != null)
@@ -129,8 +136,11 @@ public class HudAutoFader : MonoBehaviour
         // 설비 UI가 떠 있으면 HUD 전부 숨김 - 패널 아래로 시간바가 비쳐 지저분(설비 안은 결계 안이라 안전).
         bool machineOpen = MachineUI.IsAnyOpen;
 
+        // 촬영 모드(F8) = 평소 자동으로 숨는 그 상태를 강제로 만든다.
+        bool shooting = ScreenshotMode.Active;
+
         // 결계 밖 / 스탯창 / 코치마크 설명 중 / 결계 안에서 방금 평타,피격 -> 표시. 단 건축모드/설비UI면 숨김.
-        bool show = !building && !machineOpen && (outside || statOpen || coachmark || _showTimer > 0f);
+        bool show = !shooting && !building && !machineOpen && (outside || statOpen || coachmark || _showTimer > 0f);
 
         float target = show ? 1f : hiddenAlpha;
         _alpha = Mathf.MoveTowards(_alpha, target, fadeSpeed * Time.deltaTime);
@@ -163,9 +173,19 @@ public class HudAutoFader : MonoBehaviour
             foreach (var g in _alwaysOnGroups)
             {
                 if (g == null) continue;
-                g.alpha = machineOpen ? 0f : 1f;
+                g.alpha = (machineOpen || shooting) ? 0f : 1f;
                 g.blocksRaycasts = false;
                 g.interactable   = false;
+            }
+        }
+
+        // 촬영 전용 묶음 - 촬영 모드일 때만 숨긴다. 평소 표시는 원래 하던 대로 두고 건드리지 않는다.
+        if (_screenshotHideGroups != null)
+        {
+            foreach (var g in _screenshotHideGroups)
+            {
+                if (g == null) continue;
+                g.alpha = shooting ? 0f : 1f;
             }
         }
     }

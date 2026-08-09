@@ -1,0 +1,12 @@
+statKey,value,note
+baseATK,10,시작 공격력 (앰플로 영구 증가)
+baseDEF,10,시작 방어력 (앰플로 영구 증가)
+baseMaxStamina,100,시작 최대 스태미나 (앰플로 영구 증가)
+defenseSoftness,25,방어력 감소율 = DEF/(DEF+이 값). 작을수록 방어가 강해진다
+hpDrainRate,1,결계 밖 초당 시간(체력) 감소량
+staminaDrain,10,달리기 초당 스태미나 소모
+staminaRegen,40,기본 최대치 기준 초당 회복량
+staminaRegenDelay,1,대시 직후 회복 정지 시간(초)
+exhaustedThreshold,0.1,탈진 후 달리기 재허용 비율 (0~1)
+hurtDuration,0.3,피격 경직 시간(초)
+invincibleDuration,0.1,피격 후 무적 시간(초). 크게 두면 다단 공격이 씹힌다

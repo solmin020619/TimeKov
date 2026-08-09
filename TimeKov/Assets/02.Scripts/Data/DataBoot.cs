@@ -71,6 +71,18 @@ public class DataBoot : MonoBehaviour
     }
 
     /// <summary>
+    /// 이미 다른 경로로 테이블을 다 채웠을 때 '로드 완료'로 표시하고 구독자에게 알린다.
+    /// 에디터 직행 플레이가 로컬 사본을 동기로 읽은 뒤 부른다(DirectPlayBoot).
+    /// 정식 흐름(로딩 씬)에서는 쓰지 않는다 - 거기는 LoadAsync 가 담당한다.
+    /// </summary>
+    public static void MarkLoaded()
+    {
+        if (IsLoaded) return;
+        IsLoaded = true;
+        OnDataLoaded?.Invoke();
+    }
+
+    /// <summary>
     /// 기존 데이터를 초기화하고 구글 시트에서 강제 재다운로드.
     /// 데이터 갱신이 필요한 경우에만 사용.
     /// </summary>

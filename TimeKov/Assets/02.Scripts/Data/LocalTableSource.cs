@@ -46,6 +46,32 @@ public static class LocalTableSource
             return null;
         }
     }
+
+    /// <summary>사본을 갱신한다. BOM 없는 UTF-8 - 붙여넣기용이라 편집기 호환이 중요하다.</summary>
+    public static void Write(string tableName, string csv)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(DirFull);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(DirFull, tableName + ".csv"),
+                                        csv, new System.Text.UTF8Encoding(false));
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[로컬 테이블] {tableName}.csv 저장 실패: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 시트에 방금 쓴 값인데 게시본이 아직 반영 못한 것. 있으면 이게 이긴다.
+    ///
+    /// [왜 필요한가] 구글 게시 CSV 는 CDN 캐시라 값을 고쳐도 몇 분간 옛값이 섞여 나온다
+    /// (실측: 5분 넘게 옛값/새값이 번갈아 나왔다). 그동안 테스트하면 안 바뀐 줄 알게 된다.
+    /// 시트에 쓰는 쪽이 같은 내용을 여기에 남겨두면 그 지연을 통째로 건너뛴다.
+    /// 게시본이 따라잡으면(내용 일치) 이 파일은 스스로 사라진다.
+    /// </summary>
+    public static string PendingPath(string tableName)
+        => System.IO.Path.Combine(DirFull, tableName + ".pending.csv");
 #else
     // 빌드에는 로컬 경로가 없다. 항상 시트에서 받는다.
     public static string TryRead(string tableName) => null;

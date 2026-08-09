@@ -14,7 +14,19 @@ using UnityEngine;
 public static class LocalizationLoader
 {
     // Google Sheets → 파일 → 공유 → 웹에 게시 → Localization 탭 → CSV 형식 → URL 붙여넣기
-    private const string URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRooWxOYylx_ivMvZqh___XUA1T6ZP6i815xiOkVxpcNEkYU2PF6FabT9YUr2bTa-8eHs7U5Zh5UCa5/pub?gid=0&single=true&output=csv";
+    // 다른 테이블과 달리 SheetSchema 가 없어서(자유 텍스트 표) URL 을 여기서 들고 있다.
+    // 로컬 사본을 받아두는 쪽(SheetCache)도 이 URL 을 쓴다.
+    public const string URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRooWxOYylx_ivMvZqh___XUA1T6ZP6i815xiOkVxpcNEkYU2PF6FabT9YUr2bTa-8eHs7U5Zh5UCa5/pub?gid=0&single=true&output=csv";
+
+    /// <summary>테이블 이름(로컬 사본 파일명과 동일).</summary>
+    public const string TableName = "Localization";
+
+    /// <summary>받아둔 CSV 원문으로 즉시 로드. 에디터 직행 플레이가 로컬 사본으로 부팅할 때 쓴다.</summary>
+    public static void LoadFromCsvText(string csvText)
+    {
+        if (string.IsNullOrWhiteSpace(csvText)) return;
+        ParseAndLoad(CsvReader.Parse(csvText));
+    }
 
     public static void LoadAsync(MonoBehaviour host, Action<bool> onComplete)
     {

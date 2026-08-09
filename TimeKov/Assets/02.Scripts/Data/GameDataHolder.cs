@@ -97,6 +97,33 @@ public partial class GameDataHolder
         onComplete?.Invoke(true);
     }
 
+    /// <summary>
+    /// 로컬 사본(Documentation/sheet_backup)에서 동기 로드.
+    ///
+    /// [왜 동기인가] 에디터에서 World 씬을 바로 플레이하면 다운로드가 끝나기 전에 Awake 들이
+    ///   먼저 돌아 빈 테이블을 읽는다. 파일 읽기는 즉시 끝나므로 첫 씬이 열리기 전에 채울 수 있다.
+    ///   그러면 "아이템 없음" 같은 경고가 아예 안 생기고, 한 번만 읽고 마는 코드도 정상 동작한다.
+    ///
+    /// 한 장이라도 없으면 false. 절반만 채워두면 어디가 비었는지 모르는 상태가 되어 더 위험하다.
+    /// </summary>
+    public bool LoadAllFromLocal()
+    {
+        var schemas = AllTableSchemas.GetAll();
+        var tables = new Dictionary<string, CsvTable>(schemas.Count);
+
+        foreach (var schema in schemas)
+        {
+            string text = LocalTableSource.TryRead(schema.TableName);
+            if (text == null) return false;
+            tables[schema.TableName] = CsvReader.Parse(text);
+        }
+
+        if (!TableValidator.ValidateAll(schemas, tables)) return false;
+
+        LoadAll(tables);
+        return true;
+    }
+
     // partial void 선언 — g.cs 없어도 컴파일 가능
     partial void LoadAll(Dictionary<string, CsvTable> tables);
     partial void ClearAll();

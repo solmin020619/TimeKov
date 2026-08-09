@@ -92,6 +92,9 @@ public class EnemyHealth : MonoBehaviour
         OnDamage?.Invoke();
         feedback?.PlayHit(hitPoint);
 
+        // 피해 숫자. 보스 포함 모든 적이 이 메서드를 지나므로 여기 한 줄이면 전부 커버된다.
+        DamageNumbers.Show(amount, hitPoint, isCritical);
+
         if (currentHP <= 0f)
         {
             // [07-29] 사망 가드가 막으면(보스 페이즈 전환) 죽지 않고 HP 1로 보류.
