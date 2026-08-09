@@ -15,6 +15,7 @@ public static class ConsumableEffectParser
         int idx_effectValueType = table.GetColumnIndex("effectValueType");
         int idx_effectValue = table.GetColumnIndex("effectValue");
         int idx_duration = table.GetColumnIndex("duration");
+        int idx_maxStatValue = table.GetColumnIndex("maxStatValue");
 
         foreach (var row in table.Rows)
         {
@@ -28,6 +29,7 @@ public static class ConsumableEffectParser
             data.effectValueType = (EffectValueType)Enum.Parse(typeof(EffectValueType), row.Get(idx_effectValueType));
             data.effectValue = float.Parse(row.Get(idx_effectValue), System.Globalization.CultureInfo.InvariantCulture);
             data.duration = float.Parse(row.Get(idx_duration), System.Globalization.CultureInfo.InvariantCulture);
+            data.maxStatValue = (float.TryParse(row.Get(idx_maxStatValue), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v_maxStatValue) ? v_maxStatValue : 0f);
 
             result[data.SheetId] = data;
         }

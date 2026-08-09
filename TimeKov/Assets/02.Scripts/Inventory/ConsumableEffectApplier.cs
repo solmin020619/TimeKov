@@ -16,15 +16,64 @@ public static class ConsumableEffectApplier
     }
 
     // 소비 전 검사: 지금 사용해도 의미가 있는지. false면 소비/효과 적용을 막아야 함(아이템 안 닳게).
-    // 즉시 회복(Heal) 타입이 이미 만피(시간 최대)일 때만 막는다. 스탯/지속회복 앰플은 안 막음.
-    public static bool CanApply(string itemId, Player player)
+    public static bool CanApply(string itemId, Player player) => GetBlockReason(itemId, player) == null;
+
+    /// <summary>
+    /// 지금 쓰면 효과가 없는 이유(플레이어에게 보여줄 문구). 쓸 수 있으면 null.
+    /// ★막는 경우 호출측은 아이템을 소모하면 안 된다. 앰플을 헛되이 날리게 된다.
+    /// 막는 경우는 두 가지뿐이다:
+    ///   1) 즉시 회복인데 시간(체력)이 이미 가득
+    ///   2) 영구 스탯인데 그 앰플의 천장(maxStatValue)에 이미 도달 - 상위 티어가 필요하다는 신호
+    /// </summary>
+    public static string GetBlockReason(string itemId, Player player)
     {
-        if (player == null) return true;   // 플레이어 못 찾으면 막지 않음(정상 흐름에 맡김)
-        if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var effect)) return true;
+        if (player == null) return null;   // 플레이어 못 찾으면 막지 않음(정상 흐름에 맡김)
+        if (GameDataHolder.I == null) return null;
+        if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var effect)) return null;
+
         if (effect.consumableType == ConsumableType.Heal
             && player.Stat.CurrentHp >= player.Stat.MaxHp)
-            return false;   // 시간(체력)이 이미 가득 - 회복 앰플 무의미
-        return true;
+            return Loc.Get("시간이 이미 가득 찼습니다.");
+
+        if (effect.consumableType == ConsumableType.PermanentStat && effect.maxStatValue > 0f)
+        {
+            float cur = GetPermanentStat(effect.effectTarget, player);
+            if (cur >= effect.maxStatValue)
+                return string.Format(Loc.Get("이 앰플로는 {0} {1}까지만 올릴 수 있습니다. 상위 등급 앰플이 필요합니다."),
+                                     TargetName(effect.effectTarget), NumText(effect.maxStatValue));
+        }
+
+        return null;
+    }
+
+    /// <summary>이 앰플의 천장. 0 이면 무제한(고급 앰플). UI 표시용.</summary>
+    public static float GetStatCap(string itemId)
+    {
+        if (string.IsNullOrEmpty(itemId) || GameDataHolder.I == null) return 0f;
+        if (!GameDataHolder.I.ConsumableEffect.TryGet(itemId, out var e)) return 0f;
+        return e.consumableType == ConsumableType.PermanentStat ? e.maxStatValue : 0f;
+    }
+
+    /// <summary>
+    /// 이 스탯에서 '다음에 걸리는 천장'. 지금 값보다 큰 천장 중 가장 낮은 것을 돌려준다.
+    /// 없으면 0 = 더 이상 한계가 없다(고급 앰플 구간에 들어섰다는 뜻).
+    ///
+    /// 스탯창이 "공격력 12.5 / 16" 처럼 지금 구간의 끝을 보여주는 데 쓴다.
+    /// 천장은 앰플별 값이라 스탯 하나에 여러 개(초급 16 / 중급 28)가 있고,
+    /// 그 중 지금 내가 부딪힐 것 하나만 보여줘야 의미가 있다.
+    /// </summary>
+    public static float GetNextCap(EffectTarget target, float current)
+    {
+        if (GameDataHolder.I == null) return 0f;
+        float best = 0f;
+        foreach (var e in GameDataHolder.I.ConsumableEffect.All)
+        {
+            if (e.consumableType != ConsumableType.PermanentStat) continue;
+            if (e.effectTarget != target || e.maxStatValue <= 0f) continue;
+            if (e.maxStatValue <= current) continue;                  // 이미 지나온 구간
+            if (best <= 0f || e.maxStatValue < best) best = e.maxStatValue;
+        }
+        return best;
     }
 
     // 체력(시간) 회복 계열인지. 퀵슬롯은 회복 앰플 전용이라 등록 가능 여부 판단에 쓴다.
@@ -126,9 +175,19 @@ public static class ConsumableEffectApplier
     }
 
     // 영구 스탯 증가 (revert 없음, 누적)
-    // 후반에 ATK 200 / 300 식으로 영구히 누적되는 RPG식 강화
+    // ★천장(maxStatValue)이 있으면 그 값을 넘지 않게 자른다. 이미 도달했으면 실패로 돌려보내
+    //   아이템이 소모되지 않게 한다(호출측이 실패 시 복구한다). 정상 흐름에서는 GetBlockReason 이
+    //   먼저 걸러주지만, 다른 경로로 들어와도 스탯이 천장을 넘지 않게 여기서도 막는다.
     private static bool ApplyPermanentStat(ConsumableEffectSheetData effect, float delta, Player player)
     {
+        float cap = effect.maxStatValue;
+        if (cap > 0f)
+        {
+            float cur = GetPermanentStat(effect.effectTarget, player);
+            if (cur >= cap) return false;               // 이미 천장 - 소모 없이 거부
+            delta = Mathf.Min(delta, cap - cur);        // 마지막 한 개가 천장을 넘지 않게
+        }
+
         switch (effect.effectTarget)
         {
             case EffectTarget.ATK:
@@ -149,6 +208,15 @@ public static class ConsumableEffectApplier
                 return false;
         }
     }
+
+    // 영구 스탯의 '현재 값'. 천장 비교 기준이라 ApplyPermanentStat 이 올리는 값과 같은 것을 봐야 한다.
+    private static float GetPermanentStat(EffectTarget target, Player player) => target switch
+    {
+        EffectTarget.ATK     => player.Stat.ATK,
+        EffectTarget.DEF     => player.Stat.DEF,
+        EffectTarget.Stamina => player.Stat.MaxStamina,
+        _ => 0f
+    };
 
 
     private static float CalculateDelta(ConsumableEffectSheetData effect, Player player)
@@ -203,11 +271,19 @@ public static class ConsumableEffectApplier
             case ConsumableType.Buff:
                 return string.Format(Loc.Get("{0} +{1} ({2}초)"), target, val, sec);
             case ConsumableType.PermanentStat:
-                return string.Format(Loc.Get("{0} 영구 +{1}"), target, val);
+                // ★천장을 같이 적는다. 먹고 나서 "안 올랐네?" 가 되면 안 되고,
+                //   상위 등급이 왜 필요한지도 이 한 줄로 전달된다. 0 = 무제한이라 안 적는다.
+                return e.maxStatValue > 0f
+                    ? string.Format(Loc.Get("{0} 영구 +{1} ({0} {2}까지)"), target, val, NumText(e.maxStatValue))
+                    : string.Format(Loc.Get("{0} 영구 +{1} (한계 없음)"), target, val);
             default:
                 return "";
         }
     }
+
+    // 숫자 표기 - 정수면 정수로, 소수면 한 자리까지(앰플 증가폭이 0.5 라서 필요).
+    private static string NumText(float v)
+        => Mathf.Approximately(v, Mathf.Round(v)) ? Mathf.RoundToInt(v).ToString() : v.ToString("0.#");
 
     private static string TargetName(EffectTarget t) => t switch
     {

@@ -159,7 +159,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         if (_iframeTimer > 0f) return;
         _iframeTimer = InvincibleDuration;
 
-        float finalDamage = Mathf.Max(1f, amount - DEF);
+        float finalDamage = Mathf.Max(1f, amount * (1f - DamageReduction));
         CurrentHp = Mathf.Max(0, CurrentHp - finalDamage);
         OnDamaged?.Invoke(finalDamage);
 
@@ -378,6 +378,22 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
             CurrentHp = Mathf.Min(CurrentHp, MaxHp);
         }
     }
+
+    // ── 방어력 ────────────────────────────────────────────────────────
+    // ★[08-09] 뺄셈(amount - DEF) 에서 비율 감소로 바꿨다.
+    //
+    // [뺄셈이 터진 이유] DEF 가 몹 공격력을 넘으면 max(1, ...) 에 걸려 그냥 '무적'이 된다.
+    //   방어 앰플로 DEF 40 만 찍으면 일반몹 전원(공격력 16~41)이 1 딜, 보스도 태반이 1 딜이었다.
+    //   앰플 증가폭을 아무리 줄여도 결국 도달하면 같은 결말이라 공식을 고쳐야 했다.
+    //
+    // [지금] 감소율 = DEF / (DEF + Softness). 수확체감이라 100% 에 절대 도달하지 않는다.
+    //   고급 앰플이 무한 증가여도 안전하고, 올릴수록 이득이 줄어 천장 시스템과도 맞는다.
+    //     DEF 10(기본) = 29% / 16 = 39% / 28 = 53% / 50 = 67% / 100 = 80%
+    //   ★조절 손잡이는 Softness 하나다. 작을수록 방어가 강해진다(초반 체감이 크게 바뀜).
+    private const float Softness = 25f;
+
+    /// <summary>현재 받는 피해 감소율(0~1). UI 표시용으로도 쓴다.</summary>
+    public float DamageReduction => DEF <= 0f ? 0f : DEF / (DEF + Softness);
 
     // 플레이어 → 적 데미지 계산
     public float CalculateAttackDamage(float baseDamage, float enemyDef)

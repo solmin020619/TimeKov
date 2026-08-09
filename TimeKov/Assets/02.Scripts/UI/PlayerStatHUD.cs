@@ -63,8 +63,8 @@ public class PlayerStatHUD : MonoBehaviour
 
         string fmt = "F" + Mathf.Max(0, statDecimals);
 
-        if (atkText != null) atkText.text = stat.ATK.ToString(fmt);
-        if (defText != null) defText.text = stat.DEF.ToString(fmt);
+        if (atkText != null) atkText.text = WithCap(stat.ATK, EffectTarget.ATK, fmt);
+        if (defText != null) defText.text = WithCap(stat.DEF, EffectTarget.DEF, fmt);
         if (hpText != null) hpText.text = $"{stat.CurrentHp:F0} / {stat.MaxHp:F0}";
         if (staminaText != null) staminaText.text = $"{stat.CurrentStamina:F0} / {stat.MaxStamina:F0}";
 
@@ -81,5 +81,16 @@ public class PlayerStatHUD : MonoBehaviour
             staminaSlider.maxValue = stat.MaxStamina;
             staminaSlider.value = stat.CurrentStamina;
         }
+    }
+
+    // 스탯 값 뒤에 '지금 구간의 끝'을 붙인다. 예) 공격력 12.5 / 16
+    //
+    // 앰플에는 티어별 천장이 있다(초급 16 / 중급 28 / 고급 무한). 숫자만 보여주면
+    // 왜 초급 앰플이 어느 순간부터 안 먹는지 알 수가 없어서, 지금 부딪힐 천장을 같이 보여준다.
+    // 모든 천장을 넘어선 뒤에는(고급 구간) 한계가 없으므로 숫자만 남긴다.
+    private string WithCap(float value, EffectTarget target, string fmt)
+    {
+        float cap = ConsumableEffectApplier.GetNextCap(target, value);
+        return cap > 0f ? $"{value.ToString(fmt)} / {cap:0.#}" : value.ToString(fmt);
     }
 }

@@ -191,17 +191,28 @@ public static class CodeGenerator
         {
             if (col.IsKey) continue;
             string raw = $"row.Get(idx_{col.Name})";
+
+            // 선택(required:false) 숫자 컬럼은 '없거나 빈 칸'을 0 으로 받는다.
+            // 컬럼이 없으면 GetColumnIndex 가 -1 이고 row.Get(-1) 이 빈 문자열을 주는데,
+            // int/float.Parse 는 빈 문자열에서 예외를 던져 로드 전체가 실패한다.
+            // 코드를 먼저 넣고 시트는 나중에 고치는 순서를 쓰려면 이게 필요하다.
+            bool lenientNumber = !col.Required && !col.IsKey;
+
             string parsed = col.Type switch
             {
                 ColumnType.String => col.AllowDash
                     ? $"(row.Get(idx_{col.Name}) == \"-\" ? \"\" : row.Get(idx_{col.Name}))"
                     : raw,
-                ColumnType.Int => col.AllowDash
-                    ? $"(row.Get(idx_{col.Name}) == \"-\" ? 0 : int.Parse(row.Get(idx_{col.Name})))"
-                    : $"int.Parse({raw})",
-                ColumnType.Float => col.AllowDash
-                    ? $"(row.Get(idx_{col.Name}) == \"-\" ? 0f : float.Parse(row.Get(idx_{col.Name}), System.Globalization.CultureInfo.InvariantCulture))"
-                    : $"float.Parse({raw}, System.Globalization.CultureInfo.InvariantCulture)",
+                ColumnType.Int => lenientNumber
+                    ? $"(int.TryParse({raw}, out var v_{col.Name}) ? v_{col.Name} : 0)"
+                    : col.AllowDash
+                        ? $"(row.Get(idx_{col.Name}) == \"-\" ? 0 : int.Parse(row.Get(idx_{col.Name})))"
+                        : $"int.Parse({raw})",
+                ColumnType.Float => lenientNumber
+                    ? $"(float.TryParse({raw}, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v_{col.Name}) ? v_{col.Name} : 0f)"
+                    : col.AllowDash
+                        ? $"(row.Get(idx_{col.Name}) == \"-\" ? 0f : float.Parse(row.Get(idx_{col.Name}), System.Globalization.CultureInfo.InvariantCulture))"
+                        : $"float.Parse({raw}, System.Globalization.CultureInfo.InvariantCulture)",
                 ColumnType.Bool => $"({raw} == \"1\")",
                 ColumnType.Ref => col.AllowDash
                     ? $"(row.Get(idx_{col.Name}) == \"-\" ? default : ({col.RefTable}SheetId)row.Get(idx_{col.Name}))"

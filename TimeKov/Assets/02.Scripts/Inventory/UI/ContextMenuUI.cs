@@ -259,10 +259,12 @@ public class ContextMenuUI : MonoBehaviour
         int itemId = _currentSlot.SlotData.itemId;
         var player = FindAnyObjectByType<Player>();
 
-        // 만피 회복 앰플은 소비하지 않고 토스트만(아이템 보존)
-        if (!ConsumableEffectApplier.CanApply(itemId.ToString(), player))
+        // 지금 써봐야 효과가 없는 경우(만피 회복 / 스탯 천장 도달)는 소비하지 않고 토스트만.
+        // 이유가 앰플마다 달라서 문구를 Applier 가 만들어준다(천장이면 상위 등급이 필요하다고 알려준다).
+        string blocked = ConsumableEffectApplier.GetBlockReason(itemId.ToString(), player);
+        if (blocked != null)
         {
-            ToastManager.Warning(Loc.Get("시간이 이미 가득 찼습니다."));
+            ToastManager.Warning(blocked);
             Close();
             return;
         }

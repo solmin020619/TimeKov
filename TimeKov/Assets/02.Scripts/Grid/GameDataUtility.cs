@@ -23,7 +23,16 @@ public static class GameDataUtility
         return null;
     }
 
-    // facilityId 에 해당하는 레시피 목록 반환
+    // facilityId 에 해당하는 레시피 목록 반환.
+    //
+    // ★정렬을 코드에서 확정한다(시트 행 순서에 기대지 않는다).
+    //   All 은 Dictionary 값 순회라 순서가 보장되지 않고, 시트에서 행을 끼워 넣을 때마다
+    //   설비 UI 의 레시피 칩 순서가 뒤바뀐다. 저장된 LockedRecipeIndex 가 엉뚱한 레시피를
+    //   가리키게 되는 문제로도 이어진다.
+    //
+    // 순서 = 산출물 등급(Common -> Legend) -> 산출물 id.
+    //   앰플이면 초급(Advanced) 4종 -> 중급(Rare) 4종 -> 고급(Hero) 4종 순으로 깔끔히 떨어지고,
+    //   다른 설비도 '싼 것부터'가 되어 자연스럽다.
     public static List<RecipeDataSheetData> GetRecipesByFacilityId(int facilityId)
     {
         var result = new List<RecipeDataSheetData>();
@@ -35,7 +44,23 @@ public static class GameDataUtility
                 result.Add(recipe);
         }
 
+        result.Sort(CompareByGradeThenId);
         return result;
+    }
+
+    private static int CompareByGradeThenId(RecipeDataSheetData a, RecipeDataSheetData b)
+    {
+        int ga = OutputGradeRank(a), gb = OutputGradeRank(b);
+        if (ga != gb) return ga.CompareTo(gb);
+        return string.CompareOrdinal((string)a.outputItemId, (string)b.outputItemId);
+    }
+
+    // 산출물 등급 순위. 아이템을 못 찾으면 맨 뒤로 보낸다(정렬이 흔들리지 않게).
+    private static int OutputGradeRank(RecipeDataSheetData r)
+    {
+        return GameDataHolder.I.ItemData.TryGet((string)r.outputItemId, out var item)
+            ? (int)item.itemGrade
+            : int.MaxValue;
     }
 
     // facilityId + level 복합키로 FacilityLevelData 조회

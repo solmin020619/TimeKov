@@ -31,5 +31,15 @@ public class ConsumableEffectSchema : SheetSchema
 
         // 효과 지속 시간(초) — 즉시 효과(Heal 등)는 0 으로 입력
         Add("duration", ColumnType.Float, required: true);
+
+        // 이 앰플로 올릴 수 있는 스탯 천장. 0 = 무제한.
+        //
+        // [왜 있나] 싼 초급 앰플만 대량 생산해서 스탯을 도배하면 중급/고급이 필요 없어진다.
+        //   티어별로 "여기까지만" 을 두면 다음 티어로 갈아탈 이유가 생긴다.
+        //   예) 초급 공격력 앰플 16 -> 공격력이 16 이상이면 더는 안 오른다(중급이 필요).
+        // [판정] PermanentStat 계열에만 의미가 있다. 즉시 회복(Heal)은 스탯이 아니라 무관.
+        // [거부 시] 아이템을 소모하지 않는다(ConsumableEffectApplier 참고).
+        // 선택 컬럼이라 시트에 없어도 로드는 통과한다(그 경우 전부 0 = 무제한).
+        Add("maxStatValue", ColumnType.Float, required: false);
     }
 }
