@@ -1,0 +1,18 @@
+﻿// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)
+
+using System;
+
+[Serializable]
+public class MonsterStatDataSheetData
+{
+    // 이 데이터의 키 (Dictionary 조회용)
+    public MonsterStatDataSheetId SheetId;
+
+    public string monsterName;
+    public float maxHP;
+    public float attackDamage;
+    public float attackRange;
+    public float attackCooldown;
+    public float moveSpeed;
+    public float visionRange;
+}

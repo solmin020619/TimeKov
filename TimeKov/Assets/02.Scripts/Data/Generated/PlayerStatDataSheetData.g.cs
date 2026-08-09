@@ -3,10 +3,11 @@
 using System;
 
 [Serializable]
-public class FacilityLevelDataSheetData
+public class PlayerStatDataSheetData
 {
     // 이 데이터의 키 (Dictionary 조회용)
-    public FacilityLevelDataSheetId SheetId;
+    public PlayerStatDataSheetId SheetId;
 
-    public float processTimeMultiplier;
+    public float value;
+    public string note;
 }

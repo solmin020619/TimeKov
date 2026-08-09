@@ -1480,13 +1480,24 @@ public class MachineUI : MonoBehaviour
         Transform nav = recipePrevBtn != null ? recipePrevBtn.transform.parent : null;
         if (nav == null) return;
 
-        // 칩 줄을 놓을 수 있는 가로 폭. nav 자체가 좁은 컨테이너일 수 있어서
-        // 위로 올라가며 충분히 넓은 조상을 찾는다(좌우 화살표 자리는 빼둔다).
-        static float AvailableChipWidth(Transform start)
+        // 칩을 놓을 수 있는 가로 폭 = 좌우 화살표 사이의 빈 구간.
+        // 화살표 위치가 곧 이 영역의 경계라 이게 제일 정확하다.
+        // (조상 RectTransform 을 훑어 짐작하던 옛 방식은 폭을 작게 잡아, 한 줄로 충분한데도
+        //  칩을 줄이고 두 줄로 접는 결과가 나왔다)
+        float AvailableChipWidth()
         {
-            for (var t = start as RectTransform; t != null; t = t.parent as RectTransform)
+            var prev = recipePrevBtn != null ? recipePrevBtn.transform as RectTransform : null;
+            var next = recipeNextBtn != null ? recipeNextBtn.transform as RectTransform : null;
+            if (prev != null && next != null)
+            {
+                float span = Mathf.Abs(next.anchoredPosition.x - prev.anchoredPosition.x)
+                           - (prev.rect.width + next.rect.width) * 0.5f - 16f;
+                if (span > 200f) return span;
+            }
+            // 화살표가 없거나 레이아웃이 아직 안 잡힌 경우: 위로 올라가며 넓은 조상을 찾는다.
+            for (var t = nav as RectTransform; t != null; t = t.parent as RectTransform)
                 if (t.rect.width > 200f) return Mathf.Max(200f, t.rect.width - 140f);
-            return 760f;   // 레이아웃이 아직 안 잡힌 경우의 안전값
+            return 760f;
         }
 
         var recipes = _machine != null ? _machine.Recipes : null;
@@ -1514,16 +1525,23 @@ public class MachineUI : MonoBehaviour
             //   앰플이 12종이 되면서 80x12 + 간격 = 1114px 가 되어 양옆이 화면 밖으로 나갔다.
             //   -> 쓸 수 있는 폭을 재서 (1) 줄바꿈, (2) 그래도 3줄 이상이면 칩 축소 로 맞춘다.
             //   레시피가 몇 개로 늘든 알아서 들어간다.
+            // ★한 줄이 우선이다. 크기를 줄여서라도 한 줄에 넣고, 최소 크기로도 안 되면 그때만 접는다.
+            //   (예전엔 "3줄 이상일 때만 축소" 라서, 칩을 작게 줄여놓고도 굳이 두 줄로 접혔다.
+            //    그 크기면 한 줄로 충분한데 두 줄이라 오히려 답답했다)
             const float chipY = -22f;
-            float chipS = 80f, gap = 14f;
-            float availW = AvailableChipWidth(nav);
+            const float MaxChip = 80f, MinChip = 40f;
+            float availW = AvailableChipWidth();
 
-            int perRow = Mathf.Max(1, Mathf.FloorToInt((availW + gap) / (chipS + gap)));
-            int rows = Mathf.CeilToInt(n / (float)perRow);
-            while (rows > 2 && chipS > 44f)      // 2줄까지는 그대로, 넘으면 칩을 줄인다
+            float chipS = MaxChip, gap = 14f;
+            while (n * chipS + (n - 1) * gap > availW && chipS > MinChip)
             {
-                chipS -= 6f;
-                gap = Mathf.Max(6f, gap - 1f);
+                chipS -= 2f;
+                gap = Mathf.Max(6f, chipS * 0.17f);   // 칩이 작아지면 간격도 비례해서
+            }
+
+            int perRow = n, rows = 1;
+            if (n * chipS + (n - 1) * gap > availW)   // 최소 크기로도 한 줄에 안 들어갈 때만 줄바꿈
+            {
                 perRow = Mathf.Max(1, Mathf.FloorToInt((availW + gap) / (chipS + gap)));
                 rows = Mathf.CeilToInt(n / (float)perRow);
             }

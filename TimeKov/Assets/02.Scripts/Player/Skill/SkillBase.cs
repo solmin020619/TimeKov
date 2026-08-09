@@ -36,6 +36,18 @@ public abstract class SkillBase : ScriptableObject
     public abstract IEnumerator ExecuteRoutine(GameObject caster);
     public virtual void OnInterrupt(GameObject caster) { }
 
+    /// <summary>
+    /// SkillData 시트 값을 이 스킬에 적용한다(SheetStatOverride 가 로드 직후 호출).
+    ///
+    /// 스킬마다 타격 구성이 달라서(2히트 / 회전4+점프1) 여기서 각자 해석한다.
+    /// 공통인 쿨타임만 여기서 처리하고, 피해/반경은 하위 클래스가 맡는다.
+    /// ★타격 타이밍(Hit1Time 등)은 애니 클립에 맞춘 값이라 시트에 없다. 건드리지 않는다.
+    /// </summary>
+    public virtual void ApplySheetValues(SkillDataSheetData row)
+    {
+        CoolTime = row.coolTime;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // VFX 헬퍼 (하위 클래스에서 호출)
     // ─────────────────────────────────────────────────────────────

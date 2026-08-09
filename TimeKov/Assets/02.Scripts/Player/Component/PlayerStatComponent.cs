@@ -390,7 +390,8 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     //   고급 앰플이 무한 증가여도 안전하고, 올릴수록 이득이 줄어 천장 시스템과도 맞는다.
     //     DEF 10(기본) = 29% / 16 = 39% / 28 = 53% / 50 = 67% / 100 = 80%
     //   ★조절 손잡이는 Softness 하나다. 작을수록 방어가 강해진다(초반 체감이 크게 바뀜).
-    private const float Softness = 25f;
+    //   원본 = PlayerStatData 시트의 defenseSoftness. 여기 숫자는 시트를 못 읽었을 때의 폴백이다.
+    public static float Softness = 25f;
 
     /// <summary>현재 받는 피해 감소율(0~1). UI 표시용으로도 쓴다.</summary>
     public float DamageReduction => DEF <= 0f ? 0f : DEF / (DEF + Softness);

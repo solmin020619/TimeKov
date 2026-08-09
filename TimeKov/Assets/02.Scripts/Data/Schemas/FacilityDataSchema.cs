@@ -26,8 +26,7 @@ public class FacilityDataSchema : SheetSchema
         Add("canRotate", ColumnType.Bool, required: true);
 
         // 최대 업그레이드 레벨
-        // FacilityLevelDataTable 에 해당 레벨까지 행이 있어야 한다
-        Add("maxLevel", ColumnType.Int, required: true);
+        // [08-09] maxLevel 제거 - 설비 레벨 시스템이 없어서 걷어냈다(상세는 FacilityInstance 주석).
 
         // 설비 아이콘 키 — Resources/Facilities/{iconKey} 에서 스프라이트 로드.
         // 선택 컬럼: 비어 있으면 FacilityIconDatabase 의 인스펙터 수동매핑으로 폴백한다.

@@ -1,4 +1,4 @@
-﻿// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)
+// 자동 생성 파일 — 직접 수정 금지 (Tools/Sheet/Generate 로 재생성)
 
 using System;
 
@@ -12,7 +12,6 @@ public class FacilityDataSheetData
     public int gridW;
     public int gridH;
     public bool canRotate;
-    public int maxLevel;
     public string iconKey;
     public string buildSlot;
 }

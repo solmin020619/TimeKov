@@ -9,15 +9,19 @@
 /// 즉 여기 숫자는 "아무것도 없는 상태에서 시작할 때" 만 쓰인다.
 ///
 /// 최대 체력(시간)은 여기 없다. 그건 코어 강화 전용이고 CoreLevelData 시트의 maxTime 이 원본이다.
+///
+/// ★[08-09] 값의 원본이 PlayerStatData 시트로 옮겨갔다(baseATK/baseDEF/baseMaxStamina).
+///   여기 숫자는 시트를 못 읽었을 때의 폴백이다. 밸런싱은 시트에서 해라.
+///   const 였다가 static 으로 바꾼 이유가 이거다 - 로드 시점에 SheetStatOverride 가 덮어쓴다.
 /// </summary>
 public static class PlayerBaseStats
 {
-    /// <summary>기본 공격력.</summary>
-    public const float ATK = 10f;
+    /// <summary>기본 공격력. 원본 = PlayerStatData 시트 baseATK.</summary>
+    public static float ATK = 10f;
 
-    /// <summary>기본 방어력.</summary>
-    public const float DEF = 10f;
+    /// <summary>기본 방어력. 원본 = PlayerStatData 시트 baseDEF.</summary>
+    public static float DEF = 10f;
 
-    /// <summary>기본 최대 스태미나.</summary>
-    public const float MaxStamina = 100f;
+    /// <summary>기본 최대 스태미나. 원본 = PlayerStatData 시트 baseMaxStamina.</summary>
+    public static float MaxStamina = 100f;
 }

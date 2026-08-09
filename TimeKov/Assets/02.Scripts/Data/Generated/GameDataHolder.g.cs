@@ -7,11 +7,14 @@ public partial class GameDataHolder
     public DataHolder<ItemDataSheetData> ItemData { get; } = new DataHolder<ItemDataSheetData>();
     public DataHolder<ConsumableEffectSheetData> ConsumableEffect { get; } = new DataHolder<ConsumableEffectSheetData>();
     public DataHolder<FacilityDataSheetData> FacilityData { get; } = new DataHolder<FacilityDataSheetData>();
-    public DataHolder<FacilityLevelDataSheetData> FacilityLevelData { get; } = new DataHolder<FacilityLevelDataSheetData>();
     public DataHolder<RecipeDataSheetData> RecipeData { get; } = new DataHolder<RecipeDataSheetData>();
     public DataHolder<RecipeInputDataSheetData> RecipeInputData { get; } = new DataHolder<RecipeInputDataSheetData>();
     public DataHolder<DropTableSheetData> DropTable { get; } = new DataHolder<DropTableSheetData>();
     public DataHolder<CoreLevelDataSheetData> CoreLevelData { get; } = new DataHolder<CoreLevelDataSheetData>();
+    public DataHolder<ShipLevelDataSheetData> ShipLevelData { get; } = new DataHolder<ShipLevelDataSheetData>();
+    public DataHolder<MonsterStatDataSheetData> MonsterStatData { get; } = new DataHolder<MonsterStatDataSheetData>();
+    public DataHolder<SkillDataSheetData> SkillData { get; } = new DataHolder<SkillDataSheetData>();
+    public DataHolder<PlayerStatDataSheetData> PlayerStatData { get; } = new DataHolder<PlayerStatDataSheetData>();
 
     partial void LoadAll(Dictionary<string, CsvTable> tables)
     {
@@ -24,9 +27,6 @@ public partial class GameDataHolder
         if (tables.TryGetValue("FacilityData", out var facilityDataTable))
             foreach (var pair in FacilityDataParser.Parse(facilityDataTable))
                 FacilityData.Add(pair.Key, pair.Value);
-        if (tables.TryGetValue("FacilityLevelData", out var facilityLevelDataTable))
-            foreach (var pair in FacilityLevelDataParser.Parse(facilityLevelDataTable))
-                FacilityLevelData.Add(pair.Key, pair.Value);
         if (tables.TryGetValue("RecipeData", out var recipeDataTable))
             foreach (var pair in RecipeDataParser.Parse(recipeDataTable))
                 RecipeData.Add(pair.Key, pair.Value);
@@ -39,6 +39,18 @@ public partial class GameDataHolder
         if (tables.TryGetValue("CoreLevelData", out var coreLevelDataTable))
             foreach (var pair in CoreLevelDataParser.Parse(coreLevelDataTable))
                 CoreLevelData.Add(pair.Key, pair.Value);
+        if (tables.TryGetValue("ShipLevelData", out var shipLevelDataTable))
+            foreach (var pair in ShipLevelDataParser.Parse(shipLevelDataTable))
+                ShipLevelData.Add(pair.Key, pair.Value);
+        if (tables.TryGetValue("MonsterStatData", out var monsterStatDataTable))
+            foreach (var pair in MonsterStatDataParser.Parse(monsterStatDataTable))
+                MonsterStatData.Add(pair.Key, pair.Value);
+        if (tables.TryGetValue("SkillData", out var skillDataTable))
+            foreach (var pair in SkillDataParser.Parse(skillDataTable))
+                SkillData.Add(pair.Key, pair.Value);
+        if (tables.TryGetValue("PlayerStatData", out var playerStatDataTable))
+            foreach (var pair in PlayerStatDataParser.Parse(playerStatDataTable))
+                PlayerStatData.Add(pair.Key, pair.Value);
     }
 
     partial void ClearAll()
@@ -46,10 +58,13 @@ public partial class GameDataHolder
         ItemData.Clear();
         ConsumableEffect.Clear();
         FacilityData.Clear();
-        FacilityLevelData.Clear();
         RecipeData.Clear();
         RecipeInputData.Clear();
         DropTable.Clear();
         CoreLevelData.Clear();
+        ShipLevelData.Clear();
+        MonsterStatData.Clear();
+        SkillData.Clear();
+        PlayerStatData.Clear();
     }
 }

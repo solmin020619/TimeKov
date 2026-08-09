@@ -48,4 +48,14 @@ public class SkillQ_ReaperSlash : SkillBase
 
         yield return new WaitForSeconds(TotalDuration - Hit2Delay);
     }
+
+    // SkillData 시트 적용. 히트 슬롯 2개를 그대로 받는다(hit1Count/hit2Count 는 항상 1이라 안 쓴다).
+    public override void ApplySheetValues(SkillDataSheetData row)
+    {
+        base.ApplySheetValues(row);
+        Hit1Damage = row.hit1Damage;
+        Hit1Radius = row.hit1Radius;
+        Hit2Damage = row.hit2Damage;
+        Hit2Radius = row.hit2Radius;
+    }
 }

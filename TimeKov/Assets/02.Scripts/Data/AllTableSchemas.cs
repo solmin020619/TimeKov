@@ -17,11 +17,14 @@ public static class AllTableSchemas
             new ItemDataSchema(),           // 아이템 기본 정보
             new ConsumableEffectSchema(),   // 소모품 효과 상세
             new FacilityDataSchema(),       // 설비 기본 정보
-            new FacilityLevelDataSchema(),  // 설비 레벨별 스탯
             new RecipeDataSchema(),         // 제작 레시피
             new RecipeInputDataSchema(),    // 레시피 입력 재료
             new DropTableSchema(),          // 드롭 테이블
             new CoreLevelDataSchema(),      // 코어 강화 단계 스탯
+            new ShipLevelDataSchema(),      // 우주선 수리 단계별 보상(건축범위/공장속도/연비)
+            new MonsterStatDataSchema(),    // 몬스터 전투 수치
+            new SkillDataSchema(),          // 플레이어 평타/스킬 피해·쿨
+            new PlayerStatDataSchema(),     // 플레이어 기본 수치(키-값)
         };
     }
 }

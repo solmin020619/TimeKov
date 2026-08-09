@@ -60,7 +60,23 @@ public partial class GameDataHolder
         yield return CsvReader.DownloadAllAsync(
             sources,
             MaxConcurrentDownloads,
-            (res, fail) => { tables = res; failed = fail; });
+            (res, fail) => { tables = res ?? new Dictionary<string, CsvTable>(); failed = fail; });
+
+        // 다운로드에 실패해도 로컬 사본이 있으면 그걸로 뜬다.
+        // 2026-08-02 에 DropTable 시트가 삭제돼 게임이 아예 안 떴다. 시트 한 장 사고로
+        // 전원이 작업을 못 하는 상태는 막아야 한다(원본이 시트라는 사실은 그대로다).
+        if (failed != null && failed.Count > 0)
+        {
+            var stillFailed = new List<string>();
+            foreach (var name in failed)
+            {
+                string text = LocalTableSource.TryRead(name);
+                if (text == null) { stillFailed.Add(name); continue; }
+                tables[name] = CsvReader.Parse(text);
+                Debug.LogWarning($"[테이블] {name} 다운로드 실패 -> 로컬 사본으로 대체했다. 시트 상태를 확인해라.");
+            }
+            failed = stillFailed;
+        }
 
         if (failed != null && failed.Count > 0)
         {

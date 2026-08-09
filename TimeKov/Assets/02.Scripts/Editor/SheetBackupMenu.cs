@@ -24,7 +24,8 @@ using UnityEngine.Networking;
 public static class SheetBackupMenu
 {
     // Assets 의 부모(프로젝트 루트) 기준. 레포 루트에 Documentation 폴더가 이미 있다.
-    private const string BackupDir = "Documentation/sheet_backup";
+    // ★이 폴더는 백업이자, 시트 다운로드 실패 시의 폴백 소스다(LocalTableSource).
+    private const string BackupDir = LocalTableSource.DirRelative;
 
     [MenuItem("Tools/TIMEKOV/시트 백업")]
     public static void BackupAll()

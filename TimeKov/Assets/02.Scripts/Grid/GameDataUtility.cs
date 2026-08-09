@@ -63,16 +63,10 @@ public static class GameDataUtility
             : int.MaxValue;
     }
 
-    // facilityId + level 복합키로 FacilityLevelData 조회
-    public static FacilityLevelDataSheetData GetFacilityLevelRow(int facilityId, int level)
-    {
-        string key = $"{facilityId}_{level}";
-
-        if (GameDataHolder.I.FacilityLevelData.TryGet(key, out var row))
-            return row;
-
-        return null;
-    }
+    // [08-09] GetFacilityLevelRow 제거 - 설비 레벨 시스템이 존재하지 않아서 걷어냈다.
+    //   FacilityLevelData 는 전 행 processTimeMultiplier=1 이라 효과가 0 이었고,
+    //   레벨을 올리는 호출부도 없었다(TryUpgrade 호출 0곳).
+    //   공장 가동속도 조절은 우주선 수리(ShipRepairManager.FactorySpeedMultiplier)가 담당한다.
 
     // 몬스터(sourceId)의 드롭 목록 반환. itemId 는 DropTable 복합키 SheetId("dropId_itemId")서 파싱.
     // chance = dropChance(0~100, 독립 확률이라 그대로 %).

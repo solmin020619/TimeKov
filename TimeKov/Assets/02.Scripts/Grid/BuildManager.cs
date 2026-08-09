@@ -248,7 +248,6 @@ public class BuildManager : MonoBehaviour, ISaveable
                 originCellX = pb.originCell.x,
                 originCellY = pb.originCell.y,
                 rotationY = Mathf.RoundToInt(pb.transform.eulerAngles.y) % 360,
-                currentLevel = pb.currentLevel,
             });
 
             var machine = pb.GetComponent<TIMEKOV.Factory.MachineBase>();
@@ -323,7 +322,7 @@ public class BuildManager : MonoBehaviour, ISaveable
         Vector3 position = StartCellToWorldCenter(originCell, rotatedSize);
         Quaternion rotation = Quaternion.Euler(0f, entry.rotationY, 0f);
 
-        GameObject obj = placer.PlaceInstant(entry.facilityId, position, rotation, footprintCells, entry.currentLevel);
+        GameObject obj = placer.PlaceInstant(entry.facilityId, position, rotation, footprintCells);
         if (obj == null) return;
 
         MachineSaveData msd = FindMachineData(entry.originCellX, entry.originCellY);

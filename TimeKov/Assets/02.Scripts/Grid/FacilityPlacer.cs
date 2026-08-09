@@ -54,7 +54,6 @@ public class FacilityPlacer
             placedBuilding = obj.AddComponent<PlacedBuilding>();
 
         placedBuilding.facilityId = facilityId;
-        placedBuilding.currentLevel = 1;
         placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
         placedBuilding.originCell = footprintCells[0];
         placedBuilding.CacheRenderers();
@@ -89,10 +88,10 @@ public class FacilityPlacer
     }
 
     // 세이브 복원 전용 — 홀로그램 연출/사운드/VFX/퀘스트 알림 없이 즉시 배치한다.
-    // PlaceRoutine과 달리 코루틴이 아니라 동기 호출이며, 저장된 currentLevel을 그대로 적용한다.
+    // PlaceRoutine과 달리 코루틴이 아니라 동기 호출이다.
     // 반환값: 배치된 GameObject(실패 시 null) — 호출부가 설비 내부 생산 상태(MachineBase)를
     // 추가로 복원할 때 컴포넌트를 꺼내 쓸 수 있게.
-    public GameObject PlaceInstant(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells, int level)
+    public GameObject PlaceInstant(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
         FacilityDataSheetData facility = GetFacilityData(facilityId);
         GameObject prefab = owner.PrefabDatabase != null ? owner.PrefabDatabase.GetPrefab(facilityId) : null;
@@ -115,7 +114,6 @@ public class FacilityPlacer
             placedBuilding = obj.AddComponent<PlacedBuilding>();
 
         placedBuilding.facilityId = facilityId;
-        placedBuilding.currentLevel = Mathf.Max(1, level);
         placedBuilding.occupiedCells = new List<Vector2Int>(footprintCells);
         placedBuilding.originCell = footprintCells[0];
         placedBuilding.CacheRenderers();
@@ -128,7 +126,6 @@ public class FacilityPlacer
             facilityInstance = obj.AddComponent<FacilityInstance>();
 
         facilityInstance.Initialize(facilityId);
-        facilityInstance.SetLevel(level);
 
         placedBuilding.SetupLabel(facility.facilityName, facility.gridW, facility.gridH, owner.cellSize);
 

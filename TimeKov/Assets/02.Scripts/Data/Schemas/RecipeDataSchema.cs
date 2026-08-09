@@ -24,7 +24,7 @@ public class RecipeDataSchema : SheetSchema
         // 생산 수량
         Add("outputCount", ColumnType.Int, required: true);
 
-        // 제작 소요 시간(초) — FacilityLevelData.processTimeMultiplier 와 곱해서 실제 시간 산출
+        // 제작 소요 시간(초) — 우주선 수리의 공장 가동속도 배수와 곱해서 실제 시간 산출
         Add("craftTime", ColumnType.Float, required: true);
     }
 }

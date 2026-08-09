@@ -137,7 +137,6 @@ public class PlacedBuildingData
     public int originCellX;
     public int originCellY;
     public int rotationY;
-    public int currentLevel;
 }
 
 [Serializable]

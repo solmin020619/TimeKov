@@ -68,4 +68,15 @@ public class SkillR_CycloneBreak : SkillBase
 
         yield return new WaitForSeconds(TotalDuration - JumpHitTime);
     }
+
+    // SkillData 시트 적용.
+    // 슬롯1 = 회전타(hit1Count 만큼 반복, 현재 4연타), 슬롯2 = 마무리 점프.
+    public override void ApplySheetValues(SkillDataSheetData row)
+    {
+        base.ApplySheetValues(row);
+        RotationDamage = row.hit1Damage;
+        RotationRadius = row.hit1Radius;
+        JumpDamage     = row.hit2Damage;
+        JumpRadius     = row.hit2Radius;
+    }
 }

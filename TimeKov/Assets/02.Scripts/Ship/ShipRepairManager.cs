@@ -144,6 +144,8 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
 
         if (zoneProgression == null) zoneProgression = FindAnyObjectByType<BuildZoneProgression>();
 
+        LoadLevelsFromSheet();
+
         // 통합 세이브 등록 + 활성 슬롯 있을 때만 복원.
         // World 씬 직접 Play = 슬롯 없음 = 복원 안 함 = Lv.1 새 상태(샌드박스).
         SaveSlotManager.Instance?.Register(this);
@@ -154,6 +156,45 @@ public class ShipRepairManager : MonoBehaviour, ISaveable
     {
         // BuildZoneProgression 등 다른 Start 초기화가 끝나도록 한 프레임 뒤 보상 재적용(복원 반영).
         Invoke(nameof(ReapplyAllEffects), 0f);
+    }
+
+    /// <summary>
+    /// 레벨 표를 ShipLevelData 시트에서 읽어 교체한다.
+    ///
+    /// [왜] 예전엔 이 표가 씬(World.unity)에 직렬화돼 있었다. 수치 하나만 고쳐도 LFS 씬 파일이
+    ///   통째로 바뀌어 diff 로 뭐가 변했는지 안 보였고, 코드 기본값과 씬 값이 어긋나도 몰랐다.
+    ///   실제로 07-22 에 단계 4개가 전부 38x38 로 같아져 건축 확장이 안 먹던 사고가 있었다.
+    ///
+    /// [시트가 비었거나 못 읽으면] 인스펙터 값을 그대로 쓴다. 시트 사고가 나도 게임은 뜬다.
+    /// [level 은 1부터 연속]이어야 한다. 중간이 비면 그 앞까지만 쓴다(빈 칸이 섞이면 더 위험하다).
+    /// </summary>
+    private void LoadLevelsFromSheet()
+    {
+        var table = GameDataHolder.I?.ShipLevelData;
+        if (table == null) return;
+
+        var loaded = new List<LevelDef>();
+        for (int lv = 1; lv <= 64; lv++)
+        {
+            if (!table.TryGet(lv.ToString(), out var row)) break;
+            loaded.Add(new LevelDef
+            {
+                title         = row.title,
+                requiredParts = row.requiredParts,
+                factorySpeed  = row.factorySpeed,
+                fuelSeconds   = row.fuelSeconds,
+                zoneCells     = row.zoneCells,
+                extraPartName = row.extraPartName,
+            });
+        }
+
+        if (loaded.Count == 0)
+        {
+            Debug.LogWarning("[Ship] ShipLevelData 시트가 비어 있다. 인스펙터 값으로 진행한다.");
+            return;
+        }
+
+        levels = loaded;
     }
 
     private void OnDestroy()
