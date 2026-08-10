@@ -1,0 +1,121 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1901481778071784941
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 314791115747484824}
+  m_Layer: 0
+  m_Name: ReturnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &314791115747484824
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901481778071784941}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.72737753, z: -0, w: 0.68623763}
+  m_LocalPosition: {x: -15.187413, y: -12.297211, z: -0.13595003}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5068882614014429189}
+  m_LocalEulerAnglesHint: {x: 0, y: 65.977, z: 0}
+--- !u!1 &1994992200363765467
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5068882614014429189}
+  - component: {fileID: 5090325205571269751}
+  - component: {fileID: 133316330322160032}
+  m_Layer: 0
+  m_Name: TimeZon Gimmick
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5068882614014429189
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1994992200363765467}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.23647743, z: -0, w: 0.971637}
+  m_LocalPosition: {x: 36.19586, y: -12.423813, z: 128.90259}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 314791115747484824}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -27.357, z: 0}
+--- !u!65 &5090325205571269751
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1994992200363765467}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 19.179527, y: 15.411247, z: 18.210182}
+  m_Center: {x: 0.95871496, y: -5.016737, z: -0.2546215}
+--- !u!114 &133316330322160032
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1994992200363765467}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dcac961fcb4b4854b8f6c0b42c5c92af, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  drainMultiplier: 3
+  useScreenEffect: 1
+  darkColor: {r: 0, g: 0, b: 0, a: 1}
+  darkAlpha: 0.343
+  shimmerColor: {r: 0.0509804, g: 0.0196078, b: 0.0627451, a: 1}
+  shimmerAlpha: 0.646
+  shimmerSpeed: 1.8
+  warpAmount: 0.1
+  fadeTime: 0.5
+  rescueInsteadOfDeath: 1
+  entrancePoint: {fileID: 314791115747484824}
+  rescueHpPercent: 0.5
+  rescueFadeTime: 0.6
+  rescueBlackHold: 0.35
+  enterSfx: 0
+  exitSfx: 0
+  ambientLoop: 88
+  muteSfx: 0
+  muteBgmInside: 1
+  ambientVolume: 0.45
+  ambientFadeTime: 0.8

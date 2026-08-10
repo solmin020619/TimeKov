@@ -30,6 +30,7 @@ public class TitleManager : MonoBehaviour
         yield return new WaitForSecondsRealtime(clickLen > 0f ? clickLen : 0.5f);
 
         Time.timeScale = 1f;   // 게임 시작 전 시간 정상화(메뉴에서 멈춰 있었을 수 있음)
+        AudioListener.pause = false;   // 같은 이유 — 정지 상태가 씬을 넘어와 무음이 되지 않게
 
         if (worldSelectUI != null)
         {

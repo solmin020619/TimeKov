@@ -356,6 +356,12 @@ namespace TimeKov.UI
 
             Time.timeScale = pauseGame ? 0f : 1f;
 
+            // 게임이 멈추면 소리도 함께 '일시정지'한다(정지가 아니라 멈춤 — 재개하면 이어서 재생).
+            //   AudioListener.pause 는 재생 위치를 유지한 채 전체 오디오를 멈춘다.
+            //   ★UI 조작음은 계속 들려야 하므로, UI 사운드 소스만 ignoreListenerPause 로 예외 처리돼 있다
+            //     (GameSfx 2D 소스 / UISoundManager). 그쪽을 건드릴 땐 이 예외를 같이 확인할 것.
+            AudioListener.pause = pauseGame;
+
             // 기존 코드와 동일한 채널로 입력 차단
             PlayerInputComponent.IsBlocked = lockInput;
 

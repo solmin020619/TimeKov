@@ -642,7 +642,13 @@ public class GameUIController : MonoBehaviour
         SetGameplayInputEnabled(gameplay);
 
         // 설정창 또는 도감이 열릴 때 시간 정지
-        Time.timeScale = (_currentState == UIState.Settings || _currentState == UIState.Codex) ? 0f : 1f;
+        bool paused = _currentState == UIState.Settings || _currentState == UIState.Codex;
+        Time.timeScale = paused ? 0f : 1f;
+
+        // 시간이 멈추면 소리도 함께 '일시정지'(정지가 아니라 멈춤 — 닫으면 이어서 재생).
+        //   ★인게임 일시정지 경로는 여기와 WindowManager.ApplyGlobalState 두 군데다. 둘 다 걸어야 한다.
+        //   ★UI 조작음은 ignoreListenerPause 로 예외 처리돼 있어 설정창 안에서도 들린다(GameSfx/UISoundManager).
+        AudioListener.pause = paused;
     }
 
     // ── 패널 활성/비활성 헬퍼 ────────────────────────────────────────

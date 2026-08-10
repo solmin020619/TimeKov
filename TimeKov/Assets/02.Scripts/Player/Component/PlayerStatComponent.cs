@@ -66,6 +66,34 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
 
     public event Action OnDead;
     public event Action OnHurt;
+
+    // ── 사망 가로채기 ────────────────────────────────────────────────────────
+    // true 를 반환하면 실제 사망 처리(OnDead)를 하지 않는다.
+    //   "죽어도 진짜로 죽지 않는" 도전 구역(TimeHazardZone)에서 쓴다 — 아이템 드롭·게임오버 없이
+    //   입구로 되돌리는 식. 사망 원인(시간 소진/피격/즉사)과 무관하게 한 곳에서 걸린다.
+    //   ★가로챈 쪽은 반드시 즉시 HP 를 회복시켜야 한다. IsDead 는 CurrentHp <= 0 이라
+    //     0 인 채로 두면 계속 죽은 판정이고, RespawnManager 가 다음 프레임에 사망을 다시 감지한다.
+    public Func<bool> DeathInterceptor;
+
+    // 사망 발화 단일 창구. 모든 사망 경로가 여기를 거친다.
+    private void TriggerDeath()
+    {
+        if (DeathInterceptor != null && DeathInterceptor.Invoke()) return;   // 가로챔 = 죽지 않음
+        OnDead?.Invoke();
+    }
+
+    /// 사망을 가로챈 쪽이 쓰는 되살리기. HP 를 지정량으로 되돌린다.
+    ///   ★Heal() 은 "사망 후 힐로 좀비가 되는 것"을 막으려고 IsDead 면 무시하도록 돼 있다.
+    ///     가로채는 시점엔 HP 가 0(=IsDead)이라 Heal 로는 절대 못 살린다 — 그래서 이 전용 통로가 필요하다.
+    ///   ★DeathInterceptor 안에서만 쓸 것. 일반 회복은 Heal/HealPercent 를 쓴다.
+    public void ReviveWith(float hp)
+    {
+        float before = CurrentHp;
+        CurrentHp = Mathf.Clamp(hp, 1f, MaxHp);   // 최소 1 — 0 이면 IsDead 라 다음 프레임에 또 죽는다
+        float healed = CurrentHp - before;
+        if (healed > 0f) OnHealed?.Invoke(healed);
+    }
+
     public event Action<float> OnDamaged;  // 시간(HP) 감소량 — 플로팅 텍스트용
     public event Action<float> OnHealed;   // 시간(HP) 회복량 — 플로팅 텍스트용
 
@@ -147,7 +175,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         if (CurrentHp <= 0)
         {
             CurrentHp = 0;
-            OnDead?.Invoke();
+            TriggerDeath();
         }
     }
 
@@ -163,7 +191,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         CurrentHp = Mathf.Max(0, CurrentHp - finalDamage);
         OnDamaged?.Invoke(finalDamage);
 
-        if (CurrentHp <= 0) { OnDead?.Invoke(); return; }
+        if (CurrentHp <= 0) { TriggerDeath(); return; }
 
         _player?.Audio?.PlayHurt();   // 피격음(비치명타). 클립 2종 랜덤(번갈아) = GameSfxConfig PlayerHurt clips.
 
@@ -254,7 +282,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         CurrentHp = Mathf.Max(0f, CurrentHp - amount);
         float spent = before - CurrentHp;
         if (spent > 0f) OnDamaged?.Invoke(spent);
-        if (CurrentHp <= 0f) OnDead?.Invoke();
+        if (CurrentHp <= 0f) TriggerDeath();
     }
 
     // [07-29] 환경 시간 감소(서리장판 등 지속 장판). 결계 밖 자연 감소(HandleHpDrain)와 "같은 채널" =
@@ -264,7 +292,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     {
         if (IsDead || IsInBase || amount <= 0f) return;
         CurrentHp = Mathf.Max(0f, CurrentHp - amount);
-        if (CurrentHp <= 0f) OnDead?.Invoke();
+        if (CurrentHp <= 0f) TriggerDeath();
     }
 
     // 즉사 (물 빠짐 등). 무적/DEF/경직 전부 무시하고 바로 사망 흐름(OnDead) 발동.
@@ -272,7 +300,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     {
         if (IsDead) return;
         CurrentHp = 0f;
-        OnDead?.Invoke();
+        TriggerDeath();
     }
 
     public void RecoverStamina(float amount)

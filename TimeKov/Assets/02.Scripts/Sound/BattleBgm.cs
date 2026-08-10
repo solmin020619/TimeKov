@@ -44,6 +44,7 @@ public class BattleBgm : MonoBehaviour
         _src.loop = true;
         _src.playOnAwake = false;
         _src.spatialBlend = 0f;   // 2D
+        _src.mute = BgmMute.IsMuted;   // 음소거 구역 안에서 뒤늦게 만들어져도 조용히 시작
         gameObject.AddComponent<BgmVolumeSource>();   // VolumeSync(SFX 일괄 동기화)가 이 BGM 소스를 덮지 않게 제외 표시
         GlobalSettingsManager.OnBGMVolumeChanged += OnBgmVolumeChanged;
     }
@@ -71,6 +72,15 @@ public class BattleBgm : MonoBehaviour
     public static void SuspendForGameOver(float duration = 1.5f) { if (!_quitting && _i != null) _i.SuspendInternal(duration); }
     // 리스폰 시: 정지해 뒀던 기존(필드) BGM 페이드인 재개.
     public static void ResumeAfterGameOver() { if (!_quitting && _i != null) _i.ResumeInternal(); }
+
+    // 음소거 구역(BgmMute) 전용 — 전투 상태는 그대로 두고 소리만 끈다.
+    //   ★볼륨이 아니라 mute 라서 진행 중인 페이드 코루틴과 충돌하지 않는다.
+    //   ★아직 인스턴스가 없으면 아무것도 안 한다(나중에 Build 에서 BgmMute.IsMuted 를 보고 맞춘다).
+    public static void SetMuted(bool muted)
+    {
+        if (_quitting || _i == null || _i._src == null) return;
+        _i._src.mute = muted;
+    }
 
     private void StopCo() { if (_co != null) { StopCoroutine(_co); _co = null; } }
 

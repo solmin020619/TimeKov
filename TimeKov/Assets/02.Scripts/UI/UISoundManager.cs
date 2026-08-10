@@ -34,6 +34,8 @@ public class UISoundManager : MonoBehaviour
             sfxSource = GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
 
         sfxSource.playOnAwake = false;
+        // 게임 일시정지(AudioListener.pause) 중에도 UI 조작음은 들려야 한다.
+        sfxSource.ignoreListenerPause = true;
     }
 
     private void Start()

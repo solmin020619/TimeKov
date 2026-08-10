@@ -153,6 +153,7 @@ public class GameOverUIManager : MonoBehaviour
         yield return new WaitForSecondsRealtime(returnDelay);
 
         Time.timeScale = 1f;
+        AudioListener.pause = false;   // 정지 중이었다면 함께 해제(전역 static — 다음 씬까지 따라간다)
         SceneManager.LoadScene("Base");
     }
 

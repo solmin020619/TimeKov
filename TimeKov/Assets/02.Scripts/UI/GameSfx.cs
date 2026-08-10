@@ -132,6 +132,15 @@ public enum SfxId
     GimmickSwitchOn,          // 스위치 켜짐(오브젝트 활성화음)
     GimmickSwitchOff,         // 스위치 꺼짐(토글 스위치)
     LaserBarrierDown,         // 레이저 결계 소멸(전자식 전환음)
+
+    // ── 시간 급속감소 구역 / 안전지대 (TimeHazardZone · TimeSafeZone) ──
+    //   ★enum 끝에 append 유지(중간 삽입 금지 — GameSfxConfig id 매핑 보존).
+    //   클립은 Resources/Sfx 에 같은 이름으로 넣어 이름 폴백으로 연결(SO 편집 불필요).
+    TimeHazardEnter,          // 위험 구역 진입(전력 꺼지듯 하강하는 불길한 음)
+    TimeHazardExit,           // 위험 구역 이탈(정상 복귀, 상승음)
+    TimeHazardAmbientLoop,    // 위험 구역 안에서 계속 깔리는 저음 드론(로컬 소스 루프)
+    TimeSafeEnter,            // 안전지대 진입(안도 — 짧은 확인음)
+    TimeSafeExit,             // 안전지대 이탈
 }
 
 // 런타임 UI/이벤트 효과음 재생기 (지연 싱글톤, 씬 세팅 불필요).
@@ -169,6 +178,9 @@ public class GameSfx : MonoBehaviour
         _source = gameObject.AddComponent<AudioSource>();
         _source.spatialBlend = 0f;   // 2D
         _source.playOnAwake = false;
+        // 설정창 등으로 게임이 멈추면(AudioListener.pause) 월드 소리는 함께 멈추지만,
+        // UI 조작음은 계속 들려야 한다 — 이 2D 소스만 일시정지에서 제외한다.
+        _source.ignoreListenerPause = true;
         _config = Resources.Load<GameSfxConfig>("Sfx/GameSfxConfig");   // 없어도 됨(이름 폴백 사용)
 
         // SFX 볼륨 설정 반영(지연 생성이라 저장값을 직접 초기화 + 변경 구독)
