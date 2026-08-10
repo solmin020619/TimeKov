@@ -165,6 +165,7 @@ public class PlayerSkillComponent : MonoBehaviour
 
         var attack = _comboAttacks[_comboIndex];
         _currentCombo = attack;
+        VfxUtils.BeginTracking(gameObject);   // 이 타격이 내는 이펙트를 모은다(대쉬로 끊기면 함께 거둠)
         _currentRoutine = StartCoroutine(ComboFlow(attack));
     }
 
@@ -174,6 +175,7 @@ public class PlayerSkillComponent : MonoBehaviour
 
         yield return attack.ExecuteRoutine(gameObject);
 
+        VfxUtils.StopTracking();   // 정상 완료 — 이미 나간 이펙트는 수명대로 둔다
         _comboTimer = attack.ComboWindow;
         _comboIndex = (_comboIndex + 1) % _comboAttacks.Count;
         _currentRoutine = null;
@@ -232,6 +234,7 @@ public class PlayerSkillComponent : MonoBehaviour
         // 스킬 발동 사운드
         _player.Audio?.PlaySkill(id);
 
+        VfxUtils.BeginTracking(gameObject);   // 이 스킬이 내는 이펙트를 모은다(대쉬로 끊기면 함께 거둠)
         _currentRoutine = StartCoroutine(SkillFlow(skill));
     }
 
@@ -242,6 +245,10 @@ public class PlayerSkillComponent : MonoBehaviour
         StopCoroutine(_currentRoutine);
         _currentSkill?.OnInterrupt(gameObject);
         _currentCombo?.OnInterrupt(gameObject);
+
+        // 모션은 끊겼는데 이펙트만 그대로 나가던 문제 — 이번 시전이 낸 VFX 를 즉시 거둔다.
+        //   (코루틴 중단으로는 이미 Instantiate/풀 스폰된 오브젝트가 사라지지 않는다)
+        VfxUtils.CancelTracked();
 
         // 스킬 인터럽트 시 이동 잠금 해제 보장
         // (ComboAttackBase.OnInterrupt 에서도 해제하지만 스킬은 별도 처리 필요)
@@ -272,6 +279,7 @@ public class PlayerSkillComponent : MonoBehaviour
         // (스킬 클립이 딜보다 길어 후속 모션이 미끄러지듯 보이던 문제 해결.)
         _player.Anim.ReturnToLocomotion();
 
+        VfxUtils.StopTracking();   // 정상 완료 — 이미 나간 이펙트는 수명대로 둔다
         CurrentSkillIsInterruptible = false;
         _player.Movement.LockMovement(false);
         _currentRoutine = null;

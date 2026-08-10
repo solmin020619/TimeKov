@@ -316,6 +316,11 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private bool _dead;
     private bool _attacking;
     private bool _engaged;
+    private float _lostTimer;           // 플레이어를 놓친 뒤 흐른 시간(교전 해제 유예)
+
+    // 플레이어를 이만큼 계속 놓치고 있으면 교전 해제(전투 브금/보스바 원복).
+    //   유예를 두는 이유: 어그로 경계에서 왔다 갔다 하면 브금이 껐다 켜졌다 깜빡인다.
+    private const float DisengageDelay = 4f;
     private float _beamCd, _rainCd, _novaCd, _dashCd, _ultCd, _guardCd, _meleeGapCd, _mirrorCd;
     private float[] _atkCd;
     private int _phase;            // [07-29] 0=P1 / 1=P2 (2페이즈. 포효 임계값 폐지)
@@ -379,7 +384,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
-        BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
+        // 처치 → 전투 브금 종료, 기존 BGM 재개. (교전 중일 때만 = Begin/End 짝 유지)
+        if (_engaged) { _engaged = false; BattleBgm.End(); }
         if (_health != null) _health.Invulnerable = false;   // 가드 중 사망 시 무적 잔존 방지
         StopAllCoroutines();
         StopFrostField();       // [07-29] 사망 시 서리장판 제거
@@ -404,7 +410,8 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
             _feedback?.PlayDetect();
             BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지). 보스 공통 브금 재사용.
         }
-        if (target == null) { _motor.StopMove(); return; }
+        if (target == null) { TickDisengage(); _motor.StopMove(); return; }
+        _lostTimer = 0f;   // 다시 보이면 유예 타이머 리셋
         if (data == null) return;
 
         float dist = _motor.PlanarDistance(target.position);
@@ -486,6 +493,21 @@ public class IceElementalBossController : MonoBehaviour, IEnemyDataSource
         if (_meleeGapCd > 0f) _meleeGapCd -= dt;
         for (int i = 0; i < _atkCd.Length; i++)
             if (_atkCd[i] > 0f) _atkCd[i] -= dt;
+    }
+
+    // 플레이어를 놓친 동안 호출. 유예가 지나면 교전을 해제한다.
+    //   ★_engaged 가 true 로만 바뀌고 되돌아오지 않아, 이탈해도 전투 브금이 계속 나오던 문제를 막는다.
+    //     (브금은 2D 라 거리와 무관 — 껐다 켜는 쪽에서 끝내줘야 한다)
+    private void TickDisengage()
+    {
+        if (!_engaged) return;
+        _lostTimer += Time.deltaTime;
+        if (_lostTimer < DisengageDelay) return;
+
+        _engaged = false;
+        _lostTimer = 0f;
+        BattleBgm.End();          // 전투 브금 종료 → 기존 필드 BGM 재개
+        BossHealthBarUI.Hide();   // 보스 체력바도 함께 내린다
     }
 
     private Transform ResolveTarget()

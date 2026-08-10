@@ -150,6 +150,11 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     private float[] _atkCd;
     private bool[] _roared;
     private bool _engaged;              // 교전 시작(보스바 1회 표시)
+    private float _lostTimer;           // 플레이어를 놓친 뒤 흐른 시간(교전 해제 유예)
+
+    // 플레이어를 이만큼 계속 놓치고 있으면 교전 해제(전투 브금/보스바 원복).
+    //   유예를 두는 이유: 어그로 경계에서 왔다 갔다 하면 브금이 껐다 켜졌다 깜빡인다.
+    private const float DisengageDelay = 4f;
     private float _enrageCd = 1f;       // 누적 공격쿨 배수(<1 = 빨라짐)
     private float _enrageSpeed = 1f;    // 누적 이속 배수
     private static readonly float[] RoarThresholds = { 0.66f, 0.33f };
@@ -182,7 +187,10 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
-        BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
+        // 처치 → 전투 브금 종료, 기존 BGM 재개.
+        //   ★교전 중일 때만 = Begin/End 를 보스별로 짝 맞춘다(이미 교전 해제된 뒤 죽었는데 또 End 하면
+        //     동시에 교전 중인 다른 보스의 카운트를 깎아 그쪽 브금이 먼저 꺼진다).
+        if (_engaged) { _engaged = false; BattleBgm.End(); }
         if (_health != null) _health.Invulnerable = false;   // 회복 중 사망 시 무적 잔존 방지
         _lockScale = false;                                  // 회복 중 사망 시 스케일 고정 해제(사망 애니 정상 재생)
         EndDiveCleanup();   // 다이브/포효띄움 중 사망 시 공중에 멈추지 않게 지면 복구(에이전트 꺼져 있으면 재활성+스냅, 아니면 no-op)
@@ -211,7 +219,8 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
             _feedback?.PlayDetect();   // SO detectSound 1회 재생(다른 적과 동일 훅)
             BattleBgm.Begin(SfxId.WyvernBattleBgm);   // 교전 시작 → 전투 브금(기존 BGM 일시정지)
         }
-        if (target == null) { StopMove(); return; }
+        if (target == null) { TickDisengage(); StopMove(); return; }
+        _lostTimer = 0f;   // 다시 보이면 유예 타이머 리셋
         if (data == null) return;
 
         float dist = PlanarDistance(target.position);
@@ -289,6 +298,21 @@ public class WyvernBossController : MonoBehaviour, IEnemyDataSource
             if (r <= 0f) { chosen = i; return true; }
         }
         return false;
+    }
+
+    // 플레이어를 놓친 동안 호출. 유예가 지나면 교전을 해제한다.
+    //   ★_engaged 가 true 로만 바뀌고 되돌아오지 않아, 이탈해도 전투 브금이 계속 나오던 문제를 막는다.
+    //     (브금은 2D 라 거리와 무관 — 껐다 켜는 쪽에서 끝내줘야 한다)
+    private void TickDisengage()
+    {
+        if (!_engaged) return;
+        _lostTimer += Time.deltaTime;
+        if (_lostTimer < DisengageDelay) return;
+
+        _engaged = false;
+        _lostTimer = 0f;
+        BattleBgm.End();          // 전투 브금 종료 → 기존 필드 BGM 재개
+        BossHealthBarUI.Hide();   // 보스 체력바도 함께 내린다
     }
 
     private Transform ResolveTarget()

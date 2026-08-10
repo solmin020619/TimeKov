@@ -1,7 +1,56 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class VfxUtils
 {
+    // ─────────────────────────────────────────────────────────
+    // 액션 VFX 추적 (대쉬 캔슬 대응)
+    //
+    // 대쉬로 공격/스킬을 끊으면 모션과 코루틴은 멈추지만, 이미 뿌려진 이펙트는
+    // 자기 수명이 끝날 때까지 그대로 남아 "안 나간 공격의 이펙트만 날아가는" 그림이 된다.
+    // 그래서 시전 중 '그 시전자가' 낸 VFX 만 모아 두고, 끊길 때 한 번에 거둔다.
+    //
+    // ★소유자(caster)로 거르므로 같은 순간 다른 적이 낸 VFX 는 영향을 받지 않는다.
+    // ★타격 지점 이펙트(SpawnAtHit)는 추적하지 않는다 — 이미 맞은 타격의 흔적이라 지우면 안 된다.
+    // ─────────────────────────────────────────────────────────
+    private static GameObject _trackOwner;
+    private static readonly List<GameObject> _tracked = new List<GameObject>();
+
+    /// 액션 시작 — 이 시전자가 내는 VFX 를 모으기 시작한다.
+    public static void BeginTracking(GameObject owner)
+    {
+        _trackOwner = owner;
+        _tracked.Clear();
+    }
+
+    /// 액션 정상 종료 — 추적만 끊는다(이미 나간 이펙트는 수명대로 남는다).
+    public static void StopTracking()
+    {
+        _trackOwner = null;
+        _tracked.Clear();
+    }
+
+    /// 액션 취소(대쉬 캔슬 등) — 모아 둔 이펙트를 즉시 거둔다.
+    public static void CancelTracked()
+    {
+        for (int i = 0; i < _tracked.Count; i++)
+        {
+            var go = _tracked[i];
+            if (go == null) continue;
+            // 끄기만 한다. 풀에서 나온 인스턴스는 예정된 반납 코루틴이 그대로 회수하고,
+            // 풀 미사용(폴백) 인스턴스는 예약된 Destroy 가 정리한다 — 어느 쪽이든 누수 없음.
+            go.SetActive(false);
+        }
+        StopTracking();
+    }
+
+    // 시전자가 추적 대상일 때만 목록에 담는다.
+    private static GameObject Track(GameObject caster, GameObject spawned)
+    {
+        if (spawned != null && caster != null && caster == _trackOwner) _tracked.Add(spawned);
+        return spawned;
+    }
+
     // ─────────────────────────────────────────────────────────
     // 뼈대 기준 스폰
     //
@@ -40,7 +89,7 @@ public static class VfxUtils
 
         // 회전: root.rotation (캐릭터 공격 방향 = Z+ 앞면과 정렬)
         Transform parent = parentToCaster ? root : null;
-        return Spawn(prefab, worldPos, root.rotation, parent, lifeTime);
+        return Track(caster, Spawn(prefab, worldPos, root.rotation, parent, lifeTime));
     }
 
     public static GameObject SpawnAtBone(
@@ -69,7 +118,7 @@ public static class VfxUtils
         Quaternion worldRot = root.rotation * Quaternion.Euler(eulerOffset);
 
         Transform parent = parentToCaster ? root : null;
-        return Spawn(prefab, worldPos, worldRot, parent, lifeTime);
+        return Track(caster, Spawn(prefab, worldPos, worldRot, parent, lifeTime));
     }
 
 
@@ -112,7 +161,7 @@ public static class VfxUtils
 
         Transform parent = parentToCaster ? t : null;
 
-        return Spawn(prefab, worldPos, t.rotation, parent, lifeTime);
+        return Track(caster, Spawn(prefab, worldPos, t.rotation, parent, lifeTime));
     }
 
     public static GameObject SpawnAtCaster(
@@ -137,7 +186,7 @@ public static class VfxUtils
 
         Transform parent = parentToCaster ? t : null;
 
-        return Spawn(prefab, worldPos, worldRot, parent, lifeTime);
+        return Track(caster, Spawn(prefab, worldPos, worldRot, parent, lifeTime));
     }
 
     public static GameObject SpawnAtHit(

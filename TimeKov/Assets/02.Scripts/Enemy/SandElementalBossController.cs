@@ -339,7 +339,8 @@ public class SandElementalBossController : MonoBehaviour, IEnemyDataSource
     private void HandleDeath()
     {
         _dead = true;
-        BattleBgm.End();   // 처치 → 전투 브금 종료, 기존 BGM 재개
+        // 처치 → 전투 브금 종료, 기존 BGM 재개. (교전 중일 때만 = Begin/End 짝 유지)
+        if (_engaged) { _engaged = false; BattleBgm.End(); }
         if (_health != null) _health.Invulnerable = false;   // 가드 중 사망 시 무적 잔존 방지
         StopAllCoroutines();
         ReleaseCoffinLock();   // ★사망이 코루틴을 끊어도 감금 락은 반드시 푼다
