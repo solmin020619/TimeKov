@@ -187,6 +187,10 @@ namespace GameSettingsUI
             blurActive = blurCam;
             if (blurCam) BuildBlurCanvas(blurCam);
 
+            // 제목 TMP는 BuildHeader에서만 _titleTmp에 할당되므로, 베이크 경로에서는 이름으로 다시 찾는다.
+            var titleChild = root.Find("Text_설정Settings");
+            if (titleChild) _titleTmp = titleChild.GetComponent<TMP_Text>();
+
             RefreshAll();   // 표시값을 현재 설정값으로 갱신 (배경색은 Start가 확정한다)
             LocalizedLabel.AttachToStaticLabels(root.gameObject);   // 베이크된 한글 라벨에 자동 구독 부착
         }
@@ -292,6 +296,7 @@ namespace GameSettingsUI
             // 다시 열 때는 매니저가 편집 폼을 _data 기준으로 되돌린 뒤일 수 있으므로 다시 읽어온다.
             if (built) { ResetMuteStates(); RefreshAll(); PlayOpenAnim(); }
             Loc.OnLanguageChanged += RefreshTitleLabel;
+            RefreshTitleLabel();
         }
 
         // 열기 연출. 스크림이 화면 전체를 덮으므로 배율은 1 이상에서만 시작한다
@@ -1219,6 +1224,7 @@ namespace GameSettingsUI
         }
         void RefreshAll()
         {
+            RefreshTitleLabel();
             foreach (var d in dropdowns) d.SetValue(d.Current);   // _pending을 다시 읽어 표시
             if (displayToggle)
                 displayToggle.Apply(SettingsBinding.GetFullscreen() ? DisplayMode.Full : DisplayMode.Window, false);

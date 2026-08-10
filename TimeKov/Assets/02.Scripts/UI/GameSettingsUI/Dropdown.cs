@@ -31,6 +31,10 @@ namespace GameSettingsUI
         const float PopupGap = 8f;   // 버튼과 팝업 사이 간격
         public bool isOpen;
 
+        void OnEnable()  { Loc.OnLanguageChanged += RefreshDisplay; RefreshDisplay(); }
+        void OnDisable() { Loc.OnLanguageChanged -= RefreshDisplay; }
+        void RefreshDisplay() { SetValue(Current); }
+
         // 옵션 라벨은 직렬화하지 않는다 — 항목에서 항상 같은 순서로 나오므로 실행 시 받아온다.
         public string[] Options => SettingsBinding.Options(setting);
         public string Current => SettingsBinding.GetLabel(setting);

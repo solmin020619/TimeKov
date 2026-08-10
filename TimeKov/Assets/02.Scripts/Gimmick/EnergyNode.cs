@@ -129,8 +129,8 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
             GameSfx.Play(deniedSfx, transform.position);
             // 연료가 없어 아무 반응이 없으면 버그처럼 보이므로 토스트로 안내.
             var data = ItemDatabase.GetItem(fuelItemId);
-            string fuelName = data != null ? data.itemName : "연료";
-            ToastManager.Warning($"{fuelName}이(가) 없습니다");
+            string fuelName = data != null ? Loc.Get(data.itemName) : Loc.Get("연료");
+            ToastManager.Warning(string.Format(Loc.Get("{0}이(가) 없습니다"), fuelName));
             return;
         }
 
@@ -252,5 +252,5 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
             InteractHintPanel.Show(hintUI, true, ProgressLabel(), hintIcon);
     }
 
-    private string ProgressLabel() => $"{hintLabel} ({_filled}/{requiredAmount})";
+    private string ProgressLabel() => $"{Loc.Get(hintLabel)} ({_filled}/{requiredAmount})";
 }
