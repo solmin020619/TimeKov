@@ -48,10 +48,15 @@ public class TimeHazardZone : MonoBehaviour
     [Tooltip("되돌아갈 입구 위치. 비우면 이 구역 오브젝트의 위치를 쓴다(꼭 지정할 것 — 구역 중심이면 안에 갇힌다).")]
     [SerializeField] private Transform entrancePoint;
 
-    [Tooltip("복귀 후 시간(HP)을 최대치의 몇 %로 맞출지. 0.5 = 절반.\n" +
-             "★고정 수치가 아니라 비율인 이유: 코어 강화로 최대 시간이 계속 커지므로,\n" +
-             "  고정치로 주면 후반엔 사실상 무의미하고 초반엔 과하다. 비율이면 리스크가 일정하다.")]
+    [Tooltip("복귀 후 시간(HP)을 '구역에 들어올 때 체력'의 몇 %로 맞출지. 0.5 = 절반.\n" +
+             "★최대 체력이 아니라 진입 시점 체력 기준이다 — 최대치 기준이면 체력이 바닥일 때\n" +
+             "  일부러 죽어서 시간을 채우는 악용이 가능해진다. 진입 기준이면 항상 손해라 이득이 없다.")]
     [SerializeField, Range(0.05f, 1f)] private float rescueHpPercent = 0.5f;
+
+    // ★기준은 '최대 체력'이 아니라 '구역에 들어올 때의 체력'이다.
+    //   최대치 기준으로 주면, 체력이 바닥일 때 일부러 들어와 죽는 것이 시간 충전이 돼 버린다
+    //   (HP = 시간 = 핵심 자원이라 치명적). 진입 시점 기준이면 복귀 체력이 항상 진입 체력보다
+    //   적으므로 어떤 경우에도 이득이 될 수 없다. 반복해서 죽으면 50% → 25% → 12.5% 로 계속 줄어든다.
 
     [Tooltip("검게/밝게 페이드되는 시간(초).")]
     [SerializeField] private float rescueFadeTime = 0.6f;
@@ -88,6 +93,11 @@ public class TimeHazardZone : MonoBehaviour
     public float DrainMultiplier => drainMultiplier;
     public bool  UseScreenEffect => useScreenEffect;
 
+    /// 플레이어가 지금 이 구역(트리거) 안에 있는가.
+    ///   건물 표면 표식(TimeHazardSurfaceFx)이 이걸 보고 켜고 끈다 — 구역 콜라이더가
+    ///   이미 건물에 맞춰져 있으므로 별도 경계를 또 계산할 필요가 없다.
+    public bool PlayerInside => _inside;
+
     public TimeHazardScreenFx.Config BuildFxConfig() => new TimeHazardScreenFx.Config
     {
         darkColor    = darkColor,
@@ -101,6 +111,7 @@ public class TimeHazardZone : MonoBehaviour
 
     private bool _inside;
     private PlayerStatComponent _stat;   // 구역 안에 있는 동안의 플레이어 스탯(사망 가로채기용)
+    private float _hpOnEnter;            // 구역 진입 시점 체력 — 구조 복귀량의 기준(악용 방지)
 
     // 루프음: 이 오브젝트의 로컬 AudioSource 에서 2D 로 재생(설비 루프음과 같은 방식).
     private AudioSource _ambientSrc;
@@ -144,6 +155,7 @@ public class TimeHazardZone : MonoBehaviour
 
         _inside = true;
         _stat = stat;
+        _hpOnEnter = stat.CurrentHp;   // 구조 시 이 값을 기준으로 되살린다(악용 방지)
         // 구역 안에 있는 동안만 사망을 가로챈다(도전 미션 = 죽어도 입구로 복귀).
         if (rescueInsteadOfDeath) stat.DeathInterceptor = RescueInsteadOfDying;
 
@@ -194,8 +206,13 @@ public class TimeHazardZone : MonoBehaviour
         // ★즉시 되살려야 한다. HP 가 0 이면 IsDead 가 true 라, 페이드가 도는 사이
         //   RespawnManager 의 Update 감시(IsDead 확인)가 진짜 사망 흐름을 태워버린다.
         //   Heal() 은 IsDead 면 무시되므로(좀비 방지 가드) 전용 통로인 ReviveWith 를 쓴다.
-        //   ReviveWith 는 '더하기'가 아니라 '이 값으로 설정' — 최대치의 비율로 맞춘다.
-        _stat.ReviveWith(_stat.MaxHp * rescueHpPercent);
+        //   ReviveWith 는 '더하기'가 아니라 '이 값으로 설정'.
+        //
+        // ★기준은 진입 시점 체력 — 최대치 기준이면 '빈사로 들어와 죽어서 시간 충전'이 된다.
+        //   구조 후에는 기준을 지금 값으로 낮춘다 → 안에서 반복해 죽으면 50%→25%→12.5% 로 계속 깎인다.
+        float target = _hpOnEnter * rescueHpPercent;
+        _stat.ReviveWith(target);
+        _hpOnEnter = _stat.CurrentHp;   // ReviveWith 의 최소치 보정까지 반영된 실제 값으로 갱신
 
         Vector3 dest = entrancePoint != null ? entrancePoint.position : transform.position;
         TimeHazardRescue.Run(_stat.transform, dest, rescueFadeTime, rescueBlackHold);   // ★플레이어 트랜스폼

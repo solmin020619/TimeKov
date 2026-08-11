@@ -88,6 +88,35 @@ public static class TimeHazardZoneSetup
                   "★위험 구역 '안쪽'에 겹쳐 두어라. 눈에 보이는 표식(빛기둥 등)은 Active Visual 에 연결.", host);
     }
 
+    [MenuItem("Tools/TIMEKOV/시간구역/③ 선택 건물에 표면 일렁임 표식 부착")]
+    private static void AddSurfaceFx()
+    {
+        var sel = Selection.gameObjects;
+        if (sel == null || sel.Length == 0)
+        {
+            EditorUtility.DisplayDialog("표면 표식", "표식을 입힐 건물 오브젝트(루트)를 선택하라.", "확인");
+            return;
+        }
+
+        Undo.SetCurrentGroupName("표면 표식 부착");
+        int group = Undo.GetCurrentGroup();
+
+        int added = 0;
+        foreach (var go in sel)
+        {
+            if (go == null) continue;
+            if (go.GetComponent<TimeHazardSurfaceFx>() != null) continue;   // 중복 부착 방지
+            Undo.AddComponent<TimeHazardSurfaceFx>(go);
+            MarkDirty(go);
+            added++;
+        }
+
+        Undo.CollapseUndoOperations(group);
+        Debug.Log($"[시간구역] 표면 표식 {added}개 부착 — 자식 렌더러 전체에 '껍질'을 만들어 일렁임을 입힌다.\n" +
+                  "★껍질은 플레이할 때 생성된다(씬 뷰엔 안 보임). 원본 머티리얼은 건드리지 않는다.\n" +
+                  "★실내는 '카메라가 건물 안이면 끄기'로 처리한다. 너무 일찍 꺼지면 Inside Margin Ratio 를 올려라.");
+    }
+
     private static Bounds SelectionBounds(GameObject[] sel, float fallbackSize)
     {
         bool has = false;
