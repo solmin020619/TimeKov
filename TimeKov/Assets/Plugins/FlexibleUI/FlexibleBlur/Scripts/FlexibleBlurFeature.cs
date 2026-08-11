@@ -639,7 +639,17 @@ public partial class FlexibleBlurPass : ScriptableRenderPass
         else if (texturesNeededForUiBlurs == 1)
         {
             numLayerTextures = 1;
-            currentRTHandleList ??= new List<RTHandle>(1);
+            // [TIMEKOV 패치] 원본은 currentRTHandleList ??= new 로 "직전 카메라"의 리스트를 그대로 재사용했다.
+            // 문제: 이 리스트가 이미지 블러 분기에서 instanceLayerRTHandleDict 에도 같이 등록된 리스트라면,
+            //   씬 전환으로 그 카메라가 파괴된 뒤 FrameCleanup 이 리스트 안의 RTHandle 을 전부 해제한다.
+            //   그런데 이 인스턴스 필드는 해제된 리스트를 계속 가리키고 있어서, 다음 카메라(메인메뉴)가
+            //   UIBlur 만 쓰는 이 분기로 들어오면 해제된 핸들을 RenderGraph 에 임포트하게 된다
+            //   -> "Trying to use an invalid resource" 가 매 프레임 터지며 화면 렌더 전체가 깨진다.
+            //   (월드에서 설정창으로 메인메뉴 복귀 -> 메인메뉴에서 설정창을 열면 콘솔 에러 폭풍이 나던 원인)
+            // 수정: 이미지 블러 분기와 동일하게 카메라별로 리스트를 나눠 든다.
+            //   죽은 카메라의 리스트는 FrameCleanup 의 기존 정리 경로가 해제하므로 수명이 맞아떨어진다.
+            if (!instanceLayerRTHandleDict.TryGetValue(key, out currentRTHandleList))
+                currentRTHandleList = instanceLayerRTHandleDict[key] = new List<RTHandle>(1);
             if (currentRTHandleList.Count == 0)
             {
 #if UNITY_2022_2_OR_NEWER
