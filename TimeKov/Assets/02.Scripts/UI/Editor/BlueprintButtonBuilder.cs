@@ -33,6 +33,9 @@ public static class BlueprintButtonBuilder
     // 간격 기준: 해제 알약과 회전 알약 사이 간격을 재서 그대로 위로 복제한다
     private const string RotateBakedLabel = "설비 회전";
 
+    // 알약 아이콘 (종욱 지정 - 메인UI킷 저장 아이콘)
+    private const string IconPath = "Assets/18.외부에셋/메인UI킷/PNG/Icons/T_icon_save.png";
+
     [MenuItem("Tools/TIMEKOV/UI/청사진 버튼 생성 (해제 알약 복제)")]
     public static void Build()
     {
@@ -88,27 +91,46 @@ public static class BlueprintButtonBuilder
             clone.pivot = source.pivot;
             clone.anchoredPosition = source.anchoredPosition + new Vector2(0f, step);
 
-            // 4) 문구/키캡 교체 + 폰트 아틀라스에 없는 글자 굽기
-            //    구운(Static) 폰트라 "청사진" 같은 새 글자는 폴백 폰트로 렌더돼 서체가 달라 보인다.
-            //    FontGlyphPatcher 와 같은 방식으로 해당 폰트 아틀라스에 글자를 추가한다.
+            // 4) 문구/키캡 교체
+            //    폰트는 여기서 건드리지 않는다. "청사진" 글자가 라벨 폰트(DungGeunMo) 아틀라스에
+            //    없으면 서체가 달라 보이는데, 그건 폰트 재굽기(종욱 담당)로 해결한다.
+            //    (스크립트로 아틀라스에 글자를 주입해봤더니 원본 굽기와 품질이 달라 오히려 이상했다)
             TextMeshProUGUI cloneLabel = null;
             foreach (var t in clone.GetComponentsInChildren<TextMeshProUGUI>(true))
             {
                 string s = t.text != null ? t.text.Trim() : "";
-                if (s == DemolishBakedLabel || s == DemolishRuntimeLabel)
-                {
-                    t.text = "청사진 모드";
-                    cloneLabel = t;
-                    EnsureGlyphs(t.font, "청사진 모드");
-                }
-                else if (s == DemolishKey)
-                {
-                    t.text = "N";
-                    EnsureGlyphs(t.font, "N");
-                }
+                if (s == DemolishBakedLabel || s == DemolishRuntimeLabel) { t.text = "청사진 모드"; cloneLabel = t; }
+                else if (s == DemolishKey) t.text = "N";
             }
             if (cloneLabel == null)
                 Debug.LogWarning("[청사진버튼] 복제본에서 라벨을 못 찾아 문구 교체를 건너뛰었다.");
+
+            // 4-2) 아이콘 교체 - 메인UI킷의 저장 아이콘(종욱 지정).
+            //      해제 알약의 아이콘 자리는 스프라이트 참조가 깨져 있어서(원본 png 가 레포에 없음)
+            //      어차피 교체가 필수다. 키캡 사각형은 스프라이트가 살아 있으므로 건너뛰고,
+            //      '스프라이트가 없는(깨진) Image' 를 아이콘 자리로 판단해 새 아이콘을 꽂는다.
+            var iconSprite = AssetDatabase.LoadAssetAtPath<Sprite>(IconPath);
+            if (iconSprite == null)
+            {
+                Debug.LogWarning($"[청사진버튼] 아이콘을 못 찾았다: {IconPath} - 아이콘 없이 진행한다.");
+            }
+            else
+            {
+                int replaced = 0;
+                foreach (var img in clone.GetComponentsInChildren<Image>(true))
+                {
+                    if (img.sprite != null) continue;   // 살아 있는 스프라이트(키캡 등)는 그대로
+                    img.sprite = iconSprite;
+                    img.color = Color.white;
+                    img.preserveAspect = true;
+                    replaced++;
+                }
+                if (replaced == 0)
+                    Debug.LogWarning("[청사진버튼] 아이콘 자리(스프라이트 없는 Image)를 못 찾았다. " +
+                                     "알약 구조가 바뀐 듯 - 하이어라키에서 아이콘 Image 를 확인해라.");
+                else
+                    Debug.Log($"[청사진버튼] 아이콘 적용: {IconPath} ({replaced}곳)");
+            }
 
             // 5) 클릭 배선 - 이미지에 레이캐스트를 켜고(힌트 알약은 꺼져 있다) 런타임 컴포넌트 부착
             bool anyRaycast = false;
@@ -137,60 +159,4 @@ public static class BlueprintButtonBuilder
         }
     }
 
-    // 구운(Static) 폰트 아틀라스에 없는 글자를 추가한다. FontGlyphPatcher 와 같은 방식:
-    // 소스 폰트 파일을 재연결하고 잠시 Dynamic 으로 바꿔 TryAddCharacters 후 Static 복귀.
-    // 소스 폰트가 없으면 수동 재굽기 안내만 남긴다(빌드는 계속 진행 - 글자는 폴백으로 보임).
-    private static void EnsureGlyphs(TMP_FontAsset font, string chars)
-    {
-        if (font == null || string.IsNullOrEmpty(chars)) return;
-
-        // 이미 다 있으면 아무것도 안 한다
-        if (font.HasCharacters(chars, out var missingList) || missingList == null || missingList.Count == 0)
-            return;
-
-        // 소스 폰트: 에셋에 연결돼 있으면 그것, 없으면 폰트 이름으로 검색해 재연결
-        var so = new SerializedObject(font);
-        var srcProp = so.FindProperty("m_SourceFontFile");
-        Font src = srcProp != null ? srcProp.objectReferenceValue as Font : null;
-        if (src == null)
-        {
-            // "PretendardVariable SDF" -> "PretendardVariable" 로 원본 파일 검색
-            string baseName = font.name.Replace(" SDF", "").Trim();
-            foreach (var guid in AssetDatabase.FindAssets($"{baseName} t:Font"))
-            {
-                var f = AssetDatabase.LoadAssetAtPath<Font>(AssetDatabase.GUIDToAssetPath(guid));
-                if (f != null) { src = f; break; }
-            }
-        }
-        if (src == null)
-        {
-            Debug.LogWarning($"[청사진버튼] '{font.name}' 의 소스 폰트 파일을 못 찾아 글자를 못 굽는다. " +
-                             $"누락 글자: {new string(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(missingList, c => (char)c)))} " +
-                             "- Font Asset Creator 로 재굽기 필요(폴백 폰트로는 일단 보인다).");
-            return;
-        }
-
-        if (srcProp != null && srcProp.objectReferenceValue == null)
-        {
-            srcProp.objectReferenceValue = src;
-            so.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        var prevMode = font.atlasPopulationMode;
-        font.atlasPopulationMode = AtlasPopulationMode.Dynamic;
-        font.ReadFontAssetDefinition();
-
-        bool ok = font.TryAddCharacters(chars, out string stillMissing);
-
-        font.atlasPopulationMode = prevMode;
-        font.ReadFontAssetDefinition();
-
-        EditorUtility.SetDirty(font);
-        if (font.atlasTextures != null)
-            foreach (var t in font.atlasTextures) if (t != null) EditorUtility.SetDirty(t);
-        AssetDatabase.SaveAssets();
-
-        Debug.Log($"[청사진버튼] 폰트 '{font.name}' 글자 추가 성공={ok}" +
-                  (string.IsNullOrEmpty(stillMissing) ? "" : $"  못추가='{stillMissing}'"));
-    }
 }
