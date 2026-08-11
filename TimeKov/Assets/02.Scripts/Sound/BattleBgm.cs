@@ -73,6 +73,20 @@ public class BattleBgm : MonoBehaviour
     // 리스폰 시: 정지해 뒀던 기존(필드) BGM 페이드인 재개.
     public static void ResumeAfterGameOver() { if (!_quitting && _i != null) _i.ResumeInternal(); }
 
+    // 씬을 떠날 때(메인메뉴로 나가기, 엔딩 등) 호출 - 전투 BGM 을 즉시 끊고 상태를 초기화한다.
+    //   이 오브젝트는 DDOL 이라 씬과 함께 죽지 않는다. 안 끊으면 전투 중 나갔을 때
+    //   전투 BGM 루프/페이드 코루틴이 메인메뉴까지 이어서 재생된다.
+    //   _baseBgm(월드의 필드 BGM 스피커)은 씬과 함께 파괴되므로 참조만 비운다.
+    public static void ResetForSceneExit()
+    {
+        if (_i == null) return;
+        _i.StopCo();
+        if (_i._src != null) _i._src.Stop();
+        _i._active = 0;
+        _i._suspended = false;
+        _i._baseBgm = null;
+    }
+
     // 음소거 구역(BgmMute) 전용 — 전투 상태는 그대로 두고 소리만 끈다.
     //   ★볼륨이 아니라 mute 라서 진행 중인 페이드 코루틴과 충돌하지 않는다.
     //   ★아직 인스턴스가 없으면 아무것도 안 한다(나중에 Build 에서 BgmMute.IsMuted 를 보고 맞춘다).

@@ -36,6 +36,18 @@ public static class BattleMusicTracker
         }
     }
 
+    // 씬을 떠날 때(메인메뉴로 나가기, 엔딩 등) 호출 - 교전 집계를 즉시 비운다.
+    //   이걸 안 하면: (a) 전투 중 나가면 씬 언로드가 몹들을 파괴하며 Disengage 연쇄가 돌고,
+    //   마지막 몹에서 BattleBgm.End() -> "전투 종료 임팩트(샤악)" 가 DDOL 소스에서 울려
+    //   메인메뉴까지 따라온다. (b) 파괴 순서에 따라 집합이 안 비면 다음 판 첫 교전이
+    //   1마리로 안 세져 전투 BGM 이 영영 안 켜진다.
+    //   먼저 비워두면 언로드 중 Disengage 는 전부 미등록 -> 조용히 무시된다.
+    public static void ResetForSceneExit()
+    {
+        _engaged.Clear();
+        _musicOn = false;
+    }
+
     // 적이 교전을 종료(타깃 상실 / 사망 / 파괴). 마지막 적이면 BGM 종료(우리가 켰을 때만).
     public static void Disengage(int enemyId)
     {

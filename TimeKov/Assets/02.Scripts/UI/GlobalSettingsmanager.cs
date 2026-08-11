@@ -170,8 +170,10 @@ public class GlobalSettingsManager : MonoBehaviour
 
     public void QuitToMainMenu()
     {
-        GameSfx.Play(SfxId.SettingsClick);   // 하단 '메인메뉴' 버튼음
         CoreUtilities.SaveAndLoadMainMenu(mainMenuSceneName);   // 나가기 전 저장(진행 유실 방지) + timeScale 정상화 포함
+        // 버튼음은 잔향 컷(GameSfx.CutAll) 뒤에 재생해야 같이 안 끊긴다.
+        // GameSfx 는 DDOL 이라 씬 전환 중에도 클릭음이 정상적으로 들린다.
+        GameSfx.Play(SfxId.SettingsClick);
     }
 
     // ── 설정값 적용 ───────────────────────────────────────────────────

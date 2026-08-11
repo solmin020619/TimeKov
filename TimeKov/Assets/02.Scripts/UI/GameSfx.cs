@@ -216,6 +216,14 @@ public class GameSfx : MonoBehaviour
         I.PlayInternal3D(id, position);
     }
 
+    // 재생 중인 2D 효과음(원샷 잔향 포함)을 즉시 끊는다. 씬을 떠날 때 사용 -
+    //   이 소스는 DDOL 이라 안 끊으면 월드에서 울리던 소리(전투 종료 임팩트 등)가
+    //   메인메뉴까지 이어서 들린다. 클립 캐시/볼륨 상태는 건드리지 않는다.
+    public static void CutAll()
+    {
+        if (_i != null && _i._source != null) _i._source.Stop();
+    }
+
     // 해당 효과음 클립의 길이(초). 클립이 없으면 0. 재생 길이만큼 대기해야 하는 곳(타이틀 시작 등)에서 사용.
     public static float Length(SfxId id)
     {
