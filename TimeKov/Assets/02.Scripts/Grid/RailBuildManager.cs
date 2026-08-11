@@ -20,6 +20,10 @@ public class RailBuildManager : MonoBehaviour
 
     /// <summary>설비 UI 가 실제 레일을 RenderTexture 로 렌더할 때 쓰는 직선 레일 프리팹.</summary>
     public GameObject StraightRailPrefab => straightPrefab;
+    public GameObject CornerRailPrefab => cornerPrefab;   // 청사진 고스트가 실제 레일 비주얼을 그대로 쓰기 위함
+    // 청사진 고스트가 레일 모드의 경로 프리뷰(하얀 고스트 레일)와 같은 룩을 쓰기 위한 접근자
+    public Material GhostStraightRailMaterial => ghostStraightMaterial;
+    public Material GhostCornerRailMaterial => ghostCornerMaterial;
 
     [Header("Preview")]
     [SerializeField] private GameObject previewPrefab;

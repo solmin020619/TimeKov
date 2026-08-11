@@ -15,7 +15,8 @@ public class BuildManager : MonoBehaviour, ISaveable
     public enum BuildSubMode
     {
         Facility,
-        Rail
+        Rail,
+        Blueprint   // 청사진(복사-붙여넣기). N 키 토글. BlueprintController 가 담당.
     }
 
     [System.Serializable]
@@ -69,6 +70,7 @@ public class BuildManager : MonoBehaviour, ISaveable
     private BuildDemolisher demolisher;
     private BuildPlacementValidator validator;
     private FacilityPlacer placer;
+    private BlueprintController blueprintController;
 
     [Header("References")]
     // 여기 카메라를 꽂아도 소용없다. ResolveActiveBuildCamera 가 빌드모드/게임모드에 따라
@@ -203,6 +205,7 @@ public class BuildManager : MonoBehaviour, ISaveable
         demolisher = new BuildDemolisher(this, occupancy);
         validator = new BuildPlacementValidator(this);
         placer = new FacilityPlacer(this, occupancy);
+        blueprintController = new BlueprintController(this);
 
         if (previewMarker != null)
             previewMarker.SetActive(false);
@@ -367,6 +370,12 @@ public class BuildManager : MonoBehaviour, ISaveable
             return;
         }
 
+        if (CurrentSubMode == BuildSubMode.Blueprint)
+        {
+            blueprintController?.Tick();
+            return;
+        }
+
         HandleRotateInput();
         HandleBuild();
     }
@@ -380,6 +389,13 @@ public class BuildManager : MonoBehaviour, ISaveable
         if (Input.GetKeyDown(KeyCode.E))
         {
             SelectRailMode();
+            return;
+        }
+
+        // N = 청사진(복사-붙여넣기) 토글
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            ToggleBlueprintMode();
             return;
         }
 
@@ -408,6 +424,27 @@ public class BuildManager : MonoBehaviour, ISaveable
         }
 
         SetSubMode(BuildSubMode.Rail);
+    }
+
+    // 청사진 토글(N 키 + 알약 버튼 BlueprintModeButton 공용).
+    // 해제 모드였다면 빠져나오고 진입 - 슬롯 키의 fromDemolish 처리와 동일한 편의.
+    public void ToggleBlueprintMode()
+    {
+        if (!IsBuildMode) return;   // 버튼이 빌드 모드 밖에서 눌려도 무해하게
+
+        if (CurrentSubMode == BuildSubMode.Blueprint)
+        {
+            SetSubMode(BuildSubMode.Facility);
+            return;
+        }
+
+        if (isDemolishMode)
+        {
+            isDemolishMode = false;
+            demolisher?.Cancel();
+        }
+
+        SetSubMode(BuildSubMode.Blueprint);
     }
 
     private void SelectFacilitySlot(int index)
@@ -471,8 +508,11 @@ public class BuildManager : MonoBehaviour, ISaveable
         if (CurrentSubMode == mode)
             return;
 
+        // 나가는 모드 정리. 각 컨트롤러의 종료가 자기 잔재(고스트/프리뷰)를 책임진다.
         if (CurrentSubMode == BuildSubMode.Rail)
             railBuildManager?.EndRailMode();
+        if (CurrentSubMode == BuildSubMode.Blueprint)
+            blueprintController?.Deactivate();
 
         CurrentSubMode = mode;
 
@@ -486,6 +526,17 @@ public class BuildManager : MonoBehaviour, ISaveable
             SetPreviewActive(false);
 
             railBuildManager?.BeginRailMode(this);
+        }
+        else if (mode == BuildSubMode.Blueprint)
+        {
+            isDemolishMode = false;
+            isDragBuilding = false;
+            dragPlacedStartCells.Clear();
+
+            demolisher?.Cancel();
+            SetPreviewActive(false);
+
+            blueprintController?.Activate();
         }
         else
         {
@@ -607,6 +658,7 @@ public class BuildManager : MonoBehaviour, ISaveable
         SetTopViewMode(false);
 
         railBuildManager?.EndRailMode();
+        blueprintController?.Deactivate();   // 청사진 고스트/상태 정리 (멱등)
         CurrentSubMode = BuildSubMode.Facility;
 
         if (previewMarker != null)
@@ -867,16 +919,26 @@ public class BuildManager : MonoBehaviour, ISaveable
 
     private IEnumerator PlaceCurrentFacilityRoutine(Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
     {
-        int facilityId = GetCurrentFacilityId();
+        // 상한 장부(_pendingPlaceCounts) 처리는 PlaceFacilityTracked 한 곳에 모여 있다.
+        return PlaceFacilityTracked(GetCurrentFacilityId(), position, rotation, footprintCells);
+    }
+
+    /// <summary>
+    /// 설비 배치 공식 진입점 - 수동 배치와 청사진이 같은 경로를 쓴다.
+    /// 홀로그램 연출(1.2초) 동안엔 PlacedBuilding 이 아직 없어서 설치 상한을 연타로 뚫을 수 있음
+    /// -> 진행 중 배치도 개수에 포함(finally 라 코루틴 강제 종료에도 안 샌다).
+    /// startDelay/playSound 는 청사진이 여러 개를 한 번에 놓을 때의 연출 제어(FacilityPlacer 참조).
+    /// </summary>
+    public IEnumerator PlaceFacilityTracked(int facilityId, Vector3 position, Quaternion rotation,
+                                            List<Vector2Int> footprintCells, float startDelay = 0f, bool playSound = true)
+    {
         if (facilityId == 0) yield break;
 
-        // 홀로그램 연출(1.2초) 동안엔 PlacedBuilding 이 아직 없어서 설치 상한을 연타로 뚫을 수 있음
-        // -> 진행 중 배치도 개수에 포함(finally 라 코루틴 강제 종료에도 안 샌다).
         _pendingPlaceCounts.TryGetValue(facilityId, out int pending);
         _pendingPlaceCounts[facilityId] = pending + 1;
         try
         {
-            yield return placer.PlaceRoutine(facilityId, position, rotation, footprintCells);
+            yield return placer.PlaceRoutine(facilityId, position, rotation, footprintCells, startDelay, playSound);
         }
         finally
         {
@@ -997,6 +1059,10 @@ public class BuildManager : MonoBehaviour, ISaveable
 
     // 설비 점유 셀 판정 (RailBuildManager 가 레일의 설비 관통 방지에 사용)
     public bool IsCellOccupied(Vector2Int cell) => occupancy.IsOccupied(cell);
+
+    // 물리 겹침 판정 public 래퍼 (청사진이 수동 배치와 같은 물리 검사를 쓰기 위함)
+    public bool IsPlacementBlocked(Vector3 centerPos, Vector2Int size, Quaternion rotation)
+        => validator.IsBlocked(centerPos, size, rotation);
 
     // ===== end Public Helper =====
 
@@ -1146,11 +1212,10 @@ public class BuildManager : MonoBehaviour, ISaveable
                 if (previewMarker != null)
                     previewMarker.SetActive(false);
 
-                if (CurrentSubMode == BuildSubMode.Rail)
-                {
-                    railBuildManager?.EndRailMode();
-                    CurrentSubMode = BuildSubMode.Facility;
-                }
+                // 레일/청사진 어느 서브모드에서든 해제 모드로 들어오면 그 모드를 정리하고
+                // 설비 서브모드로. SetSubMode 가 EndRailMode/청사진 Deactivate 를 책임진다.
+                if (CurrentSubMode != BuildSubMode.Facility)
+                    SetSubMode(BuildSubMode.Facility);
             }
             else
             {

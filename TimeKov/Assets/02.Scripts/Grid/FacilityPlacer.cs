@@ -23,7 +23,11 @@ public class FacilityPlacer
     }
 
     // 홀로그램 연출을 거쳐 facilityId 설비를 배치. BuildManager 가 StartCoroutine 으로 호출.
-    public IEnumerator PlaceRoutine(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells)
+    // startDelay: 홀로그램 시작을 늦춘다(청사진이 여러 개를 도미노처럼 세울 때). 셀 점유는
+    //   지연 없이 즉시 잡는다 - 기다리는 동안 같은 자리에 다른 배치가 끼어들면 안 되므로.
+    // playSound: 청사진이 수십 개를 한 번에 놓을 때 사운드가 겹쳐 터지는 것 방지(첫 개만 재생).
+    public IEnumerator PlaceRoutine(int facilityId, Vector3 position, Quaternion rotation, List<Vector2Int> footprintCells,
+                                    float startDelay = 0f, bool playSound = true)
     {
         FacilityDataSheetData facility = GetFacilityData(facilityId);
         GameObject prefab = owner.PrefabDatabase != null ? owner.PrefabDatabase.GetPrefab(facilityId) : null;
@@ -32,7 +36,12 @@ public class FacilityPlacer
             yield break;
 
         occupancy.Occupy(footprintCells);
-        PlayBuildStartSound();
+
+        if (startDelay > 0f)
+            yield return new WaitForSeconds(startDelay);
+
+        if (playSound)
+            PlayBuildStartSound();
 
         GameObject hologramObj = Object.Instantiate(prefab, position, rotation);
         ApplyHologramVisual(hologramObj);
@@ -80,10 +89,11 @@ public class FacilityPlacer
         if (owner.IsRailSubMode)
             owner.RailManager?.RefreshPortIndicators();
 
-        PlayBuildCompleteSound();
+        if (playSound)
+            PlayBuildCompleteSound();
         SpawnBuildCompleteEffect(position, rotation);
 
-        // 퀘스트 시스템에 설치 완료 통지
+        // 퀘스트 시스템에 설치 완료 통지 (사운드와 달리 개수 집계라 항상 개별 통지)
         GameEvents.RaiseFacilityPlaced(facilityId);
     }
 
