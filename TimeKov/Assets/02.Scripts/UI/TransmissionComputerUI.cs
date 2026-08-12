@@ -489,7 +489,7 @@ public class TransmissionComputerUI : MonoBehaviour
             var row = Instantiate(_kitRowTemplate, _kitListRoot);
             row.name = $"kit_{k.id}";
             row.gameObject.SetActive(true);
-            row.Bind(this, i, k.name, $"+{k.gain}%", k.isBoss, RegionCol[(int)k.region]);
+            row.Bind(this, i, Loc.Get(k.name), $"+{k.gain}%", k.isBoss, RegionCol[(int)k.region]);
             _kitRows.Add(new KitRow { kit = k, ui = row });
         }
         RefreshKitRows();
@@ -537,7 +537,7 @@ public class TransmissionComputerUI : MonoBehaviour
     private void RefreshSelection()
     {
         var k = _m.Selected();
-        _selName.text = k != null ? k.name : Loc.Get("없음");
+        _selName.text = k != null ? Loc.Get(k.name) : Loc.Get("없음");
         _selMeta.text = k != null ? KitMeta(k) : Loc.Get("목록에서 키트를 클릭");
         // 예상 전송률
         string pv; Color pc; bool active;
@@ -753,7 +753,7 @@ public class TransmissionComputerUI : MonoBehaviour
     private void OnSend()
     {
         var k = _m.Selected(); if (k == null || !_m.Usable(k)) return;
-        string kn = k.name; int from = Mathf.RoundToInt(_m.progress);
+        string kn = Loc.Get(k.name); int from = Mathf.RoundToInt(_m.progress);
         // 매니저가 키트 소모 + 전송률 상승 + 토스트 + 이벤트 처리.
         // 전송률 상승은 OnRateChanged -> HandleRateChanged 에서 게이지/목록/마커를 갱신한다.
         if (!_m.Send(k)) return;
@@ -1182,7 +1182,7 @@ public class TransmissionComputerUI : MonoBehaviour
         bool usable = _m.Usable(k);
         Color col = usable ? Accent : Danger;
         string state = usable ? string.Format(Loc.Get("전송 시 +{0}% 상승"), k.gain) : _m.UnusableReason(k);
-        ShowTooltipCommon(col, k.isBoss ? Loc.Get("보스 충전키트") : Loc.Get("일반 충전키트"), k.name, state, anchor);
+        ShowTooltipCommon(col, k.isBoss ? Loc.Get("보스 충전키트") : Loc.Get("일반 충전키트"), Loc.Get(k.name), state, anchor);
     }
 
     // 공통 툴팁 표시 - 색/제목/이름/상태 세팅 후 앵커 위로 떠오르며 페이드 인.
