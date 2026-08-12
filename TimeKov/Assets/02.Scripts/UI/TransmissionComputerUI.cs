@@ -357,10 +357,46 @@ public class TransmissionComputerUI : MonoBehaviour
         Img("brkV", _decorRoot, left ? x : x + 32, y, 2, 34, col).raycastTarget = false;  // 수직 팔
     }
 
+    // 보상 지점마다 바를 가로지르는 세로 구분선.
+    //   씬에 있던 세로선(TrackLine)은 범례용 4개뿐이라, 보상 지점에는 선이 있다 없다 했다.
+    //   마커(동그라미)만으로는 "정확히 어디서 보상이 걸리는지"가 바 위에서 안 읽혀서 전 지점에 넣는다.
+    //   ★마커보다 먼저 만들어 뒤에 깔리게 한다(선이 마커 아이콘을 가로지르지 않게).
+    private void BuildMilestoneTicks()
+    {
+        if (_trackRT == null) return;
+
+        float th = _trackRT.rect.height;
+        foreach (int p in TransmissionManager.RewardMilestones)
+        {
+            var go = new GameObject($"Tick{p}", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(_trackRT, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0f);   // 마커와 같은 기준(좌하단)
+            rt.pivot = new Vector2(0.5f, 0.5f);
+
+            // ★픽셀에 맞춰 스냅한다. 소수 좌표의 얇은 선은 픽셀 경계를 걸쳐 번지고,
+            //   지점마다 번지는 정도가 달라 "어떤 건 두껍고 어떤 건 얇은" 것처럼 보인다.
+            //   피벗이 가운데라 폭이 홀수면 반픽셀 위치에 놓아야 또렷하다
+            //   (1px 선을 정수 좌표에 두면 좌우로 0.5px 씩 걸쳐 오히려 흐려진다).
+            float half = (TickWidth % 2f == 0f) ? 0f : 0.5f;
+            float x = Mathf.Round(_trackW * p / 100f - half) + half;
+            rt.anchoredPosition = new Vector2(x, th / 2f);
+            rt.sizeDelta = new Vector2(TickWidth, th);
+
+            var img = go.AddComponent<Image>();
+            img.color = C("E2EDF8", 0.30f);   // 채워진 색 위에서도, 빈 바 위에서도 보이는 정도
+            img.raycastTarget = false;        // 마커 호버/툴팁을 가리지 않게
+        }
+    }
+
+    private const float TickWidth = 1f;
+
     // 마커 - 보상 걸린 마일스톤마다(불균등: 5/15/25/75 등). TransmissionManager 와 공유.
     private void BuildMarkers()
     {
         if (_markerTemplate == null) return;
+        BuildMilestoneTicks();
+
         float th = _trackRT.rect.height;
         foreach (int p in TransmissionManager.RewardMilestones)
         {
@@ -514,9 +550,71 @@ public class TransmissionComputerUI : MonoBehaviour
         UpdateGhostPreview(active ? k : null);
     }
 
+    // ── 게이지 구간 아이콘 ────────────────────────────────────────────────
+    // 바가 초록→파랑→주황→빨강으로 차오르는데, 뒤쪽이 빨강이라 "채우면 안 되는 것" 처럼
+    // 읽힌다는 피드백이 있었다. 각 구간이 '맵 테마'라는 뜻을 주려고 구간 한가운데에
+    // 테마 아이콘(잎/눈결정/태양/불꽃)을 얹는다.
+    //   ★미도달 구간은 범례가 아직 ??? 로 가려 두므로 아이콘도 흐린 실루엣으로만 둔다.
+    private Image[] _regionIcons;
+
+    private void EnsureRegionIcons()
+    {
+        if (_regionIcons != null || _trackRT == null) return;
+
+        _regionIcons = new Image[4];
+        for (int i = 0; i < 4; i++)
+        {
+            var go = new GameObject($"RegionIcon{i}", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(_trackRT, false);
+
+            // 구간(25%씩) 한가운데에 배치 — 12.5 / 37.5 / 62.5 / 87.5 %
+            float pct = (i * 25f + 12.5f) / 100f;
+            rt.anchorMin = rt.anchorMax = new Vector2(pct, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(RegionIconSize, RegionIconSize);
+
+            var img = go.AddComponent<Image>();
+            img.sprite = TransmissionRegionIcons.Get(i);
+            img.raycastTarget = false;   // 바 위 클릭/툴팁을 가리지 않게
+            img.preserveAspect = true;
+            _regionIcons[i] = img;
+        }
+    }
+
+    private const float RegionIconSize = 22f;
+
+    // 도달한 구간은 또렷하게(채워진 바 위라 흰색이 제일 잘 읽힌다), 아직인 구간은 흐린 실루엣.
+    // 지금 구간은 살짝 키워서 "여기 진행 중"을 표시한다.
+    private void RefreshRegionIcons()
+    {
+        if (_regionIcons == null) return;
+
+        int rate = _m != null ? Mathf.RoundToInt(_m.progress) : 0;
+        int cur  = _m != null ? (int)_m.Cur : -1;
+
+        for (int i = 0; i < 4; i++)
+        {
+            var img = _regionIcons[i];
+            if (img == null) continue;
+
+            bool reached = rate >= i * 25;
+            bool isCur   = i == cur && reached;
+
+            // 채워진 구간 위에서는 흰색이 지역색보다 잘 보인다. 미도달은 바 배경 위라 흐리게.
+            //   현재 구간은 더 밝게 + 살짝 크게 = "지금 여기" 표시(범례의 굵은 라벨과 짝).
+            img.color = reached ? new Color(1f, 1f, 1f, isCur ? 0.95f : 0.75f)
+                                : new Color(1f, 1f, 1f, 0.18f);
+            img.rectTransform.localScale = Vector3.one * (isCur ? 1.15f : 1f);
+        }
+    }
+
     // 각 구간 라벨은 해당 구간에 도달(전송률 >= 구간 시작 %)해야 공개. 그 전엔 ??? + 흐리게.
     private void RefreshLegend()
     {
+        EnsureRegionIcons();
+        RefreshRegionIcons();
         int rate = _m != null ? Mathf.RoundToInt(_m.progress) : 0;
         int cur = _m != null ? (int)_m.Cur : -1;   // 지금 활성 구간 - 라벨을 굵게 + 뒤에 하이라이트
         for (int i = 0; i < 4; i++)
