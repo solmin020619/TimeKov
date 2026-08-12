@@ -265,6 +265,24 @@ public class BuildManager : MonoBehaviour, ISaveable
             };
             foreach (var kv in machine.InputBuffer.Stock)
                 msd.inputStock.Add(new ItemStackData { itemId = kv.Key, amount = kv.Value });
+
+            // 제작 진행 중이면 이미 소모된 재료를 입력 재고에 되돌려 기록한다.
+            // 생산은 시작 즉시 재료를 빼고 완료 시점에야 결과물을 넣으므로, 그 사이에 저장하면
+            // 재료도 결과물도 없이 증발한다(자동저장 30초 / 메인메뉴 나가기 모두 해당).
+            // 진행률은 포기하고 재료만 살린다 - 복원 후 처음부터 다시 제작된다.
+            var proc = machine as TIMEKOV.Factory.ProcessingMachine;
+            var inFlight = proc != null ? proc.InFlightInputs : null;
+            if (inFlight != null)
+            {
+                foreach (var slot in inFlight)
+                {
+                    if (slot.itemId <= 0 || slot.amount <= 0) continue;
+                    int at = msd.inputStock.FindIndex(s => s.itemId == slot.itemId);
+                    if (at >= 0) msd.inputStock[at].amount += slot.amount;
+                    else msd.inputStock.Add(new ItemStackData { itemId = slot.itemId, amount = slot.amount });
+                }
+            }
+
             foreach (var kv in machine.OutputBuffer.Stock)
                 msd.outputStock.Add(new ItemStackData { itemId = kv.Key, amount = kv.Value });
             data.machines.Add(msd);

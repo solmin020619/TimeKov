@@ -18,6 +18,10 @@ public static class CoreUtilities
     //     마지막 자동저장 이후 진행분이 유실된다. SaveActive()는 동기+원자적 기록이라 로드 전에 확실히 끝난다.
     public static void SaveAndLoadMainMenu(string mainMenuScene)
     {
+        // 저장 '전에' 벨트 위 아이템을 창고로 회수한다. 벨트 점유는 저장 항목에 없고,
+        // 씬이 내려갈 때(OnDisable) 자동 회수되는 건 저장이 끝난 뒤라 그대로 두면 증발한다.
+        TIMEKOV.Factory.BeltSegment.RescueAllToStorage();
+
         SaveSlotManager.Instance?.SaveActive();
         Time.timeScale = 1f;   // UI가 timeScale을 멈춰뒀을 수 있으니 로드 전 정상화
         AudioListener.pause = false;   // 같은 이유 — 정지 중 나가면 다음 씬이 통째로 무음이 된다(전역 static)

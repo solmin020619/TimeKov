@@ -32,6 +32,13 @@ namespace TIMEKOV.Factory
         /// 상태를 저장하지 않고 버퍼/가공 상태에서 그때그때 유도한다(설비 껐다 켜도 동일하게 판정).</summary>
         public bool IsCommitted => _processing || (InputBuffer != null && InputBuffer.Stock.Count > 0);
 
+        /// <summary>제작이 진행 중이라 이미 소모해 버린 재료(저장용). 진행 중이 아니면 null.
+        /// 생산은 시작 즉시 InputBuffer 에서 재료를 빼고 완료 시점에야 결과물을 넣는다.
+        /// 그 사이엔 재료가 어느 버퍼에도 없어서, 그대로 저장하면 재료도 결과물도 없이 증발한다.
+        /// 저장(BuildManager.Capture)은 이 값을 입력 재고에 합쳐 기록한다 -> 복원 시 처음부터 다시 제작.
+        /// (진행률까지 이어붙이지는 않는다. 시간은 다시 흐르면 되지만 재료는 되돌릴 수 없다)</summary>
+        public FactorySlot[] InFlightInputs => _processing && ActiveRecipe != null ? ActiveRecipe.inputs : null;
+
         /// <summary>지금 고정/가동 중인 레시피 인덱스(GetLockedRecipe 와 동일 기준). 커밋 판정·표시용.</summary>
         public int EffectiveRecipeIndex =>
             (recipes != null && LockedRecipeIndex >= 0 && LockedRecipeIndex < recipes.Count) ? LockedRecipeIndex : 0;

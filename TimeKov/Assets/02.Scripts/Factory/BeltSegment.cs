@@ -250,6 +250,18 @@ namespace TIMEKOV.Factory
             StopAllCoroutines();
         }
 
+        /// <summary>모든 벨트 칸의 아이템을 창고로 회수한다. 저장 직전(메인메뉴로 나가기 / 앱 종료)에 호출.
+        /// 벨트 위 아이템은 어느 저장 항목에도 안 들어간다. 씬이 내려갈 때 OnDisable 이 창고로 옮겨주긴
+        /// 하지만 그건 저장이 끝난 뒤라, 그대로 두면 벨트에 실려 있던 아이템이 통째로 증발했다.
+        /// 저장 전에 먼저 회수해 두면 창고 데이터에 포함되어 손실이 없다.</summary>
+        public static void RescueAllToStorage()
+        {
+            // OnDisable 이 목록을 건드릴 수 있으므로 스냅샷을 뜨고 돈다.
+            var snapshot = All.ToArray();
+            foreach (var seg in snapshot)
+                if (seg != null) seg.RescueOccupantToStorage();
+        }
+
         // 이 칸의 점유 아이템을 창고로 옮기고 비주얼을 제거한다. 점유가 없으면 아무것도 안 함(멱등).
         // 정상 전달/핸드오프는 이미 _occupant 를 비워두므로 여기서 중복 회수되지 않는다.
         private void RescueOccupantToStorage()

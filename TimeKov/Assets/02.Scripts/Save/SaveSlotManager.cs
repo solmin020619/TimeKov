@@ -78,6 +78,11 @@ public class SaveSlotManager : MonoBehaviour
         var bridgeGo = new GameObject("[CodexSaveBridge]");
         _codexBridge = bridgeGo.AddComponent<CodexSaveBridge>();
         DontDestroyOnLoad(bridgeGo);
+
+        // 땅에 떨어진 드롭 상자도 static 리스트로만 존재해 ISaveable을 직접 못 단다 - 같은 이유로 여기서 스폰.
+        var lootGo = new GameObject("[LootBoxSaveBridge]");
+        lootGo.AddComponent<LootBoxSaveBridge>();
+        DontDestroyOnLoad(lootGo);
     }
 
     void OnDestroy()
@@ -90,7 +95,13 @@ public class SaveSlotManager : MonoBehaviour
         if (HasActiveSlot) SaveActive();
     }
 
-    void OnApplicationQuit() => SaveActive();
+    // 앱 종료도 나가기와 같은 위생 - 벨트 위 아이템을 창고로 회수한 뒤 저장한다
+    // (저장 항목에 벨트 점유가 없어서, 회수하지 않으면 실려 있던 아이템이 증발한다).
+    void OnApplicationQuit()
+    {
+        TIMEKOV.Factory.BeltSegment.RescueAllToStorage();
+        SaveActive();
+    }
 
     // ── ISaveable / ISaveLoadListener 등록 ───────────────────────────
     // ISaveable: 각 시스템이 자기 Awake에서 Register(this). SaveActive()가 순회해 Capture.
@@ -273,7 +284,24 @@ public class SaveSlotManager : MonoBehaviour
     {
         string tmp = path + ".tmp";
         File.WriteAllText(tmp, content);
-        if (File.Exists(path)) File.Delete(path);
-        File.Move(tmp, path);
+
+        if (!File.Exists(path)) { File.Move(tmp, path); return; }   // 첫 저장 - 교체할 원본이 없다
+
+        // ★File.Replace 를 쓴다. 예전엔 Delete 후 Move 였는데, 그 둘 사이에 게임이 죽거나
+        //   전원이 나가면 원본도 임시본도 아닌 상태가 되어 세이브가 통째로 사라진다.
+        //   Replace 는 교체가 한 번에 이뤄지고, 덤으로 직전 세이브를 .bak 으로 남긴다.
+        string backup = path + ".bak";
+        try
+        {
+            File.Replace(tmp, path, backup, ignoreMetadataErrors: true);
+        }
+        catch (Exception e)
+        {
+            // 파일시스템이 Replace 를 못 하는 환경(일부 네트워크/외장 드라이브)일 때의 폴백.
+            // 이 경로는 예전과 같은 위험을 지므로 로그를 남겨 추적할 수 있게 한다.
+            Debug.LogWarning($"[SaveSlotManager] File.Replace 실패, 폴백 사용: {e.Message}");
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
+        }
     }
 }

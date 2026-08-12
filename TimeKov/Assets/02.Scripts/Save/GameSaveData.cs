@@ -113,6 +113,19 @@ public class GameSaveData
     public List<RecipeCraftData> recipeCrafts = new();
     public List<int> claimedFacilityRewards = new();
     public List<string> activatedJackpots = new();
+
+    // ── 땅에 떨어진 드롭 상자 (LootBoxSaveBridge) ───────────────────────────
+    // 몹을 잡고 안 주운 상자. 저장하지 않으면 나갔다 오는 것만으로 통째로 사라진다.
+    public List<DroppedBoxData> droppedBoxes = new();
+}
+
+/// <summary>땅에 놓인 드롭 상자 1개. 씬별로 구분해 저장한다(월드 좌표라 씬이 다르면 의미가 없다).</summary>
+[Serializable]
+public class DroppedBoxData
+{
+    public string sceneName;
+    public float posX, posY, posZ;
+    public List<ItemStackData> contents = new();
 }
 
 [Serializable]

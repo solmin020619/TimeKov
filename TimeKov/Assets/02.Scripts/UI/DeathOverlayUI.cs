@@ -115,6 +115,12 @@ public class DeathOverlayUI : MonoBehaviour
     void OnDestroy()
     {
         Loc.OnLanguageChanged -= RefreshLocalization;
+
+        // IsOpen 은 static 이라 씬이 바뀌어도 남는다. 사망 화면이 떠 있는 채로 씬을 벗어나면
+        // 다음 씬에서 GameUIController 가 ESC 를 포함한 모든 입력을 막아 아무것도 못 하게 된다.
+        // (지금은 사망 중 나가는 경로가 없어 발현하지 않지만, 사망 화면에 '메인메뉴로' 같은
+        //  버튼이 하나만 생겨도 바로 진행 불가가 되므로 여기서 확실히 내려둔다)
+        IsOpen = false;
     }
 
     void RefreshLocalization()

@@ -181,10 +181,20 @@ public class RailBuildManager : MonoBehaviour
     // 갱신되지 않으므로, 연결된 모든 컴포넌트를 다시 훑어 재계산하고 포트 연결까지 검증한다.
     public void RestoreReflowAndValidate()
     {
+        // ★포트 캐시를 먼저 채운다. 이게 없으면 ChooseFlowStart 가 체인 양 끝의 포트 종류를
+        //   구분하지 못해(둘 다 '일반 dead-end' 로 동점) 좌표가 낮은 쪽을 출발점으로 골라
+        //   흐름 화살표가 통째로 뒤집힌다 - 출력 포트가 좌표상 뒤쪽이면 매번 반대로 복원됐다.
+        //   캐시를 채우는 곳이 레일 모드 진입(BeginRailMode)뿐이라, 세이브 복원 경로에선 늘 비어 있었다.
+        RefreshPortCache();
+
         foreach (var cell in railMap.Keys)
             ReflowConnectedChain(cell);
 
         ValidateAllPortConnections();
+
+        // 벨트 체인(sourceM/targetM)을 레일 형상 기준으로 다시 잇는다.
+        // 이걸 해야 복원 직후에도 '잘못된 연결' 빨강 판정이 수동 연결과 동일하게 나온다.
+        BeltSegment.ReconnectAll();
     }
 
     private void RefreshNeighbors(Vector2Int cell)
