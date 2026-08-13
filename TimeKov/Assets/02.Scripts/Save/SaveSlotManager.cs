@@ -97,8 +97,12 @@ public class SaveSlotManager : MonoBehaviour
 
     // 앱 종료도 나가기와 같은 위생 - 벨트 위 아이템을 창고로 회수한 뒤 저장한다
     // (저장 항목에 벨트 점유가 없어서, 회수하지 않으면 실려 있던 아이템이 증발한다).
+    // 슬롯이 없으면 저장할 데가 없으니 아무것도 안 한다. 에디터에서 메인메뉴를 안 거치고
+    // 월드 씬을 바로 재생하면 늘 이 경우인데, 그때마다 경고가 떠서 진짜 경고와 섞였다.
+    // (자동저장 AutoSaveTick 도 같은 조건으로 거른다)
     void OnApplicationQuit()
     {
+        if (!HasActiveSlot) return;
         TIMEKOV.Factory.BeltSegment.RescueAllToStorage();
         SaveActive();
     }
