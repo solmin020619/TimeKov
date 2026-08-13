@@ -133,6 +133,7 @@ namespace GameSettingsUI
             }
 
             built = true;   // 여기까지 와야 계층이 완성된 것. 중간에 예외가 나면 false로 남는다.
+            WireFooterPair();   // 적용 버튼 폭이 바뀌면 초기화 버튼이 따라 밀리도록(두 경로 공통)
             SettingsBinding.NormalizeResolution();   // 저장값이 선택지에 없으면 목록 안 값으로 보정
             ApplyBackdropTheme();   // 실행 시의 블러 상태 기준으로 배경색 확정 (베이크 값 덮어씀)
             SwitchTab(SettingsTab.Display, true);
@@ -193,6 +194,26 @@ namespace GameSettingsUI
 
             RefreshAll();   // 표시값을 현재 설정값으로 갱신 (배경색은 Start가 확정한다)
             LocalizedLabel.AttachToStaticLabels(root.gameObject);   // 베이크된 한글 라벨에 자동 구독 부착
+        }
+
+        // 오른쪽 푸터 두 버튼('설정 적용' ↔ '설정 초기화')을 폭 변화에 연동한다.
+        //   폭은 FooterButtonFit 이 라벨에 맞춰 런타임에 다시 재는데 위치는 만들 때 값(또는 베이크 값)에
+        //   고정돼 있어, 폭이 그 가정보다 커지면 두 버튼이 겹쳤다. 베이크/런타임 두 경로 모두에서 걸어준다.
+        void WireFooterPair()
+        {
+            if (applyBG == null) return;
+            var apply = applyBG.rectTransform;
+            var parent = apply.parent;
+            if (parent == null) return;
+
+            var resetTr = parent.Find($"Footer_{SettingsAction.ResetAll}") as RectTransform;
+            if (resetTr == null) return;
+
+            var fit = apply.GetComponent<FooterButtonFit>();
+            if (fit == null) return;
+
+            fit.pushLeft = resetTr;
+            fit.Fit();   // 지금 폭 기준으로 즉시 한 번 맞춘다
         }
 
         // 블러 패스는 Overlay 캔버스보다 먼저 그려지므로, UI가 Overlay가 아니면 덮인다.
@@ -294,7 +315,7 @@ namespace GameSettingsUI
             if (blurCanvasGO) blurCanvasGO.SetActive(true);
             if (overlayCanvasGO) overlayCanvasGO.SetActive(true);
             // 다시 열 때는 매니저가 편집 폼을 _data 기준으로 되돌린 뒤일 수 있으므로 다시 읽어온다.
-            if (built) { ResetMuteStates(); RefreshAll(); PlayOpenAnim(); }
+            if (built) { EnsureBlur(); ResetMuteStates(); RefreshAll(); PlayOpenAnim(); }
             Loc.OnLanguageChanged += RefreshTitleLabel;
             RefreshTitleLabel();
         }
@@ -432,6 +453,24 @@ namespace GameSettingsUI
 
         // 블러 영역 전용 캔버스. Overlay 캔버스 안에 중첩하면 렌더 모드가 무시되므로
         // 반드시 씬 최상위(부모 없음)로 만든다. 수명은 이 컴포넌트가 직접 맞춘다.
+        // 블러는 창을 만들 때 딱 한 번만 판정했었다. 그 순간 카메라가 없으면
+        // (씬 로드 직후·컷신·카메라 교체 타이밍) 그 뒤로 영영 블러 없이 남고,
+        // 배경/행 색까지 불투명 테마로 굳어 "창 색감이 이상하다"로 보였다.
+        // 닫았다 열어도 Start 는 다시 안 돌아 씬을 다시 로드해야 복구됐다.
+        //   → 인벤토리 블러(InventoryBlurTuner)처럼 '열 때마다' 다시 잡는다.
+        void EnsureBlur()
+        {
+            if (!backgroundBlur || blurCanvasGO) return;   // 이미 성립했으면 그대로 둔다
+            if (!CanUseBlur()) return;
+
+            var cam = PickScreenCamera();
+            if (cam == null) return;
+
+            blurActive = true;
+            BuildBlurCanvas(cam);
+            ApplyBackdropTheme();   // 불투명 테마로 굳어 있던 배경/행 색을 유리막으로 되돌린다
+        }
+
         void BuildBlurCanvas(Camera cam)
         {
             blurCanvasGO = new GameObject("SettingsBlurCanvas", typeof(Canvas), typeof(CanvasScaler));
