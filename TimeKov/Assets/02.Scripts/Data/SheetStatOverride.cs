@@ -51,6 +51,7 @@ public static class SheetStatOverride
         ApplyPlayer();
         ApplyMonsters();
         ApplySkills();
+        FacilityBuildLimit.RebuildDefaultsFromSheet();   // 설비 설치 상한도 시트가 원본
         // 우주선은 ShipRepairManager 가 자기 Awake 에서 직접 읽는다(레벨표가 그 컴포넌트 소유라서).
     }
 

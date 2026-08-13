@@ -17,17 +17,41 @@ public static class FacilityBuildLimit
     public const int StorageId = 8;
 
     // 기본 상한(새 게임/앱 재시작 기준). 여기 없는 설비 = 무제한.
+    // ★[08-13] 값의 출처는 시트다(FacilityData.buildLimit). 예전엔 이 딕셔너리에 직접 박혀 있어서
+    //   설비를 늘릴 때마다 코드를 고쳐야 했고, 안 고치면 조용히 무제한이 됐다.
+    //   데이터 로드 직후 RebuildDefaultsFromSheet 가 채운다(그전까지는 비어 있음 = 무제한).
     // ★런타임 값(_max)과 분리해 둔다: 이 클래스는 static 이라 _max 가 씬 재로드/슬롯 전환으로
     //   리셋되지 않는다. 그래서 진행 보상 복원은 "기본값 + 보너스" 절대값(SetMax)으로 다시 계산해야
     //   한다 - 가산(IncreaseMax)으로 재적용하면 타이틀->월드 재진입 때마다 상한이 계속 누적된다.
-    private static readonly Dictionary<int, int> _defaultMax = new Dictionary<int, int>
-    {
-        { WarehousePortId, 1 },
-        { StorageId, 1 },
-    };
+    private static readonly Dictionary<int, int> _defaultMax = new Dictionary<int, int>();
 
-    // 현재 상한(진행 보상이 올린 값 포함). 기본값 템플릿을 복제해서 시작.
-    private static readonly Dictionary<int, int> _max = new Dictionary<int, int>(_defaultMax);
+    // 현재 상한(진행 보상이 올린 값 포함).
+    private static readonly Dictionary<int, int> _max = new Dictionary<int, int>();
+
+    /// <summary>
+    /// 시트(FacilityData.buildLimit)에서 기본 상한을 다시 읽는다. 데이터 로드 직후 호출.
+    /// 진행 보상으로 이미 올라간 현재 상한은 건드리지 않는다(복원은 SetMax 가 절대값으로 다시 잡는다).
+    /// </summary>
+    public static void RebuildDefaultsFromSheet()
+    {
+        var table = GameDataHolder.I != null ? GameDataHolder.I.FacilityData : null;
+        if (table == null) return;
+
+        _defaultMax.Clear();
+        foreach (var fd in table.All)
+        {
+            if (fd == null || !int.TryParse(fd.SheetId, out int id)) continue;
+            if (int.TryParse(fd.buildLimit, out int limit) && limit > 0) _defaultMax[id] = limit;
+        }
+
+        // 시트에서 제한이 빠진 설비는 무제한으로 되돌리고, 새로 생긴 제한은 기본값으로 채운다.
+        var stale = new List<int>();
+        foreach (var id in _max.Keys) if (!_defaultMax.ContainsKey(id)) stale.Add(id);
+        foreach (var id in stale) _max.Remove(id);
+        foreach (var kv in _defaultMax) if (!_max.ContainsKey(kv.Key)) _max[kv.Key] = kv.Value;
+
+        OnChanged?.Invoke();
+    }
 
     /// <summary>상한이 바뀔 때(우주선 수리 보상 등). 건축 바 UI 갱신용.</summary>
     public static event Action OnChanged;

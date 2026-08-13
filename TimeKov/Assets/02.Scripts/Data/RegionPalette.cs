@@ -33,34 +33,56 @@ public static class RegionPalette
         => KoreanNames[Mathf.Clamp((int)region, 0, KoreanNames.Length - 1)];
 
     /// <summary>
-    /// 몬스터의 드롭 출처 ID(EnemyDropOnDeath.SourceId)로 서식 지역을 알아낸다.
+    /// 몬스터의 서식 지역. **몬스터 스탯 시트의 region 컬럼이 권위다.**
     ///
-    /// ★이름 규칙이 유일한 단서다 - 몬스터 시트에 지역 컬럼이 없다.
-    ///   접미사가 붙는 것들(_Snow/_Desert/_Lava)은 규칙으로 잡히지만,
-    ///   본드래곤·자이언트웜·자폭거미는 접미사가 없어서 여기에 직접 적어 둔다.
-    ///   (필드 몬스터 목록 = Enemy/FieldMonster/Editor/FieldMonsterBuilderWindow.cs.
-    ///    자폭거미는 그 목록에 없는 별도 몹이라 배치 지역을 코드에서 알 방법이 없다 - 종욱 확인: 사막.)
-    ///
-    ///   못 알아보면 자연으로 본다. 새로 추가한 몬스터가 자연색(초록)으로 뜨면
-    ///   이 판정에 빠졌다는 신호이니 여기에 추가하면 된다.
+    /// statId = SO 에셋 파일명(EnemyData_Werewolf 등) = 시트의 키.
+    /// 시트에 없으면 이름 규칙으로 폴백한다 - 마이그레이션 중이거나 시트를 못 받았을 때를 위한 것이고,
+    /// 평상시엔 안 쓰인다. 새 몬스터는 이름 규칙에 기대지 말고 시트에 지역을 적어라.
     /// </summary>
-    public static TransmissionRegion OfMonster(string sourceId)
+    /// <param name="statId">SO 에셋 이름. 시트 조회 키.</param>
+    /// <param name="sourceIdFallback">드롭 출처 ID. statId 를 모를 때 이름 규칙에 쓸 보조 단서.</param>
+    public static TransmissionRegion OfMonster(string statId, string sourceIdFallback = null)
     {
-        if (string.IsNullOrEmpty(sourceId)) return TransmissionRegion.Nature;
-        string s = sourceId.Trim().ToLowerInvariant();
+        if (TryFromSheet(statId, out var fromSheet)) return fromSheet;
+        return FromNameRules(!string.IsNullOrEmpty(statId) ? statId : sourceIdFallback)
+            ?? FromNameRules(sourceIdFallback)
+            ?? TransmissionRegion.Nature;
+    }
 
-        if (s.Contains("_snow") || s.Contains("_frost") || s.Contains("ice_elemental") || s.Contains("bonedragon"))
+    /// 시트의 region 컬럼 조회. 값이 비어 있거나 못 알아보는 글자면 false.
+    public static bool TryFromSheet(string statId, out TransmissionRegion region)
+    {
+        region = TransmissionRegion.Nature;
+        if (string.IsNullOrEmpty(statId)) return false;
+
+        var table = GameDataHolder.I != null ? GameDataHolder.I.MonsterStatData : null;
+        if (table == null || !table.TryGet(statId, out var row) || row == null) return false;
+
+        string v = row.region != null ? row.region.Trim() : "";
+        if (v.Length == 0) return false;
+
+        for (int i = 0; i < KoreanNames.Length; i++)
+            if (KoreanNames[i] == v) { region = (TransmissionRegion)i; return true; }
+
+        // 영문 열거형 이름으로 적어도 받아 준다(Nature / Snow / Desert / Lava).
+        return System.Enum.TryParse(v, true, out region);
+    }
+
+    /// 폴백: 이름에 지역이 드러나는 몬스터만 잡는다. 못 알아보면 null.
+    /// (본드래곤·자이언트웜·자폭거미처럼 이름에 지역이 없는 몹은 여기서 안 잡힌다 - 그래서 시트가 필요했다.)
+    private static TransmissionRegion? FromNameRules(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        string s = id.Trim().ToLowerInvariant();
+
+        if (s.Contains("_snow") || s.Contains("_frost") || s.Contains("ice_elemental"))
             return TransmissionRegion.Snow;
-
-        if (s.Contains("_desert") || s.Contains("sand_elemental") || s.Contains("giantworm")
-            || s.Contains("suicide_spider"))
+        if (s.Contains("_desert") || s.Contains("sand_elemental"))
             return TransmissionRegion.Desert;
-
         // 용암 몬스터는 hell_ 접두사를 쓴다(hell_hound / hell_bat / ...).
-        if (s.Contains("_lava") || s.StartsWith("hell_") || s.Contains("fire_boss"))
+        if (s.Contains("_lava") || s.Contains("hell") || s.Contains("fire_boss"))
             return TransmissionRegion.Lava;
-
-        return TransmissionRegion.Nature;
+        return null;
     }
 
     private static Color Hex(string hex)
