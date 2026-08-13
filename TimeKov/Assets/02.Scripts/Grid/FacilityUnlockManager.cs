@@ -10,7 +10,11 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
 {
     public static FacilityUnlockManager Instance { get; private set; }
 
-    public const int MaxSlots = 9;
+    // 건축 퀵슬롯 칸 수. 시트 buildSlot 이 가리킬 수 있는 최대 위치이기도 하다.
+    // ★설비 개수와 같은 값이 아니다. 예전엔 둘 다 9라 이 상수를 "설비 ID 상한"으로도 썼는데,
+    //   설비를 10번째로 추가하는 순간 해금 자체가 막혔다(id <= MaxSlots 검사에 걸려서).
+    //   지금은 ID 범위 판정을 전부 시트 존재 여부로 바꿨다 - 여기는 순수하게 '칸 수'다.
+    public const int MaxSlots = 10;
 
     // 해금된 facilityId 목록 (획득 순서 = 슬롯 인덱스)
     private readonly List<int> _unlockedIds = new List<int>();
@@ -60,20 +64,25 @@ public class FacilityUnlockManager : MonoBehaviour, ISaveable
     private void SeedDefaultUnlocks()
     {
         foreach (int id in DefaultUnlockedIds)
-            if (id >= 1 && id <= MaxSlots && !_unlockedIds.Contains(id))
+            if (id >= 1 && !_unlockedIds.Contains(id))
                 _unlockedIds.Add(id);
     }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     private void Update()
     {
-        // [임시 디버그] ~(백쿼트) 키 -> 데이터에 존재하는 모든 설비(1~9) 즉시 해금. 정식 빌드 차단(에디터/Dev빌드만).
+        // [임시 디버그] ~(백쿼트) 키 -> 시트에 있는 설비 전부 즉시 해금. 정식 빌드 차단(에디터/Dev빌드만).
+        // ★설비 번호를 세지 않고 시트를 그대로 훑는다 - 설비를 새로 추가해도 여기를 고칠 필요가 없다.
+        //   (예전엔 1~9 고정이라 10번째 설비가 이 키로 안 열렸다)
         if (Input.GetKeyDown(KeyCode.BackQuote))
         {
-            for (int id = 1; id <= MaxSlots; id++)
+            if (GameDataHolder.I != null)
             {
-                if (GameDataHolder.I != null && GameDataHolder.I.FacilityData.TryGet(id.ToString(), out _))
-                    TryUnlock(id);
+                foreach (var facility in GameDataHolder.I.FacilityData.All)
+                {
+                    if (facility == null) continue;
+                    if (int.TryParse(facility.SheetId, out int id) && id >= 1) TryUnlock(id);
+                }
             }
         }
     }

@@ -425,8 +425,11 @@ public class BuildManager : MonoBehaviour, ISaveable
         if (Input.GetKeyDown(KeyCode.Alpha6)) SelectFacilitySlot(5);
         if (Input.GetKeyDown(KeyCode.Alpha7)) SelectFacilitySlot(6);
         if (Input.GetKeyDown(KeyCode.Alpha8)) SelectFacilitySlot(7);
-        // 창고 출력 포트(슬롯 index 8) = 전용 T 키(레일 E 처럼 숫자에서 분리). 숫자 9 는 이제 미배정.
+        // 창고 출력 포트(슬롯 index 8) = 전용 T 키(레일 E 처럼 숫자에서 분리).
         if (Input.GetKeyDown(KeyCode.T)) SelectFacilitySlot(8);
+        // 저장고(슬롯 index 9) = 전용 G 키. 창고 출력 포트와 같은 '저장' 계열이라
+        // 숫자열에서 빼내 T 옆에 둔다(레일 E, 창고포트 T 와 같은 취급).
+        if (Input.GetKeyDown(KeyCode.G)) SelectFacilitySlot(9);
     }
 
     private void SelectRailMode()
@@ -1521,6 +1524,12 @@ public class BuildManager : MonoBehaviour, ISaveable
             buildSlots[idx].facilityId = facilityId;
             if (idx < slotIconUIs.Length && slotIconUIs[idx] != null)
                 slotIconUIs[idx].SetFacility(facilityId);
+            else
+                // 설치는 되는데 건축바에는 잠긴 칸으로 보이는 상태 - 슬롯 UI 연결이 빠진 것이다.
+                // (시트 buildSlot 을 늘렸는데 그 자리 UI 를 아직 안 만든 경우가 대표적)
+                Debug.LogWarning($"[BuildManager] facilityId={facilityId} 는 슬롯 {idx + 1} 번인데 " +
+                                 $"그 자리 아이콘 UI 가 없다(slotIconUIs {slotIconUIs.Length}개). " +
+                                 "건축바에 안 보이거나 잠긴 것처럼 보인다.");
         }
     }
 
