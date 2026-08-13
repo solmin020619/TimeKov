@@ -27,6 +27,13 @@ public class MonsterStatDataSchema : SheetSchema
         // 표시 이름. 사람이 시트를 읽기 위한 것이고 게임은 SO 의 enemyName 을 쓴다.
         Add("monsterName", ColumnType.String, required: false);
 
+        // 서식 지역: 자연 / 설원 / 사막 / 용암. 도감 액자 색 등 '이 몹이 어느 맵 소속인가'의 단일 출처.
+        // [왜 시트인가] 예전엔 프리팹 이름 규칙(_Snow/_Desert/...)으로 추측했는데,
+        //   본드래곤/자이언트웜/자폭거미처럼 이름에 지역이 없는 몹을 자연으로 오판했다.
+        //   몹을 추가할 때마다 코드에 예외를 늘려야 하는 구조라 시트로 옮겼다.
+        // 선택 컬럼: 비어 있으면 이름 규칙으로 폴백한다(RegionPalette).
+        Add("region", ColumnType.String, required: false);
+
         Add("maxHP", ColumnType.Float, required: true);
         Add("attackDamage", ColumnType.Float, required: true);
         Add("attackRange", ColumnType.Float, required: true);

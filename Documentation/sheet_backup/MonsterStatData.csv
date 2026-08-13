@@ -1,32 +1,32 @@
-statId,monsterName,maxHP,attackDamage,attackRange,attackCooldown,moveSpeed,visionRange
-EnemyData_FireBoss,화염정령,2000,60,4,3,0,35
-EnemyData_IceElementalBoss,얼음정령,1050,39,3.5,2.5,3.2,30
-EnemyData_SandElementalBoss,모래정령,1600,50,3.5,2.5,3.4,30
-EnemyData_SpiderBot,자폭거미,30,250,2.5,1,5.5,16
-EnemyData_WyvernBoss,와이번,585,35,4,2.5,3.5,30
-HellData_hell_bat,헬뱃,160,26,2.3,1.2,5.2,18
-HellData_hell_bug,헬버그,260,36,2.8,1.8,3.6,17
-HellData_hell_cyclop,헬사이클롭,520,48,3.4,2.4,3.2,22
-HellData_hell_flying_demon,헬플라잉데몬,180,30,2.6,1.6,4.4,20
-HellData_hell_hound,헬하운드,220,32,3.9,1.4,5.4,20
-EnemyData_EvilWatcher,아귀,104,16,4,1.5,4,16
-EnemyData_Mummy,미라,30,15,5,1.5,6,24
-EnemyData_OakTreeEnt,오크트리,59,10,4,1.5,3,12
-EnemyData_SkeletonKnight,해골 기사,130,17,5,1.5,4,18
-EnemyData_Undead,언데드,91,17,5,1.5,1,18
-EnemyData_Werewolf,늑대인간,240,34,5,1.5,4,24
-EnemyData_Wyvern,와이번,30,15,5,1.5,6,24
-FieldData_BoneDragon,본드래곤,480,36,12,0.8,3,24
-FieldData_GiantWorm,자이언트웜,306,41,6,0.8,2,5.5
-FieldData_Mushroom,머쉬룸,78,16,10,0.8,3.5,20
-FieldData_Mushroom_Desert,모래 머쉬룸,162,27,10,0.8,3.5,20
-FieldData_Mushroom_Lava,용암 머쉬룸,190,32,10,0.8,3.5,20
-FieldData_Mushroom_Snow,서리 머쉬룸,143,24,10,0.8,3.5,20
-FieldData_RockMonster,록몬스터,169,20,2.8,0.6,2.2,16
-FieldData_RockMonster_Desert,모래 록몬스터,323,37,2.8,0.6,2.2,16
-FieldData_RockMonster_Lava,용암 록몬스터,380,44,2.8,0.6,2.2,16
-FieldData_RockMonster_Snow,서리 록몬스터,285,33,2.8,0.6,2.2,16
-FieldData_SpiderQueen_Desert,모래 거미여왕,493,41,13,0.4,3.5,22
-FieldData_SpiderQueen_Frost,서리 거미여왕,435,36,13,0.4,3.5,22
-FieldData_SpiderQueen_Nature,숲 거미여왕,312,26,3.2,0.4,3.5,22
-FieldData_SpiderS3,거미,59,13,2.5,0.2,5,14
+statId,monsterName,region,maxHP,attackDamage,attackRange,attackCooldown,moveSpeed,visionRange
+EnemyData_FireBoss,화염정령,용암,2000,60,4,3,0,35
+EnemyData_IceElementalBoss,얼음정령,설원,1050,39,3.5,2.5,3.2,30
+EnemyData_SandElementalBoss,모래정령,사막,1600,50,3.5,2.5,3.4,30
+EnemyData_SpiderBot,자폭거미,사막,30,250,2.5,1,5.5,16
+EnemyData_WyvernBoss,와이번,자연,585,35,4,2.5,3.5,30
+HellData_hell_bat,헬뱃,용암,160,26,2.3,1.2,5.2,18
+HellData_hell_bug,헬버그,용암,260,36,2.8,1.8,3.6,17
+HellData_hell_cyclop,헬사이클롭,용암,520,48,3.4,2.4,3.2,22
+HellData_hell_flying_demon,헬플라잉데몬,용암,180,30,2.6,1.6,4.4,20
+HellData_hell_hound,헬하운드,용암,220,32,3.9,1.4,5.4,20
+EnemyData_EvilWatcher,아귀,자연,104,16,4,1.5,4,16
+EnemyData_Mummy,미라,사막,30,15,5,1.5,6,24
+EnemyData_OakTreeEnt,오크트리,자연,59,10,4,1.5,3,12
+EnemyData_SkeletonKnight,해골 기사,자연,130,17,5,1.5,4,18
+EnemyData_Undead,언데드,자연,91,17,5,1.5,1,18
+EnemyData_Werewolf,늑대인간,자연,240,34,5,1.5,4,24
+EnemyData_Wyvern,와이번,자연,30,15,5,1.5,6,24
+FieldData_BoneDragon,본드래곤,설원,480,36,12,0.8,3,24
+FieldData_GiantWorm,자이언트웜,사막,306,41,6,0.8,2,5.5
+FieldData_Mushroom,머쉬룸,자연,78,16,10,0.8,3.5,20
+FieldData_Mushroom_Desert,모래 머쉬룸,사막,162,27,10,0.8,3.5,20
+FieldData_Mushroom_Lava,용암 머쉬룸,용암,190,32,10,0.8,3.5,20
+FieldData_Mushroom_Snow,서리 머쉬룸,설원,143,24,10,0.8,3.5,20
+FieldData_RockMonster,록몬스터,자연,169,20,2.8,0.6,2.2,16
+FieldData_RockMonster_Desert,모래 록몬스터,사막,323,37,2.8,0.6,2.2,16
+FieldData_RockMonster_Lava,용암 록몬스터,용암,380,44,2.8,0.6,2.2,16
+FieldData_RockMonster_Snow,서리 록몬스터,설원,285,33,2.8,0.6,2.2,16
+FieldData_SpiderQueen_Desert,모래 거미여왕,사막,493,41,13,0.4,3.5,22
+FieldData_SpiderQueen_Frost,서리 거미여왕,설원,435,36,13,0.4,3.5,22
+FieldData_SpiderQueen_Nature,숲 거미여왕,자연,312,26,3.2,0.4,3.5,22
+FieldData_SpiderS3,거미,자연,59,13,2.5,0.2,5,14
