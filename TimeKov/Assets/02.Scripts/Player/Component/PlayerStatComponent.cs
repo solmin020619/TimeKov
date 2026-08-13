@@ -424,10 +424,22 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     /// <summary>현재 받는 피해 감소율(0~1). UI 표시용으로도 쓴다.</summary>
     public float DamageReduction => DEF <= 0f ? 0f : DEF / (DEF + Softness);
 
-    // 플레이어 → 적 데미지 계산
+    // 플레이어 -> 적 데미지 계산
+    //
+    // ★[08-13] 가산에서 곱연산으로 바꿨다.
+    //   예전 = baseDamage + ATK. 스킬 기본값(평타 5~10)보다 시작 공격력(10)이 커서
+    //   데미지의 절반 이상을 공격력이 차지했고, 무엇보다 **타격 수만큼 공격력이 통째로 더해졌다**
+    //   (R 은 5타라 공격력 x5). 그래서 공격력 1 오를 때마다 체감이 튀고, 다단 스킬만 유독 세졌다.
+    //
+    //   지금 = 시작 공격력을 1배로 두고 비례한다. 공격력이 2배면 데미지도 정확히 2배라
+    //   앰플 하나의 값어치가 예측 가능하고, 타격 수에 따라 이득이 왜곡되지 않는다.
+    //
+    //   ★스킬 시트(SkillData)의 데미지는 이제 '시작 공격력 기준 실제 데미지'다.
+    //     공식을 바꾸면서 옛 기본값에 시작 공격력을 더한 값으로 옮겨 적었다 - 초기 데미지는 그대로다.
     public float CalculateAttackDamage(float baseDamage, float enemyDef)
     {
-        return Mathf.Max(1f, baseDamage + ATK - enemyDef);
+        float scale = ATK / Mathf.Max(1f, PlayerBaseStats.ATK);
+        return Mathf.Max(1f, (baseDamage - enemyDef) * scale);
     }
 
     public bool IsDead => CurrentHp <= 0;
