@@ -23,8 +23,6 @@ using UnityEngine;
 
 public static class SheetStatOverride
 {
-    private static bool _hooked;
-
     // SO 원본값 보관. 키 = SO 인스턴스, 값 = 시트로 덮기 전의 숫자들.
     private static readonly Dictionary<Object, float[]> _monsterOriginals = new();
     private static readonly Dictionary<Object, float[]> _skillOriginals = new();
@@ -34,13 +32,12 @@ public static class SheetStatOverride
     private static void Hook()
     {
         // 도메인 리로드를 끄면 static 이 살아남아 중복 구독된다. 매 플레이마다 초기화.
-        _hooked = false;
+        // 중복 구독은 -= 다음 += 로 막는다(구독 여부 플래그는 필요 없다).
         _monsterOriginals.Clear();
         _skillOriginals.Clear();
 
         DataBoot.OnDataLoaded -= ApplyAll;
         DataBoot.OnDataLoaded += ApplyAll;
-        _hooked = true;
 
         if (DataBoot.IsLoaded) ApplyAll();
     }
