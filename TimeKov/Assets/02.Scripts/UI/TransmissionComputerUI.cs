@@ -38,8 +38,10 @@ public class TransmissionComputerUI : MonoBehaviour
     static readonly Color TextMain     = C("E8F2FB");
     static readonly Color Success      = C("5FDD9D");
     static readonly Color Danger       = C("F27059");
-    static readonly Color[] RegionCol = { C("43B06C"), C("5BC7E8"), C("D9A44A"), C("E0593A") };
-    static readonly string[] RegionKo = { "자연", "설원", "사막", "용암" };
+    // 지역 색/이름은 RegionPalette 단일 소스. 도감 몬스터 액자도 같은 팔레트를 쓴다
+    // - 여기서만 고치면 같은 지역이 다른 색으로 보이는 일이 생긴다.
+    static readonly Color[] RegionCol = RegionPalette.Colors;
+    static readonly string[] RegionKo = RegionPalette.KoreanNames;
     // 바가 0~100%를 25%씩 4구간으로 나눠 RegionCol 로 칠하므로, 해당 지점의 구간 색을 그대로 돌려준다.
     static Color RegionColorForPct(int pct) => RegionCol[Mathf.Clamp(pct / 25, 0, 3)];
 
