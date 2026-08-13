@@ -1472,7 +1472,17 @@ public class MachineUI : MonoBehaviour
     private readonly System.Collections.Generic.List<Image> _chipIcons = new System.Collections.Generic.List<Image>();
     private readonly System.Collections.Generic.List<TextMeshProUGUI> _chipNums = new System.Collections.Generic.List<TextMeshProUGUI>();   // 아이콘 없는 칩의 번호 폴백(없으면 null)
     private ProcessingMachine _chipsMachine;
-    private int _chipRows = 1;   // 칩이 몇 줄로 깔렸나(이름 라벨을 그만큼 더 내리려고 기억)
+
+    /// 두 UI 요소를 모두 품는 가장 가까운 조상. 이름 추측 없이 '같은 칸'을 찾을 때 쓴다.
+    private static RectTransform LowestCommonAncestor(RectTransform a, RectTransform b)
+    {
+        if (a == null || b == null) return null;
+        var chain = new System.Collections.Generic.HashSet<Transform>();
+        for (Transform t = a; t != null; t = t.parent) chain.Add(t);
+        for (Transform t = b; t != null; t = t.parent)
+            if (chain.Contains(t)) return t as RectTransform;
+        return null;
+    }
 
     private void RefreshRecipeChips(bool show)
     {
@@ -1486,17 +1496,17 @@ public class MachineUI : MonoBehaviour
         //  칩을 줄이고 두 줄로 접는 결과가 나왔다)
         float AvailableChipWidth()
         {
-            var prev = recipePrevBtn != null ? recipePrevBtn.transform as RectTransform : null;
-            var next = recipeNextBtn != null ? recipeNextBtn.transform as RectTransform : null;
-            if (prev != null && next != null)
-            {
-                float span = Mathf.Abs(next.anchoredPosition.x - prev.anchoredPosition.x)
-                           - (prev.rect.width + next.rect.width) * 0.5f - 16f;
-                if (span > 200f) return span;
-            }
-            // 화살표가 없거나 레이아웃이 아직 안 잡힌 경우: 위로 올라가며 넓은 조상을 찾는다.
+            // ★칩 부모(nav)만 재면 안 된다. nav 는 옛 화살표를 담던 좁은 상자라
+            //   실제로 쓸 수 있는 칸보다 한참 좁게 나오고, 그 결과 칩이 필요 이상으로 작아진다.
+            //   칩 줄과 중앙 도면을 '둘 다' 품는 가장 가까운 조상 = 오른쪽 내용 칸이고 그게 진짜 폭이다.
+            //   (이름으로 찾지 않으므로 계층이 바뀌어도 따라간다)
+            var section = LowestCommonAncestor(nav as RectTransform,
+                                               facilityImage != null ? facilityImage.rectTransform : null);
+            if (section != null && section.rect.width > 200f) return section.rect.width - 72f;
+
+            // 도면 참조가 없는 옛 프리팹: 위로 올라가며 넓은 조상을 찾는다.
             for (var t = nav as RectTransform; t != null; t = t.parent as RectTransform)
-                if (t.rect.width > 200f) return Mathf.Max(200f, t.rect.width - 140f);
+                if (t.rect.width > 200f) return Mathf.Max(200f, t.rect.width - 72f);
             return 760f;
         }
 
@@ -1521,32 +1531,23 @@ public class MachineUI : MonoBehaviour
 
             // 받침판/바 없이 칩 자체를 큼직하게(종욱: 검정패널 삭제 + 칩 확대). 슬롯 140 과 어울리는 체급.
             //
-            // ★[08-09] 한 줄 고정이라 레시피가 많으면 패널 밖으로 삐져나가 잘렸다.
-            //   앰플이 12종이 되면서 80x12 + 간격 = 1114px 가 되어 양옆이 화면 밖으로 나갔다.
-            //   -> 쓸 수 있는 폭을 재서 (1) 줄바꿈, (2) 그래도 3줄 이상이면 칩 축소 로 맞춘다.
-            //   레시피가 몇 개로 늘든 알아서 들어간다.
-            // ★한 줄이 우선이다. 크기를 줄여서라도 한 줄에 넣고, 최소 크기로도 안 되면 그때만 접는다.
-            //   (예전엔 "3줄 이상일 때만 축소" 라서, 칩을 작게 줄여놓고도 굳이 두 줄로 접혔다.
-            //    그 크기면 한 줄로 충분한데 두 줄이라 오히려 답답했다)
+            // ★★칩은 무조건 한 줄이다(종욱 지시). 넘칠 것 같으면 줄을 바꾸지 말고 칩을 줄인다.
+            //   줄바꿈을 허용했더니 앰플 12종에서 두 줄이 됐고, 그만큼 아래 이름 라벨을 밀어
+            //   결과물 이름과 겹쳤다. 줄 수를 늘리는 선택지 자체를 없앤다.
             const float chipY = -22f;
-            const float MaxChip = 80f, MinChip = 40f;
+            const float MaxChip = 92f, MinChip = 40f;   // 보기 좋은 범위. 한 줄을 위해서라면 최소치 아래로도 내려간다
+            const float GapRatio = 0.16f;
             float availW = AvailableChipWidth();
 
-            float chipS = MaxChip, gap = 14f;
-            while (n * chipS + (n - 1) * gap > availW && chipS > MinChip)
-            {
-                chipS -= 2f;
-                gap = Mathf.Max(6f, chipS * 0.17f);   // 칩이 작아지면 간격도 비례해서
-            }
+            float GapOf(float s) => Mathf.Max(5f, s * GapRatio);
+            // n 개를 폭 w 에 한 줄로 넣을 때의 칩 크기: n*s + (n-1)*(s*비율) = w
+            float FitSize(float w) => w / (n + (n - 1) * GapRatio);
 
-            int perRow = n, rows = 1;
-            if (n * chipS + (n - 1) * gap > availW)   // 최소 크기로도 한 줄에 안 들어갈 때만 줄바꿈
-            {
-                perRow = Mathf.Max(1, Mathf.FloorToInt((availW + gap) / (chipS + gap)));
-                rows = Mathf.CeilToInt(n / (float)perRow);
-            }
-            _chipRows = rows;
-            float rowStep = chipS + 8f;
+            float chipS = Mathf.Clamp(FitSize(availW), MinChip, MaxChip);
+            if (n * chipS + (n - 1) * GapOf(chipS) > availW)
+                chipS = Mathf.Max(16f, FitSize(availW));   // 최소치로도 안 들어가면 더 줄여서라도 한 줄 유지
+            float gap = GapOf(chipS);
+
 
             for (int i = 0; i < n; i++)
             {
@@ -1555,12 +1556,9 @@ public class MachineUI : MonoBehaviour
                 var rt = (RectTransform)go.transform;
                 rt.sizeDelta = new Vector2(chipS, chipS);
 
-                int row = i / perRow;
-                int col = i % perRow;
-                int inRow = Mathf.Min(perRow, n - row * perRow);       // 마지막 줄은 개수가 적다 - 그 줄 기준으로 가운데 정렬
-                float rowTotal = inRow * chipS + (inRow - 1) * gap;
-                rt.anchoredPosition = new Vector2(-rowTotal * 0.5f + chipS * 0.5f + col * (chipS + gap),
-                                                  chipY - row * rowStep);
+                // 한 줄 가운데 정렬
+                float total = n * chipS + (n - 1) * gap;
+                rt.anchoredPosition = new Vector2(-total * 0.5f + chipS * 0.5f + i * (chipS + gap), chipY);
 
                 var bg = go.GetComponent<Image>();
                 bg.sprite = UISpriteFactory.RoundedRect(64, 10);
@@ -1623,12 +1621,12 @@ public class MachineUI : MonoBehaviour
         _chipsRoot.gameObject.SetActive(show);
 
         // 이름 라벨(RecipeNavCenter)은 칩이 보일 때만 칩 줄 아래로 내림. 단일 레시피(칩 없음)면 원위치.
-        // 칩이 두 줄이면 그만큼 더 내려야 겹치지 않는다.
+        // 칩은 항상 한 줄이라 내리는 양도 고정이다(두 줄이 되면서 라벨이 밀려 겹치던 문제 제거).
         if (recipeNameText != null)
         {
             var center = recipeNameText.transform.parent as RectTransform;
             if (center != null && center.parent == nav)
-                center.anchoredPosition = new Vector2(0f, show ? -84f - (Mathf.Max(1, _chipRows) - 1) * 60f : 0f);
+                center.anchoredPosition = new Vector2(0f, show ? -84f : 0f);
             // 받침판 삭제됨 - 밝은 유리 상단 위라 항상 어두운 글자(바로 밑 표면 기준 원칙).
             recipeNameText.color = new Color(0.137f, 0.165f, 0.20f, 1f);
             recipeNameText.fontSize = show ? 22 : 18;   // 칩 확대에 맞춰 이름도 업
