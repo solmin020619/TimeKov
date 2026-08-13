@@ -12,8 +12,9 @@
 // 저장 위치가 Assets 밖인 이유: Assets 안에 두면 유니티가 TextAsset 으로 임포트해서
 //   .meta 가 생기고 커밋마다 딸려 다닌다. 백업은 사람이 읽고 붙여넣는 용도라 밖이 낫다.
 //
-// ★평소엔 이 메뉴를 누를 일이 거의 없다. Play 를 누를 때마다 자동으로 갱신된다.
-//   시트를 손으로 고친 뒤 플레이는 안 하고 사본만 커밋하고 싶을 때 쓴다.
+// ★레포 사본을 갱신하는 건 이 메뉴뿐이다.
+//   Play 를 눌러도 갱신되는 건 Library 안 작업용 캐시라 커밋에 안 딸려온다.
+//   그래서 남이 시트를 고쳐도 내 작업 트리는 조용하다. 복구본을 새로 뜨고 싶을 때만 누른다.
 // =====================================================================
 
 using System.Text;
@@ -25,7 +26,8 @@ public static class SheetBackupMenu
     [MenuItem("시트/백업 저장 (시트가 날아갔을 때 복구용)")]
     public static void BackupAll()
     {
-        var res = SheetCache.RefreshAll("시트 백업 저장");
+        // 레포 복구본을 실제로 덮어쓰는 유일한 지점. Play 경로는 캐시만 건드린다.
+        var res = SheetCache.RefreshAll("시트 백업 저장", writeRepoBackup: true);
 
         var msg = new StringBuilder();
         msg.AppendLine($"저장 위치: {LocalTableSource.DirRelative}");

@@ -36,8 +36,14 @@ public static class SheetCache
         public List<string> UsedPending; // 게시본이 아직 옛값이라 로컬 최신값을 쓴 테이블
     }
 
-    /// <summary>전체 시트를 병렬로 받아 사본을 갱신한다. progressTitle 이 null 이면 진행바를 띄우지 않는다.</summary>
-    public static Result RefreshAll(string progressTitle)
+    /// <summary>
+    /// 전체 시트를 병렬로 받아 사본을 갱신한다. progressTitle 이 null 이면 진행바를 띄우지 않는다.
+    ///
+    /// writeRepoBackup = 레포의 복구본(Documentation/sheet_backup)까지 덮어쓸지.
+    ///   Play 경로는 false - 남이 시트를 고칠 때마다 내 작업 트리에 CSV 변경이 쌓이면 안 된다.
+    ///   '시트 > 백업 저장' 메뉴만 true 로 부른다.
+    /// </summary>
+    public static Result RefreshAll(string progressTitle, bool writeRepoBackup = false)
     {
         var res = new Result
         {
@@ -93,7 +99,7 @@ public static class SheetCache
                     else
                     {
                         // 아직 옛값을 주고 있다 -> 로컬 최신값이 이긴다
-                        LocalTableSource.Write(x.name, pending);
+                        Store(x.name, pending, writeRepoBackup);
                         res.UsedPending.Add(x.name);
                         continue;
                     }
@@ -101,7 +107,7 @@ public static class SheetCache
 
                 if (csv == null) { res.Failed.Add(x.name); continue; }   // 기존 사본은 그대로 둔다
 
-                LocalTableSource.Write(x.name, csv);
+                Store(x.name, csv, writeRepoBackup);
                 res.Ok.Add(x.name);
             }
         }
@@ -112,6 +118,13 @@ public static class SheetCache
         }
 
         return res;
+    }
+
+    // 캐시는 항상, 레포 복구본은 요청받았을 때만.
+    private static void Store(string tableName, string csv, bool writeRepoBackup)
+    {
+        LocalTableSource.WriteCache(tableName, csv);
+        if (writeRepoBackup) LocalTableSource.WriteRepoBackup(tableName, csv);
     }
 
     // 성공 + CSV 로 보이는 응답만 통과. 게시가 해제되면 오류 HTML 이 오는데
