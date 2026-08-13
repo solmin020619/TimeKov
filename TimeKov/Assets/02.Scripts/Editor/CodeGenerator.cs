@@ -284,7 +284,10 @@ public static class CodeGenerator
         string path = Path.Combine(OUTPUT_PATH, fileName);
         if (File.Exists(path) && File.ReadAllText(path) == content)
             return;
-        File.WriteAllText(path, content, Encoding.UTF8);
+        // BOM 없는 UTF-8 로 쓴다. Encoding.UTF8 은 파일 앞에 BOM 을 붙이는데,
+        // 이 프로젝트의 .cs 는 전부 BOM 없이 통일돼 있어서(08-09 인코딩 정리 + .editorconfig)
+        // 그것만으로 26개 생성 파일이 전부 '변경됨'으로 잡혀 커밋해야 할 것처럼 보인다.
+        File.WriteAllText(path, content, new UTF8Encoding(false));
         Debug.Log($"[CodeGenerator] 생성: {path}");
     }
 

@@ -1,22 +1,28 @@
 // =====================================================================
 // LocalTableSource.cs
-// 구글 시트 다운로드가 실패했을 때 쓰는 로컬 CSV 사본.
+// 구글 시트를 대신할 로컬 CSV. 두 곳에 나눠 둔다.
 //
-// [왜 있나]
+//   1) 작업용 캐시  : TimeKov/Library/SheetCache/<테이블>.csv
+//      Play 를 누를 때마다 갱신된다. gitignore 라 커밋에 안 딸려온다.
+//      직행 플레이는 이걸 읽으므로 항상 최신 시트값으로 시작한다.
+//
+//   2) 레포 사본    : Documentation/sheet_backup/<테이블>.csv
+//      시트가 통째로 날아갔을 때의 복구본이자 최후 폴백.
+//      ★'시트 > 백업 저장' 메뉴를 눌렀을 때만 갱신된다.
+//
+// [왜 갈랐나]
+//   예전엔 Play 할 때마다 레포 사본까지 덮어썼다. 그러면 남이 시트를 조금만 고쳐도
+//   내 작업 트리에 CSV 변경이 계속 생겨서, 커밋할 때마다 관계없는 데이터 변경이 섞였다.
+//   갱신은 캐시가 받고, 레포 사본은 사람이 원할 때만 손대게 한다.
+//
+// [읽는 순서] 캐시 -> 레포 사본. 새로 클론한 직후엔 캐시가 없으니 레포 사본으로 뜬다.
+//
+// [왜 있나 - 레포 사본]
 //   2026-08-02 에 DropTable 시트가 실수로 영구삭제돼 게임이 아예 안 떴다.
 //   테이블 하나가 사라지면 GameDataHolder 로드가 통째로 실패하는 구조라,
 //   시트 사고 한 번에 팀 전원이 작업을 못 한다.
-//   레포에 사본이 있으면 최소한 게임은 뜬다(원본이 시트라는 사실은 그대로다).
 //
-// [읽는 위치] Documentation/sheet_backup/<테이블이름>.csv
-//   '시트 백업' 메뉴(SheetBackupMenu)가 채우는 그 폴더를 그대로 쓴다.
-//   Assets 밖이라 유니티가 임포트하지 않고 .meta 도 안 생긴다.
-//
-// [평상시에는 아무 일도 하지 않는다]
-//   다운로드가 성공하면 이 파일은 읽히지 않는다. 폴백 전용이다.
-//   대체가 일어나면 콘솔에 경고를 남긴다 - 옛 데이터로 조용히 도는 게 제일 위험하다.
-//
-// 에디터 전용: 빌드에는 Documentation 폴더가 없다. 정식 빌드는 항상 시트가 원본.
+// 에디터 전용: 빌드에는 이 폴더들이 없다. 정식 빌드는 항상 시트가 원본.
 // =====================================================================
 
 using UnityEngine;
@@ -27,33 +33,51 @@ public static class LocalTableSource
     public const string DirRelative = "Documentation/sheet_backup";
 
 #if UNITY_EDITOR
+    /// <summary>레포에 커밋되는 복구본 폴더.</summary>
     public static string DirFull =>
         System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "..", DirRelative));
 
-    /// <summary>해당 테이블의 로컬 CSV 원문. 없으면 null.</summary>
+    /// <summary>매 플레이 갱신되는 작업용 캐시 폴더. Library 라서 커밋되지 않는다.</summary>
+    public static string CacheDirFull =>
+        System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "..", "Library", "SheetCache"));
+
+    /// <summary>해당 테이블의 CSV 원문. 캐시 우선, 없으면 레포 사본. 둘 다 없으면 null.</summary>
     public static string TryRead(string tableName)
+    {
+        return ReadFile(System.IO.Path.Combine(CacheDirFull, tableName + ".csv"))
+            ?? ReadFile(System.IO.Path.Combine(DirFull, tableName + ".csv"));
+    }
+
+    /// <summary>작업용 캐시를 갱신한다(커밋에 안 잡히는 쪽).</summary>
+    public static void WriteCache(string tableName, string csv)
+        => WriteFile(CacheDirFull, tableName, csv);
+
+    /// <summary>레포 복구본을 갱신한다. ★'시트 > 백업 저장' 에서만 부른다.</summary>
+    public static void WriteRepoBackup(string tableName, string csv)
+        => WriteFile(DirFull, tableName, csv);
+
+    private static string ReadFile(string path)
     {
         try
         {
-            string path = System.IO.Path.Combine(DirFull, tableName + ".csv");
             if (!System.IO.File.Exists(path)) return null;
             string text = System.IO.File.ReadAllText(path);
             return string.IsNullOrWhiteSpace(text) ? null : text;
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"[로컬 테이블] {tableName}.csv 읽기 실패: {e.Message}");
+            Debug.LogWarning($"[로컬 테이블] 읽기 실패 {path}: {e.Message}");
             return null;
         }
     }
 
-    /// <summary>사본을 갱신한다. BOM 없는 UTF-8 - 붙여넣기용이라 편집기 호환이 중요하다.</summary>
-    public static void Write(string tableName, string csv)
+    // BOM 없는 UTF-8 - 사람이 붙여넣는 파일이라 편집기 호환이 중요하다.
+    private static void WriteFile(string dir, string tableName, string csv)
     {
         try
         {
-            System.IO.Directory.CreateDirectory(DirFull);
-            System.IO.File.WriteAllText(System.IO.Path.Combine(DirFull, tableName + ".csv"),
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, tableName + ".csv"),
                                         csv, new System.Text.UTF8Encoding(false));
         }
         catch (System.Exception e)
@@ -69,6 +93,8 @@ public static class LocalTableSource
     /// (실측: 5분 넘게 옛값/새값이 번갈아 나왔다). 그동안 테스트하면 안 바뀐 줄 알게 된다.
     /// 시트에 쓰는 쪽이 같은 내용을 여기에 남겨두면 그 지연을 통째로 건너뛴다.
     /// 게시본이 따라잡으면(내용 일치) 이 파일은 스스로 사라진다.
+    ///
+    /// 위치는 레포 폴더 그대로 두되 gitignore 되어 있다(시트에 쓰는 쪽이 찾기 쉬운 자리).
     /// </summary>
     public static string PendingPath(string tableName)
         => System.IO.Path.Combine(DirFull, tableName + ".pending.csv");
