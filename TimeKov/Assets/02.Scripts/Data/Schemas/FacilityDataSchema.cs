@@ -35,5 +35,14 @@ public class FacilityDataSchema : SheetSchema
         // 빌드 퀵슬롯 위치(키 번호 1~9). 시트만 고치면 건축바 순서가 바뀐다(아이콘/도면과 같은 방식).
         // 선택 컬럼(문자열로 받아 코드에서 파싱): 비어 있으면 facilityId 순(facilityId N번 = 키 N번)으로 폴백.
         Add("buildSlot", ColumnType.String, required: false);
+
+        // 설치 개수 상한(새 게임 기준). 비어 있으면 무제한.
+        // 전송률 보상이 여기서 올려 준다(저장고/창고 출력 포트). 예전엔 코드의 딕셔너리에 박혀 있었다.
+        Add("buildLimit", ColumnType.String, required: false);
+
+        // 도감에서 이 설비의 레시피를 전부 마스터했을 때 주는 보상 개수. 비어 있으면 보상 없음.
+        // 설비마다 레시피 수가 달라 난이도가 다르므로 개수로 조절한다(레시피 10회 제작 = 1개 마스터).
+        // 예전엔 Resources/Codex 의 SO 에 따로 있어서, 설비를 늘리면 조용히 보상 0이 됐다.
+        Add("masterReward", ColumnType.String, required: false);
     }
 }

@@ -369,6 +369,18 @@ public class TransmissionManager : MonoBehaviour, ISaveable
     /// <summary>UI 리빌 카드용: 이 마일스톤이 해금하는 설비 id 목록. 없으면 빈 리스트.</summary>
     public List<int> GetRewardFacilityIds(int pct) => new List<int>(MilestoneFacilityIds(pct));
 
+    /// <summary>튜토리얼이 직접 쥐여 주는 설비. 위 보상 표에는 없으므로 배선 검사가 따로 알아야 한다.</summary>
+    public static readonly int[] TutorialGrantedFacilityIds = { 1, 2 };
+
+    /// <summary>전송률 보상으로 열리는 설비 전부(ContentWiringCheck 용).
+    /// 마일스톤 퍼센트 목록을 따로 들지 않으려고 0~100 을 훑는다 - 한 번만 도는 검사라 비용은 무시해도 된다.</summary>
+    public static IEnumerable<int> AllMilestoneFacilityIds()
+    {
+        for (int pct = 0; pct <= MaxRate; pct++)
+            foreach (int id in MilestoneFacilityIds(pct))
+                yield return id;
+    }
+
     // 우주선 특수부품이 나오는 전송 마일스톤 (전송률% -> 수리 레벨). 지급(GrantMilestoneRewards)과
     //   UI 라벨(ShipRepairUI)이 공유하는 단일 소스 — 퍼센트 재조정 때 한쪽만 고쳐 어긋나던 것 방지.
     // [08-07] 우주선 수리가 5단계 -> 10단계로 늘면서 3/4/5 -> 6/8/10 으로 옮겼다.

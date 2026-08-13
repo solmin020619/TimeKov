@@ -22,6 +22,14 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using TMPro;
 
+// ★실행 순서를 앞으로 당긴다.
+//   Start() 에서 ApplyToEngine 으로 해상도(Screen.SetResolution)와 품질(URP 에셋 교체)을 실제로 바꾸는데,
+//   Start 끼리는 순서가 보장되지 않아 설정 UI 가 먼저 도는 경우가 생긴다. 그러면 UI 는
+//     · 바뀌기 전 해상도로 버튼 폭을 재고(캔버스 스케일이 뒤늦게 바뀌어 글자가 칸을 넘침)
+//     · 교체되기 전 URP 렌더러로 블러 캔버스를 만든다(품질 전환으로 블러 피처가 사라져 블러가 안 먹음)
+//   게임에 들어갔다 메인메뉴로 돌아올 때처럼 저장값과 현재 상태가 달라 실제로 적용이 일어나는
+//   상황에서 증상이 드러났다. 매니저가 항상 먼저 돌면 UI 는 확정된 상태에서 한 번만 재면 된다.
+[DefaultExecutionOrder(-200)]
 public class GlobalSettingsManager : MonoBehaviour
 {
     private static GlobalSettingsManager _instance;

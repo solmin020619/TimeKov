@@ -14,4 +14,6 @@ public class FacilityDataSheetData
     public bool canRotate;
     public string iconKey;
     public string buildSlot;
+    public string buildLimit;
+    public string masterReward;
 }

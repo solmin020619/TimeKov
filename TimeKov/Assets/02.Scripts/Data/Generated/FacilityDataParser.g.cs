@@ -16,6 +16,8 @@ public static class FacilityDataParser
         int idx_canRotate = table.GetColumnIndex("canRotate");
         int idx_iconKey = table.GetColumnIndex("iconKey");
         int idx_buildSlot = table.GetColumnIndex("buildSlot");
+        int idx_buildLimit = table.GetColumnIndex("buildLimit");
+        int idx_masterReward = table.GetColumnIndex("masterReward");
 
         foreach (var row in table.Rows)
         {
@@ -30,6 +32,8 @@ public static class FacilityDataParser
             data.canRotate = (row.Get(idx_canRotate) == "1");
             data.iconKey = row.Get(idx_iconKey);
             data.buildSlot = row.Get(idx_buildSlot);
+            data.buildLimit = row.Get(idx_buildLimit);
+            data.masterReward = row.Get(idx_masterReward);
 
             result[data.SheetId] = data;
         }

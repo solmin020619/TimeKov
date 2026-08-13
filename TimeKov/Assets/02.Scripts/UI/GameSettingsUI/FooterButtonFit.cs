@@ -21,6 +21,12 @@ namespace GameSettingsUI
         [Tooltip("이 버튼 오른쪽에 이어 붙는 요소(안내 문구). 폭이 바뀌면 같이 밀어준다.")]
         public RectTransform follow;
 
+        [Tooltip("이 버튼 '왼쪽'에 붙는 형제 버튼(오른쪽 정렬 쌍). 폭이 바뀌면 같이 밀어준다.\n" +
+                 "★없으면 형제 위치가 고정값으로 남아, 이 버튼 폭이 예상보다 커질 때 서로 겹친다.")]
+        public RectTransform pushLeft;
+        [Tooltip("pushLeft 형제와의 간격.")]
+        public float leftGap = 22f;
+
         [Header("여백")]
         public float minWidth;          // 초기화/적용처럼 크기를 맞춰야 하는 버튼용
         public float leftPad  = 32f;    // 좌측 텍스트 시작 여백
@@ -30,7 +36,19 @@ namespace GameSettingsUI
         public float rightPad = 10f;
         public float followGap = 30f;
 
-        void OnEnable() { Fit(); }
+        void OnEnable()
+        {
+            Fit();
+            // 라벨이 번역되면 길이가 달라지므로 다시 재야 한다.
+            //   ★설정창 자신이 언어를 바꾸는 창이라, 이게 없으면 언어를 고른 그 순간부터
+            //     닫았다 열기 전까지 글자가 버튼 밖으로 삐져나온 채로 남는다.
+            if (Application.isPlaying) Loc.OnLanguageChanged += Fit;
+        }
+
+        void OnDisable()
+        {
+            if (Application.isPlaying) Loc.OnLanguageChanged -= Fit;
+        }
 
         public void Fit()
         {
@@ -40,6 +58,13 @@ namespace GameSettingsUI
             label.ForceMeshUpdate();
             float textW = label.GetPreferredValues(label.text).x;
 
+            // 폰트 아틀라스가 아직 준비되지 않으면 0에 가까운 값이 나온다. 그대로 쓰면
+            // 버튼이 글자보다 작게 잡혀 라벨이 원형 아이콘에 파묻히거나 잘린다
+            // (minWidth 가 없는 '메인 메뉴로 돌아가기' 버튼에서 특히 심하다).
+            // 글자 수로 넉넉히 추정해 둔다 — CategoryFilterUI 가 쓰는 것과 같은 안전장치.
+            if (textW < 1f && !string.IsNullOrEmpty(label.text))
+                textW = label.text.Length * Mathf.Max(label.fontSize, 16f) * 1.05f;
+
             float w = Mathf.Max(minWidth, leftPad + textW + textGap + iconW + iconGap + rightPad);
             var rt = (RectTransform)transform;
             if (!Mathf.Approximately(rt.sizeDelta.x, w))
@@ -47,6 +72,11 @@ namespace GameSettingsUI
 
             if (follow)
                 follow.anchoredPosition = new Vector2(w + followGap, follow.anchoredPosition.y);
+
+            // 오른쪽 정렬 쌍(적용 ↔ 초기화): 내 실제 폭만큼 형제를 왼쪽으로 민다.
+            //   위치를 고정값으로 두면 폭이 minWidth 를 넘는 순간 두 버튼이 겹친다.
+            if (pushLeft)
+                pushLeft.anchoredPosition = new Vector2(-(w + leftGap), pushLeft.anchoredPosition.y);
         }
     }
 }

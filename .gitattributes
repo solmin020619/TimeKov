@@ -16,3 +16,11 @@
 # 인코딩은 .gitattributes 로 못 박을 수 없어서 .editorconfig 가 담당한다.
 *.cs text eol=crlf
 
+# 시트 사본 CSV — 반드시 LF 로 저장한다.
+# 이걸 안 하면 쓰는 주체마다 줄바꿈이 갈린다(구글에서 받아 저장하면 CRLF, 스크립트로 쓰면 LF).
+# 줄바꿈만 달라도 git 은 '전부 삭제 후 전부 추가'로 보기 때문에
+#   (1) diff 로 뭐가 바뀌었는지 볼 수 없고
+#   (2) 델타 압축이 안 걸려 커밋할 때마다 파일 전체가 새로 쌓인다.
+# 실제로 Localization.csv 가 이랬다 - 111KB 짜리가 판본마다 42KB 씩 통으로 쌓였다(08-13 실측).
+Documentation/sheet_backup/*.csv text eol=lf
+

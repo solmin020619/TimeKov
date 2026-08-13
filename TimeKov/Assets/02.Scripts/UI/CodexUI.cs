@@ -119,7 +119,6 @@ public class CodexUI : MonoBehaviour
 
     private CodexPreviewConfig _cfg;        // Resources/Codex/CodexPreviewConfig (있으면 몬스터탭 구동)
     private CodexTutorialConfig _tutCfg;    // Resources/Codex/CodexTutorialConfig (있으면 튜토탭 구동)
-    private CodexRecipeRewardConfig _rewardCfg;   // Resources/Codex/CodexRecipeRewardConfig (설비별 보상 개수)
     private CodexMonsterPortrait _portrait; // 흉상 라이브 렌더러(지연 생성)
     private CodexVideoScreen _video;        // 튜토 인라인 영상 재생기(지연 생성)
     private Entry[] _tutorial;              // 런타임 리스트(개발자 해금 적용)
@@ -189,7 +188,6 @@ public class CodexUI : MonoBehaviour
             // 열 때마다 최신 설정 반영(populate 메뉴를 플레이 중 돌려도 잡히게)
             _cfg = Resources.Load<CodexPreviewConfig>("Codex/CodexPreviewConfig");
             _tutCfg = Resources.Load<CodexTutorialConfig>("Codex/CodexTutorialConfig");
-            _rewardCfg = Resources.Load<CodexRecipeRewardConfig>("Codex/CodexRecipeRewardConfig");
             EnsureGameData();   // 게임 데이터(구글시트) 안 떠 있으면 로드 시도
             RebuildLists();
             _sel = 0;
@@ -226,7 +224,6 @@ public class CodexUI : MonoBehaviour
         Loc.OnLanguageChanged += HandleLanguageChanged;
         _cfg = Resources.Load<CodexPreviewConfig>("Codex/CodexPreviewConfig");   // 없으면 플레이스홀더로 폴백
         _tutCfg = Resources.Load<CodexTutorialConfig>("Codex/CodexTutorialConfig");
-        _rewardCfg = Resources.Load<CodexRecipeRewardConfig>("Codex/CodexRecipeRewardConfig");
         RebuildLists();
 
         _root = Make("Root", transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -784,14 +781,18 @@ public class CodexUI : MonoBehaviour
         _video = go.AddComponent<CodexVideoScreen>();
     }
 
-    // 실제 설비 데이터(1..8)로 헤더 구성 + 아이콘(FacilityIconDatabase). 데이터 못 읽으면 placeholder 폴백.
+    // 설비 시트 전체로 헤더 구성 + 아이콘(FacilityIconDatabase). 데이터 못 읽으면 placeholder 폴백.
+    // ★예전엔 id 를 1..8 로 박아 뒀다. 그래서 설비를 늘려도(연마기=10) 도감에만 안 나왔다.
+    //   설비 목록은 시트가 권위다 - 여기에 개수를 적지 마라.
     private Entry[] BuildFacilityEntries()
     {
         var list = new List<Entry>();
-        for (int id = 1; id <= 8; id++)
+        var all = GameDataHolder.I != null && GameDataHolder.I.FacilityData != null
+            ? GameDataHolder.I.FacilityData.All : null;
+        if (all != null)
+        foreach (var fd in all)
         {
-            var fd = GameDataUtility.GetFacility(id);
-            if (fd == null) continue;
+            if (fd == null || !int.TryParse(fd.SheetId, out int id)) continue;
             var e = new Entry { name = fd.GetLocalizedName(), state = St.Silhouette, status = "미해금", facilityId = id };
             if (FacilityIconDatabase.Instance != null) e.icon = FacilityIconDatabase.Instance.GetIcon(id);
             // 실제 해금(FacilityUnlockManager) 또는 개발자 F9. 미해금이면 Silhouette("미해금") -> 선택 불가 = 레시피 가려짐.
@@ -994,7 +995,6 @@ public class CodexUI : MonoBehaviour
         bool ratesOn = _devUnlockAll || CodexDiscovery.IsRatesActivated(srcId);
 
         int tier = ThreatTier(data);
-        Color tierCol = ThreatColor(tier);
         var thr = Make("ThreatBadge", _mainBox, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-184f, -34f), new Vector2(-16f, -12f));
         var body = MainHeader(Loc.Get("몬스터 - THREAT"), "", C32(154, 162, 170), false);
         BuildThreatBadge(thr, tier);
@@ -1002,10 +1002,13 @@ public class CodexUI : MonoBehaviour
         var face = Make("Face", body, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
         face.sizeDelta = new Vector2(176f, 176f); face.anchoredPosition = new Vector2(88f, -106f);   // 큼직하게(가독성)
         Img(face, RoundedFallback(10), C32(208, 218, 230));   // 렌더 배경과 동일 톤(밝은 쿨 글래스)
-        // 위험도 등급 색 테두리 - 엘리트/보스는 크기 외 식별점 없으니 테두리 '색'으로 구분.
-        // 두께는 전 몬스터 통일(중간값). 위험도 표현은 색만, 두께 차등 없음.
+        // 액자 테두리 = 서식 지역 색(자연 초록 / 설원 파랑 / 사막 노랑 / 용암 빨강).
+        //   전송 단말 게이지와 같은 팔레트라, 목록을 훑기만 해도 어느 맵 몬스터인지 바로 읽힌다.
+        //   (예전엔 위험도 등급색이었는데, 위험도는 오른쪽 위 5칸 뱃지가 이미 보여준다.)
+        //   지역은 몬스터 시트의 region 컬럼에서 온다 - SO 이름이 곧 시트 키다.
+        Color regionCol = RegionPalette.Of(RegionPalette.OfMonster(data != null ? data.name : null, srcId));
         const float bw = 4f;
-        Line(face, new Color(tierCol.r, tierCol.g, tierCol.b, 1f), bw);
+        Line(face, new Color(regionCol.r, regionCol.g, regionCol.b, 1f), bw);
         // 설정(프리팹)이 있으면 라이브 흉상, 없으면 실루엣 폴백
         if (!TryRenderPortrait(face, SelectedEntry()))
         {
@@ -1151,18 +1154,8 @@ public class CodexUI : MonoBehaviour
 
     private static readonly string[] ThreatLabels = { "낮음", "보통", "주의", "위험", "치명" };
 
-    // 위험도 등급색(액자 테두리/뱃지 공용). 1=연두 -> 5=빨강.
-    private static Color ThreatColor(int tier)
-    {
-        switch (Mathf.Clamp(tier, 1, 5))
-        {
-            case 5:  return new Color32(236, 40, 40, 255);    // 강렬한 빨강(치명/최종보스)
-            case 4:  return new Color32(240, 138, 40, 255);   // 주황(위험)
-            case 3:  return new Color32(236, 198, 46, 255);   // 노랑(주의)
-            case 2:  return new Color32(150, 200, 70, 255);   // 라임(보통)
-            default: return new Color32(92, 182, 120, 255);   // 초록(낮음)
-        }
-    }
+    // (위험도 등급색 ThreatColor 는 08-13 삭제 - 액자 테두리가 지역색으로 바뀌면서 쓰는 곳이 없어졌다.
+    //  위험도는 오른쪽 위 5칸 뱃지가 '채운 칸 수'로만 보여준다.)
 
     // 위험도 표시: "위험도" 라벨 + 뚫린 칸 5개(테두리). 등급만큼 등급색으로 채움(치명=5칸, 낮음=1칸).
     // 명시적 좌표 배치(HorizontalLayoutGroup이 한 덩어리로 뭉치던 버그 회피).
@@ -1497,12 +1490,25 @@ public class CodexUI : MonoBehaviour
         }
     }
 
+    /// 전 레시피 마스터 보상으로 주는 아이템. 설비마다 다르지 않아서 개수만 시트로 뺐다.
+    private const int MasterRewardItemId = 6101;   // 코어 키트 I
+
+    /// 이 설비를 전부 마스터했을 때 주는 개수. 시트(FacilityData.masterReward)가 원본. 없으면 0(보상 없음).
+    private static int FacilityMasterRewardCount(int facilityId)
+    {
+        var fd = GameDataUtility.GetFacility(facilityId);
+        if (fd == null || string.IsNullOrEmpty(fd.masterReward)) return 0;
+        return int.TryParse(fd.masterReward, out int n) ? Mathf.Max(0, n) : 0;
+    }
+
     // 설비별 보상 박스(레시피 목록 맨 아래). 100% 마스터 전엔 회색/미달성, 100%면 수령 버튼.
     private void BuildRewardBox(RectTransform parent, int facilityId)
     {
-        int rewardCount = _rewardCfg != null ? _rewardCfg.RewardCountFor(facilityId) : 0;
+        // 보상 개수는 설비 시트(masterReward). 예전엔 Resources 의 SO 에 따로 있어서,
+        // 설비를 늘리면 그 설비만 조용히 보상 0이 됐다.
+        int rewardCount = FacilityMasterRewardCount(facilityId);
         if (rewardCount <= 0) return;   // 보상 미설정 설비는 박스 안 띄움
-        int rewardItemId = _rewardCfg != null ? _rewardCfg.rewardItemId : 6101;
+        int rewardItemId = MasterRewardItemId;
         var (mastered, total) = FacilityRecipeMastery(facilityId);
         bool complete = total > 0 && mastered >= total;
         bool claimed = RecipeProgress.IsFacilityRewardClaimed(facilityId);

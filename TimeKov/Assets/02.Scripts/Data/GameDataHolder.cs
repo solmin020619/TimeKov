@@ -94,6 +94,9 @@ public partial class GameDataHolder
 
         // 자동생성 LoadAll 호출 (GameDataHolder.g.cs)
         LoadAll(tables);
+#if UNITY_EDITOR
+        ContentWiringCheck.Run();   // 시트에만 넣고 연결을 빠뜨린 콘텐츠 잡기(문제 있을 때만 로그)
+#endif
         onComplete?.Invoke(true);
     }
 
@@ -121,6 +124,9 @@ public partial class GameDataHolder
         if (!TableValidator.ValidateAll(schemas, tables)) return false;
 
         LoadAll(tables);
+#if UNITY_EDITOR
+        ContentWiringCheck.Run();   // 직행 플레이 경로도 같은 검사를 태운다
+#endif
         return true;
     }
 
