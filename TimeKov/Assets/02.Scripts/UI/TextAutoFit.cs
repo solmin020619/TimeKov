@@ -353,7 +353,17 @@ public class TextAutoFit : MonoBehaviour
                                          Mathf.Min(mine.xMax, other.xMax), Mathf.Min(mine.yMax, other.yMax));
             float mineArea = mine.width * mine.height;
             float ratio = (inter.width * inter.height) / mineArea;
-            if (ratio < 0.05f) continue;   // 살짝 스치는 건 무시
+
+            // ★글자와 이미지는 재는 기준이 다르다.
+            //   글자는 잉크(글리프) 경계로 정확히 재지만, 이미지는 RectTransform 상자로 잰다.
+            //   스프라이트 안의 투명 여백까지 상자에 포함되므로, 화면에서는 확실히 떨어져 있어도
+            //   상자끼리는 닿는다. 실측 사례: 건축바 키캡 스프라이트의 오른쪽 여백이 25%(580px 중 146px)라
+            //   'Quitter la vue' 가 7% 덮인다고 보고됐는데 눈으로는 한참 떨어져 있었다.
+            //   그래서 이미지가 덮는 경우는 기준을 올리고, 실제로 파고든 폭도 함께 본다.
+            bool otherIsText = g is TMP_Text;
+            float minRatio = otherIsText ? 0.05f : 0.20f;
+            float minBite  = otherIsText ? 0f    : 8f;     // 이 폭 미만은 스프라이트 여백으로 본다
+            if (ratio < minRatio || inter.width < minBite) continue;
 
             int key = rt.GetInstanceID() ^ srt.GetInstanceID();
             if (!_overlapReported.Add(key)) continue;   // 이 조합만 건너뛴다(예전엔 여기서 통째로 빠져나갔다)

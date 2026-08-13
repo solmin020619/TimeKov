@@ -199,7 +199,9 @@ public class InventoryManager : MonoBehaviour, ISaveable
             OnInventoryChanged?.Invoke();
 
             // [획득 로그] Player 인벤에 실제로 들어온 분량만 통지. Storage(창고)는 제외.
-            if (ownerType == InventoryOwnerType.Player)
+            // ★인벤끼리 옮기는 중이면 알리지 않는다. 창고에서 가방으로 끌어온 건 새로 얻은 게 아니라
+            //   자리만 바꾼 것인데, 그때마다 화면에 '획득' 알림이 떴다.
+            if (ownerType == InventoryOwnerType.Player && !_movingBetweenInventories)
                 OnItemAddedToInventory?.Invoke(itemId, added);
             // [창고 입고] 창고로 직행한 분량 통지(아이템 도감 획득 추적용).
             else if (ownerType == InventoryOwnerType.Storage)
@@ -291,13 +293,21 @@ public class InventoryManager : MonoBehaviour, ISaveable
         return true;
     }
 
+    // 인벤토리끼리 옮기는 중인가. 이 동안의 AddItem 은 '획득'이 아니라 자리 이동이라 알림을 내지 않는다.
+    // 창고<->가방 드래그, 우클릭 이동, 드롭존이 전부 MoveSlot 을 거치므로 여기 한 곳이면 다 막힌다.
+    // (진짜 획득 경로 - 설비 수령/상자 줍기 - 는 AddItem 을 직접 부르므로 영향 없다)
+    private static bool _movingBetweenInventories;
+
     // 슬롯 전체를 다른 인벤토리로 이동
     public bool MoveSlot(int slotIndex, InventoryManager other)
     {
         var slot = GetSlot(slotIndex);
         if (slot == null || slot.IsEmpty) return false;
 
-        int leftOver = other.AddItem(slot.itemId, slot.amount);
+        _movingBetweenInventories = true;
+        int leftOver;
+        try { leftOver = other.AddItem(slot.itemId, slot.amount); }
+        finally { _movingBetweenInventories = false; }
         int moved = slot.amount - leftOver;
 
         if (moved > 0)

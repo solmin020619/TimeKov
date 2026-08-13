@@ -1206,7 +1206,9 @@ public class MachineUI : MonoBehaviour
             go.transform.SetParent(flowRailsRoot, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(30f, 38f); rt.anchoredPosition = new Vector2(-9f + i * 17f, 0f);
+            // ★상자를 간격(17)보다 좁게 둔다. 30 이면 두 칸이 겹쳐서, 글리프가 붙어 있는 것도 아닌데
+            //   겹침 진단이 '>' 가 '>' 에 가려진다고 보고한다(의도된 '>>' 장식이라 오탐이다).
+            rt.sizeDelta = new Vector2(16f, 38f); rt.anchoredPosition = new Vector2(-9f + i * 17f, 0f);
             var tmp = go.AddComponent<TextMeshProUGUI>();
             tmp.text = ">"; tmp.fontSize = 30; tmp.fontStyle = FontStyles.Bold;
             tmp.color = FR_BusGray; tmp.alignment = TextAlignmentOptions.Center; tmp.raycastTarget = false;
