@@ -53,6 +53,10 @@ public class BuildManager : MonoBehaviour, ISaveable
     /// 값이 실제로 바뀔 때만 오므로 매 프레임 검사할 필요가 없다.</summary>
     public static event System.Action<bool> OnDemolishModeChanged;
 
+    /// <summary>서브모드(설비/레일/청사진)가 바뀔 때 1회 발생. 해제 모드와 같은 용도 -
+    /// 상단 배너가 지금 무슨 모드인지 표시하려면 이 둘을 같이 봐야 한다.</summary>
+    public static event System.Action<BuildSubMode> OnSubModeChanged;
+
     private bool _isDemolishMode = false;
     // 해제 모드 on/off 가 바뀔 때마다 BeltSegment 에 알려 모든 벨트를 흰색으로 띄운다.
     // (설치 모드의 SuppressConnectionColor 와 동일한 방식 — 진입 시 전부 흰색, 호버만 빨강)
@@ -568,6 +572,8 @@ public class BuildManager : MonoBehaviour, ISaveable
             else if (previewMarker != null)
                 previewMarker.SetActive(false);
         }
+
+        OnSubModeChanged?.Invoke(mode);
     }
 
     private void HandleModeInput()

@@ -29,18 +29,24 @@ public class TopViewBannerLabel : MonoBehaviour
     [SerializeField] private float keyBoxVisibleWidth = 65.24f;
 
     [Header("문구")]
-    [SerializeField] private string normalLabel   = "탑뷰 모드 나가기";
-    [SerializeField] private string normalKey     = "B";
-    [SerializeField] private string demolishLabel = "해제 모드";
-    [SerializeField] private string demolishKey   = "X";
+    [SerializeField] private string normalLabel    = "탑뷰 모드 나가기";
+    [SerializeField] private string normalKey      = "B";
+    [SerializeField] private string demolishLabel  = "해제 모드";
+    [SerializeField] private string demolishKey    = "X";
+    [SerializeField] private string blueprintLabel = "청사진 모드";
+    [SerializeField] private string blueprintKey   = "N";
 
     private bool _demolish;
+    private bool _blueprint;
 
     private void OnEnable()
     {
-        // 건축 모드에 들어갈 때 BuildManager 가 해제 모드를 항상 끄므로 false 로 시작하는 게 맞다.
+        // 건축 모드에 들어갈 때 BuildManager 가 해제 모드를 항상 끄고 서브모드도 설비로 되돌리므로
+        // (ExitBuildMode 에서 CurrentSubMode 를 리셋한다) 둘 다 false 로 시작하는 게 맞다.
         _demolish = false;
+        _blueprint = false;
         BuildManager.OnDemolishModeChanged += OnDemolishChanged;
+        BuildManager.OnSubModeChanged += OnSubModeChanged;
         Loc.OnLanguageChanged += Apply;
         Apply();
     }
@@ -48,6 +54,7 @@ public class TopViewBannerLabel : MonoBehaviour
     private void OnDisable()
     {
         BuildManager.OnDemolishModeChanged -= OnDemolishChanged;
+        BuildManager.OnSubModeChanged -= OnSubModeChanged;
         Loc.OnLanguageChanged -= Apply;
     }
 
@@ -57,12 +64,20 @@ public class TopViewBannerLabel : MonoBehaviour
         Apply();
     }
 
+    private void OnSubModeChanged(BuildManager.BuildSubMode mode)
+    {
+        _blueprint = mode == BuildManager.BuildSubMode.Blueprint;
+        Apply();
+    }
+
     private void Apply()
     {
         if (label == null || keyText == null) return;
 
-        label.text   = Loc.Get(_demolish ? demolishLabel : normalLabel);
-        keyText.text = _demolish ? demolishKey : normalKey;
+        // 해제와 청사진은 서로를 끄고 들어오므로 동시에 켜지지 않는다. 그래도 순서는 정해둔다.
+        if (_blueprint)     { label.text = Loc.Get(blueprintLabel); keyText.text = blueprintKey; }
+        else if (_demolish) { label.text = Loc.Get(demolishLabel);  keyText.text = demolishKey; }
+        else                { label.text = Loc.Get(normalLabel);    keyText.text = normalKey; }
 
         Relayout();
     }
