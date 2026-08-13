@@ -294,7 +294,11 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         // 창고 출력 포트(9) 설치 상한 - 15% 해금 후 전송률 램프로 계속 증설(우주선 Lv5 건축범위엔 20~30개 필요, QA).
         //   절대값 SetMax(WarehousePortLimitAt) - 매 마일스톤 갱신해도 누적 안 되고 복원 경로와도 항상 동기.
         if (pct >= 15)
+        {
             FacilityBuildLimit.SetMax(FacilityBuildLimit.WarehousePortId, WarehousePortLimitAt(pct));
+            // 저장고도 같은 '저장' 계열이라 같은 램프로 함께 증설한다(종욱 지시).
+            FacilityBuildLimit.SetMax(FacilityBuildLimit.StorageId, WarehousePortLimitAt(pct));
+        }
 
         // 설비 외 보상 (창고포트 상한은 위 램프가 전담 - 여기선 귀환석/앰플/키트만)
         switch (pct)
@@ -455,7 +459,8 @@ public class TransmissionManager : MonoBehaviour, ISaveable
             if (m <= TransmissionRate) _claimedMilestones.Add(m);
 
         // 런타임 정적(FacilityBuildLimit)은 static 이라 앱 재시작엔 리셋되지만 같은 앱 재진입엔 안 된다.
-        //   창고포트 상한은 전송률 램프(WarehousePortLimitAt) 절대값으로 재적용 - 지급과 동일 소스라 누적/어긋남 없음.
+        //   창고포트/저장고 상한은 전송률 램프(WarehousePortLimitAt) 절대값으로 재적용 - 지급과 동일 소스라 누적/어긋남 없음.
         FacilityBuildLimit.SetMax(FacilityBuildLimit.WarehousePortId, WarehousePortLimitAt(TransmissionRate));
+        FacilityBuildLimit.SetMax(FacilityBuildLimit.StorageId, WarehousePortLimitAt(TransmissionRate));
     }
 }

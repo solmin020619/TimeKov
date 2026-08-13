@@ -112,6 +112,20 @@ public class QuickSlotIconUI : MonoBehaviour
     {
         if (!_pending) return;
         EnsureBuilt();
+
+        // ★오브젝트가 꺼져 있으면 코루틴 자체를 시작할 수 없다("Coroutine couldn't be started" 에러).
+        //   예전엔 여기서 그냥 실패했는데, 그러면 _pending 이 영영 안 풀려서
+        //   '해금은 됐는데 건축바에 영원히 잠긴 채로 남는' 상태가 된다(개발자키로 해금해도 안 열림).
+        //   연출은 포기하더라도 결과 상태(해금된 모습)는 반드시 반영한다.
+        if (!isActiveAndEnabled)
+        {
+            _state = SlotState.Active;
+            _pending = false;
+            ApplyState();
+            TutorialOverlay.RegisterTarget("quick_slots", SpotlightRect);
+            return;
+        }
+
         if (_unlockCo != null) StopCoroutine(_unlockCo);
         ResetAnimTransforms();   // 재진입 시 이전 연출 잔여 트윈/변형 제거 (각도 고정 버그 방지)
         _unlockCo = StartCoroutine(UnlockRoutine(delay));

@@ -13,6 +13,8 @@ using UnityEngine;
 public static class FacilityBuildLimit
 {
     public const int WarehousePortId = 9;
+    /// <summary>저장고. 창고 출력 포트와 같은 '저장' 계열이라 상한도 같은 램프를 탄다(전송률 보상).</summary>
+    public const int StorageId = 8;
 
     // 기본 상한(새 게임/앱 재시작 기준). 여기 없는 설비 = 무제한.
     // ★런타임 값(_max)과 분리해 둔다: 이 클래스는 static 이라 _max 가 씬 재로드/슬롯 전환으로
@@ -21,6 +23,7 @@ public static class FacilityBuildLimit
     private static readonly Dictionary<int, int> _defaultMax = new Dictionary<int, int>
     {
         { WarehousePortId, 1 },
+        { StorageId, 1 },
     };
 
     // 현재 상한(진행 보상이 올린 값 포함). 기본값 템플릿을 복제해서 시작.
