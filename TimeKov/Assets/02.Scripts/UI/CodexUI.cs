@@ -124,7 +124,7 @@ public class CodexUI : MonoBehaviour
     private Entry[] _tutorial;              // 런타임 리스트(개발자 해금 적용)
     private Entry[] _monsters;              // 플레이스홀더 + 설정 병합(인덱스 매칭)
     private Entry[] _facilities;
-    private static bool _devUnlockAll = false;   // 기본 = 실제 발견/해금 게이팅. F9로 "전부 해금"(개발 확인용) 토글.
+    private static bool _devUnlockAll = false;   // 기본 = 실제 발견/해금 게이팅. 도감 열고 F3 = "전부 해금"(개발 확인용) 토글.
 
     private void OnApplicationQuit() => _quitting = true;
     private void OnDestroy()
@@ -294,7 +294,7 @@ public class CodexUI : MonoBehaviour
     }
 
     // 현재 탭(카테고리)의 도감 달성률 = 해금(St.Public) 수 / 전체.
-    // 개발자 전부해금(F9/_devUnlockAll)이면 전부 Public이라 100%로 뜬다(실제 해금 붙이면 자동 반영).
+    // 개발자 전부해금(F3/_devUnlockAll)이면 전부 Public이라 100%로 뜬다(실제 해금 붙이면 자동 반영).
     private (int got, int total) CurrentCompletion()
     {
         if (_tab == 3)   // 아이템 = 획득 수 / 전체 아이템 수
@@ -327,8 +327,10 @@ public class CodexUI : MonoBehaviour
         int pct = Mathf.RoundToInt(ratio * 100f);
 
         // 상단: 카테고리 + 수치(모노, 우측정렬)
+        //   '도감'은 붙이지 않는다. 왼쪽 큰 제목이 이미 도감이라 겹치는 말이고,
+        //   번역어가 긴 언어(프랑스어 Encyclopedie)에서는 이 한 단어 때문에 상자를 넘겼다.
         Txt(Make("ctxt", _completionBox, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -17f), new Vector2(0f, 0f)),
-            Loc.Get(TabNames[_tab]) + " " + Loc.Get("도감") + got + " / " + total + "  (" + pct + "%)", 14f, FontStyles.Bold, TxtSub, TextAlignmentOptions.Right);
+            Loc.Get(TabNames[_tab]) + " " + got + " / " + total + "  (" + pct + "%)", 14f, FontStyles.Bold, TxtSub, TextAlignmentOptions.Right);
 
         // 하단: 진행 바(트랙 + 채움)
         var track = Make("track", _completionBox, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 3f), new Vector2(0f, 9f));
@@ -744,7 +746,7 @@ public class CodexUI : MonoBehaviour
         return null;   // 공개(Public) 엔트리가 없으면 선택 없음(미발견 데이터 누출 방지)
     }
 
-    // 런타임 리스트 3개 재생성(개발자 해금/설정 반영). F9 토글 시 다시 호출.
+    // 런타임 리스트 3개 재생성(개발자 해금/설정 반영). F3 토글 시 다시 호출.
     private void RebuildLists()
     {
         _tutorial = BuildTutorialEntries();
@@ -795,7 +797,7 @@ public class CodexUI : MonoBehaviour
             if (fd == null || !int.TryParse(fd.SheetId, out int id)) continue;
             var e = new Entry { name = fd.GetLocalizedName(), state = St.Silhouette, status = "미해금", facilityId = id };
             if (FacilityIconDatabase.Instance != null) e.icon = FacilityIconDatabase.Instance.GetIcon(id);
-            // 실제 해금(FacilityUnlockManager) 또는 개발자 F9. 미해금이면 Silhouette("미해금") -> 선택 불가 = 레시피 가려짐.
+            // 실제 해금(FacilityUnlockManager) 또는 개발자 F3. 미해금이면 Silhouette("미해금") -> 선택 불가 = 레시피 가려짐.
             if (FacilityUnlocked(id)) { e.state = St.Public; e.status = null; }
             list.Add(e);
         }
@@ -1288,7 +1290,7 @@ public class CodexUI : MonoBehaviour
             Txt(NewChild("none", rows), Loc.Get("표시할 레시피가 없습니다."), 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
     }
 
-    // 레시피 제작수/마스터 (F9 전부해금이면 마스터로 간주 - 테스트용)
+    // 레시피 제작수/마스터 (F3 전부해금이면 마스터로 간주 - 테스트용)
     private int RecipeCrafts(string recipeId)
         => _devUnlockAll ? RecipeProgress.CraftsToMaster : RecipeProgress.Crafts(recipeId);
     private bool RecipeMastered(string recipeId)
@@ -1353,7 +1355,7 @@ public class CodexUI : MonoBehaviour
     private void BuildRecipeProgress(RectTransform row, string recipeId)
     {
         int crafts = RecipeCrafts(recipeId);
-        // 잭팟은 보상느낌 -> F9(전부해금)여도 자동 ON 안 함. 마스터(10회/ F9) 후 직접 클릭해야 활성.
+        // 잭팟은 보상느낌 -> F3(전부해금)여도 자동 ON 안 함. 마스터(10회/ F3) 후 직접 클릭해야 활성.
         bool jackpotOn = RecipeProgress.IsJackpotActive(recipeId);
         var box = NewChild("prog", row);
         var le = box.gameObject.AddComponent<LayoutElement>();
@@ -1367,7 +1369,9 @@ public class CodexUI : MonoBehaviour
             pill.pivot = new Vector2(1f, 0.5f);   // 우측 정렬 -> 박스 안에 들어와 안 잘림(기본 0.5피벗이면 오른쪽 절반이 밖으로 삐져 클리핑)
             pill.sizeDelta = new Vector2(152f, 40f); pill.anchoredPosition = new Vector2(-6f, 0f);
             string rid = recipeId;
-            RedActivateButton(pill, Loc.Get("잭팟 ON"), () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success(Loc.Get("잭팟 활성화! 제작마다 10% 확률로 2배 생산")); Refresh(); });
+            // 키가 위(상태 표시)와 달라야 한다. 여기는 '켜라'는 버튼이고 위는 '켜져 있다'는 상태인데,
+            // 한 키를 같이 쓰니까 번역이 상태 쪽으로 가버려서(FR 'Jackpot ACTIVE') 버튼 글자가 넘쳤다.
+            RedActivateButton(pill, Loc.Get("잭팟 켜기"), () => { RecipeProgress.ActivateJackpot(rid); ToastManager.Success(Loc.Get("잭팟 활성화! 제작마다 10% 확률로 2배 생산")); Refresh(); });
         }
         else
             Txt(box, Mathf.Min(crafts, RecipeProgress.CraftsToMaster) + " / " + RecipeProgress.CraftsToMaster, 16f, FontStyles.Bold, C32(120, 128, 140), TextAlignmentOptions.Right);
