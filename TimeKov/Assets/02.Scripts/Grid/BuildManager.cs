@@ -857,10 +857,11 @@ public class BuildManager : MonoBehaviour, ISaveable
             //   시트를 고쳐야 한다. 조용히 안 도는 것보다 뭘 고쳐야 하는지 알려주는 게 낫다.
             if (!edgeOnlyStoragePort && IsStoragePortPrefab(GetCurrentFacilityPrefab()))
             {
+                // 시트는 이미 고쳐져 있다(canRotate=1). 되돌아가면 잡으라고 로그만 남긴다.
+                // 플레이어에게 '설정이 안 돼 있다'고 말해봐야 할 수 있는 게 없어서 토스트는 뺐다.
                 Debug.LogError("[Build] 창고 출력 포트가 회전 불가로 설정돼 있다. " +
                                "FacilityData 시트의 facilityId 9 행 canRotate 를 1 로 바꿔라. " +
                                "(자유 배치로 바꾸면서 자동 회전이 사라졌다)");
-                ToastManager.Info(Loc.Get("이 설비는 아직 회전 설정이 안 돼 있습니다"));
                 return;
             }
             ToastManager.Info(Loc.Get("회전할 수 없는 설비입니다"));

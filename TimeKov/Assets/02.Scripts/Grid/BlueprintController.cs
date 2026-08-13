@@ -333,8 +333,10 @@ public class BlueprintController
 
         if (picked.Count == 0 && pickedRailCells.Count == 0)
         {
+            // '데이터가 없는 설비'는 시트가 깨졌을 때만 생긴다. 플레이어가 읽어도 할 게 없어서
+            // 화면에는 안 띄우고 로그로만 남긴다("복사할 게 없다"는 안내는 아래에서 따로 나간다).
             if (skippedStale > 0)
-                ToastManager.Warning(string.Format(Loc.Get("데이터가 없는 설비 {0}개는 복사할 수 없습니다"), skippedStale));
+                Debug.LogWarning($"[Blueprint] 시트 데이터가 없는 설비 {skippedStale}개를 건너뛰었다");
             return;
         }
 
@@ -390,7 +392,7 @@ public class BlueprintController
         }
 
         if (skippedStale > 0)
-            ToastManager.Warning(string.Format(Loc.Get("데이터가 없는 설비 {0}개는 제외했습니다"), skippedStale));
+            Debug.LogWarning($"[Blueprint] 시트 데이터가 없는 설비 {skippedStale}개를 제외했다");
         if (skippedEdgePort)
             ToastManager.Info(Loc.Get("테두리 전용 설비는 청사진에서 제외했습니다"));
     }

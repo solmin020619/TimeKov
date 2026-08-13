@@ -95,9 +95,11 @@ public class CoreUpgradeManager : MonoBehaviour, ISaveable
     /// <summary>[테스트용] 코어 레벨을 1 강제 상승 — 스탯 적용 + OnLevelChanged/해금 트리거를 정상 발생시킨다.</summary>
     public void DevForceLevelUp()
     {
+        // F2 로만 들어오는 길이라 토스트를 띄우지 않는다. 플레이어는 볼 수 없는 메시지인데
+        // 테스트 중에 화면에 뜨면 정상 알림과 헷갈린다.
         if (CurrentCoreLevel >= MAX_LEVEL)
         {
-            ToastManager.Warning(Loc.Get("이미 최대 코어 레벨"));
+            Debug.Log("[Dev] 이미 최대 코어 레벨");
             return;
         }
         CurrentCoreLevel++;
@@ -105,7 +107,7 @@ public class CoreUpgradeManager : MonoBehaviour, ISaveable
         SaveLevel();
         OnLevelChanged?.Invoke(CurrentCoreLevel);
         GameEvents.RaiseCoreUpgraded(CurrentCoreLevel);   // 튜토/구독자 통지(대쉬 해금 등)
-        ToastManager.Success($"[테스트] 코어 레벨 {CurrentCoreLevel}");
+        Debug.Log($"[Dev] 코어 레벨 {CurrentCoreLevel}");
     }
 
     // ── 외부 API ──────────────────────────────────────────────────────
