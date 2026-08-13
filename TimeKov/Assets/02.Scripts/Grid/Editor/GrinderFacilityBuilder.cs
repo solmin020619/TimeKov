@@ -13,7 +13,12 @@
 //   애니메이션(Take 001, 0.67초 루프)은 MachineAnimationEffect 에 연결되어
 //   "가공 중에만" 재생된다 - 다른 설비와 동일한 규칙.
 //
-// [재실행 안전] 이미 만든 프리팹이 있으면 지우고 다시 만든다.
+// [다음 설비를 만들 때]
+//   아래 경로 상수 3개와 이름만 바꿔서 이 파일을 복제하면 된다. 아트가 자체 받침대를
+//   품고 있는지에 따라 ArtHeight / DuplicateArtParts 만 조정한다.
+//
+// [주의] 이미 프리팹이 있으면 통째로 다시 만든다 = 인스펙터에서 손본 값이 날아간다.
+//   그래서 덮어쓰기 전에 한 번 물어본다.
 // =====================================================================
 
 using UnityEngine;
@@ -48,6 +53,13 @@ public static class GrinderFacilityBuilder
 
         var art = AssetDatabase.LoadAssetAtPath<GameObject>(ArtPath);
         if (art == null) { Debug.LogError($"[연마기] 아트 프리팹을 못 찾았다: {ArtPath}"); return; }
+
+        // 이미 쓰고 있는 프리팹을 말없이 갈아엎지 않는다(레시피 잠금/사운드 등 손본 값이 날아간다).
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(OutputPath) != null &&
+            !EditorUtility.DisplayDialog("연마기 프리팹 생성",
+                $"{OutputPath}\n이 프리팹이 이미 있다. 다시 만들면 인스펙터에서 손본 값이 전부 초기화된다.",
+                "덮어쓴다", "취소"))
+            return;
 
         var root = PrefabUtility.LoadPrefabContents(TemplatePath);
         try
