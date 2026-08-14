@@ -420,6 +420,11 @@ public class TextAutoFit : MonoBehaviour
         float outX = outL + outR;
         if (outX <= box.width * 0.02f) return;       // 2% 미만은 글자 외곽선 수준
 
+        // ★비율만 보면 좁은 상자에서 노이즈가 걸린다. 상자가 30px 이면 1px 만 나가도 3% 다.
+        //   1.5px 미만은 화면에서 볼 수 없으니 보고하지 않는다 - 고칠 것도 없는데 목록만 늘린다.
+        //   (메인메뉴 '제작진' 이 좌우 0px 인데 3% 로 잡힌 게 이 경우다)
+        if (outX < 1.5f) return;
+
         if (!_spillReported.Add(rt.GetInstanceID())) return;
         Debug.LogWarning($"[TextAutoFit/넘침] '{Trim(tmp.text)}' 이(가) 자기 상자를 가로로 {outX / box.width:P0} 벗어났다"
                        + $"(왼쪽 {outL:0}px / 오른쪽 {outR:0}px). ({Path(tmp)}) -> 상자를 넓히거나 문구를 줄여야 한다.");
