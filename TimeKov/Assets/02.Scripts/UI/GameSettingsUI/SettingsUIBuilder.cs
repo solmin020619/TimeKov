@@ -133,7 +133,8 @@ namespace GameSettingsUI
             }
 
             built = true;   // 여기까지 와야 계층이 완성된 것. 중간에 예외가 나면 false로 남는다.
-            WireFooterPair();   // 적용 버튼 폭이 바뀌면 초기화 버튼이 따라 밀리도록(두 경로 공통)
+            WireFooterPair();      // 적용 버튼 폭이 바뀌면 초기화 버튼이 따라 밀리도록(두 경로 공통)
+            FixSectionDividers();  // 섹션 구분선을 라벨 실제 폭 뒤로 (베이크 시 측정 오차 보정)
             SettingsBinding.NormalizeResolution();   // 저장값이 선택지에 없으면 목록 안 값으로 보정
             ApplyBackdropTheme();   // 실행 시의 블러 상태 기준으로 배경색 확정 (베이크 값 덮어씀)
             SwitchTab(SettingsTab.Display, true);
@@ -194,6 +195,41 @@ namespace GameSettingsUI
 
             RefreshAll();   // 표시값을 현재 설정값으로 갱신 (배경색은 Start가 확정한다)
             LocalizedLabel.AttachToStaticLabels(root.gameObject);   // 베이크된 한글 라벨에 자동 구독 부착
+        }
+
+        // 섹션 제목('언어 설정' 등) 옆 구분선이 글자 뒤로 파고들던 문제.
+        //   선 시작 위치는 라벨의 실제 폭으로 잡는데(labelW + 26), 구울 때는 폰트 아틀라스가
+        //   덜 준비돼 폭이 실제보다 작게 나오고 그 값이 그대로 씬에 박제된다.
+        //   언어를 바꿔 라벨이 길어져도 선은 그대로라 같은 증상이 난다.
+        //   → 실행할 때(그리고 언어가 바뀔 때) 다시 재서 라벨 뒤로 물러나게 한다.
+        const float SECTION_LINE_GAP = 26f;
+
+        void FixSectionDividers()
+        {
+            if (root == null) return;
+
+            foreach (var line in root.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (line.name != "SectionDivider") continue;
+                if (line.parent is not RectTransform row) continue;
+
+                var label = row.GetComponentInChildren<TMP_Text>(true);
+                if (label == null) continue;
+
+                label.ForceMeshUpdate();
+                float w = label.GetPreferredValues(label.text).x;
+                // 폰트가 아직 준비되지 않았을 때의 폴백(FooterButtonFit 과 같은 안전장치).
+                if (w < 1f && !string.IsNullOrEmpty(label.text))
+                    w = label.text.Length * Mathf.Max(label.fontSize, 16f) * 1.05f;
+
+                float x = w + SECTION_LINE_GAP;
+                float rowW = row.rect.width;
+
+                var lrt = label.rectTransform;
+                lrt.sizeDelta = new Vector2(w, lrt.sizeDelta.y);   // 라벨 칸도 실제 폭으로
+                line.anchoredPosition = new Vector2(x, line.anchoredPosition.y);
+                line.sizeDelta = new Vector2(Mathf.Max(0f, rowW - x), line.sizeDelta.y);
+            }
         }
 
         // 오른쪽 푸터 두 버튼('설정 적용' ↔ '설정 초기화')을 폭 변화에 연동한다.
@@ -317,6 +353,7 @@ namespace GameSettingsUI
             // 다시 열 때는 매니저가 편집 폼을 _data 기준으로 되돌린 뒤일 수 있으므로 다시 읽어온다.
             if (built) { EnsureBlur(); ResetMuteStates(); RefreshAll(); PlayOpenAnim(); }
             Loc.OnLanguageChanged += RefreshTitleLabel;
+            Loc.OnLanguageChanged += FixSectionDividers;   // 라벨 길이가 바뀌면 구분선도 다시 물러나야 한다
             RefreshTitleLabel();
         }
 
@@ -500,6 +537,7 @@ namespace GameSettingsUI
             if (blurCanvasGO) blurCanvasGO.SetActive(false);
             if (overlayCanvasGO) overlayCanvasGO.SetActive(false);
             Loc.OnLanguageChanged -= RefreshTitleLabel;
+            Loc.OnLanguageChanged -= FixSectionDividers;
         }
         void OnDestroy() { if (blurCanvasGO) Destroy(blurCanvasGO); if (overlayCanvasGO) Destroy(overlayCanvasGO); }
 
