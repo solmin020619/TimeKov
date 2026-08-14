@@ -129,7 +129,9 @@ public class WarpPoint : MonoBehaviour, IInteractable, IInteractHint
 
     public void ShowHint(bool show)
     {
-        InteractHintPanel.Show(hintUI, show, hintLabel, hintIcon);
+        // InteractHintPanel 은 받은 문자열을 그대로 찍는다. 번역은 부르는 쪽 몫이다
+        // (다른 상호작용 9곳은 전부 Loc.Get 을 거치는데 여기만 빠져 있었다).
+        InteractHintPanel.Show(hintUI, show, Loc.Get(hintLabel), hintIcon);
         _highlight?.Set(show);
     }
 }
