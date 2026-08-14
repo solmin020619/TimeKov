@@ -277,7 +277,11 @@ public class ThirdPersonCamera : MonoBehaviour
         float speed = desiredDist < _currentDist ? ZoomInSpeed : ZoomOutSpeed;
         _currentDist = Mathf.Lerp(_currentDist, desiredDist, speed * Time.deltaTime);
 
-        Camera.main.transform.localPosition = new Vector3(0, 0, -_currentDist);
+        // Camera.main 은 '활성화된' MainCamera 태그 카메라가 없으면 null 이다.
+        //   컷신 등으로 메인 카메라가 잠깐 꺼지면 여기서 매 프레임 NullReference 가 터져 로그가 도배된다.
+        var cam = Camera.main;
+        if (cam == null) return;
+        cam.transform.localPosition = new Vector3(0, 0, -_currentDist);
     }
 
     // 이동 방향 기준축은 "보이는 카메라 방향"(display yaw)으로 맞춤 -> 시점과 이동이 한 덩어리로 움직임.
@@ -361,10 +365,13 @@ public class ThirdPersonCamera : MonoBehaviour
 
         // Camera.main localPosition에 X/Y 랜덤 오프셋 추가
         // HandleCollision이 Z를 이미 설정했으므로 XY만 건드림
-        var camPos = Camera.main.transform.localPosition;
+        //   (HandleCollision 과 같은 이유로 null 가드 — 컷신 중 피격 셰이크가 겹칠 수 있다)
+        var shakeCam = Camera.main;
+        if (shakeCam == null) return;
+        var camPos = shakeCam.transform.localPosition;
         camPos.x += Random.Range(-mag, mag);
         camPos.y += Random.Range(-mag, mag);
-        Camera.main.transform.localPosition = camPos;
+        shakeCam.transform.localPosition = camPos;
 
         if (_shakeTimer <= 0f)
         {

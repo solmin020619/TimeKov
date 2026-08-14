@@ -133,6 +133,17 @@ public class InteractHighlight
         {
             if (root == null) continue;
 
+            // 외곽선을 쓰지 않기로 한 오브젝트는 만들지도, 모으지도 않는다.
+            //   (파편 덩어리처럼 외곽선이 오히려 지저분해지는 것들 — 표시는 F 프롬프트로 준다)
+            //   이미 붙어 있던 외곽선이 있으면 꺼서 잔상이 남지 않게 한다.
+            var style = root.GetComponentInParent<InteractOutlineStyle>();
+            if (style != null && !style.showOutline)
+            {
+                foreach (var o in root.GetComponentsInChildren<Outline>(true))
+                    if (o != null) o.enabled = false;
+                continue;
+            }
+
             var existing = root.GetComponentsInChildren<Outline>(true);
             if (existing.Length > 0)
             {

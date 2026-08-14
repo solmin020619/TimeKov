@@ -18,8 +18,13 @@ public static class InteractOutline
         if (outline == null) return;
         outline.OutlineColor = Color;
         outline.OutlineWidth = Width;
-        // 풀·나무 등 앞을 가리는 물체 위에도 그려져 항상 보이도록 (가림 무시).
-        outline.OutlineMode = Outline.Mode.OutlineAll;
+
+        // 기본은 '가림 무시' — 풀·나무 등 앞을 가리는 물체 위에도 그려져 항상 보이게.
+        //   단, 땅에 박혀 있는 큰 오브젝트는 그 탓에 묻힌 부분까지 다 비친다.
+        //   그런 오브젝트는 루트에 InteractOutlineStyle 을 붙여 OutlineVisible 로 바꾼다
+        //   (지형에 가려지면 안 그려짐 — 경사면도 그대로 따라간다).
+        var style = outline.GetComponentInParent<InteractOutlineStyle>();
+        outline.OutlineMode = style != null ? style.mode : Outline.Mode.OutlineAll;
     }
 
     /// <summary>주어진 Outline에 통일 스타일을 적용하고 켠다. null이면 무시.</summary>
