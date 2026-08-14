@@ -178,7 +178,14 @@ namespace TIMEKOV.Factory
         {
             if (_nearMachines.Count != _prevNearMachines.Count) return true;
             for (int i = 0; i < _nearMachines.Count; i++)
+            {
                 if (_nearMachines[i].machine != _prevNearMachines[i].machine) return true;
+
+                // 이름도 본다. 설비 목록은 그대로인데 이름만 늦게 확정되는 경우가 있다
+                // (시트 로드 전엔 폴백 이름). 이걸 안 보면 패널을 다시 안 그려서, 그 자리에
+                // 서 있는 동안 처음 잡힌 폴백 이름이 계속 남는다(옆으로 갔다 와야 고쳐졌다).
+                if (_nearMachines[i].name != _prevNearMachines[i].name) return true;
+            }
             return false;
         }
 

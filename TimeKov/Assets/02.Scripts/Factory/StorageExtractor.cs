@@ -13,8 +13,17 @@ namespace TIMEKOV.Factory
         // 설비 이름(UI 표시용) - Start 에서 시트 facilityName 으로 세팅한다.
         // 시트가 원본이라 인스펙터 노출/직렬화 안 함(ProcessingMachine 과 같은 방식).
         // 프리팹에 "창고 추출기" 가 박혀 있어 시트의 이름과 두 개로 갈라져 있던 것을 시트 하나로 합쳤다.
+        // ★ProcessingMachine 과 같은 이유로 늦게라도 채운다 - Start 시점에 DataBoot 이 아직이면
+        //   폴백 이름이 화면에 캐시돼 남는다.
         private string machineName;
-        public override string MachineName => !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
+        public override string MachineName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(machineName)) LoadNameFromSheet();
+                return !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
+            }
+        }
 
         [Header("추출 설정")]
         [Tooltip("아이템 1개를 추출하는 주기 (초)")]

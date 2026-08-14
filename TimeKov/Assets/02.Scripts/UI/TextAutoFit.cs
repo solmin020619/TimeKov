@@ -194,14 +194,11 @@ public class TextAutoFit : MonoBehaviour
             return;   // 다시 그려진 뒤 다음 패스에서 결과를 확인한다
         }
 
-        // 2단계 - 하한까지 줄였는데도 넘치면 말줄임으로 자른다. 더 할 수 있는 게 없다.
-        if (tmp.fontSize <= tmp.fontSizeMin + 0.01f && tmp.overflowMode == TextOverflowModes.Overflow)
-        {
-            tmp.overflowMode = TextOverflowModes.Ellipsis;
-            if (LogAdjustments)
-                Debug.LogWarning($"[TextAutoFit] 하한까지 줄여도 안 들어가 말줄임 '{Trim(tmp.text)}' ({Path(tmp)}) "
-                               + $"상자 {r.width:0}x{r.height:0}");
-        }
+        // ★[08-14] 하한까지 줄여도 안 들어갈 때 말줄임을 걸던 로직을 없앴다(종욱 지시).
+        //   말줄임은 고친 게 아니다 - 글자가 안 보이면 넘치는 것과 똑같이 버그인데,
+        //   화면상 '깔끔해 보여서' 아무도 신고하지 않고 로그도 안 뜬다(진단이 자기가 만든
+        //   결과를 보고할 리 없다). 메인메뉴 'Commencer la partie' 가 그렇게 묻혀 있었다.
+        //   넘치게 두면 눈에 띄고 [넘침] 으로 보고되어 상자를 고칠 기회가 생긴다.
     }
 
     // 상자가 넓어졌거나 글자가 짧아졌으면 원래 크기로 되돌린다.

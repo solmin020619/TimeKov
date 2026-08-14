@@ -123,6 +123,19 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
             // 복원을 건너뛰고 World 씬에 배치된 기본 스폰 위치를 그대로 쓴다.
             if (data.hasPlayerPosition && data.playerPositionScene == gameObject.scene.name)
             {
+                // ★transform.position 만 쓰면 복원이 도로 풀린다. 플레이어 Rigidbody 는 Interpolate 라
+                //   렌더 위치를 물리 엔진의 내부 좌표에서 다시 써넣는데, 그 내부 좌표는 아직 씬에 배치된
+                //   위치 그대로다. 다음 물리 스텝에 씬 배치 위치로 되돌아가고, 그 자리가 다음 저장에
+                //   찍혀서 재입장할 때마다 시작 지점에서 시작하게 된다.
+                //   리스폰/워프/귀환석/시간구역은 전부 rb.position 을 먼저 쓴다 - 여기만 빠져 있었다.
+                var rb = GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    rb.position = data.playerPosition;
+                    rb.rotation = Quaternion.Euler(0f, data.playerRotationY, 0f);
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
                 transform.position = data.playerPosition;
                 transform.rotation = Quaternion.Euler(0f, data.playerRotationY, 0f);
             }

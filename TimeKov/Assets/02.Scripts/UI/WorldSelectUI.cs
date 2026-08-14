@@ -62,6 +62,7 @@ public class WorldSelectUI : MonoBehaviour
         // 도로 꺼버리는 꼴이 된다. 그래서 Awake에서는 건드리지 않는다.
         if (createRowButton != null) createRowButton.onClick.AddListener(OpenCreateModal);
         if (confirmCreateButton != null) confirmCreateButton.onClick.AddListener(OnClickCreateNewWorld);
+        if (newWorldNameInput != null) newWorldNameInput.onValueChanged.AddListener(UpdateCreateButton);
         if (modalBackdropButton != null) modalBackdropButton.onClick.AddListener(CloseCreateModal);
         if (enterButton != null) enterButton.onClick.AddListener(OnClickEnter);
         if (deleteButton != null) deleteButton.onClick.AddListener(OnClickDelete);
@@ -103,6 +104,7 @@ public class WorldSelectUI : MonoBehaviour
     {
         if (newWorldNameInput != null) newWorldNameInput.text = string.Empty;
         if (createModal != null) createModal.SetActive(true);
+        UpdateCreateButton();   // 비운 직후라 '결정'은 꺼진 채로 시작한다
     }
 
     void CloseCreateModal()
@@ -154,11 +156,21 @@ public class WorldSelectUI : MonoBehaviour
         Refresh();
     }
 
+    // 이름이 비면 '결정'을 못 누르게 한다. 예전엔 빈 채로 만들 수 있었고 세이브에
+    // '이름없는 월드' 가 그대로 굳어버렸다(월드 목록에서 서로 구분이 안 된다).
+    void UpdateCreateButton(string _ = null)
+    {
+        if (confirmCreateButton == null) return;
+        string t = newWorldNameInput != null ? newWorldNameInput.text : null;
+        confirmCreateButton.interactable = !string.IsNullOrWhiteSpace(t);
+    }
+
     void OnClickCreateNewWorld()
     {
         if (SaveSlotManager.Instance == null) return;
 
         string name = newWorldNameInput != null ? newWorldNameInput.text : null;
+        if (string.IsNullOrWhiteSpace(name)) return;   // 엔터 제출 등 버튼을 우회하는 길 차단
         var meta = SaveSlotManager.Instance.CreateSlot(name);
         CloseCreateModal();
 
