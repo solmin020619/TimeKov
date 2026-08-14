@@ -1206,12 +1206,15 @@ public class MachineUI : MonoBehaviour
             go.transform.SetParent(flowRailsRoot, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-            // ★상자를 간격(17)보다 좁게 둔다. 30 이면 두 칸이 겹쳐서, 글리프가 붙어 있는 것도 아닌데
-            //   겹침 진단이 '>' 가 '>' 에 가려진다고 보고한다(의도된 '>>' 장식이라 오탐이다).
-            rt.sizeDelta = new Vector2(16f, 38f); rt.anchoredPosition = new Vector2(-9f + i * 17f, 0f);
+            // ★'>>' 는 글리프 두 개를 일부러 겹칠 만큼 붙여 놓은 장식이다. 30pt 글리프 폭이
+            //   간격(17)보다 넓어서, 상자를 글자에 맞추면 옆칸과 겹치고 겹치지 않게 좁히면
+            //   글자가 상자를 넘친다 = 진단을 만족시키는 크기가 애초에 없다.
+            //   예전엔 좁히는 쪽(16)으로 도망갔는데 결국 넘침 경고가 떴다 -> 예외를 명시한다.
+            rt.sizeDelta = new Vector2(24f, 38f); rt.anchoredPosition = new Vector2(-9f + i * 17f, 0f);
             var tmp = go.AddComponent<TextMeshProUGUI>();
             tmp.text = ">"; tmp.fontSize = 30; tmp.fontStyle = FontStyles.Bold;
             tmp.color = FR_BusGray; tmp.alignment = TextAlignmentOptions.Center; tmp.raycastTarget = false;
+            go.AddComponent<TextAutoFitIgnore>();
             _centerChevrons.Add(tmp);
         }
     }

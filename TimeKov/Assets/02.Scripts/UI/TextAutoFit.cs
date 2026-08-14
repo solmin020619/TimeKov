@@ -298,6 +298,10 @@ public class TextAutoFit : MonoBehaviour
         var parent = rt.parent as RectTransform;
         if (parent == null) return;
 
+        // TextAutoFitIgnore = 이 라벨은 진단에서 빼라는 뜻이다. 넘침 검사에만 걸려 있고
+        // 여기엔 빠져 있어서, 예외를 달아도 겹침 경고는 계속 떴다(공장 '>>' 장식).
+        if (tmp.GetComponent<TextAutoFitIgnore>() != null) return;
+
         // ★빈 라벨은 그리는 게 없으니 겹칠 수도 없다. 이걸 안 막으면 아래 InkRect 가
         //   '글자 경계 0 -> 상자 전체' 폴백을 타서, 스킬 슬롯의 숨은 쿨타임 숫자 같은
         //   빈 라벨이 아이콘/링과 100% 겹친 것으로 보고된다(전부 오탐이었다).
