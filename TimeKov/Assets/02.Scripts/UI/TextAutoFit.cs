@@ -305,7 +305,7 @@ public class TextAutoFit : MonoBehaviour
         // ★빈 라벨은 그리는 게 없으니 겹칠 수도 없다. 이걸 안 막으면 아래 InkRect 가
         //   '글자 경계 0 -> 상자 전체' 폴백을 타서, 스킬 슬롯의 숨은 쿨타임 숫자 같은
         //   빈 라벨이 아이콘/링과 100% 겹친 것으로 보고된다(전부 오탐이었다).
-        if (string.IsNullOrWhiteSpace(tmp.text)) return;
+        if (IsBlank(tmp.text)) return;
 
         // ★안 보이는 라벨도 마찬가지다. 넘침 검사에는 이 게이트가 있는데 여기엔 없어서,
         //   알파 0 으로 숨겨둔 카테고리 탭 이름 같은 것이 겹침으로만 계속 오탐났다.
@@ -387,9 +387,27 @@ public class TextAutoFit : MonoBehaviour
     //   (1) 실제로 그려진 글자(잉크)가 자기 상자를 벗어났는가 - 좌표 비교
     //   (2) 말줄임이 걸려 글자가 잘렸는가 - TMP 가 알려주는 값
     // '무엇이 배경인가' 같은 추측을 안 하므로, 여기 뜨는 건 눈으로 확인할 필요가 없다.
+    // '아무것도 안 그리는 글자' 판정. 공백뿐 아니라 폭 0 문자까지 본다.
+    //   ★TMP_InputField 는 입력이 비어도 Text 컴포넌트에 U+200B(폭 0 공백)를 넣어둔다.
+    //     char.IsWhiteSpace 는 이걸 공백으로 안 쳐서, 안 그리는 Text 가 InkRect 의
+    //     '경계 0 -> 상자 전체' 폴백을 타고 Placeholder 를 100% 덮는다고 보고됐다
+    //     (월드 이름 입력칸). 폭 0 문자는 그리는 게 없으니 빈 것으로 본다.
+    private static bool IsBlank(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return true;
+        foreach (char c in s)
+        {
+            if (char.IsWhiteSpace(c)) continue;
+            // 폭 0 문자(ZWSP / ZWNJ / ZWJ / BOM). 소스에 그대로 박으면 안 보여서 이스케이프로 쓴다.
+            if (c == '\u200B' || c == '\u200C' || c == '\u200D' || c == '\uFEFF') continue;
+            return false;
+        }
+        return true;
+    }
+
     private static void ReportSpill(TMP_Text tmp, RectTransform rt)
     {
-        if (string.IsNullOrWhiteSpace(tmp.text)) return;
+        if (IsBlank(tmp.text)) return;
         if (tmp.GetComponent<TextAutoFitIgnore>() != null) return;
         if (!IsVisible(tmp)) return;   // 안 보이는 글자는 넘쳐도 화면에 아무 일이 없다
 
@@ -433,6 +451,16 @@ public class TextAutoFit : MonoBehaviour
         //   1.5px 미만은 화면에서 볼 수 없으니 보고하지 않는다 - 고칠 것도 없는데 목록만 늘린다.
         //   (메인메뉴 '제작진' 이 좌우 0px 인데 3% 로 잡힌 게 이 경우다)
         if (outX < 1.5f) return;
+
+        // ★상자를 '글자 폭에 맞춰' 레이아웃이 잡아준 경우는 넓힐 게 없다.
+        //   TMP 의 preferredWidth 는 '다음 글자가 시작할 자리'(advance)라 실제 잉크보다 조금 좁다.
+        //   사이드베어링 + SDF 번짐만큼(보통 1~2px) 늘 밖으로 나온다. 상자가 이미 글자 폭 이상이면
+        //   그건 상자가 작은 게 아니라 폰트 메트릭이 그런 것이다.
+        //   (도감 몬스터 이름 nmrow 가 childControlWidth 라 중국어 2글자마다 이걸로 걸렸다.
+        //    상자를 넓혀도 폭이 같이 늘어나 영원히 안 없어지는 종류의 경고다.)
+        float scaleX = rt.lossyScale.x <= 0.0001f ? 1f : rt.lossyScale.x;
+        float prefW  = tmp.preferredWidth * scaleX;
+        if (prefW > 0f && box.width >= prefW - 1f) return;
 
         if (!_spillReported.Add(rt.GetInstanceID())) return;
         Debug.LogWarning($"[TextAutoFit/넘침] '{Trim(tmp.text)}' 이(가) 자기 상자를 가로로 {outX / box.width:P0} 벗어났다"
@@ -484,7 +512,7 @@ public class TextAutoFit : MonoBehaviour
         if (tmp == null) return WorldRect(rt);
         // 글자가 없는 TMP 는 '상자 전체' 로 폴백하면 안 된다. 안 그리는 것을 크게 잡아
         // 겹침으로 오인한다(상대편으로 걸릴 때도 마찬가지).
-        if (string.IsNullOrWhiteSpace(tmp.text)) return Rect.zero;
+        if (IsBlank(tmp.text)) return Rect.zero;
         var b = tmp.textBounds;
         if (b.size.x <= 0.01f || b.size.y <= 0.01f) return WorldRect(rt);
         Vector3 a = rt.TransformPoint(new Vector3(b.min.x, b.min.y, 0f));
