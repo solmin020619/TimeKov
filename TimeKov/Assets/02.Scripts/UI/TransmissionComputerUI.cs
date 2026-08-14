@@ -549,7 +549,31 @@ public class TransmissionComputerUI : MonoBehaviour
         _previewVal.text = pv; _previewVal.color = pc;
         _sendBtnImg.color = active ? C("47C4F0") : C("47C4F0", 0.4f);
         _sendBtnCg.alpha = active ? 1f : 0.5f; _sendBtnCg.blocksRaycasts = active; _sendBtnCg.interactable = active;
+        FitSendButton();
         UpdateGhostPreview(active ? k : null);
+    }
+
+    // 전송 버튼의 삼각형 아이콘은 버튼 중앙에서 왼쪽으로 34px 고정이었다. 한국어 '전송'(2자)
+    // 기준이라, 영어 'Transmit'/프랑스어 'Transférer' 처럼 글자가 길어지면 글자가 왼쪽으로
+    // 자라면서 아이콘을 파고든다(라벨이 버튼 전체 폭에 가운데정렬이라 양쪽으로 퍼진다).
+    // -> 아이콘을 글자 폭에 맞춰 옮긴다. [아이콘][간격][글자] 한 덩이가 버튼 가운데 오도록.
+    //    글자 쪽은 건드릴 필요가 없다 - 중심이 항상 (아이콘폭+간격)/2 라 언어와 무관하다.
+    private TMP_Text _sendLabel;
+
+    private void FitSendButton()
+    {
+        if (_sendBtn == null || _sendTri == null) return;
+        if (_sendLabel == null)
+        {
+            var t = _sendBtn.transform.Find("sendTxt");
+            if (t != null) _sendLabel = t.GetComponent<TMP_Text>();
+        }
+        if (_sendLabel == null) return;
+
+        const float Gap = 10f;   // 아이콘과 글자 사이
+        float w = _sendLabel.GetPreferredValues(_sendLabel.text).x;
+        var rt = _sendTri.rectTransform;
+        rt.anchoredPosition = new Vector2(-(Gap + w) * 0.5f, rt.anchoredPosition.y);
     }
 
     // ── 게이지 구간 아이콘 ────────────────────────────────────────────────
