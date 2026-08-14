@@ -310,7 +310,8 @@ public class TextAutoFit : MonoBehaviour
         //   알파 0 으로 숨겨둔 카테고리 탭 이름 같은 것이 겹침으로만 계속 오탐났다.
         if (!IsVisible(tmp)) return;
 
-        Rect mine = InkRect(rt, tmp);
+        // 나도 마스크 안이면 잘린 만큼만 보인다. 안 보이는 부분이 덮이는 건 겹침이 아니다.
+        Rect mine = ClipByMasks(rt, InkRect(rt, tmp));
         if (mine.width <= 1f) return;
 
         // ★'나보다 뒤에 그려지는 형제'만 본다. 앞에 그려지는 건 내 글자 아래 깔리는
@@ -339,11 +340,18 @@ public class TextAutoFit : MonoBehaviour
             var g = _probe[i];
             // 덮는 쪽도 실제로 그려지는 상태여야 한다. 자기 알파만 보면 꺼진
             // 패널(CanvasGroup 알파 0) 안의 그래픽이 덮는 것으로 잡힌다.
-            if (g == null || !g.enabled || g.color.a <= 0.01f || !GroupVisible(g.transform)) continue;
+            if (g == null || !g.enabled || !GroupVisible(g.transform)) continue;
+
+            // ★거의 투명한 장식은 글자를 가릴 수 없다. 카드 위를 지나가는 반짝임(sweep),
+            //   후광, 스캔라인 같은 것들이다. 실측: 보상 카드의 rwSweep 은 알파 0.06 인데
+            //   제목을 48% 덮는다고 보고됐다 - 화면에선 글자가 멀쩡히 다 보인다.
+            //   글자끼리는 흐려도 읽히니 기존 기준(0.01)을 유지한다.
+            float minAlpha = (g is TMP_Text) ? 0.01f : 0.2f;
+            if (g.color.a <= minAlpha) continue;
             var srt = g.rectTransform;
             if (srt == null || srt.IsChildOf(rt)) continue;   // 내 장식(밑줄 등)은 겹침이 아니다
 
-            Rect other = InkRect(srt, g as TMP_Text);
+            Rect other = ClipByMasks(srt, InkRect(srt, g as TMP_Text));
             if (other.width <= 1f) continue;
             if (other.Contains(new Vector2(mine.xMin, mine.yMin)) &&
                 other.Contains(new Vector2(mine.xMax, mine.yMax))) continue;   // 배경처럼 나를 감싸는 건 제외
@@ -428,6 +436,36 @@ public class TextAutoFit : MonoBehaviour
         if (!_spillReported.Add(rt.GetInstanceID())) return;
         Debug.LogWarning($"[TextAutoFit/넘침] '{Trim(tmp.text)}' 이(가) 자기 상자를 가로로 {outX / box.width:P0} 벗어났다"
                        + $"(왼쪽 {outL:0}px / 오른쪽 {outR:0}px). ({Path(tmp)}) -> 상자를 넓히거나 문구를 줄여야 한다.");
+    }
+
+    // ★마스크로 잘려 나간 부분은 화면에 안 그려진다. rect 만 보면 '겹친다'가 되지만 실제로는 안 보인다.
+    //   스크롤 목록이 헤더 밑을 지나갈 때가 대표적이다 - 설정창에서 키설정 행이 창 제목을
+    //   58% 덮는다고 나온 게 이 경우였다(행은 뷰포트 RectMask2D 안이라 잘려 있었다).
+    //   부모를 타고 올라가며 마스크 영역과 계속 교집합을 낸다(마스크가 겹쳐 있어도 맞는다).
+    private static Rect ClipByMasks(RectTransform rt, Rect r)
+    {
+        var t = rt != null ? rt.parent as RectTransform : null;
+        while (t != null)
+        {
+            bool clips = false;
+            var rm = t.GetComponent<RectMask2D>();
+            if (rm != null && rm.enabled) clips = true;
+            else
+            {
+                var m = t.GetComponent<Mask>();
+                if (m != null && m.enabled && m.graphic != null) clips = true;
+            }
+
+            if (clips)
+            {
+                Rect c = WorldRect(t);
+                r = Rect.MinMaxRect(Mathf.Max(r.xMin, c.xMin), Mathf.Max(r.yMin, c.yMin),
+                                    Mathf.Min(r.xMax, c.xMax), Mathf.Min(r.yMax, c.yMax));
+                if (r.width <= 0f || r.height <= 0f) return new Rect(0f, 0f, 0f, 0f);
+            }
+            t = t.parent as RectTransform;
+        }
+        return r;
     }
 
     private static Rect WorldRect(RectTransform rt)

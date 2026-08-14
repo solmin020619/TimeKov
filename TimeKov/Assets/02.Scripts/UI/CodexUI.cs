@@ -385,6 +385,11 @@ public class CodexUI : MonoBehaviour
         var lbl = Txt(NewChild("lbl", tab), Loc.Get(TabNames[index]), 18f, FontStyles.Bold, icCol, TextAlignmentOptions.Center);
         lbl.ForceMeshUpdate();   // 프리퍼드폭 즉시 확정(첫 오픈 탭 퍼짐 방지)
 
+        // ★레이아웃이 잡아주는 폭(preferredWidth)은 '다음 글자가 시작될 자리'라 잉크가 몇 px 더 나간다.
+        //   중국어 탭('教程' 등)이 3px 씩 넘친다고 잡힌 게 이것이다. 여유를 줘서 상자 안에 들어오게 한다.
+        var lblLe = lbl.gameObject.AddComponent<LayoutElement>();
+        lblLe.preferredWidth = lbl.preferredWidth + 6f;
+
         // 안 본 새 항목이 있는 카테고리(비활성 탭)면 우상단 알림(!) 배지. 활성 탭은 열며 MarkSeen 되어 안 뜸.
         if (CodexNotice.IsUnseen(index)) AddTabNotice(tab);
     }
