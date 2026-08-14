@@ -6,10 +6,29 @@ namespace TIMEKOV.Factory
 {
     public class ProcessingMachine : MachineBase
     {
-        // 설비 이름(UI 표시용) — Start의 LoadRecipesFromSheet에서 시트 facilityName으로 세팅된다.
-        // 시트가 원본이라 인스펙터 노출/직렬화 안 함(옛 프리팹 값은 어차피 덮어써지던 죽은 값).
+        // 설비 이름(UI 표시용) — 시트 facilityName. 시트가 원본이라 인스펙터 노출/직렬화 안 함
+        // (옛 프리팹 값은 어차피 덮어써지던 죽은 값).
+        // ★Start 의 LoadRecipesFromSheet 에만 맡기면 안 된다. DataBoot 로드가 늦으면 그때까지 비어 있고,
+        //   그 사이에 이름을 물어본 쪽(F 선택 패널)이 폴백 문자열을 캐시해버려 계속 남는다.
+        //   -> 물어볼 때마다 늦게라도 시트에서 채운다(한 번 채워지면 그대로 재사용).
         private string machineName;
-        public override string MachineName => !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
+        public override string MachineName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(machineName)) ResolveMachineName();
+                return !string.IsNullOrEmpty(machineName) ? machineName : base.MachineName;
+            }
+        }
+
+        private void ResolveMachineName()
+        {
+            int fid = FacilityId;
+            if (fid <= 0) return;
+            var facility = GameDataUtility.GetFacility(fid);
+            if (facility != null && !string.IsNullOrEmpty(facility.facilityName))
+                machineName = facility.facilityName;
+        }
 
         [Header("제작 시간 (폴백)")]
         [Tooltip("시트 레시피에 craftTime 이 없을 때만 쓰는 폴백(초). 평소엔 레시피별 시트 craftTime 사용.")]
@@ -116,9 +135,7 @@ namespace TIMEKOV.Factory
                 LockedRecipeIndex = -1;
             }
 
-            var facility = GameDataUtility.GetFacility(fid);
-            if (facility != null && !string.IsNullOrEmpty(facility.facilityName))
-                machineName = facility.facilityName;
+            ResolveMachineName();
 
             // 세이브 복원으로 버퍼가 미리 채워져 있었다면, 레시피가 준비된 지금 생산 재개 시도.
             if (!_processing)

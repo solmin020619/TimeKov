@@ -14,7 +14,18 @@ namespace TIMEKOV.Factory
         public MachineStatus Status { get; protected set; } = MachineStatus.Idle;
 
         /// <summary>UI에 표시할 설비 이름. 서브클래스에서 override해 사용한다.</summary>
-        public virtual string MachineName => gameObject.name;
+        // 폴백으로 오브젝트 이름을 쓸 때 Instantiate 가 붙이는 "(Clone)" 접미사를 뗀다.
+        // 안 떼면 시트 이름이 아직 안 들어온 순간에 "생체 배양기(Clone)" 이 그대로 화면에 나온다.
+        // (FacilityWorldDisplay 의 이름 폴백도 같은 처리를 한다 - 표시를 일치시킨다.)
+        public virtual string MachineName
+        {
+            get
+            {
+                string n = gameObject.name ?? "";
+                int idx = n.IndexOf("(Clone)", StringComparison.Ordinal);
+                return idx >= 0 ? n.Substring(0, idx).TrimEnd() : n;
+            }
+        }
 
         public event Action OnBufferChanged;
         public event Action<MachineStatus> OnStatusChanged;
