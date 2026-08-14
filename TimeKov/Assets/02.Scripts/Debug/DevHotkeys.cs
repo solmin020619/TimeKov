@@ -72,7 +72,7 @@ public class DevHotkeys : MonoBehaviour
     {
         var ship = ShipRepairManager.Instance;
         if (ship == null) { Debug.LogWarning("[Dev] ShipRepairManager 가 씬에 없다"); return; }
-        if (ship.IsMaxLevel) { Debug.Log("[Dev] 우주선이 이미 최대 레벨이다"); return; }
+        if (ship.IsMaxLevel) return;
 
         int lack = ship.NextRequiredParts - ship.PartCount;
         if (lack > 0) ship.AddParts(lack);
@@ -81,8 +81,7 @@ public class DevHotkeys : MonoBehaviour
         //   이건 시간에너지 전송률(25/50/75%) 보상 전용이라, F5 로 주면 전송률 게이트를 우회해서
         //   "전송률 25%인데 만렙" 같은 테스트 혼란이 생긴다. F5 는 맵 부품(복구 에너지)만.
         //   특수 부품이 필요하면 F3(전송률 +5%)로 전송률을 올려서 받아라.
-
-        Debug.Log($"[Dev] 우주선 복구 에너지 지급(Lv.{ship.CurrentLevel} 기준). 특수 부품은 F3 전송률로만 획득.");
+        //   (이 주의사항은 파일 맨 위 키 목록에도 적어뒀다. 로그로 매번 찍지 않는다)
     }
 }
 #endif

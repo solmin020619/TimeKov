@@ -63,8 +63,6 @@ public class ScreenshotMode : MonoBehaviour
         // OnGUI 로 직접 그리는 것들. 알파 페이드가 안 통해서 컴포넌트를 꺼야 한다.
         HideOverlay(FindAnyObjectByType<FpsCounter>());
         HideOverlay(FindAnyObjectByType<PerfHud>());
-
-        Debug.Log($"[촬영 모드] HUD 를 숨겼다. {ToggleKey} 를 다시 누르면 되돌린다.");
     }
 
     private static void Show()
@@ -78,8 +76,6 @@ public class ScreenshotMode : MonoBehaviour
             m.enabled = true;
         }
         _hiddenOverlays.Clear();
-
-        Debug.Log("[촬영 모드] HUD 를 되돌렸다.");
     }
 
     private static void HideOverlay(MonoBehaviour m)

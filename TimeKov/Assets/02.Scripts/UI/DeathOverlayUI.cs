@@ -81,6 +81,8 @@ public class DeathOverlayUI : MonoBehaviour
     private TMP_Text      _loss;            // 아이템 상실 문구(shimmer)
     private TMP_Text      _kicker;          // 타이틀 아래 부제 (SYNC LOST · 시간 소멸)
     private TMP_Text      _buttonLabel;     // 리스폰 버튼 텍스트
+    private RectTransform _btnInnerRt;      // 알약 안쪽 프레임 (폭 재조정 대상)
+    private RectTransform _btnHoverGlowRt;  // 호버 글로우 (폭 재조정 대상)
 
     private Button        _respawnButton;
     private CanvasGroup   _buttonGroup;
@@ -127,7 +129,7 @@ public class DeathOverlayUI : MonoBehaviour
     {
         if (_loss != null) _loss.text = Loc.Get(lossString);
         if (_kicker != null) _kicker.text = "SYNC LOST · " + Loc.Get("시간 소멸");
-        if (_buttonLabel != null) _buttonLabel.text = Loc.Get(buttonString);
+        if (_buttonLabel != null) { _buttonLabel.text = Loc.Get(buttonString); FitButtonWidth(); }
     }
 
     // ── 공개 API ──────────────────────────────────────────────────
@@ -932,9 +934,30 @@ public class DeathOverlayUI : MonoBehaviour
     }
 
     // 리스폰 버튼(둥근 알약형): 상시 소프트 글로우 + 호버 글로우 + 부유. 카운트다운 완료 시 페이드 인.
+    // ★알약 폭을 글자에 맞춘다. 320 은 한국어("시간 되감기") 기준이라
+    //   프랑스어("Rembobinage du temps")처럼 긴 번역은 좌우로 삐져나온다.
+    //   ★만들 때 한 번만 재면 안 된다 - 설정에서 언어를 바꾸면 글자만 갈리고 알약은 그대로라
+    //     그때부터 삐져나온다. ApplyTexts 에서도 다시 부른다.
+    void FitButtonWidth()
+    {
+        if (_btnRt == null || _buttonLabel == null) return;
+
+        const float BtnPadX = 56f;   // 좌우 여백(테두리와 글자 사이)
+        // 자간까지 반영해야 하므로 characterSpacing 이 정해진 뒤에 잰다.
+        float textW = _buttonLabel.GetPreferredValues(_buttonLabel.text).x;
+        float wantW = Mathf.Max(BtnBaseW, textW + BtnPadX);
+
+        Center(_btnRt, wantW, BtnBaseH, _btnHome);
+        if (_btnInnerRt != null)     Center(_btnInnerRt, wantW - 12f, BtnBaseH - 12f, Vector2.zero);
+        if (_btnGlowImg != null)     Center(_btnGlowImg.rectTransform, wantW + 140f, 170f, Vector2.zero);
+        if (_btnHoverGlowRt != null) Center(_btnHoverGlowRt, wantW + 120f, 150f, Vector2.zero);
+    }
+
+    const float BtnBaseW = 320f, BtnBaseH = 60f;   // 기본 크기(한국어 기준)
+
     void BuildButton(Transform parent, Vector2 pos)
     {
-        const float BtnW = 320f, BtnH = 60f;   // 기본 크기(한국어 기준). 긴 번역이면 아래에서 넓힌다.
+        const float BtnW = BtnBaseW, BtnH = BtnBaseH;
         var btnRt = NewRect("RespawnButton", parent);
         Center(btnRt, BtnW, BtnH, pos);
         _btnRt   = btnRt;
@@ -985,19 +1008,9 @@ public class DeathOverlayUI : MonoBehaviour
         Stretch(label.rectTransform);
         label.characterSpacing = 6f;
 
-        // ★알약 폭을 글자에 맞춘다. 320 은 한국어("시간 되감기") 기준이라
-        //   프랑스어("Rembobinage du temps")처럼 긴 번역은 좌우로 삐져나온다.
-        //   자간까지 반영해야 하므로 characterSpacing 을 정한 뒤에 잰다.
-        const float BtnPadX = 56f;   // 좌우 여백(테두리와 글자 사이)
-        float textW = label.GetPreferredValues(label.text).x;
-        float wantW = Mathf.Max(BtnW, textW + BtnPadX);
-        if (wantW > BtnW + 0.5f)
-        {
-            Center(btnRt, wantW, BtnH, pos);
-            Center(inner.rectTransform, wantW - 12f, BtnH - 12f, Vector2.zero);
-            Center(_btnGlowImg.rectTransform, wantW + 140f, 170f, Vector2.zero);
-            Center(glow.rectTransform, wantW + 120f, 150f, Vector2.zero);
-        }
+        _btnInnerRt = inner.rectTransform;
+        _btnHoverGlowRt = glow.rectTransform;
+        FitButtonWidth();
 
         _respawnButton = btnRt.gameObject.AddComponent<Button>();
         _respawnButton.transition = Selectable.Transition.None;   // 시각은 DeathRespawnButton이 전담

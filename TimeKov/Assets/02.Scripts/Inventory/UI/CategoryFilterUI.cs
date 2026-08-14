@@ -98,12 +98,40 @@ public class CategoryFilterUI : MonoBehaviour
         {
             if (_tabLabels[i] == null) continue;
             string nm = (i < TabNames.Length) ? Loc.Get(TabNames[i]) : "";
-            _tabLabels[i].text = nm;
-            float w = _tabLabels[i].GetPreferredValues(nm).x;
-            if (w < 1f) w = nm.Length * 26f;
-            _expandedWidth[i] = 56f + w + 16f;
+            _expandedWidth[i] = MeasureTab(_tabLabels[i], nm);
         }
         ApplyLayoutInstant(_selectedIndex);
+    }
+
+    // 탭 문구를 넣고 알약 폭을 돌려준다.
+    // ★라벨 상자도 글자 폭에 맞춰 늘린다. 예전엔 알약만 늘리고 라벨은 140 고정이라,
+    //   긴 번역(프랑스어 "Amelioration du noyau")에서 TextAutoFit 이 "상자를 넘쳤다"고 보고
+    //   글자를 줄이다 말줄임까지 걸었다. 정작 알약은 넓어져 있어서 옆이 휑하게 비어 보였다.
+    //   상단 배너(TopViewBannerLabel)에서 겪은 것과 같은 함정이다.
+    private static float MeasureTab(TextMeshProUGUI label, string text)
+    {
+        label.text = text;
+
+        // TextAutoFit 이 이미 줄여놨을 수 있으니 원래 크기로 되돌린 뒤 잰다.
+        if (label.enableAutoSizing)
+        {
+            label.enableAutoSizing = false;
+            if (label.fontSizeMax > 0f) label.fontSize = label.fontSizeMax;
+        }
+        if (label.overflowMode == TMPro.TextOverflowModes.Ellipsis)
+            label.overflowMode = TMPro.TextOverflowModes.Overflow;
+
+        float w = label.GetPreferredValues(text).x;
+        if (w < 1f) w = text.Length * 26f;   // 폰트 미준비 폴백(한글 넉넉히)
+
+        // ★상자를 글자 폭에 '딱' 맞추면 안 된다. GetPreferredValues 는 다음 글자가 시작될
+        //   위치(어드밴스)를 주는데 잉크는 그보다 1px 쯤 더 나간다(글리프 여백 + SDF 번짐).
+        //   짧은 문구일수록 그 1px 이 비율로는 커져서(Tout = 33px 상자의 3%) 넘침으로 잡힌다.
+        const float InkSlack = 6f;
+        var lr = label.rectTransform;
+        lr.sizeDelta = new Vector2(w + InkSlack, lr.sizeDelta.y);
+
+        return 56f + w + 16f;   // 아이콘영역(56) + 글자 + 우측여백(잉크 여유 6 을 품는다)
     }
 
     public void SetFilterByIndex(int index)
@@ -149,10 +177,7 @@ public class CategoryFilterUI : MonoBehaviour
             if (_tabLabels[i] != null)
             {
                 string nm = (i < TabNames.Length) ? Loc.Get(TabNames[i]) : "";
-                _tabLabels[i].text = nm;
-                float w = _tabLabels[i].GetPreferredValues(nm).x;
-                if (w < 1f) w = nm.Length * 26f;   // 폰트 미준비 폴백(한글 넉넉히)
-                _expandedWidth[i] = 56f + w + 16f; // 아이콘영역(56) + 글자 + 우측여백
+                _expandedWidth[i] = MeasureTab(_tabLabels[i], nm);
                 var c = _tabLabels[i].color; c.a = 0f; _tabLabels[i].color = c;
             }
             else

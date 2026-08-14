@@ -34,9 +34,6 @@ public class LootBoxVFX : MonoBehaviour
     [Tooltip("수집 VFX가 플레이어 원점에서 얼마나 위로 빨려들지 (m). 몸 중앙에 오게 조절")]
     [SerializeField] private float collectTargetHeight = 0.5f;
 
-    [Tooltip("켜면 박스 등급 / 선택된 VFX를 Console에 출력 (디버그)")]
-    [SerializeField] private bool logGradeInfo = true;
-
     [Tooltip("디버그 — 0 이상이면 박스 등급을 이 값으로 강제한다 (VFX 테스트용). 평소엔 -1")]
     [SerializeField] private int debugForceGrade = -1;
 
@@ -50,12 +47,6 @@ public class LootBoxVFX : MonoBehaviour
         int realGrade = GetTopGrade(box);
         int top = debugForceGrade >= 0 ? debugForceGrade : realGrade;
         int idx = FindEntry(top);
-
-        if (logGradeInfo)
-            Debug.Log($"[LootBoxVFX] {(debugForceGrade >= 0 ? "[디버그 강제] " : "")}등급 = {top} → " +
-                      (idx >= 0
-                          ? $"gradeVfx 항목 #{idx} (Grade = {gradeVfx[idx].grade} / {(int)gradeVfx[idx].grade}) 사용"
-                          : "맞는 Grade 항목이 없음 → VFX 안 뜸"));
 
         // 기본값: 등급 VFX (idx 유효할 때만)
         GameObject dropPrefab = idx >= 0 ? gradeVfx[idx].dropVfx : null;
@@ -113,23 +104,17 @@ public class LootBoxVFX : MonoBehaviour
         return best >= 0 ? best : lowest;
     }
 
-    // 박스 내용물 중 가장 높은 등급 번호 (없으면 -1). logGradeInfo 면 내용물을 Console에 출력.
+    // 박스 내용물 중 가장 높은 등급 번호 (없으면 -1).
     private int GetTopGrade(LootBox box)
     {
         int top = -1;
-        string report = "[LootBoxVFX] 박스 내용물:";
-
         IReadOnlyList<(int itemId, int count)> contents = box.Contents;
         for (int i = 0; i < contents.Count; i++)
         {
             ItemDataSheetData item = GameDataUtility.GetItem(contents[i].itemId);
             int g = item != null ? (int)item.itemGrade : -1;
-            string name = item != null ? item.itemGrade.ToString() : "데이터없음";
             if (g > top) top = g;
-            report += $" [itemId {contents[i].itemId} = 등급 {g}({name})]";
         }
-
-        if (logGradeInfo) Debug.Log(report);
         return top;
     }
 }

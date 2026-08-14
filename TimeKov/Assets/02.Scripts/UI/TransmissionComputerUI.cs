@@ -1197,6 +1197,7 @@ public class TransmissionComputerUI : MonoBehaviour
         _ttName.text = name;
         _ttState.color = col; _ttState.text = state;
         var rt = (RectTransform)_tooltip.transform;
+        FitTooltipHeight(rt);
         Vector2 target = ContentPointFromMarker(anchor);
         rt.DOKill(); _ttCg.DOKill();
         _tooltip.transform.SetAsLastSibling();
@@ -1206,6 +1207,42 @@ public class TransmissionComputerUI : MonoBehaviour
         _ttCg.alpha = 0f;
         rt.DOAnchorPos(target, 0.22f).SetEase(Ease.OutCubic).SetUpdate(true);
         _ttCg.DOFade(1f, 0.18f).SetUpdate(true);
+    }
+
+    // 보상 이름 줄(ttN)은 230px 한 줄로 만들어져 있는데, 한 구간에서 보상이 둘 이상이면
+    // "설비A / 설비B" 로 이어붙어 번역어가 긴 언어(프랑스어)에서 상자를 넘겼다.
+    // -> 필요한 만큼만 이름 줄을 늘리고, 그만큼 아래 상태 줄과 툴팁 상자를 같이 민다.
+    //    (툴팁 피벗이 아래-가운데라 상자는 위로 자란다. 마커를 가리지 않는다)
+    private bool _ttBaseCaptured;
+    private float _ttBaseNameH, _ttBaseStateY, _ttBaseBoxH;
+
+    private void FitTooltipHeight(RectTransform box)
+    {
+        if (_ttName == null || box == null) return;
+        var nameRt = _ttName.rectTransform;
+
+        if (!_ttBaseCaptured)
+        {
+            _ttBaseNameH  = nameRt.sizeDelta.y;
+            _ttBaseStateY = _ttState != null ? _ttState.rectTransform.anchoredPosition.y : 0f;
+            _ttBaseBoxH   = box.sizeDelta.y;
+            _ttBaseCaptured = true;
+        }
+
+        _ttName.textWrappingMode = TMPro.TextWrappingModes.Normal;
+
+        float w = nameRt.rect.width;
+        if (w <= 1f) w = _ttBaseNameH > 0f ? 230f : 230f;   // 레이아웃 전이면 authored 폭으로 잰다
+        float needH = _ttName.GetPreferredValues(_ttName.text, w, 0f).y;
+        float extra = Mathf.Max(0f, needH - _ttBaseNameH);
+
+        nameRt.sizeDelta = new Vector2(nameRt.sizeDelta.x, _ttBaseNameH + extra);
+        if (_ttState != null)
+        {
+            var sp = _ttState.rectTransform.anchoredPosition;
+            _ttState.rectTransform.anchoredPosition = new Vector2(sp.x, _ttBaseStateY - extra);
+        }
+        box.sizeDelta = new Vector2(box.sizeDelta.x, _ttBaseBoxH + extra);
     }
 
     public void HideTooltip()
