@@ -871,6 +871,60 @@ public class TransmissionComputerUI : MonoBehaviour
         foreach (var rv in list) _revealQ.Enqueue(rv);
     }
 
+    // 보상 이름 줄(rwName)은 550px 한 줄로 만들어져 있는데, 한 구간에서 보상이 둘이면
+    // "설비A / 설비B 획득!" 로 이어붙어 62자까지 간다. 번역어가 긴 언어에서는 말줄임으로 잘렸다
+    // (카드 폭 780 을 다 줘도 한 줄로는 안 들어간다).
+    // -> 이름을 여러 줄로 펴고, 늘어난 만큼 설명/힌트를 내리고 카드와 스윕도 같이 키운다.
+    //    카드는 화면 중앙에 떠 있고 아래에 아무것도 없어서 커져도 가릴 게 없다.
+    private bool _rwBaseCaptured;
+    private float _rwBaseNameH, _rwBaseDescY, _rwBaseHintY, _rwBaseCardH, _rwBaseSweepH;
+
+    private void FitRewardCard()
+    {
+        if (_rewardName == null || _rewardCard == null) return;
+        var nameRt = _rewardName.rectTransform;
+
+        if (!_rwBaseCaptured)
+        {
+            _rwBaseNameH  = nameRt.sizeDelta.y;
+            _rwBaseDescY  = _rewardDesc != null ? _rewardDesc.rectTransform.anchoredPosition.y : 0f;
+            _rwBaseHintY  = _rewardHint != null ? _rewardHint.rectTransform.anchoredPosition.y : 0f;
+            _rwBaseCardH  = _rewardCard.sizeDelta.y;
+            _rwBaseSweepH = _rewardSweep != null ? _rewardSweep.sizeDelta.y : 0f;
+            _rwBaseCaptured = true;
+        }
+
+        // TextAutoFit 이 이미 줄이거나 말줄임을 걸어놨으면 되돌린 뒤에 잰다.
+        _rewardName.textWrappingMode = TextWrappingModes.Normal;
+        if (_rewardName.overflowMode == TextOverflowModes.Ellipsis)
+            _rewardName.overflowMode = TextOverflowModes.Overflow;
+        if (_rewardName.enableAutoSizing)
+        {
+            _rewardName.enableAutoSizing = false;
+            if (_rewardName.fontSizeMax > 0f) _rewardName.fontSize = _rewardName.fontSizeMax;
+        }
+
+        float w = nameRt.rect.width;
+        if (w <= 1f) w = nameRt.sizeDelta.x;
+        float needH = _rewardName.GetPreferredValues(_rewardName.text, w, 0f).y;
+        float extra = Mathf.Max(0f, needH - _rwBaseNameH);
+
+        nameRt.sizeDelta = new Vector2(nameRt.sizeDelta.x, _rwBaseNameH + extra);
+        if (_rewardDesc != null)
+        {
+            var p = _rewardDesc.rectTransform.anchoredPosition;
+            _rewardDesc.rectTransform.anchoredPosition = new Vector2(p.x, _rwBaseDescY - extra);
+        }
+        if (_rewardHint != null)
+        {
+            var p = _rewardHint.rectTransform.anchoredPosition;
+            _rewardHint.rectTransform.anchoredPosition = new Vector2(p.x, _rwBaseHintY - extra);
+        }
+        _rewardCard.sizeDelta = new Vector2(_rewardCard.sizeDelta.x, _rwBaseCardH + extra);
+        if (_rewardSweep != null)
+            _rewardSweep.sizeDelta = new Vector2(_rewardSweep.sizeDelta.x, _rwBaseSweepH + extra);
+    }
+
     private void PlayReveal(Reveal r)
     {
         const float PW = 780;   // 카드 폭(스윕 종료 x 계산용) - 빌드 값과 일치
@@ -879,6 +933,7 @@ public class TransmissionComputerUI : MonoBehaviour
         // 내용/색 세팅
         _rewardTitle.text = r.title; _rewardTitle.color = col;
         _rewardName.text = r.name; _rewardDesc.text = r.desc;
+        FitRewardCard();
         _rewardIconBg.color = new Color(col.r, col.g, col.b, 0.14f);
         _rewardIconFrame.effectColor = col;
         if (_rewardTint != null) foreach (var im in _rewardTint) if (im != null) im.color = col;
