@@ -81,6 +81,11 @@ public class FloatingTextManager : MonoBehaviour
         tmp.overflowMode = TextOverflowModes.Overflow;
         tmp.raycastTarget = false;
 
+        // 떠올랐다 사라지는 숫자는 서로 겹치는 게 정상이다(±22px 지터 안에서 0.9초씩 산다).
+        // TextAutoFit 의 [가려짐] 진단은 "컨테이너를 가로 레이아웃으로 바꿔라" 고 하는데
+        // 여기엔 적용될 수 없는 조언이라, 콘솔만 도배하고 정작 볼 경고를 묻는다.
+        go.AddComponent<TextAutoFitIgnore>();
+
         var cg = go.AddComponent<CanvasGroup>();
         cg.blocksRaycasts = false;
         cg.interactable = false;
