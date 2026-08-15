@@ -271,11 +271,15 @@ public static class ConsumableEffectApplier
             case ConsumableType.Buff:
                 return string.Format(Loc.Get("{0} +{1} ({2}초)"), target, val, sec);
             case ConsumableType.PermanentStat:
-                // ★천장을 같이 적는다. 먹고 나서 "안 올랐네?" 가 되면 안 되고,
-                //   상위 등급이 왜 필요한지도 이 한 줄로 전달된다. 0 = 무제한이라 안 적는다.
-                return e.maxStatValue > 0f
-                    ? string.Format(Loc.Get("{0} 영구 +{1} ({0} {2}까지)"), target, val, NumText(e.maxStatValue))
-                    : string.Format(Loc.Get("{0} 영구 +{1} (한계 없음)"), target, val);
+                // [08-15] 스탯 천장을 걷어내고 수치 밸런싱으로 대체했다. 시트의 maxStatValue 가
+                //   전부 0 이 되면서 모든 앰플이 '(한계 없음)' 으로 떠서 문구를 뗐다.
+                //   없는 제약을 매번 적으면 "원래는 한계가 있었나?" 하고 오히려 헷갈린다.
+                //   ★천장을 다시 도입하면 아래 두 줄을 되살리면 된다(시트 maxStatValue 만 채우면 동작).
+                //     번역도 시트에 그대로 남겨뒀다 - 코드만 되돌리면 4개 언어가 바로 붙는다.
+                // return e.maxStatValue > 0f
+                //     ? string.Format(Loc.Get("{0} 영구 +{1} ({0} {2}까지)"), target, val, NumText(e.maxStatValue))
+                //     : string.Format(Loc.Get("{0} 영구 +{1} (한계 없음)"), target, val);
+                return string.Format(Loc.Get("{0} 영구 +{1}"), target, val);
             default:
                 return "";
         }
