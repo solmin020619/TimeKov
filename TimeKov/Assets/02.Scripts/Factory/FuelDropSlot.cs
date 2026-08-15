@@ -177,17 +177,32 @@ public class FuelDropSlot : MonoBehaviour,
         return img;
     }
 
+    // 곧 꺼진다는 경고. 대기 연료가 없고 지금 타는 1개도 이 비율 밑으로 남으면 도화선이 서서히 붉어진다.
+    //   ★깜빡이지 않는다. 움직이는 경고는 시야에 계속 걸려서 거슬리고, 색만 바뀌어도 상태는 그대로 전달된다.
+    //   대기 연료가 있으면 경고하지 않는다 - 어차피 이어서 탄다.
+    private const float FuelWarnBelow = 0.30f;
+    private static readonly Color FuelWarnColor  = new Color(0.95f, 0.27f, 0.20f, 1f);
+    private static readonly Color EmberGlowNormal = new Color(1f, 0.55f, 0.18f, 0.55f);
+    private static readonly Color EmberGlowWarn   = new Color(1f, 0.28f, 0.18f, 0.75f);
+
     private void UpdateBurnerPanel(float t, float secs, float currentTime, int queued)
     {
         if (_burnerRt == null) return;
         bool lit = t > 0f;
         Color fc = GradeVisual.FuelColor;
-        float fillW = lit ? BurnerGaugeW * Mathf.Clamp01(currentTime / secs) : 0f;
+        float left = secs > 0.01f ? Mathf.Clamp01(currentTime / secs) : 0f;
+        float fillW = lit ? BurnerGaugeW * left : 0f;
+
+        // 0 = 평소, 1 = 다 타감. 마지막 30% 구간에서 0 -> 1 로 올라간다.
+        float warnK = (lit && queued <= 0 && left < FuelWarnBelow)
+            ? 1f - (left / FuelWarnBelow)
+            : 0f;
+        Color burnColor = Color.Lerp(fc, FuelWarnColor, warnK);
 
         // 도화선: fill 이 오른쪽에서 왼쪽으로 타들어간다. 끝단은 밝게(뜨거움), 끝점엔 잉걸불.
         if (_burnFill != null)
         {
-            _burnFill.color = Color.Lerp(fc, Color.white, 0.15f);
+            _burnFill.color = Color.Lerp(burnColor, Color.white, 0.15f);
             _burnFill.rectTransform.sizeDelta = new Vector2(fillW, 6f);
         }
         if (_emberGlow != null && _emberCore != null)
@@ -195,6 +210,7 @@ public class FuelDropSlot : MonoBehaviour,
             Vector2 tip = new Vector2(BurnerGaugeX + fillW, -14f);
             _emberGlow.rectTransform.anchoredPosition = tip;
             _emberCore.rectTransform.anchoredPosition = tip;
+            _emberGlow.color = Color.Lerp(EmberGlowNormal, EmberGlowWarn, warnK);
             if (_emberGlow.enabled != lit) { _emberGlow.enabled = lit; _emberCore.enabled = lit; }
         }
 
@@ -223,7 +239,8 @@ public class FuelDropSlot : MonoBehaviour,
             if (lit)
             {
                 _burnInfo.text = Loc.Get("연소 중 -") + "  " + $"{currentTime:F0}" + Loc.Get("초");
-                _burnInfo.color = new Color(0.92f, 0.94f, 0.97f, 0.95f);
+                // 남은 시간 글자도 같이 붉어진다(도화선과 같은 신호를 두 번 준다).
+                _burnInfo.color = Color.Lerp(new Color(0.92f, 0.94f, 0.97f, 0.95f), FuelWarnColor, warnK);
             }
             else
             {
