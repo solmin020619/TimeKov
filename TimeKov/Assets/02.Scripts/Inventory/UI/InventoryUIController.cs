@@ -380,16 +380,19 @@ public class InventoryUIController : MonoBehaviour
             PlayWarehouseSectionOpen();
     }
 
-    // 엔필식 열기 애니: 가방 먼저 보이고, 창고 콘텐츠(탭+그리드)는 살짝 뒤 페이드 인.
+    // 열기 애니: 오른쪽 패널이 먼저 서고, 왼쪽 패널이 책 펴지듯 좌측으로 펼쳐진다.
+    //   예전엔 창고 '콘텐츠'(탭+그리드)만 늦게 페이드했는데, 패널 판때기는 처음부터 떠 있어서
+    //   빈 칸이 채워지는 것처럼만 보이고 펼쳐지는 느낌이 안 났다. 판때기째 펼친다.
     private Coroutine _whRevealCo;
+
+    // 판이 펼쳐지는 시간. 길면 굼떠 보이고 짧으면 그냥 튀어나온 것처럼 보인다.
+    private const float BookUnfold = 0.24f;
 
     private void PlayWarehouseSectionOpen()
     {
-        var cgGrid = EnsureCanvasGroup(warehouseGridUI != null ? warehouseGridUI.gameObject : null);
-        var cgTabs = EnsureCanvasGroup(warehouseFilterUI != null ? warehouseFilterUI.gameObject : null);
-        if (cgGrid == null && cgTabs == null) return;
+        if (warehousePanel == null) return;
         if (_whRevealCo != null) { StopCoroutine(_whRevealCo); _whRevealCo = null; }
-        _whRevealCo = StartCoroutine(WarehouseSectionOpenRoutine(cgGrid, cgTabs));
+        _whRevealCo = StartCoroutine(BookOpenRoutine());
     }
 
     private static CanvasGroup EnsureCanvasGroup(GameObject go)
@@ -400,27 +403,74 @@ public class InventoryUIController : MonoBehaviour
         return cg;
     }
 
-    private System.Collections.IEnumerator WarehouseSectionOpenRoutine(CanvasGroup a, CanvasGroup b)
+    // ★통합패널은 '창고 반쪽 / 가방 반쪽' 이 별개 오브젝트가 아니다. 한 장짜리 rect 위에
+    //   가운데 이음선(SeamHeader/Body/Footer)만 그려서 두 칸처럼 보이게 만든 것이다.
+    //   그래서 반쪽을 따로 접을 수 없고, 패널 자체를 오른쪽 모서리에서 왼쪽으로 펼친다.
+    //   다행히 이 패널의 pivot 이 이미 (1, 0.5) = 오른쪽 모서리라 축이 정확히 맞는다.
+    //   (프로젝트의 기존 UIUnfoldEffect 가 Y축으로 하는 것과 같은 방식, 축만 가로)
+    private System.Collections.IEnumerator BookOpenRoutine()
     {
-        if (a != null) a.alpha = 0f;
-        if (b != null) b.alpha = 0f;
+        var rt = warehousePanel.transform as RectTransform;
+        if (rt == null) { _whRevealCo = null; yield break; }
 
-        // 가방 먼저: 창고 콘텐츠는 잠깐 뒤 등장
-        float delay = 0.16f, td = 0f;
-        while (td < delay) { td += Time.unscaledDeltaTime; yield return null; }
+        // 창고 쪽 내용은 판이 다 펼쳐진 뒤에 들어온다 = 가방 -> 창고 순서로 읽힌다.
+        var cgGrid = EnsureCanvasGroup(warehouseGridUI   != null ? warehouseGridUI.gameObject   : null);
+        var cgTabs = EnsureCanvasGroup(warehouseFilterUI != null ? warehouseFilterUI.gameObject : null);
+        if (cgGrid != null) cgGrid.alpha = 0f;
+        if (cgTabs != null) cgTabs.alpha = 0f;
 
-        float dur = 0.18f, e = 0f;
+        yield return UnfoldLeft(rt, 0f, BookUnfold);
+
+        float dur = 0.16f, e = 0f;
         while (e < dur)
         {
             e += Time.unscaledDeltaTime;
-            float k = Mathf.Clamp01(e / dur); k = 1f - (1f - k) * (1f - k);   // ease-out
-            if (a != null) a.alpha = k;
-            if (b != null) b.alpha = k;
+            float k = Mathf.Clamp01(e / dur); k = 1f - (1f - k) * (1f - k);
+            if (cgGrid != null) cgGrid.alpha = k;
+            if (cgTabs != null) cgTabs.alpha = k;
             yield return null;
         }
-        if (a != null) a.alpha = 1f;
-        if (b != null) b.alpha = 1f;
+        if (cgGrid != null) cgGrid.alpha = 1f;
+        if (cgTabs != null) cgTabs.alpha = 1f;
         _whRevealCo = null;
+    }
+
+    // 오른쪽 모서리를 축으로 왼쪽으로 펼친다(책장 넘기듯).
+    //   ★pivot 을 건드리지 않는다. pivot 을 바꾸면 위치가 튀고, 되돌릴 때 오차가 남는다.
+    //     대신 스케일과 위치를 같이 보정해 오른쪽 모서리를 제자리에 못박는다.
+    //     끝나면 원래 값을 그대로 다시 넣으므로 몇 번을 열고 닫아도 어긋나지 않는다.
+    private System.Collections.IEnumerator UnfoldLeft(RectTransform rt, float delay, float dur)
+    {
+        if (rt == null) yield break;
+        var cg = EnsureCanvasGroup(rt.gameObject);
+        Vector2 basePos = rt.anchoredPosition;
+        Vector3 baseScl = rt.localScale;
+        float w = rt.rect.width;
+        if (w <= 1f) w = Mathf.Abs(rt.sizeDelta.x);      // 레이아웃 전이면 sizeDelta 로 대체
+        float edge = (1f - rt.pivot.x) * w;               // pivot 에서 오른쪽 모서리까지
+
+        rt.localScale = new Vector3(0f, baseScl.y, baseScl.z);
+        rt.anchoredPosition = new Vector2(basePos.x + edge, basePos.y);
+        if (cg != null) cg.alpha = 0f;
+
+        float t = 0f;
+        while (t < delay) { t += Time.unscaledDeltaTime; yield return null; }
+
+        float e = 0f;
+        while (e < dur)
+        {
+            e += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(e / dur);
+            k = 1f - (1f - k) * (1f - k) * (1f - k);      // ease-out - 끝에서 부드럽게 멈춘다
+            rt.localScale = new Vector3(baseScl.x * k, baseScl.y, baseScl.z);
+            rt.anchoredPosition = new Vector2(basePos.x + edge * (1f - k), basePos.y);
+            if (cg != null) cg.alpha = k;
+            yield return null;
+        }
+
+        rt.localScale = baseScl;
+        rt.anchoredPosition = basePos;
+        if (cg != null) cg.alpha = 1f;
     }
 
     // 인벤토리 닫기 (커서·입력 복구까지)
