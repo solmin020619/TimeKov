@@ -163,6 +163,24 @@ public class MachineUI : MonoBehaviour
     private float _outPopT;
     private ProcessingMachine _lastOutMachine;
     private int _lastOutRecipe = -1;
+
+    // 출력이 상한까지 차서 생산이 멈춘 상태. 재료도 연료도 멀쩡한데 진행바만 안 도는 것처럼 보여서
+    // "왜 안 되지?" 가 되던 상황이라, 게이지 자리에 이유를 글로 띄우고 진행선은 숨긴다.
+    private bool _outputFull;
+    private Image[] _gaugeLineImages;      // 게이지 루트 밑의 선/점/채움 (글자는 TMP 라 안 잡힌다)
+    private Color _processTimeBaseColor = Color.white;
+    private bool _processTimeColorCaptured;
+    private static readonly Color OutputFullColor = new Color(0.87f, 0.13f, 0.13f, 1f);
+
+    // 게이지의 '선' 만 껐다 켠다. 이름에 기대지 않으려고 루트 밑 Image 를 통째로 다룬다
+    // (선 + 양끝 점 + 채움이 전부 Image, 시간 글자는 TMP 라 안 걸린다).
+    private void SetGaugeLineVisible(bool on)
+    {
+        if (_gaugeRoot == null) return;
+        if (_gaugeLineImages == null) _gaugeLineImages = _gaugeRoot.GetComponentsInChildren<Image>(true);
+        foreach (var im in _gaugeLineImages)
+            if (im != null && im.enabled != on) im.enabled = on;
+    }
     private Coroutine _tabFadeCo;
 
     // ── 초기화 ────────────────────────────────────────────────
@@ -1743,6 +1761,7 @@ public class MachineUI : MonoBehaviour
         _lastOutTotal = totalOut;
 
         _hasOutput = totalOut > 0;
+        _outputFull = _machine.maxOutputStock > 0 && totalOut >= _machine.maxOutputStock;
         if (takeOutputBtn != null) takeOutputBtn.interactable = _hasOutput;
 
         // 이전에 동적으로 생성된 추가 슬롯 제거
@@ -2109,6 +2128,29 @@ public class MachineUI : MonoBehaviour
 
         // 연료 없을 때 몇 초 이상 연료가 안 들어가면(팩토리오식) 연료 슬롯을 강조해 위치를 안내. 마우스 무관.
         UpdateFuelHint(_machine.Status == MachineStatus.NoFuel);
+
+        if (_processTimeText != null && !_processTimeColorCaptured)
+        {
+            _processTimeBaseColor = _processTimeText.color;
+            _processTimeColorCaptured = true;
+        }
+
+        // 출력이 가득 차 멈춘 것이 가장 먼저다. 연료/진행 상태보다 이게 원인이고,
+        // 다른 문구를 띄우면 유저가 엉뚱한 걸 고치러 간다.
+        if (_outputFull)
+        {
+            if (statusText != null) statusText.text = "";
+            if (_processTimeText != null)
+            {
+                _processTimeText.text  = Loc.Get("출력 가득 - 수령 필요");
+                _processTimeText.color = OutputFullColor;
+            }
+            SetGaugeLineVisible(false);   // 진행선도 지운다 - 안 도는 선이 남아 있으면 '느린 것'처럼 읽힌다
+            return;
+        }
+
+        SetGaugeLineVisible(true);
+        if (_processTimeText != null) _processTimeText.color = _processTimeBaseColor;
 
         if (statusText == null) return;
 
