@@ -152,6 +152,14 @@ public class MachineUI : MonoBehaviour
 
     // 현재 선택 레시피의 출력 버퍼에 받을 게 있는지(모두받기 dim #34 + 출력 펄스 #40 공통).
     private bool _hasOutput;
+
+    // 완성품 도착 팝. 출력 버퍼 총량이 늘어난 프레임에만 켜진다.
+    private const float OutPopDuration = 0.18f;
+    private const float OutPopPeak = 1.25f;
+    private int _lastOutTotal;
+    private float _outPopT;
+    private ProcessingMachine _lastOutMachine;
+    private int _lastOutRecipe = -1;
     private Coroutine _tabFadeCo;
 
     // ── 초기화 ────────────────────────────────────────────────
@@ -1669,6 +1677,21 @@ public class MachineUI : MonoBehaviour
             if (outs != null)
                 foreach (var o in outs) totalOut += _machine.OutputBuffer.GetAmount(o.itemId);
         }
+        // 완성품이 '막 도착한' 순간에만 한 번 튄다. 상시 맥동(#40)은 "가져가라"는 유도라
+        // 언제 새로 나왔는지를 못 알려준다 - 조용히 수량만 늘어서 놓치게 된다.
+        // ★설비를 새로 열거나 레시피를 넘기면 총량 기준이 통째로 달라진다. 그때는 튀기지 않고
+        //   기준만 새로 잡는다(안 그러면 레시피 넘길 때마다 튄다).
+        if (!ReferenceEquals(_machine, _lastOutMachine) || _selectedRecipeIndex != _lastOutRecipe)
+        {
+            _lastOutMachine = _machine;
+            _lastOutRecipe  = _selectedRecipeIndex;
+        }
+        else if (totalOut > _lastOutTotal)
+        {
+            _outPopT = OutPopDuration;
+        }
+        _lastOutTotal = totalOut;
+
         _hasOutput = totalOut > 0;
         if (takeOutputBtn != null) takeOutputBtn.interactable = _hasOutput;
 
@@ -2000,9 +2023,23 @@ public class MachineUI : MonoBehaviour
         }
 
         // 출력 펄스(#40): 받을 결과물 있으면 출력 슬롯 살짝 맥동(수령 유도). unscaled.
+        // 완성품이 막 나온 직후에는 그 위에 한 번 튀는 팝이 우선한다(맥동은 팝이 끝나면 이어받는다).
         if (outputSlot != null)
         {
-            float s = _hasOutput ? 1f + 0.05f * Mathf.PingPong(Time.unscaledTime * 2f, 1f) : 1f;
+            float s;
+            if (_outPopT > 0f)
+            {
+                _outPopT -= Time.unscaledDeltaTime;
+                float k = 1f - Mathf.Clamp01(_outPopT / OutPopDuration);   // 0 -> 1
+                // 앞 35% 에 커지고 나머지에 돌아온다.
+                s = k < 0.35f
+                    ? Mathf.Lerp(1f, OutPopPeak, k / 0.35f)
+                    : Mathf.Lerp(OutPopPeak, 1f, (k - 0.35f) / 0.65f);
+            }
+            else
+            {
+                s = _hasOutput ? 1f + 0.05f * Mathf.PingPong(Time.unscaledTime * 2f, 1f) : 1f;
+            }
             outputSlot.transform.localScale = new Vector3(s, s, 1f);
         }
 
