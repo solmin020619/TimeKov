@@ -134,6 +134,7 @@ namespace GameSettingsUI
 
             built = true;   // 여기까지 와야 계층이 완성된 것. 중간에 예외가 나면 false로 남는다.
             WireFooterPair();      // 적용 버튼 폭이 바뀌면 초기화 버튼이 따라 밀리도록(두 경로 공통)
+            EnsureEscapeButton();  // 구워둔 계층에 '탈출하기'가 없으면 만들어 붙인다(두 경로 공통)
             FixSectionDividers();  // 섹션 구분선을 라벨 실제 폭 뒤로 (베이크 시 측정 오차 보정)
             SettingsBinding.NormalizeResolution();   // 저장값이 선택지에 없으면 목록 안 값으로 보정
             ApplyBackdropTheme();   // 실행 시의 블러 상태 기준으로 배경색 확정 (베이크 값 덮어씀)
@@ -252,6 +253,63 @@ namespace GameSettingsUI
             fit.Fit();   // 지금 폭 기준으로 즉시 한 번 맞춘다
         }
 
+        // '탈출하기' 버튼은 나중에 추가된 것이라, 예전에 구워둔 계층에는 없다.
+        // 없으면 실행 시 만들어 붙인다(다시 굽지 않아도 동작 — EnsureBlur 와 같은 방식).
+        void EnsureEscapeButton()
+        {
+            if (applyBG == null) return;
+            var footer = applyBG.rectTransform.parent as RectTransform;
+            if (footer == null) return;
+
+            var escape = footer.Find($"Footer_{SettingsAction.StuckEscape}") as RectTransform;
+            if (escape == null)
+            {
+                escape = FooterButton(footer, "탈출하기", Icons.Run(), () => OnStuckEscape(),
+                                      SettingsAction.StuckEscape, 0, compact: true);
+                escape.anchorMin = new Vector2(0, 0.5f); escape.anchorMax = new Vector2(0, 0.5f);
+                escape.pivot = new Vector2(0, 0.5f);
+                escape.anchoredPosition = Vector2.zero;
+            }
+
+            RefreshEscapeVisibility();
+        }
+
+        // 플레이어가 없는 씬(메인 메뉴 등)에서는 '탈출하기'를 아예 감춘다.
+        // 눌러도 아무것도 못 하는 버튼이 떠 있으면 그게 더 혼란스럽다.
+        void RefreshEscapeVisibility()
+        {
+            if (applyBG == null) return;
+            var footer = applyBG.rectTransform.parent as RectTransform;
+            if (footer == null) return;
+
+            var escape = footer.Find($"Footer_{SettingsAction.StuckEscape}") as RectTransform;
+            if (escape == null) return;
+
+            bool available = FindFirstObjectByType<StuckEscape>() != null;
+            escape.gameObject.SetActive(available);
+
+            var main = footer.Find($"Footer_{SettingsAction.MainMenu}") as RectTransform;
+            var hint = controlsHint != null ? (RectTransform)controlsHint.transform : null;
+            // 감춘 경우 안내 문구가 빈자리에 남지 않도록 메인 메뉴 바로 뒤로 다시 붙인다.
+            LinkFooterLeftChain(main, available ? escape : null, hint);
+        }
+
+        // 좌측 푸터 배치를 한 줄로 잇는다: 메인 메뉴 → 탈출하기 → 안내 문구.
+        // 각 버튼의 FooterButtonFit 이 '자기 위치 + 자기 폭' 다음에 다음 요소를 놓는다.
+        static void LinkFooterLeftChain(RectTransform main, RectTransform escape, RectTransform hint)
+        {
+            var mainFit   = main   ? main.GetComponent<FooterButtonFit>()   : null;
+            var escapeFit = escape ? escape.GetComponent<FooterButtonFit>() : null;
+
+            // ★Unity 오브젝트는 파괴돼도 ?? 가 null 로 안 잡힌다 — 반드시 != null 로 검사.
+            if (escapeFit) escapeFit.follow = hint;
+            if (mainFit)   mainFit.follow   = escape != null ? escape : hint;
+
+            // 왼쪽부터 순서대로 확정한다(체인이라 앞이 정해져야 뒤가 맞는다).
+            if (mainFit)   mainFit.Fit();
+            else if (escapeFit) escapeFit.Fit();
+        }
+
         // 블러 패스는 Overlay 캔버스보다 먼저 그려지므로, UI가 Overlay가 아니면 덮인다.
         // 호스트 캔버스가 Overlay가 아니면 전용 Overlay 캔버스를 만들어 UI를 그 아래로 옮긴다.
         // → 씬의 캔버스 설정과 무관하게 블러·레이아웃이 어디서나 동일하게 동작한다.
@@ -305,7 +363,7 @@ namespace GameSettingsUI
                 //   원래 값으로 되돌아가는 것으로만 보였다(이유를 알 수 없음).
                 //   지금은 넣어 두고 겹치는 줄을 빨갛게 표시한 뒤 '설정 적용'에서 막는다.
                 if (!SettingsBinding.Rebind(listening, code, out string reservedBy))
-                    Debug.LogWarning($"[Settings] '{code}' 키는 '{reservedBy}'에 예약되어 있어 쓸 수 없습니다.");
+                    ShowReservedKeyNotice(reservedBy);   // 조용히 씹히면 "왜 안 바뀌지"가 된다
             }
             keyRows[listening].SetListening(false);   // 라벨은 여기서 현재 바인딩으로 복원된다
             listening = -1;
@@ -339,7 +397,32 @@ namespace GameSettingsUI
 
         const string HintNormal   = "변경하고자 하는 키를 눌러서 선택해 주세요.";
         const string HintConflict = "중복된 키가 있어 적용할 수 없습니다. 빨간 항목을 바꿔 주세요.";
+        const string HintReserved = "이 키는 시스템 기능에 예약되어 있어 사용할 수 없습니다.";
         TMP_Text _hintTmp; LocalizedLabel _hintLoc;
+
+        // 예약 키(끼임 탈출 등)를 누르면 바인딩이 거부된다. 잠깐 사유를 보여 주고 원래 문구로 돌아간다.
+        void ShowReservedKeyNotice(string reservedBy)
+        {
+            Debug.LogWarning($"[Settings] 예약 키라 바인딩할 수 없음 — '{reservedBy}'");
+            if (controlsHint == null) return;
+
+            StopCoroutine(nameof(ReservedNoticeRoutine));
+            StartCoroutine(nameof(ReservedNoticeRoutine));
+        }
+
+        IEnumerator ReservedNoticeRoutine()
+        {
+            if (_hintLoc == null && controlsHint != null) _hintLoc = controlsHint.GetComponent<LocalizedLabel>();
+            if (_hintTmp == null && controlsHint != null) _hintTmp = controlsHint.GetComponent<TMP_Text>();
+
+            if (_hintLoc != null) _hintLoc.SetKey(HintReserved);
+            else if (_hintTmp != null) _hintTmp.text = Loc.Get(HintReserved);
+            if (_hintTmp != null) _hintTmp.color = UIColors.KeyConflictBorder;
+            UITween.Punch((RectTransform)controlsHint.transform);
+
+            yield return new WaitForSecondsRealtime(2.5f);
+            RefreshKeyConflicts();   // 중복 상태에 맞는 원래 문구로 복귀
+        }
 
         // 드롭다운 바깥 클릭 닫기.
         // LateUpdate에서 처리하는 이유: EventSystem은 Update에서 클릭을 소화하므로,
@@ -384,7 +467,8 @@ namespace GameSettingsUI
             if (blurCanvasGO) blurCanvasGO.SetActive(true);
             if (overlayCanvasGO) overlayCanvasGO.SetActive(true);
             // 다시 열 때는 매니저가 편집 폼을 _data 기준으로 되돌린 뒤일 수 있으므로 다시 읽어온다.
-            if (built) { EnsureBlur(); ResetMuteStates(); RefreshAll(); PlayOpenAnim(); }
+            // 같은 패널이 씬을 옮겨 다니며 재사용될 수 있으므로 '탈출하기' 노출은 열 때마다 다시 판단한다.
+            if (built) { EnsureBlur(); ResetMuteStates(); RefreshAll(); RefreshEscapeVisibility(); PlayOpenAnim(); }
             Loc.OnLanguageChanged += RefreshTitleLabel;
             Loc.OnLanguageChanged += FixSectionDividers;   // 라벨 길이가 바뀌면 구분선도 다시 물러나야 한다
             RefreshTitleLabel();
@@ -944,14 +1028,19 @@ namespace GameSettingsUI
             main.anchorMin = new Vector2(0, 0.5f); main.anchorMax = new Vector2(0, 0.5f); main.pivot = new Vector2(0, 0.5f);
             main.anchoredPosition = new Vector2(0, 0);
 
+            // 메인 메뉴 옆 보조 버튼: 지형에 끼었을 때 안전 지점으로 되돌린다.
+            var escape = FooterButton(footer, "탈출하기", Icons.Run(), () => OnStuckEscape(),
+                                      SettingsAction.StuckEscape, 0, compact: true);
+            escape.anchorMin = new Vector2(0, 0.5f); escape.anchorMax = new Vector2(0, 0.5f); escape.pivot = new Vector2(0, 0.5f);
+            escape.anchoredPosition = Vector2.zero;   // 실제 x 는 아래 Fit 체인이 잡는다
+
             controlsHint = LocText(footer, HintNormal, 22, FontWeight.Regular, UIColors.HintText, TextAlignmentOptions.Left).gameObject;
             var hr = (RectTransform)controlsHint.transform;
             hr.anchorMin = new Vector2(0, 0.5f); hr.anchorMax = new Vector2(0, 0.5f); hr.pivot = new Vector2(0, 0.5f);
-            hr.anchoredPosition = new Vector2(main.sizeDelta.x + 30, 0);
-            hr.sizeDelta = new Vector2(560, FOOTER_BTN_H);   // 버튼과 같은 높이 → 버튼 라벨과 세로 중심이 일치
-            // 메인 메뉴 버튼 폭이 실행 시 다시 계산되므로, 안내 문구도 그때 같이 밀리게 연결한다.
-            var mainFit = main.GetComponent<FooterButtonFit>();
-            if (mainFit) { mainFit.follow = hr; mainFit.Fit(); }
+            hr.sizeDelta = new Vector2(520, FOOTER_BTN_H);   // 버튼과 같은 높이 → 버튼 라벨과 세로 중심이 일치
+            // 좌측 체인: 메인 메뉴 → 탈출하기 → 안내 문구.
+            // 버튼 폭이 실행 시(언어 변경 포함) 다시 계산되므로 위치도 그때 같이 밀려야 한다.
+            LinkFooterLeftChain(main, escape, hr);
 
             // 우측: 초기화 + 적용
             // OnApply 는 bool(적용됨/거부됨)을 돌려준다 — 버튼 콜백(Action)에는 결과를 버리고 넘긴다.
@@ -965,23 +1054,36 @@ namespace GameSettingsUI
             reset.anchoredPosition = new Vector2(-(230 + 22), 0);
         }
 
-        RectTransform FooterButton(RectTransform parent, string label, Sprite icon, Action onClick, SettingsAction action, float minW = 0)
+        // compact: 보조 버튼용 축소 규격(작은 아이콘·좁은 여백·작은 글자).
+        //          '탈출하기'처럼 주 버튼 옆에 곁들이는 것들이 쓴다.
+        RectTransform FooterButton(RectTransform parent, string label, Sprite icon, Action onClick,
+                                   SettingsAction action, float minW = 0, bool compact = false)
         {
+            float iconD    = compact ? 34f : 42f;
+            float iconInner= compact ? 17f : 20f;
+            float fontSize = compact ? 19f : 21f;
+            float leftPad  = compact ? 22f : 32f;
+            float iconGap  = compact ? 8f  : 12f;
+            float rightPad = compact ? 8f  : 10f;
+            float baseW    = compact ? 150f : 200f;
+
             var b = Panel(parent, $"Footer_{action}", 0, FOOTER_BTN_H, FOOTER_BTN_H / 2f, UIColors.OffWhite);
-            var txt = LocText(b, label, 21, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
+            var txt = LocText(b, label, fontSize, FontWeight.Bold, UIColors.TextDark, TextAlignmentOptions.Center);
             // 원형 아이콘
-            var circle = Panel(b, "IconCircle", 42, 42, 21, UIColors.CircleIconBG);
-            AnchorRightMiddle(circle, 10, 42, 42);
-            IconChild(circle, icon, 20, 20, Color.white, "Icon");
+            var circle = Panel(b, "IconCircle", iconD, iconD, iconD / 2f, UIColors.CircleIconBG);
+            AnchorRightMiddle(circle, rightPad, iconD, iconD);
+            IconChild(circle, icon, iconInner, iconInner, Color.white, "Icon");
             // 텍스트: 왼쪽끝 ~ 아이콘 사이 중앙
             var tr = txt.rectTransform;
             tr.anchorMin = new Vector2(0, 0); tr.anchorMax = new Vector2(1, 1);
-            tr.offsetMin = new Vector2(32, 0); tr.offsetMax = new Vector2(-(42 + 12 + 10), 0);
+            tr.offsetMin = new Vector2(leftPad, 0); tr.offsetMax = new Vector2(-(iconD + iconGap + rightPad), 0);
             // 폭은 라벨 길이에 맞춘다. 베이크 시점의 측정값은 폰트 아틀라스가 덜 준비돼
             // 실제보다 작게 나올 수 있으므로, 실행할 때 다시 재도록 컴포넌트로 붙인다.
-            SetSize(b, Mathf.Max(minW, 200f), FOOTER_BTN_H);
+            SetSize(b, Mathf.Max(minW, baseW), FOOTER_BTN_H);
             var fit = b.gameObject.AddComponent<FooterButtonFit>();
             fit.label = txt; fit.minWidth = minW;
+            fit.leftPad = leftPad; fit.iconW = iconD; fit.iconGap = iconGap; fit.rightPad = rightPad;
+            if (compact) fit.textGap = 14f;
             fit.Fit();
 
             AddBtn(b.gameObject, b.GetComponent<Image>(), UIColors.OffWhite, UIColors.OffWhiteHover, UIColors.OffWhiteActive, null, onClick, action);
@@ -1235,6 +1337,7 @@ namespace GameSettingsUI
                 case SettingsAction.Apply:    OnApply();    break;
                 case SettingsAction.ResetAll: OnReset();    break;
                 case SettingsAction.MainMenu: OnMainMenu(); break;
+                case SettingsAction.StuckEscape: OnStuckEscape(); break;
 
                 case SettingsAction.FullscreenOn:  SetMode(DisplayMode.Full);   break;
                 case SettingsAction.FullscreenOff: SetMode(DisplayMode.Window); break;
@@ -1370,6 +1473,29 @@ namespace GameSettingsUI
             return true;
         }
         void OnMainMenu() { SettingsBinding.QuitToMainMenu(); }   // 저장 + timeScale 정상화까지 매니저가 처리
+
+        // 지형에 끼었을 때 안전 지점으로 되돌린다.
+        //   ★설정창을 먼저 닫는다 — 연출(페이드)과 물리 이동이 일시정지 상태에서 돌면 안 된다.
+        //   토스트 캔버스가 설정창보다 위(5500 > 500)라 실패 사유는 창을 연 채로도 보인다.
+        void OnStuckEscape()
+        {
+            SettingsBinding.PlayClick();
+
+            var escape = FindFirstObjectByType<StuckEscape>();
+            if (escape == null)
+            {
+                ToastManager.Warning(Loc.Get("탈출 기능을 사용할 수 없습니다."));
+                return;
+            }
+            if (!escape.CanEscape(out string reason))
+            {
+                ToastManager.Warning(reason);   // 사유는 StuckEscape 가 번역까지 마쳐서 준다
+                return;
+            }
+
+            ClosePanel();
+            escape.EscapeNow();
+        }
 
         // ==================================================================
         //  키 감지

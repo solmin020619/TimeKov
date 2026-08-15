@@ -433,6 +433,7 @@ public class GlobalSettingsManager : MonoBehaviour
     private static readonly (KeyCode code, string label)[] ReservedGlobalKeys =
     {
         // J(퀘스트 팝업)는 잔재로 제거됨(GameUIController) - 더 이상 예약 키 없음.
+        // (끼임 탈출은 전용 키가 아니라 설정창 '탈출하기' 버튼으로 쓴다 → 예약 불필요)
     };
 
     private bool IsReservedKeyConflict(KeyCode code, out string conflictAction)

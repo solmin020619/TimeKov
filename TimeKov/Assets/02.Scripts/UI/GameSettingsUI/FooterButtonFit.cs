@@ -50,9 +50,18 @@ namespace GameSettingsUI
             if (Application.isPlaying) Loc.OnLanguageChanged -= Fit;
         }
 
+        bool _fitting;   // 체인이 서로를 부르는 구성에서도 무한 재귀에 빠지지 않게 하는 가드
+
         public void Fit()
         {
-            if (label == null) return;
+            if (label == null || _fitting) return;
+            _fitting = true;
+            try { FitInternal(); }
+            finally { _fitting = false; }
+        }
+
+        void FitInternal()
+        {
 
             // 아틀라스/레이아웃을 확정시킨 뒤 재야 정확한 폭이 나온다.
             label.ForceMeshUpdate();
@@ -70,8 +79,18 @@ namespace GameSettingsUI
             if (!Mathf.Approximately(rt.sizeDelta.x, w))
                 rt.sizeDelta = new Vector2(w, rt.sizeDelta.y);
 
+            // ★내 위치를 기준으로 민다(0 기준이 아니라). 그래야 좌측에 버튼을 여러 개 이어 붙일 수 있다.
+            //   맨 왼쪽 버튼은 x=0 이라 예전 동작과 결과가 같다.
             if (follow)
-                follow.anchoredPosition = new Vector2(w + followGap, follow.anchoredPosition.y);
+            {
+                follow.anchoredPosition = new Vector2(rt.anchoredPosition.x + w + followGap,
+                                                      follow.anchoredPosition.y);
+
+                // 뒤에 또 폭이 변하는 버튼이 이어지면 그쪽도 다시 맞춘다(체인).
+                // 언어가 바뀔 때 각자의 OnEnable/Fit 순서에 기대지 않게 하는 장치다.
+                var next = follow.GetComponent<FooterButtonFit>();
+                if (next != null && next != this) next.Fit();
+            }
 
             // 오른쪽 정렬 쌍(적용 ↔ 초기화): 내 실제 폭만큼 형제를 왼쪽으로 민다.
             //   위치를 고정값으로 두면 폭이 minWidth 를 넘는 순간 두 버튼이 겹친다.

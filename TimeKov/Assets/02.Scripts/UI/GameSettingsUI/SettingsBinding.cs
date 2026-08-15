@@ -22,6 +22,7 @@ namespace GameSettingsUI
         TabDisplay, TabAudio, TabControls,   // 상단 탭 3개
         Close,                                // 우상단 X
         Apply, ResetAll, MainMenu,            // 하단 버튼
+        StuckEscape,                          // 하단 '탈출하기' — 지형에 끼었을 때 안전 지점으로 복귀
         ToggleDropdown,                       // 드롭다운 열기/닫기 (param 미사용)
         SelectOption,                         // 드롭다운 옵션 선택 (param = 옵션 인덱스)
         FullscreenOn, FullscreenOff,          // 표시 모드 세그먼트
