@@ -60,6 +60,16 @@ public class InventorySlotUI : MonoBehaviour,
 
     private const float DropPopSpeed = 1.0f;   // 팝 스케일 변화 속도(초당)
 
+    // -- 획득 반짝 --------------------------------------------------------
+    // 방금 들어온 칸을 잠깐 하얗게 훑는다. 어느 칸으로 들어갔는지 눈으로 잡으라고.
+    // 루트 스케일이 아니라 별도 오버레이를 쓴다 - 스케일은 드롭 팝/촤라락 등장이 이미 쓰고 있어서
+    // 같이 쓰면 서로 밟는다.
+    private const float FlashRise = 0.07f;   // 켜지는 시간(짧게 = "반짝")
+    private const float FlashFall = 0.38f;   // 꺼지는 시간(길게 = 잔광)
+    private const float FlashPeak = 0.30f;   // 가장 밝을 때 알파. 아이콘이 안 보일 만큼 덮으면 안 된다
+    private Image _acquireFlash;
+    private Coroutine _acquireFlashCo;
+
     private void OnDisable()
     {
         // 비활성화 시 Unity가 OnPointerExit를 호출하지 않으므로 호버 상태를 직접 리셋한다.
@@ -69,6 +79,10 @@ public class InventorySlotUI : MonoBehaviour,
         _wasDragSource = false;
         transform.localScale = Vector3.one;   // 팝 스케일 잔재 제거
         if (_dropFrame != null) { SetFrameAlpha(0f); }   // 프레임 잔재 제거
+
+        // 반짝이 도는 중에 패널이 닫히면 흰 오버레이가 켜진 채로 굳는다.
+        if (_acquireFlashCo != null) { StopCoroutine(_acquireFlashCo); _acquireFlashCo = null; }
+        if (_acquireFlash != null) _acquireFlash.gameObject.SetActive(false);
 
         // 이 칸을 드래그 중인데 패널이 닫히면(ESC 등) OnEndDrag 가 영영 안 와서
         // 고스트 아이콘이 화면에 영구 잔존한다 - 여기서 드래그를 강제 종료.
@@ -153,6 +167,76 @@ public class InventorySlotUI : MonoBehaviour,
         go.transform.SetAsLastSibling();
         go.SetActive(false);
         _dropFrame = img;
+    }
+
+    /// <summary>이 칸에 방금 아이템이 들어왔다는 반짝. delay 는 여러 칸을 차례로 터뜨릴 때 쓴다.</summary>
+    public void PlayAcquireFlash(float delay = 0f)
+    {
+        if (!isActiveAndEnabled) return;
+        EnsureAcquireFlash();
+        if (_acquireFlash == null) return;
+        if (_acquireFlashCo != null) StopCoroutine(_acquireFlashCo);
+        _acquireFlashCo = StartCoroutine(AcquireFlashRoutine(delay));
+    }
+
+    // 흰 오버레이는 처음 반짝일 때만 만든다(모든 칸에 미리 만들면 안 쓰는 칸까지 드로우콜).
+    private void EnsureAcquireFlash()
+    {
+        if (_acquireFlash != null) return;
+        var go = new GameObject("AcquireFlash", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+
+        var img = go.GetComponent<Image>();
+        // 칸 배경과 같은 모양으로 덮는다(둥근 칸이면 둥글게). 배경이 없으면 그냥 사각.
+        if (bgImage != null)
+        {
+            img.sprite = bgImage.sprite;
+            img.type = bgImage.type;
+            img.pixelsPerUnitMultiplier = bgImage.pixelsPerUnitMultiplier;
+        }
+        img.raycastTarget = false;
+        img.color = new Color(1f, 1f, 1f, 0f);
+        go.transform.SetAsLastSibling();
+        go.SetActive(false);
+        _acquireFlash = img;
+    }
+
+    private System.Collections.IEnumerator AcquireFlashRoutine(float delay)
+    {
+        float t = 0f;
+        while (t < delay) { t += Time.unscaledDeltaTime; yield return null; }
+
+        _acquireFlash.gameObject.SetActive(true);
+
+        t = 0f;
+        while (t < FlashRise)
+        {
+            t += Time.unscaledDeltaTime;
+            SetAcquireFlashAlpha(FlashPeak * Mathf.Clamp01(t / FlashRise));
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < FlashFall)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / FlashFall);
+            SetAcquireFlashAlpha(FlashPeak * (1f - k) * (1f - k));   // 끝으로 갈수록 천천히 사라짐
+            yield return null;
+        }
+
+        SetAcquireFlashAlpha(0f);
+        _acquireFlash.gameObject.SetActive(false);
+        _acquireFlashCo = null;
+    }
+
+    private void SetAcquireFlashAlpha(float a)
+    {
+        if (_acquireFlash == null) return;
+        var c = _acquireFlash.color; c.a = a; _acquireFlash.color = c;
     }
 
     // 드래그 입고 대상으로 강조 켜기/끄기 (창고 드롭존이 호출)

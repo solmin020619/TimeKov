@@ -103,21 +103,24 @@ public class ItemGetLog : MonoBehaviour
     {
         if (count <= 0 || rowPrefab == null || rowContainer == null) return;
 
-        // 합산 모드 — 같은 아이템이 아직 살아있고 페이드 전이면 개수만 더함
+        // 합산 모드 — 같은 아이템 줄이 아직 살아 있으면 개수만 더함
         if (mergeSameItem)
         {
             for (int i = 0; i < _entries.Count; i++)
             {
                 var e = _entries[i];
-                if (e.itemId == itemId && !e.fading)
-                {
-                    e.count += count;
-                    e.age = 0f;                         // 타이머 리셋
-                    if (e.group != null) e.group.alpha = 1f;
-                    e.row.Set(e.itemId, e.count, GetTierColor(e.itemId));
-                    e.row.transform.SetAsLastSibling(); // 맨 아래(최신)로
-                    return;
-                }
+                if (e.itemId != itemId) continue;
+
+                // 사라지는 중이던 줄도 되살려서 합친다. 예전엔 페이드 중이면 새 줄을 따로 만들어서
+                // 같은 아이템이 위아래로 두 줄 뜨는 순간이 있었다.
+                e.count += count;
+                e.age = 0f;                         // 타이머 리셋
+                e.fading = false;
+                if (e.group != null) e.group.alpha = 1f;
+                e.row.Set(e.itemId, e.count, GetTierColor(e.itemId));
+                e.row.transform.SetAsLastSibling(); // 맨 아래(최신)로
+                e.row.PunchCount();                 // 숫자만 바뀌면 안 보여서 한 번 튕겨준다
+                return;
             }
         }
 

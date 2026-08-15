@@ -42,19 +42,113 @@ public class InventoryGridUI : MonoBehaviour
     // 정확성 자체는 B(드롭 시 스냅샷 검증)가 이미 보장하므로 이건 순수 시각 안정화.
     private bool _refreshPending;
 
+    // -- 획득 반짝 --------------------------------------------------------
+    // 방금 들어온 아이템 칸만 잠깐 하얗게 훑는다. 설비에서 완성품을 빼거나 창고에 입고될 때
+    // "어느 칸으로 갔는지"를 눈으로 잡으라고.
+    // 인벤이 닫혀 있는 동안 얻은 것은 큐에 쌓였다가 열릴 때 나온다(꺼져 있으면 Update 가 안 돈다).
+    //
+    // ★큐는 그리드마다가 아니라 '인벤 한 벌' 당 하나다.
+    //   같은 가방을 보는 그리드가 둘이기 때문이다 - 결계 밖 단독 가방, 결계 안 통합패널의 가방 구역.
+    //   그리드마다 큐를 들고 있으면 밖에서 한 번 반짝인 뒤에도 안 쓰인 쪽 큐가 그대로 남아,
+    //   결계 안에 들어가 통합패널을 열 때 같은 아이템이 또 반짝인다(종욱 QA 08-15).
+    //   창고는 그리드가 하나뿐이라 이 증상이 안 났다.
+    private static readonly List<int> _bagFlashQueue = new List<int>();
+    private static readonly List<int> _storageFlashQueue = new List<int>();
+
+    private const int FlashQueueMax = 8;       // 사냥 한참 하고 열면 화면 절반이 번쩍이므로 상한
+    private const float FlashStagger = 0.06f;  // 여러 칸이면 차례로 - 동시에 터지면 그냥 노이즈다
+
+    // 도메인 리로드를 꺼두면 static 이 살아남아, 두 번째 플레이가 지난 판의 큐를 물고 시작한다.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetFlashQueues()
+    {
+        _bagFlashQueue.Clear();
+        _storageFlashQueue.Clear();
+    }
+
+    // 이 그리드가 쓸 큐. 상자(Chest)는 획득 통지를 안 듣기 때문에 null.
+    private List<int> FlashQueue
+    {
+        get
+        {
+            if (_manager == null) return null;
+            if (_manager.ownerType == InventoryManager.InventoryOwnerType.Player)  return _bagFlashQueue;
+            if (_manager.ownerType == InventoryManager.InventoryOwnerType.Storage) return _storageFlashQueue;
+            return null;
+        }
+    }
+
     // 인벤토리 매니저 바인딩
     public void Bind(InventoryManager manager)
     {
         if (_manager != null)
+        {
             _manager.OnInventoryChanged -= OnDataChanged;
+            SetAcquireSubscription(false);
+        }
 
         _manager = manager;
 
         if (_manager != null)
+        {
             _manager.OnInventoryChanged += OnDataChanged;
+            SetAcquireSubscription(true);
+        }
 
         BuildSlots();
         RefreshAll();
+    }
+
+    // 가방/창고는 들어오는 통지가 서로 다르다. 하나만 듣게 해야 "가방에 넣었는데 창고 칸도 반짝"이 안 난다
+    // (같은 아이템을 양쪽이 들고 있으면 그런 오반응이 난다).
+    private void SetAcquireSubscription(bool on)
+    {
+        if (_manager == null) return;
+
+        if (_manager.ownerType == InventoryManager.InventoryOwnerType.Player)
+        {
+            if (on) InventoryManager.OnItemAddedToInventory += OnItemAdded;
+            else    InventoryManager.OnItemAddedToInventory -= OnItemAdded;
+        }
+        else if (_manager.ownerType == InventoryManager.InventoryOwnerType.Storage)
+        {
+            if (on) InventoryManager.OnItemAddedToStorage += OnItemAdded;
+            else    InventoryManager.OnItemAddedToStorage -= OnItemAdded;
+        }
+    }
+
+    private void OnItemAdded(int itemId, int count)
+    {
+        // 여기서 바로 칸을 찾지 않는다. 칸 바인딩(RefreshAll)이 아직 안 돌았을 수 있어서
+        // 큐에만 넣고 Update 에서 흘린다.
+        var q = FlashQueue;
+        if (q == null) return;
+
+        q.Remove(itemId);        // 같은 것을 연달아 얻으면 마지막 한 번만
+        q.Add(itemId);
+        while (q.Count > FlashQueueMax) q.RemoveAt(0);
+    }
+
+    private void FlushAcquireFlash(List<int> queue)
+    {
+        int shown = 0;
+        for (int q = 0; q < queue.Count; q++)
+        {
+            int itemId = queue[q];
+            for (int i = 0; i < _slotUIs.Count; i++)
+            {
+                var ui = _slotUIs[i];
+                if (ui == null || !ui.gameObject.activeSelf) continue;
+                var s = ui.SlotData;
+                if (s == null || s.IsEmpty || s.itemId != itemId) continue;
+
+                ui.PlayAcquireFlash(shown * FlashStagger);
+                shown++;
+                break;   // 같은 아이템이 여러 칸에 나뉘어 있어도 첫 칸만
+            }
+        }
+        // 같은 인벤을 보는 다른 그리드도 이걸로 소비된 것으로 친다(위 큐 주석 참고).
+        queue.Clear();
     }
 
     // 카테고리 필터 (null 이면 전체)
@@ -389,6 +483,10 @@ public class InventoryGridUI : MonoBehaviour
             RefreshAll();
         }
 
+        // 획득 반짝은 칸 바인딩이 끝난 뒤라야 올바른 칸을 찾는다. 그래서 이벤트가 아니라 여기서 흘린다.
+        var flashQ = FlashQueue;
+        if (flashQ != null && flashQ.Count > 0) FlushAcquireFlash(flashQ);
+
         var dh = InventoryDragHandler.Instance;
         bool within = dh != null && dh.IsDragging && dh.DraggedSlot != null
                       && !dh.DraggedSlot.IsEmpty && _manager != null && dh.DraggedSlot.Owner == _manager;
@@ -424,5 +522,8 @@ public class InventoryGridUI : MonoBehaviour
     {
         if (_manager != null)
             _manager.OnInventoryChanged -= OnDataChanged;
+
+        // 획득 통지는 static 이라 안 떼면 파괴된 그리드가 계속 불린다.
+        SetAcquireSubscription(false);
     }
 }
