@@ -301,12 +301,45 @@ namespace GameSettingsUI
 
             if (code != KeyCode.Escape)   // Esc는 캡처만 취소 (기존 시스템과 동일한 규칙)
             {
-                if (!SettingsBinding.TryRebind(listening, code, out string conflict))
-                    Debug.LogWarning($"[Settings] '{code}' 키는 이미 '{conflict}'에 사용 중입니다.");
+                // ★중복이어도 일단 넣는다. 예전엔 여기서 거부해서, 유저 눈에는 키를 눌러도
+                //   원래 값으로 되돌아가는 것으로만 보였다(이유를 알 수 없음).
+                //   지금은 넣어 두고 겹치는 줄을 빨갛게 표시한 뒤 '설정 적용'에서 막는다.
+                if (!SettingsBinding.Rebind(listening, code, out string reservedBy))
+                    Debug.LogWarning($"[Settings] '{code}' 키는 '{reservedBy}'에 예약되어 있어 쓸 수 없습니다.");
             }
             keyRows[listening].SetListening(false);   // 라벨은 여기서 현재 바인딩으로 복원된다
             listening = -1;
+            RefreshKeyConflicts();
         }
+
+        // ==================================================================
+        //  키 중복 표시
+        // ==================================================================
+        // 겹치는 행을 붉게 칠하고, 하단 안내 문구를 경고로 바꾼다.
+        // ★문구는 LocalizedLabel.SetKey 로 갈아끼운다. text 에 직접 쓰면 LocalizedLabel 이
+        //   "코드가 직접 관리하는 라벨"로 판단하고 손을 떼서(_yielded), 이후 언어 변경이 안 먹는다.
+        void RefreshKeyConflicts()
+        {
+            if (!built || !SettingsBinding.Ready) return;
+
+            var dup = SettingsBinding.KeyConflicts();
+            for (int i = 0; i < keyRows.Count && i < dup.Length; i++)
+                keyRows[i].SetConflict(dup[i]);
+
+            if (controlsHint == null) return;
+            if (_hintTmp == null) _hintTmp = controlsHint.GetComponent<TMP_Text>();
+            if (_hintLoc == null) _hintLoc = controlsHint.GetComponent<LocalizedLabel>();
+
+            bool bad = SettingsBinding.HasKeyConflict;
+            string key = bad ? HintConflict : HintNormal;
+            if (_hintLoc != null) _hintLoc.SetKey(key);
+            else if (_hintTmp != null) _hintTmp.text = Loc.Get(key);
+            if (_hintTmp != null) _hintTmp.color = bad ? UIColors.KeyConflictBorder : UIColors.HintText;
+        }
+
+        const string HintNormal   = "변경하고자 하는 키를 눌러서 선택해 주세요.";
+        const string HintConflict = "중복된 키가 있어 적용할 수 없습니다. 빨간 항목을 바꿔 주세요.";
+        TMP_Text _hintTmp; LocalizedLabel _hintLoc;
 
         // 드롭다운 바깥 클릭 닫기.
         // LateUpdate에서 처리하는 이유: EventSystem은 Update에서 클릭을 소화하므로,
@@ -911,7 +944,7 @@ namespace GameSettingsUI
             main.anchorMin = new Vector2(0, 0.5f); main.anchorMax = new Vector2(0, 0.5f); main.pivot = new Vector2(0, 0.5f);
             main.anchoredPosition = new Vector2(0, 0);
 
-            controlsHint = LocText(footer, "변경하고자 하는 키를 눌러서 선택해 주세요.", 22, FontWeight.Regular, UIColors.HintText, TextAlignmentOptions.Left).gameObject;
+            controlsHint = LocText(footer, HintNormal, 22, FontWeight.Regular, UIColors.HintText, TextAlignmentOptions.Left).gameObject;
             var hr = (RectTransform)controlsHint.transform;
             hr.anchorMin = new Vector2(0, 0.5f); hr.anchorMax = new Vector2(0, 0.5f); hr.pivot = new Vector2(0, 0.5f);
             hr.anchoredPosition = new Vector2(main.sizeDelta.x + 30, 0);
@@ -921,7 +954,8 @@ namespace GameSettingsUI
             if (mainFit) { mainFit.follow = hr; mainFit.Fit(); }
 
             // 우측: 초기화 + 적용
-            var apply = FooterButton(footer, "설정 적용", Icons.Check(), OnApply, SettingsAction.Apply, 230);
+            // OnApply 는 bool(적용됨/거부됨)을 돌려준다 — 버튼 콜백(Action)에는 결과를 버리고 넘긴다.
+            var apply = FooterButton(footer, "설정 적용", Icons.Check(), () => OnApply(), SettingsAction.Apply, 230);
             apply.anchorMin = new Vector2(1, 0.5f); apply.anchorMax = new Vector2(1, 0.5f); apply.pivot = new Vector2(1, 0.5f);
             apply.anchoredPosition = new Vector2(0, 0);
             applyBG = apply.GetComponent<Image>();
@@ -1230,7 +1264,8 @@ namespace GameSettingsUI
                     StartListening(param);
                     break;
 
-                case SettingsAction.WarnApplyClose:   OnApply(); ClosePanel(); break;
+                // 키가 겹쳐 있으면 적용이 거부된다 → 창도 닫지 않는다(고치라고 남겨 둔다).
+                case SettingsAction.WarnApplyClose:   if (OnApply()) ClosePanel(); break;
                 case SettingsAction.WarnDiscardClose:
                     SettingsBinding.DiscardChanges();   // 편집값 폐기 → 마지막 적용 상태로
                     ResetMuteStates(); RefreshAll();
@@ -1308,13 +1343,31 @@ namespace GameSettingsUI
             foreach (var s in sliders) s.Refresh(false);
             for (int i = 0; i < keyRows.Count && i < SettingsBinding.ActionCount; i++)
                 keyRows[i].SetKey(SettingsBinding.KeyLabel(i));
+            RefreshKeyConflicts();
         }
-        void OnApply()
+        /// 적용됐으면 true. 키가 겹쳐 있으면 적용하지 않고 false — 호출부가 창을 닫지 않게.
+        bool OnApply()
         {
+            // ★키 중복은 여기서 잡는다. 리바인딩 시점에 막지 않는 이유는 Update() 주석 참고.
+            if (SettingsBinding.HasKeyConflict)
+            {
+                // 문제가 있는 탭으로 데려간다. 이미 그 탭이면 전환음이 안 나므로 클릭음만 울린다.
+                if (tab != SettingsTab.Controls) SwitchTab(SettingsTab.Controls);
+                else SettingsBinding.PlayClick();
+                RefreshKeyConflicts();             // 붉은 표시 + 하단 경고 문구
+                // 문구를 한 번 튀겨 준다 — 이미 떠 있는 문구라 색만으로는 "또 눌렀다"가 안 보인다.
+                if (controlsHint) UITween.Punch((RectTransform)controlsHint.transform);
+                // 거부 플래시 — 적용됐을 때의 노란 플래시와 구분되게 붉게
+                UITween.Color(applyBG, UIColors.KeyConflictBorder, 0f, Ease.Linear);
+                UITween.Color(applyBG, UIColors.OffWhite, UIAnim.ApplyFlash * 2f, Ease.Linear);
+                return false;
+            }
+
             SettingsBinding.Apply();   // _pending → _data 커밋 + settings.json 저장 + 엔진 반영
             // 적용 플래시
             UITween.Color(applyBG, UIColors.AccentYellow, 0f, Ease.Linear);
             UITween.Color(applyBG, UIColors.OffWhite, UIAnim.ApplyFlash, Ease.Linear);
+            return true;
         }
         void OnMainMenu() { SettingsBinding.QuitToMainMenu(); }   // 저장 + timeScale 정상화까지 매니저가 처리
 

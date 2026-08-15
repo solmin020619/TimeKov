@@ -71,6 +71,13 @@ namespace GameSettingsUI
         public static readonly Color KeyListeningBG    = Hex("#4A4326");
         public static readonly Color KeyListeningAccent= Hex("#E9E24A");
 
+        // 다른 액션과 키가 겹치는 행. 노란 리스닝 색과 헷갈리지 않게 붉은 계열로 간다.
+        public static readonly Color KeyConflictBG     = Hex("#3E1E1B");
+        public static readonly Color KeyConflictHover  = Hex("#552A25");
+        public static readonly Color KeyConflictActive = Hex("#66332D");
+        public static readonly Color KeyConflictBorder = Hex("#C4463B");
+        public static readonly Color KeyConflictText   = Hex("#FF9084");
+
         public static readonly Color CloseBG           = Hex("#1A1A1A");
         public static readonly Color CloseBGHover      = Hex("#383838");
         public static readonly Color CloseBGActive     = Hex("#4A4A4A");

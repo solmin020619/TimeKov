@@ -456,6 +456,47 @@ public class GlobalSettingsManager : MonoBehaviour
         return true;
     }
 
+    // ── 중복 키 허용 방식 ────────────────────────────────────────────────
+    // 위 TryRebind 는 중복이면 아예 거부한다 → 유저 입장에서는 눌러도 원래 키로 되돌아가서
+    // "왜 안 바뀌지" 로만 보인다. 그래서 흔한 게임들처럼
+    //   ① 중복이어도 일단 배치하고  ② 겹치는 줄을 빨갛게 표시하고  ③ '설정 적용'에서 막는다.
+    // (TryRebind 는 다른 곳에서 쓸 수 있으니 남겨 둔다)
+
+    /// 중복 검사 없이 _pending 에 넣는다. 전역 예약 키만 여전히 거부한다.
+    public bool SetPendingKey(string actionId, KeyCode code, out string reservedBy)
+    {
+        EnsureLoaded();
+        if (IsReservedKeyConflict(code, out reservedBy)) return false;
+        SetKeyForAction(actionId, code);
+        return true;
+    }
+
+    /// 액션별 "다른 액션과 키가 겹치는가". RebindActions 와 같은 순서·길이.
+    public bool[] GetKeyConflicts()
+    {
+        EnsureLoaded();
+        int n = RebindActions.Length;
+
+        var codes = new KeyCode[n];
+        for (int i = 0; i < n; i++) codes[i] = GetKeyForAction(RebindActions[i].id);
+
+        var dup = new bool[n];
+        for (int i = 0; i < n; i++)
+        {
+            if (codes[i] == KeyCode.None) continue;   // 미할당끼리는 충돌로 보지 않는다
+            for (int j = i + 1; j < n; j++)
+                if (codes[i] == codes[j]) { dup[i] = true; dup[j] = true; }
+        }
+        return dup;
+    }
+
+    /// 겹치는 키가 하나라도 있는가. '설정 적용'을 막는 조건.
+    public bool HasKeyConflict()
+    {
+        foreach (bool d in GetKeyConflicts()) if (d) return true;
+        return false;
+    }
+
     /// 저장된 해상도가 선택지(FixedResolutions)에 없으면 드롭다운에 아무것도 선택되지 않고
     /// 표시값과 실제 값이 어긋난다. 기본값이 모니터 네이티브 해상도(SettingsData.CreateDefault)라
     /// 4K·울트라와이드에서는 첫 실행부터 이 상태가 된다.

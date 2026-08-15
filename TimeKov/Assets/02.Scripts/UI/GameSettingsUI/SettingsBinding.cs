@@ -178,6 +178,17 @@ namespace GameSettingsUI
         public static bool TryRebind(int index, KeyCode code, out string conflictAction) =>
             M.TryRebind(ActionId(index), code, out conflictAction);
 
+        /// 중복이어도 일단 배치한다(전역 예약 키만 거부). 겹치는 건 화면에서 빨갛게 알리고
+        /// '설정 적용' 단계에서 막는다 — 눌러도 원래 키로 되돌아가는 것보다 이유가 분명하다.
+        public static bool Rebind(int index, KeyCode code, out string reservedBy) =>
+            M.SetPendingKey(ActionId(index), code, out reservedBy);
+
+        /// 액션별 중복 여부. ActionCount 와 같은 순서·길이.
+        public static bool[] KeyConflicts() => M.GetKeyConflicts();
+
+        /// 겹치는 키가 하나라도 있는가.
+        public static bool HasKeyConflict => M != null && M.HasKeyConflict();
+
         public static string Format(KeyCode kc)
         {
             if (kc == KeyCode.Escape) return "Esc";

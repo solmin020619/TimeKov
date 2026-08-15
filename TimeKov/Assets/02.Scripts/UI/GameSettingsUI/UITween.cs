@@ -112,6 +112,30 @@ namespace GameSettingsUI
             while (t < dur) { t += Time.unscaledDeltaTime; rt.localScale = Vector3.one * Mathf.LerpUnclamped(from, to, Easing.E(e, t / dur)); yield return null; if (!rt) yield break; }
             rt.localScale = Vector3.one * to;
         }
+        // 1 -> 확대 -> 1. 이미 자리에 있는 요소를 "한 번 튀게" 해서 눈에 띄게 한다.
+        //   (Pop 은 0.6에서 시작해 등장용이라, 상시 표시 중인 문구에 쓰면 확 쪼그라들었다 커진다)
+        //   같은 "scl" 채널이라 연타하면 이전 것이 끊기고 처음부터 다시 튄다.
+        public static void Punch(RectTransform rt, float peak = 1.14f, float dur = 0.34f)
+            { Run(rt, "scl", PunchCo(rt, peak, dur)); }
+        static IEnumerator PunchCo(RectTransform rt, float peak, float dur)
+        {
+            float up = dur * 0.35f, down = dur - up, t = 0;
+            while (t < up)
+            {
+                t += Time.unscaledDeltaTime;
+                rt.localScale = Vector3.one * Mathf.LerpUnclamped(1f, peak, Easing.E(Ease.OutQuad, t / up));
+                yield return null; if (!rt) yield break;
+            }
+            t = 0;
+            while (t < down)
+            {
+                t += Time.unscaledDeltaTime;
+                rt.localScale = Vector3.one * Mathf.LerpUnclamped(peak, 1f, Easing.E(Ease.OutBack, t / down));
+                yield return null; if (!rt) yield break;
+            }
+            rt.localScale = Vector3.one;
+        }
+
         // 0.6 -> overshoot -> 1 팝
         public static void Pop(RectTransform rt) { Run(rt, "scl", PopCo(rt)); }
         static IEnumerator PopCo(RectTransform rt)
