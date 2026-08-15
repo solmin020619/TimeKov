@@ -323,7 +323,7 @@ public class RecipeDropSlot : MonoBehaviour,
         //   공통재료 섞임/"B가 준비된 듯" 착시로 인한 오작동 방지 - 바꾸려면 재료 회수 먼저.
         if (IsSuppressed())
         {
-            ToastManager.Warning(Loc.Get("이미 다른 레시피에 재료가 들어있습니다. 재료를 회수한 뒤 바꿔주세요."));
+            WarnCommitted();
             return;
         }
 
@@ -384,6 +384,39 @@ public class RecipeDropSlot : MonoBehaviour,
     //   공유 InputBuffer 수량을 표시/조작하지 않아 "A 재료로 B가 준비된 듯" 착시와 오작동을 막는다.
     private bool IsSuppressed()
         => _machine != null && _recipeIndex >= 0 && _machine.IsCommitted && _recipeIndex != _machine.EffectiveRecipeIndex;
+
+    // 막혔을 때 '어느 레시피가 잡고 있는지' 를 이름으로 알려주고, 그 칩도 한 번 튕겨서 눈이 가게 한다.
+    //   레시피가 많은 설비에서 재료 위치를 찾으려고 칩을 하나씩 눌러보던 것을 없앤다.
+    // ★막히는 이유가 두 가지다. 문구를 나눠야 유저가 다음에 뭘 해야 할지가 달라진다.
+    //   가공 중  -> 기다리면 된다
+    //   재료 있음 -> 회수해야 한다
+    private void WarnCommitted()
+    {
+        if (_machine == null) return;
+
+        int lockedIndex = _machine.EffectiveRecipeIndex;
+        string lockedName = RecipeDisplayName(lockedIndex);
+
+        // ★문구를 작은따옴표로 시작하지 마라. 구글 시트는 셀 맨 앞의 ' 를 '텍스트 강제' 표시로 먹어서
+        //   키가 한 글자 잘린 채 저장되고, 그러면 번역이 영영 안 붙는다. 그래서 "지금" 으로 연다.
+        if (_machine.IsProcessing)
+            ToastManager.Warning(string.Format(
+                Loc.Get("지금 '{0}' 레시피를 가공하는 중입니다. 끝난 뒤에 바꿔주세요."), lockedName));
+        else
+            ToastManager.Warning(string.Format(
+                Loc.Get("이미 '{0}' 레시피에 재료가 들어있습니다. 재료를 회수한 뒤 바꿔주세요."), lockedName));
+
+        MachineUI.Current?.PulseRecipeChip(lockedIndex);
+    }
+
+    private string RecipeDisplayName(int index)
+    {
+        var rs = _machine?.Recipes;
+        if (rs == null || index < 0 || index >= rs.Count) return "";
+        string n = rs[index]?.recipeName;
+        // recipeName 은 산출물 이름(없으면 recipeId)이라 비는 일은 사실상 없다. 그래도 빈 따옴표는 막는다.
+        return string.IsNullOrEmpty(n) ? (index + 1).ToString() : Loc.Get(n);
+    }
 
     public void PublicRefresh()
     {

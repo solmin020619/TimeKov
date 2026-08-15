@@ -121,6 +121,9 @@ public class MachineUI : MonoBehaviour
     // 설비 UI 열림 여부(HUD 자동 페이드 등 외부에서 참조).
     public static bool IsAnyOpen { get; private set; }
 
+    /// <summary>지금 열려 있는 설비 UI. 패널 안의 위젯(재료 슬롯 등)이 패널에 신호를 보낼 때 쓴다.</summary>
+    public static MachineUI Current { get; private set; }
+
     // 가방/창고 이중 섹션(엔필식): 두 섹션이 세로로 늘 보이고(가방 위/창고 아래 고정),
     // 펼친 쪽 = 그리드, 접힌 쪽 = "여기로 드래그하여 보관" 박스(=드롭 타겟 + 클릭하면 펼침).
     private const float SEC_TopY    = 52f;   // 컬럼 최상단 예약 공간(엔필의 ON/OFF 토글 자리 - 확장성 대비 비워둠)
@@ -698,6 +701,7 @@ public class MachineUI : MonoBehaviour
 
         uiPanel.SetActive(true);
         IsAnyOpen = true;   // HUD 자동 페이드가 하단 시간바를 숨기게(패널 밑으로 비쳐 지저분)
+        Current = this;
         GameSfx.Play(SfxId.MachineOpen);
         FacilityWorldDisplay.SuppressWorldLabels = true;   // 월드 이름표/제작아이콘이 패널 블러 위로 뚫지 않게
 
@@ -786,6 +790,7 @@ public class MachineUI : MonoBehaviour
     public void Close()
     {
         IsAnyOpen = false;
+        if (Current == this) Current = null;
         GameSfx.Play(SfxId.MachineClose);
         FacilityWorldDisplay.SuppressWorldLabels = false;   // 패널 닫으면 월드 표시 복구
         if (_machine != null) _machine.OnBufferChanged -= OnBufferChanged;
@@ -826,6 +831,7 @@ public class MachineUI : MonoBehaviour
     private void OnDisable()
     {
         IsAnyOpen = false;
+        if (Current == this) Current = null;
     }
 
     public void AddItemFromInventory(int itemId, int amount)
@@ -1661,6 +1667,50 @@ public class MachineUI : MonoBehaviour
         }
     }
 
+    // 레시피 칩 하나를 한 번 튕긴다. "재료가 여기 들어있다"를 손가락으로 가리키는 용도.
+    //   설비에 레시피가 많으면 재료가 어느 레시피에 물려 있는지 찾으려고 칩을 하나씩 눌러봐야 했다.
+    //   막힌 순간에만 튀므로 평소 화면에 요소가 늘지 않고, 색을 새로 쓰지 않아 선택 표시와 안 싸운다.
+    //   (칩은 '선택 = 밝은 면 / 비선택 = 어두운 유리' 로 이미 밝기 채널을 다 쓰고 있다)
+    private const float ChipPulseDuration = 0.22f;
+    private const float ChipPulsePeak = 1.25f;
+    private Coroutine _chipPulseCo;
+
+    public void PulseRecipeChip(int index)
+    {
+        if (index < 0 || index >= _chipBgs.Count) return;
+        var img = _chipBgs[index];
+        if (img == null) return;
+
+        if (_chipPulseCo != null) StopCoroutine(_chipPulseCo);
+        _chipPulseCo = StartCoroutine(ChipPulseRoutine(img.rectTransform));
+    }
+
+    private System.Collections.IEnumerator ChipPulseRoutine(RectTransform rt)
+    {
+        float up = ChipPulseDuration * 0.35f, down = ChipPulseDuration - up;
+
+        float e = 0f;
+        while (e < up)
+        {
+            e += Time.unscaledDeltaTime;
+            rt.localScale = Vector3.one * Mathf.Lerp(1f, ChipPulsePeak, Mathf.Clamp01(e / up));
+            yield return null;
+            if (rt == null) { _chipPulseCo = null; yield break; }   // 칩이 다시 만들어지면 중단
+        }
+        e = 0f;
+        while (e < down)
+        {
+            e += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(e / down);
+            k = 1f - (1f - k) * (1f - k);
+            rt.localScale = Vector3.one * Mathf.Lerp(ChipPulsePeak, 1f, k);
+            yield return null;
+            if (rt == null) { _chipPulseCo = null; yield break; }
+        }
+        rt.localScale = Vector3.one;
+        _chipPulseCo = null;
+    }
+
     // ── 출력 슬롯 ───────────────────────────────────────────────
 
     private void RefreshOutputSlots()
@@ -1723,6 +1773,13 @@ public class MachineUI : MonoBehaviour
         Transform slotParent = outputSlot.transform.parent;
         int slotIndex = 0; // 실제로 표시된 슬롯 수
 
+        // 출력 상한(N/3) 표시는 결과물이 한 종류일 때만 한다.
+        // 상한은 종류별이 아니라 출력 버퍼 총합 기준이라, 두 종류를 각각 N/3 으로 쓰면 거짓말이 된다.
+        int outKinds = 0;
+        foreach (var o in outputs)
+            if (_machine.OutputBuffer.GetAmount(o.itemId) > 0) outKinds++;
+        int outCap = outKinds == 1 ? _machine.maxOutputStock : 0;
+
         foreach (var output in outputs)
         {
             int buffered = _machine.OutputBuffer.GetAmount(output.itemId);
@@ -1743,6 +1800,7 @@ public class MachineUI : MonoBehaviour
 
             int id = output.itemId, amt = buffered;
             slot.Setup(id, amt);
+            slot.ShowOutputCapacity(amt, outCap);   // cap 0 이면 아무것도 안 한다(Setup 의 xN 유지)
             slot.SetDoubleClickAction(() => TakeOutput(id, amt));
 
             // 첫 슬롯에만 힌트 화살표

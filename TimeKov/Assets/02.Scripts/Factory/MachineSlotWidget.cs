@@ -43,9 +43,14 @@ namespace TIMEKOV.Factory
         public static int DragItemId { get; private set; }
         public static int DragAmount { get; private set; }
 
+        // 수량 글자의 원래 색. 가득 찼을 때만 경고색으로 바꾸고 그 외엔 이 값으로 되돌린다.
+        // (원래 색을 코드에 박으면 나중에 디자인이 바뀔 때 여기만 옛날 색으로 남는다)
+        private Color _amountBaseColor = Color.white;
+
         private void Awake()
         {
             _canvas = GetComponentInParent<Canvas>();
+            if (amountText != null) _amountBaseColor = amountText.color;
         }
 
         // 오브젝트가 비활성화될 때 드래그 비주얼 강제 정리
@@ -99,7 +104,29 @@ namespace TIMEKOV.Factory
                 itemNameText.text = name;
 
             if (amountText != null)
+            {
                 amountText.text = amount > 1 ? $"x{amount}" : "";
+                amountText.color = _amountBaseColor;   // 지난번 '가득' 경고색이 남지 않게
+            }
+        }
+
+        // 출력 슬롯 전용 표시. 설비는 출력이 상한만큼 쌓이면 생산을 멈추는데(ProcessingMachine.maxOutputStock),
+        // 수량이 "x3" 으로만 보이면 상한이 있다는 사실 자체가 안 보인다. 그래서 재료도 연료도 멀쩡한데
+        // 진행바만 멈춘 것처럼 보이고, 왜 멈췄는지 알 길이 없다.
+        //   -> "2/3" 으로 보여주면 막히기 전에 "3에서 멈춘다"를 먼저 배운다. 사고 난 뒤 설명하는 것보다 낫다.
+        //   -> 가득 차면 숫자만 빨갛게. 움직임 없이 색만 바뀐다(깜빡임 안 쓴다).
+        // ★등급선(rarityBorder)은 건드리지 않는다. 그 선은 '등급'을 뜻하는 자리라 색이 바뀌면
+        //   아이템 등급이 달라진 것처럼 읽힌다(종욱 QA 08-15). 숫자 3/3 만으로 이미 충분하다.
+        // ★상한은 아이템 종류별이 아니라 출력 버퍼 '총합' 기준이다. 결과물이 두 종류 이상인 레시피에서는
+        //   칸마다 N/3 을 쓰면 거짓말이 되므로 호출하는 쪽에서 안 부른다.
+        private static readonly Color OutCountFull = new Color(0.87f, 0.13f, 0.13f, 1f);
+
+        public void ShowOutputCapacity(int amount, int cap)
+        {
+            if (cap <= 0 || amountText == null) return;
+
+            amountText.text  = $"{amount}/{cap}";
+            amountText.color = amount >= cap ? OutCountFull : _amountBaseColor;
         }
 
         /// <summary>
