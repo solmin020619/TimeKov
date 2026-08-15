@@ -98,14 +98,21 @@ public class InventoryManager : MonoBehaviour, ISaveable
     {
         if (saved == null || saved.Count == 0) return;
 
-        foreach (var entry in saved)
+        // 복원은 획득이 아니다. 여기서 통지가 나가면 월드에 들어오자마자 획득 로그가 도배되고
+        // 인벤 칸이 전부 반짝인다(슬롯 수가 줄어든 세이브에서만 AddItem 경로를 타긴 하지만).
+        BeginSilentAdd();
+        try
         {
-            // 슬롯 수가 줄어든 경우(밸런스 변경 등) 대비 — 범위 밖이면 빈 슬롯에 다시 채워넣는다.
-            if (entry.slotIndex >= 0 && entry.slotIndex < _slots.Count)
-                _slots[entry.slotIndex].Set(entry.itemId, entry.amount);
-            else
-                AddItem(entry.itemId, entry.amount);
+            foreach (var entry in saved)
+            {
+                // 슬롯 수가 줄어든 경우(밸런스 변경 등) 대비 — 범위 밖이면 빈 슬롯에 다시 채워넣는다.
+                if (entry.slotIndex >= 0 && entry.slotIndex < _slots.Count)
+                    _slots[entry.slotIndex].Set(entry.itemId, entry.amount);
+                else
+                    AddItem(entry.itemId, entry.amount);
+            }
         }
+        finally { EndSilentAdd(); }
 
         OnInventoryChanged?.Invoke();
     }
@@ -198,14 +205,17 @@ public class InventoryManager : MonoBehaviour, ISaveable
         {
             OnInventoryChanged?.Invoke();
 
-            // [획득 로그] Player 인벤에 실제로 들어온 분량만 통지. Storage(창고)는 제외.
-            // ★인벤끼리 옮기는 중이면 알리지 않는다. 창고에서 가방으로 끌어온 건 새로 얻은 게 아니라
-            //   자리만 바꾼 것인데, 그때마다 화면에 '획득' 알림이 떴다.
-            if (ownerType == InventoryOwnerType.Player && !_movingBetweenInventories)
-                OnItemAddedToInventory?.Invoke(itemId, added);
-            // [창고 입고] 창고로 직행한 분량 통지(아이템 도감 획득 추적용).
-            else if (ownerType == InventoryOwnerType.Storage)
-                OnItemAddedToStorage?.Invoke(itemId, added);
+            // ★인벤끼리 옮기거나 세이브를 복원하는 중이면 알리지 않는다. 자리만 바꾼 것이지
+            //   새로 얻은 게 아니다. 가방/창고 양쪽에 똑같이 걸어야 한다(위 _silentAddDepth 주석).
+            if (!IsSilentAdd)
+            {
+                // [획득 로그] Player 인벤에 실제로 들어온 분량.
+                if (ownerType == InventoryOwnerType.Player)
+                    OnItemAddedToInventory?.Invoke(itemId, added);
+                // [창고 입고] 창고로 직행한 분량(벨트 자동입고/철거 환급 등, 아이템 도감 추적용).
+                else if (ownerType == InventoryOwnerType.Storage)
+                    OnItemAddedToStorage?.Invoke(itemId, added);
+            }
         }
 
         return remaining;
@@ -294,9 +304,19 @@ public class InventoryManager : MonoBehaviour, ISaveable
     }
 
     // 인벤토리끼리 옮기는 중인가. 이 동안의 AddItem 은 '획득'이 아니라 자리 이동이라 알림을 내지 않는다.
-    // 창고<->가방 드래그, 우클릭 이동, 드롭존이 전부 MoveSlot 을 거치므로 여기 한 곳이면 다 막힌다.
-    // (진짜 획득 경로 - 설비 수령/상자 줍기 - 는 AddItem 을 직접 부르므로 영향 없다)
-    private static bool _movingBetweenInventories;
+    // (진짜 획득 경로 - 설비 수령/상자 줍기/보상 - 은 AddItem 을 직접 부르므로 영향 없다)
+    //
+    // ★두 번 데였다. 원래는 bool 이었고 MoveSlot 한 곳에서만 켰다.
+    //   (1) '전부 보관'/'전부 가방으로'/분할/필터이동은 MoveSlot 을 안 거쳐서 그대로 새는 중이었다.
+    //   (2) 통지 분기가 가방 쪽에만 이 검사를 걸어서, 가방->창고로 옮기면 창고 쪽 통지가 그대로 나갔다.
+    //       -> 옮기기만 했는데 창고 칸이 새로 얻은 것처럼 반짝였다(종욱 QA 08-15).
+    //   그래서 깊이 카운터로 바꾸고(중첩 호출 대비) 이동/복원 경로를 전부 감쌌다.
+    //   새 이동 경로를 만들면 여기 Silent 로 감싸는 것을 잊지 마라.
+    private static int _silentAddDepth;
+    private static bool IsSilentAdd => _silentAddDepth > 0;
+
+    private static void BeginSilentAdd() => _silentAddDepth++;
+    private static void EndSilentAdd() { if (_silentAddDepth > 0) _silentAddDepth--; }
 
     // 슬롯 전체를 다른 인벤토리로 이동
     public bool MoveSlot(int slotIndex, InventoryManager other)
@@ -304,10 +324,10 @@ public class InventoryManager : MonoBehaviour, ISaveable
         var slot = GetSlot(slotIndex);
         if (slot == null || slot.IsEmpty) return false;
 
-        _movingBetweenInventories = true;
+        BeginSilentAdd();
         int leftOver;
         try { leftOver = other.AddItem(slot.itemId, slot.amount); }
-        finally { _movingBetweenInventories = false; }
+        finally { EndSilentAdd(); }
         int moved = slot.amount - leftOver;
 
         if (moved > 0)
@@ -324,18 +344,23 @@ public class InventoryManager : MonoBehaviour, ISaveable
     public void MoveAllTo(InventoryManager other)
     {
         bool changed = false;
-        foreach (var slot in _slots)
+        BeginSilentAdd();
+        try
         {
-            if (slot.IsEmpty) continue;
-            int leftOver = other.AddItem(slot.itemId, slot.amount);
-            int moved = slot.amount - leftOver;
-            if (moved > 0)
+            foreach (var slot in _slots)
             {
-                slot.amount -= moved;
-                if (slot.amount <= 0) slot.Clear();
-                changed = true;
+                if (slot.IsEmpty) continue;
+                int leftOver = other.AddItem(slot.itemId, slot.amount);
+                int moved = slot.amount - leftOver;
+                if (moved > 0)
+                {
+                    slot.amount -= moved;
+                    if (slot.amount <= 0) slot.Clear();
+                    changed = true;
+                }
             }
         }
+        finally { EndSilentAdd(); }
         if (changed) OnInventoryChanged?.Invoke();
     }
 
@@ -376,7 +401,10 @@ public class InventoryManager : MonoBehaviour, ISaveable
         }
 
         // 다른 인벤토리로 분할
-        int leftOver = target.AddItem(slot.itemId, amount);
+        BeginSilentAdd();
+        int leftOver;
+        try { leftOver = target.AddItem(slot.itemId, amount); }
+        finally { EndSilentAdd(); }
         int added = amount - leftOver;
 
         if (added > 0)
@@ -614,26 +642,31 @@ public class InventoryManager : MonoBehaviour, ISaveable
     public void MoveFilteredTo(InventoryManager other, ItemCategory? filter)
     {
         bool changed = false;
-        foreach (var slot in _slots)
+        BeginSilentAdd();
+        try
         {
-            if (slot.IsEmpty) continue;
-
-            // 필터 체크
-            if (filter != null)
+            foreach (var slot in _slots)
             {
-                var data = ItemDatabase.GetItem(slot.itemId);
-                if (data == null || data.itemCategory != filter.Value) continue;
-            }
+                if (slot.IsEmpty) continue;
 
-            int leftOver = other.AddItem(slot.itemId, slot.amount);
-            int moved = slot.amount - leftOver;
-            if (moved > 0)
-            {
-                slot.amount -= moved;
-                if (slot.amount <= 0) slot.Clear();
-                changed = true;
+                // 필터 체크
+                if (filter != null)
+                {
+                    var data = ItemDatabase.GetItem(slot.itemId);
+                    if (data == null || data.itemCategory != filter.Value) continue;
+                }
+
+                int leftOver = other.AddItem(slot.itemId, slot.amount);
+                int moved = slot.amount - leftOver;
+                if (moved > 0)
+                {
+                    slot.amount -= moved;
+                    if (slot.amount <= 0) slot.Clear();
+                    changed = true;
+                }
             }
         }
+        finally { EndSilentAdd(); }
 
         if (changed)
         {
