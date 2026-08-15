@@ -57,7 +57,12 @@ public class LootBoxSaveBridge : MonoBehaviour, ISaveable, ISaveLoadListener
             // GetComponentInChildren 으로 찾는다). 스폰 위치는 루트 기준이라야 원래 자리에 선다.
             Vector3 pos = box.transform.root.position;
 
-            var entry = new DroppedBoxData { sceneName = scene, posX = pos.x, posY = pos.y, posZ = pos.z };
+            // 남은 수명도 같이 저장한다 - 접속 안 한 시간은 안 세고 이어서 흐르게 하려면 이게 있어야 한다.
+            var entry = new DroppedBoxData
+            {
+                sceneName = scene, posX = pos.x, posY = pos.y, posZ = pos.z,
+                remainingLife = box.RemainingLife,
+            };
             foreach (var (itemId, count) in contents)
                 entry.contents.Add(new ItemStackData { itemId = itemId, amount = count });
 
@@ -116,6 +121,8 @@ public class LootBoxSaveBridge : MonoBehaviour, ISaveable, ISaveLoadListener
             var list = new List<(int itemId, int count)>();
             foreach (var s in entry.contents) list.Add((s.itemId, s.amount));
             box.Initialize(list);
+            // 남은 수명 이어받기. 0 이하면 구버전 세이브라 기본 수명으로 새로 시작한다.
+            if (entry.remainingLife > 0f) box.SetRemainingLife(entry.remainingLife);
             restored++;
         }
 

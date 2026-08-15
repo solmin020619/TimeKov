@@ -19,6 +19,39 @@ public class LootBox : MonoBehaviour, IInteractable
 
     public IReadOnlyList<(int itemId, int count)> Contents => _contents;
 
+    // ── 수명 ──────────────────────────────────────────────────────────
+    // 안 주운 상자가 땅에 영구히 남으면 사냥터가 상자로 뒤덮이고 세이브도 계속 커진다.
+    // ★'플레이 중에만' 시간이 간다(접속 안 한 시간은 안 센다). 급한 일로 껐다 왔더니
+    //   보스 드랍이 사라져 있는 건 유저가 가장 화내는 종류라, 실제 시각 기준은 쓰지 않는다.
+    //   -> 남은 시간을 세이브에 같이 넣고 복원 때 이어받는다(LootBoxSaveBridge).
+    [Tooltip("상자가 땅에 남아 있는 시간(초). 다 되면 사라진다.")]
+    //   5분 = 마인크래프트(6000틱)와 같은 값. 다른 게임들이 대체로 2.5~5분이라 플레이어 감각이
+    //   이 근처에 맞춰져 있다. "잠깐 정리하고 오면 있고 딴짓하고 오면 없다" 는 체감.
+    public static float LifetimeSeconds = 300f;
+
+    private float _remain = -1f;
+
+    /// <summary>남은 수명(초). 세이브가 읽어 간다.</summary>
+    public float RemainingLife => _remain;
+
+    /// <summary>세이브 복원용 - 남은 수명을 이어받는다.</summary>
+    public void SetRemainingLife(float seconds)
+    {
+        _remain = Mathf.Max(0.1f, seconds);
+    }
+
+    void Start()
+    {
+        if (_remain < 0f) _remain = LifetimeSeconds;
+    }
+
+    void Update()
+    {
+        if (_remain < 0f) return;
+        _remain -= Time.deltaTime;
+        if (_remain <= 0f) Destroy(transform.root.gameObject);
+    }
+
     public void Initialize(List<(int itemId, int count)> contents)
     {
         _contents.Clear();

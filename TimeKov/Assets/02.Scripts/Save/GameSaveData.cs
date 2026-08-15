@@ -126,6 +126,10 @@ public class DroppedBoxData
     public string sceneName;
     public float posX, posY, posZ;
     public List<ItemStackData> contents = new();
+
+    // 남은 수명(초). 상자는 플레이 중에만 시간이 가므로 나갈 때 남은 값을 그대로 들고 있다가
+    // 재입장에서 이어받는다. 0 이하 = 구버전 세이브 -> 복원 시 기본 수명으로 시작한다.
+    public float remainingLife;
 }
 
 [Serializable]
