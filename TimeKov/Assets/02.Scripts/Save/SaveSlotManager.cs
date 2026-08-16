@@ -90,9 +90,17 @@ public class SaveSlotManager : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
+    // ★게임플레이 씬이 아니면 저장하지 않는다.
+    //   이 매니저는 DontDestroyOnLoad라 메인메뉴로 나와도 활성 슬롯을 계속 들고 있고,
+    //   자동저장도 계속 돈다. 그런데 메인메뉴에는 등록된 저장 대상이 하나도 없어서
+    //   진행 데이터는 그대로인 채 '마지막 플레이 시각'만 30초마다 갱신됐다.
+    //   그 결과 월드 목록에 하지도 않은 플레이 시각이 찍히고 정렬도 그 월드가 계속 위로 올라왔다.
+    //   등록된 ISaveable 이 하나라도 있어야 = 지금 실제로 플레이 중이어야 저장한다.
+    bool InPlay => HasActiveSlot && _saveables.Count > 0;
+
     void AutoSaveTick()
     {
-        if (HasActiveSlot) SaveActive();
+        if (InPlay) SaveActive();
     }
 
     // 앱 종료도 나가기와 같은 위생 - 벨트 위 아이템을 창고로 회수한 뒤 저장한다
@@ -102,7 +110,7 @@ public class SaveSlotManager : MonoBehaviour
     // (자동저장 AutoSaveTick 도 같은 조건으로 거른다)
     void OnApplicationQuit()
     {
-        if (!HasActiveSlot) return;
+        if (!InPlay) return;   // 메인메뉴에서 끄는 것은 '플레이'가 아니다(InPlay 주석 참고)
         TIMEKOV.Factory.BeltSegment.RescueAllToStorage();
         SaveActive();
     }
@@ -191,6 +199,7 @@ public class SaveSlotManager : MonoBehaviour
             createdAtIso = nowIso,
             lastPlayedIso = nowIso,
             coreLevelSnapshot = 0,
+            needsPrologue = true,   // 새 월드는 프롤로그부터. 끝나면 MarkPrologueDone()이 끈다.
         };
 
         ActiveSlotId = slotId;
@@ -234,6 +243,21 @@ public class SaveSlotManager : MonoBehaviour
             Debug.LogError($"[SaveSlotManager] 슬롯 로드 실패({slotId}): {e.Message}");
             return false;
         }
+    }
+
+    /// <summary>프롤로그를 끝냈다고 표시한다. 다음부터 이 월드는 World 로 바로 들어간다.
+    /// 프롤로그가 World 로 넘어가기 직전에 호출한다 — 중간에 껐다면 표시가 안 되므로
+    /// 다시 프롤로그부터 시작한다(끝까지 못 봤으니 그게 맞다).</summary>
+    public void MarkPrologueDone()
+    {
+        if (!HasActiveSlot || ActiveMeta == null || !ActiveMeta.needsPrologue) return;
+        ActiveMeta.needsPrologue = false;
+
+        // ★meta.json 만 고쳐 쓴다. 프롤로그 씬에는 World 의 저장 대상들이 등록돼 있지 않아
+        //   SaveActive() 를 부르면 빈 진행 데이터를 기록하게 된다. 여기서는 표식만 남기면 된다.
+        string dir = Path.Combine(SavesRoot, ActiveSlotId);
+        Directory.CreateDirectory(dir);
+        AtomicWrite(Path.Combine(dir, MetaFileName), JsonUtility.ToJson(ActiveMeta, true));
     }
 
     public void DeleteSlot(string slotId)

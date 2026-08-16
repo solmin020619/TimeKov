@@ -35,6 +35,12 @@ public class MainMenuManager : MonoBehaviour
 
     private void Update()
     {
+        // ★널 검사가 없으면 ESC 를 누를 때마다 NullReferenceException 이 난다.
+        //   현재 MainMenu 씬의 GameManager 는 이 컴포넌트의 참조가 전부 비어 있어서
+        //   (메뉴 항목들이 TitleManager / SettingsPanel / CreditsPanel 을 직접 부르도록
+        //   바뀐 뒤 남은 잔재), 월드 선택·제작진·설정을 ESC 로 닫을 때마다 콘솔이 도배됐다.
+        //   Start() 쪽은 이미 널 검사가 있어서 여기만 새어 있었다.
+        if (quitConfirmPanel == null) return;
         if (Input.GetKeyDown(KeyCode.Escape) && quitConfirmPanel.activeSelf)
             OnClickQuitNo();
     }

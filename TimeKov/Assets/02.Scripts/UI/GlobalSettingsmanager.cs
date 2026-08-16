@@ -135,6 +135,10 @@ public class GlobalSettingsManager : MonoBehaviour
         if (GameUIController.Instance != null) { GameUIController.Instance.OpenSettings(); return; }
 
         // GameUIController가 없는 씬(MainMenu) — 직접 열고 동기화.
+        // ★클릭음도 여기서 낸다. 이 아래는 메인메뉴 '옵션' 항목만 지나가는 길이다
+        //   (인게임 ESC 는 위에서 GameUIController 로 위임되므로 여기 안 온다).
+        //   다른 메뉴 항목은 자기 처리부에서 내는데 '옵션'만 낼 데가 없어 무음이었다.
+        GameSfx.Play(SfxId.MenuClick);
         RefreshOnOpen();
         if (VisualRoot != null) VisualRoot.SetActive(true);
     }

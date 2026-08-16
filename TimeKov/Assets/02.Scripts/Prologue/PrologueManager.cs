@@ -63,6 +63,8 @@ public class PrologueManager : MonoBehaviour
         else
             yield return new WaitForSeconds(fadeDuration);
 
+        // 여기까지 왔으면 프롤로그를 끝까지 본 것. 다음부터 이 월드는 World 로 바로 들어간다.
+        SaveSlotManager.Instance?.MarkPrologueDone();
         CoreUtilities.LoadViaLoading("World");
     }
 }

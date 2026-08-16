@@ -65,6 +65,11 @@ public class MenuItemHoverFx : MonoBehaviour,
     public void OnPointerDown(PointerEventData eventData)
     {
         if (eventData != null && eventData.button != PointerEventData.InputButton.Left) return;
+
+        // ★클릭음은 여기서 내지 않는다. 항목마다 무슨 소리를 낼지가 다르기 때문 —
+        //   '게임 시작'은 전용 시작음(SfxId.TitleStart)을 내고 그 길이만큼 기다렸다 넘어간다.
+        //   여기서 공통 클릭음까지 내면 그 항목만 소리가 두 번 겹친다.
+        //   각 항목의 처리부에서 자기 소리를 낸다.
         transform.DOKill();
         transform.DOScale(HoverScale * PressScale, PressDownDuration).SetEase(Ease.OutQuad).SetUpdate(true);
     }
