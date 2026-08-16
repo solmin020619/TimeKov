@@ -36,9 +36,10 @@ public static class TutorialAssetBuilder
 
     // -- 최종 ItemData 시트 기준 --
     const int ItemSpiderVenom = 1102;  // 거미 독액 (드롭, 원료)
-    const int ItemCorrosive   = 3101;  // 부식액 (드롭, 원료)
-    const int ItemHealGel     = 1201;  // 앰플 젤 (R1201 @추출기1: 1102+3101). 시트 rename: 회복 젤 -> 앰플 젤
-    const int ItemHealAmpoule = 5101;  // 초급 회복 앰플 (R5101 @배양기2: 1201)
+    const int ItemHealGel     = 1201;  // 회복 앰플 젤 (R1201 @추출기1: 거미 독액 x2)
+                                       // ★[08-16] 앰플 젤이 스탯별 4종으로 갈라졌다(회복1201/공격1202/방어1203/스태미나1205).
+                                       //   1201 은 회복 전용이고 튜토는 회복 라인만 다룬다.
+    const int ItemHealAmpoule = 5101;  // 초급 회복 앰플 (R5101 @배양기2: 회복 앰플 젤 x2)
     const int CoreKitId       = 6101;  // 코어 키트 I (코어 1단계 강화 재료)
     const int CoreKitAmount   = 3;     // CoreLevelData lv1 requiredAmount
     const int ItemTwig        = 4101;  // 나뭇가지 = 설비 연료 (FuelConfig.fuelItemId). OakTreeEnt 단독 드롭.
@@ -148,9 +149,11 @@ public static class TutorialAssetBuilder
             CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
             CreateEnemyKill("obj_kill", $"{Y}위협 개체{E}를 {Y}처치{E}하세요.", "", 1)));   // enemyId 빈값 = 아무 몹이나 1마리(거미/언데드/오크 다 인정)
 
+        // ★수량은 레시피에서 역산한 값이다. 초급 회복 앰플 1개 = 회복 앰플 젤 2개 = 거미 독액 4개.
+        //   (R1201: 거미 독액 2 -> 회복 앰플 젤 1 / R5101: 회복 앰플 젤 2 -> 초급 회복 앰플 1)
+        //   부식액은 공격 앰플 젤 전용이 되면서 튜토 경로에서 빠졌다 - 안 쓰는 재료를 모으게 하지 않는다.
         quests.Add(BuildQuest("quest_tut_03_loot", "전투 자원 회수하기",
-            CreateItemAcquire("obj_loot_venom", $"{Y}거미{E}를 잡아 {Y}거미 독액{E}을 {Y}2개{E} {Y}획득{E}하세요.", ItemSpiderVenom, 2),
-            CreateItemAcquire("obj_loot_corrosive", $"{Y}언데드{E}를 잡아 {Y}부식액{E}을 {Y}2개{E} {Y}획득{E}하세요.", ItemCorrosive, 2),
+            CreateItemAcquire("obj_loot_venom", $"{Y}거미{E}를 잡아 {Y}거미 독액{E}을 {Y}4개{E} {Y}획득{E}하세요.", ItemSpiderVenom, 4),
             CreateItemAcquire("obj_loot_twig", $"{Y}오크 트리{E}를 잡아 {Y}나뭇가지{E}를 {Y}2개{E} {Y}획득{E}하세요.", ItemTwig, 2),
             CreatePressKey("obj_inventory", $"{Y}Tab{E}으로 {Y}인벤토리{E}를 확인하세요.", KeyCode.Tab, 1)));
 
@@ -182,19 +185,19 @@ public static class TutorialAssetBuilder
             quests.Add(BuildFactoryVideoQuest());
 
         // (설비 '열기' 별도 게이트는 두지 않음 - 연료/재료 슬롯이 설비 UI 안에 있어 여는 게 자연 강제됨)
-        // R1201: 거미독액 + 부식액 -> 앰플 젤. 연료+재료를 한 퀘(병렬 3목표)로 묶는다.
+        // R1201: 거미 독액 2 -> 회복 앰플 젤 1. 연료+재료를 한 퀘(병렬 목표)로 묶는다.
+        //   독액 4개를 넣으면 추출기가 두 번 돌아 젤 2개가 나온다 = 다음 배양기 퀘의 요구량.
         //   이유: 연료/재료를 별개 순차 퀘로 나누면 그 사이에 통째 퀘가 끼어 lookback(3.5s)을 넘기고,
         //   플레이어가 자연스럽게 재료를 먼저 넣으면 재료 투입 목표가 활성될 땐 이미 만료돼 미인정 ->
         //   재료회수 후 재투입해야 깨지던 문제. 셋을 한 퀘로 두면 동시에 활성이라 어느 순서로 넣어도 다 잡힘.
         quests.Add(BuildQuest("quest_tut_08_operate", "첫 재료 가공하기",
             CreateFuelAdd("obj_fuel_add", $"{Y}나뭇가지{E}를 {Y}연료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId),
-            CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemSpiderVenom, 1),
-            CreateFacilityInput("obj_in_corrosive", $"{Y}부식액{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemCorrosive, 1)));
+            CreateFacilityInput("obj_in_venom", $"{Y}거미 독액{E} {Y}4개{E}를 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioExtractorId, ItemSpiderVenom, 4)));
 
         // 앰플 젤 회수 (+ 다음 배양기/레일 가동 연료 나뭇가지 보상)
         quests.Add(BuildQuestRewarded("quest_tut_10_collect_gel", "가공 결과물 회수하기",
             new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 5 } },
-            CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}앰플 젤{E}을 {Y}모두 받기{E}로 {Y}회수{E}하세요.", ItemHealGel, 1)));
+            CreateItemAcquire("obj_collect_gel", $"{Y}출력 슬롯{E}에서 {Y}회복 앰플 젤{E} {Y}2개{E}를 {Y}모두 받기{E}로 {Y}회수{E}하세요.", ItemHealGel, 2)));
 
         // ============================================================
         // 배양 - 두 번째 설비(반복 학습=정착, 안내 없이 텍스트만)
@@ -206,7 +209,7 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuestRewarded("quest_tut_12_cultivate", "회복 앰플 제작하기",
             new[] { new QuestSO.QuestReward { itemId = ItemTwig, amount = 1 } },
             CreateFacilityInteract("obj_interact_cultivator", $"{Y}F{E}로 {Y}생체 배양기{E}를 여세요.", BioCultivatorId, 1),
-            CreateFacilityInput("obj_in_gel", $"{Y}앰플 젤{E}을 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 1)));
+            CreateFacilityInput("obj_in_gel", $"{Y}회복 앰플 젤{E} {Y}2개{E}를 {Y}재료 슬롯{E}으로 {Y}드래그{E}해 투입하세요.", BioCultivatorId, ItemHealGel, 2)));
 
         // ★앰플 회수 / 사용 분리 (한 퀘에 ItemAcquire+ItemUse 두면 1개짜리 소비형 비대칭 갭락)
         quests.Add(BuildQuest("quest_tut_13_collect_ampoule", "회복 앰플 회수하기",
@@ -236,11 +239,11 @@ public static class TutorialAssetBuilder
         if (EnableVideoTutorials)
             quests.Add(BuildRailVideoQuest());
 
-        // 보상(거미독액+부식액) = 다음 자동화 확인에서 추출기에 넣어 라인 흐르게 할 재료
+        // 보상(거미 독액 4) = 다음 자동화 확인에서 추출기에 넣어 라인 흐르게 할 재료.
+        //   4개 = 회복 앰플 젤 2개 = 배양기가 실제로 앰플 1개를 뽑을 수 있는 최소량.
         quests.Add(BuildQuestRewarded("quest_tut_16_rail_connect", "설비 사이 레일 연결하기",
             new[] {
-                new QuestSO.QuestReward { itemId = ItemSpiderVenom, amount = 1 },
-                new QuestSO.QuestReward { itemId = ItemCorrosive,   amount = 1 },
+                new QuestSO.QuestReward { itemId = ItemSpiderVenom, amount = 4 },
             },
             CreateRailConnect("obj_rail_connect", $"{Y}생체 추출기{E}를 {Y}생체 배양기{E}에 {Y}레일{E}로 이어보세요.", BioExtractorId, BioCultivatorId, 1)));
 
@@ -407,7 +410,7 @@ public static class TutorialAssetBuilder
             $"1. QuestManager.tutorial = Tutorial_Main.asset (카테고리 2개: 메인 + 엔드게임)\n" +
             $"2. QuestTrigger(IsTrigger, Player Tag): 'enemy'(사냥터)/'build'(BuildZone과 겹침)/'1'(추출기위치)/'2'(배양기위치)/'core'(코어단말)/'transmit'(시간에너지 전송기). 오타/중복/콜라이더 범위 확인\n" +
             $"3. 'build' 트리거가 BuildManager.buildZoneCollider 와 정확히 겹쳐야(ReachTrigger는 되는데 EnterBuildMode가 안 되는 모순 방지)\n" +
-            $"4. 드롭/스폰: tutorial_enemy 무한리스폰 + 거미독액{ItemSpiderVenom}/부식액{ItemCorrosive} 드롭, OakTreeEnt 가 나뭇가지{ItemTwig} 떨굼(스폰풀에 OakTreeEnt 포함, NavMesh 베이크)\n" +
+            $"4. 드롭/스폰: tutorial_enemy 무한리스폰 + 거미독액{ItemSpiderVenom} 드롭(튜토는 회복 라인만 = 독액 4개 필요), OakTreeEnt 가 나뭇가지{ItemTwig} 떨굼(스폰풀에 OakTreeEnt 포함, NavMesh 베이크)\n" +
             $"5. 스포트라이트(코드 자동등록 외 수동 부착): time_bar/status_panel/stat_button(C_Icon)/tab_icon + 건설투어 타깃. 코어는 영상이라 코어 스포트 불필요\n" +
             $"6. PlayerMovementWatcher: 이동/점프/달리기(Shift)/대시/Tab/B 등 필수 키는 코드에서 자동 감지. 프롤로그가 이동/점프/달리기 선행 교육(여기선 재교육 안 함)\n" +
             $"7. 영상 클립: Assets/17.Video/Tutorial/ 에 '페이지 제목'과 같은 파일명 mp4(발견 큐 포함). 없으면 '영상 준비 중' 폴백\n" +
