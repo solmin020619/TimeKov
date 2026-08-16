@@ -26,6 +26,10 @@ public partial class GameDataHolder
 
     private GameDataHolder() { }
 
+    /// <summary>시트 다운로드 진행도(0~1). 몇 장 중 몇 장이 끝났는지의 실제 값이다.
+    /// 로딩바가 이걸 쓴다 - 없으면 가짜 보간밖에 못 해서 "멈춰 있다가 확 참"이 된다.</summary>
+    public float DownloadProgress { get; private set; }
+
     // 구글 시트에서 전체 데이터 비동기 로드 (런타임용)
     // monoBehaviour: 코루틴 실행 주체
     // onComplete: 성공 여부를 bool 로 전달하는 콜백
@@ -57,10 +61,12 @@ public partial class GameDataHolder
         // 병렬 다운로드 (직렬 대비 왕복지연 합 -> 가장 느린 한 개 수준으로 단축)
         Dictionary<string, CsvTable> tables = null;
         List<string> failed = null;
+        DownloadProgress = 0f;
         yield return CsvReader.DownloadAllAsync(
             sources,
             MaxConcurrentDownloads,
-            (res, fail) => { tables = res ?? new Dictionary<string, CsvTable>(); failed = fail; });
+            (res, fail) => { tables = res ?? new Dictionary<string, CsvTable>(); failed = fail; },
+            p => DownloadProgress = p);   // 시트가 한 장 끝날 때마다 갱신 - 로딩바가 읽어간다
 
         // 다운로드에 실패해도 로컬 사본이 있으면 그걸로 뜬다.
         // 2026-08-02 에 DropTable 시트가 삭제돼 게임이 아예 안 떴다. 시트 한 장 사고로
