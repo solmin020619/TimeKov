@@ -16,19 +16,29 @@ namespace GameSettingsUI
 {
     // 버튼이 하는 일. 클릭 콜백(람다)은 직렬화가 안 되므로, 씬에 배치된 버튼은
     // 이 열거형만 들고 있고 실제 처리는 패널 컨트롤러가 받아서 한다.
+    //
+    // ★★ 새 항목은 반드시 맨 끝에만 추가할 것. 중간에 끼우면 안 된다. ★★
+    //   Btn.action 은 씬에 '숫자'로 구워져 있다(MainMenu/World 의 설정창은 전부 베이크본).
+    //   중간에 하나 끼우면 그 뒤 항목이 전부 한 칸씩 밀려서, 이미 구워진 버튼들이
+    //   죄다 엉뚱한 동작을 하게 된다. 실제로 그런 적이 있다 —
+    //   StuckEscape 를 MainMenu 뒤에 끼웠더니 구워둔 드롭다운(8=ToggleDropdown)이
+    //   StuckEscape 로 읽혀서, 설정창의 드롭다운·키 바인딩이 전부 먹통이 됐다.
+    //   (고치려면 다시 굽는 수밖에 없는데, 그건 씬 전체를 건드리는 일이라 훨씬 비싸다)
     public enum SettingsAction
     {
         None = 0,
         TabDisplay, TabAudio, TabControls,   // 상단 탭 3개
         Close,                                // 우상단 X
         Apply, ResetAll, MainMenu,            // 하단 버튼
-        StuckEscape,                          // 하단 '탈출하기' — 지형에 끼었을 때 안전 지점으로 복귀
         ToggleDropdown,                       // 드롭다운 열기/닫기 (param 미사용)
         SelectOption,                         // 드롭다운 옵션 선택 (param = 옵션 인덱스)
         FullscreenOn, FullscreenOff,          // 표시 모드 세그먼트
         ToggleMute,                           // 오디오 음소거 아이콘
         StartRebind,                          // 키 바인딩 버튼 (param = 액션 인덱스)
         WarnApplyClose, WarnDiscardClose, WarnCancel,   // 미적용 변경 경고창의 3버튼
+
+        // ↓ 여기부터가 나중에 추가된 것들. 반드시 이 아래로만 붙인다.
+        StuckEscape,                          // 하단 '탈출하기' — 지형에 끼었을 때 안전 지점으로 복귀
     }
 
     public enum SettingId
