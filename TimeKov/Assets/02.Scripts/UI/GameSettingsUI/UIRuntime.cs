@@ -123,7 +123,7 @@ namespace GameSettingsUI
         {
             ("gear", Gear), ("note", Note), ("mouse", Mouse), ("chev", Chevron),
             ("spk", Speaker), ("mute", Mute), ("back", Back), ("reset", Reset),
-            ("check", Check), ("close", Close),
+            ("check", Check), ("close", Close), ("run", Run),
         };
 
         static readonly Color WHITE = Color.white;
@@ -194,6 +194,24 @@ namespace GameSettingsUI
         {
             i.Seg(new Vector2(5, 5), new Vector2(19, 19), 1.35f, WHITE);
             i.Seg(new Vector2(19, 5), new Vector2(5, 19), 1.35f, WHITE);
+        });
+
+        // 달리는 사람 — '탈출하기' 버튼용. (viewBox 24x24, y-down. 진행 방향은 오른쪽)
+        //
+        // ★실제 표시 크기가 17px밖에 안 된다. 사람 형태를 그대로 옮기면 전부 뭉개져 얼룩이 된다.
+        //   비상구 표지 비율을 따랐다 — 머리는 작게, 목은 띄우고, 다리는 크게 벌리고, 획은 굵게.
+        //   (머리를 키우거나 팔을 어깨 가까이 붙이면 상체가 한 덩어리로 붙어버린다)
+        public static Sprite Run() => Make("run", i =>
+        {
+            i.Disc(new Vector2(13.7f, 4.0f), 2.1f, WHITE);                                   // 머리
+            i.Seg(new Vector2(13.4f, 6.9f), new Vector2(12.2f, 12.3f), 1.2f, WHITE);         // 몸통
+            i.Poly(new[] { new Vector2(12.2f, 12.3f), new Vector2(16.2f, 14.6f),
+                           new Vector2(15.4f, 20.4f) }, 1.15f, WHITE);                       // 앞다리(무릎 굽힘)
+            i.Poly(new[] { new Vector2(12.2f, 12.3f), new Vector2(8.0f, 14.8f),
+                           new Vector2(5.4f, 20.2f) }, 1.15f, WHITE);                        // 뒷다리(뒤로 뻗음)
+            i.Poly(new[] { new Vector2(13.2f, 8.4f), new Vector2(17.2f, 10.2f),
+                           new Vector2(18.4f, 6.9f) }, 1.0f, WHITE);                         // 앞팔(위로 굽힘)
+            i.Seg(new Vector2(12.8f, 9.6f), new Vector2(8.2f, 12.0f), 1.0f, WHITE);          // 뒷팔
         });
     }
 
