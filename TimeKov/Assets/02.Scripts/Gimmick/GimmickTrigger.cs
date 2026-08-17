@@ -21,8 +21,11 @@ public abstract class GimmickTrigger : MonoBehaviour
     private bool _fired;                       // latch 모드에서 이미 발동했는지
     public bool IsSatisfied { get; private set; }
 
-    // 파생 클래스가 조건 충족/해제를 보고. 상태가 바뀔 때만 타깃에 반영.
-    protected void SetSatisfied(bool satisfied)
+    /// <summary>파생 클래스가 조건 충족/해제를 보고. 상태가 바뀔 때만 타깃에 반영.</summary>
+    /// <param name="instant">true 면 타깃을 연출·사운드 없이 즉시 그 모습으로 만든다.
+    /// 세이브에서 "이미 풀린 퍼즐"을 복원할 때만 쓴다 — 실제로 지금 푼 게 아니니
+    /// 해제 연출과 소멸음이 다시 나오면 안 된다.</param>
+    protected void SetSatisfied(bool satisfied, bool instant = false)
     {
         if (satisfied == IsSatisfied) return;
         IsSatisfied = satisfied;
@@ -32,20 +35,20 @@ public abstract class GimmickTrigger : MonoBehaviour
             if (satisfied && !_fired)
             {
                 _fired = true;
-                OpenTargets(true);
-                OnFired();
+                OpenTargets(true, instant);
+                if (!instant) OnFired();   // 복원일 땐 추가 연출도 생략
             }
         }
         else
         {
-            OpenTargets(satisfied);   // 유지형: 충족되면 열고, 풀리면 닫는다
+            OpenTargets(satisfied, instant);   // 유지형: 충족되면 열고, 풀리면 닫는다
         }
     }
 
-    private void OpenTargets(bool open)
+    private void OpenTargets(bool open, bool instant)
     {
         for (int i = 0; i < targets.Count; i++)
-            if (targets[i] != null) targets[i].SetOpen(open);
+            if (targets[i] != null) targets[i].SetOpen(open, instant);
     }
 
     // 래치 발동(최초 1회) 시 파생에서 추가 연출/사운드용 훅. 기본 무동작.

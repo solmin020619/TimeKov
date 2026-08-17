@@ -23,19 +23,30 @@ public abstract class GimmickTarget : MonoBehaviour
     // 현재 열림 여부. 트리거가 SetOpen 으로 바꾼다.
     public bool IsOpen { get; private set; }
 
+    private bool _stateSet;   // SetOpen 이 한 번이라도 상태를 정했는지
+
     protected virtual void Start()
     {
+        // 이미 누가 상태를 정했으면(세이브 복원 등) startOpen 으로 덮어쓰지 않는다.
+        //   ★Awake 는 전부 Start 보다 먼저 돈다. 이 가드가 없으면 세이브에서 복원한 '열림'이
+        //     여기서 startOpen(보통 false)으로 되돌아가 결계가 되살아나는데, 트리거 쪽은 이미
+        //     발동 처리가 끝나 다시 열 수도 없어 통로가 영구히 막힌다.
+        if (_stateSet) return;
+
         IsOpen = startOpen;
         ApplyState(startOpen, instant: true);   // 시작 상태는 효과 없이 즉시 반영
     }
 
-    // 트리거가 호출: 열림/닫힘 전환. 이미 같은 상태면 무시.
-    public void SetOpen(bool open)
+    /// <summary>트리거가 호출: 열림/닫힘 전환. 이미 같은 상태면 무시.</summary>
+    /// <param name="instant">true 면 연출·사운드 없이 즉시 그 모습으로. 세이브 복원용 —
+    /// 게임에 들어올 때마다 결계가 사라지는 연출과 소멸음이 다시 재생되면 안 된다.</param>
+    public void SetOpen(bool open, bool instant = false)
     {
-        if (IsOpen == open) return;
+        if (_stateSet && IsOpen == open) return;
+        _stateSet = true;
         IsOpen = open;
-        ApplyState(open, instant: false);
-        if (open) PlayOpenEffects();
+        ApplyState(open, instant);
+        if (open && !instant) PlayOpenEffects();
     }
 
     private void PlayOpenEffects()

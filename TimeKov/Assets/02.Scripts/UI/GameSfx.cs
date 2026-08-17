@@ -209,6 +209,15 @@ public class GameSfx : MonoBehaviour
         I.PlayInternal(id);
     }
 
+    /// <summary>이번 한 번만 작게 재생한다(0~1 배율). 짧은 간격으로 여러 번 이어 나는 소리에 쓴다 —
+    /// 같은 크기로 25번 연달아 나면 귀에 거슬리기 때문. GameSfxConfig 의 볼륨은 건드리지 않으므로
+    /// 다른 호출처는 영향이 없다.</summary>
+    public static void Play(SfxId id, float volumeScale)
+    {
+        if (_quitting || id == SfxId.None) return;
+        I.PlayInternal(id, volumeScale);
+    }
+
     // 3D(공간) 효과음 재생. 지정한 월드 위치에서 거리감 있게 들린다.
     public static void Play(SfxId id, Vector3 position)
     {
@@ -231,9 +240,10 @@ public class GameSfx : MonoBehaviour
         return I.Resolve(id, out var clip, out _) ? clip.length : 0f;
     }
 
-    private void PlayInternal(SfxId id)
+    private void PlayInternal(SfxId id, float volumeScale = 1f)
     {
-        if (Resolve(id, out var clip, out var volume)) _source.PlayOneShot(clip, volume);
+        if (Resolve(id, out var clip, out var volume))
+            _source.PlayOneShot(clip, volume * Mathf.Clamp01(volumeScale));
     }
 
     private void PlayInternal3D(SfxId id, Vector3 position)

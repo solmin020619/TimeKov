@@ -114,6 +114,10 @@ public class GameSaveData
     public List<int> claimedFacilityRewards = new();
     public List<string> activatedJackpots = new();
 
+    // 이미 푼 퍼즐(시간선 복원 등)의 id. 한 번 풀면 다시 풀 필요가 없다.
+    // 필드가 없던 옛 세이브는 빈 목록으로 읽혀 "아직 아무것도 안 풀었음"이 된다.
+    public List<string> solvedPuzzleIds = new();
+
     // ── 땅에 떨어진 드롭 상자 (LootBoxSaveBridge) ───────────────────────────
     // 몹을 잡고 안 주운 상자. 저장하지 않으면 나갔다 오는 것만으로 통째로 사라진다.
     public List<DroppedBoxData> droppedBoxes = new();

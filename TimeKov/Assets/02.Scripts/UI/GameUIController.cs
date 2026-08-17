@@ -29,7 +29,11 @@ public class GameUIController : MonoBehaviour
         Transmission, // 시간에너지 전송 컴퓨터 UI (터미널 상호작용)
         ShipRepair,   // 폐우주선 수리 UI (터미널 상호작용, 풀스크린 대형)
         ChestOpen,    // 상자 오픈 팝업
-        Codex         // 도감 (K키, 전체화면 정지) - 지금은 골격 placeholder
+        Codex,        // 도감 (K키, 전체화면 정지) - 지금은 골격 placeholder
+
+        // ↓ 새 항목은 맨 끝에만 추가할 것. 중간에 끼우면 이 열거형을 숫자로 들고 있는
+        //   저장/직렬화 지점이 생겼을 때 통째로 어긋난다(SettingsAction 에서 실제로 겪었다).
+        TimelinePuzzle // 시간선 복원 퍼즐 (장치 상호작용)
     }
 
     [Header("Settings Panel")]
@@ -301,6 +305,19 @@ public class GameUIController : MonoBehaviour
 
     // ── 코어 강화 UI ─────────────────────────────────────────────────
 
+    // 시간선 복원 퍼즐 — 커서 해제·조작 잠금·일시정지는 ApplyState 가 공통으로 처리한다.
+    public void OpenTimelinePuzzle()
+    {
+        if (_currentState != UIState.None) return;
+        SetState(UIState.TimelinePuzzle);
+    }
+
+    public void CloseTimelinePuzzle()
+    {
+        if (_currentState != UIState.TimelinePuzzle) return;
+        SetState(UIState.None);
+    }
+
     public void OpenCoreUpgradeUI()
     {
         if (_currentState != UIState.None) return;
@@ -398,13 +415,29 @@ public class GameUIController : MonoBehaviour
     /// <summary>C 스탯창이 열려있는지 (HUD 자동 페이드에서 '강제 표시' 판단용).</summary>
     public bool IsPlayerStatOpen => statPanel != null && statPanel.activeSelf;
 
+    /// <summary>화면 전체를 덮는 패널이 떠 있는 상태인가. 이런 상태에서는 C 스탯창을 막고
+    /// 플레이어 정보 세트(playerInfoRoot)도 통째로 숨긴다 — 전면 패널 위에 좌하단 HP 창이나
+    /// 스탯창이 떠 있으면 그냥 깨져 보인다.
+    ///
+    /// ★판정 기준은 '화면을 덮는지'다. 인벤·설비·상자·퀘스트는 일부러 스탯창과 같이 볼 수 있게
+    ///   만든 것들이라(장비와 능력치 비교) 여기에 넣지 않는다.
+    /// ★전면 패널을 새로 만들면 이 목록에 같이 추가할 것. 안 넣으면 그 패널 위로 스탯창이 뜬다.</summary>
+    static bool CoversFullScreen(UIState s) =>
+        s == UIState.Settings        // ESC 설정·일시정지 통합창
+     || s == UIState.Build           // 건설 = 탑뷰로 화면 전환
+     || s == UIState.Codex           // 도감 (전체화면 정지)
+     || s == UIState.CoreUpgrade     // 코어 강화 터미널
+     || s == UIState.Transmission    // 시간에너지 전송기 터미널
+     || s == UIState.ShipRepair      // 폐우주선 수리 (풀스크린 대형)
+     || s == UIState.TimelinePuzzle; // 시간선 복원 퍼즐
+
     public void TogglePlayerStat()
     {
         if (statPanel == null) return;
 
-        // 설정창/건설(탑뷰) 모드에선 플레이어 정보 세트(playerInfoRoot)가 통째로 숨겨지므로
-        // C키 입력을 무시한다. (숨겨진 상태에서 토글하면 복귀 시 의도치 않게 켜져 보이는 문제 방지)
-        if (_currentState == UIState.Settings || _currentState == UIState.Build) return;
+        // 화면 전체를 덮는 패널이 떠 있으면 플레이어 정보 세트가 통째로 숨겨지므로 C키를 무시한다.
+        // (숨겨진 상태에서 토글하면 복귀 시 의도치 않게 켜져 보이는 문제 방지)
+        if (CoversFullScreen(_currentState)) return;
 
         statPanel.SetActive(!statPanel.activeSelf);
 
@@ -607,17 +640,15 @@ public class GameUIController : MonoBehaviour
         // 플레이어 HUD — 다른 UI가 열리면 숨김 (PlayerStat은 _currentState와 독립이라 영향 없음)
         RefreshPlayerHudActive();
 
-        // 플레이어 정보 세트(좌하단 HP/시간 창 + C키 스탯창) — 설정창/건설(탑뷰)에서만 통째로 숨김.
+        // 플레이어 정보 세트(좌하단 HP/시간 창 + C키 스탯창) — 화면 전체를 덮는 패널에서 통째로 숨김.
         // playerInfoRoot(PlayerHud 그룹)가 좌하단 창과 Character_stat(C키)을 모두 자식으로 가지므로
         // 이 그룹 하나만 켜고 끄면 둘이 항상 같은 레이어에서 같이 뜨고 같이 숨겨짐(세트 보장).
         // C키 스탯창은 자식이라 부모가 꺼지면 자동으로 함께 숨겨진다.
+        //   ★판정을 TogglePlayerStat 과 같은 CoversFullScreen 으로 통일했다. 따로 적어두면
+        //     한쪽만 고쳐져 어긋난다 — 그러면 'C 로 먼저 켜두고 전면 패널을 열는' 순서에서
+        //     스탯창이 패널 위에 그대로 남는다(막는 쪽만 고쳐선 이 순서가 안 잡힌다).
         if (playerInfoRoot != null)
-        {
-            bool showPlayerInfo = _currentState != UIState.Settings
-                               && _currentState != UIState.Build
-                               && !dead;
-            playerInfoRoot.SetActive(showPlayerInfo);
-        }
+            playerInfoRoot.SetActive(!CoversFullScreen(_currentState) && !dead);
 
         // 커서 + 입력 플래그
         // None 상태 + 코치마크(튜토 오버레이) 아님 + 사망 아님일 때만 게임플레이 입력 활성화

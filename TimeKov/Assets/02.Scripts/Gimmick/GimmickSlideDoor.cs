@@ -22,20 +22,34 @@ public class GimmickSlideDoor : GimmickTarget
     private Vector3[] _closedLocal;   // 각 문짝의 닫힘(원래) 로컬 위치
     private Coroutine _move;
 
+    private bool _closedCaptured;
+
     protected override void Start()
     {
         // 아직 아무도 안 움직인 '닫힘' 위치를 먼저 캡처한 뒤 base.Start(초기상태 반영)를 부른다.
+        EnsureClosedCaptured();
+        base.Start();
+    }
+
+    /// <summary>닫힘(원래) 위치 캡처. Start 뿐 아니라 ApplyState 첫 호출에서도 부른다.
+    /// ★세이브 복원 트리거는 자기 Awake 에서 SetOpen 을 부르는데 Awake 끼리의 실행 순서는
+    ///   정해져 있지 않다 → Start 보다 ApplyState 가 먼저 올 수 있고, 그때 _closedLocal 이
+    ///   null 이면 TargetLocal 에서 터진다. 순서에 의존하지 않게 여기서 한 번만 잡는다.</summary>
+    private void EnsureClosedCaptured()
+    {
+        if (_closedCaptured) return;
+        _closedCaptured = true;
+
         int n = doors != null ? doors.Length : 0;
         _closedLocal = new Vector3[n];
         for (int i = 0; i < n; i++)
             if (doors[i] != null) _closedLocal[i] = doors[i].transform.localPosition;
-
-        base.Start();
     }
 
     protected override void ApplyState(bool open, bool instant)
     {
         if (doors == null) return;
+        EnsureClosedCaptured();
 
         if (_move != null) { StopCoroutine(_move); _move = null; }
 

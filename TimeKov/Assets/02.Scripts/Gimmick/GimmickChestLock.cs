@@ -16,16 +16,26 @@ public class GimmickChestLock : GimmickTarget
 
     protected override void Start()
     {
-        // 지정 안 했으면 같은 오브젝트(및 자식)의 상자를 자동으로 잡는다 → 상자에 그냥 붙이기만 하면 됨.
-        if (chests == null || chests.Length == 0)
-            chests = GetComponentsInChildren<ChestInteractable>(true);
+        EnsureChests();
         base.Start();
+    }
+
+    /// <summary>지정 안 했으면 같은 오브젝트(및 자식)의 상자를 자동으로 잡는다 → 상자에 그냥 붙이기만 하면 됨.
+    /// ★ApplyState 에서도 부른다 — 세이브 복원 트리거는 Awake 에서 SetOpen 을 부르고 Awake 끼리의
+    ///   순서는 정해져 있지 않아, Start 보다 먼저 오면 chests 가 빈 배열이라 상자가 조용히
+    ///   안 풀린다(이미 푼 자물쇠인데 상자가 영구히 잠긴 채로 남는다).</summary>
+    private void EnsureChests()
+    {
+        if (chests != null && chests.Length > 0) return;
+        chests = GetComponentsInChildren<ChestInteractable>(true);
     }
 
     protected override void ApplyState(bool open, bool instant)
     {
         // 열릴 때만 상자를 푼다. (다시 잠그는 동작은 없음 — 한 번 풀면 끝)
-        if (!open || chests == null) return;
+        if (!open) return;
+        EnsureChests();
+        if (chests == null) return;
         foreach (var c in chests)
             if (c != null) c.GimmickUnlock();
     }
