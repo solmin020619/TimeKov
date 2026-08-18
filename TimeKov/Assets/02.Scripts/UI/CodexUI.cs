@@ -691,14 +691,28 @@ public class CodexUI : MonoBehaviour
 
         // 카드(분류 필터 적용)
         var cat = ItemCatMap[Mathf.Clamp(_itemCatIndex, 0, ItemCatMap.Length - 1)];
-        int shown = 0;
+
+        // ★시트 입력 순서 그대로 뿌리면 등급이 뒤죽박죽이라 읽기 힘들다.
+        //   분류 -> 등급 -> itemId 순으로 정렬해 같은 등급끼리 붙여 보여준다.
+        //   분류를 1순위로 두는 이유 = '전체' 탭에서도 원재료/1차/2차 묶음이 유지돼야 하기 때문.
+        var shownList = new List<ItemDataSheetData>();
         foreach (var it in GameDataHolder.I.ItemData.All)
         {
             if (it == null) continue;
             if (cat != null && it.itemCategory != cat.Value) continue;
-            BuildItemCard(_itemGrid, it);
-            shown++;
+            shownList.Add(it);
         }
+        shownList.Sort((a, b) =>
+        {
+            int c = ((int)a.itemCategory).CompareTo((int)b.itemCategory);
+            if (c != 0) return c;
+            c = ((int)a.itemGrade).CompareTo((int)b.itemGrade);
+            if (c != 0) return c;
+            return ItemIdOf(a).CompareTo(ItemIdOf(b));
+        });
+
+        int shown = shownList.Count;
+        foreach (var it in shownList) BuildItemCard(_itemGrid, it);
         if (shown == 0)
             Txt(NewChild("none", _itemGrid), Loc.Get("표시할 아이템이 없습니다."), 14f, FontStyles.Normal, TxtDim, TextAlignmentOptions.Left);
     }
