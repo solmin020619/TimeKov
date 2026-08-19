@@ -21,7 +21,7 @@ public class PlayerStatHUD : MonoBehaviour
     [SerializeField] private TMP_Text atkText;
     [Tooltip("방어력")]
     [SerializeField] private TMP_Text defText;
-    [Tooltip("체력 - '현재 / 최대' 형식")]
+    [Tooltip("체력 - '현재(-초당감소) / 최대' 형식")]
     [SerializeField] private TMP_Text hpText;
     [Tooltip("스태미나 - '현재 / 최대' 형식")]
     [SerializeField] private TMP_Text staminaText;
@@ -48,6 +48,10 @@ public class PlayerStatHUD : MonoBehaviour
 
     private void OnEnable()
     {
+        // 초당 감소량을 작게·흐리게 붙이려면 리치텍스트가 켜져 있어야 한다.
+        // 꺼져 있으면 태그가 글자 그대로 보인다.
+        if (hpText != null) hpText.richText = true;
+
         // 패널 켜질 때 즉시 한 번 갱신 (Update 첫 frame 전 깜빡임 방지)
         RefreshAll();
     }
@@ -65,7 +69,7 @@ public class PlayerStatHUD : MonoBehaviour
 
         if (atkText != null) atkText.text = WithCap(stat.ATK, EffectTarget.ATK, fmt);
         if (defText != null) defText.text = WithCap(stat.DEF, EffectTarget.DEF, fmt);
-        if (hpText != null) hpText.text = $"{stat.CurrentHp:F0} / {stat.MaxHp:F0}";
+        if (hpText != null) hpText.text = $"{stat.CurrentHp:F0}{DrainSuffix()} / {stat.MaxHp:F0}";
         if (staminaText != null) staminaText.text = $"{stat.CurrentStamina:F0} / {stat.MaxStamina:F0}";
 
         // Slider 인스펙터 설정과 무관하게 작동하도록 min/max도 매 프레임 동기화
@@ -81,6 +85,27 @@ public class PlayerStatHUD : MonoBehaviour
             staminaSlider.maxValue = stat.MaxStamina;
             staminaSlider.value = stat.CurrentStamina;
         }
+    }
+
+    // ── 초당 시간 감소 표시 ────────────────────────────────────────────────
+    // 현재 체력 바로 뒤에 괄호로 붙인다.  예)  80(-1/s) / 300
+    //
+    //   ★'지속'으로 닳는 것만 나온다. 피격처럼 한 번에 크게 깎이는 건 세지 않는다
+    //     (PlayerStatComponent.HpDrainPerSecond 참고).
+    //   안 닳는 동안(결계 안·안전지대)에는 괄호째 사라진다 — '(-0/s)' 가 붙어 있어 봐야
+    //     자리만 차지하고 알려주는 게 없다.
+    //   소수 한 자리까지만: 1 / 3 처럼 딱 떨어지면 그냥 '-1/s' 로 나온다.
+    //
+    //   작게·흐리게 보이는 건 리치텍스트로 처리한다. 별도 글자 오브젝트를 두면 체력 숫자가
+    //   자릿수에 따라 움직일 때 따라붙지 못해 사이가 벌어진다.
+    //   색은 PlayerStatPanelStyle 의 DrainCol 과 같은 값이다 — 바꿀 땐 둘 다 바꿀 것.
+    private const string DrainOpen = "<size=65%><color=#6E90AE>";
+    private const string DrainClose = "</color></size>";
+
+    private string DrainSuffix()
+    {
+        float perSec = stat.HpDrainPerSecond;
+        return perSec > 0.05f ? $"{DrainOpen}(-{perSec:0.#}/s){DrainClose}" : "";
     }
 
     // 스탯 값 뒤에 '지금 구간의 끝'을 붙인다. 예) 공격력 12.5 / 16

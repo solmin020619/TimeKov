@@ -42,6 +42,15 @@ public class StatPanelRevealEffect : MonoBehaviour
     private Coroutine _co;
     private bool _init;
 
+    /// <summary>패널 크기·위치를 바꾼 뒤 부른다. 열림 위치(_shownPos)를 다시 잡는다.
+    /// ★Awake 에서 한 번 캡처하기 때문에, 나중에 옮기고 이걸 안 부르면 열 때마다 옛 자리로
+    ///   되돌아간다(같은 오브젝트의 컴포넌트끼리도 Awake 순서는 믿을 게 못 된다).</summary>
+    public void RecaptureShownPos()
+    {
+        EnsureInit();
+        _shownPos = ((RectTransform)transform).anchoredPosition;
+    }
+
     private void Awake() => EnsureInit();
 
     private void EnsureInit()

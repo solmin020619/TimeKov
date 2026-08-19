@@ -192,6 +192,39 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
         }
     }
 
+    // ── 지속 시간 감소량(초당) ──────────────────────────────────────────────
+    // 스탯창에 "지금 초당 몇씩 닳는지"를 띄우려고 노출한다.
+    //
+    //   ★'지속'으로 닳는 것만 센다. 피격(TakeDamage)이나 비용 지불(SpendHp)처럼 한 번에
+    //     크게 깎이는 건 빼야 한다 — 순간 피해가 섞이면 숫자가 확 튀어서 읽을 수가 없다.
+    //     그 둘은 애초에 이 경로를 안 지나므로 따로 걸러낼 것도 없다.
+    //
+    //   재는 게 아니라 '지금 걸려 있는 값'을 그대로 돌려준다. HP 변화량을 프레임마다 재서
+    //   역산하면 회복(앰플·지속회복 버프)과 뒤섞여 0 이나 음수로 보일 수 있다.
+    public float HpDrainPerSecond
+    {
+        get
+        {
+            if (IsDead || IsInBase) return 0f;
+            // 결계 밖 자연 감소(안전지대 안이면 배율이 0 이라 저절로 0 이 된다) + 장판 등 환경 감소.
+            return Mathf.Max(0f, HpDrainRate * HpDrainMultiplier) + _envDrainPerSec;
+        }
+    }
+
+    // DrainTime 은 '이번 프레임에 깎을 양'(= 초당rate × dt)으로 불린다. 초당으로 되돌리려면
+    // 한 프레임치 합계를 dt 로 나눈다.
+    //   ★비우는 건 LateUpdate 에서 한다. 장판(TimeHazardZone·보스)의 Update 가 이 컴포넌트의
+    //     Update 보다 나중에 돌 수도 있어서, Update 에서 비우면 절반만 세게 된다.
+    //   매 프레임 0 으로 비우므로 장판에서 나오면 다음 프레임에 저절로 사라진다.
+    private float _envDrainAccum;
+    private float _envDrainPerSec;
+
+    void LateUpdate()
+    {
+        _envDrainPerSec = Time.deltaTime > 0f ? _envDrainAccum / Time.deltaTime : 0f;
+        _envDrainAccum = 0f;
+    }
+
     public void TakeDamage(float amount, Vector3 attackerPos = default)
     {
         if (IsDead) return;
@@ -304,6 +337,7 @@ public class PlayerStatComponent : MonoBehaviour, ISaveable
     public void DrainTime(float amount)
     {
         if (IsDead || IsInBase || amount <= 0f) return;
+        _envDrainAccum += amount;                       // 스탯창의 '초당 감소' 표시용(HpDrainPerSecond)
         CurrentHp = Mathf.Max(0f, CurrentHp - amount);
         if (CurrentHp <= 0f) TriggerDeath();
     }

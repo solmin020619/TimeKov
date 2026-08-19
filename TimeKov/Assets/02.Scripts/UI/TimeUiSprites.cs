@@ -30,19 +30,28 @@ public static class TimeUiSprites
 
     /// <summary>가운데→가장자리 3단 방사형 그라디언트. ★알파가 아니라 '색'으로 굽는다 —
     /// 이 프로젝트는 Linear 컬러스페이스라 반투명이 의도보다 훨씬 밝게 합성된다.</summary>
-    public static Sprite RadialGradient(Color inner, Color mid, Color outer, float midStop = 0.7f)
+    /// <param name="center">밝은 지점의 위치(0~1, 스프라이트 기준). 기본값은 정중앙.
+    /// 한쪽으로 치우치게 두면 판이 균일해 보이지 않아 넓은 패널에서 덜 심심하다.</param>
+    public static Sprite RadialGradient(Color inner, Color mid, Color outer, float midStop = 0.7f,
+                                        Vector2? center = null)
     {
-        string k = $"rg:{inner}{mid}{outer}{midStop}";
+        Vector2 ctr = center ?? new Vector2(.5f, .5f);
+        string k = $"rg:{inner}{mid}{outer}{midStop}:{ctr.x:0.##},{ctr.y:0.##}";
         return Get(k, () =>
         {
             const int RES = 128;
             var tex = New(RES);
             var px = new Color32[RES * RES];
-            float c = RES * 0.5f;
+            float cx = RES * ctr.x, cy = RES * ctr.y;
+            // 중심이 치우치면 가장 먼 모서리까지의 거리로 정규화해야 가장자리가 잘리지 않는다.
+            float far = Mathf.Max(
+                Mathf.Max(Mathf.Sqrt(cx * cx + cy * cy), Mathf.Sqrt((RES - cx) * (RES - cx) + cy * cy)),
+                Mathf.Max(Mathf.Sqrt(cx * cx + (RES - cy) * (RES - cy)),
+                          Mathf.Sqrt((RES - cx) * (RES - cx) + (RES - cy) * (RES - cy))));
             for (int y = 0; y < RES; y++)
                 for (int x = 0; x < RES; x++)
                 {
-                    float d = Mathf.Sqrt((x + .5f - c) * (x + .5f - c) + (y + .5f - c) * (y + .5f - c)) / c;
+                    float d = Mathf.Sqrt((x + .5f - cx) * (x + .5f - cx) + (y + .5f - cy) * (y + .5f - cy)) / far;
                     d = Mathf.Clamp01(d);
                     px[y * RES + x] = d <= midStop
                         ? Color.Lerp(inner, mid, d / midStop)
@@ -70,6 +79,40 @@ public static class TimeUiSprites
                 {
                     float d = Mathf.Sqrt((x + .5f - c) * (x + .5f - c) + (y + .5f - c) * (y + .5f - c));
                     float a = Mathf.Clamp01(outer - d) * Mathf.Clamp01(d - inner);
+                    px[y * res + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+                }
+            tex.SetPixels32(px); tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, res, res), new Vector2(.5f, .5f));
+        });
+    }
+
+    /// <summary>끊어진 링(시계 눈금 느낌). segments 개의 조각이 균등하게 놓이고,
+    /// duty 는 한 칸에서 그려지는 비율(0~1)이다. duty=1 이면 Ring 과 같아진다.</summary>
+    public static Sprite RingDashed(float size, float thickness, int segments, float duty)
+    {
+        int res = Mathf.Clamp(Mathf.NextPowerOfTwo(Mathf.RoundToInt(size)), 64, 512);
+        int seg = Mathf.Max(1, segments);
+        float d0 = Mathf.Clamp01(duty);
+        string k = $"ringd:{res}:{thickness:0.##}:{size:0.#}:{seg}:{d0:0.##}";
+        return Get(k, () =>
+        {
+            float outer = res * .5f - 1f;
+            float inner = outer - Mathf.Max(1.2f, thickness * res / size);
+            var tex = New(res);
+            var px = new Color32[res * res];
+            float c = res * .5f;
+            float step = 360f / seg;
+            for (int y = 0; y < res; y++)
+                for (int x = 0; x < res; x++)
+                {
+                    float dx = x + .5f - c, dy = y + .5f - c;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float a = Mathf.Clamp01(outer - d) * Mathf.Clamp01(d - inner);
+
+                    // 한 칸 안에서의 위치가 duty 를 넘으면 비운다.
+                    float ang = Mathf.Repeat(Mathf.Atan2(dy, dx) * Mathf.Rad2Deg, 360f);
+                    if (Mathf.Repeat(ang, step) / step > d0) a = 0f;
+
                     px[y * res + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
                 }
             tex.SetPixels32(px); tex.Apply();
