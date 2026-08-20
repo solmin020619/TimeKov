@@ -201,19 +201,21 @@ public class PlayerStatPanelStyle : MonoBehaviour
         _root.sizeDelta = new Vector2(PanelW, PanelH);
         if (!autoPlace) return;   // 위치는 손으로 — 앵커/피벗도 건드리지 않는다
 
-        // 피벗도 좌하단이라 StatPanelRevealEffect 의 '코너에서 자라나는' 연출이 그대로 맞는다.
-        _root.anchorMin = _root.anchorMax = _root.pivot = Vector2.zero;
+        // ★피벗은 한가운데로 둔다. 여닫는 연출(MenuPanelAnim)이 배율을 1.04↔1 로 바꾸는데,
+        //   피벗이 좌하단이면 그 구석만 고정된 채 커졌다 줄어들어 '왼쪽 아래로 빨려드는' 느낌이 난다.
+        //   설정창처럼 제자리에서 균등하게 커지려면 회전·확대의 축이 창 한가운데여야 한다.
+        _root.anchorMin = _root.anchorMax = Vector2.zero;
+        _root.pivot = new Vector2(.5f, .5f);
 
         Vector3 world = crt.TransformPoint(new Vector3(crt.rect.xMin, crt.rect.yMin, 0f));
         Vector2 local = parent.InverseTransformPoint(world);
 
         // 앵커가 (0,0) 일 때 기준점은 부모 rect 의 좌하단이므로 그만큼 빼 준다.
-        _root.anchoredPosition = local - parent.rect.min + new Vector2(margin, BottomMargin(crt, parent));
+        Vector2 corner = local - parent.rect.min + new Vector2(margin, BottomMargin(crt, parent));
 
-        // ★위치를 바꾼 뒤라 열림 위치를 다시 잡아 줘야 한다.
-        //   안 부르면 C 로 열 때마다 프리팹에 굳어 있던 옛 자리로 되돌아간다.
-        var reveal = GetComponent<StatPanelRevealEffect>();
-        if (reveal != null) reveal.RecaptureShownPos();
+        // anchoredPosition 은 '피벗'의 자리다. 위에서 구한 건 창의 좌하단 모서리라,
+        // 피벗을 가운데로 옮긴 만큼(가로·세로 절반) 더해야 화면상 위치가 그대로 유지된다.
+        _root.anchoredPosition = corner + new Vector2(PanelW, PanelH) * .5f;
     }
 
     /// <summary>화면 아래에서 띄울 거리. 체력(시간) 게이지가 있으면 그 밑변에 맞춘다 —

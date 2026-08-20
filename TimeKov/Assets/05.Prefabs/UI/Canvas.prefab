@@ -83687,7 +83687,6 @@ GameObject:
   - component: {fileID: 8432676771503805631}
   - component: {fileID: 8349850244821978956}
   - component: {fileID: 2882480768519950511}
-  - component: {fileID: 5878587301512232336}
   - component: {fileID: 5470265776135958824}
   m_Layer: 0
   m_Name: Character_stat
@@ -83773,23 +83772,6 @@ MonoBehaviour:
   hpSlider: {fileID: 3599149368704632220}
   staminaSlider: {fileID: 8808094595925907460}
   statDecimals: 0
---- !u!114 &5878587301512232336
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6077890537048422948}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 18b0eb76140c2064aa79f6822987cae2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  duration: 0.28
-  riseOffset: 36
-  startScale: 0.9
-  overshoot: 0.045
-  forceBottomLeftPivot: 1
 --- !u!114 &5470265776135958824
 MonoBehaviour:
   m_ObjectHideFlags: 0

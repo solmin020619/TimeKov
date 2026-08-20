@@ -263,7 +263,11 @@ public class GameUIController : MonoBehaviour
         TimeKov.UI.WindowManager.SuppressPanelSfx = true;   // 일괄 닫기 — 개별 패널 닫기음 억제(사망/전환 시 우르르 방지)
         try {
         // PlayerStat도 ESC로 같이 닫음 (단, _currentState와 독립이라 SetState 밖에서 처리)
-        if (statPanel != null) statPanel.SetActive(false);
+        // 스탯창도 여기서 같이 닫는다. 연출은 C 키로 닫을 때와 같은 것을 쓴다.
+        //   ★연출 코루틴은 이 컨트롤러가 돌린다(창 자신이 아니라). 창은 연출이 끝나면
+        //     꺼지는데, 창에서 돌리면 그 전에 부모(playerInfoRoot)가 꺼질 수 있어 코루틴이
+        //     죽고 '켜진 채 투명한' 상태로 남는다.
+        MenuPanelAnim.Close(this, statPanel);
 
         // 코어 강화 UI — SetState 전에 패널 먼저 숨김 (순환 호출 방지)
         CoreUpgradeUI.Instance?.HidePanel();
@@ -412,8 +416,10 @@ public class GameUIController : MonoBehaviour
     // PlayerStat은 정보 표시용 — _currentState와 독립으로 동작.
     // 다른 UI(인벤/팩토리/빌드 등) 열려있어도 같이 켜질 수 있음.
 
-    /// <summary>C 스탯창이 열려있는지 (HUD 자동 페이드에서 '강제 표시' 판단용).</summary>
-    public bool IsPlayerStatOpen => statPanel != null && statPanel.activeSelf;
+    /// <summary>C 스탯창이 열려있는지 (HUD 자동 페이드에서 '강제 표시' 판단용).
+    /// ★activeSelf 로 보면 안 된다. 닫는 연출이 도는 동안에도 오브젝트는 아직 켜져 있어서
+    ///   이미 닫은 창을 '열려 있다'로 세게 된다.</summary>
+    public bool IsPlayerStatOpen => statPanel != null && MenuPanelAnim.IsOpen(statPanel);
 
     /// <summary>화면 전체를 덮는 패널이 떠 있는 상태인가. 이런 상태에서는 C 스탯창을 막고
     /// 플레이어 정보 세트(playerInfoRoot)도 통째로 숨긴다 — 전면 패널 위에 좌하단 HP 창이나
@@ -439,16 +445,22 @@ public class GameUIController : MonoBehaviour
         // (숨겨진 상태에서 토글하면 복귀 시 의도치 않게 켜져 보이는 문제 방지)
         if (CoversFullScreen(_currentState)) return;
 
-        statPanel.SetActive(!statPanel.activeSelf);
+        // 여닫는 연출은 설정창과 같은 것(MenuPanelAnim)을 쓴다.
+        //   ★열 상태를 '먼저' 정해 두고 쓴다. 닫기 연출이 도는 동안에는 오브젝트가 아직
+        //     켜져 있어서, 호출한 뒤에 activeSelf 로 다시 물으면 반대로 나온다.
+        bool open = !MenuPanelAnim.IsOpen(statPanel);
+        if (open) MenuPanelAnim.Open(statPanel);
+        else      MenuPanelAnim.Close(this, statPanel);
 
         GameSfx.Play(SfxId.PanelStatToggle);   // 스탯창 열·닫 공용음(코드 직결 — 씬 WindowManager 미사용)
 
         // WindowManager mirror — PlayerStat은 _currentState와 독립이라 SetState 안 거침
+        //   어댑터도 같은 연출을 부르지만, 이미 그 상태면 아무것도 안 하도록 막아 뒀다.
         var wm = TimeKov.UI.WindowManager.I;
         if (wm != null)
         {
-            if (statPanel.activeSelf) wm.Open("PlayerStat");
-            else                       wm.Close("PlayerStat");
+            if (open) wm.Open("PlayerStat");
+            else      wm.Close("PlayerStat");
         }
     }
 

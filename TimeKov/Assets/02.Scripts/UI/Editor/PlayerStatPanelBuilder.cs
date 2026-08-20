@@ -62,12 +62,13 @@ public static class PlayerStatPanelBuilder
         }
 
         // ★이미 붙어 있어도 여기서 끝내면 안 된다. 예전 버전이 남긴 조각을 치워야 한다.
-        bool cleaned = RemoveDrainText(inScene, inSceneObject: true);
+        bool cleaned = RemoveDrainText(inScene, inSceneObject: true)
+                     | RemoveRevealEffect(inScene, inSceneObject: true);   // ★단축 || 아님 — 둘 다 실행돼야 한다
 
         EditorSceneManager.MarkSceneDirty(inScene.gameObject.scene);
         Selection.activeObject = inScene.gameObject;
         Debug.Log($"[스탯창] {inScene.name} — 디자인 {(added ? "적용" : "이미 적용됨")}, " +
-                  $"예전 감소량 글자 {(cleaned ? "정리함" : "없음")}. 씬을 저장하세요 (Ctrl+S).", inScene);
+                  $"예전 조각 {(cleaned ? "정리함" : "없음")}. 씬을 저장하세요 (Ctrl+S).", inScene);
     }
 
     // ==================================================================
@@ -124,7 +125,8 @@ public static class PlayerStatPanelBuilder
             }
 
             // ★이미 붙어 있어도 여기서 끝내면 안 된다. 예전 버전이 남긴 조각을 치워야 한다.
-            bool cleaned = RemoveDrainText(hud, inSceneObject: false);
+            bool cleaned = RemoveDrainText(hud, inSceneObject: false)
+                         | RemoveRevealEffect(hud, inSceneObject: false);   // ★단축 || 아님 — 둘 다 실행돼야 한다
             if (!added && !cleaned)
             {
                 Debug.Log($"[스탯창] 이미 최신 상태입니다 ({path}).");
@@ -134,7 +136,7 @@ public static class PlayerStatPanelBuilder
             PrefabUtility.SaveAsPrefabAsset(root, path);
 
             Debug.Log($"[스탯창] {hud.name} — 디자인 {(added ? "적용" : "이미 적용됨")}, " +
-                      $"예전 감소량 글자 {(cleaned ? "정리함" : "없음")}. 프리팹을 저장했습니다.\n{path}\n" +
+                      $"예전 조각 {(cleaned ? "정리함" : "없음")}. 프리팹을 저장했습니다.\n{path}\n" +
                       "배치·색·기존 장식 정리는 실행할 때 자동으로 처리됩니다.",
                       AssetDatabase.LoadAssetAtPath<GameObject>(path));
             Selection.activeObject = AssetDatabase.LoadAssetAtPath<GameObject>(path);
@@ -144,6 +146,22 @@ public static class PlayerStatPanelBuilder
             // ★반드시 언로드해야 한다. 예외로 빠져나가도 남으면 에디터에 유령 씬이 쌓인다.
             PrefabUtility.UnloadPrefabContents(root);
         }
+    }
+
+    // ==================================================================
+    /// <summary>예전 여닫기 연출(StatPanelRevealEffect)을 떼어 낸다. 뗐으면 true.
+    ///
+    /// 지금은 설정창과 같은 연출(MenuPanelAnim)을 쓴다. 둘이 같이 붙어 있으면
+    /// 같은 프레임에 alpha·localScale·anchoredPosition 을 서로 덮어써서 창이 떨린다.
+    /// (StatPanelRevealEffect 는 OnEnable 에서 스스로 재생을 시작한다 — 아무도 안 불러도 돈다)</summary>
+    static bool RemoveRevealEffect(PlayerStatHUD hud, bool inSceneObject)
+    {
+        var fx = hud.GetComponent<StatPanelRevealEffect>();
+        if (fx == null) return false;
+
+        if (inSceneObject) Undo.DestroyObjectImmediate(fx);
+        else Object.DestroyImmediate(fx, true);
+        return true;
     }
 
     // ==================================================================
