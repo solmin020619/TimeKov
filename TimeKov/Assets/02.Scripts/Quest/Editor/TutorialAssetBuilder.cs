@@ -147,7 +147,7 @@ public static class TutorialAssetBuilder
 
         quests.Add(BuildQuest("quest_tut_02_combat", "위협 개체 처치하기",
             CreatePressKey("obj_attack", $"{Y}좌클릭{E}으로 {Y}공격{E}하세요.", KeyCode.Mouse0, 1),
-            CreateEnemyKill("obj_kill", $"{Y}위협 개체{E}를 {Y}처치{E}하세요.", "", 1)));   // enemyId 빈값 = 아무 몹이나 1마리(거미/언데드/오크 다 인정)
+            CreateEnemyKill("obj_kill", $"{Y}아무 적{E}이나 {Y}1마리{E} 쓰러뜨리세요.", "", 1)));   // enemyId 빈값 = 아무 몹이나 1마리(거미/언데드/오크 다 인정)
 
         // ★수량은 레시피에서 역산한 값이다. 초급 회복 앰플 1개 = 회복 앰플 젤 2개 = 거미 독액 4개.
         //   (R1201: 거미 독액 2 -> 회복 앰플 젤 1 / R5101: 회복 앰플 젤 2 -> 초급 회복 앰플 1)

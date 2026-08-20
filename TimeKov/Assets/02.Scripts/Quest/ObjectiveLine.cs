@@ -79,6 +79,7 @@ public class ObjectiveLine : MonoBehaviour
 
     void PlayCompletionSequence()
     {
+        _collapsing = true;   // 이 시점부터 높이는 연출이 소유한다(FitHeightToText 가 끼어들면 안 됨)
         var seq = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
 
         // Phase 1: sweep 효과. prefab 있으면 그것 우선, 없으면 Image fallback.
@@ -156,6 +157,44 @@ public class ObjectiveLine : MonoBehaviour
         // → 한 퀘스트에 여러 Objective 두되 통합 라벨 하나만 표시하고 싶을 때 사용.
         bool hide = string.IsNullOrWhiteSpace(lbl);
         if (gameObject.activeSelf == hide) gameObject.SetActive(!hide);
+
+        if (!hide) FitHeightToText();   // 글자를 줄이지 말고 줄 높이를 늘린다
+    }
+
+    // ── 줄 높이를 글자 줄 수에 맞춘다 ────────────────────────────────
+    // 왜: 프리팹의 LayoutElement.preferredHeight 가 32 고정이라 두 줄짜리 문구가 들어오면
+    //   높이가 안 늘고, 대신 전역 TextAutoFit 이 글자를 줄여서 우겨넣는다.
+    //   그래서 문구 길이에 따라 퀘스트마다 글자 크기가 제각각으로 보였다.
+    //   ★로컬라이징하면 EN/FR 이 더 길어져 이 현상이 심해진다.
+    //   => 글자 크기는 프리팹 값(18) 그대로 두고 '줄'이 늘어나게 한다.
+    //
+    // ★★함정(한 번 당했다): Refresh() 시점에 폭을 재면 안 된다.
+    //   QuestEntry 의 레이아웃 그룹이 ChildControlWidth=1 이라 줄 폭을 '런타임에' 넓혀준다.
+    //   Instantiate 직후엔 아직 프리팹 폭(240)이라 그걸로 재면 한 줄짜리도 두 줄로 계산돼
+    //   모든 줄이 부풀고 줄 간격이 벌어진다(종욱 스크린샷). 실제 폭이 잡힌 뒤에 재야 한다.
+    //   => OnRectTransformDimensionsChange = 폭이 확정/변경될 때마다 오는 콜백. 여기서 잰다.
+    const float MinLineHeight = 32f;   // 체크박스 높이. 한 줄짜리는 기존과 완전히 같게 보인다
+    const float LineVPadding  = 6f;
+
+    bool _collapsing;   // 완료 연출이 높이를 0 으로 트윈하는 중 - 그때는 건드리면 안 된다
+
+    void OnRectTransformDimensionsChange() => FitHeightToText();
+
+    void FitHeightToText()
+    {
+        if (_collapsing || labelText == null || !isActiveAndEnabled) return;
+
+        var le = GetComponent<LayoutElement>();
+        if (le == null) return;
+
+        float w = labelText.rectTransform.rect.width;
+        if (w <= 1f) return;   // 아직 레이아웃 전. 폭이 잡히면 이 콜백이 다시 온다
+
+        float want = Mathf.Max(MinLineHeight, labelText.GetPreferredValues(labelText.text, w, 0f).y + LineVPadding);
+
+        // 값이 실제로 달라질 때만 쓴다. 매번 대입하면 레이아웃 -> 콜백 -> 레이아웃 무한루프가 된다.
+        if (Mathf.Abs(le.preferredHeight - want) < 0.5f) return;
+        le.preferredHeight = want;
     }
 
     void OnDestroy()
