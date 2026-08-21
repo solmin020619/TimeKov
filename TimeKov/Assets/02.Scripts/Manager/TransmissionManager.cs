@@ -410,14 +410,56 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         GrantItemByName("스태미나 앰플", 5);
     }
 
-    // itemId 로 가방에 직접 지급(이름 조회 불필요한 확정 아이템용).
+    // itemId 로 지급(이름 조회 불필요한 확정 아이템용).
     private void GrantItemById(int itemId, int amount)
     {
         if (InventoryManager.Instance == null) { Debug.LogWarning($"[Transmission] 아이템 지급 불가(인벤 없음): {itemId}"); return; }
-        InventoryManager.Instance.AddItem(itemId, amount, markAsNew: true);
+        GrantToBagThenStorage(itemId, amount);
     }
 
-    // 이름으로 아이템을 찾아 가방에 지급. 공백 차이는 무시하고 매칭.
+    // ── 보상 지급: 가방 먼저, 넘치는 만큼만 창고 ──────────────────────────────
+    // ★예전에는 AddItem 결과(못 넣은 수량)를 버려서, 가방이 가득 차면 보상이 조용히 사라졌다.
+    //   전송 보급 상자는 한 번에 35개(앰플 20+5+5+5)를 주기 때문에 실제로 넘치기 쉽다.
+    //   필드에서 줍는 것과 달리 보상은 "나중에 다시 와서 가져갈" 방법이 없으므로,
+    //   가방이 모자라면 창고로 보내서 어디로든 반드시 들어가게 한다(QuestManager 와 같은 규칙).
+    private void GrantToBagThenStorage(int itemId, int amount)
+    {
+        int leftover = amount;
+
+        // 1) 가방 — 칸이 남아 있는 만큼은 여기로(루팅 경로라 NEW 뱃지가 붙는다).
+        if (InventoryManager.Instance != null)
+            leftover = InventoryManager.Instance.TryAddItemFromLoot(itemId, leftover);
+
+        int afterBag = leftover;
+
+        // 2) 가방이 가득 찬 만큼만 창고로.
+        //    ★SuppressBriefly — 창고 유입을 감시하는 공용 토스트(StorageInflowNotice)가
+        //      "아이템이 창고로 이동했습니다"를 따로 띄운다. 안 막으면 아래 안내와 두 개가 겹친다.
+        if (leftover > 0 && InventoryManager.StorageInstance != null)
+        {
+            StorageInflowNotice.SuppressBriefly();
+            leftover = InventoryManager.StorageInstance.TryAddItemFromLoot(itemId, leftover);
+        }
+
+        // 사라진 게 아님을 알려 준다(아무 말 없으면 보상이 증발한 것처럼 보인다).
+        if (afterBag > 0 && leftover < afterBag) NoticeMovedToStorage();
+
+        if (leftover > 0)
+            Debug.LogWarning($"[Transmission] 가방·창고 모두 가득 — 지급 실패 itemId={itemId} 남은={leftover}");
+    }
+
+    // 보급 상자는 한 번에 4종을 준다(앰플 20+5+5+5). 종류마다 띄우면 같은 토스트가 네 번 쌓인다.
+    private static float _lastStorageNotice = -999f;
+    private const float StorageNoticeCooldown = 2f;
+
+    private static void NoticeMovedToStorage()
+    {
+        if (Time.unscaledTime - _lastStorageNotice < StorageNoticeCooldown) return;
+        _lastStorageNotice = Time.unscaledTime;
+        ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
+    }
+
+    // 이름으로 아이템을 찾아 지급(가방 → 넘치면 창고). 공백 차이는 무시하고 매칭.
     private void GrantItemByName(string itemName, int amount)
     {
         var idata = GameDataHolder.I != null ? GameDataHolder.I.ItemData : null;
@@ -427,7 +469,7 @@ public class TransmissionManager : MonoBehaviour, ISaveable
         foreach (var d in idata.All)
             if (Norm(d.itemName) == target && int.TryParse(d.SheetId.ToString(), out int itemId))
             {
-                InventoryManager.Instance.AddItem(itemId, amount, markAsNew: true);
+                GrantToBagThenStorage(itemId, amount);
                 return;
             }
         Debug.LogWarning($"[Transmission] ItemData 에서 '{itemName}' 아이템을 못 찾음 — 시트 이름 확인 필요.");

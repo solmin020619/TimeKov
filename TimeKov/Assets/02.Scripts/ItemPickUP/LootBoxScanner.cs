@@ -50,6 +50,7 @@ public class LootBoxScanner : MonoBehaviour
                 panel.Show(BuildMergedContents());
                 _shownBoxes.Clear();
                 _shownBoxes.AddRange(_inRange);
+                _shownVersion = ContentsVersionOf(_inRange);
             }
             UpdatePanelPosition(nearest);
             _showing = true;
@@ -95,8 +96,23 @@ public class LootBoxScanner : MonoBehaviour
         if (_inRange.Count != _shownBoxes.Count) return true;
         for (int i = 0; i < _inRange.Count; i++)
             if (_inRange[i] != _shownBoxes[i]) return true;
-        return false;
+
+        // ★상자 목록이 같아도 '안에 든 것'이 줄었을 수 있다. 가방이 가득 차면 일부만 줍고
+        //   상자가 남기 때문(LootBox.Collect) — 이 검사가 없으면 이미 주운 아이템이 목록에
+        //   그대로 떠 있다.
+        return ContentsVersionOf(_inRange) != _shownVersion;
     }
+
+    // 범위 안 상자들의 내용물 버전 합. 각 버전은 늘기만 하므로 하나라도 바뀌면 합도 바뀐다.
+    private static int ContentsVersionOf(List<LootBox> boxes)
+    {
+        int v = 0;
+        for (int i = 0; i < boxes.Count; i++)
+            if (boxes[i] != null) v += boxes[i].ContentsVersion;
+        return v;
+    }
+
+    private int _shownVersion;
 
     // _inRange 박스들의 내용물을 itemId 별로 합친다
     private List<(int itemId, int count)> BuildMergedContents()

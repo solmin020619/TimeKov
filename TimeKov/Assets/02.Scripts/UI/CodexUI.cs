@@ -1493,8 +1493,13 @@ public class CodexUI : MonoBehaviour
         if (InventoryManager.Instance != null)
             leftover = InventoryManager.Instance.TryAddItemFromLoot(itemId, leftover);
         int afterBag = leftover;
+        // ★SuppressBriefly — 창고 유입을 감시하는 공용 토스트(StorageInflowNotice)가
+        //   "아이템이 창고로 이동했습니다"를 따로 띄운다. 안 막으면 아래 안내와 두 개가 겹친다.
         if (leftover > 0 && InventoryManager.StorageInstance != null)
+        {
+            StorageInflowNotice.SuppressBriefly();
             leftover = InventoryManager.StorageInstance.TryAddItemFromLoot(itemId, leftover);
+        }
         if (afterBag > 0 && leftover < afterBag) ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
         if (leftover > 0) { ToastManager.Error(Loc.Get("보상을 받지 못했습니다. 인벤토리를 비워주세요")); return false; }
         return true;
@@ -1604,6 +1609,10 @@ public class CodexUI : MonoBehaviour
         _popup = Make("SourcePopup", _root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         Img(_popup, null, new Color(0f, 0f, 0f, 0.45f));
         Btn(_popup, CloseSourcePopup);
+        // ★눌림 축소 연출 제외. UIButtonPressInstaller 가 모든 Button 에 그 연출을 자동으로
+        //   붙이는데, 이건 화면 전체를 덮는 '닫기용 클릭 판'이라 눌리면 어두운 배경까지 통째로
+        //   줄었다 커진다(자식인 카드도 같이 딸려 간다). 여긴 버튼처럼 보여선 안 된다.
+        _popup.gameObject.AddComponent<UIButtonPressEffectIgnore>();
 
         // 카드(가운데). 높이는 ContentSizeFitter.
         var card = Make("card", _popup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);

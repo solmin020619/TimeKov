@@ -19,6 +19,11 @@ public class LootBox : MonoBehaviour, IInteractable
 
     public IReadOnlyList<(int itemId, int count)> Contents => _contents;
 
+    /// <summary>내용물이 바뀔 때마다 올라가는 번호.
+    /// ★가방이 가득 차 일부만 줍고 상자가 남는 경우가 생기면서 필요해졌다 — 상자 목록은 그대로인데
+    ///   안에 든 것만 줄어드는 상황이라, 스캐너가 이 번호를 봐야 떠 있는 목록을 다시 그린다.</summary>
+    public int ContentsVersion { get; private set; }
+
     // ── 수명 ──────────────────────────────────────────────────────────
     // 안 주운 상자가 땅에 영구히 남으면 사냥터가 상자로 뒤덮이고 세이브도 계속 커진다.
     // ★'플레이 중에만' 시간이 간다(접속 안 한 시간은 안 센다). 급한 일로 껐다 왔더니
@@ -56,6 +61,7 @@ public class LootBox : MonoBehaviour, IInteractable
     {
         _contents.Clear();
         if (contents != null) _contents.AddRange(contents);
+        ContentsVersion++;
     }
 
     void OnEnable() => All.Add(this);
@@ -73,62 +79,75 @@ public class LootBox : MonoBehaviour, IInteractable
             Collect(player);
     }
 
-    // 이 박스의 아이템을 Player 인벤토리에 추가하고 박스 제거
-    // 완전 실패(공간 부족)한 아이템이 있으면 Debug.Log 출력
-    // 일부 성공은 메시지 없이 UI 수량 변화로 확인 (기획서 섹션 20.1)
+    // 이 박스의 아이템을 Player 가방에 담는다. 다 담았으면 박스를 없앤다.
+    //
+    // ★가방이 가득 차면 '못 줍는다'. 예전에는 넘치는 분량을 창고로 자동 이송했는데,
+    //   그러면 가방 관리를 할 이유가 없어지고 필드에서 주운 것이 어디로 갔는지도 안 보인다.
+    //   지금은 안 들어간 만큼 박스에 그대로 남겨 둔다 — 자리를 비우고 다시 와서 주우면 된다.
+    //   ★그래서 '전부 담았을 때만' 박스를 지운다. 무조건 지우면 못 담은 아이템이 증발한다.
+    //     박스에는 수명(LifetimeSeconds)이 있으니 영원히 쌓이지는 않는다.
     public void Collect(Player player)
     {
-        // 픽업 사운드 재생 (통합 GameSfx)
-        GameSfx.Play(SfxId.ItemPickup);
-
-        // VFX 재생
-        LootBoxVFX vfx = GetComponentInParent<LootBoxVFX>();
-        if (vfx != null && player != null)
-            vfx.PlayCollectEffect(transform.position, player.transform);
-
-        // Player 인벤토리에 아이템 추가
         var inv = InventoryManager.Instance;
-        if (inv != null && player != null)
-        {
-            bool movedToStorage = false;
-            var storage = InventoryManager.StorageInstance;
-
-            foreach (var (itemId, count) in _contents)
-            {
-                int remaining = inv.TryAddItemFromLoot(itemId, count);
-
-                // 가방에 들어간 분량 (퀘스트 획득 이벤트)
-                int addedToBag = count - remaining;
-                if (addedToBag > 0)
-                    GameEvents.RaiseItemAcquired(itemId, addedToBag);
-
-                // 가방에 못 들어간 분량은 창고로 (창고는 거의 무한). 획득 자체는 인정.
-                if (remaining > 0 && storage != null)
-                {
-                    StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
-                    int afterStore = storage.AddItem(itemId, remaining);
-                    int addedToStore = remaining - afterStore;
-                    if (addedToStore > 0)
-                    {
-                        movedToStorage = true;
-                        GameEvents.RaiseItemAcquired(itemId, addedToStore);
-                    }
-                    remaining = afterStore;
-                }
-
-                if (remaining > 0)
-                    Debug.LogWarning($"[LootBox] 가방·창고 모두 가득 — 손실 itemId={itemId} count={remaining}");
-            }
-
-            if (movedToStorage)
-                ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
-        }
-        else if (inv == null)
+        if (inv == null)
         {
             Debug.LogWarning("[LootBox] InventoryManager.Instance 없음 — 아이템 추가 실패");
+            return;
+        }
+        if (player == null) return;
+
+        // 담고 남은 것만 모아 둔다. 다 담겼으면 비게 되고, 그때만 박스를 지운다.
+        var left = new List<(int itemId, int count)>();
+        int addedAny = 0;
+
+        foreach (var (itemId, count) in _contents)
+        {
+            int remaining = inv.TryAddItemFromLoot(itemId, count);
+
+            int addedToBag = count - remaining;
+            if (addedToBag > 0)
+            {
+                addedAny += addedToBag;
+                GameEvents.RaiseItemAcquired(itemId, addedToBag);   // 퀘스트 획득 이벤트
+            }
+
+            if (remaining > 0) left.Add((itemId, remaining));
         }
 
-        // 루트 오브젝트째 파괴
-        Destroy(transform.root.gameObject);
+        // 한 개도 못 담았으면 소리·연출도 내지 않는다 — 주운 것처럼 보이면 안 된다.
+        if (addedAny > 0)
+        {
+            GameSfx.Play(SfxId.ItemPickup);
+            // 상자가 플레이어에게 빨려드는 연출이라, 상자가 남는 경우엔 쓰지 않는다.
+            if (left.Count == 0)
+            {
+                LootBoxVFX vfx = GetComponentInParent<LootBoxVFX>();
+                if (vfx != null) vfx.PlayCollectEffect(transform.position, player.transform);
+            }
+        }
+
+        if (left.Count == 0)
+        {
+            Destroy(transform.root.gameObject);   // 다 담았다 — 박스 제거
+            return;
+        }
+
+        // 남은 것은 박스에 그대로. 왜 안 주워졌는지 알려 주지 않으면 버그로 보인다.
+        _contents.Clear();
+        _contents.AddRange(left);
+        ContentsVersion++;   // 떠 있는 아이템 목록을 다시 그리게 한다(LootBoxScanner)
+        WarnBagFull();
+    }
+
+    // F 한 번에 범위 안 상자를 전부 줍기 때문에(LootBoxScanner.CollectAllInRange), 가방이
+    //   가득 찬 상태에서는 상자 수만큼 같은 토스트가 쏟아진다. 짧은 시간 안에는 한 번만 띄운다.
+    private static float _lastBagFullWarn = -999f;
+    private const float BagFullWarnCooldown = 1.5f;
+
+    private static void WarnBagFull()
+    {
+        if (Time.unscaledTime - _lastBagFullWarn < BagFullWarnCooldown) return;
+        _lastBagFullWarn = Time.unscaledTime;
+        ToastManager.Warning(Loc.Get("가방이 가득 찼습니다"));
     }
 }

@@ -389,8 +389,13 @@ public class QuestManager : MonoBehaviour
 
             // 2) 가방 가득/없음 → 창고 폴백. (보상이 조용히 증발하면 그걸 요구하는 다음 퀘 — 예: 코어키트→코어강화 — 가
             //    영구 소프트락 되므로 반드시 어딘가엔 들어가게 한다)
+            //    ★SuppressBriefly — 창고 유입을 감시하는 공용 토스트(StorageInflowNotice)가
+            //      "아이템이 창고로 이동했습니다"를 따로 띄운다. 안 막으면 아래 안내와 두 개가 겹친다.
             if (leftover > 0 && InventoryManager.StorageInstance != null)
+            {
+                StorageInflowNotice.SuppressBriefly();
                 leftover = InventoryManager.StorageInstance.TryAddItemFromLoot(reward.itemId, leftover);
+            }
 
             // 가방이 가득 차 창고로 넘어간 분량이 있으면 사라진 게 아님을 명확히 안내
             if (afterBag > 0 && leftover < afterBag)
