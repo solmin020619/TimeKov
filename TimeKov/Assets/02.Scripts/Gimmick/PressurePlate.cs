@@ -73,7 +73,12 @@ public class PressurePlate : MonoBehaviour
     private MaterialPropertyBlock _mpb;
     private static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
 
-    private void Start()
+    // ★Start 가 아니라 Awake 다. SequenceTrigger 가 Start 에서 세이브 진행도를 복원하며
+    //   SetHeldDown/SetGlow 를 부르는데, 오브젝트끼리의 Start 순서는 정해져 있지 않다.
+    //   여기가 Start 였을 때는 판보다 트리거가 먼저 돌면 (a) _vis 가 아직 null 이고
+    //   (b) 나중에 도는 판의 ApplyGlow(false) 가 방금 켠 진행 색을 도로 꺼 버렸다.
+    //   전부 자기 오브젝트만 보는 초기화라 Awake 로 옮겨도 안전하다.
+    private void Awake()
     {
         var col = GetComponent<Collider>();
         if (col != null && !col.isTrigger)

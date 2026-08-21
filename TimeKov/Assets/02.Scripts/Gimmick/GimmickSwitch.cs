@@ -35,6 +35,14 @@ public class GimmickSwitch : MonoBehaviour, IInteractable, IInteractHint
     [Tooltip("체크하면 켜지는 순간 이 오브젝트/자식의 Turn_Move 를 자동으로 찾아 함께 켠다(위 목록에 없어도).")]
     [SerializeField] private bool autoFindMotions = true;
 
+    [Header("세이브")]
+    [Tooltip("체크: 켜짐/꺼짐을 저장해서 다음에 들어와도 그대로 둔다.\n" +
+             "해제: 저장하지 않는다 — 들어올 때마다 꺼진 채로 시작한다.")]
+    [SerializeField] private bool persistState = true;
+    [Tooltip("세이브에서 이 스위치를 구분하는 id. 비우면 계층 경로로 자동 생성한다(대부분 비워두면 된다).\n" +
+             "★오브젝트를 옮기거나 이름을 바꾸면 자동 id 가 바뀌어 초기화된다. 그게 곤란하면 여기에 직접 적는다.")]
+    [SerializeField] private string saveId = "";
+
     [Header("근접 힌트 (F)")]
     [Tooltip("가까이 가면 켤 F 알약 UI. 비우면 씬의 공용 패널(FacilityUnlockSelectPanel)을 자동으로 찾아 쓴다.")]
     [SerializeField] private GameObject hintUI;
@@ -52,6 +60,10 @@ public class GimmickSwitch : MonoBehaviour, IInteractable, IInteractHint
     private InteractHighlight _highlight;
     private Turn_Move[]       _motions;   // 켜지면 움직일 부품(자동탐색 결과 캐시)
 
+    // ★복원은 Awake 에서 한다. 조건 트리거(SwitchTrigger)가 Start 에서 스위치들을 훑어
+    //   처음 판정을 하므로, 그보다 먼저 켜짐 상태가 확정돼 있어야 한다.
+    private void Awake() => RestoreSaved();
+
     private void Start()
     {
         // PlayerInteractComponent 의 OverlapSphere 는 Interactable 레이어만 훑는다.
@@ -63,6 +75,11 @@ public class GimmickSwitch : MonoBehaviour, IInteractable, IInteractHint
         InteractHintPanel.Prime(hintUI, this);
         ResolveMotions();
         ApplyVisual();
+
+        // 켜진 채로 복원됐으면 부품도 이미 '돌고 있던' 속도로 돌아야 한다.
+        //   ★가속을 건너뛴다(skipRampUp). 0부터 가속하면 껐다 켤 때마다 풍차가 멈춰 있다가
+        //     새로 시동 거는 것처럼 보인다 — 스위치를 켠 적도 없는데 지금 막 켠 것처럼 읽힌다.
+        if (IsOn) SetMotions(true, skipRampUp: true);
     }
 
     // 켤 부품 목록 확정: 인스펙터 지정 + (옵션)자식 자동탐색을 합친다(중복 제거).
@@ -78,13 +95,14 @@ public class GimmickSwitch : MonoBehaviour, IInteractable, IInteractHint
         _motions = set.ToArray();
     }
 
-    private void SetMotions(bool on)
+    /// <param name="skipRampUp">가속 없이 곧바로 원속도. 세이브 복원 전용.</param>
+    private void SetMotions(bool on, bool skipRampUp = false)
     {
         if (_motions == null) return;
         foreach (var m in _motions)
         {
             if (m == null) continue;
-            if (on) m.Activate();
+            if (on) m.Activate(skipRampUp);
             else    m.Deactivate();
         }
     }
@@ -116,7 +134,23 @@ public class GimmickSwitch : MonoBehaviour, IInteractable, IInteractHint
         GameSfx.Play(sfx, transform.position);
         ApplyVisual();
         SetMotions(on);   // 켜지면 부품 가동 시작(천천히 가속), 꺼지면 정지
+        if (persistState) GimmickSave.Set(SaveKey, on);
         OnChanged?.Invoke(this);
+    }
+
+    // ── 세이브 ────────────────────────────────────────────────────────────
+    // 스위치 하나하나가 켜짐/꺼짐을 따로 저장한다. 그래야 "3개 중 하나만 켜 둔" 상태로
+    //   나갔다 와도 그 하나만 켜진 채로 돌아온다(조건 트리거는 그걸 보고 다시 판정한다).
+    //
+    //   ★복원은 Awake 에서, 소리·연출 없이. SetOn 을 쓰면 들어올 때마다 스위치 누르는 소리가
+    //     나고 풍차가 '지금 막 켜진 것처럼' 천천히 가속한다.
+    //     대신 Start 의 ApplyVisual/ResolveMotions 가 켜진 상태에 맞춰 정리한다.
+    private string SaveKey => GimmickSave.Key("sw", this, saveId);
+
+    private void RestoreSaved()
+    {
+        if (!persistState) return;
+        IsOn = GimmickSave.GetBool(SaveKey);
     }
 
     private void ApplyVisual()

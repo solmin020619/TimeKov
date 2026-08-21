@@ -35,7 +35,8 @@ public class DestroyTrigger : GimmickTrigger
             if (d.IsBroken) _broken++;
             else d.OnBroken += OnOneBroken;
         }
-        Evaluate();
+        // ★첫 판정은 instant — 세이브에서 부서진 채 복원된 파괴물 때문에 조건이 이미 맞을 수 있다.
+        Evaluate(instant: true);
     }
 
     private void OnDestroy()
@@ -50,9 +51,9 @@ public class DestroyTrigger : GimmickTrigger
         Evaluate();
     }
 
-    private void Evaluate()
+    private void Evaluate(bool instant = false)
     {
         int need = requireAll ? _subscribed.Count : Mathf.Max(1, requiredCount);
-        SetSatisfied(_subscribed.Count > 0 && _broken >= need);
+        SetSatisfied(_subscribed.Count > 0 && _broken >= need, instant);
     }
 }

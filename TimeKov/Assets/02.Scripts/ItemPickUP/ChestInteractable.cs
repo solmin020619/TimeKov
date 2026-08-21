@@ -10,7 +10,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ChestInteractable : MonoBehaviour, IInstantInteractable
+public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
 {
     [Header("드롭 설정")]
     [Tooltip("DropTable의 sourceId (예: LC_LOOT). sourceType=Chest 행과 매칭됨")]
@@ -42,8 +42,27 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     [SerializeField] private float instantHpCostMultiplier = 2f;
 
     [Header("리젠 (파밍 후 사라졌다 재등장)")]
-    [Tooltip("다 비운 상자가 사라진 뒤 이 시간(초) 후 새 상자로 재등장(Idle 복귀 - 처음부터 다시 까야 함).")]
+    [Tooltip("다 비운 상자가 사라진 뒤 이 시간(초) 후 새 상자로 재등장(Idle 복귀 - 처음부터 다시 까야 함).\n" +
+             "★위의 '기믹 잠금'을 켠 상자에는 적용되지 않는다 - 퍼즐 보상은 한 번뿐이라 리젠하지 않는다.")]
     [SerializeField] private float respawnSeconds = 300f;
+
+    [Tooltip("기믹 잠금 상자를 세이브에서 구분하는 고유 id. 비우면 오브젝트 이름을 쓴다.\n" +
+             "★한 번 정하면 바꾸지 말 것 — 바꾸면 이미 먹은 플레이어가 다시 먹을 수 있게 된다.\n" +
+             "★같은 씬에 퍼즐 상자가 여러 개면 서로 다른 값을 줘야 한다(이름이 같으면 하나만 먹어도 전부 사라진다).")]
+    [SerializeField] private string puzzleChestId = "";
+
+    /// <summary>다 비운 뒤 다시 생기는가.
+    ///
+    /// ★퍼즐(기믹)로 여는 상자는 안 생긴다. 퍼즐은 한 번 풀면 영구히 풀린 채라
+    ///   (스위치가 계속 켜져 있고 세이브에도 남는다) 리젠하면 리젠된 상자도 F 한 번에 바로
+    ///   열린다 — 같은 보상을 시간만 기다리면 무한히 퍼 나르는 자리가 된다.
+    ///   '한 번 푸는 퍼즐'과 '반복 파밍'은 같이 둘 수 없으므로 보상 쪽을 1회로 막는다.
+    ///
+    /// 일반 상자(잠금 따서 여는 것)는 반복 파밍이 원래 의도라 그대로 리젠한다.</summary>
+    private bool CanRespawn => !gimmickLocked;
+
+    /// <summary>세이브에 남길 이 상자의 id. 퍼즐 상자에만 쓴다.</summary>
+    private string PuzzleId => string.IsNullOrEmpty(puzzleChestId) ? name : puzzleChestId;
     [Tooltip("다 비운 상자가 사라질 때 스케일이 0으로 줄며 서서히 사라지는 시간(초). 0이면 즉시 소멸.")]
     [SerializeField] private float vanishDuration = 0.5f;
 
@@ -120,6 +139,14 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
     {
         _colliders = GetComponentsInChildren<Collider>(true);
         _renderers = GetComponentsInChildren<Renderer>(true);
+
+        // 퍼즐 상자만 세이브에 참여한다. 일반 파밍 상자는 리젠되는 게 정상이라 남길 게 없다.
+        if (gimmickLocked) SaveSlotManager.Instance?.Register(this);
+    }
+
+    private void OnDestroy()
+    {
+        if (gimmickLocked) SaveSlotManager.Instance?.Unregister(this);
     }
 
     private void Start()
@@ -131,6 +158,51 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         // 기믹 잠금 상자: 표시등을 빨강(잠김)으로. 이미 풀린 상태면 파랑.
         //   ApplyLockIndicator(locked) — 시작 시엔 아직 안 풀렸으니 locked=true(빨강).
         if (gimmickLocked) ApplyLockIndicator(!_gimmickUnlocked);
+
+        // 세이브 복원 — 이미 먹은 퍼즐 상자면 처음부터 없던 것처럼 치운다.
+        //   ★Start 에서 한다. 콜라이더/렌더러 캐시(Awake)와 발광 준비(SetupGlow)가 끝난 뒤여야
+        //     확실히 숨길 수 있다.
+        //   ★GimmickChestLock 이 Awake/Start 에서 GimmickUnlock() 을 부를 수 있는데, 그건
+        //     _state 를 Ready 로 올릴 뿐이라 여기서 덮어써도 문제 없다.
+        if (gimmickLocked && IsAlreadyLooted()) MarkConsumed();
+    }
+
+    // ── 일회용 퍼즐 상자 (세이브) ─────────────────────────────────────────
+    // 퍼즐은 한 번 풀면 세이브에 남아 영구히 풀린 채다. 상자를 안 막으면 껐다 켤 때마다
+    //   잠금이 풀린 상자가 새로 채워져서, 재접속만 반복하면 같은 보상을 무한히 먹을 수 있다.
+    //   그래서 '이미 비운 퍼즐 상자' id 를 세이브에 남기고, 복원 때 아예 치운다.
+
+    private bool IsAlreadyLooted()
+    {
+        var data = SaveSlotManager.Instance?.Data;
+        return data != null && data.lootedPuzzleChestIds.Contains(PuzzleId);
+    }
+
+    public void Capture(GameSaveData data)
+    {
+        if (data == null || !gimmickLocked) return;
+        // 다 비워서 사라진 상태만 기록한다. 열어두고 아직 안 비운 상자는 다음에 마저 먹어야 한다.
+        if (_state == State.Depleted && !data.lootedPuzzleChestIds.Contains(PuzzleId))
+            data.lootedPuzzleChestIds.Add(PuzzleId);
+    }
+
+    /// <summary>이미 먹은 상자로 처리 — 연출 없이 즉시 사라진 상태로 만든다.</summary>
+    private void MarkConsumed()
+    {
+        _state = State.Depleted;
+        _contents = null;
+        if (_activeChest == this) _activeChest = null;
+
+        if (_colliders != null)
+            foreach (var c in _colliders) if (c != null) c.enabled = false;
+        if (_renderers != null)
+            foreach (var r in _renderers) if (r != null) r.enabled = false;
+        if (closedVisual != null) closedVisual.SetActive(false);
+        if (openedVisual != null) openedVisual.SetActive(false);
+
+        UpdateGlow(false);
+        ChestPromptUI.Instance?.HideIfOwner(this);
+        enabled = false;   // 할 일이 없다 — 매 프레임 도는 것을 멈춘다
     }
 
     // ── 기믹 잠금 해제 (GimmickChestLock 타깃이 스위치/에너지 노드 충족 시 호출) ──────
@@ -290,7 +362,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
             // 다 비운 상자 -> 패널 닫은 뒤 사라지고 리젠 대기(한 번 판 상자는 그 자리서 소멸).
             EnterDepleted();
         }
-        else if (_state == State.Depleted)
+        else if (_state == State.Depleted && CanRespawn)
         {
             _timer -= Time.deltaTime;
             if (_timer <= 0f) Respawn();   // 새 상자로 재등장(Idle)
@@ -377,6 +449,17 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
             foreach (var c in _colliders) if (c != null) c.enabled = false;
         UpdateGlow(false);
         ChestPromptUI.Instance?.HideIfOwner(this);
+
+        // 퍼즐 상자는 '먹었음'을 즉시 기록한다. 다음 저장까지 기다리면 그 사이에 껐을 때
+        //   상자가 되살아나 또 먹을 수 있다.
+        if (gimmickLocked)
+        {
+            var data = SaveSlotManager.Instance?.Data;
+            if (data != null && !data.lootedPuzzleChestIds.Contains(PuzzleId))
+                data.lootedPuzzleChestIds.Add(PuzzleId);
+            SaveSlotManager.Instance?.SaveActive();
+        }
+
         StartCoroutine(VanishRoutine());
     }
 
@@ -397,6 +480,11 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable
         if (openedVisual != null) openedVisual.SetActive(false);
         if (_renderers != null)
             foreach (var r in _renderers) if (r != null) r.enabled = false;   // 확실히 숨김(비주얼 미할당 대비)
+
+        // 영영 다시 안 생기는 상자(퍼즐 보상)는 여기서 할 일이 끝났다. 매 프레임 도는 것을 멈춘다.
+        //   ★반드시 페이드가 끝난 뒤에 끈다. 컴포넌트를 끄면 코루틴도 같이 멈춰서,
+        //     도중에 끄면 반쯤 투명한 상자가 그대로 남는다.
+        if (!CanRespawn) enabled = false;
     }
 
     // 렌더러 머티리얼 인스턴스를 모아 페이드할 색 프로퍼티를 등록한다.

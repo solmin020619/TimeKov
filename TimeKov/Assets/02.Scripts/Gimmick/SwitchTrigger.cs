@@ -26,7 +26,9 @@ public class SwitchTrigger : GimmickTrigger
     {
         foreach (var sw in switches)
             if (sw != null) sw.OnChanged += OnSwitchChanged;
-        Evaluate();   // 시작 상태 반영(대부분 전부 꺼짐 → 닫힘)
+        // ★첫 판정은 instant — 세이브에서 켜진 채 복원된 스위치들 때문에 조건이 이미 맞을 수 있다.
+        //   그때 연출이 돌면 들어올 때마다 결계가 다시 사라지는 장면이 재생된다.
+        Evaluate(instant: true);
     }
 
     private void OnDestroy()
@@ -37,13 +39,13 @@ public class SwitchTrigger : GimmickTrigger
 
     private void OnSwitchChanged(GimmickSwitch _) => Evaluate();
 
-    private void Evaluate()
+    private void Evaluate(bool instant = false)
     {
         int on = 0;
         foreach (var sw in switches)
             if (sw != null && sw.IsOn) on++;
 
         int need = requireAll ? switches.Count : Mathf.Max(1, requiredCount);
-        SetSatisfied(on >= need);
+        SetSatisfied(on >= need, instant);
     }
 }

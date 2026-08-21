@@ -22,6 +22,14 @@ public class MainMenuManager : MonoBehaviour
 
     private void Start()
     {
+        // ★커서를 반드시 풀어 둔다. Cursor.lockState / visible 은 씬이 바뀌어도 그대로 남는
+        //   엔진 전역값이라, 게임에서 메인메뉴로 나오면 인게임에서 걸어 둔 Locked 가 따라온다.
+        //   그러면 메뉴에서 마우스가 안 보이고, ESC 로 잠금이 잠깐 풀렸다가 화면을 클릭하는
+        //   순간 유니티가 다시 잠가 버린다(누른 적 없는데 커서가 사라지는 것처럼 보인다).
+        //   메인메뉴는 마우스로만 조작하므로 이 씬이 커서 상태의 주인이 되어야 한다.
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         if (fadeCanvasGroup != null)
         {
             fadeCanvasGroup.alpha = 0f;

@@ -118,9 +118,30 @@ public class GameSaveData
     // 필드가 없던 옛 세이브는 빈 목록으로 읽혀 "아직 아무것도 안 풀었음"이 된다.
     public List<string> solvedPuzzleIds = new();
 
+    // ── 기믹/퍼즐 진행 상태 (GimmickSave) ───────────────────────────────────
+    // 스위치 On/Off · 에너지 노드에 넣은 연료 · 파괴물 타격 수 · 순서 퍼즐 진행도 ·
+    // 조건 충족 여부까지, "다음에 들어왔을 때 그대로여야 하는" 것들을 id → 값 하나로 저장한다.
+    //   ★값을 float 하나로 통일한 이유: 기믹마다 타입이 달라도(bool/개수/진행도) 저장 형태가
+    //     같으면 새 기믹을 추가할 때 세이브 구조를 안 건드려도 된다.
+    public List<GimmickStateData> gimmickStates = new();
+
+    // 이미 비운 '퍼즐 보상' 상자(기믹 잠금)의 id. 일회용이라 다시 채워지지 않는다.
+    //   ★일반 파밍 상자는 여기 안 들어간다 — 반복해서 리젠되는 게 원래 의도다.
+    //   퍼즐 상자만 막는 이유: 퍼즐은 한 번 풀면 영구히 풀린 채라, 리젠하면 잠금이 이미
+    //   풀려 있어 F 한 번에 바로 열린다 = 같은 보상을 무한히 퍼 나르는 자리가 된다.
+    public List<string> lootedPuzzleChestIds = new();
+
     // ── 땅에 떨어진 드롭 상자 (LootBoxSaveBridge) ───────────────────────────
     // 몹을 잡고 안 주운 상자. 저장하지 않으면 나갔다 오는 것만으로 통째로 사라진다.
     public List<DroppedBoxData> droppedBoxes = new();
+}
+
+/// <summary>기믹 하나의 진행 상태. id 는 GimmickSave 가 만든다(종류 + 계층 경로, 또는 직접 지정).</summary>
+[Serializable]
+public class GimmickStateData
+{
+    public string id;
+    public float value;   // 스위치 0/1 · 노드에 넣은 연료 수 · 파괴 타격 수 · 순서 진행도 …
 }
 
 /// <summary>땅에 놓인 드롭 상자 1개. 씬별로 구분해 저장한다(월드 좌표라 씬이 다르면 의미가 없다).</summary>

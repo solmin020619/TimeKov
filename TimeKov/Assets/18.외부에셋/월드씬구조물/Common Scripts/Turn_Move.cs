@@ -23,17 +23,23 @@ public class Turn_Move : MonoBehaviour {
 	private bool  _running;
 	private float _rampT;      // 0 → rampUpTime 로 증가
 
-	void Start () {
+	// ★Start 가 아니라 Awake 다. 스위치(GimmickSwitch)가 Start 에서 세이브 복원된 '켜짐'을
+	//   보고 Activate() 를 부르는데, 오브젝트끼리의 Start 순서는 정해져 있지 않다.
+	//   여기가 Start 였을 때는 부품이 나중에 돌면 _running 을 autoStart(=false)로 도로 덮어써서
+	//   저장해 둔 스위치를 켜 놨는데도 풍차가 멈춰 있었다.
+	void Awake () {
 		_running = autoStart;
 		_rampT   = autoStart ? rampUpTime : 0f;   // 자동 시작이면 처음부터 원속도(램프 생략)
 	}
 
 	// 스위치 등이 호출: 이제부터 움직이기 시작(천천히 가속). 이미 돌고 있으면 무시.
-	public void Activate()
+	//   skipRampUp: 가속 없이 처음부터 원속도. 세이브에서 '이미 돌고 있던' 상태를 되살릴 때 쓴다 —
+	//   그때도 0부터 가속하면 껐다 켤 때마다 풍차가 멈췄다 다시 시동 거는 것처럼 보인다.
+	public void Activate(bool skipRampUp = false)
 	{
 		if (_running) return;
 		_running = true;
-		_rampT   = 0f;   // 0속도에서 서서히
+		_rampT   = skipRampUp ? rampUpTime : 0f;
 	}
 
 	// 멈춤(토글 스위치를 다시 끌 때 등).

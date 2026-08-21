@@ -74,9 +74,11 @@ public class TimelinePuzzleConsole : GimmickTrigger, IInteractable, IInteractHin
     // 이미 풀었으면 다시 열리지 않는다.
     public bool CanInteract => !IsSatisfied;
 
-    // GimmickTrigger 에는 Awake 가 없다(가려질 게 없어 그냥 정의한다).
-    void Awake()
+    // ★base.Awake() 를 반드시 부른다 — 부모(GimmickTrigger)가 거기서 '이미 푼 조건'을 복원한다.
+    //   override 를 빼고 그냥 Awake 를 정의하면 부모 것이 가려져 조용히 복원이 안 된다.
+    protected override void Awake()
     {
+        base.Awake();
         SaveSlotManager.Instance?.Register(this);
 
         // 세이브 복원은 "끌어오기" 패턴 — 각 시스템이 자기 Awake 에서 직접 읽는다(ISaveable 주석 참고).

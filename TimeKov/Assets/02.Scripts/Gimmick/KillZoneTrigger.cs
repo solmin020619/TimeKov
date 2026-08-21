@@ -87,6 +87,15 @@ public class KillZoneTrigger : GimmickTrigger
     private Coroutine _waveCo;
     private bool _musicEngaged;    // 웨이브 진행 내내 전투 BGM 유지(텀에도 안 끊기게)
 
+    // ★base.Awake() 가 '이미 깬 결계'를 세이브에서 복원한다. 그때 _cleared 도 같이 세워야 한다 —
+    //   안 그러면 결계는 내려간 채인데 Update 가 계속 돌아서, 다가갈 때마다 이미 끝난 웨이브가
+    //   새로 스폰된다(문은 열려 있는데 몹만 또 나온다).
+    protected override void Awake()
+    {
+        base.Awake();
+        if (IsSatisfied) _cleared = true;
+    }
+
     private void Start()
     {
         var p = FindFirstObjectByType<Player>();

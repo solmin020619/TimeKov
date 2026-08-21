@@ -73,6 +73,14 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
     [Tooltip("가까이 가면 외곽선을 켤 대상들. 비우면 이 오브젝트를 쓴다(showOutline 켜졌을 때만).")]
     [SerializeField] private Transform[] outlineTargets;
 
+    [Header("세이브")]
+    [Tooltip("체크: 넣은 연료량을 저장해서 다음에 들어와도 그대로 둔다(연료가 실제로 소모되므로 켜 두는 걸 권장).\n" +
+             "해제: 저장하지 않는다 — 들어올 때마다 처음부터 채워야 한다.")]
+    [SerializeField] private bool persistState = true;
+    [Tooltip("세이브에서 이 노드를 구분하는 id. 비우면 계층 경로로 자동 생성한다(대부분 비워두면 된다).\n" +
+             "★오브젝트를 옮기거나 이름을 바꾸면 자동 id 가 바뀌어 초기화된다. 그게 곤란하면 여기에 직접 적는다.")]
+    [SerializeField] private string saveId = "";
+
     // 현재 채워진 연료량 / 활성화 여부. EnergyConduit 가 IsActive 를 구독해 조건을 판정한다.
     public int Filled => _filled;
     public int Required => requiredAmount;
@@ -90,6 +98,23 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
     private MaterialPropertyBlock _mpb;
     private static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
 
+    // ── 세이브 ────────────────────────────────────────────────────────────
+    // 넣은 연료 개수를 그대로 저장한다. 연료는 인벤토리에서 실제로 소모되므로, 저장하지 않으면
+    //   나갔다 오는 것만으로 넣은 연료가 증발한다(플레이어 입장에선 아이템을 잃은 것).
+    //   그래서 '3개 중 1개만 넣은' 상태도 그대로 복원된다.
+    //
+    //   ★복원은 Awake 에서, 소리·연출 없이. EnergyConduit 가 Start 에서 노드들을 훑어
+    //     처음 판정을 하므로 그보다 먼저 확정돼 있어야 한다.
+    //     발광/표시는 Start 끝에서 지금 값에 맞춰 한 번에 맞춘다.
+    private string SaveKey => GimmickSave.Key("node", this, saveId);
+
+    private void Awake()
+    {
+        if (!persistState) return;
+        _filled = Mathf.Clamp(GimmickSave.GetInt(SaveKey), 0, requiredAmount);
+        IsActive = _filled >= requiredAmount;
+    }
+
     private void Start()
     {
         // PlayerInteractComponent 의 OverlapSphere 는 Interactable 레이어만 훑는다.
@@ -106,7 +131,19 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
         _mpb = new MaterialPropertyBlock();
 
         ApplyVisual();
-        ApplyGlow(0f, activeColor);
+        UpdateIndicators();   // 복원된 주입량만큼 칸 아이콘을 켠다
+
+        // 복원된 상태에 맞는 발광. 완료면 최대, 조금 넣었으면 그 비율, 아무것도 없으면 소등.
+        //   ★Flash 를 쓰지 않는다 — 들어올 때마다 노드가 '방금 채워진 것처럼' 번쩍인다.
+        if (IsActive) SetGlowLevel(1f);
+        else if (_filled > 0) SetGlowLevel(Mathf.Lerp(0.3f, 0.85f, _filled / (float)requiredAmount));
+        else ApplyGlow(0f, activeColor);
+
+        // 단일 노드 퍼즐(노드에 문/다리를 직접 연결한 배선)은 EnergyConduit 가 없어서
+        //   여기서 직접 복원해야 한다. instant — 이미 열려 있던 것이라 연출·소멸음 없이.
+        if (IsActive)
+            foreach (var t in targets)
+                if (t != null) t.SetOpen(true, instant: true);
     }
 
     // 활성화(가득 참)되면 F 후보에서 빠진다(더 넣을 필요 없음).
@@ -137,6 +174,9 @@ public class EnergyNode : MonoBehaviour, IInteractable, IInteractHint
         inv.TryConsumeItem(fuelItemId, take);
         _filled += take;
         UpdateIndicators();
+        // ★넣자마자 저장한다. 연료는 인벤토리에서 이미 빠졌으므로, 다음 저장까지 미루면
+        //   그 사이에 게임을 끈 플레이어는 아이템만 잃고 진행은 안 남는다.
+        if (persistState) GimmickSave.Set(SaveKey, _filled);
 
         if (_filled >= requiredAmount)
         {

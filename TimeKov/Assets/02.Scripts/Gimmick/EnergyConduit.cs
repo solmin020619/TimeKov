@@ -32,7 +32,8 @@ public class EnergyConduit : GimmickTrigger
             _subscribed.Add(n);
             n.OnChanged += OnNodeChanged;
         }
-        Evaluate();   // 시작 상태 반영(대부분 전부 비활성 → 닫힘)
+        // ★첫 판정은 instant — 세이브에서 채워진 채 복원된 노드 때문에 조건이 이미 맞을 수 있다.
+        Evaluate(instant: true);
     }
 
     private void OnDestroy()
@@ -43,13 +44,13 @@ public class EnergyConduit : GimmickTrigger
 
     private void OnNodeChanged(EnergyNode _) => Evaluate();
 
-    private void Evaluate()
+    private void Evaluate(bool instant = false)
     {
         int active = 0;
         foreach (var n in _subscribed)
             if (n != null && n.IsActive) active++;
 
         int need = requireAll ? _subscribed.Count : Mathf.Max(1, requiredCount);
-        SetSatisfied(_subscribed.Count > 0 && active >= need);
+        SetSatisfied(_subscribed.Count > 0 && active >= need, instant);
     }
 }

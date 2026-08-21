@@ -723,6 +723,12 @@ public class GameUIController : MonoBehaviour
         ThirdPersonCamera.IsUIOpen = false;
         ThirdPersonCamera.BlockZoom = false;
         PlayerInputComponent.IsBlocked = false;
+
+        // ★커서도 같이 푼다. Cursor 는 씬이 바뀌어도 남는 엔진 전역값이라, 인게임에서 걸어 둔
+        //   Locked 가 메인메뉴까지 따라간다 — 메뉴에서 마우스가 안 보이고, ESC 로 잠깐 풀렸다가
+        //   화면을 클릭하는 순간 유니티가 다시 잠근다.
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     /// <summary>튜토리얼 영상 팝업이 떠 있는 동안 true — 마우스로 닫으므로 커서 강제 표시. TutorialVideoUI가 세팅.</summary>

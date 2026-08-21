@@ -52,6 +52,42 @@ public class SequenceTrigger : GimmickTrigger
                 p.OnChanged += OnPlateChanged;
             }
         }
+
+        RestoreProgress();
+    }
+
+    // ── 세이브 ────────────────────────────────────────────────────────────
+    // '몇 번째까지 맞게 밟았는지'를 저장한다. 그래야 3칸 중 1칸만 밟아 둔 상태로 나갔다 와도
+    //   그 1칸만 눌린 채로 돌아온다(전부 처음부터 다시 밟게 하지 않는다).
+    //
+    //   ★완성(IsSatisfied)은 부모(GimmickTrigger)가 따로 저장한다. 여기서는 '진행 중'만 다룬다.
+    //   ★판 복원은 Start 에서 한다 — PressurePlate 의 발광 준비가 끝난 뒤여야 색이 먹는다.
+    private string ProgressKey => GimmickSave.Key("seq", this, saveId);
+
+    private void RestoreProgress()
+    {
+        if (!persistSatisfied) return;
+
+        // 이미 완성된 판이면 전부 눌린 채로. 문은 부모가 이미 열어 뒀고, 판만 올라와 있으면
+        //   다 푼 퍼즐이 안 푼 것처럼 보인다.
+        int held = IsSatisfied
+            ? _seq.Count
+            : Mathf.Clamp(GimmickSave.GetInt(ProgressKey), 0, _seq.Count);
+        if (held <= 0) return;
+
+        _index = held;
+        for (int i = 0; i < held; i++)
+        {
+            var p = _seq[i];
+            if (p == null) continue;
+            p.SetHeldDown(true);
+            if (colorFeedback) p.SetGlow(correctColor);
+        }
+    }
+
+    private void SaveProgress()
+    {
+        if (persistSatisfied) GimmickSave.Set(ProgressKey, _index);
     }
 
     private void OnDestroy()
@@ -71,6 +107,7 @@ public class SequenceTrigger : GimmickTrigger
             _index++;
             plate.SetHeldDown(true);                          // 발 떼도 눌린 채 유지
             if (colorFeedback) plate.SetGlow(correctColor);   // 맞은 판 파랑 고정
+            SaveProgress();
             if (_index >= _seq.Count)
                 SetSatisfied(true);   // 순서 완성 → 타깃 개방(래치면 영구)
             else
@@ -84,6 +121,7 @@ public class SequenceTrigger : GimmickTrigger
         // 3) 그 외(아직 안 밟은 엉뚱한 판) → 진행 초기화 + 전체 빨강 한 번 점등.
         if (!resetOnWrong) return;
         _index = 0;
+        SaveProgress();   // 틀려서 처음으로 돌아간 것도 저장한다
         GameSfx.Play(wrongSfx, plate.transform.position);
         foreach (var p in _seq)
         {
