@@ -1760,8 +1760,14 @@ public class MachineUI : MonoBehaviour
         }
         _lastOutTotal = totalOut;
 
-        _hasOutput = totalOut > 0;
-        _outputFull = _machine.maxOutputStock > 0 && totalOut >= _machine.maxOutputStock;
+        // ★'받을 게 있나'와 '가득 찼나'는 버퍼 전체로 판단한다.
+        //   레시피 자동 전환 때문에 지금 보는 레시피가 아닌 완성품만 남아 있을 수 있는데,
+        //   보고 있는 레시피 기준으로 세면 (a) 모두받기 버튼이 꺼져서 꺼낼 방법이 없고
+        //   (b) 상한(maxOutputStock)은 전체 개수로 걸리는데 표시만 안 차 보인다.
+        //   위의 totalOut(선택 레시피 기준)은 '새 완성품 도착 튕김' 판정에만 쓴다.
+        int bufferedAll = _machine.OutputBuffer.TotalCount;
+        _hasOutput = bufferedAll > 0;
+        _outputFull = _machine.maxOutputStock > 0 && bufferedAll >= _machine.maxOutputStock;
         if (takeOutputBtn != null) takeOutputBtn.interactable = _hasOutput;
 
         // 이전에 동적으로 생성된 추가 슬롯 제거
@@ -2227,33 +2233,29 @@ public class MachineUI : MonoBehaviour
 
         var inv = playerInventory != null ? playerInventory : InventoryManager.Instance;
 
-        var recipes = _machine.Recipes;
-        if (recipes != null && recipes.Count > 0)
+        // ★출력 버퍼에 있는 걸 '전부' 가져온다(어느 레시피 완성품이든).
+        //   레시피가 자동으로 넘어가면서 완성품 두 종류가 한 버퍼에 있을 수 있는데,
+        //   보고 있는 레시피 것만 가져오면 다른 하나가 설비에 갇힌 채 남는다.
+        //   재료 회수(TakeAllInputs)도 같은 이유로 전량 회수한다.
+        //   버퍼 키를 복사해두고 순회한다(꺼내며 Stock 이 바뀌므로).
+        bool movedToStorage = false;
+        var storage = InventoryManager.StorageInstance;
+        var outIds = new List<int>(_machine.OutputBuffer.Stock.Keys);
+        foreach (var itemId in outIds)
         {
-            int recipeIdx = Mathf.Clamp(_selectedRecipeIndex, 0, recipes.Count - 1);
-            var outputs   = recipes[recipeIdx]?.outputs;
-            if (outputs != null)
+            int buffered = _machine.OutputBuffer.GetAmount(itemId);
+            if (buffered <= 0 || !_machine.TryTakeOutput(itemId, buffered)) continue;
+
+            int leftover = inv != null ? inv.AddItem(itemId, buffered) : buffered;
+            if (leftover > 0 && storage != null)
             {
-                bool movedToStorage = false;
-                var storage = InventoryManager.StorageInstance;
-                foreach (var output in outputs)
-                {
-                    int buffered = _machine.OutputBuffer.GetAmount(output.itemId);
-                    if (buffered > 0 && _machine.TryTakeOutput(output.itemId, buffered))
-                    {
-                        int leftover = inv != null ? inv.AddItem(output.itemId, buffered) : buffered;
-                        if (leftover > 0 && storage != null)
-                        {
-                            StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
-                            storage.AddItem(output.itemId, leftover);
-                            movedToStorage = true;
-                        }
-                        GameEvents.RaiseItemAcquired(output.itemId, buffered);
-                    }
-                }
-                if (movedToStorage) ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
+                StorageInflowNotice.SuppressBriefly();   // 자체 토스트가 있으니 공용 알림 중복 방지
+                storage.AddItem(itemId, leftover);
+                movedToStorage = true;
             }
+            GameEvents.RaiseItemAcquired(itemId, buffered);
         }
+        if (movedToStorage) ToastManager.Info(Loc.Get("인벤토리가 가득 차 창고로 이동했습니다"));
 
         _machine.PublicNotifyBufferChanged();
         _machine.ResetStatusIfIdle();

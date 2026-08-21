@@ -198,20 +198,79 @@ namespace TIMEKOV.Factory
 
         protected override void OnItemReceived(int itemId, int amount)
         {
+            // ★벨트로 들어온 재료는 레시피를 정하지 않는다 — SetLockedRecipe 를 부르는 건
+            //   손으로 드래그해 넣는 경로(RecipeDropSlot)뿐이다. 그래서 아직 아무 레시피도
+            //   안 잡힌 설비에 벨트가 재료를 밀어 넣으면, 설비는 0번 레시피를 쓰는 것으로
+            //   취급되어 (a) 생산이 영영 시작되지 않고 (b) 그 재료칸이 0 으로 보인다
+            //   (다른 레시피 칸은 IsSuppressed 로 가려지기 때문). 여기서 맞춰 준다.
+            if (!_processing && LockedRecipeIndex < 0)
+            {
+                int idx = FindRecipeUsing(itemId);
+                if (idx >= 0) SetLockedRecipe(idx);
+            }
+
             if (!_processing) TryStartProcessing();
+        }
+
+        /// <summary>이 아이템을 입력으로 쓰는 첫 레시피의 인덱스. 없으면 -1.</summary>
+        private int FindRecipeUsing(int itemId)
+        {
+            if (recipes == null) return -1;
+            for (int i = 0; i < recipes.Count; i++)
+            {
+                var inputs = recipes[i]?.inputs;
+                if (inputs == null) continue;
+                foreach (var s in inputs)
+                    if (s.itemId == itemId) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>지금 잡힌 레시피로는 못 돌리는데 당장 돌릴 수 있는 레시피가 있으면 그쪽으로 넘어간다.
+        ///
+        /// 판정 기준이 두 개 다 '지금 돌릴 수 있는가(HasAll)'다.
+        ///   ★'재료가 하나도 안 남았을 때만 옮긴다'로 하면 안 된다. 위쪽 설비가 벨트로 재료를
+        ///     계속 흘려보내면 한 번 만들 양에 못 미치는 부스러기가 항상 남아 있어서, 조건이
+        ///     영영 성립하지 않는다 — 다른 레시피 재료가 가득해도 설비가 멈춰 선다.
+        ///   ★옮길 대상도 '당장 다 갖춘' 레시피만 본다. 재료가 한 개라도 있으면 옮기게 하면,
+        ///     플레이어가 손으로 모으던 레시피를 벨트가 밀어 넣은 다른 재료가 가로챈다.
+        ///   ★가공 중에는 옮기지 않는다 — 돌던 레시피는 끝까지 돌린다.</summary>
+        private void TryAdvanceRecipe()
+        {
+            if (_processing || recipes == null || recipes.Count == 0) return;
+
+            var cur = GetLockedRecipe();
+            if (cur?.inputs != null && InputBuffer.HasAll(cur.inputs)) return;   // 지금 것으로 돌릴 수 있다
+
+            int curIdx = EffectiveRecipeIndex;
+            for (int i = 0; i < recipes.Count; i++)
+            {
+                if (i == curIdx) continue;
+                var inputs = recipes[i]?.inputs;
+                if (inputs == null || inputs.Length == 0) continue;
+                if (!InputBuffer.HasAll(inputs)) continue;
+                SetLockedRecipe(i);
+                NotifyBufferChanged();   // 열려 있는 설비 창이 바뀐 레시피로 다시 그리게
+                return;
+            }
         }
 
         public bool TryStartProcessing()
         {
             if (_processing) return false;
 
+            // 재료가 바닥난 레시피에 묶여 있으면, 재료가 있는 쪽으로 넘어간 뒤 판정한다.
+            TryAdvanceRecipe();
+
             var recipe = GetLockedRecipe();
             if (recipe == null) return false;
 
-            // OutputBuffer에 현재 레시피와 다른 아이템이 있으면 생산 블로킹
-            // 같은 레시피의 output 아이템이면 계속 쌓으면서 생산 허용
-            if (OutputBuffer.Stock.Count > 0 && !IsOutputCompatibleWith(recipe))
-                return false;
+            // ★출력 버퍼에 '다른 레시피의 완성품'이 남아 있어도 생산을 막지 않는다.
+            //   레시피가 자동으로 넘어가게 된 뒤로는 완성품 두 종류가 한 버퍼에 있는 게 정상이다.
+            //   막아 두면: 공격력 앰플을 만든 뒤 회복으로 넘어가려는데, 안 가져간 공격력 앰플
+            //   한 개 때문에 설비가 회색으로 멈춰 선다(재료는 충분한데).
+            //   과부하는 아래 maxOutputStock 상한이 그대로 막아 준다.
+            //   재료 버퍼(InputBuffer)도 이미 여러 레시피 재료를 같이 담는다 — 같은 규칙이다.
 
             // 출력 버퍼가 상한까지 찼으면 생산 중지 — 다운스트림이 막혀 벨트가 가득 찬 상태(역압).
             // 벨트 머리 칸이 비어 버퍼가 한 개라도 빠지면 OnOutputDrained 로 재개된다.
@@ -226,27 +285,8 @@ namespace TIMEKOV.Factory
             return false;
         }
 
-        /// <summary>
-        /// OutputBuffer에 있는 아이템이 모두 지정 레시피의 output인지 확인한다.
-        /// 현재 레시피와 다른 아이템이 하나라도 있으면 false.
-        /// </summary>
-        private bool IsOutputCompatibleWith(FactoryRecipe recipe)
-        {
-            if (recipe == null || recipe.outputs == null) return false;
-
-            foreach (var kv in OutputBuffer.Stock)
-            {
-                if (kv.Value <= 0) continue;
-
-                bool found = false;
-                foreach (var output in recipe.outputs)
-                {
-                    if (output.itemId == kv.Key) { found = true; break; }
-                }
-                if (!found) return false;
-            }
-            return true;
-        }
+        // IsOutputCompatibleWith 는 삭제했다 — '출력 버퍼에 다른 레시피 완성품이 있으면 생산 금지'
+        //   판정이었는데, 레시피 자동 전환이 생긴 뒤로는 그게 정상 상황이 됐다(TryStartProcessing 주석 참고).
 
         /// <summary>OutputBuffer가 비면 생산 재개를 시도한다.</summary>
         protected override void OnOutputCleared()

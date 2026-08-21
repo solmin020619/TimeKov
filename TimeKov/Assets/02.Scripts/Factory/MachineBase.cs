@@ -197,13 +197,21 @@ namespace TIMEKOV.Factory
             BeltSegment belt = FindFreeOutputBelt();
             if (belt == null) return;   // 보낼 벨트의 머리 칸이 차 있음 → 그대로 대기(역압)
 
-            int dispatchId = -1;
+            // ★도착 설비가 받을 수 있는 것을 먼저 고른다.
+            //   레시피 자동 전환이 생긴 뒤로 출력 버퍼에 완성품 두 종류가 같이 있을 수 있는데,
+            //   아무거나 집으면 못 받는 아이템이 벨트 머리에 올라가 잼이 나고, 뒤에 있는
+            //   '받을 수 있는' 아이템까지 같이 막힌다.
+            //   하나도 못 받으면 원래대로 첫 번째를 올려 잼을 낸다(잘못된 연결 = 🚫 표시로 보이게).
+            int dispatchId = -1, fallbackId = -1;
             foreach (var kv in OutputBuffer.Stock)
             {
                 if (kv.Value <= 0) continue;
+                if (fallbackId < 0) fallbackId = kv.Key;
+                if (belt.targetM != null && !belt.targetM.CanReceive(kv.Key)) continue;
                 dispatchId = kv.Key;
                 break;
             }
+            if (dispatchId < 0) dispatchId = fallbackId;
 
             if (dispatchId < 0) return;
             if (!OutputBuffer.Consume(dispatchId, 1)) return;

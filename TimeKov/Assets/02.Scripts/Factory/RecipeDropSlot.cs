@@ -418,41 +418,51 @@ public class RecipeDropSlot : MonoBehaviour,
         return string.IsNullOrEmpty(n) ? (index + 1).ToString() : Loc.Get(n);
     }
 
+    // ★막힌 레시피(IsSuppressed)라도 '실제로 들어와 있는 수량'을 그대로 보여준다.
+    //   예전엔 0 으로 가렸는데, 벨트가 다른 레시피 재료를 밀어 넣으면 재료는 설비 안에 있는데
+    //   화면엔 0/2 로 떠서 아이템이 증발한 것처럼 보였다(철거하면 도로 나오던 그 건).
+    //   대신 흐리게 그려서 "있긴 한데 지금 이 레시피는 못 돌린다"로 읽히게 한다 —
+    //   원래 막으려던 '이 레시피가 준비된 듯한 착시'는 그대로 막힌다.
     public void PublicRefresh()
     {
         if (_machine == null) return;
-
-        int current = IsSuppressed() ? 0 : _machine.InputBuffer.GetAmount(RequiredItemId);
-        CurrentAmount = current;
-        if (amountText != null)
-            amountText.text = $"{current}/{RequiredAmount}";
-        ApplyLoadedVisual(current > 0);
+        ShowAmount(_machine.InputBuffer.GetAmount(RequiredItemId));
     }
 
     private void RefreshAmount()
     {
-        int current = IsSuppressed() ? 0
-            : (_machine != null ? _machine.InputBuffer.GetAmount(RequiredItemId) : CurrentAmount);
+        ShowAmount(_machine != null ? _machine.InputBuffer.GetAmount(RequiredItemId) : CurrentAmount);
+    }
 
+    private void ShowAmount(int current)
+    {
+        CurrentAmount = current;
         if (amountText != null)
             amountText.text = $"{current}/{RequiredAmount}";
-        ApplyLoadedVisual(current > 0);
+        ApplyLoadedVisual(current > 0, dim: IsSuppressed());
     }
 
     // 재료 로드 여부로 구분: 안 들어옴 = 유령 아이콘 + 발광 끔(뭘 넣는지 힌트만), 들어옴 = 선명 + 등급 테두리/오로라.
-    private void ApplyLoadedVisual(bool loaded)
+    /// <param name="dim">지금 이 레시피로는 생산할 수 없는 상태(다른 레시피가 잡고 있음).
+    /// 수량은 진짜 값을 보여주되 한 단계 흐리게 그려, '들어와 있지만 지금은 못 쓴다'를 구분한다.</param>
+    private void ApplyLoadedVisual(bool loaded, bool dim = false)
     {
         if (RequiredItemId <= 0) return;   // 빈 포트는 SetupEmptyPort 가 처리
         var itemData = GameDataUtility.GetItem(RequiredItemId);
         Color gc = itemData != null ? GradeVisual.GetColor((int)itemData.itemGrade) : Color.white;
 
+        float mul = dim ? 0.45f : 1f;   // 막힌 레시피는 전체적으로 가라앉힌다
+
         if (iconImage != null && iconImage.sprite != null)
-            iconImage.color = loaded ? Color.white : new Color(1f, 1f, 1f, 0.26f);
+            iconImage.color = loaded ? new Color(1f, 1f, 1f, mul) : new Color(1f, 1f, 1f, 0.26f);
+        if (amountText != null)
+            amountText.color = new Color(amountText.color.r, amountText.color.g, amountText.color.b, mul);
         if (rarityBorder != null)
-            rarityBorder.color = (loaded && itemData != null) ? gc : new Color(0f, 0f, 0f, 0f);
+            rarityBorder.color = (loaded && itemData != null) ? new Color(gc.r, gc.g, gc.b, gc.a * mul)
+                                                             : new Color(0f, 0f, 0f, 0f);
         if (gradeAurora != null)
             gradeAurora.color = (loaded && itemData != null)
-                ? new Color(gc.r, gc.g, gc.b, gc.a * 0.6f)
+                ? new Color(gc.r, gc.g, gc.b, gc.a * 0.6f * mul)
                 : new Color(0f, 0f, 0f, 0f);
     }
 }
