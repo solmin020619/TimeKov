@@ -46,10 +46,10 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
              "★위의 '기믹 잠금'을 켠 상자에는 적용되지 않는다 - 퍼즐 보상은 한 번뿐이라 리젠하지 않는다.")]
     [SerializeField] private float respawnSeconds = 300f;
 
-    [Tooltip("기믹 잠금 상자를 세이브에서 구분하는 고유 id. 비우면 오브젝트 이름을 쓴다.\n" +
-             "★한 번 정하면 바꾸지 말 것 — 바꾸면 이미 먹은 플레이어가 다시 먹을 수 있게 된다.\n" +
-             "★같은 씬에 퍼즐 상자가 여러 개면 서로 다른 값을 줘야 한다(이름이 같으면 하나만 먹어도 전부 사라진다).")]
-    [SerializeField] private string puzzleChestId = "";
+    [Header("세이브")]
+    [Tooltip("세이브에서 이 상자를 구분하는 id. 비우면 계층 경로로 자동 생성한다(대부분 비워두면 된다).\n" +
+             "★오브젝트를 옮기거나 이름을 바꾸면 자동 id 가 바뀌어 상태가 초기화된다. 그게 곤란하면 여기에 직접 적는다.")]
+    [SerializeField] private string saveId = "";
 
     /// <summary>다 비운 뒤 다시 생기는가.
     ///
@@ -61,9 +61,12 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
     /// 일반 상자(잠금 따서 여는 것)는 반복 파밍이 원래 의도라 그대로 리젠한다.</summary>
     private bool CanRespawn => !gimmickLocked;
 
-    /// <summary>세이브에 남길 이 상자의 id. 퍼즐 상자에만 쓴다.</summary>
-    private string PuzzleId => string.IsNullOrEmpty(puzzleChestId) ? name : puzzleChestId;
-    [Tooltip("다 비운 상자가 사라질 때 스케일이 0으로 줄며 서서히 사라지는 시간(초). 0이면 즉시 소멸.")]
+    // 세이브 키. 기믹(GimmickSave)과 같은 저장소를 쓴다 — id → 값 하나짜리 공용 목록이라
+    //   상자 전용 목록을 따로 만들 필요가 없다. 종류 접두어가 달라 서로 안 겹친다.
+    private string LootedKey   => GimmickSave.Key("chest.looted", this, saveId);   // 퍼즐 상자: 먹었나(1/0)
+    private string CooldownKey => GimmickSave.Key("chest.cd",     this, saveId);   // 일반 상자: 리젠까지 남은 초
+    [Tooltip("다 비운 상자가 서서히 흐려져 사라지는 시간(초). 리젠으로 다시 나타날 때도 같은 시간에 걸쳐 진해진다.\n" +
+             "0이면 사라짐·나타남 둘 다 즉시.")]
     [SerializeField] private float vanishDuration = 0.5f;
 
     [Header("프롬프트")]
@@ -140,13 +143,13 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
         _colliders = GetComponentsInChildren<Collider>(true);
         _renderers = GetComponentsInChildren<Renderer>(true);
 
-        // 퍼즐 상자만 세이브에 참여한다. 일반 파밍 상자는 리젠되는 게 정상이라 남길 게 없다.
-        if (gimmickLocked) SaveSlotManager.Instance?.Register(this);
+        // 퍼즐 상자는 '먹었나', 일반 상자는 '리젠까지 남은 시간'을 저장한다 → 둘 다 참여한다.
+        SaveSlotManager.Instance?.Register(this);
     }
 
     private void OnDestroy()
     {
-        if (gimmickLocked) SaveSlotManager.Instance?.Unregister(this);
+        SaveSlotManager.Instance?.Unregister(this);
     }
 
     private void Start()
@@ -159,35 +162,64 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
         //   ApplyLockIndicator(locked) — 시작 시엔 아직 안 풀렸으니 locked=true(빨강).
         if (gimmickLocked) ApplyLockIndicator(!_gimmickUnlocked);
 
-        // 세이브 복원 — 이미 먹은 퍼즐 상자면 처음부터 없던 것처럼 치운다.
-        //   ★Start 에서 한다. 콜라이더/렌더러 캐시(Awake)와 발광 준비(SetupGlow)가 끝난 뒤여야
-        //     확실히 숨길 수 있다.
-        //   ★GimmickChestLock 이 Awake/Start 에서 GimmickUnlock() 을 부를 수 있는데, 그건
-        //     _state 를 Ready 로 올릴 뿐이라 여기서 덮어써도 문제 없다.
-        if (gimmickLocked && IsAlreadyLooted()) MarkConsumed();
+        RestoreSaved();
     }
 
-    // ── 일회용 퍼즐 상자 (세이브) ─────────────────────────────────────────
-    // 퍼즐은 한 번 풀면 세이브에 남아 영구히 풀린 채다. 상자를 안 막으면 껐다 켤 때마다
-    //   잠금이 풀린 상자가 새로 채워져서, 재접속만 반복하면 같은 보상을 무한히 먹을 수 있다.
-    //   그래서 '이미 비운 퍼즐 상자' id 를 세이브에 남기고, 복원 때 아예 치운다.
+    // ── 세이브 ────────────────────────────────────────────────────────────
+    // 두 가지를 저장한다.
+    //
+    //   퍼즐 상자 : '먹었나' 한 번뿐. 퍼즐은 한 번 풀면 세이브에 남아 영구히 풀린 채라,
+    //               안 막으면 껐다 켤 때마다 잠금이 풀린 상자가 새로 채워져서 재접속만
+    //               반복해도 같은 보상을 계속 먹는다.
+    //
+    //   일반 상자 : '리젠까지 남은 시간'. 안 남기면 메인메뉴에 갔다 오는 것만으로 방금 턴
+    //               상자가 멀쩡하게 되살아난다 — 쿨타임이 사실상 없는 것과 같다.
+    //
+    //   ★남은 '시간'을 남기지, 시각(시계)을 남기지 않는다. 지금 쿨타임은 게임 안 시간으로
+    //     흐르므로(설정창을 열어 멈추면 같이 멈춘다) 같은 기준으로 이어져야 앞뒤가 맞고,
+    //     시스템 시계를 돌려 쿨타임을 건너뛰는 것도 막힌다.
+    //     '접속 안 한 동안에도 쿨이 돌길' 원하면 여기만 시각 비교로 바꾸면 된다.
 
-    private bool IsAlreadyLooted()
+    /// <summary>세이브에 남은 상태를 지금 상자에 반영한다.
+    /// ★Start 에서 부른다 — 콜라이더/렌더러 캐시(Awake)와 발광 준비(SetupGlow)가 끝난 뒤여야
+    ///   확실히 숨길 수 있다.
+    /// ★GimmickChestLock 이 Awake/Start 에서 GimmickUnlock() 을 부를 수 있는데, 그건 _state 를
+    ///   Ready 로 올릴 뿐이라 여기서 덮어써도 문제 없다.</summary>
+    private void RestoreSaved()
     {
-        var data = SaveSlotManager.Instance?.Data;
-        return data != null && data.lootedPuzzleChestIds.Contains(PuzzleId);
+        if (gimmickLocked)
+        {
+            if (GimmickSave.GetBool(LootedKey)) HideAsDepleted(permanent: true);
+            return;
+        }
+
+        float remain = GimmickSave.TryGet(CooldownKey, out float v) ? v : 0f;
+        if (remain <= 0f) return;
+
+        HideAsDepleted(permanent: false);
+        _timer = remain;   // 남은 쿨타임부터 이어서 센다
     }
 
     public void Capture(GameSaveData data)
     {
-        if (data == null || !gimmickLocked) return;
+        if (data == null) return;
+
         // 다 비워서 사라진 상태만 기록한다. 열어두고 아직 안 비운 상자는 다음에 마저 먹어야 한다.
-        if (_state == State.Depleted && !data.lootedPuzzleChestIds.Contains(PuzzleId))
-            data.lootedPuzzleChestIds.Add(PuzzleId);
+        if (gimmickLocked)
+        {
+            if (_state == State.Depleted) GimmickSave.SetDeferred(LootedKey, 1f);
+            return;
+        }
+
+        // 리젠 대기 중이 아니면 0 — 되살아난 상자가 다음 로드에서 또 숨는 것을 막는다.
+        GimmickSave.SetDeferred(CooldownKey,
+            _state == State.Depleted ? Mathf.Max(0f, _timer) : 0f);
     }
 
-    /// <summary>이미 먹은 상자로 처리 — 연출 없이 즉시 사라진 상태로 만든다.</summary>
-    private void MarkConsumed()
+    /// <summary>연출 없이 즉시 '사라진' 모습으로. 세이브 복원 전용.</summary>
+    /// <param name="permanent">true 면 다시 안 생긴다(퍼즐 보상) → 매 프레임 도는 것도 멈춘다.
+    /// false 면 리젠 타이머가 돌아야 하므로 컴포넌트는 켜 둔다.</param>
+    private void HideAsDepleted(bool permanent)
     {
         _state = State.Depleted;
         _contents = null;
@@ -202,7 +234,7 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
 
         UpdateGlow(false);
         ChestPromptUI.Instance?.HideIfOwner(this);
-        enabled = false;   // 할 일이 없다 — 매 프레임 도는 것을 멈춘다
+        if (permanent) enabled = false;   // 할 일이 없다 — 매 프레임 도는 것을 멈춘다
     }
 
     // ── 기믹 잠금 해제 (GimmickChestLock 타깃이 스위치/에너지 노드 충족 시 호출) ──────
@@ -450,15 +482,10 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
         UpdateGlow(false);
         ChestPromptUI.Instance?.HideIfOwner(this);
 
-        // 퍼즐 상자는 '먹었음'을 즉시 기록한다. 다음 저장까지 기다리면 그 사이에 껐을 때
-        //   상자가 되살아나 또 먹을 수 있다.
-        if (gimmickLocked)
-        {
-            var data = SaveSlotManager.Instance?.Data;
-            if (data != null && !data.lootedPuzzleChestIds.Contains(PuzzleId))
-                data.lootedPuzzleChestIds.Add(PuzzleId);
-            SaveSlotManager.Instance?.SaveActive();
-        }
+        // ★즉시 기록한다. 다음 저장까지 기다리면 그 사이에 게임을 끈 플레이어는
+        //   퍼즐 상자를 또 먹거나, 방금 턴 상자를 쿨타임 없이 다시 턴다.
+        if (gimmickLocked) GimmickSave.Set(LootedKey, true);
+        else               GimmickSave.Set(CooldownKey, respawnSeconds);
 
         StartCoroutine(VanishRoutine());
     }
@@ -608,12 +635,39 @@ public class ChestInteractable : MonoBehaviour, IInstantInteractable, ISaveable
         _state = (startUnlocked || (gimmickLocked && _gimmickUnlocked)) ? State.Ready : State.Idle;
         _timer = 0f;
         _contents = null;
+        // 쿨이 끝났음을 세이브에서도 지운다. 안 지우면 여기서 되살아난 직후 껐을 때
+        //   다음 로드에서 옛 남은 시간으로 또 숨는다.
+        GimmickSave.SetDeferred(CooldownKey, 0f);
         RestoreOpaqueMaterials();   // 소멸 페이드로 투명해졌던 머티리얼을 원래 불투명/색으로 복원
         if (_colliders != null)
             foreach (var c in _colliders) if (c != null) c.enabled = true;
         if (_renderers != null)
             foreach (var r in _renderers) if (r != null) r.enabled = true;   // 메시 복귀
         SetVisual(false);   // closedVisual on(잠긴 새 상자), openedVisual off
+
+        // 사라질 때와 같은 연출을 거꾸로 — 형체가 서서히 진해지며 나타난다.
+        //   ★그냥 켜면 눈앞에서 상자가 툭 튀어나온다. 사라질 땐 스르륵 사라지는데 나타날 때만
+        //     즉시면 짝이 안 맞는다.
+        if (vanishDuration > 0f) StartCoroutine(AppearRoutine());
+    }
+
+    // 투명도를 올리며 형체가 서서히 진해져 등장. 소멸(VanishRoutine)의 역방향이다.
+    //   ★StartCoroutine 은 첫 yield 까지 그 자리에서 실행된다 — 아래 두 줄이 같은 프레임에
+    //     돌아서, 켠 뒤 한 프레임 불투명하게 번쩍이는 일이 없다.
+    private IEnumerator AppearRoutine()
+    {
+        CollectFadeMaterials();   // 투명 모드 전환 + '지금(불투명) 색'을 원본으로 기억
+        ApplyFadeAlpha(0f);       // 완전히 투명한 상태에서 시작
+
+        for (float t = 0f; t < vanishDuration; t += Time.deltaTime)
+        {
+            ApplyFadeAlpha(t / vanishDuration);   // 0 → 1
+            yield return null;
+        }
+        ApplyFadeAlpha(1f);
+
+        // ★반드시 불투명으로 되돌린다. 투명 모드로 남겨두면 그림자와 그리는 순서가 계속 어긋난다.
+        RestoreOpaqueMaterials();
     }
 
     private void OnDisable()
