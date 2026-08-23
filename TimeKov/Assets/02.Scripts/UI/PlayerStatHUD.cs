@@ -30,9 +30,16 @@ public class PlayerStatHUD : MonoBehaviour
     [SerializeField] private Slider hpSlider;
     [SerializeField] private Slider staminaSlider;
 
-    [Header("표시 포맷")]
-    [Tooltip("ATK/DEF 소수점 자릿수. 0이면 정수만.")]
-    [SerializeField] private int statDecimals = 0;
+    // ── ATK/DEF 표시 포맷 ────────────────────────────────────────────────
+    // 정수면 정수로, 소수가 있을 때만 소수점을 보여준다. (10 -> "10", 10.2 -> "10.2")
+    //
+    // ★예전엔 인스펙터 statDecimals 로 자릿수를 정했고 프리팹 값이 0(=F0)이었다. 그런데 F0 은
+    //   반올림이라 화면이 실제 스탯과 다른 값을 말했다. 앰플 한 개가 +0.2 인데 기본 ATK/DEF 가
+    //   10 이라, 초급 앰플을 다섯 개 먹는 동안 화면은 세 번째에 한 번만 "10 -> 11" 로 튀었다.
+    //   (10.2 -> "10", 10.4 -> "10", 10.6 -> "11" ...) 중급(+0.8)은 반대로 한 개에 +1 오른 것처럼
+    //   보여서 실제보다 후하게 거짓말을 했다. -> 자릿수를 설정으로 두지 않고 여기서 고정한다.
+    //   바로 아래 WithCap 의 상한 표기(0.#)와도 이제 형식이 맞는다.
+    private const string StatFormat = "0.##";
 
     private PlayerStatComponent stat;
 
@@ -65,10 +72,8 @@ public class PlayerStatHUD : MonoBehaviour
     {
         if (stat == null) return;
 
-        string fmt = "F" + Mathf.Max(0, statDecimals);
-
-        if (atkText != null) atkText.text = WithCap(stat.ATK, EffectTarget.ATK, fmt);
-        if (defText != null) defText.text = WithCap(stat.DEF, EffectTarget.DEF, fmt);
+        if (atkText != null) atkText.text = WithCap(stat.ATK, EffectTarget.ATK, StatFormat);
+        if (defText != null) defText.text = WithCap(stat.DEF, EffectTarget.DEF, StatFormat);
         if (hpText != null) hpText.text = $"{stat.CurrentHp:F0}{DrainSuffix()} / {stat.MaxHp:F0}";
         if (staminaText != null) staminaText.text = $"{stat.CurrentStamina:F0} / {stat.MaxStamina:F0}";
 
