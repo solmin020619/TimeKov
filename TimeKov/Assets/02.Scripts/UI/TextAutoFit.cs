@@ -30,9 +30,10 @@
 //   '제 상자는 안 넘쳤는데 옆 아이콘과 겹치는' 경우. 라벨 rect 가 원래부터 아이콘
 //   자리까지 뻗어 있고 한국어가 짧아 안 보였을 뿐이라, 라벨 입장에선 넘친 게 아니다.
 //   그건 컨테이너를 HorizontalLayoutGroup 등으로 고쳐야 한다.
-//   -> 그런 곳은 [가려짐] 진단(LogOverlaps, 기본 ON)이 콘솔에 목록으로 찍어준다.
+//   -> 그런 곳은 [가려짐] 진단(LogOverlaps)이 콘솔에 목록으로 찍어준다. 기본 OFF 다.
 //
 // [끄는 법] TextAutoFit.Enabled = false  (또는 라벨에 TextAutoFitIgnore 부착)
+// [콘솔 진단 켜는 법] TextAutoFit.LogSpill / LogOverlaps = true - 문구가 크게 바뀐 뒤 한 번 훑을 때만
 // =====================================================================
 
 using System.Collections.Generic;
@@ -49,19 +50,20 @@ public class TextAutoFit : MonoBehaviour
     /// ★평소엔 꺼둔다 - 글자가 바뀔 때마다 찍혀서 콘솔이 도배되고 정작 볼 경고가 묻힌다.</summary>
     public static bool LogAdjustments = false;
 
-    /// <summary>★[확실] 글자가 자기 상자 밖으로 나갔거나 잘린 것을 찍는다.
-    /// 좌표/TMP 내부값으로 판정하는 '측정된 사실'이라 뜨면 실제 문제다. 기본 ON.</summary>
-    public static bool LogSpill = true;
+    // ★[08-21] 아래 두 진단은 기본 OFF 다. UI 를 훑는 단계가 끝나 남은 건 의도된 배치뿐이고,
+    //   그런 곳까지 한 번씩 계속 찍혀서 콘솔만 시끄러웠다(종욱: "이제는 육안으로 찾는 게 더 빠르다").
+    //   크기 자동조절 기능 자체는 그대로 돈다 - 여기서 끄는 건 콘솔 출력뿐이다.
+    //   ★로컬라이징으로 문구 길이가 바뀌면(EN/CN/FR) 다시 훑을 일이 생긴다. 그때
+    //     TextAutoFit.LogSpill = true 한 줄로 되살린다. 지우지 않고 스위치만 내려둔 이유다.
+
+    /// <summary>[확실] 글자가 자기 상자 밖으로 나갔거나 잘린 것을 찍는다.
+    /// 좌표/TMP 내부값으로 판정하는 '측정된 사실'이라 뜨면 실제 문제다. 훑을 때만 켠다.</summary>
+    public static bool LogSpill = false;
 
     /// <summary>[가려짐] 라벨 잉크 위에 '나중에 그려지는' 형제가 실제로 덮이는 곳을 찍는다.
     /// 글자를 줄여도 안 풀리는, 컨테이너를 고쳐야 하는 곳의 목록이다.
-    /// 예전에 오탐이 심해 꺼뒀었는데 3대 원인이 전부 제거돼 켠다(08-08):
-    ///   (1)UI 가 두 벌이라 자기 쌍둥이와 겹치던 것 - 중복 정리로 소멸
-    ///   (2)알파 0 으로 숨긴 라벨이 검사를 타던 것 - IsVisible 게이트 추가
-    ///   (3)꺼진 패널의 그래픽이 '덮는 쪽'으로 잡히던 것 - 상대편도 그룹 알파까지 확인
-    /// 그래도 그리기 순서 규칙에 기대는 만큼 넘침/잘림보다 한 단계 추정이 섞여 있다.
-    /// 오탐이 보이면 규칙을 조이든가 도로 끈다.</summary>
-    public static bool LogOverlaps = true;
+    /// 그리기 순서 규칙에 기대는 만큼 넘침/잘림보다 한 단계 추정이 섞여 있다.</summary>
+    public static bool LogOverlaps = false;
 
     /// <summary>줄일 수 있는 하한(원래 크기 대비). 0.7 = 최대 30%까지만 작아진다.</summary>
     public static float MinScale = 0.7f;
