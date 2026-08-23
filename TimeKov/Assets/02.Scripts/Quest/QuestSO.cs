@@ -25,6 +25,12 @@ public class QuestSO : ScriptableObject
              "비워두면 보상 없음. 여러 종류 주려면 항목을 추가.")]
     public QuestReward[] rewards;
 
+    [Tooltip("퀘스트 트래커에 보상을 이 한 마디로 묶어서 보여준다(예: 초급 앰플 꾸러미).\n" +
+             "비워두면 rewards 를 아이템별로 한 줄씩 나열한다.\n" +
+             "★실제 지급 내용은 안 바뀐다 - 표시만 묶는 것이다.\n" +
+             "보상이 3~4종이 되면 나열이 길어져 트래커를 잡아먹으므로 그때만 쓴다.")]
+    public string rewardSummary;
+
     [Header("Designer Hooks (optional)")]
     [Tooltip("UI 슬라이드 인 시작. 등장 사운드, 카메라 줌 등")]
     public UnityEvent onShown;

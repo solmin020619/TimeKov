@@ -87,8 +87,13 @@ public class QuestEntry : MonoBehaviour
         SlideInAndActivate();
     }
 
-    // 퀘스트 보상을 목표 줄들 아래에 한 줄로 표시한다.
-    // "퀘스트 보상: <노란색>아이템명</color> N개" 형식. 여러 개면 콤마로 연결.
+    // 퀘스트 보상을 목표 줄들 아래에 표시한다.
+    //   묶음 이름(rewardSummary)이 있으면: "퀘스트 보상: <노란색>초급 앰플 꾸러미</color>"  (한 줄)
+    //   보상 1종:  "퀘스트 보상: <노란색>아이템명</color> N개"  (한 줄)
+    //   보상 2종+: 접두사를 제목처럼 한 줄 쓰고, 아이템마다 한 줄씩.
+    // ★예전엔 개수와 상관없이 콤마로 이어 붙였다. 4종이 되면 좁은 트래커에서 한 줄이 통째로 길어져
+    //   읽기 어려웠다. 종류가 다르면 줄을 나누되, 그것도 길면 묶음 이름 한 마디로 대체한다.
+    //   지급 내용은 어느 쪽이든 그대로다 - 표시만 다르다.
     // 보상이 없거나 유효한 항목이 없으면 rewardText 를 숨긴다.
     void SetupRewardText(QuestSO q)
     {
@@ -100,28 +105,46 @@ public class QuestEntry : MonoBehaviour
             return;
         }
 
-        var sb = new System.Text.StringBuilder();
-        bool any = false;
-        foreach (var r in q.rewards)
+        var lines = new System.Collections.Generic.List<string>();
+
+        // 묶음 이름이 있으면 아이템을 나열하지 않고 그 한 마디만 쓴다.
+        //   실제로 뭐가 들어왔는지는 획득 시 인벤토리에서 확인된다(새 아이템 반짝임 + NEW 표시).
+        if (!string.IsNullOrWhiteSpace(q.rewardSummary))
         {
-            if (r == null || r.itemId <= 0 || r.amount <= 0) continue;
-            if (any) sb.Append(", ");
-            // 아이템 이름 조회 — 못 찾으면 ID로 폴백
-            var itemData = ItemDatabase.GetItem(r.itemId);
-            string itemName = itemData != null ? Loc.Get(itemData.itemName) : r.itemId.ToString();
-            sb.Append($"<color={rewardItemColorHex}>{itemName}</color> {r.amount}{Loc.Get("개")}");
-            any = true;
+            lines.Add($"<color={rewardItemColorHex}>{Loc.Get(q.rewardSummary)}</color>");
+        }
+        else
+        {
+            foreach (var r in q.rewards)
+            {
+                if (r == null || r.itemId <= 0 || r.amount <= 0) continue;
+                // 아이템 이름 조회 — 못 찾으면 ID로 폴백
+                var itemData = ItemDatabase.GetItem(r.itemId);
+                string itemName = itemData != null ? Loc.Get(itemData.itemName) : r.itemId.ToString();
+                lines.Add($"<color={rewardItemColorHex}>{itemName}</color> {r.amount}{Loc.Get("개")}");
+            }
         }
 
-        if (!any)
+        if (lines.Count == 0)
         {
             rewardText.gameObject.SetActive(false);
             return;
         }
 
         // 목표 줄들과 너무 붙지 않게 한 줄 띄워서 표시(위에 빈 줄 한 칸).
-        rewardText.text = "\n" + Loc.Get(rewardPrefix) + sb.ToString();
+        string prefix = Loc.Get(rewardPrefix);
+        rewardText.text = lines.Count == 1
+            ? "\n" + prefix + lines[0]
+            : "\n" + prefix + "\n" + string.Join("\n", lines);
         rewardText.gameObject.SetActive(true);
+
+        // ★줄 수가 늘어나면 상자 높이가 따라와야 한다. 안 그러면 세로 가운데정렬이라 넘친 만큼
+        //   '위로도' 삐져나가 바로 위 목표 줄을 덮는다(보상 4종에서 실제로 그랬다).
+        //   위로 넘칠 여지를 아예 없애려고 정렬을 위쪽으로 고정하고, 높이는 실측해서 박는다.
+        rewardText.alignment = TMPro.TextAlignmentOptions.TopLeft;
+        var fitter = rewardText.GetComponent<TextRowAutoHeight>();
+        if (fitter == null) fitter = rewardText.gameObject.AddComponent<TextRowAutoHeight>();
+        fitter.Fit();   // 폭이 이미 잡혀 있으면 지금 반영, 아니면 폭이 잡히는 순간 스스로 잡는다
 
         // 목표 줄들 다음(맨 아래)에 오도록 강제 — rewardText 가 objectiveList 자식일 때만
         if (rewardText.transform.parent == objectiveList)

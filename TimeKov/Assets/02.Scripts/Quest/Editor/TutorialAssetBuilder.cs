@@ -8,7 +8,7 @@ using UnityEngine.Video;
 /// 설계 원칙: 영상=설명 / 실제 플레이 행동(action)=깨질 수 있는 별 objective(영상에 흡수 금지).
 /// 복잡/공장/레일/코어 안내는 영상 팝업으로 묶고, 자명한 조작은 좌측 퀘스트 텍스트만 사용.
 ///
-/// 메뉴: Tools > Quest > Generate Tutorial Assets
+/// 메뉴: Tools > TIMEKOV > 퀘스트 > 튜토리얼 에셋 생성   (아래 MenuItem 이 원본. 영문 경로 아니다)
 /// 주의: Objective/Quest 폴더는 통째 삭제 후 재생성 -> 인스펙터에서 다듬은 라벨은 사라짐.
 ///       Category/Tutorial 은 GUID 유지(씬 슬롯 안 끊김).
 ///
@@ -40,6 +40,14 @@ public static class TutorialAssetBuilder
                                        // ★[08-16] 앰플 젤이 스탯별 4종으로 갈라졌다(회복1201/공격1202/방어1203/스태미나1205).
                                        //   1201 은 회복 전용이고 튜토는 회복 라인만 다룬다.
     const int ItemHealAmpoule = 5101;  // 초급 회복 앰플 (R5101 @배양기2: 회복 앰플 젤 x2)
+    // 초급 앰플 4종 - 데모 마지막 퀘(보스 처치 + 25%) 직전에 꾸러미로 준다. 보스 앞에서 손에 쥐는 게 목적.
+    const int ItemAtkAmpoule     = 5105;  // 초급 공격력 앰플
+    const int ItemDefAmpoule     = 5104;  // 초급 방어력 앰플
+    const int ItemStaminaAmpoule = 5111;  // 초급 스태미나 앰플
+    const int AmpoulePackAmount  = 3;     // 꾸러미로 줄 종류별 개수
+    // 트래커 표시용 묶음 이름. 4종을 줄줄이 나열하면 트래커를 통째로 잡아먹어서 한 마디로 묶는다.
+    // ★로컬라이징 대상 문구다 - 바꾸면 Localization 시트도 같이 고쳐야 한다.
+    const string AmpoulePackName = "초급 앰플 꾸러미";
     const int CoreKitId       = 6101;  // 코어 키트 I (코어 1단계 강화 재료)
     const int CoreKitAmount   = 3;     // CoreLevelData lv1 requiredAmount
     const int ItemTwig        = 4101;  // 나뭇가지 = 설비 연료 (FuelConfig.fuelItemId). OakTreeEnt 단독 드롭.
@@ -215,9 +223,12 @@ public static class TutorialAssetBuilder
         quests.Add(BuildQuest("quest_tut_13_collect_ampoule", "회복 앰플 회수하기",
             CreateItemAcquire("obj_collect_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}회수{E}하세요.", ItemHealAmpoule, 1)));
 
-        // 사용 학습 + 보상으로 앰플 1개 더 지급 -> 다음 퀵슬롯 등록 퀘에서 가방에 둘 게 있어 바로 등록 시도 가능.
+        // 사용 학습 + 보상으로 앰플 지급 -> 다음 퀵슬롯 등록 퀘에서 가방에 둘 게 있어 바로 등록 시도 가능.
+        // ★1개가 아니라 3개다. 1개만 주면 다음 퀘 문구를 안 읽고 그대로 마셔버린 사람이 가방이 비어
+        //   퀵슬롯 등록을 못 한다. 그러면 등록하러 다시 필드로 파밍을 나가야 한다(실제 플레이 피드백).
+        //   여분을 줘서 한 개쯤 마셔도 등록 단계가 막히지 않게 한다.
         quests.Add(BuildQuestRewarded("quest_tut_13b_use_ampoule", "회복 앰플 사용하기",
-            new[] { new QuestSO.QuestReward { itemId = ItemHealAmpoule, amount = 1 } },
+            new[] { new QuestSO.QuestReward { itemId = ItemHealAmpoule, amount = 3 } },
             CreateItemUse("obj_use_ampoule", $"{Y}초급 회복 앰플{E}을 {Y}사용{E}해 시간을 회복하세요.", ItemHealAmpoule, 1)));
 
         // [영상] 퀵슬롯 등록 안내 -> 곧바로 실제 등록 퀘(레일 영상으로 바로 넘어가 읽다 마는 느낌 방지).
@@ -301,7 +312,20 @@ public static class TutorialAssetBuilder
                     $"{Y}충전 키트{E}를 전송하면 {Y}전송률{E}이 오릅니다. 전송률이 오르면 {Y}보급 신호{E}와 다음 목표가 열립니다.")));
         transmitObjs.Add(CreateTransmissionRate("obj_first_transmit",
             $"{Y}F{E}로 전송기를 열고 {Y}충전 키트{E}를 전송해 전송률 {Y}5%{E}를 달성하세요.", 5));
-        endgameQuests.Add(BuildQuest("quest_end_02_first_transmit", "시간에너지 키트 전송하기", transmitObjs.ToArray()));
+        // 완료 보상 = 초급 앰플 꾸러미(4종 x3). 바로 다음 퀘가 데모의 마지막이고 보스 처치를 요구하니,
+        // 보스 앞에 서기 전에 강화 수단을 손에 쥐여 준다. 여기 말고 25% 퀘에 달면 이미 보스를 잡은 뒤라 늦다.
+        //   트래커에는 4줄로 나열하지 않고 묶음 이름 한 줄로 보여준다(rewardSummary).
+        //   실제로 뭐가 들어왔는지는 획득 직후 인벤토리에서 새 아이템 표시로 확인된다.
+        endgameQuests.Add(BuildQuestRewarded("quest_end_02_first_transmit", "시간에너지 키트 전송하기",
+            new[]
+            {
+                new QuestSO.QuestReward { itemId = ItemHealAmpoule,    amount = AmpoulePackAmount },
+                new QuestSO.QuestReward { itemId = ItemAtkAmpoule,     amount = AmpoulePackAmount },
+                new QuestSO.QuestReward { itemId = ItemDefAmpoule,     amount = AmpoulePackAmount },
+                new QuestSO.QuestReward { itemId = ItemStaminaAmpoule, amount = AmpoulePackAmount },
+            },
+            AmpoulePackName,
+            transmitObjs.ToArray()));
 
         // ── 구역 캠페인 (5% -> 100%) : 4구역 x (보스 처치 + 전송률) + 우주선 수리 3회 -> 탈출 ──
         //   전송은 25%씩 4구역(자연/설원/사막/용암). 구역 경계는 보스 재료 특수 키트가 필요 = 보스 처치가 핵심 서브.
@@ -427,12 +451,19 @@ public static class TutorialAssetBuilder
         => BuildQuestRewarded(id, title, null, objectives);
 
     static QuestSO BuildQuestRewarded(string id, string title, QuestSO.QuestReward[] rewards, params ObjectiveSO[] objectives)
+        => BuildQuestRewarded(id, title, rewards, null, objectives);
+
+    // rewardSummary = 트래커에 보상을 이 한 마디로 묶어 보여준다(지급 내용은 그대로).
+    //   보상이 3~4종이면 아이템 나열이 트래커를 통째로 잡아먹어서, 그때만 쓴다.
+    static QuestSO BuildQuestRewarded(string id, string title, QuestSO.QuestReward[] rewards,
+                                      string rewardSummary, params ObjectiveSO[] objectives)
     {
         var q = ScriptableObject.CreateInstance<QuestSO>();
         q.id = id;
         q.title = title;
         q.objectives = objectives;
         q.rewards = rewards ?? new QuestSO.QuestReward[0];   // ★후 set 은 wipe 되므로 CreateAsset 전에 박는다
+        q.rewardSummary = rewardSummary ?? "";               // 위와 같은 이유로 여기서 박는다
         AssetDatabase.CreateAsset(q, $"{QuestsFolder}/{id}.asset");
         return q;
     }
