@@ -1608,7 +1608,7 @@ public class CodexUI : MonoBehaviour
         // 백드롭(바깥 클릭 시 닫힘)
         _popup = Make("SourcePopup", _root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         Img(_popup, null, new Color(0f, 0f, 0f, 0.45f));
-        Btn(_popup, CloseSourcePopup);
+        Btn(_popup, CloseSourcePopup, hover: false);   // 화면 전체 스크림 - 발광하면 안 된다
         // ★눌림 축소 연출 제외. UIButtonPressInstaller 가 모든 Button 에 그 연출을 자동으로
         //   붙이는데, 이건 화면 전체를 덮는 '닫기용 클릭 판'이라 눌리면 어두운 배경까지 통째로
         //   줄었다 커진다(자식인 카드도 같이 딸려 간다). 여긴 버튼처럼 보여선 안 된다.
@@ -1619,7 +1619,7 @@ public class CodexUI : MonoBehaviour
         card.pivot = new Vector2(0.5f, 0.5f); card.sizeDelta = new Vector2(500f, 0f);
         Img(card, RoundedFallback(14), PanelLight);
         Line(card, PanelBd);
-        Btn(card, () => { });   // 카드 안쪽 클릭은 닫힘 막기(이벤트 소비)
+        Btn(card, () => { }, hover: false);   // 카드 안쪽 클릭은 닫힘 막기(이벤트 소비) - 카드가 통째로 발광하면 안 된다
         var vlg = card.gameObject.AddComponent<VerticalLayoutGroup>();
         vlg.padding = new RectOffset(24, 24, 20, 22); vlg.spacing = 12f;
         vlg.childAlignment = TextAnchor.UpperLeft;
@@ -1972,12 +1972,44 @@ public class CodexUI : MonoBehaviour
         return t;
     }
 
-    static void Btn(RectTransform rt, UnityEngine.Events.UnityAction onClick, SfxId clickSfx = SfxId.CodexClick)
+    // hover=true 면 마우스를 올렸을 때 발광 반응을 붙인다(기본 켜짐).
+    // ★예전엔 무조건 Transition.None 이었다. 그래서 상단 탭·좌측 목록·닫기 버튼이 눌러도 되는 물건인지
+    //   화면에 신호가 하나도 없었다. 아래 HoverButton(그리드 셀)이 같은 문제를 이미 이 방식으로 풀어놨는데
+    //   여기만 안 따라갔던 것이다. 새로 만드는 버튼도 자동으로 반응하도록 기본값을 켜 둔다.
+    //   투명 스크림(바깥 클릭 닫기 / 이벤트 소비)처럼 '눌러도 티가 나면 안 되는' 것만 false 로 끈다.
+    static void Btn(RectTransform rt, UnityEngine.Events.UnityAction onClick,
+                    SfxId clickSfx = SfxId.CodexClick, bool hover = true)
     {
         var img = rt.gameObject.GetComponent<Image>();
         if (img != null) img.raycastTarget = true;
         var btn = rt.gameObject.AddComponent<Button>();
-        btn.transition = Selectable.Transition.None;
+
+        if (hover)
+        {
+            // ★발광은 별도 오버레이에 준다. 대상 Image 를 직접 틴트하면 안 된다 -
+            //   비활성 탭처럼 배경이 투명(alpha 0)이면 어떤 색을 곱해도 그대로 투명이라 변화가 없다.
+            var hl = Make("hover", rt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            hl.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;   // 탭 폭/행 높이를 흔들지 않게 레이아웃 제외
+            var hlImg = Img(hl, RoundedFallback(11), Color.white);
+            hlImg.raycastTarget = false;      // 클릭은 대상 본체가 받는다
+            hl.SetAsFirstSibling();           // 글자/아이콘 뒤에 깔린다
+
+            btn.targetGraphic = hlImg;
+            btn.transition = Selectable.Transition.ColorTint;
+            var cb = btn.colors;
+            cb.normalColor      = new Color(1f, 1f, 1f, 0f);
+            cb.highlightedColor = new Color(Accent.r, Accent.g, Accent.b, 0.18f);
+            cb.pressedColor     = new Color(Accent.r, Accent.g, Accent.b, 0.30f);
+            cb.selectedColor    = new Color(1f, 1f, 1f, 0f);
+            cb.disabledColor    = new Color(1f, 1f, 1f, 0f);
+            cb.colorMultiplier  = 1f; cb.fadeDuration = 0.12f;
+            btn.colors = cb;
+        }
+        else
+        {
+            btn.transition = Selectable.Transition.None;
+        }
+
         btn.onClick.AddListener(() => GameSfx.Play(clickSfx));   // 기본 CodexClick(좌측 목록/활성화·보상수령). 상단 탭 위젯만 CodexTabClick 전달. 그리드 셀은 HoverButton서 별도.
         btn.onClick.AddListener(onClick);
     }

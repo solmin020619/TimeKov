@@ -82,6 +82,7 @@ public class CategoryFilterUI : MonoBehaviour
             if (filterButtons[i] == null) continue;
             int capturedIndex = i;
             filterButtons[i].onClick.AddListener(() => SetFilterByIndex(capturedIndex));
+            AddHoverHooks(filterButtons[i], capturedIndex);
         }
 
         UpdateButtonColors();
@@ -267,6 +268,36 @@ public class CategoryFilterUI : MonoBehaviour
         _expandCo = null;
     }
 
+    // ── 호버 ──────────────────────────────────────────────────────────
+    // ★Button 의 전환색(ColorTint)으로 하면 안 된다. 두 가지 이유다.
+    //   1) 아래 UpdateButtonColors 가 img.color 를 직접 칠하는데, ColorTint 는 거기에 "곱해진다".
+    //   2) 밝히려면 1 을 넘는 배율이 필요한데 CanvasRenderer 색은 0~1 로 잘려서 아무 일도 안 난다.
+    //      (프리팹의 Highlighted 가 유니티 기본값 0.96 이라 4% 어두워지는 게 전부였다 = 사실상 무반응)
+    //   -> 색을 직접 올린다. 프로젝트의 ButtonAccentHoverFx 와 같은 방식이다.
+    private int _hoverIndex = -1;
+
+    private void AddHoverHooks(Button btn, int index)
+    {
+        var et = btn.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+        if (et == null) et = btn.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+
+        var enter = new UnityEngine.EventSystems.EventTrigger.Entry
+        { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ => { _hoverIndex = index; UpdateButtonColors(); });
+        et.triggers.Add(enter);
+
+        var exit = new UnityEngine.EventSystems.EventTrigger.Entry
+        { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
+        exit.callback.AddListener(_ => { if (_hoverIndex == index) _hoverIndex = -1; UpdateButtonColors(); });
+        et.triggers.Add(exit);
+    }
+
+    // 배경은 밝기를, 테두리는 알파를 올린다(테두리는 원래 알파가 낮아 밝기만으로는 티가 안 난다).
+    private static Color HoverBg(Color c)
+        => new Color(Mathf.Min(1f, c.r + 0.10f), Mathf.Min(1f, c.g + 0.10f), Mathf.Min(1f, c.b + 0.10f), c.a);
+    private static Color HoverBorder(Color c)
+        => new Color(c.r, c.g, c.b, Mathf.Clamp01(c.a + 0.34f));
+
     private void UpdateButtonColors()
     {
         if (filterButtons == null) return;
@@ -275,13 +306,16 @@ public class CategoryFilterUI : MonoBehaviour
         {
             if (filterButtons[i] == null) continue;
             bool sel = (i == _selectedIndex);
+            // 선택된 탭은 이미 강조돼 있어 호버로 더 건드리면 오히려 선택/호버 구분이 흐려진다.
+            bool hov = !sel && i == _hoverIndex;
 
             var img = filterButtons[i].GetComponent<Image>();
-            if (img != null) img.color = sel ? selectedColor : normalColor;
+            if (img != null) img.color = sel ? selectedColor : (hov ? HoverBg(normalColor) : normalColor);
 
             // 테두리(Outline) 색 전환
             var ol = filterButtons[i].GetComponent<UnityEngine.UI.Outline>();
-            if (ol != null) ol.effectColor = sel ? selectedBorderColor : normalBorderColor;
+            if (ol != null) ol.effectColor = sel ? selectedBorderColor
+                                                : (hov ? HoverBorder(normalBorderColor) : normalBorderColor);
 
             // 아이콘 색 전환 (자식 CatIcon)
             var iconTr = filterButtons[i].transform.Find("CatIcon");
