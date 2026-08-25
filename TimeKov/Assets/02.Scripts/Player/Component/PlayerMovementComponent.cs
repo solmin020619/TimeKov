@@ -14,6 +14,30 @@ public class PlayerMovementComponent : MonoBehaviour
     public float FallMultiplier = 2.5f; // 하강 시 중력 배수
     public float JumpBufferTime = 0.1f; // 점프 입력 유예 시간
 
+    [Tooltip("최대 낙하 속도를 '일반 점프로 착지할 때의 속도'의 몇 배까지 허용할지.\n" +
+             "1 = 아무리 높은 데서 떨어져도 평소 점프 착지보다 빨라지지 않는다(가장 얌전함).\n" +
+             "1.3 = 높이가 주는 무게감은 남기되 과속만 막는다(권장).\n" +
+             "0 이하 = 상한 없음(예전 동작).")]
+    public float MaxFallSpeedScale = 1.3f;
+
+    /// <summary>평소 점프로 떨어질 때 착지 직전 속도(m/s). v = sqrt(2·a·h).
+    /// 가속도 a 는 하강 배수까지 먹은 값(|Gravity|·FallMultiplier), 높이 h 는 JumpHeight.
+    ///
+    /// ★상한을 숫자로 박지 않고 여기서 뽑아 쓴다. 점프 높이나 중력을 조정하면 낙하 상한도
+    ///   같이 따라와서, "평소 점프 착지 대비 몇 배" 라는 기준이 언제나 유지된다.</summary>
+    public float JumpLandingSpeed =>
+        Mathf.Sqrt(2f * Mathf.Abs(Gravity) * Mathf.Max(1f, FallMultiplier) * Mathf.Max(0f, JumpHeight));
+
+    /// <summary>이 이상으로는 안 떨어지는 속도(m/s, 양수). 0 이면 제한 없음.</summary>
+    public float MaxFallSpeed => MaxFallSpeedScale > 0f ? JumpLandingSpeed * MaxFallSpeedScale : 0f;
+
+    /// <summary>점프한 힘만으로 올라갈 수 있는 최대 시간(초) = v0 / |g|.
+    /// 중력이 물리적으로 보장하는 상한이라, 이 시간이 지난 뒤의 상승은 점프가 아니다
+    /// (경사면에서 충돌 솔버가 수평 운동량을 위로 되돌린 것이다). 아래 접지 판정의 유예 기준.</summary>
+    public float JumpRiseTime => Mathf.Abs(Gravity) > 0.01f
+        ? Mathf.Sqrt(Mathf.Max(0f, JumpHeight * -2f * Gravity)) / Mathf.Abs(Gravity)
+        : 0f;
+
     [Header("Movement")]
     [Tooltip("몸이 이동 방향으로 도는 속도. 클수록 빠릿하게 돌고, 작을수록 크게 휘어 돈다")]
     public float RotSpeed = 12f;        // 회전 속도
@@ -66,6 +90,14 @@ public class PlayerMovementComponent : MonoBehaviour
     private Vector3 _lastGroundedPos;   // 설 수 있는 땅에서 발을 뗀 순간의 위치(공중/급경사일 때만 의미가 있다)
     private bool    _wasStableGround;   // 직전 프레임의 '설 수 있는 땅' 여부(전환 순간만 기록하려고 둔다)
     private bool _wasGrounded;
+
+    // 점프 도약 직후, '아직 점프로 올라가는 중' 이라고 봐 주는 유예 시간(초).
+    // 도약 순간 JumpRiseTime 에서 채우고 매 프레임 줄인다. 0 이 되면 아무리 위로 올라가고 있어도
+    // 그건 점프가 아니라고 판단한다 — 경사면 교착(GroundCheck 주석 참고)을 푸는 열쇠.
+    private float _jumpRiseGuard;
+
+    // 실제 상승 시간보다 살짝 넉넉하게 잡는다(물리 스텝 단위 오차·발판 속도 등).
+    private const float JUMP_RISE_GUARD_MARGIN = 1.25f;
     private Vector3 _groundNormal         = Vector3.up; // 현재 지면 법선 (SphereCast 원시값)
     private Vector3 _smoothedGroundNormal = Vector3.up; // 스무딩된 법선 (노이즈 제거)
     private bool    _onSteepSlope;                       // MaxSlopeAngle 초과 경사면
@@ -111,6 +143,30 @@ public class PlayerMovementComponent : MonoBehaviour
     public float CurrentSpeed => _currentSpeed;  // 현재 이동 속도
     public bool IsGrounded => _isGrounded;     // 지면 여부
     public bool IsJumping => _isJumping;      // 점프 중 여부
+
+    /// <summary>발밑에서 지면까지의 거리(m). 접지 중이면 0, 아래에 아무것도 없으면 무한대.
+    /// 착지까지 남은 시간을 계산해 점프 애니메이션의 착지 구간을 제때 재생하는 데 쓴다.</summary>
+    public float GroundDistance { get; private set; } = Mathf.Infinity;
+
+    /// <summary>지금 속도로 계속 떨어졌을 때 땅에 닿기까지 남은 시간(초).
+    /// 접지 중이면 0, 올라가는 중이거나 아래가 허공이면 무한대.
+    ///
+    /// ★낙하 속도가 상한(MaxFallSpeed)에 걸려 등속이 되면 이 계산은 정확해진다.
+    ///   아직 가속 중인 짧은 낙하에서는 실제보다 조금 길게 나오는데(가속을 안 세므로),
+    ///   그 방향의 오차는 착지 동작을 조금 일찍 시작하게 만들어서 잘려 보이지 않는다.</summary>
+    public float TimeToLand
+    {
+        get
+        {
+            if (_isGrounded) return 0f;
+            float down = -_rb.linearVelocity.y;         // 내려가는 속도(양수)
+            if (down <= 0.01f) return Mathf.Infinity;   // 아직 올라가는 중
+            return GroundDistance / down;
+        }
+    }
+
+    // 착지 예측용 아래쪽 탐침의 최대 거리(m). 이보다 높으면 어차피 '한참 남음' 이라 구분이 무의미하다.
+    private const float GROUND_PROBE_DIST = 30f;
     public bool IsSprinting { get; private set; } // 스프린트 중 여부 (스태미나 재생 판단용)
     /// <summary>
     /// dead zone 또는 그 직후 애니메이션 sync 중: true
@@ -271,6 +327,7 @@ public class PlayerMovementComponent : MonoBehaviour
             HandleDashMove();
             HandleGroundSnap();
             ClampSteepClimb();      // 대쉬도 급경사 표면 등반 차단(접지/공중 무관)
+            ClampFallSpeed();       // 공중 대쉬도 같은 낙하 상한(대쉬로만 빨리 떨어지는 것 방지)
             _steepContact = false;  // 소비 후 리셋 → 다음 스텝 컨택트가 다시 설정(자기정리)
             return;
         }
@@ -285,6 +342,7 @@ public class PlayerMovementComponent : MonoBehaviour
         HandleSlopeStabilize(); // 경사면 슬라이딩 방지 (마지막 실행)
         ClampGroundedRise();    // 접지/경사 접촉 중 슈퍼점프(램프 튕김) 상한
         ClampSteepClimb();      // 급경사 표면 등반 차단(접지/공중 무관, 점프로 뜬 채 밀어 올라가는 것 방지)
+        ClampFallSpeed();       // 낙하 속도 상한(높은 데서 떨어질 때만 걸린다)
         _steepContact = false;  // 소비 후 리셋 → 다음 스텝 컨택트가 다시 설정(자기정리)
     }
 
@@ -326,9 +384,24 @@ public class PlayerMovementComponent : MonoBehaviour
         _groundNormal = sphereCastHit ? hit.normal : Vector3.up;
 
         _isGrounded = checkSphere || sphereCastHit;
-        // 단, 점프로 상승 중엔 접지로 오판하지 않게(중력이 걸려야 함) 강제 해제
-        if (_isJumping && _rb.linearVelocity.y > 0.1f)
+
+        // 단, 점프로 상승 중엔 접지로 오판하지 않게(중력이 걸려야 함) 강제 해제.
+        //
+        // ★'점프 중 + 위로 가는 중' 만으로 판단하면 경사로에서 교착에 빠진다.
+        //   경사면으로 밀고 올라가면 충돌 솔버가 수평 운동량을 표면 위로 되돌려서 y 속도를
+        //   계속 양수로 만든다(아래 ClampGroundedRise 주석의 '램프 튕김'과 같은 현상).
+        //   그러면  y>0 → 접지 해제 → 착지 처리(_isJumping=false)가 영영 안 돌고
+        //   → 다시 y>0 ... 로 물려서, 경사로를 오르는 내내 '공중' 으로 남는다.
+        //   그 사이 애니메이션은 이동 속도를 0 으로 보고 멈춰 서 있어 미끄러지듯 보인다.
+        //
+        //   그래서 유예 시간(_jumpRiseGuard)을 둔다. 도약한 힘으로 올라갈 수 있는 시간은
+        //   중력이 정해 준다(JumpRiseTime = v0/|g|). 그 시간이 지난 뒤의 상승은 점프가 아니므로
+        //   접지 판정을 막지 않는다 -> 교착이 저절로 풀린다.
+        if (_jumpRiseGuard > 0f) _jumpRiseGuard -= Time.deltaTime;
+        if (_isJumping && _jumpRiseGuard > 0f && _rb.linearVelocity.y > 0.1f)
             _isGrounded = false;
+
+        UpdateGroundDistance(halfHeight);
 
         // SphereCast 원시 법선을 스무딩: 폴리곤 경계·돌출부에서 1~2프레임 노이즈 제거
         // Slerp factor 15 × deltaTime ≈ 0.25/frame → 약 4프레임에 걸쳐 부드럽게 수렴
@@ -380,7 +453,11 @@ public class PlayerMovementComponent : MonoBehaviour
         {
             // ★ 핵심 가드: 상승 중(velocity.y > 0)이면 착지 처리 무시
             // 공중 콜라이더 오인식 or GroundMask 레이어 설정 오류 시 무한점프 방지
-            if (_rb.linearVelocity.y > 0.5f)
+            //
+            // ★위 GroundCheck 와 같은 유예를 건다. 경사면에서는 솔버가 밀어 올린 y 속도가
+            //   착지한 뒤에도 양수로 남아, 이 가드만으로도 착지 처리가 영영 안 돌 수 있다.
+            //   도약 유예가 끝났으면 위로 가고 있어도 '땅에 닿았다' 로 인정한다.
+            if (_jumpRiseGuard > 0f && _rb.linearVelocity.y > 0.5f)
             {
                 // 착지 처리 스킵 → _canJump 리셋 안 함
             }
@@ -456,6 +533,7 @@ public class PlayerMovementComponent : MonoBehaviour
         _jumpRequested = false;
         _isGrounded = false;
         _isJumping = true;
+        _jumpRiseGuard = JumpRiseTime * JUMP_RISE_GUARD_MARGIN;   // 도약 유예 시작
 
         // 점프 애니메이션 재생
         _player.Anim.PlayJump();
@@ -689,6 +767,7 @@ public class PlayerMovementComponent : MonoBehaviour
 
         _isGrounded = true;                                 // 크레스트/내리막에서도 접지 유지
         _isJumping  = false;
+        _jumpRiseGuard = 0f;
     }
 
     // ── 턱·계단 자동 오르기 ──────────────────────────────────────
@@ -796,6 +875,51 @@ public class PlayerMovementComponent : MonoBehaviour
         }
     }
 
+    /// <summary>발밑에서 지면까지의 거리를 잰다(GroundDistance).
+    ///
+    /// 접지 중일 땐 0 으로 두고 탐침을 쏘지 않는다 — 대부분의 시간이 여기라 비용이 거의 없다.
+    /// 공중일 때만 아래로 길게 쓸어내린다. 캡슐 반경으로 쏘기 때문에 발끝만 걸치는 좁은 턱도
+    /// 잡히고, 접지 판정(GroundCheck)과 같은 마스크를 써서 둘이 다른 바닥을 보는 일이 없다.</summary>
+    void UpdateGroundDistance(float halfHeight)
+    {
+        if (_isGrounded) { GroundDistance = 0f; return; }
+
+        const float lift = 0.1f;                       // 원점을 살짝 띄운다(발밑 지오메트리에 파묻히지 않게)
+        float radius = GroundCheckRadius * 0.9f;
+        Vector3 origin = transform.position + Vector3.up * lift;
+
+        if (!Physics.SphereCast(origin, radius, Vector3.down, out RaycastHit hit,
+                                GROUND_PROBE_DIST, GroundMask, QueryTriggerInteraction.Ignore))
+        {
+            GroundDistance = Mathf.Infinity;
+            return;
+        }
+
+        // hit.distance 는 '구의 중심'이 움직인 거리다. 닿은 지면은 거기서 반지름만큼 더 아래에 있고,
+        // 발바닥은 원점보다 (halfHeight + lift) 아래에 있다 → 그 차이가 발밑에서 지면까지의 거리.
+        GroundDistance = Mathf.Max(0f, hit.distance + radius - halfHeight - lift);
+    }
+
+    // 낙하 속도 상한 — 떨어지는 내내 계속 빨라지던 것을 막는다.
+    //
+    // 하강 중력은 배수(FallMultiplier)가 붙어 지구 중력의 몇 배로 당긴다. 2m 짜리 점프를
+    // 쫀득하게 만들려고 넣은 값인데, 상한이 없으면 20m 절벽에서도 그대로 적용돼
+    // 착지 속도가 시속 백 몇 십 킬로까지 올라간다 — 떨어지는 게 아니라 꽂히는 모양이 된다.
+    //
+    // ★기준은 MaxFallSpeed(= 평소 점프 착지 속도 × 배율)다. 그래서 평범한 점프는 상한에
+    //   닿지도 않아 점프감이 그대로고, 높은 데서 떨어질 때만 걸린다.
+    // ★속도만 깎는다. 물리 스텝당 이동 거리도 같이 줄어서 얇은 바닥을 뚫고 지나갈 위험도 준다.
+    void ClampFallSpeed()
+    {
+        float max = MaxFallSpeed;
+        if (max <= 0f) return;                       // 상한 없음(예전 동작)
+        if (_rb.linearVelocity.y >= -max) return;    // 아직 상한 아래 = 건드릴 것 없음
+
+        Vector3 v = _rb.linearVelocity;
+        v.y = -max;
+        _rb.linearVelocity = v;
+    }
+
     // 급경사 표면 등반 차단 — 상태머신(_onSteepSlope)의 접지 판정/지연과 무관하게,
     // '실제로 닿은 급경사면'(콜리전 컨택트)에 대해 매 물리 스텝 등반 성분을 물리적으로 제거한다.
     // 점프로 살짝 뜬 채 경사에 수평으로 밀어붙이면 충돌 솔버가 그 성분을 표면 위로 되돌려
@@ -807,7 +931,14 @@ public class PlayerMovementComponent : MonoBehaviour
         // 접지 상태에서 '확정 급경사'가 아니면(잔 요철 포함) 등반 차단을 걸지 않는다 → 울퉁불퉁한 길 떨림 방지.
         // _onSteepSlope는 진입 지연(hysteresis)이 있어 순간적인 요철 스파이크엔 안 켜짐.
         // 공중(점프로 급경사 우회)·확정 급경사 접지일 때만 등반 차단이 필요.
-        if (_isGrounded && !_onSteepSlope) return;
+        //
+        // ★점프 중이면 접지로 잡히더라도 반드시 건다.
+        //   예전에는 점프하는 동안 접지 판정이 계속 false 라서 이 검사에 안 걸렸고, 그래서
+        //   '점프로 급경사 우회'가 저절로 막혀 있었다. 그런데 그 false 는 경사로에서 캐릭터가
+        //   영영 공중 취급되던 교착(GroundCheck 의 _jumpRiseGuard 주석 참고)의 부작용이었다.
+        //   교착을 고치면서 접지가 정상적으로 살아나자, 이 검사가 통과되며 등반 차단이 풀렸다.
+        //   -> 접지 여부에 기대지 말고 '점프 중인가'를 직접 본다.
+        if (_isGrounded && !_onSteepSlope && !_isJumping) return;
 
         Vector3 n     = _steepContactNormal;   // 급경사면 바깥 방향 법선
         float   angle = Vector3.Angle(Vector3.up, n);
@@ -861,6 +992,7 @@ public class PlayerMovementComponent : MonoBehaviour
         if (_flyMode == on) return;
         _flyMode = on;
         _isJumping = false;
+        _jumpRiseGuard = 0f;
         _jumpRequested = false;
         _dashDriving = false;
         _stepping = false;
