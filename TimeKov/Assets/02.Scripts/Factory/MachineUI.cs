@@ -861,34 +861,44 @@ public class MachineUI : MonoBehaviour
 
     // ── 인벤토리 슬롯 ───────────────────────────────────────────
 
+    // 현재 뷰가 쓰는 칸 수(가방 35 / 창고 100). 리스트는 이보다 길 수 있다(풀).
+    private int _invSlotActiveCount;
+
     private void BuildInventorySlots()
     {
         var inv = ActiveInv();
         int slotCount = inv != null ? inv.GetMaxSlots() : inventorySlotCount;
 
-        if (_invSlots.Count != slotCount)
+        // ★칸을 파괴하지 않고 재사용한다(모자라면 늘리고, 남으면 끄기만).
+        //   뷰 전환이 드래그 도중에도 일어나는데(접힘 박스 호버 자동 전환), 출발 칸을 Destroy 하면
+        //   UGUI 의 pointerDrag 가 죽어 이후 드롭 이벤트 자체가 안 온다(파괴 오브젝트 = null 판정).
+        //   꺼두기만 하면 pointerDrag 가 살아 있어 새 그리드에 드롭이 정상 발화한다.
+        while (_invSlots.Count < slotCount)
         {
-            foreach (var s in _invSlots)
-                if (s != null) Destroy(s.gameObject);
-            _invSlots.Clear();
-
-            for (int i = 0; i < slotCount; i++)
-            {
-                var go = Instantiate(inventorySlotPrefab, inventorySlotParent);
-                var slot = go.GetComponent<InventorySlotUI>();
-                if (slot == null)
-                    Debug.LogError("[MachineUI] inventorySlotPrefab에 InventorySlotUI 컴포넌트가 없습니다!");
-                _invSlots.Add(slot);
-            }
+            var go = Instantiate(inventorySlotPrefab, inventorySlotParent);
+            var slot = go.GetComponent<InventorySlotUI>();
+            if (slot == null)
+                Debug.LogError("[MachineUI] inventorySlotPrefab에 InventorySlotUI 컴포넌트가 없습니다!");
+            _invSlots.Add(slot);
         }
+        _invSlotActiveCount = slotCount;
+        for (int i = 0; i < _invSlots.Count; i++)
+            if (_invSlots[i] != null && _invSlots[i].gameObject.activeSelf != (i < slotCount))
+                _invSlots[i].gameObject.SetActive(i < slotCount);
 
-        RefreshInventorySlots();
+        // 뷰 전환은 그리드 내용의 전면 교체가 목적이므로 드래그 중에도 강제 반영한다
+        // (A안 지연은 '같은 내용의 재배치 잔상' 방지용이지, 뷰 자체가 바뀌는 경우가 아니다).
+        RefreshInventorySlots(force: true);
     }
 
-    public void RefreshInventorySlots()
+    // 이벤트 구독(OnInventoryChanged += RefreshInventorySlots)용 무인자 진입점. 시그니처 바꾸지 말 것.
+    public void RefreshInventorySlots() => RefreshInventorySlots(false);
+
+    private void RefreshInventorySlots(bool force)
     {
         // A안: 드래그 중엔 재배치를 미룬다(컴팩트 잔상 방지). 놓으면 Update 가 flush. 정확성은 B 스냅샷이 보장.
-        if (InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging)
+        // force = 뷰 전환(BuildInventorySlots)처럼 드래그 중에도 그리드를 갈아야 하는 경우.
+        if (!force && InventoryDragHandler.Instance != null && InventoryDragHandler.Instance.IsDragging)
         {
             _invRefreshPending = true;
             return;
@@ -913,6 +923,10 @@ public class MachineUI : MonoBehaviour
         //   - 필터 = 매칭 아이템을 slotIndex 순서로 앞 칸부터 컴팩트("1번 칸부터가 직관적"). 매칭 칸은 실슬롯을
         //     그대로 물어 드래그가 올바른 실칸을 집는다(B 스냅샷 전제라 재바인딩 안전). 남는 칸은 빈 표시 +
         //     레이캐스트 통과 -> 드롭이 뒤 패널 드롭존으로 가서 출력/회수 처리(일반 드래그는 무해 취소).
+        // 풀 재사용: 뒤쪽 여분 칸(_invSlotActiveCount 이상)은 꺼진 채 둬야 한다 - 아래 재활성 라인이
+        // 깨우지 않게 순회를 활성 칸 수까지로 자른다.
+        int activeN = Mathf.Min(_invSlots.Count, _invSlotActiveCount);
+
         if (_showStorage)
         {
             bool filtered = _storageFilter != null;
@@ -928,7 +942,7 @@ public class MachineUI : MonoBehaviour
                 }
             }
 
-            for (int i = 0; i < _invSlots.Count; i++)
+            for (int i = 0; i < activeN; i++)
             {
                 if (_invSlots[i] == null) continue;
                 if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);
@@ -952,7 +966,7 @@ public class MachineUI : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < _invSlots.Count; i++)
+        for (int i = 0; i < activeN; i++)
         {
             if (_invSlots[i] == null) continue;
             if (!_invSlots[i].gameObject.activeSelf) _invSlots[i].gameObject.SetActive(true);   // 필터로 꺼졌던 칸 복구
@@ -2370,27 +2384,60 @@ public class MachineUI : MonoBehaviour
 // 설비 UI 접힘 섹션 박스: 펼친 그리드에서 끌어온 아이템을 반대 컨테이너로 이동(가방<->창고).
 // InventoryDropZone(통합 인벤 패널용)과 같은 이동 API 를 쓰되, 그리드 없이 박스 하나만 담당한다.
 // 호환 아이템을 집으면(드래그 중) 박스가 노랗게 밝아져 "여기 놓으면 된다"를 안내.
-public class MachineTransferDropBox : MonoBehaviour, IDropHandler
+public class MachineTransferDropBox : MonoBehaviour, IDropHandler,
+    UnityEngine.EventSystems.IPointerEnterHandler, UnityEngine.EventSystems.IPointerExitHandler
 {
     public bool toStorage;      // true = 가방 -> 창고 입고, false = 창고 -> 가방 회수
     public Image highlight;     // 박스 배경(호환 드래그 중 살짝 밝아짐)
     public Color idleColor;
     public Color activeColor;
     public GameObject highlightFrame;   // 호환 드래그 중 물결 프레임(통합 인벤과 동일 문법)
-    public MachineUI owner;     // 드롭 성공 시 자동 전환(다음 프레임) 요청
+    public MachineUI owner;     // 드롭 성공/호버 머무름 시 자동 전환(다음 프레임) 요청
+
+    // 드래그한 채 이 박스에 포인터가 닿으면 즉시 그쪽 섹션이 펼쳐진다(엔필식 호버 전환).
+    // ★전환에는 호환(출처) 조건을 걸지 않는다 - 전환은 이동이 아니라 '탐색'이다.
+    //   가방에서 집은 아이템으로도 가방 박스에 호버해 되돌아올 수 있어야 왔다갔다가 된다.
+    //   (예전엔 호환 드래그 + 0.25초 머무름을 요구해서, 되돌아가는 방향이 아예 안 먹혔다)
+    private bool _hovering;
+    private float _enabledAt;   // 켜진 직후 잠깐은 전환 안 함 - 전환 직후 같은 자리에 나타난 박스가 즉시 되받는 것 방지
 
     private InventoryManager Source => toStorage ? InventoryManager.Instance : InventoryManager.StorageInstance;
     private InventoryManager Target => toStorage ? InventoryManager.StorageInstance : InventoryManager.Instance;
 
+    // ★호환(드롭 가능) 판정은 라이브 DraggedSlot 이 아니라 스냅샷으로 한다. 호버 전환이 그리드를
+    //   재바인딩하면 시각 칸은 딴 인벤의 딴 아이템을 물고 있을 수 있다 - 진실은 드래그 시작 때 박제한 스냅샷.
+    private bool CompatDrag(InventoryDragHandler dh)
+    {
+        var src = Source;
+        return dh != null && dh.IsDragging && src != null
+               && dh.SrcManager == src && dh.SourceStillValid();
+    }
+
     private void Update()
     {
         var dh = InventoryDragHandler.Instance;
-        var src = Source;
-        bool compat = dh != null && dh.IsDragging && dh.DraggedSlot != null && !dh.DraggedSlot.IsEmpty
-                      && src != null && dh.DraggedSlot.Owner == src;
-        if (highlight != null) highlight.color = compat ? activeColor : idleColor;
-        if (highlightFrame != null && highlightFrame.activeSelf != compat) highlightFrame.SetActive(compat);
+        bool dragging = dh != null && dh.IsDragging;
+        // 강조 = "여기 놓으면 들어간다"(호환 드래그) 또는 "지금 여기로 펼친다"(드래그 호버).
+        // 물결 프레임도 같이 - 왔다갔다할 때마다 닿는 쪽이 반짝여서 전환 피드백이 된다.
+        bool fx = CompatDrag(dh) || (dragging && _hovering);
+        if (highlight != null) highlight.color = fx ? activeColor : idleColor;
+        if (highlightFrame != null && highlightFrame.activeSelf != fx) highlightFrame.SetActive(fx);
     }
+
+    public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e)
+    {
+        _hovering = true;
+        var dh = InventoryDragHandler.Instance;
+        // 드래그 중 닿는 즉시 전환(머무름 없음 - 종욱: "바로바로 딱딱").
+        // 켜진 직후 0.05초 가드는 전환 반동만 막고, 사람이 마우스를 되돌리는 시간보다 짧아 체감 안 된다.
+        if (dh != null && dh.IsDragging && owner != null
+            && Time.unscaledTime - _enabledAt > 0.05f)
+            owner.RequestViewSwitch(toStorage);
+    }
+
+    public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e) { _hovering = false; }
+
+    private void OnEnable() { _enabledAt = Time.unscaledTime; }
 
     public void OnDrop(PointerEventData eventData)
     {
@@ -2421,6 +2468,7 @@ public class MachineTransferDropBox : MonoBehaviour, IDropHandler
 
     private void OnDisable()
     {
+        _hovering = false;   // 호버 전환 직후 박스가 꺼질 때 다음 등장을 위해 리셋
         if (highlight != null) highlight.color = idleColor;
         if (highlightFrame != null && highlightFrame.activeSelf) highlightFrame.SetActive(false);
     }

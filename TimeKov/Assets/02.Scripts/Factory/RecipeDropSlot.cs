@@ -307,9 +307,8 @@ public class RecipeDropSlot : MonoBehaviour,
         // InventoryDragHandler에서 드래그된 InventorySlotUI 슬롯 가져오기
         var handler = InventoryDragHandler.Instance;
         if (handler == null || !handler.IsDragging) return;
-
-        var draggedSlot = handler.DraggedSlot;
-        if (draggedSlot == null || draggedSlot.IsEmpty) return;
+        // (라이브 DraggedSlot 게이트는 안 둔다 - 뷰 전환 재바인딩 후 시각 칸이 비어 보여도
+        //  실제 출발 칸은 살아 있을 수 있다. 아래 SourceStillValid 가 진위를 가린다)
 
         // 라이브 시각 칸 대신 박제한 출발 슬롯 사용(컴팩트 표시에서 드래그 중 재렌더로 엉뚱한 재료 차감 방지).
         if (!handler.SourceStillValid()) return;

@@ -86,8 +86,12 @@ public class InventorySlotUI : MonoBehaviour,
 
         // 이 칸을 드래그 중인데 패널이 닫히면(ESC 등) OnEndDrag 가 영영 안 와서
         // 고스트 아이콘이 화면에 영구 잔존한다 - 여기서 드래그를 강제 종료.
+        // ★단, 칸이 '개별적으로' 꺼진 경우(activeSelf false)는 끝내지 않는다.
+        //   가방<->창고 호버 전환이 그리드를 풀처럼 재사용하며 남는 칸만 끄는데, 그때 드래그가
+        //   죽으면 손에 든 아이템이 증발한다. 패널이 닫혀 조상이 꺼진 경우(activeSelf 는 true)만
+        //   강제 종료한다. (고스트 잔존은 이제 핸들러의 마우스 뗌 안전망도 이중으로 막는다)
         var dh = InventoryDragHandler.Instance;
-        if (dh != null && dh.DraggedSlot == this) dh.EndDrag();
+        if (dh != null && dh.DraggedSlot == this && gameObject.activeSelf) dh.EndDrag();
     }
 
     private void Update()
@@ -123,10 +127,14 @@ public class InventorySlotUI : MonoBehaviour,
     }
 
     // 드래그 출발 슬롯이면 흐리게(회색) 처리 -> 어느 칸을 들었는지 시각 피드백. 상태 바뀔 때만 갱신.
+    // ★판정은 시각 칸 참조(DraggedSlot == this)가 아니라 스냅샷 정체성으로 한다.
+    //   뷰 전환 재바인딩 후에는 출발했던 시각 칸이 딴 인벤의 딴 아이템을 보여주므로,
+    //   '지금 그 아이템(같은 인벤 + 같은 실칸)을 보여주는 칸'이 어두워지는 게 맞다.
     private void DriveDragSourceDim()
     {
         var dh = InventoryDragHandler.Instance;
-        bool isSource = dh != null && dh.IsDragging && dh.DraggedSlot == this;
+        bool isSource = dh != null && dh.IsDragging && _slot != null && _owner != null
+                        && _owner == dh.SrcManager && _slot.slotIndex == dh.SrcSlotIndex;
         if (isSource == _wasDragSource) return;
         _wasDragSource = isSource;
         if (isSource)

@@ -440,9 +440,10 @@ public class FuelDropSlot : MonoBehaviour,
         var cfg = FuelConfig.Instance;
         if (cfg == null) return;
 
-        var draggedSlot = InventoryDragHandler.Instance.DraggedSlot;
-        if (draggedSlot == null || draggedSlot.IsEmpty) return;
-        if (draggedSlot.SlotData.itemId != cfg.fuelItemId) return;
+        // 라이브 시각 칸 대신 스냅샷으로 판정(뷰 전환 재바인딩 후 시각 칸은 딴 아이템일 수 있다).
+        var dh = InventoryDragHandler.Instance;
+        if (!dh.SourceStillValid()) return;
+        if (dh.SrcItemId != cfg.fuelItemId) return;
 
         if (borderImage != null) borderImage.color = hoverBorderColor;
         if (labelText   != null) labelText.text    = Loc.Get("연료 넣기");
@@ -478,9 +479,8 @@ public class FuelDropSlot : MonoBehaviour,
 
         var handler = InventoryDragHandler.Instance;
         if (handler == null || !handler.IsDragging) return;
-
-        var draggedSlot = handler.DraggedSlot;
-        if (draggedSlot == null || draggedSlot.IsEmpty) return;
+        // (라이브 DraggedSlot 게이트는 안 둔다 - 뷰 전환 재바인딩 후 시각 칸이 비어 보여도
+        //  실제 출발 칸은 살아 있을 수 있다. 진실은 아래 SourceStillValid 스냅샷 검사가 가린다)
 
         var cfg = FuelConfig.Instance;
         if (cfg == null) { Debug.LogWarning("[FuelDropSlot] FuelConfig 없음."); return; }

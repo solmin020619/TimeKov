@@ -12,9 +12,16 @@ public class InventoryDragHandler : MonoBehaviour
     [Header("드래그 고스트 이미지 (DragGhost 연결)")]
     [SerializeField] private Image ghostImage;
 
-    // 현재 드래그 중인 슬롯
+    // 현재 드래그 중인 시각 칸. ★죽을 수 있는 참조다 - 뷰 전환(가방<->창고 호버 전환)이
+    // 그리드를 재구성하면 이 칸이 꺼지거나 딴 인벤의 딴 아이템을 물게 재바인딩된다.
+    // 그래서 드래그 여부(IsDragging)를 이 참조에 걸지 않고, 소비자들은 아래 스냅샷을 쓴다.
     public InventorySlotUI DraggedSlot { get; private set; }
-    public bool IsDragging => DraggedSlot != null;
+
+    // ★독립 플래그. 예전엔 IsDragging => DraggedSlot != null 이라, 드래그 도중 출발 칸이
+    //   파괴/비활성되면 드래그가 '조용히' 꺼진 것으로 판정돼 고스트만 화면에 남았다.
+    //   드래그의 수명은 시각 칸이 아니라 BeginDrag~EndDrag 가 정한다.
+    private bool _dragging;
+    public bool IsDragging => _dragging;
 
     /// <summary>ALT 분할 드래그 시 이동할 수량. 0 = 전체 스택.</summary>
     public int  DragAmount  { get; private set; }
@@ -66,6 +73,7 @@ public class InventoryDragHandler : MonoBehaviour
 
         DraggedSlot = slot;
         DragAmount  = amount;
+        _dragging   = true;
 
         var src = slot.SlotData;
         _srcManager   = slot.Owner;
@@ -97,6 +105,7 @@ public class InventoryDragHandler : MonoBehaviour
     // 드래그 종료 (성공·실패 무관하게 항상 호출)
     public void EndDrag()
     {
+        _dragging   = false;
         DraggedSlot = null;
         DragAmount  = 0;
         _srcManager   = null;
@@ -106,13 +115,30 @@ public class InventoryDragHandler : MonoBehaviour
             ghostImage.gameObject.SetActive(false);
     }
 
+    private void Update()
+    {
+        if (!_dragging) return;
+
+        // 고스트는 출발 칸의 OnDrag 에 기대지 않고 여기서 직접 따라간다.
+        // ★뷰 전환 재구성으로 출발 칸이 꺼지면 UGUI 가 그 칸의 OnDrag 를 더는 안 불러서
+        //   고스트가 제자리에 박제된다 - 드래그 상태의 주인이 스스로 움직여야 견고하다.
+        UpdateDragPosition(Input.mousePosition);
+
+        // 안전망: 버튼을 뗐는데 드래그가 안 끝났으면(출발 칸이 꺼져 OnEndDrag 가 안 온 경우 등) 정리.
+        // 뗀 그 프레임은 건너뛴다 - EventSystem(실행순서 -1000)이 같은 프레임에 드롭을 먼저 처리하므로,
+        // 다음 프레임까지 남아 있는 드래그만 유령이다.
+        if (!Input.GetMouseButton(0) && !Input.GetMouseButtonUp(0))
+            EndDrag();
+    }
+
     // 드랍 수신 처리 (InventorySlotUI.OnDrop 에서 호출)
     public void HandleDrop(InventorySlotUI targetSlot)
     {
         if (!IsDragging || targetSlot == null) { EndDrag(); return; }
 
-        // 같은 시각 칸에 드랍하면 취소
-        if (DraggedSlot == targetSlot) { EndDrag(); return; }
+        // ★'같은 시각 칸' 취소 검사는 두지 않는다. 뷰 전환(호버 전환) 재바인딩 후에는 출발했던
+        //   그 시각 칸이 딴 인벤의 실칸을 보여줄 수 있어, 거기에 놓는 건 정당한 이동이다.
+        //   진짜 자기 자신(같은 인벤 + 같은 실칸 번호) 취소는 아래 스냅샷 검사가 잡는다.
 
         // 도착 슬롯은 드롭 순간의 시각 칸이 물고 있는 실슬롯을 그대로 사용(누른 칸이 곧 대상).
         var toSlot    = targetSlot.SlotData;
