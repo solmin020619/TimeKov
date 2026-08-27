@@ -50,6 +50,18 @@ public static class LocalizationLoader
 
         if (failed != null && failed.Count > 0 || tables == null || !tables.ContainsKey("Localization"))
         {
+            // 로컬 사본으로 폴백. 에디터는 레포 사본/캐시, 빌드는 동봉본(Resources/SheetBackup).
+            // ★이게 없으면 오프라인에서 번역이 통째로 빠져 한국어로만 뜬다. 게임 데이터와 달리
+            //   여기는 실패해도 진행되는 경로라 조용히 넘어가서 더 늦게 발견된다.
+            string local = LocalTableSource.TryRead(TableName);
+            if (local != null)
+            {
+                Debug.LogWarning("[LocalizationLoader] 현지화 시트 다운로드 실패 — 로컬 사본으로 대체");
+                ParseAndLoad(CsvReader.Parse(local));
+                onComplete?.Invoke(true);
+                yield break;
+            }
+
             Debug.LogWarning("[LocalizationLoader] 현지화 시트 다운로드 실패 — 한국어로 진행");
             onComplete?.Invoke(false);
             yield break;

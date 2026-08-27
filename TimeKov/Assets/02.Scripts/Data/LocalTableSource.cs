@@ -15,14 +15,18 @@
 //   내 작업 트리에 CSV 변경이 계속 생겨서, 커밋할 때마다 관계없는 데이터 변경이 섞였다.
 //   갱신은 캐시가 받고, 레포 사본은 사람이 원할 때만 손대게 한다.
 //
-// [읽는 순서] 캐시 -> 레포 사본. 새로 클론한 직후엔 캐시가 없으니 레포 사본으로 뜬다.
+//   3) 빌드 동봉본 : Assets/Resources/SheetBackup/<테이블>.txt
+//      빌드 직전에 BuildSheetBackupEmbedder 가 레포 사본을 복사해 넣는다.
+//      인터넷이 없거나 구글이 막혔을 때 게임이 아예 안 켜지는 것을 막는 최후 폴백.
+//
+// [읽는 순서] 에디터: 캐시 -> 레포 사본 / 빌드: 동봉본. 새로 클론한 직후엔 캐시가 없으니 레포 사본으로 뜬다.
 //
 // [왜 있나 - 레포 사본]
 //   2026-08-02 에 DropTable 시트가 실수로 영구삭제돼 게임이 아예 안 떴다.
 //   테이블 하나가 사라지면 GameDataHolder 로드가 통째로 실패하는 구조라,
 //   시트 사고 한 번에 팀 전원이 작업을 못 한다.
 //
-// 에디터 전용: 빌드에는 이 폴더들이 없다. 정식 빌드는 항상 시트가 원본.
+// 어느 경로로 뜨든 원본은 시트다. 폴백은 '시트를 못 받았을 때만' 쓰이고, 받으면 항상 시트가 이긴다.
 // =====================================================================
 
 using UnityEngine;
@@ -99,7 +103,23 @@ public static class LocalTableSource
     public static string PendingPath(string tableName)
         => System.IO.Path.Combine(DirFull, tableName + ".pending.csv");
 #else
-    // 빌드에는 로컬 경로가 없다. 항상 시트에서 받는다.
-    public static string TryRead(string tableName) => null;
+    /// <summary>
+    /// 빌드에 동봉한 사본을 읽는다. 시트를 못 받았을 때만 쓰인다(시트가 되면 항상 시트가 이긴다).
+    ///
+    /// [왜 필요한가] 예전엔 빌드에서 이게 null 이라 폴백이 아예 없었다. 인터넷이 없거나
+    ///   구글이 잠깐 막히면 로딩씬이 "재시도 중"만 반복하며 게임에 못 들어갔다. 시연/심사처럼
+    ///   네트워크를 통제 못 하는 자리에서 게임이 안 켜지는 건 감수할 수 없는 실패다.
+    ///
+    /// 파일은 BuildSheetBackupEmbedder(빌드 직전 훅)가 Resources/SheetBackup 으로 복사한다.
+    /// ★확장자가 .txt 인 이유: 유니티는 .csv 를 TextAsset 으로 잡지 않는다.
+    /// </summary>
+    public static string TryRead(string tableName)
+    {
+        var asset = Resources.Load<TextAsset>(ResourcePath + tableName);
+        return asset != null && !string.IsNullOrWhiteSpace(asset.text) ? asset.text : null;
+    }
 #endif
+
+    /// <summary>빌드 동봉본의 Resources 경로(확장자 없이). 에디터의 복사 훅과 공유한다.</summary>
+    public const string ResourcePath = "SheetBackup/";
 }

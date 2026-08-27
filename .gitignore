@@ -45,3 +45,8 @@ $RECYCLE.BIN/
 Documentation/sheet_backup/*.pending.csv
 
 CLAUDE.local.md
+
+# 빌드 직전 훅(BuildSheetBackupEmbedder)이 만드는 오프라인 폴백 사본.
+# 원본은 Documentation/sheet_backup 이라 커밋할 이유가 없다(같은 내용 두 벌 = 디프만 두 배).
+TimeKov/Assets/Resources/SheetBackup/
+TimeKov/Assets/Resources/SheetBackup.meta
