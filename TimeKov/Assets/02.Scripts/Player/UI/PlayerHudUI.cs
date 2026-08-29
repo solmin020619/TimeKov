@@ -54,6 +54,12 @@ public class PlayerHudUI : MonoBehaviour
     [Tooltip("스태미나가 최대치로 판단되는 오차 범위. 0.1이면 MaxStamina - 0.1 이상부터 최대치로 판단")]
     [SerializeField] private float staminaFullThreshold = 0.1f;
 
+    [Tooltip("스태미나 UI 가 나타나는 시간(초). 짧아야 쓰기 시작한 순간 바로 보인다.")]
+    [Range(0.01f, 1f)] [SerializeField] private float staminaFadeInTime = 0.1f;
+
+    [Tooltip("스태미나 UI 가 사라지는 시간(초). 길수록 부드럽게 없어진다.")]
+    [Range(0.05f, 3f)] [SerializeField] private float staminaFadeOutTime = 0.6f;
+
     [Header("Exhausted 피드백")]
     [Tooltip("스태미나 30% 이하 진입 시 활성화할 오브젝트")]
     [SerializeField] private GameObject exhaustedIndicator;
@@ -156,6 +162,7 @@ public class PlayerHudUI : MonoBehaviour
 
     // 플레이어 옆 스태미나 UI 표시/숨김 제어용
     private float _staminaHideTimer;
+    private CanvasGroup _staminaWorldGroup;
 
     void Start()
     {
@@ -504,26 +511,32 @@ public class PlayerHudUI : MonoBehaviour
 
         bool isStaminaFull = current >= max - staminaFullThreshold;
 
-        // 스태미나가 최대치가 아니면 UI 표시
-        if (!isStaminaFull)
-        {
-            if (!staminaWorldUIRoot.activeSelf)
-                staminaWorldUIRoot.SetActive(true);
+        // 최대치가 아니라는 건 곧 '쓰는 중이거나 회복 중'이라는 뜻이다 — 그때만 보여 준다.
+        if (!isStaminaFull) _staminaHideTimer = staminaHideDelay;
+        else if (_staminaHideTimer > 0f) _staminaHideTimer -= Time.deltaTime;
 
-            _staminaHideTimer = staminaHideDelay;
-            return;
+        bool show = !isStaminaFull || _staminaHideTimer > 0f;
+
+        // ★껐다 켜지 않고 알파로 서서히 지운다. SetActive 로 끊어 버리면 회복이 끝나는
+        //   순간 UI 가 툭 사라져 눈에 거슬린다. 오브젝트는 계속 켜 두고 투명도만 옮긴다.
+        if (!staminaWorldUIRoot.activeSelf) staminaWorldUIRoot.SetActive(true);
+
+        if (_staminaWorldGroup == null)
+        {
+            _staminaWorldGroup = staminaWorldUIRoot.GetComponent<CanvasGroup>();
+            if (_staminaWorldGroup == null)
+                _staminaWorldGroup = staminaWorldUIRoot.AddComponent<CanvasGroup>();
+
+            // ★만들자마자 지금 상태로 맞춘다. CanvasGroup 의 기본 alpha 는 1 이라, 그냥 두면
+            //   숨겨야 할 상황에서도 첫 프레임에 한 번 보였다가 사라진다(게임 시작 직후 깜빡임).
+            _staminaWorldGroup.alpha = show ? 1f : 0f;
         }
 
-        // 스태미나가 최대치로 꽉 차면 일정 시간 뒤 UI 숨김
-        if (_staminaHideTimer > 0f)
-        {
-            _staminaHideTimer -= Time.deltaTime;
-        }
-        else
-        {
-            if (staminaWorldUIRoot.activeSelf)
-                staminaWorldUIRoot.SetActive(false);
-        }
+        // 나타날 땐 빠르게(쓰기 시작한 순간 바로 보여야 한다), 사라질 땐 느리게.
+        float seconds = show ? staminaFadeInTime : staminaFadeOutTime;
+        _staminaWorldGroup.alpha = Mathf.MoveTowards(
+            _staminaWorldGroup.alpha, show ? 1f : 0f,
+            Time.deltaTime / Mathf.Max(0.01f, seconds));
     }
 
     // TIME 텍스트 갱신

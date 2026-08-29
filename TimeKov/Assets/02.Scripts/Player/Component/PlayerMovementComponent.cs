@@ -62,6 +62,10 @@ public class PlayerMovementComponent : MonoBehaviour
     [Tooltip("낭떠러지 이탈 후 이 시간 동안 점프 허용(코요테 타임)")]
     public float CoyoteTime = 0.12f;
 
+    [Tooltip("대시 키를 누르고 있으면 대시가 끝난 뒤 그대로 달리기로 이어간다.\n" +
+             "끄면 달리기는 Shift 로만 된다(예전 동작).")]
+    public bool SprintAfterDashHold = true;
+
     [Header("Ground Snap (언덕/내리막 밀착)")]
     [Tooltip("접지 상태에서 발밑 이 거리 내에 지면이 있으면 붙여, 언덕 꼭대기/내리막에서 뜨지 않게 한다. 이보다 큰 낙차는 진짜 낙하로 처리")]
     public float GroundSnapDistance = 0.5f;
@@ -614,10 +618,24 @@ public class PlayerMovementComponent : MonoBehaviour
         }
 
         // UI 열려있을 때 스프린트 무시 (팀원 추가)
-        bool isSprinting = !PlayerInputComponent.IsBlocked
-                        && Input.GetKey(KeyCode.LeftShift)
-                        && _player.Stat.TryDrainSprintStamina()
+        //
+        // ★조건 순서가 중요하다. TryDrainSprintStamina 는 '물어보는' 함수가 아니라 부르는 즉시
+        //   스태미나를 깎는다. && 는 왼쪽부터 평가하고 거짓이 나오면 멈추므로, 이동 검사가
+        //   그 뒤에 있으면 제자리에 선 채 Shift 만 눌러도 매 프레임 스태미나가 빠졌다.
+        //   (달리지도 않는데 스태미나 바가 계속 떠 있던 원인)
+        //   -> 실제로 달릴 조건을 먼저 다 확인하고, 마지막에만 깎는다.
+        // ★대시 키를 누르고 있으면 대시가 끝난 뒤 그대로 달리기로 이어진다.
+        //   대시 입력은 GetKeyDown 이라 누르고 있어도 다시 나가지 않는다. 그래서 '눌린 채로'는
+        //   달리기 의사로 읽어도 안전하다. 대시 도중에는 FixedUpdate 가 전용 분기로 빠지므로
+        //   여기까지 오지 않고, 대시가 끝난 프레임부터 자연스럽게 달리기가 시작된다.
+        bool sprintKey = Input.GetKey(KeyCode.LeftShift)
+                      || (SprintAfterDashHold && Input.GetKey(KeyBindings.Dash));
+
+        bool wantsSprint = !PlayerInputComponent.IsBlocked
+                        && sprintKey
                         && _moveDir.magnitude > 0.1f;
+
+        bool isSprinting = wantsSprint && _player.Stat.TryDrainSprintStamina();
 
         IsSprinting = isSprinting; // 외부(PlayerStatComponent 스태미나 재생)에서 참조
 
