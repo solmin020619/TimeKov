@@ -84,7 +84,6 @@ public class PlayerAnimatorComponent : MonoBehaviour
     private int _jumpArmLayer = -1;
     private bool _hasJumpSpeed;      // JumpSpeed 파라미터가 컨트롤러에 있는가(도구 적용 여부)
     private float _jumpClipLength;   // 점프 클립 길이(초) — 한 번 찾으면 캐시
-    private bool _holding;           // 지금 체공 자세로 멈춰(흔들리며) 있는가
     private float _jumpGrace;
     private bool _jumpHeld;   // 점프로 레이어를 붙잡고 있는가(착지하면 놓는다)
     private bool _leftGround; // 이번 점프에서 실제로 발이 땅에서 떨어진 적이 있는가
@@ -316,20 +315,17 @@ public class PlayerAnimatorComponent : MonoBehaviour
         if (toLand <= remain)
         {
             float rate = remain / Mathf.Max(toLand, 0.01f);
-            _holding = false;
             _anim.SetFloat(JumpSpeedHash, Mathf.Clamp(rate, 1f, JumpLandMaxRate));
             return;
         }
 
         // 체공 자세로 정지. 눈에 보이는 흔들림은 LateUpdate 가 뼈에 직접 준다(ApplyHoldSway).
-        _holding = true;
         _anim.SetFloat(JumpSpeedHash, 0f);
     }
 
     /// <summary>점프 클립을 정상 재생으로 되돌린다(멈춤 상태 해제).</summary>
     private void ResumeJumpClip()
     {
-        _holding = false;
         _anim.SetFloat(JumpSpeedHash, 1f);
     }
 
@@ -363,7 +359,6 @@ public class PlayerAnimatorComponent : MonoBehaviour
         _jumpGrace = 0f;
         _jumpHeld = false;
         _leftGround = false;
-        _holding = false;
         _jumpLayerActive = false;   // 안 지우면 다음 프레임까지 상체가 Idle 로 눌려 있는다
         if (_hasJumpSpeed) _anim.SetFloat(JumpSpeedHash, 1f);   // 멈춘 채로 굳지 않게
         if (_jumpLayer >= 0)    _anim.SetLayerWeight(_jumpLayer, 0f);
@@ -464,7 +459,6 @@ public class PlayerAnimatorComponent : MonoBehaviour
         }
 
         // 앞선 점프가 체공 자세에서 멈춘 채로 끝났을 수 있다 — 새 점프는 정상 재생으로 시작한다.
-        _holding = false;
         if (_hasJumpSpeed) _anim.SetFloat(JumpSpeedHash, 1f);
 
         _anim.SetTrigger(JumpHash);
